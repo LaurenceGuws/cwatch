@@ -1,38 +1,46 @@
 import 'package:flutter/material.dart';
 
 import '../../../../models/ssh_host.dart';
+import '../../../theme/app_theme.dart';
+import '../../../theme/nerd_fonts.dart';
 
 class ServerTabChip extends StatelessWidget {
   const ServerTabChip({
     super.key,
     required this.host,
     required this.label,
+    required this.title,
     required this.icon,
     required this.selected,
     required this.onSelect,
     required this.onClose,
+    this.onRename,
+    required this.dragIndex,
   });
 
   final SshHost host;
   final String label;
+  final String title;
   final IconData icon;
   final bool selected;
   final VoidCallback onSelect;
   final VoidCallback onClose;
+  final VoidCallback? onRename;
+  final int dragIndex;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final background = selected ? colorScheme.primaryContainer : Colors.transparent;
-    final foreground = selected ? colorScheme.onPrimaryContainer : colorScheme.onSurfaceVariant;
-
+    final appTheme = context.appTheme;
+    final chipStyle = appTheme.tabChip.style(selected: selected, spacing: appTheme.spacing);
+    final foreground = chipStyle.foreground;
+    final spacing = appTheme.spacing;
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      margin: EdgeInsets.symmetric(horizontal: spacing.sm * 0.5, vertical: spacing.base * 0.75),
+      padding: chipStyle.padding,
       decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: selected ? colorScheme.primary : colorScheme.outlineVariant),
+        color: chipStyle.background,
+        borderRadius: chipStyle.borderRadius,
+        border: Border.all(color: chipStyle.borderColor),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -43,25 +51,36 @@ class ServerTabChip extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(icon, size: 18, color: foreground),
-                const SizedBox(width: 6),
+                SizedBox(width: spacing.sm * 0.75),
                 Text(
-                  '${host.name} • $label',
-                  style: TextStyle(
+                  title,
+                  style: appTheme.typography.tabLabel.copyWith(
                     color: foreground,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   ),
                 ),
               ],
             ),
           ),
+          if (onRename != null)
+            IconButton(
+              icon: Icon(NerdIcon.pencil.data, size: 16, color: foreground),
+              visualDensity: VisualDensity.compact,
+              splashRadius: 16,
+              tooltip: 'Rename tab',
+              onPressed: onRename,
+            ),
           IconButton(
-            icon: Icon(Icons.close, size: 16, color: foreground),
+            icon: Icon(NerdIcon.close.data, size: 16, color: foreground),
             visualDensity: VisualDensity.compact,
             splashRadius: 16,
             tooltip: 'Close tab',
             onPressed: onClose,
           ),
-          const Icon(Icons.drag_indicator, size: 16),
+          ReorderableDragStartListener(
+            index: dragIndex,
+            child: Icon(NerdIcon.drag.data, size: 16),
+          ),
         ],
       ),
     );

@@ -9,6 +9,9 @@ import '../../../../models/remote_file_entry.dart';
 import '../../../../models/ssh_host.dart';
 import '../../../../services/ssh/remote_shell_service.dart';
 import '../../../../services/ssh/remote_editor_cache.dart';
+import '../../../theme/app_theme.dart';
+import '../../../theme/nerd_fonts.dart';
+import 'file_icon_resolver.dart';
 import 'merge_conflict_dialog.dart';
 import 'remote_file_editor_dialog.dart';
 
@@ -30,21 +33,32 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
   final List<RemoteFileEntry> _entries = [];
   final TextEditingController _commandController = TextEditingController();
   final FocusNode _commandFocus = FocusNode();
-  final Set<String> _pathHistory = {'/'};
   final RemoteEditorCache _cache = RemoteEditorCache();
   final Map<String, _LocalFileSession> _localEdits = {};
   final Set<String> _syncingPaths = {};
   final Set<String> _refreshingPaths = {};
+  Set<String> _pathHistory = {'/'};
   TextEditingController? _pathFieldController;
 
   String _currentPath = '/';
   bool _loading = true;
   String? _error;
+  bool _showBreadcrumbs = true;
 
   @override
   void initState() {
     super.initState();
-    _loadPath(_currentPath);
+    _initializeExplorer();
+  }
+
+  Future<void> _initializeExplorer() async {
+    final home = await widget.shellService.homeDirectory(widget.host);
+    if (!mounted) {
+      return;
+    }
+    _currentPath = home.isNotEmpty ? home : '/';
+    _pathHistory = {_currentPath};
+    await _loadPath(_currentPath);
   }
 
   @override
@@ -57,26 +71,22 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(context),
+          _buildPathNavigator(context),
           const SizedBox(height: 12),
-          _buildBreadcrumbs(),
-          const SizedBox(height: 12),
-          _buildPathField(),
-          const SizedBox(height: 16),
           _buildCommandBar(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Expanded(
             child: Card(
               clipBehavior: Clip.antiAlias,
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : _error != null
-                      ? Center(child: Text(_error!))
-                      : _buildEntriesList(),
+                  ? Center(child: Text(_error!))
+                  : _buildEntriesList(),
             ),
           ),
         ],
@@ -84,44 +94,51 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildPathNavigator(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        Row(
           children: [
             Text(
-              'File Explorer',
-              style: Theme.of(context).textTheme.titleLarge,
+              _showBreadcrumbs ? 'Breadcrumbs' : 'Path input',
+              style: theme.textTheme.bodySmall,
             ),
-            Text(
-              'Host: ${widget.host.hostname}',
-              style: Theme.of(context).textTheme.bodySmall,
+            const Spacer(),
+            ToggleButtons(
+              isSelected: [_showBreadcrumbs, !_showBreadcrumbs],
+              onPressed: (index) {
+                setState(() => _showBreadcrumbs = index == 0);
+              },
+              borderRadius: BorderRadius.circular(10),
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 32),
+              children: const [
+                Icon(Icons.alt_route, size: 16),
+                Icon(Icons.text_fields, size: 16),
+              ],
             ),
           ],
         ),
-        Text(
-          'ls $_currentPath',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(fontFamily: 'monospace'),
-        ),
+        const SizedBox(height: 8),
+        if (_showBreadcrumbs) _buildBreadcrumbs() else _buildPathField(),
       ],
     );
   }
 
   Widget _buildBreadcrumbs() {
-    final segments = _currentPath.split('/').where((segment) => segment.isNotEmpty).toList();
+    final segments = _currentPath
+        .split('/')
+        .where((segment) => segment.isNotEmpty)
+        .toList();
     final chips = <Widget>[
-      ActionChip(
-        label: const Text('/'),
-        onPressed: () => _loadPath('/'),
-      ),
+      ActionChip(label: const Text('/'), onPressed: () => _loadPath('/')),
     ];
 
     var runningPath = '';
     for (final segment in segments) {
       runningPath += '/$segment';
-      chips.add(const Icon(Icons.chevron_right, size: 16));
+      chips.add(Icon(NerdIcon.arrowRight.data, size: 16));
       chips.add(
         ActionChip(
           label: Text(segment),
@@ -154,9 +171,9 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         return TextField(
           controller: controller,
           focusNode: focusNode,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Path',
-            prefixIcon: Icon(Icons.folder),
+            prefixIcon: Icon(NerdIcon.folder.data),
           ),
           onSubmitted: (value) => _loadPath(value),
         );
@@ -195,7 +212,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         labelText: 'Run command',
         prefixText: 'ssh ${widget.host.name}\$ ',
         suffixIcon: IconButton(
-          icon: const Icon(Icons.send),
+          icon: Icon(NerdIcon.terminal.data),
           onPressed: _runAdHocCommand,
         ),
       ),
@@ -204,7 +221,8 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
   }
 
   Widget _buildEntriesList() {
-    final sortedEntries = [..._entries]..sort((a, b) {
+    final sortedEntries = [..._entries]
+      ..sort((a, b) {
         if (a.isDirectory == b.isDirectory) {
           return a.name.compareTo(b.name);
         }
@@ -215,21 +233,33 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       return const Center(child: Text('Directory is empty.'));
     }
 
+    final dividerColor = context.appTheme.section.divider;
     return ListView.separated(
       itemCount: sortedEntries.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
+      separatorBuilder: (_, __) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Divider(height: 1, thickness: 1, color: dividerColor),
+      ),
       itemBuilder: (context, index) {
         final entry = sortedEntries[index];
         final remotePath = _joinPath(_currentPath, entry.name);
         final session = _localEdits[remotePath];
         return InkWell(
           onTap: entry.isDirectory ? () => _loadPath(remotePath) : null,
-          onSecondaryTapDown: (details) => _showEntryContextMenu(entry, details.globalPosition),
+          onSecondaryTapDown: (details) =>
+              _showEntryContextMenu(entry, details.globalPosition),
           child: ListTile(
-            leading: Icon(entry.isDirectory ? Icons.folder : Icons.insert_drive_file),
+            dense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 6,
+            ),
+            leading: Icon(FileIconResolver.iconFor(entry)),
             title: Text(entry.name),
             subtitle: Text(
-              entry.isDirectory ? 'Directory' : '${(entry.sizeBytes / 1024).toStringAsFixed(1)} KB',
+              entry.isDirectory
+                  ? 'Directory'
+                  : '${(entry.sizeBytes / 1024).toStringAsFixed(1)} KB',
             ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
@@ -243,9 +273,10 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
                             height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Icon(Icons.cloud_upload),
-                    onPressed:
-                        _syncingPaths.contains(remotePath) ? null : () => _syncLocalEdit(session),
+                        : Icon(NerdIcon.cloudUpload.data),
+                    onPressed: _syncingPaths.contains(remotePath)
+                        ? null
+                        : () => _syncLocalEdit(session),
                   ),
                   IconButton(
                     tooltip: 'Refresh cache from server',
@@ -255,14 +286,14 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
                             height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Icon(Icons.refresh),
+                        : Icon(NerdIcon.refresh.data),
                     onPressed: _refreshingPaths.contains(remotePath)
                         ? null
                         : () => _refreshCacheFromServer(session),
                   ),
                   IconButton(
                     tooltip: 'Clear cached copy',
-                    icon: const Icon(Icons.delete_outline),
+                    icon: Icon(NerdIcon.delete.data),
                     onPressed: () => _clearCachedCopy(session),
                   ),
                 ],
@@ -285,7 +316,13 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     });
     final target = _normalizePath(path);
     try {
-      final entries = await widget.shellService.listDirectory(widget.host, target);
+      final entries = await widget.shellService.listDirectory(
+        widget.host,
+        target,
+      );
+      if (!mounted) {
+        return;
+      }
       setState(() {
         _entries
           ..clear()
@@ -302,6 +339,9 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       });
       unawaited(_hydrateCachedSessions(entries, target));
     } catch (error) {
+      if (!mounted) {
+        return;
+      }
       setState(() {
         _loading = false;
         _error = error.toString();
@@ -320,42 +360,56 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     } else if (parts.first == 'ls') {
       _loadPath(parts.length > 1 ? parts[1] : _currentPath);
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Executed: $command')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Executed: $command')));
     _commandController.clear();
   }
 
-  Future<void> _showEntryContextMenu(RemoteFileEntry entry, Offset position) async {
+  Future<void> _showEntryContextMenu(
+    RemoteFileEntry entry,
+    Offset position,
+  ) async {
+    final menuItems = <PopupMenuEntry<_ExplorerContextAction>>[];
+    if (entry.isDirectory) {
+      menuItems.add(
+        const PopupMenuItem(
+          value: _ExplorerContextAction.open,
+          child: Text('Open'),
+        ),
+      );
+    } else {
+      menuItems.addAll([
+        const PopupMenuItem(
+          value: _ExplorerContextAction.openLocally,
+          child: Text('Open locally'),
+        ),
+        const PopupMenuItem(
+          value: _ExplorerContextAction.editFile,
+          child: Text('Edit (text)'),
+        ),
+        const PopupMenuItem(
+          value: _ExplorerContextAction.tail,
+          child: Text('Tail (preview)'),
+        ),
+      ]);
+    }
+    menuItems.add(
+      const PopupMenuItem(
+        value: _ExplorerContextAction.copyPath,
+        child: Text('Copy path'),
+      ),
+    );
+
     final action = await showMenu<_ExplorerContextAction>(
       context: context,
-      position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx, position.dy),
-      items: [
-        PopupMenuItem(
-          value: _ExplorerContextAction.open,
-          enabled: entry.isDirectory,
-          child: const Text('Open'),
-        ),
-        PopupMenuItem(
-          value: _ExplorerContextAction.copyPath,
-          child: const Text('Copy path'),
-        ),
-        PopupMenuItem(
-          value: _ExplorerContextAction.openLocally,
-          enabled: !entry.isDirectory,
-          child: const Text('Open locally'),
-        ),
-        PopupMenuItem(
-          value: _ExplorerContextAction.editFile,
-          enabled: !entry.isDirectory,
-          child: const Text('Edit (text)'),
-        ),
-        PopupMenuItem(
-          value: _ExplorerContextAction.tail,
-          enabled: !entry.isDirectory,
-          child: const Text('Tail (preview)'),
-        ),
-      ],
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx,
+        position.dy,
+      ),
+      items: menuItems,
     );
 
     if (!mounted) {
@@ -371,7 +425,9 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         if (!mounted) {
           return;
         }
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Copied $path')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Copied $path')));
         break;
       case _ExplorerContextAction.openLocally:
         await _openLocally(entry);
@@ -381,7 +437,11 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         break;
       case _ExplorerContextAction.tail:
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Tail preview not yet implemented for ${entry.name}.')),
+          SnackBar(
+            content: Text(
+              'Tail preview not yet implemented for ${entry.name}.',
+            ),
+          ),
         );
         break;
       case null:
@@ -398,14 +458,16 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       }
       final updated = await showDialog<String>(
         context: context,
-        builder: (context) => RemoteFileEditorDialog(
-          path: path,
-          initialContent: contents,
-        ),
+        builder: (context) =>
+            RemoteFileEditorDialog(path: path, initialContent: contents),
       );
       if (updated != null && updated != contents) {
         await widget.shellService.writeFile(widget.host, path, updated);
-        final localFile = await _cache.materialize(host: widget.host.name, remotePath: path, contents: updated);
+        final localFile = await _cache.materialize(
+          host: widget.host.name,
+          remotePath: path,
+          contents: updated,
+        );
         if (!mounted) {
           return;
         }
@@ -417,9 +479,9 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to edit file: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to edit file: $error')));
     }
   }
 
@@ -431,7 +493,10 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         remotePath: remotePath,
       );
       if (session == null) {
-        final contents = await widget.shellService.readFile(widget.host, remotePath);
+        final contents = await widget.shellService.readFile(
+          widget.host,
+          remotePath,
+        );
         session = await _cache.createSession(
           host: widget.host.name,
           remotePath: remotePath,
@@ -450,15 +515,19 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Opened local copy: ${session.workingPath}. Edit then press Sync.')),
+        SnackBar(
+          content: Text(
+            'Opened local copy: ${session.workingPath}. Edit then press Sync.',
+          ),
+        ),
       );
     } catch (error) {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to open locally: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to open locally: $error')));
     }
   }
 
@@ -471,24 +540,35 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       final snapshotFile = File(session.snapshotPath);
       final localContents = await workingFile.readAsString();
       final baseContents = await snapshotFile.readAsString();
-      final remoteContents = await widget.shellService.readFile(widget.host, session.remotePath);
+      final remoteContents = await widget.shellService.readFile(
+        widget.host,
+        session.remotePath,
+      );
 
       if (remoteContents == baseContents) {
-        await widget.shellService.writeFile(widget.host, session.remotePath, localContents);
+        await widget.shellService.writeFile(
+          widget.host,
+          session.remotePath,
+          localContents,
+        );
         await snapshotFile.writeAsString(localContents);
         session.lastSynced = DateTime.now();
         if (!mounted) {
           return;
         }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Synced ${session.remotePath} to remote host')),
+          SnackBar(
+            content: Text('Synced ${session.remotePath} to remote host'),
+          ),
         );
       } else if (localContents == baseContents) {
         await workingFile.writeAsString(remoteContents);
         await snapshotFile.writeAsString(remoteContents);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Remote changes pulled for ${session.remotePath}')), 
+            SnackBar(
+              content: Text('Remote changes pulled for ${session.remotePath}'),
+            ),
           );
         }
       } else {
@@ -498,22 +578,28 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
           remote: remoteContents,
         );
         if (merged != null) {
-          await widget.shellService.writeFile(widget.host, session.remotePath, merged);
+          await widget.shellService.writeFile(
+            widget.host,
+            session.remotePath,
+            merged,
+          );
           await workingFile.writeAsString(merged);
           await snapshotFile.writeAsString(merged);
           session.lastSynced = DateTime.now();
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Merged and synced ${session.remotePath}')),
+              SnackBar(
+                content: Text('Merged and synced ${session.remotePath}'),
+              ),
             );
           }
         }
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to sync: $error')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to sync: $error')));
       }
     } finally {
       if (mounted) {
@@ -529,7 +615,10 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       _refreshingPaths.add(session.remotePath);
     });
     try {
-      final remoteContents = await widget.shellService.readFile(widget.host, session.remotePath);
+      final remoteContents = await widget.shellService.readFile(
+        widget.host,
+        session.remotePath,
+      );
       final workingFile = File(session.localPath);
       final localContents = await workingFile.readAsString();
       String? nextWorking;
@@ -570,7 +659,10 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
   }
 
   Future<void> _clearCachedCopy(_LocalFileSession session) async {
-    await _cache.clearSession(host: widget.host.name, remotePath: session.remotePath);
+    await _cache.clearSession(
+      host: widget.host.name,
+      remotePath: session.remotePath,
+    );
     if (!mounted) {
       return;
     }
@@ -609,7 +701,10 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     if (editor == null || editor.isEmpty) {
       return null;
     }
-    final parts = editor.split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
+    final parts = editor
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
     if (parts.isEmpty) {
       return null;
     }
@@ -633,10 +728,9 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       return null;
     }
     final output = (result.stdout as String?) ?? '';
-    return output.split(RegExp(r'\r?\n')).firstWhere(
-      (line) => line.trim().isNotEmpty,
-      orElse: () => command,
-    );
+    return output
+        .split(RegExp(r'\r?\n'))
+        .firstWhere((line) => line.trim().isNotEmpty, orElse: () => command);
   }
 
   String _joinPath(String base, String name) {
@@ -653,7 +747,10 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     return '$base/$name';
   }
 
-  Future<void> _hydrateCachedSessions(List<RemoteFileEntry> entries, String basePath) async {
+  Future<void> _hydrateCachedSessions(
+    List<RemoteFileEntry> entries,
+    String basePath,
+  ) async {
     final updates = <String, _LocalFileSession>{};
     for (final entry in entries) {
       if (entry.isDirectory) {
@@ -721,7 +818,6 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       ),
     );
   }
-
 }
 
 enum _ExplorerContextAction { open, copyPath, openLocally, editFile, tail }

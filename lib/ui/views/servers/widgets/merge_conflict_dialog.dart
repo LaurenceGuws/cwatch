@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../theme/nerd_fonts.dart';
+
 class MergeConflictDialog extends StatefulWidget {
   const MergeConflictDialog({
     super.key,
@@ -111,7 +113,7 @@ class _MergeConflictDialogState extends State<MergeConflictDialog> {
         ),
         ElevatedButton.icon(
           onPressed: () => Navigator.of(context).pop(_mergedController.text),
-          icon: const Icon(Icons.check),
+          icon: Icon(NerdIcon.checkCircle.data),
           label: const Text('Apply Merge'),
         ),
       ],

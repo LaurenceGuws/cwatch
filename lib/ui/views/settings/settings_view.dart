@@ -55,85 +55,118 @@ class _SettingsViewState extends State<SettingsView>
               title: 'Settings',
               tabs: _tabs,
               controller: _tabController,
+              showTitle: false,
             ),
             Expanded(
               child: widget.controller.isLoaded
-                    ? TabBarView(
-                        controller: _tabController,
-                        children: [
-                          _GeneralSettingsTab(
-                            selectedTheme: settings.themeMode,
-                            notificationsEnabled: settings.notificationsEnabled,
-                            telemetryEnabled: settings.telemetryEnabled,
-                            zoomFactor: settings.zoomFactor,
-                            onThemeChanged: (mode) => widget.controller
-                                .update((current) => current.copyWith(themeMode: mode)),
-                            onNotificationsChanged: (value) => widget.controller.update(
-                              (current) => current.copyWith(notificationsEnabled: value),
-                            ),
-                            onTelemetryChanged: (value) => widget.controller.update(
-                              (current) => current.copyWith(telemetryEnabled: value),
-                            ),
-                            onZoomChanged: (value) => widget.controller
-                                .update((current) => current.copyWith(zoomFactor: value)),
+                  ? TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _GeneralSettingsTab(
+                          selectedTheme: settings.themeMode,
+                          notificationsEnabled: settings.notificationsEnabled,
+                          telemetryEnabled: settings.telemetryEnabled,
+                          zoomFactor: settings.zoomFactor,
+                          onThemeChanged: (mode) => widget.controller.update(
+                            (current) => current.copyWith(themeMode: mode),
                           ),
-                          _ServersSettingsTab(
-                            autoRefresh: settings.serverAutoRefresh,
-                            showOfflineHosts: settings.serverShowOffline,
-                            onAutoRefreshChanged: (value) => widget.controller.update(
-                              (current) => current.copyWith(serverAutoRefresh: value),
-                            ),
-                            onShowOfflineChanged: (value) => widget.controller.update(
-                              (current) => current.copyWith(serverShowOffline: value),
-                            ),
+                          onNotificationsChanged: (value) =>
+                              widget.controller.update(
+                                (current) => current.copyWith(
+                                  notificationsEnabled: value,
+                                ),
+                              ),
+                          onTelemetryChanged: (value) =>
+                              widget.controller.update(
+                                (current) =>
+                                    current.copyWith(telemetryEnabled: value),
+                              ),
+                          onZoomChanged: (value) => widget.controller.update(
+                            (current) => current.copyWith(zoomFactor: value),
                           ),
-                          _DockerSettingsTab(
-                            liveStatsEnabled: settings.dockerLiveStats,
-                            pruneWarningsEnabled: settings.dockerPruneWarnings,
-                            onLiveStatsChanged: (value) => widget.controller.update(
-                              (current) => current.copyWith(dockerLiveStats: value),
-                            ),
-                            onPruneWarningsChanged: (value) => widget.controller.update(
-                              (current) => current.copyWith(dockerPruneWarnings: value),
-                            ),
+                        ),
+                        _ServersSettingsTab(
+                          autoRefresh: settings.serverAutoRefresh,
+                          showOfflineHosts: settings.serverShowOffline,
+                          onAutoRefreshChanged: (value) =>
+                              widget.controller.update(
+                                (current) =>
+                                    current.copyWith(serverAutoRefresh: value),
+                              ),
+                          onShowOfflineChanged: (value) =>
+                              widget.controller.update(
+                                (current) =>
+                                    current.copyWith(serverShowOffline: value),
+                              ),
+                        ),
+                        _DockerSettingsTab(
+                          liveStatsEnabled: settings.dockerLiveStats,
+                          pruneWarningsEnabled: settings.dockerPruneWarnings,
+                          onLiveStatsChanged: (value) =>
+                              widget.controller.update(
+                                (current) =>
+                                    current.copyWith(dockerLiveStats: value),
+                              ),
+                          onPruneWarningsChanged: (value) =>
+                              widget.controller.update(
+                                (current) => current.copyWith(
+                                  dockerPruneWarnings: value,
+                                ),
+                              ),
+                        ),
+                        _KubernetesSettingsTab(
+                          autoDiscoverEnabled: settings.kubernetesAutoDiscover,
+                          includeSystemPods:
+                              settings.kubernetesIncludeSystemPods,
+                          onAutoDiscoverChanged: (value) =>
+                              widget.controller.update(
+                                (current) => current.copyWith(
+                                  kubernetesAutoDiscover: value,
+                                ),
+                              ),
+                          onIncludeSystemPodsChanged: (value) =>
+                              widget.controller.update(
+                                (current) => current.copyWith(
+                                  kubernetesIncludeSystemPods: value,
+                                ),
+                              ),
+                        ),
+                        _SecuritySettingsTab(
+                          mfaRequired: settings.mfaRequired,
+                          sshRotationEnabled: settings.sshRotationEnabled,
+                          auditStreamingEnabled: settings.auditStreamingEnabled,
+                          onMfaChanged: (value) => widget.controller.update(
+                            (current) => current.copyWith(mfaRequired: value),
                           ),
-                          _KubernetesSettingsTab(
-                            autoDiscoverEnabled: settings.kubernetesAutoDiscover,
-                            includeSystemPods: settings.kubernetesIncludeSystemPods,
-                            onAutoDiscoverChanged: (value) => widget.controller.update(
-                              (current) => current.copyWith(kubernetesAutoDiscover: value),
-                            ),
-                            onIncludeSystemPodsChanged: (value) => widget.controller.update(
-                              (current) => current.copyWith(kubernetesIncludeSystemPods: value),
-                            ),
-                          ),
-                          _SecuritySettingsTab(
-                            mfaRequired: settings.mfaRequired,
-                            sshRotationEnabled: settings.sshRotationEnabled,
-                            auditStreamingEnabled: settings.auditStreamingEnabled,
-                            onMfaChanged: (value) => widget.controller.update(
-                              (current) => current.copyWith(mfaRequired: value),
-                            ),
-                            onSshRotationChanged: (value) => widget.controller.update(
-                              (current) => current.copyWith(sshRotationEnabled: value),
-                            ),
-                            onAuditStreamingChanged: (value) => widget.controller.update(
-                              (current) => current.copyWith(auditStreamingEnabled: value),
-                            ),
-                          ),
-                          _AgentsSettingsTab(
-                            autoUpdateAgents: settings.autoUpdateAgents,
-                            agentAlertsEnabled: settings.agentAlertsEnabled,
-                            agents: _agents,
-                            onAutoUpdateChanged: (value) => widget.controller.update(
-                              (current) => current.copyWith(autoUpdateAgents: value),
-                            ),
-                            onAgentAlertsChanged: (value) => widget.controller.update(
-                              (current) => current.copyWith(agentAlertsEnabled: value),
-                            ),
-                          ),
-                        ],
-                      )
+                          onSshRotationChanged: (value) =>
+                              widget.controller.update(
+                                (current) =>
+                                    current.copyWith(sshRotationEnabled: value),
+                              ),
+                          onAuditStreamingChanged: (value) =>
+                              widget.controller.update(
+                                (current) => current.copyWith(
+                                  auditStreamingEnabled: value,
+                                ),
+                              ),
+                        ),
+                        _AgentsSettingsTab(
+                          autoUpdateAgents: settings.autoUpdateAgents,
+                          agentAlertsEnabled: settings.agentAlertsEnabled,
+                          agents: _agents,
+                          onAutoUpdateChanged: (value) =>
+                              widget.controller.update(
+                                (current) =>
+                                    current.copyWith(autoUpdateAgents: value),
+                              ),
+                          onAgentAlertsChanged: (value) =>
+                              widget.controller.update(
+                                (current) =>
+                                    current.copyWith(agentAlertsEnabled: value),
+                              ),
+                        ),
+                      ],
+                    )
                   : const Center(child: CircularProgressIndicator()),
             ),
           ],
@@ -295,18 +328,23 @@ class _ServersSettingsTab extends StatelessWidget {
           child: SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Auto-refresh server stats'),
-            subtitle: const Text('Periodically sync CPU, memory, and disk gauges.'),
+            subtitle: const Text(
+              'Periodically sync CPU, memory, and disk gauges.',
+            ),
             value: autoRefresh,
             onChanged: onAutoRefreshChanged,
           ),
         ),
         _SettingsSection(
           title: 'Visibility',
-          description: 'Choose whether to show offline hosts in the servers list.',
+          description:
+              'Choose whether to show offline hosts in the servers list.',
           child: SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Show offline hosts'),
-            subtitle: const Text('Keep historical hosts visible for quick triage.'),
+            subtitle: const Text(
+              'Keep historical hosts visible for quick triage.',
+            ),
             value: showOfflineHosts,
             onChanged: onShowOfflineChanged,
           ),
@@ -340,18 +378,23 @@ class _DockerSettingsTab extends StatelessWidget {
           child: SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Enable live stats streaming'),
-            subtitle: const Text('Container CPU/memory metrics update every 2 seconds.'),
+            subtitle: const Text(
+              'Container CPU/memory metrics update every 2 seconds.',
+            ),
             value: liveStatsEnabled,
             onChanged: onLiveStatsChanged,
           ),
         ),
         _SettingsSection(
           title: 'Maintenance',
-          description: 'Display safety prompts before pruning unused resources.',
+          description:
+              'Display safety prompts before pruning unused resources.',
           child: SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Warn before prune'),
-            subtitle: const Text('Surface a confirmation dialog before deleting dangling images.'),
+            subtitle: const Text(
+              'Surface a confirmation dialog before deleting dangling images.',
+            ),
             value: pruneWarningsEnabled,
             onChanged: onPruneWarningsChanged,
           ),
@@ -385,7 +428,9 @@ class _KubernetesSettingsTab extends StatelessWidget {
           child: SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Auto-discover contexts'),
-            subtitle: const Text('Watch ~/.kube for newly added kubeconfig files.'),
+            subtitle: const Text(
+              'Watch ~/.kube for newly added kubeconfig files.',
+            ),
             value: autoDiscoverEnabled,
             onChanged: onAutoDiscoverChanged,
           ),
@@ -396,7 +441,9 @@ class _KubernetesSettingsTab extends StatelessWidget {
           child: SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Include system pods'),
-            subtitle: const Text('Show kube-system and istio-* namespaces in resource explorer.'),
+            subtitle: const Text(
+              'Show kube-system and istio-* namespaces in resource explorer.',
+            ),
             value: includeSystemPods,
             onChanged: onIncludeSystemPodsChanged,
           ),

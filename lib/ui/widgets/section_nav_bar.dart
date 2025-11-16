@@ -6,11 +6,13 @@ class SectionNavBar extends StatelessWidget {
     required this.title,
     required this.tabs,
     this.controller,
+    this.showTitle = true,
   });
 
   final String title;
   final List<Widget> tabs;
   final TabController? controller;
+  final bool showTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -21,24 +23,25 @@ class SectionNavBar extends StatelessWidget {
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
-            mainAxisAlignment:
-                hasTabs ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
+            mainAxisAlignment: hasTabs
+                ? MainAxisAlignment.spaceBetween
+                : MainAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+              if (showTitle && title.isNotEmpty)
+                Text(title, style: Theme.of(context).textTheme.titleLarge),
               if (hasTabs)
                 Flexible(
                   child: SizedBox(
-                    height: 48,
+                    height: 42,
                     child: TabBar(
                       controller: controller,
                       tabs: tabs,
                       labelColor: Theme.of(context).colorScheme.primary,
-                      unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                      unselectedLabelColor: Theme.of(
+                        context,
+                      ).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),

@@ -38,6 +38,31 @@ class RemoteShellService {
     return _parseLsOutput(result.stdout as String, sanitizedPath);
   }
 
+  Future<String> homeDirectory(
+    SshHost host, {
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
+    final result = await Process.run(
+      'ssh',
+      [
+        '-o',
+        'BatchMode=yes',
+        '-o',
+        'StrictHostKeyChecking=no',
+        host.name,
+        'echo \$HOME',
+      ],
+      stdoutEncoding: utf8,
+      stderrEncoding: utf8,
+      runInShell: false,
+    ).timeout(timeout);
+    if (result.exitCode != 0) {
+      return '/';
+    }
+    final output = (result.stdout as String?)?.trim();
+    return (output == null || output.isEmpty) ? '/' : output;
+  }
+
   Future<String> readFile(
     SshHost host,
     String path, {

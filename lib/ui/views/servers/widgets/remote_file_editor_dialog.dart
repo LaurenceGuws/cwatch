@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../../services/code/tree_sitter_support.dart';
+import '../../../theme/nerd_fonts.dart';
+import 'code_highlighter.dart';
+import 'tree_sitter_editing_controller.dart';
+
 class RemoteFileEditorDialog extends StatefulWidget {
   const RemoteFileEditorDialog({
     super.key,
@@ -17,50 +22,96 @@ class RemoteFileEditorDialog extends StatefulWidget {
 }
 
 class _RemoteFileEditorDialogState extends State<RemoteFileEditorDialog> {
-  late final TextEditingController _controller;
+  late final TreeSitterEditingController _controller;
+  TreeSitterSession? _session;
+  final ScrollController _scrollController = ScrollController();
   bool _dirty = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.initialContent);
-    _controller.addListener(() {
-      if (!_dirty && _controller.text != widget.initialContent) {
-        setState(() {
-          _dirty = true;
-        });
-      }
-    });
+    _controller = TreeSitterEditingController(
+      text: widget.initialContent,
+      syntaxHighlighter: PlainCodeHighlighter(),
+    )..addListener(_handleTextChange);
+    _loadTreeSitterSession();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _controller.updateHighlighter(_buildHighlighter(_session));
   }
 
   @override
   void dispose() {
+    _scrollController.dispose();
+    _controller.removeListener(_handleTextChange);
     _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final width = size.width * 0.85;
+    final height = size.height * 0.75;
+    final codeStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
+      fontFamily: NerdFonts.family,
+      height: 1.35,
+    );
     return AlertDialog(
+      insetPadding: const EdgeInsets.all(16),
       title: Text('Editing ${widget.path}'),
+      contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
       content: SizedBox(
-        width: 600,
+        width: width,
+        height: height,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (widget.helperText != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(widget.helperText!),
               ),
-            TextField(
-              controller: _controller,
-              maxLines: 20,
-              minLines: 10,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Card(
+                      clipBehavior: Clip.antiAlias,
+                      child: Scrollbar(
+                        controller: _scrollController,
+                        child: TextField(
+                          controller: _controller,
+                          scrollController: _scrollController,
+                          keyboardType: TextInputType.multiline,
+                          textInputAction: TextInputAction.newline,
+                          expands: true,
+                          maxLines: null,
+                          minLines: null,
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.all(16),
+                          ),
+                          style: codeStyle,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  SizedBox(
+                    width: 240,
+                    child: _EditorInspector(
+                      path: widget.path,
+                      controller: _controller,
+                      helperText: widget.helperText,
+                      session: _session,
+                    ),
+                  ),
+                ],
               ),
-              style: const TextStyle(fontFamily: 'monospace'),
             ),
           ],
         ),
@@ -70,12 +121,110 @@ class _RemoteFileEditorDialogState extends State<RemoteFileEditorDialog> {
           onPressed: () => Navigator.of(context).pop<String?>(null),
           child: const Text('Cancel'),
         ),
-        ElevatedButton.icon(
-          onPressed: _dirty ? () => Navigator.of(context).pop(_controller.text) : null,
-          icon: const Icon(Icons.save),
+        FilledButton.icon(
+          onPressed: _dirty
+              ? () => Navigator.of(context).pop(_controller.text)
+              : null,
+          icon: Icon(NerdIcon.cloudUpload.data),
           label: const Text('Save'),
         ),
       ],
+    );
+  }
+
+  Future<void> _loadTreeSitterSession() async {
+    final session = await TreeSitterSession.forPath(widget.path);
+    if (!mounted) return;
+    setState(() {
+      _session = session;
+      _controller.updateHighlighter(_buildHighlighter(session));
+    });
+  }
+
+  void _handleTextChange() {
+    final dirty = _controller.text != widget.initialContent;
+    if (dirty != _dirty) {
+      setState(() {
+        _dirty = dirty;
+      });
+    } else {
+      setState(() {});
+    }
+  }
+
+  CodeSyntaxHighlighter _buildHighlighter(TreeSitterSession? session) {
+    final theme = CodeHighlightTheme.fromScheme(Theme.of(context).colorScheme);
+    if (session != null && session.isAvailable) {
+      return TreeSitterSyntaxHighlighter(session: session, theme: theme);
+    }
+    return PlainCodeHighlighter();
+  }
+}
+
+class _EditorInspector extends StatelessWidget {
+  const _EditorInspector({
+    required this.path,
+    required this.controller,
+    required this.helperText,
+    required this.session,
+  });
+
+  final String path;
+  final TextEditingController controller;
+  final String? helperText;
+  final TreeSitterSession? session;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final content = controller.text;
+    final lines = content.isEmpty ? 0 : content.split('\n').length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('File info', style: textTheme.titleMedium),
+        const SizedBox(height: 8),
+        _InspectorTile(label: 'Lines', value: '$lines'),
+        _InspectorTile(label: 'Characters', value: '${content.length}'),
+        _InspectorTile(label: 'Path', value: path),
+        const SizedBox(height: 16),
+        Text('Tree-sitter', style: textTheme.titleMedium),
+        const SizedBox(height: 8),
+        Text(session?.statusMessage ?? 'Loading...',
+            style: textTheme.bodySmall),
+        if (session?.languageLabel != null)
+          Text('Grammar: ${session!.languageLabel}', style: textTheme.bodySmall),
+        if (helperText != null) ...[
+          const SizedBox(height: 16),
+          Text('Notes', style: textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text(helperText!, style: textTheme.bodySmall),
+        ],
+      ],
+    );
+  }
+}
+
+class _InspectorTile extends StatelessWidget {
+  const _InspectorTile({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
+    final muted = theme.bodySmall?.color?.withValues(alpha: 0.7);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: theme.bodySmall?.copyWith(color: muted)),
+          const SizedBox(height: 2),
+          Text(value, style: theme.bodyMedium),
+        ],
+      ),
     );
   }
 }
