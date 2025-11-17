@@ -50,8 +50,27 @@ class TreeSitterEnvironment {
     }
   }
 
-  static String get languageDirectory =>
-      _languageDirectory ?? p.join(Directory.current.path, 'tree_sitter_libs');
+  static String get languageDirectory {
+    _languageDirectory ??= _resolveDefaultLanguageDirectory();
+    return _languageDirectory!;
+  }
+
+  static String _resolveDefaultLanguageDirectory() {
+    final env = Platform.environment;
+    String basePath;
+    if (Platform.isWindows) {
+      basePath =
+          env['APPDATA'] ?? env['LOCALAPPDATA'] ?? Directory.systemTemp.path;
+    } else {
+      basePath = env['HOME'] ?? Directory.systemTemp.path;
+      basePath = p.join(basePath, '.cache');
+    }
+    final dir = Directory(p.join(basePath, 'cwatch', 'tree_sitter_libs'));
+    if (!dir.existsSync()) {
+      dir.createSync(recursive: true);
+    }
+    return dir.path;
+  }
   static Future<String?> _prepareCoreLibrary() async {
     final descriptor = _PlatformDescriptor.current();
     if (descriptor == null) {
