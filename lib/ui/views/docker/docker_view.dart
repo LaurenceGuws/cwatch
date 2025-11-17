@@ -14,7 +14,7 @@ class DockerView extends StatelessWidget {
         SectionNavBar(title: 'Docker', tabs: const [], leading: leading),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.all(32),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             children: [
               Text(
                 'Container Runtimes',

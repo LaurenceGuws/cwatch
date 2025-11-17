@@ -1723,15 +1723,21 @@ class _ProcessTreeRow extends StatelessWidget {
   }
 
   String _buildPrefix(List<bool> ancestorFlags) {
-    if (ancestorFlags.isEmpty) return '';
+    if (ancestorFlags.isEmpty) {
+      return '';
+    }
+    const branch = '│   ';
+    const empty = '    ';
+    const tee = '├── ';
+    const last = '╰── ';
     final buffer = StringBuffer();
     for (var i = 0; i < ancestorFlags.length; i++) {
-      final isLast = ancestorFlags[i];
+      final isLastAncestor = ancestorFlags[i];
       final isTerminal = i == ancestorFlags.length - 1;
       if (isTerminal) {
-        buffer.write(isLast ? '`-- ' : '|-- ');
+        buffer.write(isLastAncestor ? last : tee);
       } else {
-        buffer.write(isLast ? '    ' : '|   ');
+        buffer.write(isLastAncestor ? empty : branch);
       }
     }
     return buffer.toString();

@@ -14,7 +14,7 @@ class KubernetesView extends StatelessWidget {
         SectionNavBar(title: 'Kubernetes', tabs: const [], leading: leading),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.all(32),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             children: [
               Text(
                 'Clusters',

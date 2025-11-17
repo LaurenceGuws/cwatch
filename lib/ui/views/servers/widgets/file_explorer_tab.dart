@@ -127,27 +127,24 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildPathNavigator(context),
-          const SizedBox(height: 12),
-          _buildCommandBar(),
-          const SizedBox(height: 12),
-          Expanded(
-            child: Card(
-              clipBehavior: Clip.antiAlias,
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error != null
-                  ? Center(child: Text(_error!))
-                  : _buildEntriesList(),
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildPathNavigator(context),
+        const SizedBox(height: 12),
+        _buildCommandBar(),
+        const SizedBox(height: 12),
+        Expanded(
+          child: Card(
+            clipBehavior: Clip.antiAlias,
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                    ? Center(child: Text(_error!))
+                    : _buildEntriesList(),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -287,7 +284,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     final dividerColor = context.appTheme.section.divider;
     return Focus(
       focusNode: _listFocusNode,
-      onKey: (node, event) =>
+      onKeyEvent: (node, event) =>
           _handleListKeyEvent(node, event, sortedEntries),
       child: GestureDetector(
         behavior: HitTestBehavior.deferToChild,
@@ -1340,19 +1337,22 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
 
   KeyEventResult _handleListKeyEvent(
     FocusNode node,
-    RawKeyEvent event,
+    KeyEvent event,
     List<RemoteFileEntry> entries,
   ) {
-    if (event is! RawKeyDownEvent) {
+    if (event is! KeyDownEvent) {
       return KeyEventResult.ignored;
     }
     if (entries.isEmpty) {
       return KeyEventResult.handled;
     }
 
-    final shift = event.isShiftPressed;
-    final multi = event.isControlPressed || event.isMetaPressed;
-    final isCtrl = event.isControlPressed || event.isMetaPressed;
+    final hardware = HardwareKeyboard.instance;
+    final shift = hardware.isShiftPressed;
+    final control = hardware.isControlPressed;
+    final meta = hardware.isMetaPressed;
+    final multi = control || meta;
+    final isCtrl = control || meta;
     if (isCtrl) {
       if (event.logicalKey == LogicalKeyboardKey.keyC) {
         final entry = _primarySelectedEntry(entries);
@@ -1377,7 +1377,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       final entry = _primarySelectedEntry(entries);
       if (entry != null) {
         unawaited(
-          _confirmDelete(entry, permanent: event.isShiftPressed),
+          _confirmDelete(entry, permanent: shift),
         );
       }
       return KeyEventResult.handled;

@@ -51,84 +51,81 @@ class _TrashTabState extends State<TrashTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Trash',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _refresh,
-              child: FutureBuilder<List<TrashedEntry>>(
-                future: _entriesFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Text('Failed to load trash: ${snapshot.error}'),
-                    );
-                  }
-                  final entries = [...(snapshot.data ?? const <TrashedEntry>[])];
-                  if (entries.isEmpty) {
-                    return const Center(child: Text('Trash is empty.'));
-                  }
-                  entries.sort(
-                    (a, b) => b.trashedAt.compareTo(a.trashedAt),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Trash',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        const SizedBox(height: 12),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _refresh,
+            child: FutureBuilder<List<TrashedEntry>>(
+              future: _entriesFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Failed to load trash: ${snapshot.error}'),
                   );
-                  return ListView.separated(
-                    itemCount: entries.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final entry = entries[index];
-                      return Card(
-                        child: ListTile(
-                          leading: Icon(
-                            entry.isDirectory
-                                ? Icons.folder
-                                : Icons.insert_drive_file,
-                          ),
-                          title: Text(entry.displayName),
-                          subtitle: Text(
-                            '${entry.hostName} · ${entry.remotePath}\nTrashed ${entry.trashedAt.toLocal()} · ${_formatBytes(entry.sizeBytes)}',
-                          ),
-                          isThreeLine: true,
-                          trailing: Wrap(
-                            spacing: 8,
-                            children: [
-                              IconButton(
-                                tooltip: 'Restore to ${entry.remotePath}',
-                                icon: const Icon(Icons.restore),
-                                onPressed: () => _restoreEntry(entry),
-                              ),
-                              IconButton(
-                                tooltip: 'Show in file browser',
-                                icon: const Icon(Icons.open_in_new),
-                                onPressed: () => _revealEntry(entry),
-                              ),
-                              IconButton(
-                                tooltip: 'Delete permanently',
-                                icon: const Icon(Icons.delete_forever),
-                                onPressed: () => _deleteEntry(entry),
-                              ),
-                            ],
-                          ),
+                }
+                final entries = [...(snapshot.data ?? const <TrashedEntry>[])];
+                if (entries.isEmpty) {
+                  return const Center(child: Text('Trash is empty.'));
+                }
+                entries.sort(
+                  (a, b) => b.trashedAt.compareTo(a.trashedAt),
+                );
+                return ListView.separated(
+                  itemCount: entries.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final entry = entries[index];
+                    return Card(
+                      child: ListTile(
+                        leading: Icon(
+                          entry.isDirectory
+                              ? Icons.folder
+                              : Icons.insert_drive_file,
                         ),
-                      );
-                    },
-                  );
-                },
-              ),
+                        title: Text(entry.displayName),
+                        subtitle: Text(
+                          '${entry.hostName} · ${entry.remotePath}\nTrashed ${entry.trashedAt.toLocal()} · ${_formatBytes(entry.sizeBytes)}',
+                        ),
+                        isThreeLine: true,
+                        trailing: Wrap(
+                          spacing: 8,
+                          children: [
+                            IconButton(
+                              tooltip: 'Restore to ${entry.remotePath}',
+                              icon: const Icon(Icons.restore),
+                              onPressed: () => _restoreEntry(entry),
+                            ),
+                            IconButton(
+                              tooltip: 'Show in file browser',
+                              icon: const Icon(Icons.open_in_new),
+                              onPressed: () => _revealEntry(entry),
+                            ),
+                            IconButton(
+                              tooltip: 'Delete permanently',
+                              icon: const Icon(Icons.delete_forever),
+                              onPressed: () => _deleteEntry(entry),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

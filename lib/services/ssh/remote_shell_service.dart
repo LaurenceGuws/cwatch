@@ -14,7 +14,8 @@ class RemoteShellService {
     Duration timeout = const Duration(seconds: 10),
   }) async {
     final sanitizedPath = _sanitizePath(path);
-    final lsCommand = "cd '${_escapeSingleQuotes(sanitizedPath)}' && ls -al --time-style=+%Y-%m-%dT%H:%M:%S";
+    final lsCommand =
+        "cd '${_escapeSingleQuotes(sanitizedPath)}' && ls -al --time-style=+%Y-%m-%dT%H:%M:%S";
     final result = await Process.run(
       'ssh',
       [
@@ -32,7 +33,11 @@ class RemoteShellService {
 
     if (result.exitCode != 0) {
       final stderrOutput = (result.stderr as String?)?.trim();
-      throw Exception(stderrOutput?.isNotEmpty == true ? stderrOutput : 'SSH exited with ${result.exitCode}');
+      throw Exception(
+        stderrOutput?.isNotEmpty == true
+            ? stderrOutput
+            : 'SSH exited with ${result.exitCode}',
+      );
     }
 
     return _parseLsOutput(result.stdout as String, sanitizedPath);
@@ -87,7 +92,9 @@ class RemoteShellService {
 
     if (result.exitCode != 0) {
       final message = (result.stderr as String?)?.trim();
-      throw Exception(message?.isNotEmpty == true ? message : 'Failed to read file');
+      throw Exception(
+        message?.isNotEmpty == true ? message : 'Failed to read file',
+      );
     }
     return result.stdout as String? ?? '';
   }
@@ -120,7 +127,9 @@ class RemoteShellService {
 
     if (result.exitCode != 0) {
       final message = (result.stderr as String?)?.trim();
-      throw Exception(message?.isNotEmpty == true ? message : 'Failed to write file');
+      throw Exception(
+        message?.isNotEmpty == true ? message : 'Failed to write file',
+      );
     }
   }
 
@@ -153,7 +162,7 @@ class RemoteShellService {
     final flag = recursive ? '-R ' : '';
     await _runHostCommand(
       host,
-      "cp ${flag}'${_escapeSingleQuotes(normalizedSource)}' '${_escapeSingleQuotes(normalizedDest)}'",
+      "cp $flag'${_escapeSingleQuotes(normalizedSource)}' '${_escapeSingleQuotes(normalizedDest)}'",
       timeout: timeout,
     );
   }
@@ -188,7 +197,7 @@ class RemoteShellService {
     final escapedDestination =
         "${destinationHost.name}:${_singleQuoteForShell(normalizedDest)}";
     final command =
-        "scp -o BatchMode=yes -o StrictHostKeyChecking=no ${recursiveFlag}$escapedSource $escapedDestination";
+        "scp -o BatchMode=yes -o StrictHostKeyChecking=no $recursiveFlag$escapedSource $escapedDestination";
     final result = await Process.run(
       'bash',
       ['-lc', command],
@@ -197,7 +206,9 @@ class RemoteShellService {
     ).timeout(timeout);
     if (result.exitCode != 0) {
       final message = (result.stderr as String?)?.trim();
-      throw Exception(message?.isNotEmpty == true ? message : 'Failed to copy files');
+      throw Exception(
+        message?.isNotEmpty == true ? message : 'Failed to copy files',
+      );
     }
   }
 
@@ -216,7 +227,7 @@ class RemoteShellService {
         "${host.name}:${_singleQuoteForShell(normalizedSource)}";
     final escapedDestination = _singleQuoteForShell(localDestination);
     final command =
-        "scp -o BatchMode=yes -o StrictHostKeyChecking=no ${recursiveFlag}$escapedSource $escapedDestination";
+        "scp -o BatchMode=yes -o StrictHostKeyChecking=no $recursiveFlag$escapedSource $escapedDestination";
     final result = await Process.run(
       'bash',
       ['-lc', command],
@@ -225,7 +236,9 @@ class RemoteShellService {
     ).timeout(timeout);
     if (result.exitCode != 0) {
       final message = (result.stderr as String?)?.trim();
-      throw Exception(message?.isNotEmpty == true ? message : 'Failed to download files');
+      throw Exception(
+        message?.isNotEmpty == true ? message : 'Failed to download files',
+      );
     }
   }
 
@@ -237,8 +250,8 @@ class RemoteShellService {
     Duration timeout = const Duration(minutes: 2),
   }) async {
     final normalizedDest = _sanitizePath(remoteDestination);
-    final source = FileSystemEntity.typeSync(localPath) ==
-            FileSystemEntityType.directory
+    final source =
+        FileSystemEntity.typeSync(localPath) == FileSystemEntityType.directory
         ? localPath
         : localPath;
     await _ensureRemoteDirectory(host, _dirname(normalizedDest));
@@ -247,7 +260,7 @@ class RemoteShellService {
     final escapedDestination =
         "${host.name}:${_singleQuoteForShell(normalizedDest)}";
     final command =
-        "scp -o BatchMode=yes -o StrictHostKeyChecking=no ${recursiveFlag}$escapedSource $escapedDestination";
+        "scp -o BatchMode=yes -o StrictHostKeyChecking=no $recursiveFlag$escapedSource $escapedDestination";
     final result = await Process.run(
       'bash',
       ['-lc', command],
@@ -256,7 +269,9 @@ class RemoteShellService {
     ).timeout(timeout);
     if (result.exitCode != 0) {
       final message = (result.stderr as String?)?.trim();
-      throw Exception(message?.isNotEmpty == true ? message : 'Failed to upload files');
+      throw Exception(
+        message?.isNotEmpty == true ? message : 'Failed to upload files',
+      );
     }
   }
 
@@ -297,7 +312,9 @@ class RemoteShellService {
     ).timeout(timeout);
     if (result.exitCode != 0) {
       final message = (result.stderr as String?)?.trim();
-      throw Exception(message?.isNotEmpty == true ? message : 'SSH command failed');
+      throw Exception(
+        message?.isNotEmpty == true ? message : 'SSH command failed',
+      );
     }
   }
 
@@ -305,10 +322,7 @@ class RemoteShellService {
     if (directory.isEmpty) {
       return;
     }
-    await _runHostCommand(
-      host,
-      "mkdir -p '${_escapeSingleQuotes(directory)}'",
-    );
+    await _runHostCommand(host, "mkdir -p '${_escapeSingleQuotes(directory)}'");
   }
 
   String _dirname(String path) {
@@ -323,7 +337,10 @@ class RemoteShellService {
   String _randomDelimiter() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final rand = Random();
-    return List.generate(12, (index) => chars[rand.nextInt(chars.length)]).join();
+    return List.generate(
+      12,
+      (index) => chars[rand.nextInt(chars.length)],
+    ).join();
   }
 
   List<RemoteFileEntry> _parseLsOutput(String stdout, String currentPath) {

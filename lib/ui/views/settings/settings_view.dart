@@ -234,12 +234,13 @@ class _GeneralSettingsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       children: [
         _SettingsSection(
           title: 'Theme',
           description: 'Switch between light, dark, or system themes.',
           child: DropdownButtonFormField<ThemeMode>(
+            isExpanded: true,
             initialValue: selectedTheme,
             onChanged: (mode) {
               if (mode != null) {
@@ -322,7 +323,7 @@ class _ServersSettingsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       children: [
         _SettingsSection(
           title: 'Inventory Refresh',
@@ -372,7 +373,7 @@ class _DockerSettingsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       children: [
         _SettingsSection(
           title: 'Monitoring',
@@ -422,7 +423,7 @@ class _KubernetesSettingsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       children: [
         _SettingsSection(
           title: 'Clusters',
@@ -475,7 +476,7 @@ class _SecuritySettingsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       children: [
         _SettingsSection(
           title: 'Access Controls',
@@ -540,7 +541,7 @@ class _AgentsSettingsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       children: [
         _SettingsSection(
           title: 'Agent Fleet',

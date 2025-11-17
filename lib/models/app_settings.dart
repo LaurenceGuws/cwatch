@@ -19,6 +19,7 @@ class AppSettings {
     this.kubernetesIncludeSystemPods = false,
     this.shellSidebarWidth,
     this.shellDestination,
+    this.shellSidebarCollapsed = false,
   });
 
   final ThemeMode themeMode;
@@ -38,6 +39,7 @@ class AppSettings {
   final bool kubernetesIncludeSystemPods;
   final double? shellSidebarWidth;
   final String? shellDestination;
+  final bool shellSidebarCollapsed;
 
   AppSettings copyWith({
     ThemeMode? themeMode,
@@ -57,6 +59,7 @@ class AppSettings {
     bool? kubernetesIncludeSystemPods,
     double? shellSidebarWidth,
     String? shellDestination,
+    bool? shellSidebarCollapsed,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -76,6 +79,8 @@ class AppSettings {
       kubernetesIncludeSystemPods: kubernetesIncludeSystemPods ?? this.kubernetesIncludeSystemPods,
       shellSidebarWidth: shellSidebarWidth ?? this.shellSidebarWidth,
       shellDestination: shellDestination ?? this.shellDestination,
+      shellSidebarCollapsed:
+          shellSidebarCollapsed ?? this.shellSidebarCollapsed,
     );
   }
 
@@ -110,6 +115,7 @@ class AppSettings {
       kubernetesIncludeSystemPods: json['kubernetesIncludeSystemPods'] as bool? ?? false,
       shellSidebarWidth: (json['shellSidebarWidth'] as num?)?.toDouble(),
       shellDestination: json['shellDestination'] as String?,
+      shellSidebarCollapsed: json['shellSidebarCollapsed'] as bool? ?? false,
     );
   }
 
@@ -132,6 +138,7 @@ class AppSettings {
       'kubernetesIncludeSystemPods': kubernetesIncludeSystemPods,
       'shellSidebarWidth': shellSidebarWidth,
       'shellDestination': shellDestination,
+      'shellSidebarCollapsed': shellSidebarCollapsed,
     };
   }
 }

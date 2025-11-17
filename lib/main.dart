@@ -198,6 +198,7 @@ class _HomeShellState extends State<HomeShell> {
       _selectedDestination = storedDestination;
     }
     _sidebarWidthOverride = settings.shellSidebarWidth;
+    _sidebarCollapsed = settings.shellSidebarCollapsed;
   }
 
   void _handleSidebarDrag(double delta) {
@@ -221,6 +222,7 @@ class _HomeShellState extends State<HomeShell> {
     setState(() {
       _sidebarCollapsed = !_sidebarCollapsed;
     });
+    _persistShellState(collapsed: _sidebarCollapsed);
   }
 
   void _handleDestinationSelected(ShellDestination destination) {
@@ -231,12 +233,18 @@ class _HomeShellState extends State<HomeShell> {
     _persistShellState(destination: destination);
   }
 
-  void _persistShellState({double? width, ShellDestination? destination}) {
+  void _persistShellState({
+    double? width,
+    ShellDestination? destination,
+    bool? collapsed,
+  }) {
     final targetDestination = destination ?? _selectedDestination;
     final settings = widget.settingsController.settings;
     final targetWidth = width ?? settings.shellSidebarWidth;
+    final targetCollapsed = collapsed ?? settings.shellSidebarCollapsed;
     if (settings.shellSidebarWidth == targetWidth &&
-        settings.shellDestination == targetDestination.name) {
+        settings.shellDestination == targetDestination.name &&
+        settings.shellSidebarCollapsed == targetCollapsed) {
       return;
     }
     unawaited(
@@ -244,6 +252,7 @@ class _HomeShellState extends State<HomeShell> {
         (current) => current.copyWith(
           shellSidebarWidth: targetWidth,
           shellDestination: targetDestination.name,
+          shellSidebarCollapsed: targetCollapsed,
         ),
       ),
     );
@@ -262,7 +271,7 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   double _defaultSidebarWidth(double viewportWidth) {
-    final desired = viewportWidth * 0.10;
+    final desired = viewportWidth * 0.25;
     final maxWidth = _maxSidebarWidth(viewportWidth);
     return desired.clamp(_sidebarMinWidth, maxWidth);
   }

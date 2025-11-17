@@ -51,7 +51,7 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
     final typography = appTheme.typography;
 
     return ListView(
-      padding: spacing.all(3),
+      padding: EdgeInsets.zero,
       children: [
         LayoutBuilder(
           builder: (context, constraints) {

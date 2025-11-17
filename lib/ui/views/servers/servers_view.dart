@@ -44,7 +44,12 @@ class _ServersViewState extends State<ServersView> {
           leading: widget.leading,
           trailing: _buildServersMenu(),
         ),
-        Expanded(child: workspace),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: workspace,
+          ),
+        ),
       ],
     );
   }
@@ -411,10 +416,7 @@ class _HostListState extends State<_HostList> {
   Widget build(BuildContext context) {
     final spacing = context.appTheme.spacing;
     return ListView.separated(
-      padding: EdgeInsets.symmetric(
-        horizontal: spacing.base * 2,
-        vertical: spacing.base * 1.5,
-      ),
+      padding: EdgeInsets.zero,
       itemBuilder: (context, index) {
         final host = widget.hosts[index];
         final availability = host.available ? 'Online' : 'Offline';
