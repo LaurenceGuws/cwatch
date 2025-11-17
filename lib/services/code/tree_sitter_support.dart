@@ -371,8 +371,21 @@ class TreeSitterLanguageRegistry {
     'dockerfile': 'dockerfile',
   };
 
+  static final Map<String, String> _basenameOverrides = {
+    '.bashrc': 'bash',
+    '.bash_profile': 'bash',
+    '.bash_logout': 'bash',
+    '.profile': 'bash',
+    '.zshrc': 'bash',
+  };
+
   static String? extensionForPath(String path) {
     final base = p.basename(path);
+    final normalizedBase = base.toLowerCase();
+    final basenameOverride = _basenameOverrides[normalizedBase];
+    if (basenameOverride != null) {
+      return basenameOverride;
+    }
     final idx = base.lastIndexOf('.');
     if (idx <= 0 || idx == base.length - 1) return null;
     return base.substring(idx + 1).toLowerCase();

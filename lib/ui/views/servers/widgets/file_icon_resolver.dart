@@ -255,7 +255,6 @@ class FileIconResolver {
     'go': NerdIcon.go,
     'php': NerdIcon.php,
     'hack': NerdIcon.php,
-    'hh': NerdIcon.php,
     'scala': NerdIcon.java,
     'groovy': NerdIcon.java,
     'lua': NerdIcon.settings,

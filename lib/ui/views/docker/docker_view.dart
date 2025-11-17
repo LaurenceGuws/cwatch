@@ -3,16 +3,15 @@ import 'package:flutter/material.dart';
 import '../../widgets/section_nav_bar.dart';
 
 class DockerView extends StatelessWidget {
-  const DockerView({super.key});
+  const DockerView({super.key, this.leading});
+
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const SectionNavBar(
-          title: 'Docker',
-          tabs: [],
-        ),
+        SectionNavBar(title: 'Docker', tabs: const [], leading: leading),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.all(32),

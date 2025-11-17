@@ -3,16 +3,15 @@ import 'package:flutter/material.dart';
 import '../../widgets/section_nav_bar.dart';
 
 class KubernetesView extends StatelessWidget {
-  const KubernetesView({super.key});
+  const KubernetesView({super.key, this.leading});
+
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const SectionNavBar(
-          title: 'Kubernetes',
-          tabs: [],
-        ),
+        SectionNavBar(title: 'Kubernetes', tabs: const [], leading: leading),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.all(32),

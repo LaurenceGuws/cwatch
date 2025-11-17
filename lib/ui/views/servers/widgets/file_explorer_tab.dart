@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -9,36 +10,55 @@ import '../../../../models/remote_file_entry.dart';
 import '../../../../models/ssh_host.dart';
 import '../../../../services/ssh/remote_shell_service.dart';
 import '../../../../services/ssh/remote_editor_cache.dart';
+import '../../../../services/filesystem/explorer_trash_manager.dart';
 import '../../../theme/app_theme.dart';
 import '../../../theme/nerd_fonts.dart';
 import 'file_icon_resolver.dart';
 import 'merge_conflict_dialog.dart';
 import 'remote_file_editor_dialog.dart';
+import 'explorer_clipboard.dart';
 
 class FileExplorerTab extends StatefulWidget {
   const FileExplorerTab({
     super.key,
     required this.host,
     this.shellService = const RemoteShellService(),
+    required this.trashManager,
   });
 
   final SshHost host;
   final RemoteShellService shellService;
+  final ExplorerTrashManager trashManager;
 
   @override
   State<FileExplorerTab> createState() => _FileExplorerTabState();
 }
 
 class _FileExplorerTabState extends State<FileExplorerTab> {
+  static const _shortcutCopy = 'Ctrl+C';
+  static const _shortcutCut = 'Ctrl+X';
+  static const _shortcutPaste = 'Ctrl+V';
+  static const _shortcutRename = 'F2';
+  static const _shortcutDelete = 'Delete';
+
   final List<RemoteFileEntry> _entries = [];
   final TextEditingController _commandController = TextEditingController();
   final FocusNode _commandFocus = FocusNode();
+  final FocusNode _listFocusNode = FocusNode(debugLabel: 'file-explorer-list');
   final RemoteEditorCache _cache = RemoteEditorCache();
   final Map<String, _LocalFileSession> _localEdits = {};
   final Set<String> _syncingPaths = {};
   final Set<String> _refreshingPaths = {};
   Set<String> _pathHistory = {'/'};
   TextEditingController? _pathFieldController;
+  final Set<String> _selectedPaths = {};
+  int? _selectionAnchorIndex;
+  int? _lastSelectedIndex;
+  bool _dragSelecting = false;
+  bool _dragSelectionAdditive = true;
+  late final VoidCallback _clipboardListener;
+  late final VoidCallback _cutEventListener;
+  late final VoidCallback _trashRestoreListener;
 
   String _currentPath = '/';
   bool _loading = true;
@@ -49,6 +69,39 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
   void initState() {
     super.initState();
     _initializeExplorer();
+    _clipboardListener = () {
+      if (mounted) {
+        setState(() {});
+      }
+    };
+    ExplorerClipboard.listenable.addListener(_clipboardListener);
+    _cutEventListener = () {
+      final event = ExplorerClipboard.cutEvents.value;
+      if (event == null || !mounted) {
+        return;
+      }
+      if (event.hostName != widget.host.name) {
+        return;
+      }
+      final parent = _parentDirectory(event.remotePath);
+      if (parent == _currentPath) {
+        unawaited(_loadPath(_currentPath));
+      }
+    };
+    ExplorerClipboard.cutEvents.addListener(_cutEventListener);
+    _trashRestoreListener = () {
+      final event = widget.trashManager.restoreEvents.value;
+      if (event == null || !mounted) {
+        return;
+      }
+      if (event.hostName != widget.host.name) {
+        return;
+      }
+      if (event.directory == _currentPath) {
+        unawaited(_loadPath(_currentPath));
+      }
+    };
+    widget.trashManager.restoreEvents.addListener(_trashRestoreListener);
   }
 
   Future<void> _initializeExplorer() async {
@@ -65,6 +118,10 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
   void dispose() {
     _commandController.dispose();
     _commandFocus.dispose();
+    _listFocusNode.dispose();
+    ExplorerClipboard.listenable.removeListener(_clipboardListener);
+    ExplorerClipboard.cutEvents.removeListener(_cutEventListener);
+    widget.trashManager.restoreEvents.removeListener(_trashRestoreListener);
     super.dispose();
   }
 
@@ -221,92 +278,141 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
   }
 
   Widget _buildEntriesList() {
-    final sortedEntries = [..._entries]
-      ..sort((a, b) {
-        if (a.isDirectory == b.isDirectory) {
-          return a.name.compareTo(b.name);
-        }
-        return a.isDirectory ? -1 : 1;
-      });
+    final sortedEntries = _currentSortedEntries();
 
     if (sortedEntries.isEmpty) {
       return const Center(child: Text('Directory is empty.'));
     }
 
     final dividerColor = context.appTheme.section.divider;
-    return ListView.separated(
-      itemCount: sortedEntries.length,
-      separatorBuilder: (_, __) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Divider(height: 1, thickness: 1, color: dividerColor),
-      ),
-      itemBuilder: (context, index) {
-        final entry = sortedEntries[index];
-        final remotePath = _joinPath(_currentPath, entry.name);
-        final session = _localEdits[remotePath];
-        return InkWell(
-          onTap: entry.isDirectory ? () => _loadPath(remotePath) : null,
-          onSecondaryTapDown: (details) =>
-              _showEntryContextMenu(entry, details.globalPosition),
-          child: ListTile(
-            dense: true,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 6,
-            ),
-            leading: Icon(FileIconResolver.iconFor(entry)),
-            title: Text(entry.name),
-            subtitle: Text(
-              entry.isDirectory
-                  ? 'Directory'
-                  : '${(entry.sizeBytes / 1024).toStringAsFixed(1)} KB',
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (!entry.isDirectory && session != null) ...[
-                  IconButton(
-                    tooltip: 'Push local changes to server',
-                    icon: _syncingPaths.contains(remotePath)
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Icon(NerdIcon.cloudUpload.data),
-                    onPressed: _syncingPaths.contains(remotePath)
-                        ? null
-                        : () => _syncLocalEdit(session),
-                  ),
-                  IconButton(
-                    tooltip: 'Refresh cache from server',
-                    icon: _refreshingPaths.contains(remotePath)
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Icon(NerdIcon.refresh.data),
-                    onPressed: _refreshingPaths.contains(remotePath)
-                        ? null
-                        : () => _refreshCacheFromServer(session),
-                  ),
-                  IconButton(
-                    tooltip: 'Clear cached copy',
-                    icon: Icon(NerdIcon.delete.data),
-                    onPressed: () => _clearCachedCopy(session),
-                  ),
-                ],
-                Text(
-                  entry.modified.toLocal().toString(),
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
+    return Focus(
+      focusNode: _listFocusNode,
+      onKey: (node, event) =>
+          _handleListKeyEvent(node, event, sortedEntries),
+      child: GestureDetector(
+        behavior: HitTestBehavior.deferToChild,
+        onSecondaryTapDown: (details) =>
+            _showBackgroundContextMenu(details.globalPosition),
+        child: Listener(
+          onPointerDown: (_) => _listFocusNode.requestFocus(),
+          onPointerUp: (_) => _stopDragSelection(),
+          onPointerCancel: (_) => _stopDragSelection(),
+          child: ListView.separated(
+          itemCount: sortedEntries.length,
+          separatorBuilder: (_, __) => Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Divider(height: 1, thickness: 1, color: dividerColor),
           ),
-        );
-      },
-    );
+          itemBuilder: (context, index) {
+            final entry = sortedEntries[index];
+            final remotePath = _joinPath(_currentPath, entry.name);
+            final session = _localEdits[remotePath];
+            final selected = _selectedPaths.contains(remotePath);
+            final colorScheme = Theme.of(context).colorScheme;
+            final highlightColor = selected
+                ? colorScheme.primary.withValues(alpha: 0.08)
+                : Colors.transparent;
+            final titleStyle = selected
+                ? Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: colorScheme.primary)
+                : null;
+            return MouseRegion(
+              onEnter: (event) => _handleDragHover(event, index, remotePath),
+              child: Listener(
+                behavior: HitTestBehavior.opaque,
+                onPointerDown: (event) => _handleEntryPointerDown(
+                  event,
+                  sortedEntries,
+                  index,
+                  remotePath,
+                ),
+                onPointerUp: (_) => _stopDragSelection(),
+                onPointerCancel: (_) => _stopDragSelection(),
+                child: InkWell(
+                  onDoubleTap: () => _handleEntryDoubleTap(entry),
+                  onSecondaryTapDown: (details) =>
+                      _showEntryContextMenu(entry, details.globalPosition),
+                  splashFactory: NoSplash.splashFactory,
+                  hoverColor: Colors.transparent,
+                  highlightColor: Colors.transparent,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 110),
+                    curve: Curves.easeOutCubic,
+                    color: highlightColor,
+                    child: ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      leading: Icon(
+                        FileIconResolver.iconFor(entry),
+                        color: selected ? colorScheme.primary : null,
+                      ),
+                      title: Text(entry.name, style: titleStyle),
+                      subtitle: Text(
+                        entry.isDirectory
+                            ? 'Directory'
+                            : '${(entry.sizeBytes / 1024).toStringAsFixed(1)} KB',
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (!entry.isDirectory && session != null) ...[
+                            IconButton(
+                              tooltip: 'Push local changes to server',
+                              icon: _syncingPaths.contains(remotePath)
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Icon(NerdIcon.cloudUpload.data),
+                              onPressed: _syncingPaths.contains(remotePath)
+                                  ? null
+                                  : () => _syncLocalEdit(session),
+                            ),
+                            IconButton(
+                              tooltip: 'Refresh cache from server',
+                              icon: _refreshingPaths.contains(remotePath)
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Icon(NerdIcon.refresh.data),
+                              onPressed: _refreshingPaths.contains(remotePath)
+                                  ? null
+                                  : () => _refreshCacheFromServer(session),
+                            ),
+                            IconButton(
+                              tooltip: 'Clear cached copy',
+                              icon: Icon(NerdIcon.delete.data),
+                              onPressed: () => _clearCachedCopy(session),
+                            ),
+                          ],
+                          Text(
+                            entry.modified.toLocal().toString(),
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    ),
+  );
   }
 
   Future<void> _loadPath(String path) async {
@@ -331,6 +437,9 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         _pathFieldController?.text = _currentPath;
         _loading = false;
         _pathHistory.add(_currentPath);
+        _selectedPaths.clear();
+        _selectionAnchorIndex = null;
+        _lastSelectedIndex = null;
         for (final entry in entries) {
           if (entry.isDirectory) {
             _pathHistory.add(_joinPath(_currentPath, entry.name));
@@ -371,6 +480,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     Offset position,
   ) async {
     final menuItems = <PopupMenuEntry<_ExplorerContextAction>>[];
+    final clipboardAvailable = ExplorerClipboard.entry != null;
     if (entry.isDirectory) {
       menuItems.add(
         const PopupMenuItem(
@@ -388,16 +498,50 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
           value: _ExplorerContextAction.editFile,
           child: Text('Edit (text)'),
         ),
-        const PopupMenuItem(
-          value: _ExplorerContextAction.tail,
-          child: Text('Tail (preview)'),
-        ),
       ]);
     }
     menuItems.add(
       const PopupMenuItem(
         value: _ExplorerContextAction.copyPath,
         child: Text('Copy path'),
+      ),
+    );
+    menuItems.addAll([
+      PopupMenuItem(
+        value: _ExplorerContextAction.rename,
+        child: Text('Rename ($_shortcutRename)'),
+      ),
+      const PopupMenuItem(
+        value: _ExplorerContextAction.move,
+        child: Text('Move to...'),
+      ),
+      PopupMenuItem(
+        value: _ExplorerContextAction.copy,
+        child: Text('Copy ($_shortcutCopy)'),
+      ),
+      PopupMenuItem(
+        value: _ExplorerContextAction.cut,
+        child: Text('Cut ($_shortcutCut)'),
+      ),
+      PopupMenuItem(
+        value: _ExplorerContextAction.paste,
+        enabled: clipboardAvailable,
+        child: Text('Paste ($_shortcutPaste)'),
+      ),
+    ]);
+    if (entry.isDirectory) {
+      menuItems.add(
+        PopupMenuItem(
+          value: _ExplorerContextAction.pasteInto,
+          enabled: clipboardAvailable,
+          child: Text('Paste into "${entry.name}" ($_shortcutPaste)'),
+        ),
+      );
+    }
+    menuItems.add(
+      PopupMenuItem(
+        value: _ExplorerContextAction.delete,
+        child: Text('Delete ($_shortcutDelete)'),
       ),
     );
 
@@ -435,17 +579,69 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       case _ExplorerContextAction.editFile:
         await _openEditor(entry);
         break;
-      case _ExplorerContextAction.tail:
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Tail preview not yet implemented for ${entry.name}.',
-            ),
-          ),
+      case _ExplorerContextAction.rename:
+        await _promptRename(entry);
+        break;
+      case _ExplorerContextAction.copy:
+        _handleClipboardSet(entry, ExplorerClipboardOperation.copy);
+        break;
+      case _ExplorerContextAction.cut:
+        _handleClipboardSet(entry, ExplorerClipboardOperation.cut);
+        break;
+      case _ExplorerContextAction.paste:
+        await _handlePaste(targetDirectory: _currentPath);
+        break;
+      case _ExplorerContextAction.pasteInto:
+        await _handlePaste(
+          targetDirectory: _joinPath(_currentPath, entry.name),
         );
+        break;
+      case _ExplorerContextAction.move:
+        await _promptMove(entry);
+        break;
+      case _ExplorerContextAction.delete:
+        await _confirmDelete(entry, permanent: _isShiftPressed());
         break;
       case null:
         break;
+    }
+  }
+
+  Future<void> _showBackgroundContextMenu(Offset position) async {
+    final clipboardAvailable = ExplorerClipboard.entry != null;
+    if (!clipboardAvailable) {
+      return;
+    }
+    final action = await showMenu<_ExplorerContextAction>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx,
+        position.dy,
+      ),
+      items: [
+        PopupMenuItem(
+          value: _ExplorerContextAction.paste,
+          enabled: clipboardAvailable,
+          child: Text('Paste ($_shortcutPaste)'),
+        ),
+      ],
+    );
+    if (!mounted) {
+      return;
+    }
+    if (action == _ExplorerContextAction.paste) {
+      await _handlePaste(targetDirectory: _currentPath);
+    }
+  }
+
+  void _handleEntryDoubleTap(RemoteFileEntry entry) {
+    final targetPath = _joinPath(_currentPath, entry.name);
+    if (entry.isDirectory) {
+      _loadPath(targetPath);
+    } else {
+      unawaited(_openLocally(entry));
     }
   }
 
@@ -676,6 +872,290 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     );
   }
 
+  void _handleClipboardSet(
+    RemoteFileEntry entry,
+    ExplorerClipboardOperation operation,
+  ) {
+    final remotePath = _joinPath(_currentPath, entry.name);
+    ExplorerClipboard.setEntry(
+      ExplorerClipboardEntry(
+        host: widget.host,
+        remotePath: remotePath,
+        displayName: entry.name,
+        isDirectory: entry.isDirectory,
+        operation: operation,
+      ),
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          operation == ExplorerClipboardOperation.copy
+              ? 'Copied ${entry.name}'
+              : 'Cut ${entry.name}',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _promptRename(RemoteFileEntry entry) async {
+    final controller = TextEditingController(text: entry.name);
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rename'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'New name'),
+          onSubmitted: (value) => Navigator.of(context).pop(value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (newName == null) {
+      return;
+    }
+    final trimmed = newName.trim();
+    if (trimmed.isEmpty || trimmed == entry.name) {
+      return;
+    }
+    final sourcePath = _joinPath(_currentPath, entry.name);
+    final destinationPath = _joinPath(_currentPath, trimmed);
+    try {
+      await widget.shellService.movePath(
+        widget.host,
+        sourcePath,
+        destinationPath,
+      );
+      await _loadPath(_currentPath);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Renamed ${entry.name} to $trimmed')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to rename: $error')),
+      );
+    }
+  }
+
+  Future<void> _promptMove(RemoteFileEntry entry) async {
+    final controller =
+        TextEditingController(text: _joinPath(_currentPath, entry.name));
+    final target = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Move entry'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Destination path',
+            helperText: 'Provide absolute path to new location',
+          ),
+          onSubmitted: (value) => Navigator.of(context).pop(value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('Move'),
+          ),
+        ],
+      ),
+    );
+    if (target == null || target.trim().isEmpty) {
+      return;
+    }
+    final normalized = _normalizePath(target);
+    if (normalized == _joinPath(_currentPath, entry.name)) {
+      return;
+    }
+    try {
+      await widget.shellService.movePath(
+        widget.host,
+        _joinPath(_currentPath, entry.name),
+        normalized,
+      );
+      await _loadPath(_currentPath);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Moved ${entry.name} to $normalized')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to move: $error')),
+      );
+    }
+  }
+
+  Future<void> _confirmDelete(
+    RemoteFileEntry entry, {
+    bool permanent = false,
+  }) async {
+    final deletePermanently = permanent || _isShiftPressed();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          deletePermanently
+              ? 'Delete ${entry.name} permanently?'
+              : 'Move ${entry.name} to trash?',
+        ),
+        content: Text(
+          deletePermanently
+              ? 'This will permanently delete ${entry.name} from ${widget.host.name}.'
+              : 'A backup will be stored locally so you can restore it later.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(deletePermanently ? 'Delete' : 'Move to trash'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      return;
+    }
+    if (deletePermanently) {
+      await _deletePermanently(entry);
+    } else {
+      await _moveEntryToTrash(entry);
+    }
+  }
+
+  Future<void> _deletePermanently(RemoteFileEntry entry) async {
+    final path = _joinPath(_currentPath, entry.name);
+    try {
+      await widget.shellService.deletePath(widget.host, path);
+      await _loadPath(_currentPath);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Deleted ${entry.name} permanently')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete: $error')),
+      );
+    }
+  }
+
+  Future<void> _moveEntryToTrash(RemoteFileEntry entry) async {
+    final path = _joinPath(_currentPath, entry.name);
+    TrashedEntry? recorded;
+    try {
+      recorded = await widget.trashManager.moveToTrash(
+        shellService: widget.shellService,
+        host: widget.host,
+        remotePath: path,
+        isDirectory: entry.isDirectory,
+        notify: false,
+      );
+      await widget.shellService.deletePath(widget.host, path);
+      widget.trashManager.notifyListeners();
+      await _loadPath(_currentPath);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Moved ${entry.name} to trash')),
+      );
+    } catch (error) {
+      if (recorded != null) {
+        await widget.trashManager.deleteEntry(recorded, notify: false);
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to move to trash: $error')),
+      );
+    }
+  }
+
+  Future<void> _handlePaste({required String targetDirectory}) async {
+    final clipboard = ExplorerClipboard.entry;
+    if (clipboard == null) {
+      return;
+    }
+    final destinationDir = _normalizePath(targetDirectory);
+    final destinationPath =
+        _joinPath(destinationDir, clipboard.displayName);
+    final refreshCurrent = destinationDir == _currentPath;
+    if (clipboard.host.name == widget.host.name &&
+        clipboard.remotePath == destinationPath) {
+      return;
+    }
+    try {
+      if (clipboard.host.name == widget.host.name) {
+        if (clipboard.operation == ExplorerClipboardOperation.copy) {
+          await widget.shellService.copyPath(
+            widget.host,
+            clipboard.remotePath,
+            destinationPath,
+            recursive: clipboard.isDirectory,
+          );
+        } else {
+          await widget.shellService.movePath(
+            widget.host,
+            clipboard.remotePath,
+            destinationPath,
+          );
+          ExplorerClipboard.notifyCutCompleted(clipboard);
+        }
+      } else {
+        await widget.shellService.copyBetweenHosts(
+          sourceHost: clipboard.host,
+          sourcePath: clipboard.remotePath,
+          destinationHost: widget.host,
+          destinationPath: destinationPath,
+          recursive: clipboard.isDirectory,
+        );
+        if (clipboard.operation == ExplorerClipboardOperation.cut) {
+          await widget.shellService.deletePath(
+            clipboard.host,
+            clipboard.remotePath,
+          );
+          ExplorerClipboard.notifyCutCompleted(clipboard);
+        }
+      }
+      if (refreshCurrent) {
+        await _loadPath(_currentPath);
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            clipboard.operation == ExplorerClipboardOperation.copy
+                ? 'Pasted ${clipboard.displayName}'
+                : 'Moved ${clipboard.displayName}',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Paste failed: $error')),
+      );
+    }
+  }
+
   Future<void> _launchLocalApp(String path) async {
     final preferred = await _resolveEditorCommand();
     if (preferred != null) {
@@ -740,6 +1220,18 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     return '$base/$name';
   }
 
+  String _parentDirectory(String path) {
+    final normalized = _normalizePath(path);
+    if (normalized == '/' || !normalized.contains('/')) {
+      return '/';
+    }
+    final index = normalized.lastIndexOf('/');
+    if (index <= 0) {
+      return '/';
+    }
+    return normalized.substring(0, index);
+  }
+
   String _joinWithBase(String base, String name) {
     if (base == '/' || base.isEmpty) {
       return '/$name';
@@ -777,6 +1269,326 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         _localEdits.addAll(updates);
       });
     }
+  }
+
+  List<RemoteFileEntry> _currentSortedEntries() {
+    final sorted = [..._entries];
+    sorted.sort((a, b) {
+      if (a.isDirectory == b.isDirectory) {
+        return a.name.compareTo(b.name);
+      }
+      return a.isDirectory ? -1 : 1;
+    });
+    return sorted;
+  }
+
+  void _handleEntryPointerDown(
+    PointerDownEvent event,
+    List<RemoteFileEntry> entries,
+    int index,
+    String remotePath,
+  ) {
+    _listFocusNode.requestFocus();
+    final shift = _isShiftPressed();
+    final multi = _isMultiSelectModifierPressed();
+    final isMouse = event.kind == PointerDeviceKind.mouse;
+    final isSecondaryClick =
+        isMouse && (event.buttons & kSecondaryMouseButton) != 0;
+
+    if (isSecondaryClick) {
+      if (!_selectedPaths.contains(remotePath)) {
+        _applySelection(entries, index, shift: false, multi: false);
+      }
+      _dragSelecting = false;
+      return;
+    }
+
+    _applySelection(entries, index, shift: shift, multi: multi);
+
+    if (isMouse && (event.buttons & kPrimaryMouseButton) != 0) {
+      _dragSelecting = true;
+      _dragSelectionAdditive = true;
+    } else {
+      _dragSelecting = false;
+    }
+  }
+
+  void _handleDragHover(
+    PointerEnterEvent event,
+    int index,
+    String remotePath,
+  ) {
+    if (!_dragSelecting || event.kind != PointerDeviceKind.mouse) {
+      return;
+    }
+    if ((event.buttons & kPrimaryMouseButton) == 0) {
+      return;
+    }
+    setState(() {
+      if (_dragSelectionAdditive) {
+        _selectedPaths.add(remotePath);
+      } else {
+        _selectedPaths.remove(remotePath);
+      }
+      _lastSelectedIndex = index;
+    });
+  }
+
+  void _stopDragSelection() {
+    _dragSelecting = false;
+  }
+
+  KeyEventResult _handleListKeyEvent(
+    FocusNode node,
+    RawKeyEvent event,
+    List<RemoteFileEntry> entries,
+  ) {
+    if (event is! RawKeyDownEvent) {
+      return KeyEventResult.ignored;
+    }
+    if (entries.isEmpty) {
+      return KeyEventResult.handled;
+    }
+
+    final shift = event.isShiftPressed;
+    final multi = event.isControlPressed || event.isMetaPressed;
+    final isCtrl = event.isControlPressed || event.isMetaPressed;
+    if (isCtrl) {
+      if (event.logicalKey == LogicalKeyboardKey.keyC) {
+        final entry = _primarySelectedEntry(entries);
+        if (entry != null) {
+          _handleClipboardSet(entry, ExplorerClipboardOperation.copy);
+        }
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.keyX) {
+        final entry = _primarySelectedEntry(entries);
+        if (entry != null) {
+          _handleClipboardSet(entry, ExplorerClipboardOperation.cut);
+        }
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.keyV) {
+        unawaited(_handlePaste(targetDirectory: _currentPath));
+        return KeyEventResult.handled;
+      }
+    }
+    if (!isCtrl && event.logicalKey == LogicalKeyboardKey.delete) {
+      final entry = _primarySelectedEntry(entries);
+      if (entry != null) {
+        unawaited(
+          _confirmDelete(entry, permanent: event.isShiftPressed),
+        );
+      }
+      return KeyEventResult.handled;
+    }
+    if (!isCtrl && event.logicalKey == LogicalKeyboardKey.f2) {
+      final entry = _primarySelectedEntry(entries);
+      if (entry != null) {
+        unawaited(_promptRename(entry));
+      }
+      return KeyEventResult.handled;
+    }
+    final currentIndex = _resolveFocusedIndex(entries);
+
+    switch (event.logicalKey) {
+      case LogicalKeyboardKey.arrowDown:
+        final next = (currentIndex + 1).clamp(0, entries.length - 1);
+        if (next == currentIndex) {
+          return KeyEventResult.handled;
+        }
+        _handleKeyboardNavigation(entries, next, shift: shift, multi: multi);
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.arrowUp:
+        final next = (currentIndex - 1).clamp(0, entries.length - 1);
+        if (next == currentIndex) {
+          return KeyEventResult.handled;
+        }
+        _handleKeyboardNavigation(entries, next, shift: shift, multi: multi);
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.home:
+        _handleKeyboardNavigation(entries, 0, shift: shift, multi: multi);
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.end:
+        _handleKeyboardNavigation(
+          entries,
+          entries.length - 1,
+          shift: shift,
+          multi: multi,
+        );
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.space:
+        if (shift) {
+          _selectRange(entries, currentIndex, additive: true);
+        } else {
+          _toggleSelection(entries, currentIndex);
+        }
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.keyA:
+        if (multi) {
+          _selectAll(entries);
+          return KeyEventResult.handled;
+        }
+        break;
+      default:
+        break;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  void _handleKeyboardNavigation(
+    List<RemoteFileEntry> entries,
+    int targetIndex, {
+    required bool shift,
+    required bool multi,
+  }) {
+    if (entries.isEmpty) {
+      return;
+    }
+    if (shift) {
+      _selectRange(entries, targetIndex, additive: multi);
+      return;
+    }
+    if (multi) {
+      setState(() {
+        _lastSelectedIndex = targetIndex;
+        _selectionAnchorIndex = targetIndex;
+      });
+      return;
+    }
+    _selectExclusive(entries, targetIndex);
+  }
+
+  void _applySelection(
+    List<RemoteFileEntry> entries,
+    int index, {
+    required bool shift,
+    required bool multi,
+  }) {
+    if (entries.isEmpty || index < 0 || index >= entries.length) {
+      return;
+    }
+    if (shift) {
+      _selectRange(entries, index, additive: multi);
+      return;
+    }
+    if (multi) {
+      _toggleSelection(entries, index);
+      return;
+    }
+    _selectExclusive(entries, index);
+  }
+
+  void _selectExclusive(List<RemoteFileEntry> entries, int index) {
+    final path = _joinPath(_currentPath, entries[index].name);
+    setState(() {
+      _selectedPaths
+        ..clear()
+        ..add(path);
+      _selectionAnchorIndex = index;
+      _lastSelectedIndex = index;
+    });
+  }
+
+  void _selectRange(
+    List<RemoteFileEntry> entries,
+    int index, {
+    required bool additive,
+  }) {
+    if (entries.isEmpty) {
+      return;
+    }
+    final anchor = _resolveAnchorIndex(entries, index);
+    final start = min(anchor, index);
+    final end = max(anchor, index);
+    final nextSelection = additive ? {..._selectedPaths} : <String>{};
+    for (var i = start; i <= end; i += 1) {
+      nextSelection.add(_joinPath(_currentPath, entries[i].name));
+    }
+    setState(() {
+      _selectedPaths
+        ..clear()
+        ..addAll(nextSelection);
+      _lastSelectedIndex = index;
+    });
+  }
+
+  void _toggleSelection(List<RemoteFileEntry> entries, int index) {
+    final path = _joinPath(_currentPath, entries[index].name);
+    setState(() {
+      if (_selectedPaths.contains(path)) {
+        _selectedPaths.remove(path);
+      } else {
+        _selectedPaths.add(path);
+      }
+      _selectionAnchorIndex = index;
+      _lastSelectedIndex = index;
+    });
+  }
+
+  void _selectAll(List<RemoteFileEntry> entries) {
+    setState(() {
+      _selectedPaths
+        ..clear()
+        ..addAll(entries.map((entry) => _joinPath(_currentPath, entry.name)));
+      _selectionAnchorIndex = entries.isEmpty ? null : 0;
+      _lastSelectedIndex = entries.isEmpty ? null : entries.length - 1;
+    });
+  }
+
+  RemoteFileEntry? _primarySelectedEntry(List<RemoteFileEntry> entries) {
+    if (_selectedPaths.isEmpty) {
+      return null;
+    }
+    return _entryForRemotePath(entries, _selectedPaths.first);
+  }
+
+  RemoteFileEntry? _entryForRemotePath(
+    List<RemoteFileEntry> entries,
+    String remotePath,
+  ) {
+    for (final entry in entries) {
+      if (_joinPath(_currentPath, entry.name) == remotePath) {
+        return entry;
+      }
+    }
+    return null;
+  }
+
+  int _resolveAnchorIndex(List<RemoteFileEntry> entries, int fallback) {
+    final anchor = _selectionAnchorIndex ?? _lastSelectedIndex ?? fallback;
+    if (entries.isEmpty) {
+      return 0;
+    }
+    return anchor.clamp(0, entries.length - 1);
+  }
+
+  int _resolveFocusedIndex(List<RemoteFileEntry> entries) {
+    final last = _lastSelectedIndex;
+    if (last != null && last >= 0 && last < entries.length) {
+      return last;
+    }
+    for (var i = 0; i < entries.length; i += 1) {
+      final path = _joinPath(_currentPath, entries[i].name);
+      if (_selectedPaths.contains(path)) {
+        return i;
+      }
+    }
+    return 0;
+  }
+
+  bool _isShiftPressed() {
+    final pressed = HardwareKeyboard.instance.logicalKeysPressed;
+    return pressed.contains(LogicalKeyboardKey.shiftLeft) ||
+        pressed.contains(LogicalKeyboardKey.shiftRight);
+  }
+
+  bool _isMultiSelectModifierPressed() {
+    final pressed = HardwareKeyboard.instance.logicalKeysPressed;
+    return pressed.contains(LogicalKeyboardKey.controlLeft) ||
+        pressed.contains(LogicalKeyboardKey.controlRight) ||
+        pressed.contains(LogicalKeyboardKey.metaLeft) ||
+        pressed.contains(LogicalKeyboardKey.metaRight);
   }
 
   String _normalizePath(String input) {
@@ -820,7 +1632,19 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
   }
 }
 
-enum _ExplorerContextAction { open, copyPath, openLocally, editFile, tail }
+enum _ExplorerContextAction {
+  open,
+  copyPath,
+  openLocally,
+  editFile,
+  rename,
+  copy,
+  cut,
+  paste,
+  pasteInto,
+  delete,
+  move,
+}
 
 class _LocalFileSession {
   _LocalFileSession({

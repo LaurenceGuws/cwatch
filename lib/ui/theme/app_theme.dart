@@ -74,7 +74,7 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
 }
 
 class AppSpacing {
-  const AppSpacing({this.base = 8});
+  const AppSpacing({this.base = 6});
 
   final double base;
 
@@ -176,18 +176,27 @@ class AppSectionTokens {
   const AppSectionTokens({
     required this.toolbarBackground,
     required this.divider,
-    required this.cardRadius,
+    required this.surface,
   });
 
   final Color toolbarBackground;
   final Color divider;
-  final BorderRadius cardRadius;
+  final AppSurfaceStyle surface;
+
+  BorderRadius get cardRadius => surface.radius;
 
   factory AppSectionTokens.fromScheme(ColorScheme scheme) {
     return AppSectionTokens(
       toolbarBackground: scheme.surface,
       divider: scheme.outlineVariant,
-      cardRadius: BorderRadius.circular(12),
+      surface: AppSurfaceStyle(
+        background: scheme.surfaceContainerHigh,
+        borderColor: scheme.outlineVariant.withValues(alpha: 0.6),
+        radius: BorderRadius.circular(10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        margin: EdgeInsets.zero,
+        elevation: 0.5,
+      ),
     );
   }
 
@@ -195,7 +204,36 @@ class AppSectionTokens {
     return AppSectionTokens(
       toolbarBackground: Color.lerp(a.toolbarBackground, b.toolbarBackground, t) ?? a.toolbarBackground,
       divider: Color.lerp(a.divider, b.divider, t) ?? a.divider,
-      cardRadius: BorderRadius.lerp(a.cardRadius, b.cardRadius, t) ?? a.cardRadius,
+      surface: AppSurfaceStyle.lerp(a.surface, b.surface, t),
+    );
+  }
+}
+
+class AppSurfaceStyle {
+  const AppSurfaceStyle({
+    required this.background,
+    required this.borderColor,
+    required this.radius,
+    required this.padding,
+    required this.margin,
+    required this.elevation,
+  });
+
+  final Color background;
+  final Color borderColor;
+  final BorderRadius radius;
+  final EdgeInsets padding;
+  final EdgeInsets margin;
+  final double elevation;
+
+  static AppSurfaceStyle lerp(AppSurfaceStyle a, AppSurfaceStyle b, double t) {
+    return AppSurfaceStyle(
+      background: Color.lerp(a.background, b.background, t) ?? a.background,
+      borderColor: Color.lerp(a.borderColor, b.borderColor, t) ?? a.borderColor,
+      radius: BorderRadius.lerp(a.radius, b.radius, t) ?? a.radius,
+      padding: EdgeInsets.lerp(a.padding, b.padding, t) ?? a.padding,
+      margin: EdgeInsets.lerp(a.margin, b.margin, t) ?? a.margin,
+      elevation: lerpDouble(a.elevation, b.elevation, t),
     );
   }
 }

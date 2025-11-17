@@ -17,6 +17,8 @@ class AppSettings {
     this.dockerPruneWarnings = false,
     this.kubernetesAutoDiscover = true,
     this.kubernetesIncludeSystemPods = false,
+    this.shellSidebarWidth,
+    this.shellDestination,
   });
 
   final ThemeMode themeMode;
@@ -34,6 +36,8 @@ class AppSettings {
   final bool dockerPruneWarnings;
   final bool kubernetesAutoDiscover;
   final bool kubernetesIncludeSystemPods;
+  final double? shellSidebarWidth;
+  final String? shellDestination;
 
   AppSettings copyWith({
     ThemeMode? themeMode,
@@ -51,6 +55,8 @@ class AppSettings {
     bool? dockerPruneWarnings,
     bool? kubernetesAutoDiscover,
     bool? kubernetesIncludeSystemPods,
+    double? shellSidebarWidth,
+    String? shellDestination,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -68,6 +74,8 @@ class AppSettings {
       dockerPruneWarnings: dockerPruneWarnings ?? this.dockerPruneWarnings,
       kubernetesAutoDiscover: kubernetesAutoDiscover ?? this.kubernetesAutoDiscover,
       kubernetesIncludeSystemPods: kubernetesIncludeSystemPods ?? this.kubernetesIncludeSystemPods,
+      shellSidebarWidth: shellSidebarWidth ?? this.shellSidebarWidth,
+      shellDestination: shellDestination ?? this.shellDestination,
     );
   }
 
@@ -100,6 +108,8 @@ class AppSettings {
       dockerPruneWarnings: json['dockerPruneWarnings'] as bool? ?? false,
       kubernetesAutoDiscover: json['kubernetesAutoDiscover'] as bool? ?? true,
       kubernetesIncludeSystemPods: json['kubernetesIncludeSystemPods'] as bool? ?? false,
+      shellSidebarWidth: (json['shellSidebarWidth'] as num?)?.toDouble(),
+      shellDestination: json['shellDestination'] as String?,
     );
   }
 
@@ -120,6 +130,8 @@ class AppSettings {
       'dockerPruneWarnings': dockerPruneWarnings,
       'kubernetesAutoDiscover': kubernetesAutoDiscover,
       'kubernetesIncludeSystemPods': kubernetesIncludeSystemPods,
+      'shellSidebarWidth': shellSidebarWidth,
+      'shellDestination': shellDestination,
     };
   }
 }

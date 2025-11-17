@@ -4,9 +4,10 @@ import '../../../services/settings/app_settings_controller.dart';
 import '../../widgets/section_nav_bar.dart';
 
 class SettingsView extends StatefulWidget {
-  const SettingsView({required this.controller, super.key});
+  const SettingsView({required this.controller, this.leading, super.key});
 
   final AppSettingsController controller;
+  final Widget? leading;
 
   @override
   State<SettingsView> createState() => _SettingsViewState();
@@ -56,6 +57,7 @@ class _SettingsViewState extends State<SettingsView>
               tabs: _tabs,
               controller: _tabController,
               showTitle: false,
+              leading: widget.leading,
             ),
             Expanded(
               child: widget.controller.isLoaded

@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import 'models/app_settings.dart';
 import 'models/ssh_host.dart';
 import 'services/code/grammar_manifest.dart';
 import 'services/code/tree_sitter_support.dart';
@@ -55,21 +58,13 @@ class _CwatchAppState extends State<CwatchApp> {
           seedColor: Colors.blueGrey,
           brightness: Brightness.dark,
         );
+        final lightTokens = AppThemeTokens.light(lightScheme);
+        final darkTokens = AppThemeTokens.dark(darkScheme);
         return MaterialApp(
           title: 'CWatch',
           themeMode: settings.themeMode,
-          theme: ThemeData(
-            colorScheme: lightScheme,
-            useMaterial3: true,
-            fontFamily: NerdFonts.family,
-            extensions: [AppThemeTokens.light(lightScheme)],
-          ),
-          darkTheme: ThemeData(
-            colorScheme: darkScheme,
-            useMaterial3: true,
-            fontFamily: NerdFonts.family,
-            extensions: [AppThemeTokens.dark(darkScheme)],
-          ),
+          theme: _buildTheme(lightScheme, lightTokens),
+          darkTheme: _buildTheme(darkScheme, darkTokens),
           builder: (context, child) {
             final mediaQuery = MediaQuery.of(context);
             final zoom = settings.zoomFactor.clamp(0.8, 1.5).toDouble();
@@ -81,6 +76,69 @@ class _CwatchAppState extends State<CwatchApp> {
           home: HomeShell(settingsController: _settingsController),
         );
       },
+    );
+  }
+
+  ThemeData _buildTheme(ColorScheme scheme, AppThemeTokens tokens) {
+    final baseRadius = BorderRadius.circular(10);
+    return ThemeData(
+      colorScheme: scheme,
+      useMaterial3: true,
+      fontFamily: NerdFonts.family,
+      visualDensity: VisualDensity.compact,
+      scaffoldBackgroundColor: scheme.surface,
+      cardTheme: CardThemeData(
+        elevation: 0.5,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(borderRadius: baseRadius),
+        color: scheme.surfaceContainerHigh,
+      ),
+      appBarTheme: AppBarTheme(
+        elevation: 0,
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
+        centerTitle: false,
+      ),
+      dividerTheme: DividerThemeData(
+        color: scheme.outlineVariant,
+        thickness: 1,
+        space: 0,
+      ),
+      listTileTheme: ListTileThemeData(
+        dense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        shape: RoundedRectangleBorder(borderRadius: baseRadius),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.8),
+        border: OutlineInputBorder(
+          borderRadius: baseRadius,
+          borderSide: BorderSide(color: scheme.outlineVariant),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: baseRadius,
+          borderSide: BorderSide(color: scheme.primary),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
+      ),
+      scrollbarTheme: ScrollbarThemeData(
+        radius: const Radius.circular(12),
+        thickness: WidgetStateProperty.all(4),
+        thumbVisibility: WidgetStateProperty.all(true),
+        thumbColor: WidgetStateProperty.all(
+          scheme.outlineVariant.withValues(alpha: 0.7),
+        ),
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        elevation: 0,
+        backgroundColor: scheme.primary,
+        foregroundColor: scheme.onPrimary,
+      ),
+      extensions: [tokens],
     );
   }
 }
@@ -95,54 +153,195 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
+  static const double _sidebarMinWidth = 44;
+  static const double _sidebarContentMinWidth = 280;
+
   late Future<List<SshHost>> _hostsFuture;
   ShellDestination _selectedDestination = ShellDestination.servers;
-  late final List<Widget> _pages;
+  double? _sidebarWidthOverride;
+  bool _sidebarCollapsed = false;
+  bool _shellStateRestored = false;
+  late final VoidCallback _settingsListener;
 
   @override
   void initState() {
     super.initState();
     _hostsFuture = SshConfigService().loadHosts();
-    _pages = [
-      ServersView(hostsFuture: _hostsFuture),
-      const DockerView(),
-      const KubernetesView(),
-      SettingsView(controller: widget.settingsController),
-    ];
+    _applyShellSettings(widget.settingsController.settings);
+    _shellStateRestored = widget.settingsController.isLoaded;
+    _settingsListener = _handleSettingsChanged;
+    widget.settingsController.addListener(_settingsListener);
+  }
+
+  @override
+  void dispose() {
+    widget.settingsController.removeListener(_settingsListener);
+    super.dispose();
+  }
+
+  void _handleSettingsChanged() {
+    if (_shellStateRestored) {
+      return;
+    }
+    if (!widget.settingsController.isLoaded) {
+      return;
+    }
+    setState(() {
+      _applyShellSettings(widget.settingsController.settings);
+      _shellStateRestored = true;
+    });
+  }
+
+  void _applyShellSettings(AppSettings settings) {
+    final storedDestination = _destinationFromName(settings.shellDestination);
+    if (storedDestination != null) {
+      _selectedDestination = storedDestination;
+    }
+    _sidebarWidthOverride = settings.shellSidebarWidth;
+  }
+
+  void _handleSidebarDrag(double delta) {
+    if (_sidebarCollapsed) return;
+    if (delta == 0) return;
+    final viewportWidth = MediaQuery.of(context).size.width;
+    final maxWidth = _maxSidebarWidth(viewportWidth);
+    setState(() {
+      final current =
+          _sidebarWidthOverride ?? _defaultSidebarWidth(viewportWidth);
+      final next = (current + delta).clamp(_sidebarMinWidth, maxWidth);
+      if ((next - current).abs() < 0.5) {
+        return;
+      }
+      _sidebarWidthOverride = next;
+    });
+    _persistShellState(width: _sidebarWidthOverride);
+  }
+
+  void _toggleSidebar() {
+    setState(() {
+      _sidebarCollapsed = !_sidebarCollapsed;
+    });
+  }
+
+  void _handleDestinationSelected(ShellDestination destination) {
+    if (_selectedDestination == destination) {
+      return;
+    }
+    setState(() => _selectedDestination = destination);
+    _persistShellState(destination: destination);
+  }
+
+  void _persistShellState({double? width, ShellDestination? destination}) {
+    final targetDestination = destination ?? _selectedDestination;
+    final settings = widget.settingsController.settings;
+    final targetWidth = width ?? settings.shellSidebarWidth;
+    if (settings.shellSidebarWidth == targetWidth &&
+        settings.shellDestination == targetDestination.name) {
+      return;
+    }
+    unawaited(
+      widget.settingsController.update(
+        (current) => current.copyWith(
+          shellSidebarWidth: targetWidth,
+          shellDestination: targetDestination.name,
+        ),
+      ),
+    );
+  }
+
+  ShellDestination? _destinationFromName(String? value) {
+    if (value == null) {
+      return null;
+    }
+    for (final destination in ShellDestination.values) {
+      if (destination.name == value) {
+        return destination;
+      }
+    }
+    return null;
+  }
+
+  double _defaultSidebarWidth(double viewportWidth) {
+    final desired = viewportWidth * 0.10;
+    final maxWidth = _maxSidebarWidth(viewportWidth);
+    return desired.clamp(_sidebarMinWidth, maxWidth);
+  }
+
+  double _maxSidebarWidth(double viewportWidth) {
+    final limit = viewportWidth - _sidebarContentMinWidth;
+    if (limit <= _sidebarMinWidth) {
+      return _sidebarMinWidth;
+    }
+    return limit;
+  }
+
+  double _effectiveSidebarWidth(double viewportWidth) {
+    final base = _defaultSidebarWidth(viewportWidth);
+    final maxWidth = _maxSidebarWidth(viewportWidth);
+    final override = _sidebarWidthOverride ?? base;
+    return override.clamp(_sidebarMinWidth, maxWidth);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Remote Control Center')),
-      body: SafeArea(
-        child: Row(
-          children: [
-            _Sidebar(
-              selected: _selectedDestination,
-              onSelect: (destination) => setState(() {
-                _selectedDestination = destination;
-              }),
+    return AnimatedBuilder(
+      animation: widget.settingsController,
+      builder: (context, _) {
+        final viewportWidth = MediaQuery.of(context).size.width;
+        final sidebarWidth = _effectiveSidebarWidth(viewportWidth);
+        Widget buildToggleButton() {
+          return _SidebarToggleButton(
+            collapsed: _sidebarCollapsed,
+            onPressed: _toggleSidebar,
+          );
+        }
+
+        final pages = [
+          ServersView(hostsFuture: _hostsFuture, leading: buildToggleButton()),
+          DockerView(leading: buildToggleButton()),
+          KubernetesView(leading: buildToggleButton()),
+          SettingsView(
+            controller: widget.settingsController,
+            leading: buildToggleButton(),
+          ),
+        ];
+        return Scaffold(
+          body: SafeArea(
+            child: Row(
+              children: [
+                if (!_sidebarCollapsed) ...[
+                  _Sidebar(
+                    selected: _selectedDestination,
+                    width: sidebarWidth,
+                    onSelect: _handleDestinationSelected,
+                  ),
+                  _SidebarResizeHandle(onDrag: _handleSidebarDrag),
+                ],
+                Expanded(
+                  child: IndexedStack(
+                    index: _selectedDestination.index,
+                    children: pages,
+                  ),
+                ),
+              ],
             ),
-            const VerticalDivider(width: 1, thickness: 1),
-            Expanded(
-              child: IndexedStack(
-                index: _selectedDestination.index,
-                children: _pages,
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
 
 class _Sidebar extends StatelessWidget {
-  const _Sidebar({required this.selected, required this.onSelect});
+  const _Sidebar({
+    required this.selected,
+    required this.onSelect,
+    required this.width,
+  });
 
   final ShellDestination selected;
   final ValueChanged<ShellDestination> onSelect;
+  final double width;
 
   @override
   Widget build(BuildContext context) {
@@ -174,8 +373,11 @@ class _Sidebar extends StatelessWidget {
     ];
     final colorScheme = Theme.of(context).colorScheme;
     final dividerColor = colorScheme.outlineVariant;
+    final iconScale = (width / 220).clamp(0.5, 1.0).toDouble();
+    final iconSize = 72 * iconScale;
+    final showLabels = width >= 160;
     return Container(
-      width: 220,
+      width: width,
       color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.2),
       child: Column(
         children: [
@@ -192,6 +394,8 @@ class _Sidebar extends StatelessWidget {
                         selected: selected == entry.destination,
                         onTap: () => onSelect(entry.destination),
                         dividerColor: dividerColor,
+                        iconSize: iconSize,
+                        showLabel: showLabels,
                       ),
                     ),
                 ],
@@ -202,6 +406,53 @@ class _Sidebar extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _SidebarResizeHandle extends StatelessWidget {
+  const _SidebarResizeHandle({required this.onDrag});
+
+  final ValueChanged<double> onDrag;
+
+  @override
+  Widget build(BuildContext context) {
+    final dividerColor = Theme.of(context).colorScheme.outlineVariant;
+    return MouseRegion(
+      cursor: SystemMouseCursors.resizeColumn,
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onHorizontalDragUpdate: (details) => onDrag(details.delta.dx),
+        child: SizedBox(
+          width: 12,
+          child: Center(
+            child: Container(
+              width: 1,
+              height: double.infinity,
+              color: dividerColor,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SidebarToggleButton extends StatelessWidget {
+  const _SidebarToggleButton({
+    required this.collapsed,
+    required this.onPressed,
+  });
+
+  final bool collapsed;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: collapsed ? 'Show navigation' : 'Hide navigation',
+      icon: Icon(collapsed ? Icons.menu : Icons.menu_open),
+      onPressed: onPressed,
     );
   }
 }
@@ -227,6 +478,8 @@ class _SidebarButton extends StatelessWidget {
     required this.selected,
     required this.onTap,
     required this.dividerColor,
+    required this.iconSize,
+    required this.showLabel,
   });
 
   final NerdIcon icon;
@@ -234,6 +487,8 @@ class _SidebarButton extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   final Color dividerColor;
+  final double iconSize;
+  final bool showLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -256,19 +511,22 @@ class _SidebarButton extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(icon.data, size: 72, color: iconColor),
-                      const SizedBox(height: 8),
-                      Text(
-                        label,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: textColor,
-                          fontWeight: selected
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                          letterSpacing: 0.4,
+                      Icon(icon.data, size: iconSize, color: iconColor),
+                      if (showLabel) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          label,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: textColor,
+                                fontWeight: selected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                letterSpacing: 0.4,
+                              ),
+                          textAlign: TextAlign.center,
                         ),
-                        textAlign: TextAlign.center,
-                      ),
+                      ],
                     ],
                   ),
                 ),

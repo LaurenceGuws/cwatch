@@ -124,6 +124,142 @@ class RemoteShellService {
     }
   }
 
+  Future<void> movePath(
+    SshHost host,
+    String source,
+    String destination, {
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
+    final normalizedSource = _sanitizePath(source);
+    final normalizedDest = _sanitizePath(destination);
+    await _ensureRemoteDirectory(host, _dirname(normalizedDest));
+    await _runHostCommand(
+      host,
+      "mv '${_escapeSingleQuotes(normalizedSource)}' '${_escapeSingleQuotes(normalizedDest)}'",
+      timeout: timeout,
+    );
+  }
+
+  Future<void> copyPath(
+    SshHost host,
+    String source,
+    String destination, {
+    bool recursive = false,
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
+    final normalizedSource = _sanitizePath(source);
+    final normalizedDest = _sanitizePath(destination);
+    await _ensureRemoteDirectory(host, _dirname(normalizedDest));
+    final flag = recursive ? '-R ' : '';
+    await _runHostCommand(
+      host,
+      "cp ${flag}'${_escapeSingleQuotes(normalizedSource)}' '${_escapeSingleQuotes(normalizedDest)}'",
+      timeout: timeout,
+    );
+  }
+
+  Future<void> deletePath(
+    SshHost host,
+    String path, {
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
+    final normalized = _sanitizePath(path);
+    await _runHostCommand(
+      host,
+      "rm -rf '${_escapeSingleQuotes(normalized)}'",
+      timeout: timeout,
+    );
+  }
+
+  Future<void> copyBetweenHosts({
+    required SshHost sourceHost,
+    required String sourcePath,
+    required SshHost destinationHost,
+    required String destinationPath,
+    bool recursive = false,
+    Duration timeout = const Duration(minutes: 2),
+  }) async {
+    final normalizedSource = _sanitizePath(sourcePath);
+    final normalizedDest = _sanitizePath(destinationPath);
+    await _ensureRemoteDirectory(destinationHost, _dirname(normalizedDest));
+    final recursiveFlag = recursive ? '-r ' : '';
+    final escapedSource =
+        "${sourceHost.name}:${_singleQuoteForShell(normalizedSource)}";
+    final escapedDestination =
+        "${destinationHost.name}:${_singleQuoteForShell(normalizedDest)}";
+    final command =
+        "scp -o BatchMode=yes -o StrictHostKeyChecking=no ${recursiveFlag}$escapedSource $escapedDestination";
+    final result = await Process.run(
+      'bash',
+      ['-lc', command],
+      stdoutEncoding: utf8,
+      stderrEncoding: utf8,
+    ).timeout(timeout);
+    if (result.exitCode != 0) {
+      final message = (result.stderr as String?)?.trim();
+      throw Exception(message?.isNotEmpty == true ? message : 'Failed to copy files');
+    }
+  }
+
+  Future<void> downloadPath({
+    required SshHost host,
+    required String remotePath,
+    required String localDestination,
+    bool recursive = false,
+    Duration timeout = const Duration(minutes: 2),
+  }) async {
+    final normalizedSource = _sanitizePath(remotePath);
+    final destinationDir = Directory(localDestination);
+    await destinationDir.create(recursive: true);
+    final recursiveFlag = recursive ? '-r ' : '';
+    final escapedSource =
+        "${host.name}:${_singleQuoteForShell(normalizedSource)}";
+    final escapedDestination = _singleQuoteForShell(localDestination);
+    final command =
+        "scp -o BatchMode=yes -o StrictHostKeyChecking=no ${recursiveFlag}$escapedSource $escapedDestination";
+    final result = await Process.run(
+      'bash',
+      ['-lc', command],
+      stdoutEncoding: utf8,
+      stderrEncoding: utf8,
+    ).timeout(timeout);
+    if (result.exitCode != 0) {
+      final message = (result.stderr as String?)?.trim();
+      throw Exception(message?.isNotEmpty == true ? message : 'Failed to download files');
+    }
+  }
+
+  Future<void> uploadPath({
+    required SshHost host,
+    required String localPath,
+    required String remoteDestination,
+    bool recursive = false,
+    Duration timeout = const Duration(minutes: 2),
+  }) async {
+    final normalizedDest = _sanitizePath(remoteDestination);
+    final source = FileSystemEntity.typeSync(localPath) ==
+            FileSystemEntityType.directory
+        ? localPath
+        : localPath;
+    await _ensureRemoteDirectory(host, _dirname(normalizedDest));
+    final recursiveFlag = recursive ? '-r ' : '';
+    final escapedSource = _singleQuoteForShell(source);
+    final escapedDestination =
+        "${host.name}:${_singleQuoteForShell(normalizedDest)}";
+    final command =
+        "scp -o BatchMode=yes -o StrictHostKeyChecking=no ${recursiveFlag}$escapedSource $escapedDestination";
+    final result = await Process.run(
+      'bash',
+      ['-lc', command],
+      stdoutEncoding: utf8,
+      stderrEncoding: utf8,
+    ).timeout(timeout);
+    if (result.exitCode != 0) {
+      final message = (result.stderr as String?)?.trim();
+      throw Exception(message?.isNotEmpty == true ? message : 'Failed to upload files');
+    }
+  }
+
   String _sanitizePath(String path) {
     if (path.isEmpty) {
       return '/';
@@ -135,6 +271,54 @@ class RemoteShellService {
   }
 
   String _escapeSingleQuotes(String input) => input.replaceAll("'", r"'\''");
+
+  String _singleQuoteForShell(String input) {
+    return "'${input.replaceAll("'", "'\\''")}'";
+  }
+
+  Future<void> _runHostCommand(
+    SshHost host,
+    String command, {
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    final result = await Process.run(
+      'ssh',
+      [
+        '-o',
+        'BatchMode=yes',
+        '-o',
+        'StrictHostKeyChecking=no',
+        host.name,
+        command,
+      ],
+      stdoutEncoding: utf8,
+      stderrEncoding: utf8,
+      runInShell: false,
+    ).timeout(timeout);
+    if (result.exitCode != 0) {
+      final message = (result.stderr as String?)?.trim();
+      throw Exception(message?.isNotEmpty == true ? message : 'SSH command failed');
+    }
+  }
+
+  Future<void> _ensureRemoteDirectory(SshHost host, String directory) async {
+    if (directory.isEmpty) {
+      return;
+    }
+    await _runHostCommand(
+      host,
+      "mkdir -p '${_escapeSingleQuotes(directory)}'",
+    );
+  }
+
+  String _dirname(String path) {
+    final normalized = _sanitizePath(path);
+    final index = normalized.lastIndexOf('/');
+    if (index <= 0) {
+      return '/';
+    }
+    return normalized.substring(0, index);
+  }
 
   String _randomDelimiter() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';

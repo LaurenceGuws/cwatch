@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:fl_chart/fl_chart.dart';
@@ -24,8 +26,11 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
   bool _refreshing = false;
   bool _streaming = true;
   Timer? _streamTimer;
+  String? _error;
+  _NetSample? _lastNetSample;
+
   static const int _historyCapacity = 16;
-  static const Duration _historyWindow = Duration(seconds: 10);
+  static const Duration _historyWindow = Duration(seconds: 30);
 
   @override
   void initState() {
@@ -44,63 +49,101 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
     final appTheme = context.appTheme;
     final spacing = appTheme.spacing;
     final typography = appTheme.typography;
-    return SingleChildScrollView(
+
+    return ListView(
       padding: spacing.all(3),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Column(
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final infoColumn = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Connectivity', style: typography.sectionTitle),
+                Text(widget.host.hostname, style: typography.caption),
+              ],
+            );
+
+            final actionButtons = Wrap(
+              spacing: spacing.sm,
+              runSpacing: spacing.sm,
+              alignment: WrapAlignment.end,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _loading ? null : _toggleStreaming,
+                  icon: Icon(
+                    _streaming ? NerdIcon.accessPoint.data : NerdIcon.servers.data,
+                  ),
+                  label: Text(_streaming ? 'Pause stream' : 'Resume stream'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _loading ? null : _refreshStats,
+                  icon: Icon(
+                    _refreshing ? NerdIcon.settings.data : NerdIcon.refresh.data,
+                  ),
+                  label: Text(_refreshing ? 'Refreshing…' : 'Manual refresh'),
+                ),
+              ],
+            );
+
+            if (constraints.maxWidth < 540) {
+              return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Connectivity', style: typography.sectionTitle),
-                  Text(widget.host.hostname, style: typography.caption),
+                  infoColumn,
+                  SizedBox(height: spacing.sm),
+                  actionButtons,
                 ],
-              ),
-              Wrap(
-                spacing: spacing.sm,
+              );
+            }
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: infoColumn),
+                SizedBox(width: spacing.md),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 360),
+                  child: actionButtons,
+                ),
+              ],
+            );
+          },
+        ),
+        SizedBox(height: spacing.md),
+        if (_error != null)
+          Card(
+            color: Theme.of(context).colorScheme.errorContainer,
+            child: Padding(
+              padding: spacing.all(2),
+              child: Row(
                 children: [
-                  OutlinedButton.icon(
-                    onPressed: _loading ? null : _toggleStreaming,
-                    icon: Icon(
-                      _streaming
-                          ? NerdIcon.accessPoint.data
-                          : NerdIcon.servers.data,
-                    ),
-                    label: Text(_streaming ? 'Pause stream' : 'Resume stream'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _loading ? null : _refreshStats,
-                    icon: Icon(
-                      _refreshing ? NerdIcon.settings.data : NerdIcon.refresh.data,
-                    ),
-                    label: Text(
-                      _refreshing ? 'Refreshing...' : 'Manual refresh',
+                  Icon(Icons.error_outline, color: Theme.of(context).colorScheme.onErrorContainer),
+                  SizedBox(width: spacing.sm),
+                  Expanded(
+                    child: Text(
+                      _error!,
+                      style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer),
                     ),
                   ),
                 ],
               ),
+            ),
+          ),
+        if (_loading)
+          const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()))
+        else
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Last updated ${_stats.formattedTimestamp}',
+                style: typography.caption,
+              ),
+              SizedBox(height: spacing.md),
+              _buildStatGrid(context),
             ],
           ),
-          SizedBox(height: spacing.md),
-          _loading
-              ? const Center(child: CircularProgressIndicator())
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Last updated ${_stats.formattedTimestamp}',
-                      style: typography.caption,
-                    ),
-                    SizedBox(height: spacing.md),
-                    _buildStatGrid(context),
-                  ],
-                ),
-        ],
-      ),
+      ],
     );
   }
 
@@ -160,8 +203,8 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
         final columns = constraints.maxWidth > 900
             ? 3
             : constraints.maxWidth > 600
-            ? 2
-            : 1;
+                ? 2
+                : 1;
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -179,31 +222,171 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
   }
 
   Future<void> _loadStats() async {
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
-    final first = ConnectivityStats.generate();
     setState(() {
-      _stats = first;
-      _history
-        ..clear()
-        ..add(first);
-      _loading = false;
+      _loading = true;
+      _error = null;
     });
-    _startStreaming();
+    try {
+      final first = await _collectStats();
+      if (!mounted) return;
+      setState(() {
+        _stats = first;
+        _history
+          ..clear()
+          ..add(first);
+        _loading = false;
+      });
+      _startStreaming();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = error.toString();
+      });
+    }
   }
 
   Future<void> _refreshStats() async {
+    if (_loading) return;
     setState(() {
       _refreshing = true;
+      _error = null;
     });
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (!mounted) return;
-    setState(() {
-      final next = ConnectivityStats.generate(baseline: _stats);
-      _stats = next;
-      _pushHistory(next);
-      _refreshing = false;
-    });
+    try {
+      final next = await _collectStats();
+      if (!mounted) return;
+      setState(() {
+        _stats = next;
+        _pushHistory(next);
+        _refreshing = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _refreshing = false;
+        _error = error.toString();
+      });
+    }
+  }
+
+  Future<ConnectivityStats> _collectStats() async {
+    final previous = _history.isNotEmpty ? _history.last : null;
+    final pingResult = await _PingProbe.collect(widget.host.hostname);
+    final uptime = await _readRemoteUptime();
+    final netSample = await _readNetSample();
+    final throughput = _calculateThroughput(netSample);
+    final availability = (100 - pingResult.packetLossPct).clamp(0, 100);
+
+    return ConnectivityStats(
+      latencyMs: pingResult.latencyMs,
+      jitterMs: pingResult.jitterMs,
+      packetLossPct: pingResult.packetLossPct,
+      throughputMbps: throughput,
+      uptime: uptime ?? Duration.zero,
+      availability: '${availability.toStringAsFixed(2)} %',
+      timestamp: DateTime.now(),
+      latencyTrend: _compareTrend(pingResult.latencyMs, previous?.latencyMs),
+      jitterTrend: _compareTrend(pingResult.jitterMs, previous?.jitterMs),
+      packetLossTrend: _compareTrend(
+        pingResult.packetLossPct,
+        previous?.packetLossPct,
+      ),
+      throughputTrend: _compareTrend(throughput, previous?.throughputMbps),
+    );
+  }
+
+  double _calculateThroughput(_NetSample? sample) {
+    double throughput = 0;
+    if (sample != null && _lastNetSample != null) {
+      final deltaBytes = sample.totalBytes - _lastNetSample!.totalBytes;
+      final elapsed = sample.timestamp.difference(_lastNetSample!.timestamp).inMilliseconds / 1000;
+      if (deltaBytes > 0 && elapsed > 0) {
+        throughput = (deltaBytes * 8 / elapsed) / 1e6;
+      }
+    }
+    if (sample != null) {
+      _lastNetSample = sample;
+    }
+    return throughput;
+  }
+
+  Future<Duration?> _readRemoteUptime() async {
+    final output = await _runSshCommand('cat /proc/uptime');
+    if (output == null || output.isEmpty) {
+      return null;
+    }
+    final parts = output.split(RegExp(r'\s+'));
+    final seconds = double.tryParse(parts.first);
+    if (seconds == null) {
+      return null;
+    }
+    return Duration(seconds: seconds.floor());
+  }
+
+  Future<_NetSample?> _readNetSample() async {
+    final output = await _runSshCommand('cat /proc/net/dev');
+    if (output == null) {
+      return null;
+    }
+    final lines = const LineSplitter().convert(output);
+    var totalBytes = 0;
+    for (final rawLine in lines) {
+      final line = rawLine.trim();
+      if (!line.contains(':')) continue;
+      final parts = line.split(':');
+      if (parts.length < 2) continue;
+      final interfaceName = parts.first.trim();
+      if (interfaceName.isEmpty || interfaceName == 'lo') continue;
+      final metrics = parts[1].trim().split(RegExp(r'\s+'));
+      if (metrics.length < 16) continue;
+      final rxBytes = int.tryParse(metrics[0]) ?? 0;
+      final txBytes = int.tryParse(metrics[8]) ?? 0;
+      totalBytes += rxBytes + txBytes;
+    }
+    if (totalBytes <= 0) {
+      return null;
+    }
+    return _NetSample(totalBytes, DateTime.now());
+  }
+
+  Future<String?> _runSshCommand(
+    String command, {
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
+    try {
+      final result = await Process.run(
+        'ssh',
+        [
+          '-o',
+          'BatchMode=yes',
+          '-o',
+          'StrictHostKeyChecking=no',
+          widget.host.name,
+          command,
+        ],
+        stdoutEncoding: utf8,
+        stderrEncoding: utf8,
+        runInShell: false,
+      ).timeout(timeout);
+      if (result.exitCode != 0) {
+        return null;
+      }
+      final output = (result.stdout as String?)?.trim();
+      return (output == null || output.isEmpty) ? null : output;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  TrendDirection _compareTrend(double current, double? previous) {
+    if (previous == null) {
+      return TrendDirection.flat;
+    }
+    final delta = current - previous;
+    if (delta.abs() < 0.1) {
+      return TrendDirection.flat;
+    }
+    return delta > 0 ? TrendDirection.up : TrendDirection.down;
   }
 
   void _startStreaming() {
@@ -212,7 +395,7 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
       return;
     }
     _streamTimer = Timer.periodic(
-      const Duration(seconds: 3),
+      const Duration(seconds: 6),
       (_) => _tickStream(),
     );
   }
@@ -228,13 +411,22 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
     });
   }
 
-  void _tickStream() {
-    if (!mounted) return;
-    setState(() {
-      final next = ConnectivityStats.generate(baseline: _stats);
-      _stats = next;
-      _pushHistory(next);
-    });
+  Future<void> _tickStream() async {
+    if (!mounted || !_streaming) return;
+    try {
+      final next = await _collectStats();
+      if (!mounted) return;
+      setState(() {
+        _stats = next;
+        _pushHistory(next);
+        _error = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.toString();
+      });
+    }
   }
 
   void _pushHistory(ConnectivityStats stat) {
@@ -242,21 +434,14 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
       _history.removeAt(0);
     }
     _history.add(stat);
-    _history.removeWhere(
-      (sample) => DateTime.now().difference(sample.timestamp) > _historyWindow,
-    );
-  }
-
-  List<ConnectivityStats> _recentHistory() {
     final cutoff = DateTime.now().subtract(_historyWindow);
-    return _history.where((stat) => stat.timestamp.isAfter(cutoff)).toList();
+    _history.removeWhere((sample) => sample.timestamp.isBefore(cutoff));
   }
 
   _SeriesWindow _seriesWindow() {
-    final samples = _recentHistory();
-    final source = samples.isNotEmpty ? samples : _history;
+    final samples = _history.isNotEmpty ? _history : [_stats];
     List<double> mapValues(double Function(ConnectivityStats) pick) =>
-        source.map(pick).toList();
+        samples.map(pick).toList();
     return _SeriesWindow(
       latency: mapValues((stat) => stat.latencyMs),
       jitter: mapValues((stat) => stat.jitterMs),
@@ -293,21 +478,24 @@ class _StatCard extends StatelessWidget {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: appTheme.section.cardRadius),
       child: Padding(
-        padding: spacing.all(1.5),
+        padding: spacing.all(0.75),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Container(
-                  width: 42,
-                  height: 42,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     display.icon,
+                    size: 18,
                     color: Theme.of(context).colorScheme.onPrimaryContainer,
                   ),
                 ),
@@ -315,31 +503,36 @@ class _StatCard extends StatelessWidget {
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(display.label, style: appTheme.typography.caption),
+                      Text(
+                        display.label,
+                        style: appTheme.typography.caption,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       Text(
                         display.value,
                         style: typography.body.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
-                if (display.trend != null)
-                  _TrendIndicator(trend: display.trend!),
+                if (display.trend != null) _TrendIndicator(trend: display.trend!),
               ],
             ),
             if (display.sparkline != null && display.sparkline!.length >= 2)
               Padding(
-                padding: EdgeInsets.only(top: spacing.sm),
+                padding: EdgeInsets.only(top: spacing.xs),
                 child: SizedBox(
-                  height: 64,
+                  height: 28,
                   child: _StatSparkline(
                     data: display.sparkline!,
-                    color:
-                        display.color ?? Theme.of(context).colorScheme.primary,
+                    color: display.color ?? Theme.of(context).colorScheme.primary,
                   ),
                 ),
               ),
@@ -401,18 +594,23 @@ class _StatSparkline extends StatelessWidget {
     if (data.length < 2) {
       return const SizedBox.expand();
     }
-    final spots = <FlSpot>[
-      for (var i = 0; i < data.length; i++) FlSpot(i.toDouble(), data[i]),
-    ];
     final minValue = data.reduce(min);
     final maxValue = data.reduce(max);
-    final padding = max(1, maxValue - minValue) * 0.2;
+    final range = (maxValue - minValue).abs();
+    final normalized = <double>[
+      for (final value in data)
+        range == 0 ? 50 : ((value - minValue) / range) * 100,
+    ];
+    final spots = <FlSpot>[
+      for (var i = 0; i < normalized.length; i++)
+        FlSpot(i.toDouble(), normalized[i]),
+    ];
     return LineChart(
       LineChartData(
         minX: 0,
         maxX: max(spots.last.x, 1),
-        minY: minValue - padding,
-        maxY: maxValue + padding,
+        minY: 0,
+        maxY: 100,
         gridData: const FlGridData(show: false),
         titlesData: const FlTitlesData(show: false),
         borderData: FlBorderData(show: false),
@@ -436,7 +634,7 @@ class _StatSparkline extends StatelessWidget {
 }
 
 class ConnectivityStats {
-  ConnectivityStats({
+  const ConnectivityStats({
     required this.latencyMs,
     required this.jitterMs,
     required this.packetLossPct,
@@ -465,53 +663,119 @@ class ConnectivityStats {
   String get uptimeDisplay {
     final days = uptime.inDays;
     final hours = uptime.inHours % 24;
-    return '${days}d ${hours}h';
+    final minutes = uptime.inMinutes % 60;
+    if (days > 0) {
+      return '${days}d ${hours}h';
+    }
+    if (hours > 0) {
+      return '${hours}h ${minutes}m';
+    }
+    return '${minutes}m';
   }
 
-  String get formattedTimestamp =>
-      '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
-
-  static ConnectivityStats generate({ConnectivityStats? baseline}) {
-    final random = Random();
-    double jitter(double base, [double variance = 5]) =>
-        base + random.nextDouble() * variance - variance / 2;
-    final latency = jitter(
-      baseline?.latencyMs ?? 24,
-      10,
-    ).clamp(5, 120).toDouble();
-    final jitterVal = jitter(
-      baseline?.jitterMs ?? 3,
-      6,
-    ).clamp(0.2, 40).toDouble();
-    final packet = (baseline?.packetLossPct ?? random.nextDouble())
-        .clamp(0, 5)
-        .toDouble();
-    final throughput = jitter(
-      baseline?.throughputMbps ?? 180,
-      50,
-    ).clamp(50, 500).toDouble();
-    TrendDirection compare(double current, double previous) {
-      if ((current - previous).abs() < 1) return TrendDirection.flat;
-      return current > previous ? TrendDirection.up : TrendDirection.down;
-    }
-
-    return ConnectivityStats(
-      latencyMs: latency,
-      jitterMs: jitterVal,
-      packetLossPct: packet,
-      throughputMbps: throughput,
-      uptime: Duration(days: 42, hours: random.nextInt(24)),
-      availability: '${(99 + random.nextDouble()).toStringAsFixed(2)} %',
-      timestamp: DateTime.now(),
-      latencyTrend: compare(latency, baseline?.latencyMs ?? latency),
-      jitterTrend: compare(jitterVal, baseline?.jitterMs ?? jitterVal),
-      packetLossTrend: compare(packet, baseline?.packetLossPct ?? packet),
-      throughputTrend: compare(
-        throughput,
-        baseline?.throughputMbps ?? throughput,
-      ),
-    );
+  String get formattedTimestamp {
+    final h = timestamp.hour.toString().padLeft(2, '0');
+    final m = timestamp.minute.toString().padLeft(2, '0');
+    final s = timestamp.second.toString().padLeft(2, '0');
+    return '$h:$m:$s';
   }
 }
 
 enum TrendDirection { up, down, flat }
+
+class _NetSample {
+  const _NetSample(this.totalBytes, this.timestamp);
+
+  final int totalBytes;
+  final DateTime timestamp;
+}
+
+class _PingProbe {
+  const _PingProbe({
+    required this.latencyMs,
+    required this.jitterMs,
+    required this.packetLossPct,
+  });
+
+  final double latencyMs;
+  final double jitterMs;
+  final double packetLossPct;
+
+  static Future<_PingProbe> collect(String host) async {
+    final result = await Process.run(
+      'ping',
+      ['-c', '5', host],
+      stdoutEncoding: utf8,
+      stderrEncoding: utf8,
+      runInShell: false,
+    );
+
+    final output = '${result.stdout}${result.stderr}';
+    if (result.exitCode != 0 && output.isEmpty) {
+      throw Exception('Ping failed (${result.exitCode}).');
+    }
+
+    final responseTimes = <double>[];
+    double? avgLatency;
+    double? jitter;
+    double? packetLoss;
+
+    final lines = const LineSplitter().convert(output);
+    for (final line in lines) {
+      final timeMatch = RegExp(r'time[=<]([\d\.]+)\s*ms').firstMatch(line);
+      if (timeMatch != null) {
+        responseTimes.add(double.tryParse(timeMatch.group(1) ?? '') ?? 0);
+      }
+      final lossMatch = RegExp(r'([\d\.]+)% packet loss').firstMatch(line);
+      if (lossMatch != null) {
+        packetLoss = double.tryParse(lossMatch.group(1)!);
+      }
+      final rttMatch = RegExp(r'=\s*([\d\.]+)/([\d\.]+)/([\d\.]+)/([\d\.]+)').firstMatch(line);
+      if (rttMatch != null) {
+        avgLatency = double.tryParse(rttMatch.group(2)!);
+        jitter = double.tryParse(rttMatch.group(4)!);
+      }
+    }
+
+    avgLatency ??= responseTimes.isNotEmpty
+        ? responseTimes.reduce((a, b) => a + b) / responseTimes.length
+        : double.nan;
+
+    jitter ??= _stdDev(responseTimes);
+    packetLoss ??= _inferLoss(output);
+
+    if (avgLatency.isNaN) {
+      throw Exception('Ping returned no latency data.');
+    }
+
+    return _PingProbe(
+      latencyMs: avgLatency,
+      jitterMs: jitter.isNaN ? 0 : jitter,
+      packetLossPct: packetLoss ?? 100,
+    );
+  }
+
+  static double _stdDev(List<double> values) {
+    if (values.length < 2) {
+      return 0;
+    }
+    final mean = values.reduce((a, b) => a + b) / values.length;
+    final variance = values
+            .map((value) => pow(value - mean, 2))
+            .reduce((a, b) => a + b) /
+        values.length;
+    return sqrt(variance);
+  }
+
+  static double? _inferLoss(String output) {
+    final match = RegExp(r'(\d+)\s+packets transmitted,\s+(\d+)\s+received').firstMatch(output);
+    if (match == null) return null;
+    final transmitted = double.tryParse(match.group(1)!);
+    final received = double.tryParse(match.group(2)!);
+    if (transmitted == null || transmitted == 0 || received == null) {
+      return null;
+    }
+    final lost = transmitted - received;
+    return (lost / transmitted) * 100;
+  }
+}

@@ -4,14 +4,22 @@ import '../../../models/ssh_host.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/nerd_fonts.dart';
 import '../../widgets/section_nav_bar.dart';
-import 'widgets/connectivity_tab.dart';
+import '../../../services/filesystem/explorer_trash_manager.dart';
+import 'widgets/trash_tab.dart';
 import 'widgets/file_explorer_tab.dart';
+import 'widgets/connectivity_tab.dart';
+import 'widgets/resources_tab.dart';
 import 'widgets/server_tab_chip.dart';
 
 class ServersView extends StatefulWidget {
-  const ServersView({super.key, required this.hostsFuture});
+  const ServersView({
+    super.key,
+    required this.hostsFuture,
+    this.leading,
+  });
 
   final Future<List<SshHost>> hostsFuture;
+  final Widget? leading;
 
   @override
   State<ServersView> createState() => _ServersViewState();
@@ -20,6 +28,7 @@ class ServersView extends StatefulWidget {
 class _ServersViewState extends State<ServersView> {
   final List<_ServerTab> _tabs = [];
   int _selectedTabIndex = 0;
+  final ExplorerTrashManager _trashManager = ExplorerTrashManager();
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +38,12 @@ class _ServersViewState extends State<ServersView> {
 
     return Column(
       children: [
-        const SectionNavBar(title: 'Servers', tabs: []),
+        SectionNavBar(
+          title: 'Servers',
+          tabs: const [],
+          leading: widget.leading,
+          trailing: _buildServersMenu(),
+        ),
         Expanded(child: workspace),
       ],
     );
@@ -190,9 +204,17 @@ class _ServersViewState extends State<ServersView> {
               _activateEmptyTab(tab.id, selectedHost),
         );
       case _ServerAction.fileExplorer:
-        return FileExplorerTab(key: tab.bodyKey, host: tab.host);
+        return FileExplorerTab(
+          key: tab.bodyKey,
+          host: tab.host,
+          trashManager: _trashManager,
+        );
       case _ServerAction.connectivity:
         return ConnectivityTab(key: tab.bodyKey, host: tab.host);
+      case _ServerAction.resources:
+        return ResourcesTab(key: tab.bodyKey, host: tab.host);
+      case _ServerAction.trash:
+        return TrashTab(key: tab.bodyKey, manager: _trashManager);
     }
   }
 
@@ -313,6 +335,13 @@ class _ServersViewState extends State<ServersView> {
               onTap: () =>
                   Navigator.of(dialogContext).pop(_ServerAction.connectivity),
             ),
+            ListTile(
+              leading: Icon(Icons.memory),
+              title: const Text('Resources Dashboard'),
+              subtitle: const Text('CPU, memory, disks, processes'),
+              onTap: () =>
+                  Navigator.of(dialogContext).pop(_ServerAction.resources),
+            ),
           ],
         ),
         actions: [
@@ -323,6 +352,40 @@ class _ServersViewState extends State<ServersView> {
         ],
       ),
     );
+  }
+
+  Widget _buildServersMenu() {
+    return PopupMenuButton<_ServersMenuAction>(
+      tooltip: 'Server options',
+      icon: const Icon(Icons.settings),
+      onSelected: (value) {
+        switch (value) {
+          case _ServersMenuAction.openTrash:
+            _openTrashTab();
+            break;
+        }
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem(
+          value: _ServersMenuAction.openTrash,
+          child: Text('Open trash tab'),
+        ),
+      ],
+    );
+  }
+
+  void _openTrashTab() {
+    setState(() {
+      _tabs.add(
+        _createTab(
+          id: 'trash-${DateTime.now().microsecondsSinceEpoch}',
+          host: const _TrashHost(),
+          action: _ServerAction.trash,
+          customName: 'Trash',
+        ),
+      );
+      _selectedTabIndex = _tabs.length - 1;
+    });
   }
 }
 
@@ -356,38 +419,58 @@ class _HostListState extends State<_HostList> {
         final host = widget.hosts[index];
         final availability = host.available ? 'Online' : 'Offline';
         final selected = _selected?.name == host.name;
+        final colorScheme = Theme.of(context).colorScheme;
+        final highlightColor = selected
+            ? colorScheme.primary.withValues(alpha: 0.08)
+            : Colors.transparent;
         return GestureDetector(
-          onTap: () {
-            setState(() => _selected = host);
+          onTapDown: (_) => setState(() => _selected = host),
+          onTap: () => widget.onSelect?.call(host),
+          onDoubleTap: () {
             widget.onSelect?.call(host);
+            widget.onActivate?.call(host);
           },
-          onDoubleTap: () => widget.onActivate?.call(host),
           child: Card(
             margin: EdgeInsets.zero,
             elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: context.appTheme.section.cardRadius,
             ),
-            child: ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: spacing.base * 2,
-                vertical: spacing.base,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 110),
+              curve: Curves.easeOutCubic,
+              decoration: BoxDecoration(
+                color: highlightColor,
+                borderRadius: context.appTheme.section.cardRadius,
               ),
-              selected: selected,
-              leading: Icon(
-                host.available
-                    ? NerdIcon.checkCircle.data
-                    : NerdIcon.alert.data,
-                color: host.available ? Colors.green : Colors.red,
-              ),
-              title: Text(host.name),
-              subtitle: Text('${host.hostname}:${host.port}'),
-              trailing: Text(
-                availability,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
+              child: ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: spacing.base * 2,
+                  vertical: spacing.base,
+                ),
+                leading: Icon(
+                  host.available
+                      ? NerdIcon.checkCircle.data
+                      : NerdIcon.alert.data,
                   color: host.available ? Colors.green : Colors.red,
+                ),
+                title: Text(
+                  host.name,
+                  style: selected
+                      ? Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(color: colorScheme.primary)
+                      : null,
+                ),
+                subtitle: Text('${host.hostname}:${host.port}'),
+                trailing: Text(
+                  availability,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: host.available ? Colors.green : Colors.red,
+                  ),
                 ),
               ),
             ),
@@ -451,6 +534,10 @@ class _ServerTab {
         return 'File Explorer';
       case _ServerAction.connectivity:
         return 'Connectivity';
+      case _ServerAction.resources:
+        return 'Resources';
+      case _ServerAction.trash:
+        return 'Trash';
     }
   }
 
@@ -462,6 +549,10 @@ class _ServerTab {
         return NerdIcon.folder.data;
       case _ServerAction.connectivity:
         return NerdIcon.accessPoint.data;
+      case _ServerAction.resources:
+        return NerdIcon.database.data;
+      case _ServerAction.trash:
+        return Icons.delete_outline;
     }
   }
 
@@ -483,9 +574,16 @@ class _ServerTab {
   }
 }
 
-enum _ServerAction { fileExplorer, connectivity, empty }
+enum _ServerAction { fileExplorer, connectivity, resources, empty, trash }
 
 class _PlaceholderHost extends SshHost {
   const _PlaceholderHost()
     : super(name: 'Explorer', hostname: '', port: 0, available: true);
 }
+
+class _TrashHost extends SshHost {
+  const _TrashHost()
+      : super(name: 'Trash', hostname: '', port: 0, available: true);
+}
+
+enum _ServersMenuAction { openTrash }
