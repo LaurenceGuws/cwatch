@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'ssh_client_backend.dart';
+
 class AppSettings {
   const AppSettings({
     this.themeMode = ThemeMode.system,
@@ -20,6 +22,8 @@ class AppSettings {
     this.shellSidebarWidth,
     this.shellDestination,
     this.shellSidebarCollapsed = false,
+    this.sshClientBackend = SshClientBackend.platform,
+    this.builtinSshHostKeyBindings = const {},
   });
 
   final ThemeMode themeMode;
@@ -40,6 +44,8 @@ class AppSettings {
   final double? shellSidebarWidth;
   final String? shellDestination;
   final bool shellSidebarCollapsed;
+  final SshClientBackend sshClientBackend;
+  final Map<String, String> builtinSshHostKeyBindings;
 
   AppSettings copyWith({
     ThemeMode? themeMode,
@@ -60,6 +66,8 @@ class AppSettings {
     double? shellSidebarWidth,
     String? shellDestination,
     bool? shellSidebarCollapsed,
+    SshClientBackend? sshClientBackend,
+    Map<String, String>? builtinSshHostKeyBindings,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -67,7 +75,8 @@ class AppSettings {
       telemetryEnabled: telemetryEnabled ?? this.telemetryEnabled,
       mfaRequired: mfaRequired ?? this.mfaRequired,
       sshRotationEnabled: sshRotationEnabled ?? this.sshRotationEnabled,
-      auditStreamingEnabled: auditStreamingEnabled ?? this.auditStreamingEnabled,
+      auditStreamingEnabled:
+          auditStreamingEnabled ?? this.auditStreamingEnabled,
       autoUpdateAgents: autoUpdateAgents ?? this.autoUpdateAgents,
       agentAlertsEnabled: agentAlertsEnabled ?? this.agentAlertsEnabled,
       zoomFactor: zoomFactor ?? this.zoomFactor,
@@ -75,16 +84,35 @@ class AppSettings {
       serverShowOffline: serverShowOffline ?? this.serverShowOffline,
       dockerLiveStats: dockerLiveStats ?? this.dockerLiveStats,
       dockerPruneWarnings: dockerPruneWarnings ?? this.dockerPruneWarnings,
-      kubernetesAutoDiscover: kubernetesAutoDiscover ?? this.kubernetesAutoDiscover,
-      kubernetesIncludeSystemPods: kubernetesIncludeSystemPods ?? this.kubernetesIncludeSystemPods,
+      kubernetesAutoDiscover:
+          kubernetesAutoDiscover ?? this.kubernetesAutoDiscover,
+      kubernetesIncludeSystemPods:
+          kubernetesIncludeSystemPods ?? this.kubernetesIncludeSystemPods,
       shellSidebarWidth: shellSidebarWidth ?? this.shellSidebarWidth,
       shellDestination: shellDestination ?? this.shellDestination,
       shellSidebarCollapsed:
           shellSidebarCollapsed ?? this.shellSidebarCollapsed,
+      sshClientBackend: sshClientBackend ?? this.sshClientBackend,
+      builtinSshHostKeyBindings:
+          builtinSshHostKeyBindings ?? this.builtinSshHostKeyBindings,
     );
   }
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
+    Map<String, String> parseBindings(Map<String, dynamic>? values) {
+      if (values == null) {
+        return {};
+      }
+      final bindings = <String, String>{};
+      for (final entry in values.entries) {
+        final value = entry.value;
+        if (value is String) {
+          bindings[entry.key] = value;
+        }
+      }
+      return bindings;
+    }
+
     ThemeMode parseThemeMode(String? value) {
       switch (value) {
         case 'light':
@@ -112,10 +140,17 @@ class AppSettings {
       dockerLiveStats: json['dockerLiveStats'] as bool? ?? true,
       dockerPruneWarnings: json['dockerPruneWarnings'] as bool? ?? false,
       kubernetesAutoDiscover: json['kubernetesAutoDiscover'] as bool? ?? true,
-      kubernetesIncludeSystemPods: json['kubernetesIncludeSystemPods'] as bool? ?? false,
+      kubernetesIncludeSystemPods:
+          json['kubernetesIncludeSystemPods'] as bool? ?? false,
       shellSidebarWidth: (json['shellSidebarWidth'] as num?)?.toDouble(),
       shellDestination: json['shellDestination'] as String?,
       shellSidebarCollapsed: json['shellSidebarCollapsed'] as bool? ?? false,
+      sshClientBackend: SshClientBackendParsing.fromJson(
+        json['sshClientBackend'] as String?,
+      ),
+      builtinSshHostKeyBindings: parseBindings(
+        json['builtinSshHostKeyBindings'] as Map<String, dynamic>?,
+      ),
     );
   }
 
@@ -139,6 +174,8 @@ class AppSettings {
       'shellSidebarWidth': shellSidebarWidth,
       'shellDestination': shellDestination,
       'shellSidebarCollapsed': shellSidebarCollapsed,
+      'sshClientBackend': sshClientBackend.name,
+      'builtinSshHostKeyBindings': builtinSshHostKeyBindings,
     };
   }
 }

@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../../../models/ssh_client_backend.dart';
 import '../../../models/ssh_host.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/nerd_fonts.dart';
 import '../../widgets/section_nav_bar.dart';
 import '../../../services/filesystem/explorer_trash_manager.dart';
+import '../../../services/ssh/remote_shell_service.dart';
+import '../../../services/settings/app_settings_controller.dart';
+import '../../../services/ssh/builtin/builtin_remote_shell_service.dart';
+import '../../../services/ssh/builtin/builtin_ssh_vault.dart';
 import 'widgets/trash_tab.dart';
 import 'widgets/file_explorer_tab.dart';
 import 'widgets/connectivity_tab.dart';
@@ -15,10 +20,14 @@ class ServersView extends StatefulWidget {
   const ServersView({
     super.key,
     required this.hostsFuture,
+    required this.settingsController,
+    required this.builtInVault,
     this.leading,
   });
 
   final Future<List<SshHost>> hostsFuture;
+  final AppSettingsController settingsController;
+  final BuiltInSshVault builtInVault;
   final Widget? leading;
 
   @override
@@ -212,6 +221,8 @@ class _ServersViewState extends State<ServersView> {
         return FileExplorerTab(
           key: tab.bodyKey,
           host: tab.host,
+          shellService: _shellServiceForHost(tab.host),
+          builtInVault: widget.builtInVault,
           trashManager: _trashManager,
         );
       case _ServerAction.connectivity:
@@ -219,8 +230,24 @@ class _ServersViewState extends State<ServersView> {
       case _ServerAction.resources:
         return ResourcesTab(key: tab.bodyKey, host: tab.host);
       case _ServerAction.trash:
-        return TrashTab(key: tab.bodyKey, manager: _trashManager);
+        return TrashTab(
+          key: tab.bodyKey,
+          manager: _trashManager,
+          shellService: _shellServiceForHost(tab.host),
+          builtInVault: widget.builtInVault,
+        );
     }
+  }
+
+  RemoteShellService _shellServiceForHost(SshHost host) {
+    final settings = widget.settingsController.settings;
+    if (settings.sshClientBackend == SshClientBackend.builtin) {
+      return BuiltInRemoteShellService(
+        vault: widget.builtInVault,
+        hostKeyBindings: settings.builtinSshHostKeyBindings,
+      );
+    }
+    return const ProcessRemoteShellService();
   }
 
   void _closeTab(int index) {
@@ -460,10 +487,9 @@ class _HostListState extends State<_HostList> {
                 title: Text(
                   host.name,
                   style: selected
-                      ? Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(color: colorScheme.primary)
+                      ? Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: colorScheme.primary,
+                        )
                       : null,
                 ),
                 subtitle: Text('${host.hostname}:${host.port}'),
@@ -479,7 +505,7 @@ class _HostListState extends State<_HostList> {
           ),
         );
       },
-      separatorBuilder: (_, __) => SizedBox(height: spacing.base),
+      separatorBuilder: (_, _) => SizedBox(height: spacing.base),
       itemCount: widget.hosts.length,
     );
   }
@@ -585,7 +611,7 @@ class _PlaceholderHost extends SshHost {
 
 class _TrashHost extends SshHost {
   const _TrashHost()
-      : super(name: 'Trash', hostname: '', port: 0, available: true);
+    : super(name: 'Trash', hostname: '', port: 0, available: true);
 }
 
 enum _ServersMenuAction { openTrash }

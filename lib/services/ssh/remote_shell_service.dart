@@ -4,10 +4,86 @@ import 'dart:math';
 
 import '../../models/remote_file_entry.dart';
 import '../../models/ssh_host.dart';
+import 'remote_ls_parser.dart';
 
-class RemoteShellService {
+abstract class RemoteShellService {
   const RemoteShellService();
 
+  Future<List<RemoteFileEntry>> listDirectory(
+    SshHost host,
+    String path, {
+    Duration timeout = const Duration(seconds: 10),
+  });
+
+  Future<String> homeDirectory(
+    SshHost host, {
+    Duration timeout = const Duration(seconds: 5),
+  });
+
+  Future<String> readFile(
+    SshHost host,
+    String path, {
+    Duration timeout = const Duration(seconds: 15),
+  });
+
+  Future<void> writeFile(
+    SshHost host,
+    String path,
+    String contents, {
+    Duration timeout = const Duration(seconds: 15),
+  });
+
+  Future<void> movePath(
+    SshHost host,
+    String source,
+    String destination, {
+    Duration timeout = const Duration(seconds: 15),
+  });
+
+  Future<void> copyPath(
+    SshHost host,
+    String source,
+    String destination, {
+    bool recursive = false,
+    Duration timeout = const Duration(seconds: 20),
+  });
+
+  Future<void> deletePath(
+    SshHost host,
+    String path, {
+    Duration timeout = const Duration(seconds: 15),
+  });
+
+  Future<void> copyBetweenHosts({
+    required SshHost sourceHost,
+    required String sourcePath,
+    required SshHost destinationHost,
+    required String destinationPath,
+    bool recursive = false,
+    Duration timeout = const Duration(minutes: 2),
+  });
+
+  Future<void> downloadPath({
+    required SshHost host,
+    required String remotePath,
+    required String localDestination,
+    bool recursive = false,
+    Duration timeout = const Duration(minutes: 2),
+  });
+
+  Future<void> uploadPath({
+    required SshHost host,
+    required String localPath,
+    required String remoteDestination,
+    bool recursive = false,
+    Duration timeout = const Duration(minutes: 2),
+  });
+}
+
+class ProcessRemoteShellService extends RemoteShellService {
+  const ProcessRemoteShellService();
+
+  @override
   Future<List<RemoteFileEntry>> listDirectory(
     SshHost host,
     String path, {
@@ -40,9 +116,10 @@ class RemoteShellService {
       );
     }
 
-    return _parseLsOutput(result.stdout as String, sanitizedPath);
+    return parseLsOutput(result.stdout as String);
   }
 
+  @override
   Future<String> homeDirectory(
     SshHost host, {
     Duration timeout = const Duration(seconds: 5),
@@ -68,6 +145,7 @@ class RemoteShellService {
     return (output == null || output.isEmpty) ? '/' : output;
   }
 
+  @override
   Future<String> readFile(
     SshHost host,
     String path, {
@@ -99,6 +177,7 @@ class RemoteShellService {
     return result.stdout as String? ?? '';
   }
 
+  @override
   Future<void> writeFile(
     SshHost host,
     String path,
@@ -133,6 +212,7 @@ class RemoteShellService {
     }
   }
 
+  @override
   Future<void> movePath(
     SshHost host,
     String source,
@@ -149,6 +229,7 @@ class RemoteShellService {
     );
   }
 
+  @override
   Future<void> copyPath(
     SshHost host,
     String source,
@@ -167,6 +248,7 @@ class RemoteShellService {
     );
   }
 
+  @override
   Future<void> deletePath(
     SshHost host,
     String path, {
@@ -180,6 +262,7 @@ class RemoteShellService {
     );
   }
 
+  @override
   Future<void> copyBetweenHosts({
     required SshHost sourceHost,
     required String sourcePath,
@@ -212,6 +295,7 @@ class RemoteShellService {
     }
   }
 
+  @override
   Future<void> downloadPath({
     required SshHost host,
     required String remotePath,
@@ -242,6 +326,7 @@ class RemoteShellService {
     }
   }
 
+  @override
   Future<void> uploadPath({
     required SshHost host,
     required String localPath,
@@ -341,46 +426,5 @@ class RemoteShellService {
       12,
       (index) => chars[rand.nextInt(chars.length)],
     ).join();
-  }
-
-  List<RemoteFileEntry> _parseLsOutput(String stdout, String currentPath) {
-    final lines = const LineSplitter().convert(stdout);
-
-    final entries = <RemoteFileEntry>[];
-    for (final line in lines) {
-      if (line.isEmpty || line.startsWith('total')) {
-        continue;
-      }
-      final parsed = _parseLine(line);
-      if (parsed != null) {
-        entries.add(parsed);
-      }
-    }
-    return entries;
-  }
-
-  RemoteFileEntry? _parseLine(String line) {
-    final pattern = RegExp(
-      r'^([\-ldcbps])([rwx\-]{9})\s+\d+\s+\S+\s+\S+\s+(\d+)\s+(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\s+(.+)$',
-    );
-    final match = pattern.firstMatch(line);
-    if (match == null) {
-      return null;
-    }
-    final typeFlag = match.group(1)!;
-    final size = int.tryParse(match.group(3) ?? '') ?? 0;
-    final modified = DateTime.tryParse(match.group(4) ?? '') ?? DateTime.now();
-    var name = match.group(5) ?? '';
-    if (typeFlag == 'l') {
-      final parts = name.split(' -> ');
-      name = parts.first;
-    }
-    final isDirectory = typeFlag == 'd' || typeFlag == 'l';
-    return RemoteFileEntry(
-      name: name,
-      isDirectory: isDirectory,
-      sizeBytes: size,
-      modified: modified,
-    );
   }
 }

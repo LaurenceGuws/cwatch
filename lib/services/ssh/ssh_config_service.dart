@@ -5,11 +5,9 @@ import 'config_sources/config_source.dart';
 import 'ssh_config_parser.dart';
 
 class SshConfigService {
-  SshConfigService({
-    SshConfigSource? source,
-    SshConfigParser? parser,
-  })  : _source = source ?? SshConfigSource.forPlatform(),
-        _parser = parser ?? const SshConfigParser();
+  SshConfigService({SshConfigSource? source, SshConfigParser? parser})
+    : _source = source ?? SshConfigSource.forPlatform(),
+      _parser = parser ?? const SshConfigParser();
 
   final SshConfigSource _source;
   final SshConfigParser _parser;
@@ -23,20 +21,28 @@ class SshConfigService {
       hosts.addAll(await _parser.collectEntries(entry, visited));
     }
 
-    return Future.wait(hosts.map((entry) async {
-      final online = await _checkAvailability(entry.hostname, entry.port);
-      return SshHost(
-        name: entry.name,
-        hostname: entry.hostname,
-        port: entry.port,
-        available: online,
-      );
-    }));
+    return Future.wait(
+      hosts.map((entry) async {
+        final online = await _checkAvailability(entry.hostname, entry.port);
+        return SshHost(
+          name: entry.name,
+          hostname: entry.hostname,
+          port: entry.port,
+          available: online,
+          user: entry.user,
+          identityFiles: entry.identityFiles,
+        );
+      }),
+    );
   }
 
   Future<bool> _checkAvailability(String host, int port) async {
     try {
-      final socket = await Socket.connect(host, port, timeout: const Duration(seconds: 2));
+      final socket = await Socket.connect(
+        host,
+        port,
+        timeout: const Duration(seconds: 2),
+      );
       socket.destroy();
       return true;
     } catch (_) {

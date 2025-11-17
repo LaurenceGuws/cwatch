@@ -22,11 +22,19 @@ class SshConfigParser {
     String? currentName;
     String? hostname;
     int port = 22;
+    String? user;
+    final identityFiles = <String>[];
 
     void commit() {
       if (currentName != null && hostname != null) {
         hosts.add(
-          ParsedHost(name: currentName, hostname: hostname, port: port),
+          ParsedHost(
+            name: currentName,
+            hostname: hostname,
+            port: port,
+            user: user,
+            identityFiles: List.unmodifiable(identityFiles),
+          ),
         );
       }
     }
@@ -44,10 +52,19 @@ class SshConfigParser {
         currentName = line.substring(5).trim();
         hostname = null;
         port = 22;
+        user = null;
+        identityFiles.clear();
       } else if (lower.startsWith('hostname ')) {
         hostname = line.substring(9).trim();
       } else if (lower.startsWith('port ')) {
         port = int.tryParse(line.substring(5).trim()) ?? 22;
+      } else if (lower.startsWith('user ')) {
+        user = line.substring(5).trim();
+      } else if (lower.startsWith('identityfile ')) {
+        final expanded = _expandPath(line.substring(12).trim(), baseDir);
+        if (expanded.isNotEmpty) {
+          identityFiles.add(expanded);
+        }
       } else if (lower.startsWith('include ')) {
         commit();
         final includeTargets = _resolveIncludePaths(
@@ -165,9 +182,13 @@ class ParsedHost {
     required this.name,
     required this.hostname,
     required this.port,
+    this.user,
+    this.identityFiles = const [],
   });
 
   final String name;
   final String hostname;
   final int port;
+  final String? user;
+  final List<String> identityFiles;
 }

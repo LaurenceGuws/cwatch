@@ -1,66 +1,102 @@
 import 'package:flutter/widgets.dart';
 
-/// Centralizes Nerd Font usage (JetBrainsMono Nerd Font) and exposes
-/// strongly typed glyphs for product logos or app-specific icons.
 class NerdFonts {
   static const String family = 'JetBrainsMonoNF';
-
-  static IconData icon(int codePoint) => IconData(
-        codePoint,
-        fontFamily: family,
-        fontPackage: null,
-      );
 }
 
 enum NerdIcon {
-  servers(0xf048b),
-  docker(0xf0868),
-  kubernetes(0xf10fe),
-  folder(0xf024b),
-  folderOpen(0xf0770),
-  fileCode(0xf022e),
-  yaml(0xe8eb),
-  terminal(0xea85),
-  accessPoint(0xf0002),
-  settings(0xf0493),
-  checkCircle(0xf05e0),
-  alert(0xf0026),
-  cloudUpload(0xf0167),
-  refresh(0xf0450),
-  delete(0xf09e7),
-  add(0xf0415),
-  dart(0xe798),
-  javascript(0xf031e),
-  typescript(0xf06e6),
-  css3(0xf031c),
-  html5(0xf031d),
-  go(0xf07d3),
-  rust(0xf1617),
-  python(0xf0320),
-  ruby(0xf0d2d),
-  php(0xf031f),
-  java(0xf0b37),
-  kotlin(0xf1219),
-  swift(0xf06e5),
-  c(0xf0671),
-  cpp(0xf0672),
-  csharp(0xf031b),
-  markdown(0xf0354),
-  json(0xe80b),
-  database(0xe706),
-  config(0xf107b),
-  fileImage(0xf021f),
-  lock(0xf033e),
-  arrowRight(0xf0939),
-  pencil(0xf03eb),
-  drag(0xf01dd),
-  close(0xf06c9);
-
-  const NerdIcon(this.codePoint);
-
-  final int codePoint;
-
-  IconData get data => NerdFonts.icon(codePoint);
-
-  String get character => String.fromCharCode(codePoint);
+  servers,
+  docker,
+  kubernetes,
+  folder,
+  folderOpen,
+  fileCode,
+  yaml,
+  terminal,
+  accessPoint,
+  settings,
+  checkCircle,
+  alert,
+  cloudUpload,
+  refresh,
+  delete,
+  add,
+  dart,
+  javascript,
+  typescript,
+  css3,
+  html5,
+  go,
+  rust,
+  python,
+  ruby,
+  php,
+  java,
+  kotlin,
+  swift,
+  c,
+  cpp,
+  csharp,
+  markdown,
+  json,
+  database,
+  config,
+  fileImage,
+  lock,
+  arrowRight,
+  pencil,
+  drag,
+  close;
 }
+
+/// ✔️ CONST map of icons → safe for tree shaking
+const Map<NerdIcon, IconData> nerdIconData = {
+  NerdIcon.servers:     IconData(0xf048b, fontFamily: NerdFonts.family),
+  NerdIcon.docker:      IconData(0xf0868, fontFamily: NerdFonts.family),
+  NerdIcon.kubernetes:  IconData(0xf10fe, fontFamily: NerdFonts.family),
+  NerdIcon.folder:      IconData(0xf024b, fontFamily: NerdFonts.family),
+  NerdIcon.folderOpen:  IconData(0xf0770, fontFamily: NerdFonts.family),
+  NerdIcon.fileCode:    IconData(0xf022e, fontFamily: NerdFonts.family),
+  NerdIcon.yaml:        IconData(0xe8eb, fontFamily: NerdFonts.family),
+  NerdIcon.terminal:    IconData(0xea85, fontFamily: NerdFonts.family),
+  NerdIcon.accessPoint: IconData(0xf0002, fontFamily: NerdFonts.family),
+  NerdIcon.settings:    IconData(0xf0493, fontFamily: NerdFonts.family),
+  NerdIcon.checkCircle: IconData(0xf05e0, fontFamily: NerdFonts.family),
+  NerdIcon.alert:       IconData(0xf0026, fontFamily: NerdFonts.family),
+  NerdIcon.cloudUpload: IconData(0xf0167, fontFamily: NerdFonts.family),
+  NerdIcon.refresh:     IconData(0xf0450, fontFamily: NerdFonts.family),
+  NerdIcon.delete:      IconData(0xf09e7, fontFamily: NerdFonts.family),
+  NerdIcon.add:         IconData(0xf0415, fontFamily: NerdFonts.family),
+  NerdIcon.dart:        IconData(0xe798, fontFamily: NerdFonts.family),
+  NerdIcon.javascript:  IconData(0xf031e, fontFamily: NerdFonts.family),
+  NerdIcon.typescript:  IconData(0xf06e6, fontFamily: NerdFonts.family),
+  NerdIcon.css3:        IconData(0xf031c, fontFamily: NerdFonts.family),
+  NerdIcon.html5:       IconData(0xf031d, fontFamily: NerdFonts.family),
+  NerdIcon.go:          IconData(0xf07d3, fontFamily: NerdFonts.family),
+  NerdIcon.rust:        IconData(0xf1617, fontFamily: NerdFonts.family),
+  NerdIcon.python:      IconData(0xf0320, fontFamily: NerdFonts.family),
+  NerdIcon.ruby:        IconData(0xf0d2d, fontFamily: NerdFonts.family),
+  NerdIcon.php:         IconData(0xf031f, fontFamily: NerdFonts.family),
+  NerdIcon.java:        IconData(0xf0b37, fontFamily: NerdFonts.family),
+  NerdIcon.kotlin:      IconData(0xf1219, fontFamily: NerdFonts.family),
+  NerdIcon.swift:       IconData(0xf06e5, fontFamily: NerdFonts.family),
+  NerdIcon.c:           IconData(0xf0671, fontFamily: NerdFonts.family),
+  NerdIcon.cpp:         IconData(0xf0672, fontFamily: NerdFonts.family),
+  NerdIcon.csharp:      IconData(0xf031b, fontFamily: NerdFonts.family),
+  NerdIcon.markdown:    IconData(0xf0354, fontFamily: NerdFonts.family),
+  NerdIcon.json:        IconData(0xe80b, fontFamily: NerdFonts.family),
+  NerdIcon.database:    IconData(0xe706, fontFamily: NerdFonts.family),
+  NerdIcon.config:      IconData(0xf107b, fontFamily: NerdFonts.family),
+  NerdIcon.fileImage:   IconData(0xf021f, fontFamily: NerdFonts.family),
+  NerdIcon.lock:        IconData(0xf033e, fontFamily: NerdFonts.family),
+  NerdIcon.arrowRight:  IconData(0xf0939, fontFamily: NerdFonts.family),
+  NerdIcon.pencil:      IconData(0xf03eb, fontFamily: NerdFonts.family),
+  NerdIcon.drag:        IconData(0xf01dd, fontFamily: NerdFonts.family),
+  NerdIcon.close:       IconData(0xf06c9, fontFamily: NerdFonts.family),
+};
+
+/// ✔️ Nice extension API
+extension NerdIconExt on NerdIcon {
+  IconData get data => nerdIconData[this]!;
+}
+

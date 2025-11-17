@@ -8,6 +8,8 @@ import 'services/code/grammar_manifest.dart';
 import 'services/code/tree_sitter_support.dart';
 import 'services/settings/app_settings_controller.dart';
 import 'services/ssh/ssh_config_service.dart';
+import 'services/ssh/builtin/builtin_ssh_key_store.dart';
+import 'services/ssh/builtin/builtin_ssh_vault.dart';
 import 'ui/theme/app_theme.dart';
 import 'ui/theme/nerd_fonts.dart';
 import 'ui/views/docker/docker_view.dart';
@@ -162,10 +164,14 @@ class _HomeShellState extends State<HomeShell> {
   bool _sidebarCollapsed = false;
   bool _shellStateRestored = false;
   late final VoidCallback _settingsListener;
+  late final BuiltInSshKeyStore _builtInKeyStore;
+  late final BuiltInSshVault _builtInVault;
 
   @override
   void initState() {
     super.initState();
+    _builtInKeyStore = BuiltInSshKeyStore();
+    _builtInVault = BuiltInSshVault(keyStore: _builtInKeyStore);
     _hostsFuture = SshConfigService().loadHosts();
     _applyShellSettings(widget.settingsController.settings);
     _shellStateRestored = widget.settingsController.isLoaded;
@@ -306,11 +312,19 @@ class _HomeShellState extends State<HomeShell> {
         }
 
         final pages = [
-          ServersView(hostsFuture: _hostsFuture, leading: buildToggleButton()),
+          ServersView(
+            hostsFuture: _hostsFuture,
+            settingsController: widget.settingsController,
+            builtInVault: _builtInVault,
+            leading: buildToggleButton(),
+          ),
           DockerView(leading: buildToggleButton()),
           KubernetesView(leading: buildToggleButton()),
           SettingsView(
             controller: widget.settingsController,
+            hostsFuture: _hostsFuture,
+            builtInKeyStore: _builtInKeyStore,
+            builtInVault: _builtInVault,
             leading: buildToggleButton(),
           ),
         ];
