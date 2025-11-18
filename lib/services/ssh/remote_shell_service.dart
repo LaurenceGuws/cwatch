@@ -83,6 +83,24 @@ abstract class RemoteShellService {
 class ProcessRemoteShellService extends RemoteShellService {
   const ProcessRemoteShellService();
 
+  /// Handles SSH command errors, detecting authentication failures.
+  Never _handleSshError(SshHost host, ProcessResult result) {
+    final stderrOutput = (result.stderr as String?)?.trim();
+    final errorMessage = stderrOutput?.isNotEmpty == true
+        ? stderrOutput
+        : 'SSH exited with ${result.exitCode}';
+    
+    // Check for common authentication failure patterns
+    if (stderrOutput?.contains('Permission denied') == true ||
+        stderrOutput?.contains('Authentication failed') == true ||
+        stderrOutput?.contains('Host key verification failed') == true ||
+        result.exitCode == 255) {
+      throw Exception('SSH authentication failed for ${host.name}: $errorMessage');
+    }
+    
+    throw Exception(errorMessage);
+  }
+
   @override
   Future<List<RemoteFileEntry>> listDirectory(
     SshHost host,
@@ -108,12 +126,7 @@ class ProcessRemoteShellService extends RemoteShellService {
     ).timeout(timeout);
 
     if (result.exitCode != 0) {
-      final stderrOutput = (result.stderr as String?)?.trim();
-      throw Exception(
-        stderrOutput?.isNotEmpty == true
-            ? stderrOutput
-            : 'SSH exited with ${result.exitCode}',
-      );
+      _handleSshError(host, result);
     }
 
     return parseLsOutput(result.stdout as String);
@@ -169,10 +182,7 @@ class ProcessRemoteShellService extends RemoteShellService {
     ).timeout(timeout);
 
     if (result.exitCode != 0) {
-      final message = (result.stderr as String?)?.trim();
-      throw Exception(
-        message?.isNotEmpty == true ? message : 'Failed to read file',
-      );
+      _handleSshError(host, result);
     }
     return result.stdout as String? ?? '';
   }
@@ -205,10 +215,7 @@ class ProcessRemoteShellService extends RemoteShellService {
     ).timeout(timeout);
 
     if (result.exitCode != 0) {
-      final message = (result.stderr as String?)?.trim();
-      throw Exception(
-        message?.isNotEmpty == true ? message : 'Failed to write file',
-      );
+      _handleSshError(host, result);
     }
   }
 
@@ -288,10 +295,7 @@ class ProcessRemoteShellService extends RemoteShellService {
       stderrEncoding: utf8,
     ).timeout(timeout);
     if (result.exitCode != 0) {
-      final message = (result.stderr as String?)?.trim();
-      throw Exception(
-        message?.isNotEmpty == true ? message : 'Failed to copy files',
-      );
+      _handleSshError(sourceHost, result);
     }
   }
 
@@ -319,10 +323,7 @@ class ProcessRemoteShellService extends RemoteShellService {
       stderrEncoding: utf8,
     ).timeout(timeout);
     if (result.exitCode != 0) {
-      final message = (result.stderr as String?)?.trim();
-      throw Exception(
-        message?.isNotEmpty == true ? message : 'Failed to download files',
-      );
+      _handleSshError(host, result);
     }
   }
 
@@ -353,10 +354,7 @@ class ProcessRemoteShellService extends RemoteShellService {
       stderrEncoding: utf8,
     ).timeout(timeout);
     if (result.exitCode != 0) {
-      final message = (result.stderr as String?)?.trim();
-      throw Exception(
-        message?.isNotEmpty == true ? message : 'Failed to upload files',
-      );
+      _handleSshError(host, result);
     }
   }
 
@@ -396,10 +394,7 @@ class ProcessRemoteShellService extends RemoteShellService {
       runInShell: false,
     ).timeout(timeout);
     if (result.exitCode != 0) {
-      final message = (result.stderr as String?)?.trim();
-      throw Exception(
-        message?.isNotEmpty == true ? message : 'SSH command failed',
-      );
+      _handleSshError(host, result);
     }
   }
 

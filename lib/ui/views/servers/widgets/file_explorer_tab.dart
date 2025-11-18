@@ -909,6 +909,19 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
           );
         }
         continue;
+      } on BuiltInSshAuthenticationFailed catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'SSH authentication failed for ${error.hostName}. '
+                'Check your key configuration in settings.',
+              ),
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+        rethrow;
       }
     }
   }
@@ -924,10 +937,15 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     _unlockInProgress = true;
     debugPrint('[Explorer] Prompting unlock for key $keyId');
     try {
-      final password = await _showUnlockDialog(keyId);
-      if (password == null) {
-        debugPrint('[Explorer] Unlock cancelled for key $keyId');
-        return false;
+      // Check if password is needed
+      final needsPwd = await vault.needsPassword(keyId);
+      String? password;
+      if (needsPwd) {
+        password = await _showUnlockDialog(keyId);
+        if (password == null) {
+          debugPrint('[Explorer] Unlock cancelled for key $keyId');
+          return false;
+        }
       }
       await vault.unlock(keyId, password);
       if (mounted) {

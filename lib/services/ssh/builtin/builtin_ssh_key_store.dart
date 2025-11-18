@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
-import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
+import 'package:dartssh2/dartssh2.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 import '../../settings/settings_path_provider.dart';
@@ -59,16 +60,46 @@ class BuiltInSshKeyStore {
   Future<BuiltInSshKeyEntry> addEntry({
     required String label,
     required List<int> keyData,
-    required String password,
+    String? password,
   }) async {
     final id = _generateId();
-    final entry = await _buildEntry(
+    final keyText = utf8.decode(keyData);
+    
+    // Try to parse the key to determine if it's encrypted
+    bool keyIsEncrypted = false;
+    try {
+      // Try parsing without passphrase - if it fails, the key is encrypted
+      SSHKeyPair.fromPem(keyText);
+      keyIsEncrypted = false;
+      debugPrint('[BuiltInSSHKeyStore] Key "$label" (id=$id) is unencrypted (no passphrase)');
+    } on ArgumentError catch (e) {
+      if (e.message == 'passphrase is required for encrypted key') {
+        keyIsEncrypted = true;
+        debugPrint('[BuiltInSSHKeyStore] Key "$label" (id=$id) is encrypted (has passphrase)');
+      } else {
+        rethrow;
+      }
+    } on StateError catch (e) {
+      if (e.message.contains('encrypted')) {
+        keyIsEncrypted = true;
+        debugPrint('[BuiltInSSHKeyStore] Key "$label" (id=$id) is encrypted (has passphrase)');
+      } else {
+        rethrow;
+      }
+    } catch (_) {
+      // If parsing fails for other reasons, assume unencrypted
+      keyIsEncrypted = false;
+      debugPrint('[BuiltInSSHKeyStore] Key "$label" (id=$id) assumed unencrypted (parsing failed for other reason)');
+    }
+
+    final entry = await buildEntry(
       id: id,
       label: label,
       keyData: keyData,
+      keyIsEncrypted: keyIsEncrypted,
       password: password,
     );
-    await _writeEntry(entry);
+    await writeEntry(entry);
     return entry;
   }
 
@@ -94,8 +125,21 @@ class BuiltInSshKeyStore {
 
   Future<Uint8List> decryptEntry(
     BuiltInSshKeyEntry entry,
-    String password,
+    String? password,
   ) async {
+    if (!entry.isEncrypted) {
+      // Unencrypted entry - return plaintext directly
+      if (entry.plaintext == null) {
+        throw StateError('Unencrypted entry missing plaintext');
+      }
+      return Uint8List.fromList(utf8.encode(entry.plaintext!));
+    }
+
+    // Encrypted entry - requires password
+    if (password == null || password.isEmpty) {
+      throw BuiltInSshKeyDecryptException();
+    }
+
     final key = await _deriveSecretKey(password, entry.saltBytes);
     final algorithm = AesGcm.with256bits();
     final secret = SecretBox(
@@ -116,38 +160,74 @@ class BuiltInSshKeyStore {
     await file.writeAsString(jsonEncode(entry.toJson()));
   }
 
+  Future<void> writeEntry(BuiltInSshKeyEntry entry) async {
+    await _writeEntry(entry);
+  }
+
   Future<File> _entryFile(String id) async {
     final dir = await _resolveDirectory();
     return File(p.join(dir.path, '$id$_metaExtension'));
   }
 
-  Future<BuiltInSshKeyEntry> _buildEntry({
+  Future<BuiltInSshKeyEntry> buildEntry({
     required String id,
     required String label,
     required List<int> keyData,
-    required String password,
+    required bool keyIsEncrypted,
+    String? password,
   }) async {
-    final salt = _randomBytes(16);
-    final nonce = _randomBytes(12);
-    final secretKey = await _deriveSecretKey(password, salt);
-    final algorithm = AesGcm.with256bits();
-    final secretBox = await algorithm.encrypt(
-      keyData,
-      secretKey: secretKey,
-      nonce: nonce,
-    );
     final fingerprint = await _fingerprint(keyData);
     final createdAt = DateTime.now().toUtc();
-    return BuiltInSshKeyEntry(
-      id: id,
-      label: label,
-      fingerprint: fingerprint,
-      createdAt: createdAt,
-      salt: base64.encode(salt),
-      nonce: base64.encode(nonce),
-      ciphertext: base64.encode(secretBox.cipherText),
-      mac: base64.encode(secretBox.mac.bytes),
-    );
+
+    // If key is unencrypted and password is provided, encrypt it
+    // If key is unencrypted and no password, store as plaintext
+    // If key is encrypted, password is required to encrypt the storage
+    final shouldEncryptStorage = password != null && password.isNotEmpty;
+
+    if (shouldEncryptStorage) {
+      // Encrypt the key data for storage
+      debugPrint(
+        '[BuiltInSSHKeyStore] Encrypting storage for key "$label" (id=$id). '
+        'Key itself is ${keyIsEncrypted ? "encrypted (has passphrase)" : "unencrypted"}.',
+      );
+      final salt = _randomBytes(16);
+      final nonce = _randomBytes(12);
+      final secretKey = await _deriveSecretKey(password, salt);
+      final algorithm = AesGcm.with256bits();
+      final secretBox = await algorithm.encrypt(
+        keyData,
+        secretKey: secretKey,
+        nonce: nonce,
+      );
+      return BuiltInSshKeyEntry(
+        id: id,
+        label: label,
+        fingerprint: fingerprint,
+        createdAt: createdAt,
+        isEncrypted: true,
+        keyHasPassphrase: keyIsEncrypted,
+        salt: base64.encode(salt),
+        nonce: base64.encode(nonce),
+        ciphertext: base64.encode(secretBox.cipherText),
+        mac: base64.encode(secretBox.mac.bytes),
+      );
+    } else {
+      // Store as plaintext (unencrypted)
+      debugPrint(
+        '[BuiltInSSHKeyStore] Storing key "$label" (id=$id) as plaintext (no storage encryption). '
+        'Key itself is ${keyIsEncrypted ? "encrypted (has passphrase)" : "unencrypted"}.',
+      );
+      final keyText = utf8.decode(keyData);
+      return BuiltInSshKeyEntry(
+        id: id,
+        label: label,
+        fingerprint: fingerprint,
+        createdAt: createdAt,
+        isEncrypted: false,
+        keyHasPassphrase: keyIsEncrypted,
+        plaintext: keyText,
+      );
+    }
   }
 
   Future<SecretKey> _deriveSecretKey(String password, List<int> salt) {

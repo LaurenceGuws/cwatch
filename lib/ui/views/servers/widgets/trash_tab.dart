@@ -143,6 +143,19 @@ class _TrashTabState extends State<TrashTab> {
           );
         }
         continue;
+      } on BuiltInSshAuthenticationFailed catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'SSH authentication failed for ${error.hostName}. '
+                'Check your key configuration in settings.',
+              ),
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+        rethrow;
       }
     }
   }
@@ -158,10 +171,15 @@ class _TrashTabState extends State<TrashTab> {
     _unlockInProgress = true;
     debugPrint('[Trash] Prompting unlock for key $keyId');
     try {
-      final password = await _showUnlockDialog(keyId);
-      if (password == null) {
-        debugPrint('[Trash] Unlock cancelled for key $keyId');
-        return false;
+      // Check if password is needed
+      final needsPwd = await vault.needsPassword(keyId);
+      String? password;
+      if (needsPwd) {
+        password = await _showUnlockDialog(keyId);
+        if (password == null) {
+          debugPrint('[Trash] Unlock cancelled for key $keyId');
+          return false;
+        }
       }
       await vault.unlock(keyId, password);
       if (mounted) {

@@ -232,12 +232,35 @@ class BuiltInRemoteShellService extends RemoteShellService {
     SshHost host,
     Future<T> Function(SSHClient client) action,
   ) async {
-    final client = await _openClient(host);
+    SSHClient? client;
     try {
+      client = await _openClient(host);
       return await action(client);
+    } on SSHAuthFailError catch (error) {
+      _log('Authentication failed for ${host.name}: $error');
+      throw BuiltInSshAuthenticationFailed(
+        hostName: host.name,
+        message: error.toString(),
+      );
+    } catch (e) {
+      // Re-throw custom exceptions as-is
+      if (e is BuiltInSshKeyLockedException ||
+          e is BuiltInSshKeyPassphraseRequired ||
+          e is BuiltInSshKeyUnsupportedCipher ||
+          e is BuiltInSshIdentityPassphraseRequired ||
+          e is BuiltInSshAuthenticationFailed) {
+        rethrow;
+      }
+      // Wrap other errors
+      _log('Error in SSH operation for ${host.name}: $e');
+      throw Exception('SSH operation failed for ${host.name}: $e');
     } finally {
-      client.close();
-      await client.done;
+      client?.close();
+      try {
+        await client?.done;
+      } catch (_) {
+        // Ignore errors during cleanup
+      }
     }
   }
 
@@ -355,6 +378,18 @@ class BuiltInRemoteShellService extends RemoteShellService {
     }
     final keyId = _hostKeyBindings[host.name];
     if (keyId != null) {
+      // Check if the key entry exists
+      final entry = await vault.keyStore.loadEntry(keyId);
+      if (entry == null) {
+        _log(
+          'Key $keyId bound to ${host.name} no longer exists. '
+          'This binding should be removed from settings.',
+        );
+        // Don't throw - just skip this key and continue with other identities
+        // The binding will be cleaned up when settings are next saved
+        return identities;
+      }
+
       final unlocked = vault.getUnlockedKey(keyId);
       if (unlocked == null) {
         throw BuiltInSshKeyLockedException(host.name, keyId);
@@ -622,6 +657,19 @@ class BuiltInSshIdentityPassphraseRequired implements Exception {
   final String hostName;
   final String identityPath;
   final SSHKeyDecryptError error;
+}
+
+class BuiltInSshAuthenticationFailed implements Exception {
+  const BuiltInSshAuthenticationFailed({
+    required this.hostName,
+    required this.message,
+  });
+
+  final String hostName;
+  final String message;
+
+  @override
+  String toString() => 'SSH authentication failed for $hostName: $message';
 }
 
 void _log(String message) {
