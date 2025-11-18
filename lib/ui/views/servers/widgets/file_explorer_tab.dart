@@ -2,9 +2,12 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:archive/archive.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path/path.dart' as p;
 
 import '../../../../models/remote_file_entry.dart';
 import '../../../../models/ssh_host.dart';
@@ -20,6 +23,7 @@ import 'explorer_clipboard.dart';
 import 'file_icon_resolver.dart';
 import 'merge_conflict_dialog.dart';
 import 'remote_file_editor_dialog.dart';
+import '../../../widgets/file_operation_progress_dialog.dart';
 
 class FileExplorerTab extends StatefulWidget {
   const FileExplorerTab({
@@ -50,6 +54,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
   final TextEditingController _commandController = TextEditingController();
   final FocusNode _commandFocus = FocusNode();
   final FocusNode _listFocusNode = FocusNode(debugLabel: 'file-explorer-list');
+  final ScrollController _scrollController = ScrollController();
   final RemoteEditorCache _cache = RemoteEditorCache();
   final Map<String, _LocalFileSession> _localEdits = {};
   final Set<String> _syncingPaths = {};
@@ -92,7 +97,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       }
       final parent = _parentDirectory(event.remotePath);
       if (parent == _currentPath) {
-        unawaited(_loadPath(_currentPath));
+        unawaited(_refreshCurrentPath());
       }
     };
     ExplorerClipboard.cutEvents.addListener(_cutEventListener);
@@ -105,7 +110,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         return;
       }
       if (event.directory == _currentPath) {
-        unawaited(_loadPath(_currentPath));
+        unawaited(_refreshCurrentPath());
       }
     };
     widget.trashManager.restoreEvents.addListener(_trashRestoreListener);
@@ -118,9 +123,9 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     if (!mounted) {
       return;
     }
-    _currentPath = home.isNotEmpty ? home : '/';
-    _pathHistory = {_currentPath};
-    await _loadPath(_currentPath);
+    final initialPath = home.isNotEmpty ? home : '/';
+    _pathHistory = {initialPath};
+    await _loadPath(initialPath);
   }
 
   @override
@@ -128,6 +133,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     _commandController.dispose();
     _commandFocus.dispose();
     _listFocusNode.dispose();
+    _scrollController.dispose();
     ExplorerClipboard.listenable.removeListener(_clipboardListener);
     ExplorerClipboard.cutEvents.removeListener(_cutEventListener);
     widget.trashManager.restoreEvents.removeListener(_trashRestoreListener);
@@ -195,20 +201,46 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         .where((segment) => segment.isNotEmpty)
         .toList();
     final chips = <Widget>[
-      ActionChip(label: const Text('/'), onPressed: () => _loadPath('/')),
+      ActionChip(
+        label: const Text('/'),
+        onPressed: () {
+          if (_currentPath != '/') {
+            _loadPath('/');
+          }
+        },
+      ),
     ];
 
     var runningPath = '';
     for (final segment in segments) {
       runningPath += '/$segment';
+      final normalizedRunningPath = _normalizePath(runningPath);
       chips.add(Icon(NerdIcon.arrowRight.data, size: 16));
       chips.add(
         ActionChip(
           label: Text(segment),
-          onPressed: () => _loadPath(runningPath),
+          onPressed: () {
+            // Always navigate when clicking breadcrumb, even if already at that path
+            _loadPath(normalizedRunningPath, forceReload: true);
+          },
         ),
       );
     }
+
+    // Add "+" button to navigate deeper
+    chips.add(Icon(NerdIcon.arrowRight.data, size: 16));
+    chips.add(
+      IconButton(
+        icon: const Icon(Icons.add, size: 18),
+        tooltip: 'Navigate to subdirectory',
+        onPressed: () => _showNavigateToSubdirectoryDialog(),
+        style: IconButton.styleFrom(
+          padding: const EdgeInsets.all(4),
+          minimumSize: const Size(32, 32),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ),
+    );
 
     return Wrap(
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -304,6 +336,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
           onPointerUp: (_) => _stopDragSelection(),
           onPointerCancel: (_) => _stopDragSelection(),
           child: ListView.separated(
+            controller: _scrollController,
             itemCount: sortedEntries.length,
             separatorBuilder: (_, _) => Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -420,12 +453,21 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     );
   }
 
-  Future<void> _loadPath(String path) async {
+  Future<void> _loadPath(String path, {bool forceReload = false}) async {
+    final target = _normalizePath(path);
+    // Skip if already at this path and not loading, unless forced
+    if (!forceReload && target == _currentPath && !_loading) {
+      return;
+    }
+    // If forced reload and same path, still reload
+    // If already loading the same path and not forced, skip
+    if (!forceReload && target == _currentPath && _loading) {
+      return;
+    }
     setState(() {
       _loading = true;
       _error = null;
     });
-    final target = _normalizePath(path);
     try {
       final entries = await _runShell(
         () => widget.shellService.listDirectory(widget.host, target),
@@ -433,10 +475,23 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       if (!mounted) {
         return;
       }
+      // Filter out "." and ".." entries from parsed output
+      final filteredEntries = entries.where((e) => e.name != '.' && e.name != '..').toList();
+      
+      // Add ".." entry at the beginning if not at root (for navigation)
+      if (target != '/') {
+        filteredEntries.insert(0, RemoteFileEntry(
+          name: '..',
+          isDirectory: true,
+          sizeBytes: 0,
+          modified: DateTime.now(),
+        ));
+      }
+      
       setState(() {
         _entries
           ..clear()
-          ..addAll(entries);
+          ..addAll(filteredEntries);
         _currentPath = target;
         _pathFieldController?.text = _currentPath;
         _loading = false;
@@ -444,8 +499,8 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         _selectedPaths.clear();
         _selectionAnchorIndex = null;
         _lastSelectedIndex = null;
-        for (final entry in entries) {
-          if (entry.isDirectory) {
+        for (final entry in filteredEntries) {
+          if (entry.isDirectory && entry.name != '..') {
             _pathHistory.add(_joinPath(_currentPath, entry.name));
           }
         }
@@ -459,6 +514,67 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         _loading = false;
         _error = error.toString();
       });
+    }
+  }
+
+  /// Soft refresh: reloads entries without resetting scroll position or selection
+  Future<void> _refreshCurrentPath() async {
+    if (_currentPath.isEmpty) {
+      return;
+    }
+    try {
+      final entries = await _runShell(
+        () => widget.shellService.listDirectory(widget.host, _currentPath),
+      );
+      if (!mounted) {
+        return;
+      }
+      // Filter out "." and ".." entries from parsed output
+      final filteredEntries = entries.where((e) => e.name != '.' && e.name != '..').toList();
+      
+      // Add ".." entry at the beginning if not at root (for navigation)
+      if (_currentPath != '/') {
+        filteredEntries.insert(0, RemoteFileEntry(
+          name: '..',
+          isDirectory: true,
+          sizeBytes: 0,
+          modified: DateTime.now(),
+        ));
+      }
+      
+      // Preserve scroll position
+      final scrollOffset = _scrollController.hasClients ? _scrollController.offset : 0.0;
+      
+      setState(() {
+        _entries
+          ..clear()
+          ..addAll(filteredEntries);
+        // Don't clear selection or reset loading state
+        // Don't clear selection indices
+        // Update path history for new directories
+        for (final entry in filteredEntries) {
+          if (entry.isDirectory && entry.name != '..') {
+            _pathHistory.add(_joinPath(_currentPath, entry.name));
+          }
+        }
+      });
+      
+      // Restore scroll position after rebuild
+      if (_scrollController.hasClients && scrollOffset > 0) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients) {
+            _scrollController.jumpTo(scrollOffset);
+          }
+        });
+      }
+      
+      unawaited(_hydrateCachedSessions(entries, _currentPath));
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      debugPrint('Failed to refresh current path: $error');
+      // Don't show error in UI for soft refresh failures
     }
   }
 
@@ -483,49 +599,111 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     RemoteFileEntry entry,
     Offset position,
   ) async {
+    final sortedEntries = _currentSortedEntries();
+    final selectedEntries = _getSelectedEntries(sortedEntries);
+    final isMultiSelect = selectedEntries.length > 1;
     final menuItems = <PopupMenuEntry<_ExplorerContextAction>>[];
-    final clipboardAvailable = ExplorerClipboard.entry != null;
-    if (entry.isDirectory) {
+    final clipboardAvailable = ExplorerClipboard.hasEntries;
+    
+    // If nothing is selected, show general menu (paste/upload for current directory)
+    if (selectedEntries.isEmpty) {
+      if (clipboardAvailable) {
+        menuItems.add(
+          PopupMenuItem(
+            value: _ExplorerContextAction.paste,
+            enabled: clipboardAvailable,
+            child: Text('Paste ($_shortcutPaste)'),
+          ),
+        );
+      }
+      
+      // Upload action - always show for current directory
       menuItems.add(
         const PopupMenuItem(
-          value: _ExplorerContextAction.open,
-          child: Text('Open'),
+          value: _ExplorerContextAction.upload,
+          child: Text('Upload files here...'),
         ),
       );
-    } else {
-      menuItems.addAll([
-        const PopupMenuItem(
-          value: _ExplorerContextAction.openLocally,
-          child: Text('Open locally'),
+      
+      // Show the menu
+      final action = await showMenu<_ExplorerContextAction>(
+        context: context,
+        position: RelativeRect.fromLTRB(
+          position.dx,
+          position.dy,
+          position.dx,
+          position.dy,
         ),
-        const PopupMenuItem(
-          value: _ExplorerContextAction.editFile,
-          child: Text('Edit (text)'),
-        ),
-      ]);
+        items: menuItems,
+      );
+      
+      if (!mounted) return;
+      if (action == _ExplorerContextAction.paste) {
+        await _handlePaste(targetDirectory: _currentPath);
+      } else if (action == _ExplorerContextAction.upload) {
+        await _handleUpload(_currentPath);
+      }
+      return;
     }
-    menuItems.add(
-      const PopupMenuItem(
-        value: _ExplorerContextAction.copyPath,
-        child: Text('Copy path'),
-      ),
-    );
+
+    // Single selection actions
+    if (!isMultiSelect) {
+      if (entry.isDirectory) {
+        menuItems.add(
+          const PopupMenuItem(
+            value: _ExplorerContextAction.open,
+            child: Text('Open'),
+          ),
+        );
+      } else {
+        menuItems.addAll([
+          const PopupMenuItem(
+            value: _ExplorerContextAction.openLocally,
+            child: Text('Open locally'),
+          ),
+          const PopupMenuItem(
+            value: _ExplorerContextAction.editFile,
+            child: Text('Edit (text)'),
+          ),
+        ]);
+      }
+      menuItems.add(
+        const PopupMenuItem(
+          value: _ExplorerContextAction.copyPath,
+          child: Text('Copy path'),
+        ),
+      );
+      menuItems.add(
+        PopupMenuItem(
+          value: _ExplorerContextAction.rename,
+          child: Text('Rename ($_shortcutRename)'),
+        ),
+      );
+      menuItems.add(
+        const PopupMenuItem(
+          value: _ExplorerContextAction.move,
+          child: Text('Move to...'),
+        ),
+      );
+    }
+
+    // Multi-select compatible actions
     menuItems.addAll([
       PopupMenuItem(
-        value: _ExplorerContextAction.rename,
-        child: Text('Rename ($_shortcutRename)'),
-      ),
-      const PopupMenuItem(
-        value: _ExplorerContextAction.move,
-        child: Text('Move to...'),
-      ),
-      PopupMenuItem(
         value: _ExplorerContextAction.copy,
-        child: Text('Copy ($_shortcutCopy)'),
+        child: Text(
+          isMultiSelect
+              ? 'Copy (${selectedEntries.length} items) ($_shortcutCopy)'
+              : 'Copy ($_shortcutCopy)',
+        ),
       ),
       PopupMenuItem(
         value: _ExplorerContextAction.cut,
-        child: Text('Cut ($_shortcutCut)'),
+        child: Text(
+          isMultiSelect
+              ? 'Cut (${selectedEntries.length} items) ($_shortcutCut)'
+              : 'Cut ($_shortcutCut)',
+        ),
       ),
       PopupMenuItem(
         value: _ExplorerContextAction.paste,
@@ -533,7 +711,9 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         child: Text('Paste ($_shortcutPaste)'),
       ),
     ]);
-    if (entry.isDirectory) {
+
+    // Paste into (only for single directory selection)
+    if (!isMultiSelect && entry.isDirectory) {
       menuItems.add(
         PopupMenuItem(
           value: _ExplorerContextAction.pasteInto,
@@ -542,10 +722,38 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         ),
       );
     }
+
+    // Download action
+    menuItems.add(
+      PopupMenuItem(
+        value: _ExplorerContextAction.download,
+        child: Text(
+          isMultiSelect
+              ? 'Download (${selectedEntries.length} items)'
+              : 'Download',
+        ),
+      ),
+    );
+
+    // Upload action (only show on background or directory)
+    if (!isMultiSelect && entry.isDirectory) {
+      menuItems.add(
+        const PopupMenuItem(
+          value: _ExplorerContextAction.upload,
+          child: Text('Upload files here...'),
+        ),
+      );
+    }
+
+    // Delete action
     menuItems.add(
       PopupMenuItem(
         value: _ExplorerContextAction.delete,
-        child: Text('Delete ($_shortcutDelete)'),
+        child: Text(
+          isMultiSelect
+              ? 'Delete (${selectedEntries.length} items) ($_shortcutDelete)'
+              : 'Delete ($_shortcutDelete)',
+        ),
       ),
     );
 
@@ -566,45 +774,93 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
 
     switch (action) {
       case _ExplorerContextAction.open:
-        _loadPath(_joinPath(_currentPath, entry.name));
-      case _ExplorerContextAction.copyPath:
-        final path = _joinPath(_currentPath, entry.name);
-        await Clipboard.setData(ClipboardData(text: path));
-        if (!mounted) {
-          return;
+        if (!isMultiSelect) {
+          _loadPath(_joinPath(_currentPath, entry.name));
         }
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Copied $path')));
+        break;
+      case _ExplorerContextAction.copyPath:
+        if (!isMultiSelect) {
+          final path = _joinPath(_currentPath, entry.name);
+          await Clipboard.setData(ClipboardData(text: path));
+          if (!mounted) {
+            return;
+          }
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Copied $path')));
+        } else {
+          final paths = selectedEntries
+              .map((e) => _joinPath(_currentPath, e.name))
+              .join('\n');
+          await Clipboard.setData(ClipboardData(text: paths));
+          if (!mounted) {
+            return;
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Copied ${selectedEntries.length} paths'),
+            ),
+          );
+        }
         break;
       case _ExplorerContextAction.openLocally:
-        await _openLocally(entry);
+        if (!isMultiSelect) {
+          await _openLocally(entry);
+        }
         break;
       case _ExplorerContextAction.editFile:
-        await _openEditor(entry);
+        if (!isMultiSelect) {
+          await _openEditor(entry);
+        }
         break;
       case _ExplorerContextAction.rename:
-        await _promptRename(entry);
+        if (!isMultiSelect) {
+          await _promptRename(entry);
+        }
         break;
       case _ExplorerContextAction.copy:
-        _handleClipboardSet(entry, ExplorerClipboardOperation.copy);
+        if (isMultiSelect) {
+          await _handleMultiCopy(selectedEntries);
+        } else {
+          _handleClipboardSet(entry, ExplorerClipboardOperation.copy);
+        }
         break;
       case _ExplorerContextAction.cut:
-        _handleClipboardSet(entry, ExplorerClipboardOperation.cut);
+        if (isMultiSelect) {
+          await _handleMultiCut(selectedEntries);
+        } else {
+          _handleClipboardSet(entry, ExplorerClipboardOperation.cut);
+        }
         break;
       case _ExplorerContextAction.paste:
         await _handlePaste(targetDirectory: _currentPath);
         break;
       case _ExplorerContextAction.pasteInto:
-        await _handlePaste(
-          targetDirectory: _joinPath(_currentPath, entry.name),
-        );
+        if (!isMultiSelect) {
+          await _handlePaste(
+            targetDirectory: _joinPath(_currentPath, entry.name),
+          );
+        }
         break;
       case _ExplorerContextAction.move:
-        await _promptMove(entry);
+        if (!isMultiSelect) {
+          await _promptMove(entry);
+        }
         break;
       case _ExplorerContextAction.delete:
-        await _confirmDelete(entry, permanent: _isShiftPressed());
+        if (isMultiSelect) {
+          await _confirmMultiDelete(selectedEntries, permanent: _isShiftPressed());
+        } else {
+          await _confirmDelete(entry, permanent: _isShiftPressed());
+        }
+        break;
+      case _ExplorerContextAction.download:
+        await _handleDownload(selectedEntries);
+        break;
+      case _ExplorerContextAction.upload:
+        if (!isMultiSelect && entry.isDirectory) {
+          await _handleUpload(_joinPath(_currentPath, entry.name));
+        }
         break;
       case null:
         break;
@@ -612,10 +868,30 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
   }
 
   Future<void> _showBackgroundContextMenu(Offset position) async {
-    final clipboardAvailable = ExplorerClipboard.entry != null;
-    if (!clipboardAvailable) {
+    final clipboardAvailable = ExplorerClipboard.hasEntries;
+    final menuItems = <PopupMenuEntry<_ExplorerContextAction>>[];
+    
+    if (clipboardAvailable) {
+      menuItems.add(
+        PopupMenuItem(
+          value: _ExplorerContextAction.paste,
+          enabled: clipboardAvailable,
+          child: Text('Paste ($_shortcutPaste)'),
+        ),
+      );
+    }
+    
+    menuItems.add(
+      const PopupMenuItem(
+        value: _ExplorerContextAction.upload,
+        child: Text('Upload files here...'),
+      ),
+    );
+    
+    if (menuItems.isEmpty) {
       return;
     }
+    
     final action = await showMenu<_ExplorerContextAction>(
       context: context,
       position: RelativeRect.fromLTRB(
@@ -624,19 +900,15 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         position.dx,
         position.dy,
       ),
-      items: [
-        PopupMenuItem(
-          value: _ExplorerContextAction.paste,
-          enabled: clipboardAvailable,
-          child: Text('Paste ($_shortcutPaste)'),
-        ),
-      ],
+      items: menuItems,
     );
     if (!mounted) {
       return;
     }
     if (action == _ExplorerContextAction.paste) {
       await _handlePaste(targetDirectory: _currentPath);
+    } else if (action == _ExplorerContextAction.upload) {
+      await _handleUpload(_currentPath);
     }
   }
 
@@ -1192,7 +1464,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
           destinationPath,
         ),
       );
-      await _loadPath(_currentPath);
+      await _refreshCurrentPath();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Renamed ${entry.name} to $trimmed')),
@@ -1249,7 +1521,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
           normalized,
         ),
       );
-      await _loadPath(_currentPath);
+      await _refreshCurrentPath();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Moved ${entry.name} to $normalized')),
@@ -1306,7 +1578,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     final path = _joinPath(_currentPath, entry.name);
     try {
       await _runShell(() => widget.shellService.deletePath(widget.host, path));
-      await _loadPath(_currentPath);
+      await _refreshCurrentPath();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Deleted ${entry.name} permanently')),
@@ -1334,7 +1606,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       );
       await _runShell(() => widget.shellService.deletePath(widget.host, path));
       widget.trashManager.notifyListeners();
-      await _loadPath(_currentPath);
+      await _refreshCurrentPath();
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -1351,76 +1623,139 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
   }
 
   Future<void> _handlePaste({required String targetDirectory}) async {
-    final clipboard = ExplorerClipboard.entry;
-    if (clipboard == null) {
+    final clipboardEntries = ExplorerClipboard.entries;
+    if (clipboardEntries.isEmpty) {
       return;
     }
     final destinationDir = _normalizePath(targetDirectory);
-    final destinationPath = _joinPath(destinationDir, clipboard.displayName);
     final refreshCurrent = destinationDir == _currentPath;
-    if (clipboard.host.name == widget.host.name &&
-        clipboard.remotePath == destinationPath) {
-      return;
+    
+    // Show progress dialog for multiple items
+    FileOperationProgressController? progressController;
+    if (clipboardEntries.length > 1) {
+      if (!mounted) return;
+      progressController = FileOperationProgressDialog.show(
+        context,
+        operation: clipboardEntries.first.operation == ExplorerClipboardOperation.copy
+            ? 'Copying'
+            : 'Moving',
+        totalItems: clipboardEntries.length,
+      );
     }
-    try {
-      if (clipboard.host.name == widget.host.name) {
-        if (clipboard.operation == ExplorerClipboardOperation.copy) {
+    
+    int successCount = 0;
+    int failCount = 0;
+    final cutEntries = <ExplorerClipboardEntry>[];
+    
+    for (var i = 0; i < clipboardEntries.length; i++) {
+      final clipboard = clipboardEntries[i];
+      final destinationPath = _joinPath(destinationDir, clipboard.displayName);
+      
+      // Skip if pasting to same location
+      if (clipboard.host.name == widget.host.name &&
+          clipboard.remotePath == destinationPath) {
+        if (progressController != null) {
+          progressController.increment();
+        }
+        continue;
+      }
+      
+      // Update progress
+      if (progressController != null) {
+        progressController.updateProgress(currentItem: clipboard.displayName);
+      }
+      
+      try {
+        if (clipboard.host.name == widget.host.name) {
+          if (clipboard.operation == ExplorerClipboardOperation.copy) {
+            await _runShell(
+              () => widget.shellService.copyPath(
+                widget.host,
+                clipboard.remotePath,
+                destinationPath,
+                recursive: clipboard.isDirectory,
+              ),
+            );
+            successCount++;
+          } else {
+            await _runShell(
+              () => widget.shellService.movePath(
+                widget.host,
+                clipboard.remotePath,
+                destinationPath,
+              ),
+            );
+            cutEntries.add(clipboard);
+            successCount++;
+          }
+        } else {
           await _runShell(
-            () => widget.shellService.copyPath(
-              widget.host,
-              clipboard.remotePath,
-              destinationPath,
+            () => widget.shellService.copyBetweenHosts(
+              sourceHost: clipboard.host,
+              sourcePath: clipboard.remotePath,
+              destinationHost: widget.host,
+              destinationPath: destinationPath,
               recursive: clipboard.isDirectory,
             ),
           );
-        } else {
-          await _runShell(
-            () => widget.shellService.movePath(
-              widget.host,
-              clipboard.remotePath,
-              destinationPath,
-            ),
-          );
-          ExplorerClipboard.notifyCutCompleted(clipboard);
+          if (clipboard.operation == ExplorerClipboardOperation.cut) {
+            await _runShell(
+              () => widget.shellService.deletePath(
+                clipboard.host,
+                clipboard.remotePath,
+              ),
+            );
+            cutEntries.add(clipboard);
+          }
+          successCount++;
         }
-      } else {
-        await _runShell(
-          () => widget.shellService.copyBetweenHosts(
-            sourceHost: clipboard.host,
-            sourcePath: clipboard.remotePath,
-            destinationHost: widget.host,
-            destinationPath: destinationPath,
-            recursive: clipboard.isDirectory,
-          ),
-        );
-        if (clipboard.operation == ExplorerClipboardOperation.cut) {
-          await _runShell(
-            () => widget.shellService.deletePath(
-              clipboard.host,
-              clipboard.remotePath,
-            ),
-          );
-          ExplorerClipboard.notifyCutCompleted(clipboard);
+        if (progressController != null) {
+          progressController.increment();
+        }
+      } catch (error) {
+        failCount++;
+        debugPrint('Failed to paste ${clipboard.displayName}: $error');
+        if (progressController != null) {
+          progressController.increment();
         }
       }
-      if (refreshCurrent) {
-        await _loadPath(_currentPath);
+    }
+    
+    // Close progress dialog if shown
+    if (progressController != null && mounted) {
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
       }
-      if (!mounted) return;
+    }
+    
+    // Notify cut completion for all cut entries
+    if (cutEntries.isNotEmpty) {
+      ExplorerClipboard.notifyCutsCompleted(cutEntries);
+    }
+    
+    if (refreshCurrent) {
+      await _refreshCurrentPath();
+    }
+    if (!mounted) return;
+    
+    if (failCount == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            clipboard.operation == ExplorerClipboardOperation.copy
-                ? 'Pasted ${clipboard.displayName}'
-                : 'Moved ${clipboard.displayName}',
+            successCount == 1
+                ? 'Pasted ${clipboardEntries.first.displayName}'
+                : 'Pasted $successCount item${successCount > 1 ? 's' : ''}',
           ),
         ),
       );
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Paste failed: $error')));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Pasted $successCount item${successCount > 1 ? 's' : ''}. $failCount failed.',
+          ),
+        ),
+      );
     }
   }
 
@@ -1564,9 +1899,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         isMouse && (event.buttons & kSecondaryMouseButton) != 0;
 
     if (isSecondaryClick) {
-      if (!_selectedPaths.contains(remotePath)) {
-        _applySelection(entries, index, shift: false, multi: false);
-      }
+      // Don't select on right-click - just show context menu
       _dragSelecting = false;
       return;
     }
@@ -1622,16 +1955,24 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     final isCtrl = control || meta;
     if (isCtrl) {
       if (event.logicalKey == LogicalKeyboardKey.keyC) {
-        final entry = _primarySelectedEntry(entries);
-        if (entry != null) {
-          _handleClipboardSet(entry, ExplorerClipboardOperation.copy);
+        final selectedEntries = _getSelectedEntries(entries);
+        if (selectedEntries.isNotEmpty) {
+          if (selectedEntries.length > 1) {
+            unawaited(_handleMultiCopy(selectedEntries));
+          } else {
+            _handleClipboardSet(selectedEntries.first, ExplorerClipboardOperation.copy);
+          }
         }
         return KeyEventResult.handled;
       }
       if (event.logicalKey == LogicalKeyboardKey.keyX) {
-        final entry = _primarySelectedEntry(entries);
-        if (entry != null) {
-          _handleClipboardSet(entry, ExplorerClipboardOperation.cut);
+        final selectedEntries = _getSelectedEntries(entries);
+        if (selectedEntries.isNotEmpty) {
+          if (selectedEntries.length > 1) {
+            unawaited(_handleMultiCut(selectedEntries));
+          } else {
+            _handleClipboardSet(selectedEntries.first, ExplorerClipboardOperation.cut);
+          }
         }
         return KeyEventResult.handled;
       }
@@ -1641,9 +1982,13 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       }
     }
     if (!isCtrl && event.logicalKey == LogicalKeyboardKey.delete) {
-      final entry = _primarySelectedEntry(entries);
-      if (entry != null) {
-        unawaited(_confirmDelete(entry, permanent: shift));
+      final selectedEntries = _getSelectedEntries(entries);
+      if (selectedEntries.isNotEmpty) {
+        if (selectedEntries.length > 1) {
+          unawaited(_confirmMultiDelete(selectedEntries, permanent: shift));
+        } else {
+          unawaited(_confirmDelete(selectedEntries.first, permanent: shift));
+        }
       }
       return KeyEventResult.handled;
     }
@@ -1881,6 +2226,487 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     return '/${stack.join('/')}';
   }
 
+  List<RemoteFileEntry> _getSelectedEntries(List<RemoteFileEntry> entries) {
+    return entries
+        .where((entry) =>
+            _selectedPaths.contains(_joinPath(_currentPath, entry.name)))
+        .toList();
+  }
+
+  Future<void> _handleMultiCopy(List<RemoteFileEntry> entries) async {
+    if (entries.isEmpty) {
+      return;
+    }
+    final clipboardEntries = entries.map((entry) {
+      final remotePath = _joinPath(_currentPath, entry.name);
+      return ExplorerClipboardEntry(
+        host: widget.host,
+        remotePath: remotePath,
+        displayName: entry.name,
+        isDirectory: entry.isDirectory,
+        operation: ExplorerClipboardOperation.copy,
+      );
+    }).toList();
+    
+    ExplorerClipboard.setEntries(clipboardEntries);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          entries.length == 1
+              ? 'Copied ${entries.first.name}'
+              : 'Copied ${entries.length} items',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleMultiCut(List<RemoteFileEntry> entries) async {
+    if (entries.isEmpty) {
+      return;
+    }
+    final clipboardEntries = entries.map((entry) {
+      final remotePath = _joinPath(_currentPath, entry.name);
+      return ExplorerClipboardEntry(
+        host: widget.host,
+        remotePath: remotePath,
+        displayName: entry.name,
+        isDirectory: entry.isDirectory,
+        operation: ExplorerClipboardOperation.cut,
+      );
+    }).toList();
+    
+    ExplorerClipboard.setEntries(clipboardEntries);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          entries.length == 1
+              ? 'Cut ${entries.first.name}'
+              : 'Cut ${entries.length} items',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmMultiDelete(
+    List<RemoteFileEntry> entries, {
+    bool permanent = false,
+  }) async {
+    if (entries.isEmpty) {
+      return;
+    }
+    final deletePermanently = permanent || _isShiftPressed();
+    final count = entries.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          deletePermanently
+              ? 'Delete $count items permanently?'
+              : 'Move $count items to trash?',
+        ),
+        content: Text(
+          deletePermanently
+              ? 'This will permanently delete $count items from ${widget.host.name}.'
+              : 'Backups will be stored locally so you can restore them later.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(deletePermanently ? 'Delete' : 'Move to trash'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      return;
+    }
+    if (deletePermanently) {
+      await _deleteMultiplePermanently(entries);
+    } else {
+      await _moveMultipleToTrash(entries);
+    }
+  }
+
+  Future<void> _deleteMultiplePermanently(List<RemoteFileEntry> entries) async {
+    int successCount = 0;
+    int failCount = 0;
+    for (final entry in entries) {
+      try {
+        final path = _joinPath(_currentPath, entry.name);
+        await _runShell(() => widget.shellService.deletePath(widget.host, path));
+        successCount++;
+      } catch (error) {
+        failCount++;
+        debugPrint('Failed to delete ${entry.name}: $error');
+      }
+    }
+    await _loadPath(_currentPath);
+    if (!mounted) return;
+    if (failCount == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Deleted $successCount items permanently')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Deleted $successCount items. $failCount failed.',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _moveMultipleToTrash(List<RemoteFileEntry> entries) async {
+    int successCount = 0;
+    int failCount = 0;
+    for (final entry in entries) {
+      try {
+        final path = _joinPath(_currentPath, entry.name);
+        await _runShell(
+          () => widget.trashManager.moveToTrash(
+            shellService: widget.shellService,
+            host: widget.host,
+            remotePath: path,
+            isDirectory: entry.isDirectory,
+            notify: false,
+          ),
+        );
+        await _runShell(() => widget.shellService.deletePath(widget.host, path));
+        successCount++;
+      } catch (error) {
+        failCount++;
+        debugPrint('Failed to move ${entry.name} to trash: $error');
+      }
+    }
+    widget.trashManager.notifyListeners();
+    await _loadPath(_currentPath);
+    if (!mounted) return;
+    if (failCount == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Moved $successCount items to trash')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Moved $successCount items to trash. $failCount failed.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleDownload(List<RemoteFileEntry> entries) async {
+    if (entries.isEmpty) {
+      return;
+    }
+
+    // Prompt user to select download directory
+    String? selectedDirectory;
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      selectedDirectory = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Select download location',
+      );
+    }
+
+    if (selectedDirectory == null) {
+      return;
+    }
+
+    final downloadDir = Directory(selectedDirectory);
+    if (!await downloadDir.exists()) {
+      await downloadDir.create(recursive: true);
+    }
+
+    // Show progress dialog
+    if (!mounted) return;
+    final progressController = FileOperationProgressDialog.show(
+      context,
+      operation: 'Downloading',
+      totalItems: entries.length,
+    );
+
+    try {
+      if (entries.length == 1) {
+        // Single file/directory download
+        progressController.updateProgress(currentItem: entries.first.name);
+        await _downloadSingleEntry(entries.first, downloadDir.path);
+        progressController.increment();
+      } else {
+        // Multiple files/directories download - download to temp then zip
+        final tempDir = await Directory.systemTemp.createTemp(
+          'cwatch-download-${DateTime.now().microsecondsSinceEpoch}',
+        );
+        try {
+          // Download all entries to temp directory
+          for (var i = 0; i < entries.length; i++) {
+            final entry = entries[i];
+            if (!mounted) return;
+            
+            progressController.updateProgress(currentItem: entry.name);
+            final remotePath = _joinPath(_currentPath, entry.name);
+            await _runShell(
+              () => widget.shellService.downloadPath(
+                host: widget.host,
+                remotePath: remotePath,
+                localDestination: tempDir.path,
+                recursive: entry.isDirectory,
+              ),
+            );
+            if (!mounted) return;
+            progressController.increment();
+          }
+          
+          // Create zip archive for multiple items
+          if (!mounted) return;
+          progressController.updateProgress(
+            currentItem: 'Creating archive...',
+          );
+          await _createZipArchiveFromTemp(entries, tempDir.path, downloadDir.path);
+          if (!mounted) return;
+        } finally {
+          await tempDir.delete(recursive: true);
+        }
+      }
+
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Downloaded ${entries.length} item${entries.length > 1 ? 's' : ''}',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Download failed: $error')),
+      );
+    }
+  }
+
+  Future<void> _downloadSingleEntry(
+    RemoteFileEntry entry,
+    String downloadDir,
+  ) async {
+    final remotePath = _joinPath(_currentPath, entry.name);
+
+    if (entry.isDirectory) {
+      // Download directory to temp first, then compress
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cwatch-download-${DateTime.now().microsecondsSinceEpoch}',
+      );
+      try {
+        // Download to temp directory first
+        await _runShell(
+          () => widget.shellService.downloadPath(
+            host: widget.host,
+            remotePath: remotePath,
+            localDestination: tempDir.path,
+            recursive: true,
+          ),
+        );
+
+        // Find the downloaded directory
+        final downloadedPath = p.join(tempDir.path, entry.name);
+        final downloadedDir = Directory(downloadedPath);
+        if (!await downloadedDir.exists()) {
+          throw Exception('Downloaded directory not found');
+        }
+
+        // Create zip archive
+        final archive = Archive();
+        await _addDirectoryToArchive(archive, downloadedDir, entry.name);
+
+        // Write zip file
+        final zipEncoder = ZipEncoder();
+        final zipBytes = zipEncoder.encode(archive);
+
+        final zipFile = File(p.join(downloadDir, '${entry.name}.zip'));
+        await zipFile.writeAsBytes(zipBytes);
+      } finally {
+        await tempDir.delete(recursive: true);
+      }
+    } else {
+      // Download single file
+      await _runShell(
+        () => widget.shellService.downloadPath(
+          host: widget.host,
+          remotePath: remotePath,
+          localDestination: downloadDir,
+          recursive: false,
+        ),
+      );
+    }
+  }
+
+  Future<void> _createZipArchiveFromTemp(
+    List<RemoteFileEntry> entries,
+    String tempDir,
+    String downloadDir,
+  ) async {
+    // Create a zip archive containing all downloaded items
+    final archive = Archive();
+    for (final entry in entries) {
+      final downloadedPath = p.join(tempDir, entry.name);
+      final downloadedEntity = FileSystemEntity.typeSync(downloadedPath);
+      if (downloadedEntity == FileSystemEntityType.directory) {
+        await _addDirectoryToArchive(
+          archive,
+          Directory(downloadedPath),
+          entry.name,
+        );
+      } else if (downloadedEntity == FileSystemEntityType.file) {
+        final file = File(downloadedPath);
+        final bytes = await file.readAsBytes();
+        archive.addFile(
+          ArchiveFile(entry.name, bytes.length, bytes),
+        );
+      }
+    }
+
+    // Write zip file
+    final zipEncoder = ZipEncoder();
+    final zipBytes = zipEncoder.encode(archive);
+
+    // Use a default name
+    final zipFileName = entries.length == 1
+        ? '${entries.first.name}.zip'
+        : 'download_${DateTime.now().millisecondsSinceEpoch}.zip';
+    final zipFile = File(p.join(downloadDir, zipFileName));
+    await zipFile.writeAsBytes(zipBytes);
+  }
+
+  Future<void> _addDirectoryToArchive(
+    Archive archive,
+    Directory directory,
+    String archivePath,
+  ) async {
+    await for (final entity in directory.list(recursive: false)) {
+      final name = p.basename(entity.path);
+      final entryPath = p.join(archivePath, name).replaceAll('\\', '/');
+
+      if (entity is File) {
+        final bytes = await entity.readAsBytes();
+        archive.addFile(ArchiveFile(entryPath, bytes.length, bytes));
+      } else if (entity is Directory) {
+        await _addDirectoryToArchive(archive, entity, entryPath);
+      }
+    }
+  }
+
+  Future<void> _handleUpload(String targetDirectory) async {
+    // Prompt user to select files/directories to upload
+    FilePickerResult? result;
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        dialogTitle: 'Select files to upload',
+      );
+    }
+
+    if (result == null || result.files.isEmpty) {
+      return;
+    }
+
+    final files = result.files.where((f) => f.path != null).toList();
+    if (files.isEmpty) {
+      return;
+    }
+
+    // Show progress dialog
+    if (!mounted) return;
+    final progressController = FileOperationProgressDialog.show(
+      context,
+      operation: 'Uploading',
+      totalItems: files.length,
+    );
+
+    try {
+      int successCount = 0;
+      int failCount = 0;
+
+      for (var i = 0; i < files.length; i++) {
+        final file = files[i];
+        if (file.path == null) continue;
+
+        if (!mounted) {
+          return;
+        }
+
+        final localPath = file.path!;
+        final fileName = p.basename(localPath);
+        final remotePath = _joinPath(targetDirectory, fileName);
+
+        progressController.updateProgress(currentItem: fileName);
+
+        try {
+          final localEntity = FileSystemEntity.typeSync(localPath);
+          final isDirectory = localEntity == FileSystemEntityType.directory;
+
+          await _runShell(
+            () => widget.shellService.uploadPath(
+              host: widget.host,
+              localPath: localPath,
+              remoteDestination: remotePath,
+              recursive: isDirectory,
+            ),
+          );
+          if (!mounted) return;
+          successCount++;
+        } catch (error) {
+          if (!mounted) return;
+          failCount++;
+          debugPrint('Failed to upload $fileName: $error');
+        }
+
+        if (!mounted) return;
+        progressController.increment();
+      }
+
+      if (!mounted) return;
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+      await _refreshCurrentPath();
+
+      if (!mounted) return;
+      if (failCount == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Uploaded $successCount item${successCount > 1 ? 's' : ''}',
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Uploaded $successCount item${successCount > 1 ? 's' : ''}. $failCount failed.',
+            ),
+          ),
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Upload failed: $error')),
+      );
+    }
+  }
+
   Future<String?> _promptMergeDialog({
     required String remotePath,
     required String local,
@@ -1894,6 +2720,51 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         remote: remote,
       ),
     );
+  }
+
+  Future<void> _showNavigateToSubdirectoryDialog() async {
+    // Get list of directories in current path
+    final directories = _entries
+        .where((entry) => entry.isDirectory)
+        .map((entry) => entry.name)
+        .toList()
+      ..sort();
+
+    if (directories.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No subdirectories available')),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Navigate to subdirectory'),
+        content: SizedBox(
+          width: 300,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: directories.length,
+            itemBuilder: (context, index) {
+              final dir = directories[index];
+              return ListTile(
+                leading: Icon(NerdIcon.folder.data),
+                title: Text(dir),
+                onTap: () => Navigator.of(context).pop(dir),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    if (selected != null && mounted) {
+      final targetPath = _joinPath(_currentPath, selected);
+      _loadPath(targetPath);
+    }
   }
 }
 
@@ -1909,6 +2780,8 @@ enum _ExplorerContextAction {
   pasteInto,
   delete,
   move,
+  download,
+  upload,
 }
 
 class _LocalFileSession {

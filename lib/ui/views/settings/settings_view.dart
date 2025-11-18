@@ -105,6 +105,7 @@ class _SettingsViewState extends State<SettingsView>
                           ),
                         ),
                         _ServersSettingsTab(
+                          key: const ValueKey('servers_settings_tab'),
                           autoRefresh: settings.serverAutoRefresh,
                           showOfflineHosts: settings.serverShowOffline,
                           controller: widget.controller,
@@ -328,8 +329,9 @@ class _GeneralSettingsTab extends StatelessWidget {
   }
 }
 
-class _ServersSettingsTab extends StatelessWidget {
+class _ServersSettingsTab extends StatefulWidget {
   const _ServersSettingsTab({
+    super.key,
     required this.autoRefresh,
     required this.showOfflineHosts,
     required this.controller,
@@ -350,11 +352,31 @@ class _ServersSettingsTab extends StatelessWidget {
   final ValueChanged<bool> onShowOfflineChanged;
 
   @override
+  State<_ServersSettingsTab> createState() => _ServersSettingsTabState();
+}
+
+class _ServersSettingsTabState extends State<_ServersSettingsTab> {
+  late final ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final settings = controller.settings;
+    final settings = widget.controller.settings;
     final backend = settings.sshClientBackend;
     final usingBuiltIn = backend == SshClientBackend.builtin;
     return ListView(
+      controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       children: [
         _SettingsSection(
@@ -366,8 +388,8 @@ class _ServersSettingsTab extends StatelessWidget {
             subtitle: const Text(
               'Periodically sync CPU, memory, and disk gauges.',
             ),
-            value: autoRefresh,
-            onChanged: onAutoRefreshChanged,
+            value: widget.autoRefresh,
+            onChanged: widget.onAutoRefreshChanged,
           ),
         ),
         _SettingsSection(
@@ -380,8 +402,8 @@ class _ServersSettingsTab extends StatelessWidget {
             subtitle: const Text(
               'Keep historical hosts visible for quick triage.',
             ),
-            value: showOfflineHosts,
-            onChanged: onShowOfflineChanged,
+            value: widget.showOfflineHosts,
+            onChanged: widget.onShowOfflineChanged,
           ),
         ),
         _SettingsSection(
@@ -394,7 +416,7 @@ class _ServersSettingsTab extends StatelessWidget {
               if (value == null) {
                 return;
               }
-              controller.update(
+              widget.controller.update(
                 (current) => current.copyWith(sshClientBackend: value),
               );
             },
@@ -419,10 +441,10 @@ class _ServersSettingsTab extends StatelessWidget {
                 ),
                 if (usingBuiltIn)
                   _BuiltInSshSettings(
-                    controller: controller,
-                    hostsFuture: hostsFuture,
-                    keyStore: builtInKeyStore,
-                    vault: builtInVault,
+                    controller: widget.controller,
+                    hostsFuture: widget.hostsFuture,
+                    keyStore: widget.builtInKeyStore,
+                    vault: widget.builtInVault,
                   ),
               ],
             ),
@@ -458,6 +480,7 @@ class _BuiltInSshSettingsState extends State<_BuiltInSshSettings> {
   late final VoidCallback _vaultListener;
   bool _isSaving = false;
   List<BuiltInSshKeyEntry> _cachedKeys = [];
+  List<SshHost>? _cachedHosts;
 
   @override
   void initState() {
@@ -964,28 +987,73 @@ class _BuiltInSshSettingsState extends State<_BuiltInSshSettings> {
             return FutureBuilder<List<SshHost>>(
               future: widget.hostsFuture,
               builder: (context, hostsSnapshot) {
-                if (keysSnapshot.connectionState == ConnectionState.waiting ||
-                    hostsSnapshot.connectionState == ConnectionState.waiting) {
+                // Update cache when data is available
+                if (keysSnapshot.hasData && keysSnapshot.data != null) {
+                  _cachedKeys = keysSnapshot.data!;
+                }
+                if (hostsSnapshot.hasData && hostsSnapshot.data != null) {
+                  _cachedHosts = hostsSnapshot.data!;
+                }
+                
+                // Use cached data if available while loading
+                final hosts = hostsSnapshot.data ?? _cachedHosts ?? const [];
+                
+                // Only show loading spinner if we don't have cached data
+                final isLoading = (keysSnapshot.connectionState == ConnectionState.waiting ||
+                    hostsSnapshot.connectionState == ConnectionState.waiting) &&
+                    (_cachedKeys.isEmpty && _cachedHosts == null);
+                
+                if (isLoading) {
                   return const SizedBox(
                     height: 64,
                     child: Center(child: CircularProgressIndicator()),
                   );
                 }
-                if (hostsSnapshot.hasError) {
+                if (hostsSnapshot.hasError && _cachedHosts == null) {
                   return Text('Unable to load hosts: ${hostsSnapshot.error}');
                 }
-                final keys = keysSnapshot.data ?? const [];
-                _cachedKeys = keys;
-                final hosts = hostsSnapshot.data ?? const [];
                 if (hosts.isEmpty) {
                   return const Text('No SSH hosts were detected.');
                 }
+                
+                // Group hosts by source
+                final grouped = _groupHostsBySource(hosts);
+                final sources = grouped.keys.toList()..sort();
+                final showSections = sources.length > 1;
+                
+                if (!showSections) {
+                  // Single source - no headers needed
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Host to key bindings'),
+                      const SizedBox(height: 6),
+                      ...hosts.map((host) => _buildHostMapping(host)),
+                    ],
+                  );
+                }
+                
+                // Multiple sources - show with headers
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text('Host to key bindings'),
                     const SizedBox(height: 6),
-                    ...hosts.map((host) => _buildHostMapping(host)),
+                    ...sources.expand((source) {
+                      final sourceHosts = grouped[source]!;
+                      return [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12, bottom: 6),
+                          child: Text(
+                            _getSourceDisplayName(source),
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                          ),
+                        ),
+                        ...sourceHosts.map((host) => _buildHostMapping(host)),
+                      ];
+                    }),
                   ],
                 );
               },
@@ -1153,6 +1221,24 @@ class _BuiltInSshSettingsState extends State<_BuiltInSshSettings> {
         SnackBar(content: Text('Failed to encrypt key: $error')),
       );
     }
+  }
+
+  Map<String, List<SshHost>> _groupHostsBySource(List<SshHost> hosts) {
+    final grouped = <String, List<SshHost>>{};
+    for (final host in hosts) {
+      final source = host.source ?? 'unknown';
+      grouped.putIfAbsent(source, () => []).add(host);
+    }
+    return grouped;
+  }
+
+  String _getSourceDisplayName(String source) {
+    if (source == 'custom') {
+      return 'Added Servers';
+    }
+    // Extract filename from path
+    final parts = source.split('/');
+    return parts.last;
   }
 
   Widget _buildHostMapping(SshHost host) {

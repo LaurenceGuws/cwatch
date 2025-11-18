@@ -35,7 +35,11 @@ class BuiltInRemoteShellService extends RemoteShellService {
     final command =
         "cd '${_escapeSingleQuotes(sanitized)}' && ls -al --time-style=+%Y-%m-%dT%H:%M:%S";
     final output = await _runCommand(host, command, timeout: timeout);
-    return parseLsOutput(output);
+    _log('[BuiltInSSH] listDirectory output for ${host.name}:$path (length=${output.length})');
+    _log('[BuiltInSSH] First 500 chars: ${output.length > 500 ? output.substring(0, 500) : output}');
+    final entries = parseLsOutput(output);
+    _log('[BuiltInSSH] Parsed ${entries.length} entries from output');
+    return entries;
   }
 
   @override
@@ -209,8 +213,26 @@ class BuiltInRemoteShellService extends RemoteShellService {
     SshHost host,
     String command, {
     Duration timeout = const Duration(seconds: 10),
-  }) {
-    return _runCommand(host, command, timeout: timeout).then((_) => null);
+  }) async {
+    _log('Running remote command on ${host.name}: $command');
+    // Run command and check exit code by appending ; echo $?
+    final checkCommand = '$command; echo "EXIT_CODE:\$?"';
+    final output = await _runCommand(host, checkCommand, timeout: timeout);
+    
+    // Check for exit code in output
+    final exitCodeMatch = RegExp(r'EXIT_CODE:(\d+)').firstMatch(output);
+    if (exitCodeMatch != null) {
+      final exitCode = int.tryParse(exitCodeMatch.group(1) ?? '') ?? -1;
+      if (exitCode != 0) {
+        _log('Command failed on ${host.name} with exit code: $exitCode');
+        throw Exception('Command failed with exit code $exitCode');
+      }
+      _log('Command on ${host.name} completed successfully');
+    } else {
+      // Fallback: if we can't parse exit code, assume success for backward compatibility
+      // but log a warning
+      _log('Warning: Could not parse exit code for command on ${host.name}');
+    }
   }
 
   Future<String> _runCommand(
@@ -307,8 +329,20 @@ class BuiltInRemoteShellService extends RemoteShellService {
       'Collecting identities for ${host.name} (files=${host.identityFiles.length})',
     );
     final identities = <SSHKeyPair>[];
-    for (final identityPath in host.identityFiles) {
+    
+    // If no identity files specified, use default SSH identity files
+    final identityFilesToCheck = host.identityFiles.isEmpty
+        ? _getDefaultIdentityFiles()
+        : host.identityFiles;
+    
+    for (final identityPath in identityFilesToCheck) {
       try {
+        // Skip non-existent files (especially for default identity files)
+        final identityFile = File(identityPath);
+        if (!await identityFile.exists()) {
+          continue;
+        }
+        
         // NEW: If this identity is a built-in key and already unlocked, use that PEM directly.
         final builtInId = _hostKeyBindings[host.name];
         if (builtInId != null) {
@@ -328,7 +362,7 @@ class BuiltInRemoteShellService extends RemoteShellService {
             }
           }
         }
-        final contents = await File(identityPath).readAsString();
+        final contents = await identityFile.readAsString();
         final passphrase = _identityPassphrases[identityPath];
 
         // Try to parse the key
@@ -446,6 +480,27 @@ class BuiltInRemoteShellService extends RemoteShellService {
       }
     }
     return identities;
+  }
+
+  /// Returns the default SSH identity file paths that SSH would use
+  /// when no IdentityFile is specified in the config.
+  List<String> _getDefaultIdentityFiles() {
+    final homeDir = Platform.environment['HOME'] ??
+        Platform.environment['USERPROFILE'] ??
+        '';
+    if (homeDir.isEmpty) {
+      return [];
+    }
+    final sshDir = p.join(homeDir, '.ssh');
+    return [
+      p.join(sshDir, 'id_rsa'),
+      p.join(sshDir, 'id_ecdsa'),
+      p.join(sshDir, 'id_ecdsa_sk'),
+      p.join(sshDir, 'id_ed25519'),
+      p.join(sshDir, 'id_ed25519_sk'),
+      p.join(sshDir, 'id_dsa'),
+      p.join(sshDir, 'id_xmss'),
+    ];
   }
 
   void setIdentityPassphrase(String identityPath, String passphrase) {

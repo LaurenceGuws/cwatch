@@ -19,8 +19,10 @@ List<RemoteFileEntry> parseLsOutput(String stdout) {
 }
 
 RemoteFileEntry? _parseLsLine(String line) {
+  // Updated pattern to handle ACL indicators (+), SELinux context (@), and other extended attributes
+  // Permissions can be 9-11 characters: rwxrwxrwx or rwxrwxrwx+ or rwxrwxrwx@
   final pattern = RegExp(
-    r'^([\-ldcbps])([rwx\-]{9})\s+\d+\s+\S+\s+\S+\s+(\d+)\s+(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\s+(.+)$',
+    r'^([\-ldcbps])([rwx\-+@]{9,11})\s+\d+\s+\S+\s+\S+\s+(\d+)\s+(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\s+(.+)$',
   );
   final match = pattern.firstMatch(line);
   if (match == null) {

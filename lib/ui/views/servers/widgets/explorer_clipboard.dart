@@ -33,27 +33,61 @@ class ExplorerClipboardEntry {
 class ExplorerClipboard {
   ExplorerClipboard._();
 
-  static final ValueNotifier<ExplorerClipboardEntry?> _notifier =
-      ValueNotifier<ExplorerClipboardEntry?>(null);
+  static final ValueNotifier<List<ExplorerClipboardEntry>> _notifier =
+      ValueNotifier<List<ExplorerClipboardEntry>>([]);
   static final ValueNotifier<ExplorerClipboardCutEvent?> _cutNotifier =
       ValueNotifier<ExplorerClipboardCutEvent?>(null);
 
-  static ValueListenable<ExplorerClipboardEntry?> get listenable => _notifier;
+  static ValueListenable<List<ExplorerClipboardEntry>> get listenable => _notifier;
   static ValueListenable<ExplorerClipboardCutEvent?> get cutEvents =>
       _cutNotifier;
-  static ExplorerClipboardEntry? get entry => _notifier.value;
+  
+  // Backward compatibility: get first entry if single, null if empty
+  static ExplorerClipboardEntry? get entry {
+    final entries = _notifier.value;
+    return entries.isEmpty ? null : entries.first;
+  }
+  
+  // Get all entries
+  static List<ExplorerClipboardEntry> get entries => _notifier.value;
+  
+  // Check if clipboard has content
+  static bool get hasEntries => _notifier.value.isNotEmpty;
 
   static void setEntry(ExplorerClipboardEntry? entry) {
-    _notifier.value = entry;
+    _notifier.value = entry == null ? [] : [entry];
+  }
+  
+  static void setEntries(List<ExplorerClipboardEntry> entries) {
+    _notifier.value = entries;
   }
 
-  static void clear() => setEntry(null);
+  static void clear() => setEntries([]);
 
   static void notifyCutCompleted(ExplorerClipboardEntry entry) {
-    _notifier.value = null;
+    final currentEntries = _notifier.value;
+    _notifier.value = currentEntries
+        .where((e) => e.remotePath != entry.remotePath)
+        .toList();
     _cutNotifier.value = ExplorerClipboardCutEvent(
       hostName: entry.host.name,
       remotePath: entry.remotePath,
     );
+  }
+  
+  static void notifyCutsCompleted(List<ExplorerClipboardEntry> entries) {
+    final currentEntries = _notifier.value;
+    final cutPaths = entries.map((e) => e.remotePath).toSet();
+    final remaining = currentEntries
+        .where((e) => !cutPaths.contains(e.remotePath))
+        .toList();
+    _notifier.value = remaining;
+    // Notify for each cut entry
+    for (final entry in entries) {
+      _cutNotifier.value = ExplorerClipboardCutEvent(
+        hostName: entry.host.name,
+        remotePath: entry.remotePath,
+      );
+    }
   }
 }
