@@ -1,16 +1,19 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
-import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
+import '../../settings/settings_path_provider.dart';
 import 'builtin_ssh_key_entry.dart';
 
 class BuiltInSshKeyStore {
-  BuiltInSshKeyStore();
+  BuiltInSshKeyStore({
+    SettingsPathProvider? pathProvider,
+  }) : _pathProvider = pathProvider ?? const SettingsPathProvider();
 
+  final SettingsPathProvider _pathProvider;
   static const _dirName = 'cwatch_builtin_ssh_keys';
   static const _metaExtension = '.json';
 
@@ -21,7 +24,7 @@ class BuiltInSshKeyStore {
       return _cachedDir!;
     }
     final base = await _getBaseDirectory();
-    final dir = Directory(p.join(base.path, _dirName));
+    final dir = Directory(p.join(base, _dirName));
     if (!await dir.exists()) {
       await dir.create(recursive: true);
     }
@@ -29,14 +32,8 @@ class BuiltInSshKeyStore {
     return dir;
   }
 
-  Future<Directory> _getBaseDirectory() async {
-    Directory temp;
-    try {
-      temp = await getTemporaryDirectory();
-    } on MissingPluginException {
-      temp = Directory.systemTemp;
-    }
-    return Directory(p.join(temp.path, 'cwatch'));
+  Future<String> _getBaseDirectory() async {
+    return await _pathProvider.configDirectory();
   }
 
   Future<List<BuiltInSshKeyEntry>> listEntries() async {

@@ -655,29 +655,37 @@ class _BuiltInSshSettingsState extends State<_BuiltInSshSettings> {
           ),
         ),
         const SizedBox(height: 12),
-        FutureBuilder<List<SshHost>>(
-          future: widget.hostsFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const SizedBox(
-                height: 64,
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-            if (snapshot.hasError) {
-              return Text('Unable to load hosts: ${snapshot.error}');
-            }
-            final hosts = snapshot.data ?? const [];
-            if (hosts.isEmpty) {
-              return const Text('No SSH hosts were detected.');
-            }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Host to key bindings'),
-                const SizedBox(height: 6),
-                ...hosts.map((host) => _buildHostMapping(host)),
-              ],
+        FutureBuilder<List<BuiltInSshKeyEntry>>(
+          future: _keysFuture,
+          builder: (context, keysSnapshot) {
+            return FutureBuilder<List<SshHost>>(
+              future: widget.hostsFuture,
+              builder: (context, hostsSnapshot) {
+                if (keysSnapshot.connectionState == ConnectionState.waiting ||
+                    hostsSnapshot.connectionState == ConnectionState.waiting) {
+                  return const SizedBox(
+                    height: 64,
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                if (hostsSnapshot.hasError) {
+                  return Text('Unable to load hosts: ${hostsSnapshot.error}');
+                }
+                final keys = keysSnapshot.data ?? const [];
+                _cachedKeys = keys;
+                final hosts = hostsSnapshot.data ?? const [];
+                if (hosts.isEmpty) {
+                  return const Text('No SSH hosts were detected.');
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Host to key bindings'),
+                    const SizedBox(height: 6),
+                    ...hosts.map((host) => _buildHostMapping(host)),
+                  ],
+                );
+              },
             );
           },
         ),
