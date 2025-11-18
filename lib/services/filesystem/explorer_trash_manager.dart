@@ -229,8 +229,15 @@ class TrashedEntry {
             hostname: hostJson['hostname'] as String? ?? '',
             port: (hostJson['port'] as num?)?.toInt() ?? 22,
             available: hostJson['available'] as bool? ?? true,
+            source: hostJson['source'] as String?,
           )
-        : const SshHost(name: 'Unknown', hostname: '', port: 22, available: true);
+        : const SshHost(
+            name: 'Unknown',
+            hostname: '',
+            port: 22,
+            available: true,
+            source: null,
+          );
     return TrashedEntry(
       id: json['id'] as String? ?? storagePath,
       host: host,

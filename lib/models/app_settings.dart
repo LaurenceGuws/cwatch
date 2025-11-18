@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'custom_ssh_host.dart';
 import 'ssh_client_backend.dart';
 
 class AppSettings {
@@ -24,6 +25,7 @@ class AppSettings {
     this.shellSidebarCollapsed = false,
     this.sshClientBackend = SshClientBackend.platform,
     this.builtinSshHostKeyBindings = const {},
+    this.customSshHosts = const [],
   });
 
   final ThemeMode themeMode;
@@ -46,6 +48,7 @@ class AppSettings {
   final bool shellSidebarCollapsed;
   final SshClientBackend sshClientBackend;
   final Map<String, String> builtinSshHostKeyBindings;
+  final List<CustomSshHost> customSshHosts;
 
   AppSettings copyWith({
     ThemeMode? themeMode,
@@ -68,6 +71,7 @@ class AppSettings {
     bool? shellSidebarCollapsed,
     SshClientBackend? sshClientBackend,
     Map<String, String>? builtinSshHostKeyBindings,
+    List<CustomSshHost>? customSshHosts,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -95,6 +99,7 @@ class AppSettings {
       sshClientBackend: sshClientBackend ?? this.sshClientBackend,
       builtinSshHostKeyBindings:
           builtinSshHostKeyBindings ?? this.builtinSshHostKeyBindings,
+      customSshHosts: customSshHosts ?? this.customSshHosts,
     );
   }
 
@@ -151,6 +156,10 @@ class AppSettings {
       builtinSshHostKeyBindings: parseBindings(
         json['builtinSshHostKeyBindings'] as Map<String, dynamic>?,
       ),
+      customSshHosts: (json['customSshHosts'] as List<dynamic>?)
+              ?.map((e) => CustomSshHost.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
     );
   }
 
@@ -176,6 +185,7 @@ class AppSettings {
       'shellSidebarCollapsed': shellSidebarCollapsed,
       'sshClientBackend': sshClientBackend.name,
       'builtinSshHostKeyBindings': builtinSshHostKeyBindings,
+      'customSshHosts': customSshHosts.map((h) => h.toJson()).toList(),
     };
   }
 }

@@ -172,11 +172,16 @@ class _HomeShellState extends State<HomeShell> {
     super.initState();
     _builtInKeyStore = BuiltInSshKeyStore();
     _builtInVault = BuiltInSshVault(keyStore: _builtInKeyStore);
-    _hostsFuture = SshConfigService().loadHosts();
+    _refreshHosts();
     _applyShellSettings(widget.settingsController.settings);
     _shellStateRestored = widget.settingsController.isLoaded;
     _settingsListener = _handleSettingsChanged;
     widget.settingsController.addListener(_settingsListener);
+  }
+
+  void _refreshHosts() {
+    final customHosts = widget.settingsController.settings.customSshHosts;
+    _hostsFuture = SshConfigService(customHosts: customHosts).loadHosts();
   }
 
   @override
@@ -186,15 +191,18 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   void _handleSettingsChanged() {
-    if (_shellStateRestored) {
-      return;
-    }
     if (!widget.settingsController.isLoaded) {
       return;
     }
+    if (!_shellStateRestored) {
+      setState(() {
+        _applyShellSettings(widget.settingsController.settings);
+        _shellStateRestored = true;
+      });
+    }
+    // Refresh hosts when custom hosts change
     setState(() {
-      _applyShellSettings(widget.settingsController.settings);
-      _shellStateRestored = true;
+      _refreshHosts();
     });
   }
 

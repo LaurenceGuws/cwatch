@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:cwatch/models/ssh_client_backend.dart';
 import 'package:cwatch/models/ssh_host.dart';
+import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/material.dart';
 import '../../../services/ssh/builtin/builtin_ssh_key_entry.dart';
 import '../../../services/ssh/builtin/builtin_ssh_key_store.dart';
@@ -507,6 +508,156 @@ class _BuiltInSshSettingsState extends State<_BuiltInSshSettings> {
       );
       return;
     }
+
+    // Try to parse the key without passphrase first
+    bool keyIsEncrypted = false;
+    bool parseSucceeded = false;
+    try {
+      SSHKeyPair.fromPem(keyText);
+      parseSucceeded = true;
+      keyIsEncrypted = false;
+    } on ArgumentError catch (e) {
+      if (e.message == 'passphrase is required for encrypted key') {
+        keyIsEncrypted = true;
+      } else {
+        // Other parsing error - might be encrypted or unsupported
+        // We'll try with passphrase to determine which
+        keyIsEncrypted = false; // Will prompt anyway
+      }
+    } on StateError catch (e) {
+      if (e.message.contains('encrypted')) {
+        keyIsEncrypted = true;
+      } else {
+        // Other parsing error - might be encrypted or unsupported
+        keyIsEncrypted = false; // Will prompt anyway
+      }
+    } catch (e) {
+      // Parsing failed - might be encrypted or unsupported
+      // We'll try with passphrase to determine which
+      keyIsEncrypted = false; // Will prompt anyway
+    }
+
+    // Helper function to validate key with passphrase
+    Future<bool> validateKeyWithPassphrase(String passphraseToTest) async {
+      try {
+        SSHKeyPair.fromPem(keyText, passphraseToTest);
+        keyIsEncrypted = true; // Confirmed encrypted
+        debugPrint('[Settings] Encrypted key validation successful');
+        return true;
+      } on SSHKeyDecryptError catch (e) {
+        if (!mounted) return false;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Invalid passphrase: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+        return false;
+      } on UnsupportedError catch (e) {
+        if (!mounted) return false;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Unsupported key cipher or format: ${e.message}',
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+        return false;
+      } catch (e) {
+        if (!mounted) return false;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Key cannot be parsed even with passphrase. '
+              'It may be unsupported or malformed: ${e.toString()}',
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+        return false;
+      }
+    }
+
+    // If parsing failed, always validate - might be encrypted or unsupported
+    if (!parseSucceeded) {
+      String? passphrase;
+      
+      // Use form password if provided, otherwise prompt
+      if (password.isNotEmpty) {
+        passphrase = password;
+        debugPrint('[Settings] Using password from form for validation');
+      } else {
+        passphrase = await _promptForKeyPassphrase(
+          context,
+          isRequired: keyIsEncrypted,
+        );
+        if (passphrase == null || !mounted) {
+          if (keyIsEncrypted) {
+            // User cancelled required passphrase
+            return;
+          }
+          // User cancelled - reject since parsing already failed
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Key cannot be parsed. It may be encrypted, unsupported, or malformed.',
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+          return;
+        }
+
+        // If user chose "Try without passphrase", we already know it fails
+        if (passphrase.isEmpty) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Key cannot be parsed without passphrase. '
+                'It may be encrypted, unsupported, or malformed.',
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+          return;
+        }
+      }
+
+      // Test decryption/parsing with passphrase
+      final isValid = await validateKeyWithPassphrase(passphrase);
+      if (!isValid) {
+        return; // Don't save invalid key
+      }
+    } else if (keyIsEncrypted) {
+      // Key was detected as encrypted, validate passphrase
+      String? passphrase;
+      
+      // Use form password if provided, otherwise prompt
+      if (password.isNotEmpty) {
+        passphrase = password;
+        debugPrint('[Settings] Using password from form for validation');
+      } else {
+        passphrase = await _promptForKeyPassphrase(context, isRequired: true);
+        if (passphrase == null || !mounted) {
+          return; // User cancelled
+        }
+      }
+
+      // Test decryption
+      final isValid = await validateKeyWithPassphrase(passphrase);
+      if (!isValid) {
+        return; // Don't save invalid key
+      }
+    }
+
     setState(() => _isSaving = true);
     debugPrint('[Settings] Adding built-in key "$label"');
     try {
@@ -531,6 +682,67 @@ class _BuiltInSshSettingsState extends State<_BuiltInSshSettings> {
     } finally {
       setState(() => _isSaving = false);
     }
+  }
+
+  Future<String?> _promptForKeyPassphrase(
+    BuildContext context, {
+    bool isRequired = false,
+  }) async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(
+            isRequired
+                ? 'Key passphrase required'
+                : 'Key validation needed',
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isRequired
+                    ? 'This key is encrypted with a passphrase. '
+                        'Please provide the passphrase to validate the key can be decrypted.'
+                    : 'The key could not be parsed. It may be encrypted with a passphrase, '
+                        'or it may be unsupported. Please try providing a passphrase if the key is encrypted.',
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'Key passphrase',
+                  helperText: isRequired
+                      ? 'This will not be stored, only used for validation.'
+                      : 'Leave empty if the key is not encrypted. '
+                          'This will not be stored, only used for validation.',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            if (!isRequired)
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(''),
+                child: const Text('Try without passphrase'),
+              ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(null),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () =>
+                  Navigator.of(context).pop(controller.text.trim()),
+              child: const Text('Validate'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _unlockKey(String keyId) async {

@@ -1,7 +1,16 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:dartssh2/dartssh2.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../../../models/custom_ssh_host.dart';
 import '../../../models/ssh_client_backend.dart';
 import '../../../models/ssh_host.dart';
+import '../../../services/ssh/builtin/builtin_ssh_key_entry.dart';
+import '../../../services/ssh/builtin/builtin_ssh_key_store.dart';
+import '../../../services/ssh/builtin/builtin_ssh_vault.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/nerd_fonts.dart';
 import '../../widgets/section_nav_bar.dart';
@@ -9,7 +18,6 @@ import '../../../services/filesystem/explorer_trash_manager.dart';
 import '../../../services/ssh/remote_shell_service.dart';
 import '../../../services/settings/app_settings_controller.dart';
 import '../../../services/ssh/builtin/builtin_remote_shell_service.dart';
-import '../../../services/ssh/builtin/builtin_ssh_vault.dart';
 import 'widgets/trash_tab.dart';
 import 'widgets/file_explorer_tab.dart';
 import 'widgets/connectivity_tab.dart';
@@ -51,7 +59,17 @@ class _ServersViewState extends State<ServersView> {
           title: 'Servers',
           tabs: const [],
           leading: widget.leading,
-          trailing: _buildServersMenu(),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.add),
+                tooltip: 'Add Server',
+                onPressed: () => _showAddServerDialog(context),
+              ),
+              _buildServersMenu(),
+            ],
+          ),
         ),
         Expanded(
           child: Padding(
@@ -77,18 +95,39 @@ class _ServersViewState extends State<ServersView> {
           return _ErrorState(error: snapshot.error.toString());
         }
         final hosts = snapshot.data ?? <SshHost>[];
-        if (hosts.isEmpty) {
-          return const Center(
-            child: Text('No SSH hosts found in available configs.'),
-          );
-        }
         return _HostList(
           hosts: hosts,
           onSelect: onHostSelected,
           onActivate: onHostActivate ?? _startActionFlowForHost,
+          settingsController: widget.settingsController,
+          builtInVault: widget.builtInVault,
+          onHostsChanged: () {
+            // Trigger rebuild when hosts change
+            setState(() {});
+          },
         );
       },
     );
+  }
+
+  Future<void> _showAddServerDialog(BuildContext context) async {
+    // Get keyStore from settings view or create it
+    final keyStore = BuiltInSshKeyStore();
+    final result = await showDialog<CustomSshHost>(
+      context: context,
+      builder: (context) => _AddServerDialog(
+        keyStore: keyStore,
+        vault: widget.builtInVault,
+      ),
+    );
+    if (result != null) {
+      final current = widget.settingsController.settings.customSshHosts;
+      widget.settingsController.update(
+        (settings) => settings.copyWith(
+          customSshHosts: [...current, result],
+        ),
+      );
+    }
   }
 
   Widget _buildTabWorkspace() {
@@ -426,11 +465,17 @@ class _HostList extends StatefulWidget {
     required this.hosts,
     required this.onSelect,
     required this.onActivate,
+    required this.settingsController,
+    required this.builtInVault,
+    required this.onHostsChanged,
   });
 
   final List<SshHost> hosts;
   final ValueChanged<SshHost>? onSelect;
   final ValueChanged<SshHost>? onActivate;
+  final AppSettingsController settingsController;
+  final BuiltInSshVault builtInVault;
+  final VoidCallback onHostsChanged;
 
   @override
   State<_HostList> createState() => _HostListState();
@@ -439,75 +484,338 @@ class _HostList extends StatefulWidget {
 class _HostListState extends State<_HostList> {
   SshHost? _selected;
 
+  Map<String, List<SshHost>> _groupHostsBySource() {
+    final grouped = <String, List<SshHost>>{};
+    for (final host in widget.hosts) {
+      final source = host.source ?? 'unknown';
+      grouped.putIfAbsent(source, () => []).add(host);
+    }
+    return grouped;
+  }
+
+  String _getSourceDisplayName(String source) {
+    if (source == 'custom') {
+      return 'Added Servers';
+    }
+    // Extract filename from path
+    final parts = source.split('/');
+    return parts.last;
+  }
+
   @override
   Widget build(BuildContext context) {
     final spacing = context.appTheme.spacing;
-    return ListView.separated(
-      padding: EdgeInsets.zero,
-      itemBuilder: (context, index) {
-        final host = widget.hosts[index];
-        final availability = host.available ? 'Online' : 'Offline';
-        final selected = _selected?.name == host.name;
-        final colorScheme = Theme.of(context).colorScheme;
-        final highlightColor = selected
-            ? colorScheme.primary.withValues(alpha: 0.08)
-            : Colors.transparent;
-        return GestureDetector(
-          onTapDown: (_) => setState(() => _selected = host),
-          onTap: () => widget.onSelect?.call(host),
-          onDoubleTap: () {
-            widget.onSelect?.call(host);
-            widget.onActivate?.call(host);
-          },
-          child: Card(
-            margin: EdgeInsets.zero,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: context.appTheme.section.cardRadius,
+    final grouped = _groupHostsBySource();
+    final sources = grouped.keys.toList()..sort();
+    
+    // Show sections only if more than one source
+    final showSections = sources.length > 1;
+
+    if (widget.hosts.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('No SSH hosts found.'),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () => _showAddServerDialog(context),
+              icon: const Icon(Icons.add),
+              label: const Text('Add Server'),
             ),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 110),
-              curve: Curves.easeOutCubic,
-              decoration: BoxDecoration(
-                color: highlightColor,
-                borderRadius: context.appTheme.section.cardRadius,
+          ],
+        ),
+      );
+    }
+
+    if (!showSections) {
+      // Single source - no headers needed
+      return ListView.separated(
+        padding: EdgeInsets.zero,
+        itemBuilder: (context, index) => _buildHostTile(widget.hosts[index]),
+        separatorBuilder: (_, _) => SizedBox(height: spacing.base),
+        itemCount: widget.hosts.length,
+      );
+    }
+
+    // Multiple sources - show with headers
+    return ListView.builder(
+      padding: EdgeInsets.zero,
+      itemCount: sources.length * 2 - 1, // Headers + separators
+      itemBuilder: (context, index) {
+        if (index.isOdd) {
+          // Separator
+          return SizedBox(height: spacing.base * 2);
+        }
+        final sourceIndex = index ~/ 2;
+        final source = sources[sourceIndex];
+        final hosts = grouped[source]!;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: spacing.base * 2,
+                vertical: spacing.base,
               ),
-              child: ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: spacing.base * 2,
-                  vertical: spacing.base,
-                ),
-                leading: Icon(
-                  host.available
-                      ? NerdIcon.checkCircle.data
-                      : NerdIcon.alert.data,
-                  color: host.available ? Colors.green : Colors.red,
-                ),
-                title: Text(
-                  host.name,
-                  style: selected
-                      ? Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: colorScheme.primary,
-                        )
-                      : null,
-                ),
-                subtitle: Text('${host.hostname}:${host.port}'),
-                trailing: Text(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _getSourceDisplayName(source),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                  ),
+                  if (source != 'custom')
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 18),
+                      tooltip: 'Edit config file',
+                      onPressed: () => _editConfigFile(source),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                ],
+              ),
+            ),
+            ...hosts.map((host) => Padding(
+                  padding: EdgeInsets.only(bottom: spacing.base),
+                  child: _buildHostTile(host),
+                )),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildHostTile(SshHost host) {
+    final spacing = context.appTheme.spacing;
+    final availability = host.available ? 'Online' : 'Offline';
+    final selected = _selected?.name == host.name;
+    final colorScheme = Theme.of(context).colorScheme;
+    final highlightColor = selected
+        ? colorScheme.primary.withValues(alpha: 0.08)
+        : Colors.transparent;
+    final isCustom = host.source == 'custom';
+
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _selected = host),
+      onTap: () => widget.onSelect?.call(host),
+      onDoubleTap: () {
+        widget.onSelect?.call(host);
+        widget.onActivate?.call(host);
+      },
+      child: Card(
+        margin: EdgeInsets.zero,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: context.appTheme.section.cardRadius,
+        ),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 110),
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            color: highlightColor,
+            borderRadius: context.appTheme.section.cardRadius,
+          ),
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: spacing.base * 2,
+              vertical: spacing.base,
+            ),
+            leading: Icon(
+              host.available
+                  ? NerdIcon.checkCircle.data
+                  : NerdIcon.alert.data,
+              color: host.available ? Colors.green : Colors.red,
+            ),
+            title: Text(
+              host.name,
+              style: selected
+                  ? Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: colorScheme.primary,
+                      )
+                  : null,
+            ),
+            subtitle: Text('${host.hostname}:${host.port}'),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
                   availability,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: host.available ? Colors.green : Colors.red,
                   ),
                 ),
-              ),
+                if (isCustom) ...[
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 20),
+                    tooltip: 'Edit',
+                    onPressed: () => _editCustomHost(host),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, size: 20),
+                    tooltip: 'Delete',
+                    onPressed: () => _deleteCustomHost(host),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ],
             ),
           ),
-        );
-      },
-      separatorBuilder: (_, _) => SizedBox(height: spacing.base),
-      itemCount: widget.hosts.length,
+        ),
+      ),
     );
+  }
+
+  Future<void> _editCustomHost(SshHost host) async {
+    final customHosts = widget.settingsController.settings.customSshHosts;
+    final customHost = customHosts.firstWhere(
+      (h) => h.name == host.name && h.hostname == host.hostname,
+    );
+    final keyStore = BuiltInSshKeyStore();
+    final result = await showDialog<CustomSshHost>(
+      context: context,
+      builder: (context) => _AddServerDialog(
+        initialHost: customHost,
+        keyStore: keyStore,
+        vault: widget.builtInVault,
+      ),
+    );
+    if (result != null) {
+      final updated = customHosts.map((h) => h == customHost ? result : h).toList();
+      widget.settingsController.update(
+        (settings) => settings.copyWith(customSshHosts: updated),
+      );
+      widget.onHostsChanged();
+    }
+  }
+
+  Future<void> _deleteCustomHost(SshHost host) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Server'),
+        content: Text('Are you sure you want to delete "${host.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      final customHosts = widget.settingsController.settings.customSshHosts;
+      final updated = customHosts.where(
+        (h) => !(h.name == host.name && h.hostname == host.hostname),
+      ).toList();
+      widget.settingsController.update(
+        (settings) => settings.copyWith(customSshHosts: updated),
+      );
+      widget.onHostsChanged();
+    }
+  }
+
+  Future<void> _showAddServerDialog(BuildContext context) async {
+    final keyStore = BuiltInSshKeyStore();
+    final result = await showDialog<CustomSshHost>(
+      context: context,
+      builder: (context) => _AddServerDialog(
+        keyStore: keyStore,
+        vault: widget.builtInVault,
+      ),
+    );
+    if (result != null) {
+      final current = widget.settingsController.settings.customSshHosts;
+      widget.settingsController.update(
+        (settings) => settings.copyWith(
+          customSshHosts: [...current, result],
+        ),
+      );
+      widget.onHostsChanged();
+    }
+  }
+
+  Future<void> _editConfigFile(String sourcePath) async {
+    try {
+      final editor = Platform.environment['EDITOR']?.trim();
+      if (editor != null && editor.isNotEmpty) {
+        final parts = editor
+            .split(RegExp(r'\s+'))
+            .where((part) => part.isNotEmpty)
+            .toList();
+        if (parts.isNotEmpty) {
+          // Try to find the executable
+          String? executable;
+          if (parts.first.contains('/') || parts.first.contains('\\')) {
+            // Absolute or relative path
+            executable = parts.first;
+          } else {
+            // Command name - try to find it
+            final whichCmd = Platform.isWindows ? 'where' : 'which';
+            final result = await Process.run(whichCmd, [parts.first]);
+            if (result.exitCode == 0) {
+              executable = result.stdout.toString().trim().split('\n').first;
+            }
+          }
+          if (executable != null) {
+            await Process.start(
+              executable,
+              [...parts.sublist(1), sourcePath],
+            );
+            return;
+          }
+        }
+      }
+
+      // Fallback to platform-specific defaults
+      if (Platform.isMacOS) {
+        await Process.start('open', ['-t', sourcePath]);
+      } else if (Platform.isWindows) {
+        await Process.start('notepad', [sourcePath]);
+      } else {
+        // Linux/Unix - try common editors
+        final editors = ['nano', 'vim', 'vi', 'gedit', 'kate'];
+        for (final editor in editors) {
+          try {
+            final whichCmd = 'which';
+            final result = await Process.run(whichCmd, [editor]);
+            if (result.exitCode == 0) {
+              await Process.start(editor, [sourcePath]);
+              return;
+            }
+          } catch (_) {
+            continue;
+          }
+        }
+        // Last resort: xdg-open
+        await Process.start('xdg-open', [sourcePath]);
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to open editor: $error'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }
 
@@ -615,3 +923,622 @@ class _TrashHost extends SshHost {
 }
 
 enum _ServersMenuAction { openTrash }
+
+class _AddServerDialog extends StatefulWidget {
+  const _AddServerDialog({
+    this.initialHost,
+    required this.keyStore,
+    required this.vault,
+  });
+
+  final CustomSshHost? initialHost;
+  final BuiltInSshKeyStore keyStore;
+  final BuiltInSshVault vault;
+
+  @override
+  State<_AddServerDialog> createState() => _AddServerDialogState();
+}
+
+class _AddServerDialogState extends State<_AddServerDialog> {
+  late final _formKey = GlobalKey<FormState>();
+  late final _nameController = TextEditingController(
+    text: widget.initialHost?.name ?? '',
+  );
+  late final _hostnameController = TextEditingController(
+    text: widget.initialHost?.hostname ?? '',
+  );
+  late final _portController = TextEditingController(
+    text: widget.initialHost?.port.toString() ?? '22',
+  );
+  late final _userController = TextEditingController(
+    text: widget.initialHost?.user ?? '',
+  );
+  
+  String? _selectedKeyId;
+  Future<List<BuiltInSshKeyEntry>>? _keysFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _keysFuture = widget.keyStore.listEntries();
+    // Set initial key selection if editing
+    if (widget.initialHost?.identityFile != null) {
+      // Try to find matching key by ID
+      _keysFuture!.then((keys) {
+        final matchingKey = keys.firstWhere(
+          (key) => key.id == widget.initialHost!.identityFile,
+          orElse: () => keys.isNotEmpty ? keys.first : throw StateError('No keys'),
+        );
+        if (mounted && keys.isNotEmpty) {
+          setState(() => _selectedKeyId = matchingKey.id);
+        }
+      }).catchError((_) {
+        // Ignore if no matching key found
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _hostnameController.dispose();
+    _portController.dispose();
+    _userController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(
+        widget.initialHost == null ? 'Add Server' : 'Edit Server',
+        overflow: TextOverflow.visible,
+        softWrap: true,
+      ),
+      contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 500,
+          maxHeight: MediaQuery.of(context).size.height * 0.8,
+        ),
+        child: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.8,
+          child: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Name',
+                      helperText: 'Display name for this server',
+                    ),
+                    textCapitalization: TextCapitalization.words,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Name is required';
+                      }
+                      return null;
+                    },
+                    autofocus: true,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _hostnameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Hostname',
+                      helperText: 'Hostname or IP address',
+                    ),
+                    keyboardType: TextInputType.url,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Hostname is required';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _portController,
+                    decoration: const InputDecoration(
+                      labelText: 'Port',
+                      helperText: 'SSH port (default: 22)',
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Port is required';
+                      }
+                      final port = int.tryParse(value.trim());
+                      if (port == null || port < 1 || port > 65535) {
+                        return 'Invalid port number';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _userController,
+                    decoration: const InputDecoration(
+                      labelText: 'Username (optional)',
+                      helperText: 'SSH username',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  FutureBuilder<List<BuiltInSshKeyEntry>>(
+                    future: _keysFuture,
+                    builder: (context, snapshot) {
+                      final keys = snapshot.data ?? [];
+                      final keyItems = <DropdownMenuItem<String?>>[
+                        const DropdownMenuItem(
+                          value: null,
+                          child: Text('None (use default)'),
+                        ),
+                        ...keys.map((key) => DropdownMenuItem(
+                              value: key.id,
+                              child: Text(key.label),
+                            )),
+                        const DropdownMenuItem(
+                          value: '__add_key__',
+                          child: Row(
+                            children: [
+                              Icon(Icons.add, size: 18),
+                              SizedBox(width: 8),
+                              Text('Add new key...'),
+                            ],
+                          ),
+                        ),
+                      ];
+
+                      return DropdownButtonFormField<String?>(
+                        initialValue: _selectedKeyId,
+                        decoration: const InputDecoration(
+                          labelText: 'SSH Key (optional)',
+                          helperText: 'Select a configured SSH key',
+                        ),
+                        items: keyItems,
+                        onChanged: (value) async {
+                          if (value == '__add_key__') {
+                            // Show add key dialog
+                            final newKey = await _showAddKeyDialog(context);
+                            if (newKey != null && mounted) {
+                              setState(() {
+                                _selectedKeyId = newKey.id;
+                                _keysFuture = widget.keyStore.listEntries();
+                              });
+                            }
+                          } else {
+                            setState(() => _selectedKeyId = value);
+                          }
+                        },
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (_formKey.currentState!.validate()) {
+              final port = int.tryParse(_portController.text.trim()) ?? 22;
+              Navigator.of(context).pop(
+                CustomSshHost(
+                  name: _nameController.text.trim(),
+                  hostname: _hostnameController.text.trim(),
+                  port: port,
+                  user: _userController.text.trim().isEmpty
+                      ? null
+                      : _userController.text.trim(),
+                  identityFile: _selectedKeyId,
+                ),
+              );
+            }
+          },
+          child: Text(widget.initialHost == null ? 'Add' : 'Save'),
+        ),
+      ],
+    );
+  }
+
+  Future<BuiltInSshKeyEntry?> _showAddKeyDialog(BuildContext context) async {
+    return showDialog<BuiltInSshKeyEntry>(
+      context: context,
+      builder: (context) => _AddKeyDialog(
+        keyStore: widget.keyStore,
+        vault: widget.vault,
+      ),
+    );
+  }
+}
+
+class _AddKeyDialog extends StatefulWidget {
+  const _AddKeyDialog({
+    required this.keyStore,
+    required this.vault,
+  });
+
+  final BuiltInSshKeyStore keyStore;
+  final BuiltInSshVault vault;
+
+  @override
+  State<_AddKeyDialog> createState() => _AddKeyDialogState();
+}
+
+class _AddKeyDialogState extends State<_AddKeyDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _labelController = TextEditingController();
+  final _keyController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isSaving = false;
+  String? _selectedFilePath;
+
+  @override
+  void dispose() {
+    _labelController.dispose();
+    _keyController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickKeyFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pem', 'key', 'id_rsa', 'id_ed25519', 'id_ecdsa'],
+      dialogTitle: 'Select SSH Private Key',
+    );
+    if (result != null && result.files.single.path != null) {
+      final filePath = result.files.single.path!;
+      final file = File(filePath);
+      if (await file.exists()) {
+        final contents = await file.readAsString();
+        setState(() {
+          _selectedFilePath = filePath;
+          _keyController.text = contents;
+          if (_labelController.text.isEmpty) {
+            // Auto-fill label from filename
+            final fileName = filePath.split('/').last;
+            _labelController.text = fileName;
+          }
+        });
+      }
+    }
+  }
+
+  Future<void> _handleAddKey() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    final label = _labelController.text.trim();
+    final keyText = _keyController.text.trim();
+    final password = _passwordController.text.trim();
+    
+    // Validate encrypted keys (same logic as settings view)
+    bool keyIsEncrypted = false;
+    bool parseSucceeded = false;
+    try {
+      SSHKeyPair.fromPem(keyText);
+      parseSucceeded = true;
+      keyIsEncrypted = false;
+    } on ArgumentError catch (e) {
+      if (e.message == 'passphrase is required for encrypted key') {
+        keyIsEncrypted = true;
+      }
+    } on StateError catch (e) {
+      if (e.message.contains('encrypted')) {
+        keyIsEncrypted = true;
+      }
+    } catch (_) {
+      // Parsing failed - might be encrypted or unsupported
+    }
+
+    // If parsing failed, validate with passphrase
+    if (!parseSucceeded) {
+      String? passphrase;
+      if (password.isNotEmpty) {
+        passphrase = password;
+      } else {
+        // Prompt for passphrase
+        final passphraseResult = await showDialog<String>(
+          context: context,
+          builder: (context) {
+            final controller = TextEditingController();
+            return AlertDialog(
+              title: const Text('Key validation needed'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'The key could not be parsed. It may be encrypted with a passphrase, '
+                    'or it may be unsupported. Please try providing a passphrase if the key is encrypted.',
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Key passphrase',
+                      helperText: 'Leave empty if the key is not encrypted.',
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(''),
+                  child: const Text('Try without passphrase'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(null),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () =>
+                      Navigator.of(context).pop(controller.text.trim()),
+                  child: const Text('Validate'),
+                ),
+              ],
+            );
+          },
+        );
+        if (passphraseResult == null) {
+          return; // User cancelled
+        }
+        passphrase = passphraseResult.isEmpty ? null : passphraseResult;
+      }
+
+      if (passphrase != null && passphrase.isNotEmpty) {
+        try {
+          SSHKeyPair.fromPem(keyText, passphrase);
+          keyIsEncrypted = true;
+        } on SSHKeyDecryptError catch (e) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Invalid passphrase: ${e.toString()}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+          return;
+        } on UnsupportedError catch (e) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Unsupported key cipher or format: ${e.message}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+          return;
+        } catch (e) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Key cannot be parsed even with passphrase. '
+                'It may be unsupported or malformed: ${e.toString()}',
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+          return;
+        }
+      } else {
+        // No passphrase provided but parsing failed
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Key cannot be parsed without passphrase. '
+              'It may be encrypted, unsupported, or malformed.',
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+        return;
+      }
+    } else if (keyIsEncrypted) {
+      // Key was detected as encrypted, validate passphrase
+      if (password.isEmpty) {
+        // Prompt for passphrase
+        final passphraseResult = await showDialog<String>(
+          context: context,
+          builder: (context) {
+            final controller = TextEditingController();
+            return AlertDialog(
+              title: const Text(
+                'Key passphrase required',
+                overflow: TextOverflow.visible,
+                softWrap: true,
+              ),
+              contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+              content: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: 500,
+                  maxHeight: MediaQuery.of(context).size.height * 0.8,
+                ),
+                child: SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.8,
+                  child: TextField(
+                    controller: controller,
+                    autofocus: true,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Key passphrase',
+                    ),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(null),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () =>
+                      Navigator.of(context).pop(controller.text.trim()),
+                  child: const Text('Validate'),
+                ),
+              ],
+            );
+          },
+        );
+        if (passphraseResult == null) {
+          return; // User cancelled
+        }
+        try {
+          SSHKeyPair.fromPem(keyText, passphraseResult);
+        } on SSHKeyDecryptError catch (e) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Invalid passphrase: ${e.toString()}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+          return;
+        } catch (e) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to validate key: ${e.toString()}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+          return;
+        }
+      }
+    }
+
+    setState(() => _isSaving = true);
+    try {
+      final entry = await widget.keyStore.addEntry(
+        label: label,
+        keyData: utf8.encode(keyText),
+        password: password.isEmpty ? null : password,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop(entry);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to add key: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text(
+        'Add SSH Key',
+        overflow: TextOverflow.visible,
+        softWrap: true,
+      ),
+      contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 500,
+          maxHeight: MediaQuery.of(context).size.height * 0.8,
+        ),
+        child: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.8,
+          child: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+              TextFormField(
+                controller: _labelController,
+                decoration: const InputDecoration(
+                  labelText: 'Key label',
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Label is required';
+                  }
+                  return null;
+                },
+                autofocus: true,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _keyController,
+                      decoration: InputDecoration(
+                        labelText: 'Private key (PEM format)',
+                        helperText: _selectedFilePath != null
+                            ? 'Selected: ${_selectedFilePath!.split('/').last}'
+                            : null,
+                      ),
+                      maxLines: null,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Key is required';
+                        }
+                        return null;
+                      },
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.folder_open),
+                        tooltip: 'Select key file',
+                        onPressed: _pickKeyFile,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _passwordController,
+                decoration: const InputDecoration(
+                  labelText: 'Encryption password (optional)',
+                  helperText:
+                      'If provided, the key will be encrypted in storage. '
+                      'Leave empty to store unencrypted keys as plaintext.',
+                ),
+                obscureText: true,
+              ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _isSaving ? null : _handleAddKey,
+          child: Text(_isSaving ? 'Saving...' : 'Add'),
+        ),
+      ],
+    );
+  }
+}

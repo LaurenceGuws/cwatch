@@ -34,6 +34,7 @@ class SshConfigParser {
             port: port,
             user: user,
             identityFiles: List.unmodifiable(identityFiles),
+            sourcePath: canonicalPath,
           ),
         );
       }
@@ -184,6 +185,7 @@ class ParsedHost {
     required this.port,
     this.user,
     this.identityFiles = const [],
+    required this.sourcePath,
   });
 
   final String name;
@@ -191,4 +193,5 @@ class ParsedHost {
   final int port;
   final String? user;
   final List<String> identityFiles;
+  final String sourcePath; // The actual config file path this host came from
 }
