@@ -4,10 +4,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../../services/filesystem/explorer_trash_manager.dart';
+import '../../../../services/logging/app_logger.dart';
 import '../../../../services/ssh/remote_shell_service.dart';
 import '../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
 import '../../../../services/ssh/builtin/builtin_ssh_key_store.dart';
 import '../../../../services/ssh/builtin/builtin_ssh_vault.dart';
+import 'file_explorer/ssh_auth_handler.dart';
 
 class TrashTab extends StatefulWidget {
   const TrashTab({
@@ -58,11 +60,15 @@ class _TrashTabState extends State<TrashTab> {
   bool _unlockInProgress = false;
   final Map<String, Future<String?>> _pendingPassphrasePrompts = {};
 
-  Future<T> _runShell<T>(Future<T> Function() action) {
+  Future<T> _runShell<T>(Future<T> Function() action) async {
     if (widget.builtInVault == null) {
       return action();
     }
-    return _withBuiltinUnlock(action);
+    try {
+      return await _withBuiltinUnlock(action);
+    } on SshUnlockCancelled {
+      throw const CancelledTrashOperation();
+    }
   }
 
   Future<T> _withBuiltinUnlock<T>(Future<T> Function() action) async {
@@ -72,7 +78,7 @@ class _TrashTabState extends State<TrashTab> {
       } on BuiltInSshKeyLockedException catch (error) {
         final unlocked = await _promptUnlock(error.keyId);
         if (!unlocked) {
-          rethrow;
+          throw const SshUnlockCancelled();
         }
         continue;
       } on BuiltInSshKeyPassphraseRequired catch (error) {
@@ -82,14 +88,7 @@ class _TrashTabState extends State<TrashTab> {
           'built-in key $keyLabel',
         );
         if (passphrase == null) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Passphrase is required to continue.'),
-              ),
-            );
-          }
-          rethrow;
+          throw const SshUnlockCancelled();
         }
         final service = widget.shellService;
         if (service is BuiltInRemoteShellService) {
@@ -122,14 +121,7 @@ class _TrashTabState extends State<TrashTab> {
           error.identityPath,
         );
         if (passphrase == null) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Passphrase is required to continue.'),
-              ),
-            );
-          }
-          rethrow;
+          throw const SshUnlockCancelled();
         }
         final service = widget.shellService;
         if (service is BuiltInRemoteShellService) {
@@ -169,7 +161,7 @@ class _TrashTabState extends State<TrashTab> {
       return false;
     }
     _unlockInProgress = true;
-    debugPrint('[Trash] Prompting unlock for key $keyId');
+    AppLogger.d('Prompting unlock for key $keyId', tag: 'Trash');
     try {
       // Check if password is needed
       final needsPwd = await vault.needsPassword(keyId);
@@ -177,7 +169,7 @@ class _TrashTabState extends State<TrashTab> {
       if (needsPwd) {
         password = await _showUnlockDialog(keyId);
         if (password == null) {
-          debugPrint('[Trash] Unlock cancelled for key $keyId');
+          AppLogger.d('Unlock cancelled for key $keyId', tag: 'Trash');
           return false;
         }
       }
@@ -186,7 +178,7 @@ class _TrashTabState extends State<TrashTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Key unlocked for this session.')),
         );
-        debugPrint('[Trash] Unlock succeeded for key $keyId');
+        AppLogger.d('Unlock succeeded for key $keyId', tag: 'Trash');
       }
       return true;
     } on BuiltInSshKeyDecryptException {
@@ -195,7 +187,7 @@ class _TrashTabState extends State<TrashTab> {
           const SnackBar(content: Text('Incorrect password for that key.')),
         );
       }
-      debugPrint('[Trash] Unlock failed: bad password for key $keyId');
+      AppLogger.w('Unlock failed: bad password for key $keyId', tag: 'Trash');
       return false;
     } catch (error) {
       if (mounted) {
@@ -203,11 +195,11 @@ class _TrashTabState extends State<TrashTab> {
           context,
         ).showSnackBar(SnackBar(content: Text('Failed to unlock key: $error')));
       }
-      debugPrint('[Trash] Unlock failed for key $keyId: $error');
+      AppLogger.w('Unlock failed for key $keyId', tag: 'Trash', error: error);
       return false;
     } finally {
       _unlockInProgress = false;
-      debugPrint('[Trash] Unlock flow completed for key $keyId');
+      AppLogger.d('Unlock flow completed for key $keyId', tag: 'Trash');
     }
   }
 
@@ -245,21 +237,21 @@ class _TrashTabState extends State<TrashTab> {
     final key = '$host|$path';
     final existing = _pendingPassphrasePrompts[key];
     if (existing != null) {
-      debugPrint('[Trash] Awaiting existing passphrase for $key');
+      AppLogger.d('Awaiting existing passphrase for $key', tag: 'Trash');
       return existing;
     }
     final completer = Completer<String?>();
     _pendingPassphrasePrompts[key] = completer.future;
     () async {
       try {
-        debugPrint('[Trash] Prompting passphrase for $key');
+        AppLogger.d('Prompting passphrase for $key', tag: 'Trash');
         final result = await _promptPassphrase(host, path);
         completer.complete(result);
       } catch (error, stackTrace) {
         completer.completeError(error, stackTrace);
       } finally {
         _pendingPassphrasePrompts.remove(key);
-        debugPrint('[Trash] Passphrase prompt completed for $key');
+        AppLogger.d('Passphrase prompt completed for $key', tag: 'Trash');
       }
     }();
     return completer.future;
@@ -393,6 +385,7 @@ class _TrashTabState extends State<TrashTab> {
         ),
       );
     } catch (error) {
+      if (error is CancelledTrashOperation) return;
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -422,4 +415,11 @@ class _TrashTabState extends State<TrashTab> {
     }
     return '${value.toStringAsFixed(1)} ${units[unitIndex]}';
   }
+}
+
+class CancelledTrashOperation implements Exception {
+  const CancelledTrashOperation();
+
+  @override
+  String toString() => 'CancelledTrashOperation';
 }

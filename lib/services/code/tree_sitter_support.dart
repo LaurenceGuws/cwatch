@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
@@ -10,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:tree_sitter/tree_sitter.dart';
 
+import '../logging/app_logger.dart';
 import 'grammar_manifest.dart';
 
 /// Handles configuration of the shared Tree-sitter environment.
@@ -591,21 +591,16 @@ class TreeSitterSession {
 }
 
 void _log(String message, [Object? error, StackTrace? stackTrace]) {
-  developer.log(
-    message,
-    name: 'TreeSitter',
-    error: error,
-    stackTrace: stackTrace,
-  );
-  final buffer = StringBuffer('[TreeSitter] $message');
-  if (error != null) {
-    buffer.write(' | $error');
+  if (error != null || stackTrace != null) {
+    AppLogger.w(
+      message,
+      tag: 'TreeSitter',
+      error: error,
+      stackTrace: stackTrace,
+    );
+    return;
   }
-  if (stackTrace != null) {
-    buffer.write('\n$stackTrace');
-  }
-  // ignore: avoid_print
-  print(buffer.toString());
+  AppLogger.i(message, tag: 'TreeSitter');
 }
 
 Map<String, String> _githubHeaders() {

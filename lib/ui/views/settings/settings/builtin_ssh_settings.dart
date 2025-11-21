@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../../services/logging/app_logger.dart';
 import '../../../../models/ssh_host.dart';
 import '../../../../services/settings/app_settings_controller.dart';
 import '../../../../services/ssh/builtin/builtin_ssh_key_entry.dart';
@@ -126,7 +127,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       try {
         SSHKeyPair.fromPem(keyText, passphraseToTest);
         keyIsEncrypted = true; // Confirmed encrypted
-        debugPrint('[Settings] Encrypted key validation successful');
+        AppLogger.d('Encrypted key validation successful', tag: 'Settings');
         return true;
       } on SSHKeyDecryptError catch (e) {
         if (!mounted) return false;
@@ -173,7 +174,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       // Use form password if provided, otherwise prompt
       if (password.isNotEmpty) {
         passphrase = password;
-        debugPrint('[Settings] Using password from form for validation');
+        AppLogger.d('Using password from form for validation', tag: 'Settings');
       } else {
         passphrase = await _promptForKeyPassphrase(
           context,
@@ -227,7 +228,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       // Use form password if provided, otherwise prompt
       if (password.isNotEmpty) {
         passphrase = password;
-        debugPrint('[Settings] Using password from form for validation');
+        AppLogger.d('Using password from form for validation', tag: 'Settings');
       } else {
         passphrase = await _promptForKeyPassphrase(context, isRequired: true);
         if (passphrase == null || !mounted) {
@@ -243,7 +244,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
     }
 
     setState(() => _isSaving = true);
-    debugPrint('[Settings] Adding built-in key "$label"');
+    AppLogger.d('Adding built-in key "$label"', tag: 'Settings');
     try {
       await widget.keyStore.addEntry(
         label: label,
@@ -340,7 +341,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
         return;
       }
     }
-    debugPrint('[Settings] Unlocking built-in key $keyId');
+    AppLogger.d('Unlocking built-in key $keyId', tag: 'Settings');
     try {
       await widget.vault.unlock(keyId, password);
       if (!mounted) return;
@@ -409,14 +410,14 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       final updatedBindings = Map<String, String>.from(bindings);
       for (final hostName in hostsUsingKey) {
         updatedBindings.remove(hostName);
-        debugPrint('[Settings] Removed key binding for host $hostName');
+        AppLogger.d('Removed key binding for host $hostName', tag: 'Settings');
       }
       widget.controller.update(
         (current) => current.copyWith(builtinSshHostKeyBindings: updatedBindings),
       );
     }
 
-    debugPrint('[Settings] Removing built-in key $keyId');
+    AppLogger.d('Removing built-in key $keyId', tag: 'Settings');
     await widget.keyStore.deleteEntry(keyId);
     widget.vault.forget(keyId);
     if (!mounted) return;
@@ -428,7 +429,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
 
   void _clearUnlocked() {
     widget.vault.forgetAll();
-    debugPrint('[Settings] Cleared unlocked built-in keys from memory');
+    AppLogger.d('Cleared unlocked built-in keys from memory', tag: 'Settings');
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Unlocked keys cleared from memory.')),
     );
@@ -442,9 +443,10 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
     } else {
       updated[hostName] = keyId;
     }
-    debugPrint(
-      '[Settings] Host $hostName now uses ${keyId ?? 'platform default'} for SSH.',
-    );
+      AppLogger.d(
+        'Host $hostName now uses ${keyId ?? 'platform default'} for SSH.',
+        tag: 'Settings',
+      );
     widget.controller.update(
       (current) => current.copyWith(builtinSshHostKeyBindings: updated),
     );

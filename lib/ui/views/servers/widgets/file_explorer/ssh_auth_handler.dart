@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../../../models/ssh_host.dart';
+import '../../../../../services/logging/app_logger.dart';
 import '../../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
 import '../../../../../services/ssh/builtin/builtin_ssh_key_store.dart';
 import '../../../../../services/ssh/builtin/builtin_ssh_vault.dart';
@@ -23,6 +24,7 @@ class SshAuthHandler {
   bool _unlockInProgress = false;
   final Map<String, Future<String?>> _pendingPassphrasePrompts = {};
   bool _disposed = false;
+  static const SshUnlockCancelled _unlockCancelled = SshUnlockCancelled();
 
   /// Execute a shell action with automatic SSH authentication handling
   Future<T> runShell<T>(Future<T> Function() action) async {
@@ -50,9 +52,12 @@ class SshAuthHandler {
       try {
         return await action();
       } on BuiltInSshKeyLockedException catch (error) {
-        final unlocked = await promptUnlock(error.keyId);
+        final displayName = (error.keyLabel?.trim().isNotEmpty ?? false)
+            ? error.keyLabel!.trim()
+            : await _keyDisplayName(error.keyId);
+        final unlocked = await promptUnlock(error.keyId, displayName);
         if (!unlocked) {
-          rethrow;
+          throw _unlockCancelled;
         }
         continue;
       } on BuiltInSshKeyPassphraseRequired catch (error) {
@@ -145,7 +150,7 @@ class SshAuthHandler {
     _pendingPassphrasePrompts.clear();
   }
 
-  Future<bool> promptUnlock(String keyId) async {
+  Future<bool> promptUnlock(String keyId, [String? displayName]) async {
     if (_unlockInProgress) {
       return false;
     }
@@ -157,14 +162,14 @@ class SshAuthHandler {
       return false;
     }
     _unlockInProgress = true;
-    debugPrint('[Explorer] Prompting unlock for key $keyId');
+    AppLogger.d('Prompting unlock for key $keyId', tag: 'Explorer');
     try {
       // Check if password is needed
       final needsPwd = await vault.needsPassword(keyId);
       if (needsPwd) {
         final unlocked = await _showUnlockDialog(
           keyId,
-          await _keyDisplayName(keyId),
+          displayName ?? await _keyDisplayName(keyId),
         );
         return unlocked;
       }
@@ -173,7 +178,7 @@ class SshAuthHandler {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Key unlocked for this session.')),
         );
-        debugPrint('[Explorer] Unlock succeeded for key $keyId');
+        AppLogger.d('Unlock succeeded for key $keyId', tag: 'Explorer');
       }
       return true;
     } catch (error) {
@@ -182,11 +187,15 @@ class SshAuthHandler {
           context,
         ).showSnackBar(SnackBar(content: Text('Failed to unlock key: $error')));
       }
-      debugPrint('[Explorer] Unlock failed for key $keyId. error=$error');
+      AppLogger.w(
+        'Unlock failed for key $keyId',
+        tag: 'Explorer',
+        error: error,
+      );
       return false;
     } finally {
       _unlockInProgress = false;
-      debugPrint('[Explorer] Unlock flow completed for key $keyId');
+      AppLogger.d('Unlock flow completed for key $keyId', tag: 'Explorer');
     }
   }
 
@@ -245,16 +254,6 @@ class SshAuthHandler {
                     decoration: const InputDecoration(labelText: 'Password'),
                     enabled: !loading,
                   ),
-                  if (host != null) ...[
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Host: ${host!.name}',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ),
-                  ],
                   if (errorText != null) ...[
                     const SizedBox(height: 8),
                     Text(
@@ -300,9 +299,6 @@ class SshAuthHandler {
         return label;
       }
     }
-    if (host != null) {
-      return '${host!.name} key (${_shortKeyId(keyId)})';
-    }
     return 'Key ${_shortKeyId(keyId)}';
   }
 
@@ -310,12 +306,11 @@ class SshAuthHandler {
     if (keyId.length <= 8) return keyId;
     return '${keyId.substring(0, 8)}…${keyId.substring(keyId.length - 4)}';
   }
-
   Future<String?> awaitPassphraseInput(String host, String path) async {
     final key = '$host|$path';
     final existing = _pendingPassphrasePrompts[key];
     if (existing != null) {
-      debugPrint('[Explorer] Awaiting existing passphrase for $key');
+      AppLogger.d('Awaiting existing passphrase for $key', tag: 'Explorer');
       return existing;
     }
     if (_disposed) {
@@ -325,14 +320,14 @@ class SshAuthHandler {
     _pendingPassphrasePrompts[key] = completer.future;
     () async {
       try {
-        debugPrint('[Explorer] Prompting passphrase for $key');
+        AppLogger.d('Prompting passphrase for $key', tag: 'Explorer');
         final result = await _promptPassphrase(host, path);
         completer.complete(result);
       } catch (error, stackTrace) {
         completer.completeError(error, stackTrace);
       } finally {
         _pendingPassphrasePrompts.remove(key);
-        debugPrint('[Explorer] Passphrase prompt completed for $key');
+        AppLogger.d('Passphrase prompt completed for $key', tag: 'Explorer');
       }
     }();
     return completer.future;
@@ -371,4 +366,13 @@ class SshAuthHandler {
     }
     return result?.isNotEmpty == true ? result : null;
   }
+
+  /// Thrown when a user cancels an unlock prompt.
+}
+
+class SshUnlockCancelled implements Exception {
+  const SshUnlockCancelled();
+
+  @override
+  String toString() => 'SshUnlockCancelled';
 }

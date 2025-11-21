@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../../../models/remote_file_entry.dart';
 import '../../../../../models/ssh_host.dart';
+import '../../../../../services/logging/app_logger.dart';
 import '../../../../../services/filesystem/explorer_trash_manager.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
@@ -177,7 +178,7 @@ class FileOperationsService {
         }
       } catch (error) {
         failCount++;
-        debugPrint('Failed to paste ${clipboard.displayName}: $error');
+        AppLogger.w('Failed to paste ${clipboard.displayName}', tag: 'Explorer', error: error);
         if (progressController != null) {
           progressController.increment();
         }
@@ -254,7 +255,7 @@ class FileOperationsService {
             selectedDirectory = downloadsDir.path;
           }
         } catch (e) {
-          debugPrint('Failed to get Android storage directory: $e');
+          AppLogger.w('Failed to get Android storage directory', tag: 'Explorer', error: e);
           // Show error and return
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -522,7 +523,10 @@ class FileOperationsService {
           // First, try to get bytes from PlatformFile (works on Android)
           if (file.bytes != null && file.bytes!.isNotEmpty) {
             fileBytes = file.bytes;
-            debugPrint('Using PlatformFile.bytes for $fileName (${fileBytes?.length ?? 0} bytes)');
+            AppLogger.d(
+              'Using PlatformFile.bytes for $fileName (${fileBytes?.length ?? 0} bytes)',
+              tag: 'Explorer',
+            );
           } else if (file.path != null && file.path!.isNotEmpty) {
             // Try to read from path if bytes aren't available
             try {
@@ -543,13 +547,20 @@ class FileOperationsService {
                   continue;
                 } else {
                   fileBytes = await localFile.readAsBytes();
-                  debugPrint('Read file from path $fileName (${fileBytes.length} bytes)');
+                  AppLogger.d(
+                    'Read file from path $fileName (${fileBytes.length} bytes)',
+                    tag: 'Explorer',
+                  );
                 }
               } else {
                 throw Exception('File does not exist: ${file.path}');
               }
             } catch (e) {
-              debugPrint('Failed to read file from path ${file.path}: $e');
+              AppLogger.w(
+                'Failed to read file from path ${file.path}',
+                tag: 'Explorer',
+                error: e,
+              );
               throw Exception('Cannot read file: $e');
             }
           } else {
@@ -559,7 +570,10 @@ class FileOperationsService {
           if (fileBytes != null && fileBytes.isNotEmpty) {
             // Use bytes-based upload (works better on Android)
             if (shellService is BuiltInRemoteShellService) {
-              debugPrint('Uploading $fileName to $remotePath using uploadBytes (${fileBytes.length} bytes)');
+              AppLogger.d(
+                'Uploading $fileName to $remotePath using uploadBytes (${fileBytes.length} bytes)',
+                tag: 'Explorer',
+              );
               await runShellWrapper(
                 () => (shellService as BuiltInRemoteShellService).uploadBytes(
                   host: host,
@@ -567,7 +581,7 @@ class FileOperationsService {
                   remoteDestination: remotePath,
                 ),
               );
-              debugPrint('Successfully uploaded $fileName');
+              AppLogger.d('Successfully uploaded $fileName', tag: 'Explorer');
             } else {
               // Fallback: write to temp file and upload
               final tempFile = File('${Directory.systemTemp.path}/${DateTime.now().millisecondsSinceEpoch}_$fileName');
@@ -592,8 +606,11 @@ class FileOperationsService {
         } catch (error) {
           if (!context.mounted) return;
           failCount++;
-          debugPrint('Failed to upload $fileName: $error');
-          debugPrint('File details: path=${file.path}, name=${file.name}, bytes=${file.bytes?.length ?? 0}');
+          AppLogger.w('Failed to upload $fileName', tag: 'Explorer', error: error);
+          AppLogger.d(
+            'File details: path=${file.path}, name=${file.name}, bytes=${file.bytes?.length ?? 0}',
+            tag: 'Explorer',
+          );
         }
 
         if (!context.mounted) return;
@@ -636,4 +653,3 @@ class FileOperationsService {
     }
   }
 }
-

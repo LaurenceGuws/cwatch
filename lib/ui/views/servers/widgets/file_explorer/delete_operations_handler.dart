@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../../models/remote_file_entry.dart';
 import '../../../../../models/ssh_host.dart';
 import '../../../../../services/filesystem/explorer_trash_manager.dart';
+import '../../../../../services/logging/app_logger.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 import 'path_utils.dart';
 
@@ -95,7 +96,7 @@ class DeleteOperationsHandler {
         successCount++;
       } catch (error) {
         failCount++;
-        debugPrint('Failed to delete ${entry.name}: $error');
+        AppLogger.w('Failed to delete ${entry.name}', tag: 'Explorer', error: error);
       }
     }
     await refreshPath();
@@ -138,7 +139,7 @@ class DeleteOperationsHandler {
         successCount++;
       } catch (error) {
         failCount++;
-        debugPrint('Failed to move ${entry.name} to trash: $error');
+        AppLogger.w('Failed to move ${entry.name} to trash', tag: 'Explorer', error: error);
       }
     }
     trashManager.notifyListeners();
@@ -157,4 +158,3 @@ class DeleteOperationsHandler {
     }
   }
 }
-

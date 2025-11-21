@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../../../models/remote_file_entry.dart';
 import '../../../../models/ssh_host.dart';
+import '../../../../services/logging/app_logger.dart';
 import '../../../../services/ssh/remote_shell_service.dart';
 import '../../../../services/ssh/builtin/builtin_ssh_vault.dart';
 import '../../../../services/ssh/remote_editor_cache.dart';
@@ -192,7 +193,24 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
   Future<void> _initializeExplorer() async {
     final home = await _runShell(
       () => widget.shellService.homeDirectory(widget.host),
-    );
+    ).catchError((error) {
+      if (error is CancelledExplorerOperation) {
+        if (mounted && Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
+        return '';
+      }
+      throw error;
+    });
+    if (home.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'Unlock cancelled';
+        });
+      }
+      return;
+    }
     if (!mounted) {
       return;
     }
@@ -412,7 +430,11 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     }
     
     if (result.error != null) {
-      debugPrint('Failed to refresh current path: ${result.error}');
+      AppLogger.w(
+        'Failed to refresh current path',
+        tag: 'Explorer',
+        error: result.error,
+      );
       return;
     }
     
@@ -634,8 +656,12 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     }
   }
 
-  Future<T> _runShell<T>(Future<T> Function() action) {
-    return _sshAuthHandler.runShell(action);
+  Future<T> _runShell<T>(Future<T> Function() action) async {
+    try {
+      return await _sshAuthHandler.runShell(action);
+    } on SshUnlockCancelled {
+      throw const CancelledExplorerOperation();
+    }
   }
 
   Future<void> _refreshCacheFromServer(LocalFileSession session) async {
@@ -693,6 +719,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         SnackBar(content: Text('Renamed ${entry.name} to $trimmed')),
       );
     } catch (error) {
+      if (error is CancelledExplorerOperation) return;
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to rename: $error')),
@@ -723,6 +750,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         SnackBar(content: Text('Moved ${entry.name} to $normalized')),
       );
     } catch (error) {
+      if (error is CancelledExplorerOperation) return;
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to move: $error')),
@@ -897,4 +925,11 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       _loadPath(targetPath);
     }
   }
+}
+
+class CancelledExplorerOperation implements Exception {
+  const CancelledExplorerOperation();
+
+  @override
+  String toString() => 'CancelledExplorerOperation';
 }

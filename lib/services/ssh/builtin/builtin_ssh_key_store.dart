@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'package:dartssh2/dartssh2.dart';
-import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
+import '../../logging/app_logger.dart';
 import '../../settings/settings_path_provider.dart';
 import 'builtin_ssh_key_entry.dart';
 
@@ -71,25 +72,37 @@ class BuiltInSshKeyStore {
       // Try parsing without passphrase - if it fails, the key is encrypted
       SSHKeyPair.fromPem(keyText);
       keyIsEncrypted = false;
-      debugPrint('[BuiltInSSHKeyStore] Key "$label" (id=$id) is unencrypted (no passphrase)');
+      AppLogger.d(
+        'Key "$label" (id=$id) is unencrypted (no passphrase)',
+        tag: 'BuiltInSSHKeyStore',
+      );
     } on ArgumentError catch (e) {
       if (e.message == 'passphrase is required for encrypted key') {
         keyIsEncrypted = true;
-        debugPrint('[BuiltInSSHKeyStore] Key "$label" (id=$id) is encrypted (has passphrase)');
+        AppLogger.d(
+          'Key "$label" (id=$id) is encrypted (has passphrase)',
+          tag: 'BuiltInSSHKeyStore',
+        );
       } else {
         rethrow;
       }
     } on StateError catch (e) {
       if (e.message.contains('encrypted')) {
         keyIsEncrypted = true;
-        debugPrint('[BuiltInSSHKeyStore] Key "$label" (id=$id) is encrypted (has passphrase)');
+        AppLogger.d(
+          'Key "$label" (id=$id) is encrypted (has passphrase)',
+          tag: 'BuiltInSSHKeyStore',
+        );
       } else {
         rethrow;
       }
     } catch (_) {
       // If parsing fails for other reasons, assume unencrypted
       keyIsEncrypted = false;
-      debugPrint('[BuiltInSSHKeyStore] Key "$label" (id=$id) assumed unencrypted (parsing failed for other reason)');
+      AppLogger.d(
+        'Key "$label" (id=$id) assumed unencrypted (parsing failed for other reason)',
+        tag: 'BuiltInSSHKeyStore',
+      );
     }
 
     final entry = await buildEntry(
@@ -186,9 +199,10 @@ class BuiltInSshKeyStore {
 
     if (shouldEncryptStorage) {
       // Encrypt the key data for storage
-      debugPrint(
-        '[BuiltInSSHKeyStore] Encrypting storage for key "$label" (id=$id). '
+      AppLogger.d(
+        'Encrypting storage for key "$label" (id=$id). '
         'Key itself is ${keyIsEncrypted ? "encrypted (has passphrase)" : "unencrypted"}.',
+        tag: 'BuiltInSSHKeyStore',
       );
       final salt = _randomBytes(16);
       final nonce = _randomBytes(12);
@@ -213,9 +227,10 @@ class BuiltInSshKeyStore {
       );
     } else {
       // Store as plaintext (unencrypted)
-      debugPrint(
-        '[BuiltInSSHKeyStore] Storing key "$label" (id=$id) as plaintext (no storage encryption). '
+      AppLogger.d(
+        'Storing key "$label" (id=$id) as plaintext (no storage encryption). '
         'Key itself is ${keyIsEncrypted ? "encrypted (has passphrase)" : "unencrypted"}.',
+        tag: 'BuiltInSSHKeyStore',
       );
       final keyText = utf8.decode(keyData);
       return BuiltInSshKeyEntry(

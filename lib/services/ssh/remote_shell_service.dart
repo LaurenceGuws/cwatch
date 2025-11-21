@@ -2,23 +2,18 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:flutter/foundation.dart';
-
 import '../../models/remote_file_entry.dart';
 import '../../models/ssh_host.dart';
+import '../logging/app_logger.dart';
 import 'remote_command_observer.dart';
 import 'remote_ls_parser.dart';
 
 abstract class RemoteShellService {
-  const RemoteShellService({
-    this.debugMode = false,
-    this.observer,
-  });
+  const RemoteShellService({this.debugMode = false, this.observer});
 
   final bool debugMode;
   final RemoteCommandObserver? observer;
 
-  @protected
   void emitDebugEvent({
     required SshHost host,
     required String operation,
@@ -41,8 +36,9 @@ abstract class RemoteShellService {
       ),
     );
     if (verification?.passed == false) {
-      debugPrint(
-        '[SSH DEBUG] Verification failed for $operation on ${host.name}',
+      AppLogger.w(
+        'Verification failed for $operation on ${host.name}',
+        tag: 'SSH DEBUG',
       );
     }
   }
@@ -119,10 +115,7 @@ abstract class RemoteShellService {
 }
 
 class ProcessRemoteShellService extends RemoteShellService {
-  const ProcessRemoteShellService({
-    super.debugMode = false,
-    super.observer,
-  });
+  const ProcessRemoteShellService({super.debugMode = false, super.observer});
 
   /// Handles SSH command errors, detecting authentication failures.
   Never _handleSshError(SshHost host, ProcessResult result) {
@@ -136,7 +129,9 @@ class ProcessRemoteShellService extends RemoteShellService {
         stderrOutput?.contains('Authentication failed') == true ||
         stderrOutput?.contains('Host key verification failed') == true ||
         result.exitCode == 255) {
-      throw Exception('SSH authentication failed for ${host.name}: $errorMessage');
+      throw Exception(
+        'SSH authentication failed for ${host.name}: $errorMessage',
+      );
     }
 
     throw Exception(errorMessage);
@@ -568,7 +563,6 @@ class ProcessRemoteShellService extends RemoteShellService {
       passed: shouldExist ? exists : !exists,
     );
   }
-
 }
 
 class RunResult {

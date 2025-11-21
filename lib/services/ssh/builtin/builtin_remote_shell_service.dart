@@ -1,13 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:cwatch/models/remote_file_entry.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:dartssh2/dartssh2.dart';
-import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
+import '../../logging/app_logger.dart';
 import '../remote_ls_parser.dart';
 import '../remote_shell_service.dart';
 import 'builtin_ssh_vault.dart';
@@ -542,7 +543,7 @@ class BuiltInRemoteShellService extends RemoteShellService {
 
       final unlocked = vault.getUnlockedKey(keyId);
       if (unlocked == null) {
-        throw BuiltInSshKeyLockedException(host.name, keyId);
+        throw BuiltInSshKeyLockedException(host.name, keyId, entry.label);
       }
       _log('Using unlocked built-in key $keyId for host ${host.name}');
       final pem = utf8.decode(unlocked, allowMalformed: true);
@@ -817,10 +818,11 @@ class BuiltInRemoteShellService extends RemoteShellService {
 }
 
 class BuiltInSshKeyLockedException implements Exception {
-  BuiltInSshKeyLockedException(this.hostName, this.keyId);
+  BuiltInSshKeyLockedException(this.hostName, this.keyId, [this.keyLabel]);
 
   final String hostName;
   final String keyId;
+  final String? keyLabel;
 }
 
 class BuiltInSshKeyPassphraseRequired implements Exception {
@@ -877,5 +879,5 @@ class BuiltInSshAuthenticationFailed implements Exception {
 }
 
 void _log(String message) {
-  debugPrint('[BuiltInSSH] $message');
+  AppLogger.d(message, tag: 'BuiltInSSH');
 }
