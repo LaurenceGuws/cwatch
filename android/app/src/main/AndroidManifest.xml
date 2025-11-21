@@ -1,4 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Network permission required for SSH and HTTP connections -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- File access permissions for file picker and file operations -->
+    <!-- Note: Modern Android (API 30+) uses scoped storage, file_picker handles this automatically -->
+    <!-- These permissions are for older Android versions and direct file access -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29"/>
+    
     <application
         android:label="cwatch"
         android:name="${applicationName}"

@@ -10,6 +10,7 @@ import 'services/settings/app_settings_controller.dart';
 import 'services/ssh/ssh_config_service.dart';
 import 'services/ssh/builtin/builtin_ssh_key_store.dart';
 import 'services/ssh/builtin/builtin_ssh_vault.dart';
+import 'services/ssh/remote_command_log_controller.dart';
 import 'ui/theme/app_theme.dart';
 import 'ui/theme/nerd_fonts.dart';
 import 'ui/views/docker/docker_view.dart';
@@ -166,10 +167,12 @@ class _HomeShellState extends State<HomeShell> {
   late final VoidCallback _settingsListener;
   late final BuiltInSshKeyStore _builtInKeyStore;
   late final BuiltInSshVault _builtInVault;
+  late final RemoteCommandLogController _commandLog;
 
   @override
   void initState() {
     super.initState();
+    _commandLog = RemoteCommandLogController();
     _builtInKeyStore = BuiltInSshKeyStore();
     _builtInVault = BuiltInSshVault(keyStore: _builtInKeyStore);
     _refreshHosts();
@@ -181,11 +184,20 @@ class _HomeShellState extends State<HomeShell> {
 
   void _refreshHosts() {
     final customHosts = widget.settingsController.settings.customSshHosts;
-    _hostsFuture = SshConfigService(customHosts: customHosts).loadHosts();
+    final customConfigs =
+        widget.settingsController.settings.customSshConfigPaths;
+    final disabledConfigs =
+        widget.settingsController.settings.disabledSshConfigPaths;
+    _hostsFuture = SshConfigService(
+      customHosts: customHosts,
+      additionalEntryPoints: customConfigs,
+      disabledEntryPoints: disabledConfigs,
+    ).loadHosts();
   }
 
   @override
   void dispose() {
+    _commandLog.dispose();
     widget.settingsController.removeListener(_settingsListener);
     super.dispose();
   }
@@ -324,6 +336,7 @@ class _HomeShellState extends State<HomeShell> {
             hostsFuture: _hostsFuture,
             settingsController: widget.settingsController,
             builtInVault: _builtInVault,
+            commandLog: _commandLog,
             leading: buildToggleButton(),
           ),
           DockerView(leading: buildToggleButton()),
@@ -333,6 +346,7 @@ class _HomeShellState extends State<HomeShell> {
             hostsFuture: _hostsFuture,
             builtInKeyStore: _builtInKeyStore,
             builtInVault: _builtInVault,
+            commandLog: _commandLog,
             leading: buildToggleButton(),
           ),
         ];
@@ -530,38 +544,44 @@ class _SidebarButton extends StatelessWidget {
     final textColor = selected
         ? colorScheme.primary
         : colorScheme.onSurfaceVariant;
-    return Material(
+    final button = Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        child: SizedBox.expand(
-          child: Column(
-            children: [
-              Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(icon.data, size: iconSize, color: iconColor),
-                      if (showLabel) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          label,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                color: textColor,
-                                fontWeight: selected
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                                letterSpacing: 0.4,
+            child: SizedBox.expand(
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(icon.data, size: iconSize, color: iconColor),
+                          if (showLabel) ...[
+                            const SizedBox(height: 6),
+                            Flexible(
+                              child: Text(
+                                label,
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(
+                                      color: textColor,
+                                      fontWeight: selected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      letterSpacing: 0.4,
+                                    ),
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                softWrap: false,
                               ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              ),
               _SidebarDivider(
                 color: selected ? colorScheme.primary : dividerColor,
                 inset: 12,
@@ -571,6 +591,15 @@ class _SidebarButton extends StatelessWidget {
         ),
       ),
     );
+    
+    // Add tooltip when label is hidden
+    if (!showLabel) {
+      return Tooltip(
+        message: label,
+        child: button,
+      );
+    }
+    return button;
   }
 }
 

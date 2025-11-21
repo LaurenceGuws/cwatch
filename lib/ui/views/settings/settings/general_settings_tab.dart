@@ -7,22 +7,18 @@ class GeneralSettingsTab extends StatelessWidget {
   const GeneralSettingsTab({
     super.key,
     required this.selectedTheme,
-    required this.notificationsEnabled,
-    required this.telemetryEnabled,
+    required this.debugMode,
     required this.zoomFactor,
     required this.onThemeChanged,
-    required this.onNotificationsChanged,
-    required this.onTelemetryChanged,
+    required this.onDebugModeChanged,
     required this.onZoomChanged,
   });
 
   final ThemeMode selectedTheme;
-  final bool notificationsEnabled;
-  final bool telemetryEnabled;
+  final bool debugMode;
   final double zoomFactor;
   final ValueChanged<ThemeMode> onThemeChanged;
-  final ValueChanged<bool> onNotificationsChanged;
-  final ValueChanged<bool> onTelemetryChanged;
+  final ValueChanged<bool> onDebugModeChanged;
   final ValueChanged<double> onZoomChanged;
 
   @override
@@ -70,34 +66,20 @@ class GeneralSettingsTab extends StatelessWidget {
           ),
         ),
         SettingsSection(
-          title: 'Notifications',
-          description: 'Manage app-level alerts for agent activity.',
-          child: SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Enable notifications'),
-            subtitle: const Text(
-              'Receive push alerts when infrastructure changes are detected.',
-            ),
-            value: notificationsEnabled,
-            onChanged: onNotificationsChanged,
-          ),
-        ),
-        SettingsSection(
-          title: 'Telemetry',
+          title: 'Debug Mode',
           description:
-              'Help improve cwatch by sharing anonymized usage metrics.',
+              'Show command feedback and verification steps in the UI when running SSH operations.',
           child: SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Share anonymous telemetry'),
+            title: const Text('Enable SSH debug overlays'),
             subtitle: const Text(
-              'Crash reports and session performance data are uploaded securely.',
+              'Displays commands, raw output, and post-action checks like file existence verification.',
             ),
-            value: telemetryEnabled,
-            onChanged: onTelemetryChanged,
+            value: debugMode,
+            onChanged: onDebugModeChanged,
           ),
         ),
       ],
     );
   }
 }
-

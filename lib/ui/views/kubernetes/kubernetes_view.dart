@@ -20,6 +20,8 @@ class KubernetesView extends StatelessWidget {
                 'Clusters',
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
+              const SizedBox(height: 8),
+              const Text('Coming soon...'),
               const SizedBox(height: 12),
               const _InfoCard(
                 title: 'Status',

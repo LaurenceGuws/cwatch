@@ -56,13 +56,13 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
   Set<String> _pathHistory = {'/'};
   TextEditingController? _pathFieldController;
   late final VoidCallback _clipboardListener;
-  late final SshAuthHandler _sshAuthHandler;
-  late final FileOperationsService _fileOpsService;
-  late final FileEditingService _fileEditingService;
+  late SshAuthHandler _sshAuthHandler;
+  late FileOperationsService _fileOpsService;
+  late FileEditingService _fileEditingService;
   late final SelectionController _selectionController;
-  late final PathLoadingService _pathLoadingService;
-  late final DeleteOperationsHandler _deleteHandler;
-  late final ClipboardOperationsHandler _clipboardHandler;
+  late PathLoadingService _pathLoadingService;
+  late DeleteOperationsHandler _deleteHandler;
+  late ClipboardOperationsHandler _clipboardHandler;
   late final VoidCallback _cutEventListener;
   late final VoidCallback _trashRestoreListener;
 
@@ -150,6 +150,45 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     widget.trashManager.restoreEvents.addListener(_trashRestoreListener);
   }
 
+  @override
+  void didUpdateWidget(covariant FileExplorerTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.shellService != widget.shellService) {
+      _sshAuthHandler = SshAuthHandler(
+        shellService: widget.shellService,
+        builtInVault: widget.builtInVault,
+        context: context,
+        host: widget.host,
+      );
+      _fileOpsService = FileOperationsService(
+        shellService: widget.shellService,
+        host: widget.host,
+        trashManager: widget.trashManager,
+        runShellWrapper: _runShell,
+      );
+      _fileEditingService = FileEditingService(
+        shellService: widget.shellService,
+        host: widget.host,
+        cache: _cache,
+        runShellWrapper: _runShell,
+        promptMergeDialog: _promptMergeDialog,
+        launchLocalApp: ExternalAppLauncher.launch,
+      );
+      _pathLoadingService = PathLoadingService(
+        shellService: widget.shellService,
+        host: widget.host,
+        cache: _cache,
+        runShellWrapper: _runShell,
+      );
+      _deleteHandler = DeleteOperationsHandler(
+        shellService: widget.shellService,
+        host: widget.host,
+        trashManager: widget.trashManager,
+        runShellWrapper: _runShell,
+      );
+    }
+  }
+
   Future<void> _initializeExplorer() async {
     final home = await _runShell(
       () => widget.shellService.homeDirectory(widget.host),
@@ -169,6 +208,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     ExplorerClipboard.listenable.removeListener(_clipboardListener);
     ExplorerClipboard.cutEvents.removeListener(_cutEventListener);
     widget.trashManager.restoreEvents.removeListener(_trashRestoreListener);
+    _sshAuthHandler.dispose();
     super.dispose();
   }
 
@@ -858,5 +898,3 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     }
   }
 }
-
-

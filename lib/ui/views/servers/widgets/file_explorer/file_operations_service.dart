@@ -3,11 +3,13 @@ import 'package:archive/archive.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../../../../../models/remote_file_entry.dart';
 import '../../../../../models/ssh_host.dart';
 import '../../../../../services/filesystem/explorer_trash_manager.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
+import '../../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
 import '../explorer_clipboard.dart';
 import '../../../../widgets/file_operation_progress_dialog.dart';
 
@@ -233,7 +235,36 @@ class FileOperationsService {
 
     // Prompt user to select download directory
     String? selectedDirectory;
-    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    if (Platform.isAndroid) {
+      // On Android, use file_picker to select directory
+      selectedDirectory = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Select download location',
+      );
+      // Fallback to app's external storage Downloads directory if user cancels
+      if (selectedDirectory == null) {
+        try {
+          final externalDir = await getExternalStorageDirectory();
+          if (externalDir != null) {
+            final downloadsDir = Directory(p.join(externalDir.path, 'Downloads'));
+            selectedDirectory = downloadsDir.path;
+          } else {
+            // Last resort: use app's documents directory
+            final appDir = await getApplicationDocumentsDirectory();
+            final downloadsDir = Directory(p.join(appDir.path, 'Downloads'));
+            selectedDirectory = downloadsDir.path;
+          }
+        } catch (e) {
+          debugPrint('Failed to get Android storage directory: $e');
+          // Show error and return
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Failed to access download directory')),
+            );
+          }
+          return;
+        }
+      }
+    } else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
       selectedDirectory = await FilePicker.platform.getDirectoryPath(
         dialogTitle: 'Select download location',
       );
@@ -429,19 +460,30 @@ class FileOperationsService {
   }) async {
     // Prompt user to select files/directories to upload
     FilePickerResult? result;
-    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-      result = await FilePicker.platform.pickFiles(
-        allowMultiple: true,
-        dialogTitle: 'Select files to upload',
-      );
-    }
+    // On mobile, file picker works differently - use pickFiles for all platforms
+    // On Android, we need to load bytes explicitly
+    result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      dialogTitle: 'Select files to upload',
+      withData: Platform.isAndroid, // Load file data on Android
+    );
 
     if (result == null || result.files.isEmpty) {
       return;
     }
 
-    final files = result.files.where((f) => f.path != null).toList();
+    // On Android, accept files even if path is null (bytes might be available)
+    // On other platforms, require path
+    final files = Platform.isAndroid
+        ? result.files.where((f) => f.path != null || (f.bytes != null && f.bytes!.isNotEmpty)).toList()
+        : result.files.where((f) => f.path != null).toList();
+    
     if (files.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No valid files selected')),
+        );
+      }
       return;
     }
 
@@ -459,33 +501,99 @@ class FileOperationsService {
 
       for (var i = 0; i < files.length; i++) {
         final file = files[i];
-        if (file.path == null) continue;
-
+        
         if (!context.mounted) {
           return;
         }
 
-        final localPath = file.path!;
-        final fileName = p.basename(localPath);
+        // Get file name - prefer name from PlatformFile, fallback to path basename
+        final fileName = file.name.isNotEmpty 
+            ? file.name 
+            : (file.path != null ? p.basename(file.path!) : 'file_$i');
         final remotePath = joinPath(targetDirectory, fileName);
 
         progressController.updateProgress(currentItem: fileName);
 
         try {
-          final localEntity = FileSystemEntity.typeSync(localPath);
-          final isDirectory = localEntity == FileSystemEntityType.directory;
+          // On Android, file_picker may return files that aren't directly accessible via path
+          // Try to read bytes directly from PlatformFile if available
+          List<int>? fileBytes;
+          
+          // First, try to get bytes from PlatformFile (works on Android)
+          if (file.bytes != null && file.bytes!.isNotEmpty) {
+            fileBytes = file.bytes;
+            debugPrint('Using PlatformFile.bytes for $fileName (${fileBytes?.length ?? 0} bytes)');
+          } else if (file.path != null && file.path!.isNotEmpty) {
+            // Try to read from path if bytes aren't available
+            try {
+              final localFile = File(file.path!);
+              if (await localFile.exists()) {
+                final localEntity = FileSystemEntity.typeSync(file.path!);
+                final isDirectory = localEntity == FileSystemEntityType.directory;
+                if (isDirectory) {
+                  // Directories need to use uploadPath
+                  await uploadPath(
+                    localPath: file.path!,
+                    remoteDestination: remotePath,
+                    recursive: true,
+                  );
+                  if (!context.mounted) return;
+                  successCount++;
+                  progressController.increment();
+                  continue;
+                } else {
+                  fileBytes = await localFile.readAsBytes();
+                  debugPrint('Read file from path $fileName (${fileBytes.length} bytes)');
+                }
+              } else {
+                throw Exception('File does not exist: ${file.path}');
+              }
+            } catch (e) {
+              debugPrint('Failed to read file from path ${file.path}: $e');
+              throw Exception('Cannot read file: $e');
+            }
+          } else {
+            throw Exception('File has no accessible path or bytes');
+          }
 
-          await uploadPath(
-            localPath: localPath,
-            remoteDestination: remotePath,
-            recursive: isDirectory,
-          );
+          if (fileBytes != null && fileBytes.isNotEmpty) {
+            // Use bytes-based upload (works better on Android)
+            if (shellService is BuiltInRemoteShellService) {
+              debugPrint('Uploading $fileName to $remotePath using uploadBytes (${fileBytes.length} bytes)');
+              await runShellWrapper(
+                () => (shellService as BuiltInRemoteShellService).uploadBytes(
+                  host: host,
+                  bytes: fileBytes!,
+                  remoteDestination: remotePath,
+                ),
+              );
+              debugPrint('Successfully uploaded $fileName');
+            } else {
+              // Fallback: write to temp file and upload
+              final tempFile = File('${Directory.systemTemp.path}/${DateTime.now().millisecondsSinceEpoch}_$fileName');
+              await tempFile.writeAsBytes(fileBytes);
+              try {
+                await uploadPath(
+                  localPath: tempFile.path,
+                  remoteDestination: remotePath,
+                  recursive: false,
+                );
+              } finally {
+                if (await tempFile.exists()) {
+                  await tempFile.delete();
+                }
+              }
+            }
+          } else {
+            throw Exception('File bytes are empty or null');
+          }
           if (!context.mounted) return;
           successCount++;
         } catch (error) {
           if (!context.mounted) return;
           failCount++;
           debugPrint('Failed to upload $fileName: $error');
+          debugPrint('File details: path=${file.path}, name=${file.name}, bytes=${file.bytes?.length ?? 0}');
         }
 
         if (!context.mounted) return;

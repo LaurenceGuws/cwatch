@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import '../../../models/ssh_host.dart';
 import '../../../services/ssh/builtin/builtin_ssh_key_store.dart';
 import '../../../services/ssh/builtin/builtin_ssh_vault.dart';
+import '../../../services/ssh/remote_command_log_controller.dart';
 import '../../../services/settings/app_settings_controller.dart';
+import '../../theme/nerd_fonts.dart';
 import '../../widgets/section_nav_bar.dart';
-import 'settings/agents_settings_tab.dart';
 import 'settings/container_settings_tabs.dart';
+import 'settings/debug_logs_tab.dart';
 import 'settings/general_settings_tab.dart';
-import 'settings/security_settings_tab.dart';
 import 'settings/servers_settings_tab.dart';
 
 class SettingsView extends StatefulWidget {
@@ -17,6 +18,7 @@ class SettingsView extends StatefulWidget {
     required this.hostsFuture,
     required this.builtInKeyStore,
     required this.builtInVault,
+    required this.commandLog,
     this.leading,
     super.key,
   });
@@ -25,6 +27,7 @@ class SettingsView extends StatefulWidget {
   final Future<List<SshHost>> hostsFuture;
   final BuiltInSshKeyStore builtInKeyStore;
   final BuiltInSshVault builtInVault;
+  final RemoteCommandLogController commandLog;
   final Widget? leading;
 
   @override
@@ -35,19 +38,20 @@ class _SettingsViewState extends State<SettingsView>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
-  final _agents = const [
-    ('edge-01', 'Firmware 1.2.4', 'Online · 3 min ago'),
-    ('edge-02', 'Firmware 1.1.9', 'Online · 2 hr ago'),
-    ('workstation-lab', 'Firmware 1.0.2', 'Offline · Yesterday'),
-  ];
-
   static const _tabs = [
     Tab(text: 'General'),
     Tab(text: 'Servers'),
     Tab(text: 'Docker'),
     Tab(text: 'Kubernetes'),
-    Tab(text: 'Security'),
-    Tab(text: 'Agents'),
+    Tab(text: 'Debug Logs'),
+  ];
+
+  static final _tabIcons = [
+    Icons.settings_outlined, // General
+    Icons.storage, // Servers
+    NerdIcon.docker.data, // Docker
+    NerdIcon.kubernetes.data, // Kubernetes
+    Icons.bug_report_outlined, // Debug Logs
   ];
 
   @override
@@ -73,6 +77,7 @@ class _SettingsViewState extends State<SettingsView>
             SectionNavBar(
               title: 'Settings',
               tabs: _tabs,
+              tabIcons: _tabIcons,
               controller: _tabController,
               showTitle: false,
               leading: widget.leading,
@@ -84,22 +89,15 @@ class _SettingsViewState extends State<SettingsView>
                       children: [
                         GeneralSettingsTab(
                           selectedTheme: settings.themeMode,
-                          notificationsEnabled: settings.notificationsEnabled,
-                          telemetryEnabled: settings.telemetryEnabled,
+                          debugMode: settings.debugMode,
                           zoomFactor: settings.zoomFactor,
                           onThemeChanged: (mode) => widget.controller.update(
                             (current) => current.copyWith(themeMode: mode),
                           ),
-                          onNotificationsChanged: (value) =>
-                              widget.controller.update(
-                                (current) => current.copyWith(
-                                  notificationsEnabled: value,
-                                ),
-                              ),
-                          onTelemetryChanged: (value) =>
+                          onDebugModeChanged: (value) =>
                               widget.controller.update(
                                 (current) =>
-                                    current.copyWith(telemetryEnabled: value),
+                                    current.copyWith(debugMode: value),
                               ),
                           onZoomChanged: (value) => widget.controller.update(
                             (current) => current.copyWith(zoomFactor: value),
@@ -107,88 +105,18 @@ class _SettingsViewState extends State<SettingsView>
                         ),
                         ServersSettingsTab(
                           key: const ValueKey('servers_settings_tab'),
-                          autoRefresh: settings.serverAutoRefresh,
-                          showOfflineHosts: settings.serverShowOffline,
                           controller: widget.controller,
                           hostsFuture: widget.hostsFuture,
                           builtInKeyStore: widget.builtInKeyStore,
                           builtInVault: widget.builtInVault,
-                          onAutoRefreshChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(serverAutoRefresh: value),
-                              ),
-                          onShowOfflineChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(serverShowOffline: value),
-                              ),
                         ),
                         DockerSettingsTab(
-                          liveStatsEnabled: settings.dockerLiveStats,
-                          pruneWarningsEnabled: settings.dockerPruneWarnings,
-                          onLiveStatsChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(dockerLiveStats: value),
-                              ),
-                          onPruneWarningsChanged: (value) =>
-                              widget.controller.update(
-                                (current) => current.copyWith(
-                                  dockerPruneWarnings: value,
-                                ),
-                              ),
                         ),
                         KubernetesSettingsTab(
-                          autoDiscoverEnabled: settings.kubernetesAutoDiscover,
-                          includeSystemPods:
-                              settings.kubernetesIncludeSystemPods,
-                          onAutoDiscoverChanged: (value) =>
-                              widget.controller.update(
-                                (current) => current.copyWith(
-                                  kubernetesAutoDiscover: value,
-                                ),
-                              ),
-                          onIncludeSystemPodsChanged: (value) =>
-                              widget.controller.update(
-                                (current) => current.copyWith(
-                                  kubernetesIncludeSystemPods: value,
-                                ),
-                              ),
                         ),
-                        SecuritySettingsTab(
-                          mfaRequired: settings.mfaRequired,
-                          sshRotationEnabled: settings.sshRotationEnabled,
-                          auditStreamingEnabled: settings.auditStreamingEnabled,
-                          onMfaChanged: (value) => widget.controller.update(
-                            (current) => current.copyWith(mfaRequired: value),
-                          ),
-                          onSshRotationChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(sshRotationEnabled: value),
-                              ),
-                          onAuditStreamingChanged: (value) =>
-                              widget.controller.update(
-                                (current) => current.copyWith(
-                                  auditStreamingEnabled: value,
-                                ),
-                              ),
-                        ),
-                        AgentsSettingsTab(
-                          autoUpdateAgents: settings.autoUpdateAgents,
-                          agentAlertsEnabled: settings.agentAlertsEnabled,
-                          agents: _agents,
-                          onAutoUpdateChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(autoUpdateAgents: value),
-                              ),
-                          onAgentAlertsChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(agentAlertsEnabled: value),
-                              ),
+                        DebugLogsTab(
+                          logController: widget.commandLog,
+                          debugEnabled: settings.debugMode,
                         ),
                       ],
                     )

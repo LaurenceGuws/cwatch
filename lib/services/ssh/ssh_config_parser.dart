@@ -4,15 +4,16 @@ class SshConfigParser {
   const SshConfigParser();
 
   Future<List<ParsedHost>> collectEntries(
-    String path,
-    Set<String> visited,
-  ) async {
+      String path, Set<String> visited, {Set<String>? blockedPaths}) async {
     final file = File(path);
     if (!await file.exists()) {
       return [];
     }
 
     final canonicalPath = await _canonicalize(file);
+    if (blockedPaths != null && blockedPaths.contains(canonicalPath)) {
+      return [];
+    }
     if (!visited.add(canonicalPath)) {
       return [];
     }
@@ -73,7 +74,13 @@ class SshConfigParser {
           baseDir,
         );
         for (final includePath in includeTargets) {
-          hosts.addAll(await collectEntries(includePath, visited));
+          hosts.addAll(
+            await collectEntries(
+              includePath,
+              visited,
+              blockedPaths: blockedPaths,
+            ),
+          );
         }
       }
     }

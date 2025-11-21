@@ -13,7 +13,8 @@ class SettingsStorage {
 
   Future<AppSettings> load() async {
     final file = await _settingsFile();
-    if (!await file.exists()) {
+    final migrated = await _maybeMigrateLegacyFile(file);
+    if (!migrated && !await file.exists()) {
       final defaults = const AppSettings();
       await save(defaults);
       return defaults;
@@ -40,5 +41,26 @@ class SettingsStorage {
     final file = File(path);
     await file.parent.create(recursive: true);
     return file;
+  }
+
+  Future<bool> _maybeMigrateLegacyFile(File target) async {
+    if (await target.exists()) {
+      return false;
+    }
+    final legacyPaths = await _pathProvider.legacyConfigPaths();
+    for (final legacyPath in legacyPaths) {
+      final legacyFile = File(legacyPath);
+      if (!await legacyFile.exists()) {
+        continue;
+      }
+      try {
+        await target.parent.create(recursive: true);
+        await legacyFile.copy(target.path);
+        return true;
+      } catch (_) {
+        // Best-effort migration; continue to next path.
+      }
+    }
+    return false;
   }
 }

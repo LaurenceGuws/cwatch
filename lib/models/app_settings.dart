@@ -6,92 +6,55 @@ import 'ssh_client_backend.dart';
 class AppSettings {
   const AppSettings({
     this.themeMode = ThemeMode.system,
-    this.notificationsEnabled = true,
-    this.telemetryEnabled = false,
-    this.mfaRequired = true,
-    this.sshRotationEnabled = true,
-    this.auditStreamingEnabled = false,
-    this.autoUpdateAgents = true,
-    this.agentAlertsEnabled = true,
+    this.debugMode = false,
     this.zoomFactor = 1.0,
     this.serverAutoRefresh = true,
     this.serverShowOffline = true,
-    this.dockerLiveStats = true,
-    this.dockerPruneWarnings = false,
-    this.kubernetesAutoDiscover = true,
-    this.kubernetesIncludeSystemPods = false,
     this.shellSidebarWidth,
     this.shellDestination,
     this.shellSidebarCollapsed = false,
     this.sshClientBackend = SshClientBackend.platform,
     this.builtinSshHostKeyBindings = const {},
     this.customSshHosts = const [],
+    this.customSshConfigPaths = const [],
+    this.disabledSshConfigPaths = const [],
   });
 
   final ThemeMode themeMode;
-  final bool notificationsEnabled;
-  final bool telemetryEnabled;
-  final bool mfaRequired;
-  final bool sshRotationEnabled;
-  final bool auditStreamingEnabled;
-  final bool autoUpdateAgents;
-  final bool agentAlertsEnabled;
+  final bool debugMode;
   final double zoomFactor;
   final bool serverAutoRefresh;
   final bool serverShowOffline;
-  final bool dockerLiveStats;
-  final bool dockerPruneWarnings;
-  final bool kubernetesAutoDiscover;
-  final bool kubernetesIncludeSystemPods;
   final double? shellSidebarWidth;
   final String? shellDestination;
   final bool shellSidebarCollapsed;
   final SshClientBackend sshClientBackend;
   final Map<String, String> builtinSshHostKeyBindings;
   final List<CustomSshHost> customSshHosts;
+  final List<String> customSshConfigPaths;
+  final List<String> disabledSshConfigPaths;
 
   AppSettings copyWith({
     ThemeMode? themeMode,
-    bool? notificationsEnabled,
-    bool? telemetryEnabled,
-    bool? mfaRequired,
-    bool? sshRotationEnabled,
-    bool? auditStreamingEnabled,
-    bool? autoUpdateAgents,
-    bool? agentAlertsEnabled,
+    bool? debugMode,
     double? zoomFactor,
     bool? serverAutoRefresh,
     bool? serverShowOffline,
-    bool? dockerLiveStats,
-    bool? dockerPruneWarnings,
-    bool? kubernetesAutoDiscover,
-    bool? kubernetesIncludeSystemPods,
     double? shellSidebarWidth,
     String? shellDestination,
     bool? shellSidebarCollapsed,
     SshClientBackend? sshClientBackend,
     Map<String, String>? builtinSshHostKeyBindings,
     List<CustomSshHost>? customSshHosts,
+    List<String>? customSshConfigPaths,
+    List<String>? disabledSshConfigPaths,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
-      notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
-      telemetryEnabled: telemetryEnabled ?? this.telemetryEnabled,
-      mfaRequired: mfaRequired ?? this.mfaRequired,
-      sshRotationEnabled: sshRotationEnabled ?? this.sshRotationEnabled,
-      auditStreamingEnabled:
-          auditStreamingEnabled ?? this.auditStreamingEnabled,
-      autoUpdateAgents: autoUpdateAgents ?? this.autoUpdateAgents,
-      agentAlertsEnabled: agentAlertsEnabled ?? this.agentAlertsEnabled,
+      debugMode: debugMode ?? this.debugMode,
       zoomFactor: zoomFactor ?? this.zoomFactor,
       serverAutoRefresh: serverAutoRefresh ?? this.serverAutoRefresh,
       serverShowOffline: serverShowOffline ?? this.serverShowOffline,
-      dockerLiveStats: dockerLiveStats ?? this.dockerLiveStats,
-      dockerPruneWarnings: dockerPruneWarnings ?? this.dockerPruneWarnings,
-      kubernetesAutoDiscover:
-          kubernetesAutoDiscover ?? this.kubernetesAutoDiscover,
-      kubernetesIncludeSystemPods:
-          kubernetesIncludeSystemPods ?? this.kubernetesIncludeSystemPods,
       shellSidebarWidth: shellSidebarWidth ?? this.shellSidebarWidth,
       shellDestination: shellDestination ?? this.shellDestination,
       shellSidebarCollapsed:
@@ -100,6 +63,10 @@ class AppSettings {
       builtinSshHostKeyBindings:
           builtinSshHostKeyBindings ?? this.builtinSshHostKeyBindings,
       customSshHosts: customSshHosts ?? this.customSshHosts,
+      customSshConfigPaths:
+          customSshConfigPaths ?? this.customSshConfigPaths,
+      disabledSshConfigPaths:
+          disabledSshConfigPaths ?? this.disabledSshConfigPaths,
     );
   }
 
@@ -132,21 +99,10 @@ class AppSettings {
 
     return AppSettings(
       themeMode: parseThemeMode(json['themeMode'] as String?),
-      notificationsEnabled: json['notificationsEnabled'] as bool? ?? true,
-      telemetryEnabled: json['telemetryEnabled'] as bool? ?? false,
-      mfaRequired: json['mfaRequired'] as bool? ?? true,
-      sshRotationEnabled: json['sshRotationEnabled'] as bool? ?? true,
-      auditStreamingEnabled: json['auditStreamingEnabled'] as bool? ?? false,
-      autoUpdateAgents: json['autoUpdateAgents'] as bool? ?? true,
-      agentAlertsEnabled: json['agentAlertsEnabled'] as bool? ?? true,
+      debugMode: json['debugMode'] as bool? ?? false,
       zoomFactor: (json['zoomFactor'] as num?)?.toDouble() ?? 1.0,
       serverAutoRefresh: json['serverAutoRefresh'] as bool? ?? true,
       serverShowOffline: json['serverShowOffline'] as bool? ?? true,
-      dockerLiveStats: json['dockerLiveStats'] as bool? ?? true,
-      dockerPruneWarnings: json['dockerPruneWarnings'] as bool? ?? false,
-      kubernetesAutoDiscover: json['kubernetesAutoDiscover'] as bool? ?? true,
-      kubernetesIncludeSystemPods:
-          json['kubernetesIncludeSystemPods'] as bool? ?? false,
       shellSidebarWidth: (json['shellSidebarWidth'] as num?)?.toDouble(),
       shellDestination: json['shellDestination'] as String?,
       shellSidebarCollapsed: json['shellSidebarCollapsed'] as bool? ?? false,
@@ -160,32 +116,34 @@ class AppSettings {
               ?.map((e) => CustomSshHost.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
+      customSshConfigPaths:
+          (json['customSshConfigPaths'] as List<dynamic>?)
+                  ?.whereType<String>()
+                  .toList() ??
+              const [],
+      disabledSshConfigPaths:
+          (json['disabledSshConfigPaths'] as List<dynamic>?)
+                  ?.whereType<String>()
+                  .toList() ??
+              const [],
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'themeMode': themeMode.name,
-      'notificationsEnabled': notificationsEnabled,
-      'telemetryEnabled': telemetryEnabled,
-      'mfaRequired': mfaRequired,
-      'sshRotationEnabled': sshRotationEnabled,
-      'auditStreamingEnabled': auditStreamingEnabled,
-      'autoUpdateAgents': autoUpdateAgents,
-      'agentAlertsEnabled': agentAlertsEnabled,
+      'debugMode': debugMode,
       'zoomFactor': zoomFactor,
       'serverAutoRefresh': serverAutoRefresh,
       'serverShowOffline': serverShowOffline,
-      'dockerLiveStats': dockerLiveStats,
-      'dockerPruneWarnings': dockerPruneWarnings,
-      'kubernetesAutoDiscover': kubernetesAutoDiscover,
-      'kubernetesIncludeSystemPods': kubernetesIncludeSystemPods,
       'shellSidebarWidth': shellSidebarWidth,
       'shellDestination': shellDestination,
       'shellSidebarCollapsed': shellSidebarCollapsed,
       'sshClientBackend': sshClientBackend.name,
       'builtinSshHostKeyBindings': builtinSshHostKeyBindings,
       'customSshHosts': customSshHosts.map((h) => h.toJson()).toList(),
+      'customSshConfigPaths': customSshConfigPaths,
+      'disabledSshConfigPaths': disabledSshConfigPaths,
     };
   }
 }

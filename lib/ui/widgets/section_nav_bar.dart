@@ -1,5 +1,16 @@
 import 'package:flutter/material.dart';
 
+/// Tab data for SectionNavBar
+class SectionTab {
+  const SectionTab({
+    required this.label,
+    this.icon,
+  });
+
+  final String label;
+  final IconData? icon;
+}
+
 class SectionNavBar extends StatelessWidget {
   const SectionNavBar({
     super.key,
@@ -9,6 +20,7 @@ class SectionNavBar extends StatelessWidget {
     this.showTitle = true,
     this.leading,
     this.trailing,
+    this.tabIcons,
   });
 
   final String title;
@@ -17,17 +29,27 @@ class SectionNavBar extends StatelessWidget {
   final bool showTitle;
   final Widget? leading;
   final Widget? trailing;
+  final List<IconData>? tabIcons;
 
   @override
   Widget build(BuildContext context) {
     final hasTabs = tabs.isNotEmpty;
+    final viewportWidth = MediaQuery.of(context).size.width;
+    final compact = viewportWidth < 640;
+    // Switch to icons earlier to prevent text cutoff (especially "Kubernetes")
+    // Use a higher breakpoint so icons show before text gets truncated
+    final showIconsOnly = viewportWidth < 1000; // Show icons only on small/medium screens
+    
     return Material(
       elevation: 1,
       color: Theme.of(context).colorScheme.surface,
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 8 : 16,
+            vertical: compact ? 6 : 8,
+          ),
           child: Row(
             children: [
               if (leading != null) ...[
@@ -43,8 +65,11 @@ class SectionNavBar extends StatelessWidget {
                     child: SizedBox(
                       height: 42,
                       child: TabBar(
+                        isScrollable: true,
                         controller: controller,
-                        tabs: tabs,
+                        tabs: showIconsOnly && tabIcons != null && tabIcons!.length == tabs.length
+                            ? _buildIconTabs(context, tabs, tabIcons!)
+                            : tabs,
                         labelColor: Theme.of(context).colorScheme.primary,
                         unselectedLabelColor: Theme.of(
                           context,
@@ -64,5 +89,24 @@ class SectionNavBar extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  List<Widget> _buildIconTabs(BuildContext context, List<Widget> tabs, List<IconData> icons) {
+    return List.generate(tabs.length, (index) {
+      final tab = tabs[index];
+      String? label;
+      // Extract label from Tab widget if possible
+      if (tab is Tab && tab.text != null) {
+        label = tab.text;
+      }
+      
+      return Tooltip(
+        message: label ?? 'Tab ${index + 1}',
+        child: Tab(
+          icon: Icon(icons[index]),
+          height: 42,
+        ),
+      );
+    });
   }
 }

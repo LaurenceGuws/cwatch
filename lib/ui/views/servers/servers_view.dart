@@ -6,6 +6,8 @@ import '../../../models/ssh_host.dart';
 import '../../../services/ssh/builtin/builtin_ssh_key_store.dart';
 import '../../../services/filesystem/explorer_trash_manager.dart';
 import '../../../services/ssh/remote_shell_service.dart';
+import '../../../services/ssh/remote_command_observer.dart';
+import '../../../services/ssh/remote_command_log_controller.dart';
 import '../../../services/settings/app_settings_controller.dart';
 import '../../../services/ssh/builtin/builtin_remote_shell_service.dart';
 import '../../../services/ssh/builtin/builtin_ssh_vault.dart';
@@ -28,12 +30,14 @@ class ServersView extends StatefulWidget {
     required this.hostsFuture,
     required this.settingsController,
     required this.builtInVault,
+    required this.commandLog,
     this.leading,
   });
 
   final Future<List<SshHost>> hostsFuture;
   final AppSettingsController settingsController;
   final BuiltInSshVault builtInVault;
+  final RemoteCommandLogController commandLog;
   final Widget? leading;
 
   @override
@@ -278,13 +282,27 @@ class _ServersViewState extends State<ServersView> {
 
   RemoteShellService _shellServiceForHost(SshHost host) {
     final settings = widget.settingsController.settings;
+    final observer = _debugObserver();
     if (settings.sshClientBackend == SshClientBackend.builtin) {
       return BuiltInRemoteShellService(
         vault: widget.builtInVault,
         hostKeyBindings: settings.builtinSshHostKeyBindings,
+        debugMode: settings.debugMode,
+        observer: observer,
       );
     }
-    return const ProcessRemoteShellService();
+    return ProcessRemoteShellService(
+      debugMode: settings.debugMode,
+      observer: observer,
+    );
+  }
+
+  RemoteCommandObserver? _debugObserver() {
+    final settings = widget.settingsController.settings;
+    if (!settings.debugMode) {
+      return null;
+    }
+    return (event) => widget.commandLog.add(event);
   }
 
   void _closeTab(int index) {

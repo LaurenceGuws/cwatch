@@ -118,7 +118,7 @@ class FileEntryList extends StatelessWidget {
 }
 
 /// Widget for a single file entry tile
-class FileEntryTile extends StatelessWidget {
+class FileEntryTile extends StatefulWidget {
   const FileEntryTile({
     super.key,
     required this.entry,
@@ -153,54 +153,119 @@ class FileEntryTile extends StatelessWidget {
   final VoidCallback? onClearCachedCopy;
 
   @override
+  State<FileEntryTile> createState() => _FileEntryTileState();
+}
+
+class _FileEntryTileState extends State<FileEntryTile> {
+  Offset? _tapDownPosition;
+  DateTime? _tapDownTime;
+  bool _hasMoved = false;
+
+  void _handleLongPress() {
+    // Show context menu on long press for touch devices
+    final RenderBox? box = context.findRenderObject() as RenderBox?;
+    if (box != null) {
+      final position = _tapDownPosition ?? box.localToGlobal(Offset.zero);
+      widget.onContextMenu(position);
+    }
+    _tapDownPosition = null;
+    _tapDownTime = null;
+    _hasMoved = false;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final highlightColor = selected
+    final highlightColor = widget.selected
         ? colorScheme.primary.withValues(alpha: 0.08)
         : Colors.transparent;
-    final titleStyle = selected
+    final titleStyle = widget.selected
         ? Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.primary)
         : null;
     return MouseRegion(
-      onEnter: onDragHover,
+      onEnter: widget.onDragHover,
       child: Listener(
         behavior: HitTestBehavior.opaque,
-        onPointerDown: onPointerDown,
-        onPointerUp: (_) => onStopDragSelection(),
-        onPointerCancel: (_) => onStopDragSelection(),
-        child: InkWell(
-          onDoubleTap: onDoubleTap,
-          onSecondaryTapDown: (details) => onContextMenu(details.globalPosition),
-          splashFactory: NoSplash.splashFactory,
-          hoverColor: Colors.transparent,
-          highlightColor: Colors.transparent,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 110),
-            curve: Curves.easeOutCubic,
-            color: highlightColor,
-            child: ListTile(
-              dense: true,
+        onPointerDown: (event) {
+          // Handle mouse pointer events immediately for drag selection
+          if (event.kind == PointerDeviceKind.mouse) {
+            widget.onPointerDown(event);
+          } else if (event.kind == PointerDeviceKind.touch) {
+            // Track touch down for tap detection
+            _tapDownPosition = event.position;
+            _tapDownTime = DateTime.now();
+            _hasMoved = false;
+          }
+        },
+        onPointerMove: (event) {
+          // If pointer moves significantly, it's a scroll, not a tap
+          if (event.kind == PointerDeviceKind.touch && _tapDownPosition != null) {
+            final delta = (event.position - _tapDownPosition!).distance;
+            if (delta > 10) {
+              _hasMoved = true;
+            }
+          }
+        },
+        onPointerUp: (event) {
+          widget.onStopDragSelection();
+          // If it was a touch tap without movement, handle it
+          if (event.kind == PointerDeviceKind.touch && 
+              !_hasMoved && 
+              _tapDownTime != null &&
+              DateTime.now().difference(_tapDownTime!).inMilliseconds < 500) {
+            widget.onPointerDown(PointerDownEvent(
+              position: _tapDownPosition ?? event.position,
+              kind: PointerDeviceKind.touch,
+              buttons: kPrimaryButton,
+            ));
+          }
+          _tapDownPosition = null;
+          _tapDownTime = null;
+          _hasMoved = false;
+        },
+        onPointerCancel: (_) {
+          widget.onStopDragSelection();
+          _tapDownPosition = null;
+          _tapDownTime = null;
+          _hasMoved = false;
+        },
+        child: GestureDetector(
+          onLongPress: _handleLongPress,
+          onDoubleTap: widget.onDoubleTap,
+          behavior: HitTestBehavior.translucent,
+          child: InkWell(
+            onDoubleTap: widget.onDoubleTap,
+            onSecondaryTapDown: (details) => widget.onContextMenu(details.globalPosition),
+            splashFactory: NoSplash.splashFactory,
+            hoverColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 110),
+              curve: Curves.easeOutCubic,
+              color: highlightColor,
+              child: ListTile(
+                dense: true,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 12,
                 vertical: 6,
               ),
               leading: Icon(
-                FileIconResolver.iconFor(entry),
-                color: selected ? colorScheme.primary : null,
+                FileIconResolver.iconFor(widget.entry),
+                color: widget.selected ? colorScheme.primary : null,
               ),
-              title: Text(entry.name, style: titleStyle),
+              title: Text(widget.entry.name, style: titleStyle),
               subtitle: Text(
-                entry.isDirectory
+                widget.entry.isDirectory
                     ? 'Directory'
-                    : '${(entry.sizeBytes / 1024).toStringAsFixed(1)} KB',
+                    : '${(widget.entry.sizeBytes / 1024).toStringAsFixed(1)} KB',
               ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (!entry.isDirectory && session != null) ...[
+                  if (!widget.entry.isDirectory && widget.session != null) ...[
                     IconButton(
                       tooltip: 'Push local changes to server',
-                      icon: syncing
+                      icon: widget.syncing
                           ? const SizedBox(
                               width: 16,
                               height: 16,
@@ -209,11 +274,11 @@ class FileEntryTile extends StatelessWidget {
                               ),
                             )
                           : Icon(NerdIcon.cloudUpload.data),
-                      onPressed: syncing ? null : onSyncLocalEdit,
+                      onPressed: widget.syncing ? null : widget.onSyncLocalEdit,
                     ),
                     IconButton(
                       tooltip: 'Refresh cache from server',
-                      icon: refreshing
+                      icon: widget.refreshing
                           ? const SizedBox(
                               width: 16,
                               height: 16,
@@ -222,16 +287,16 @@ class FileEntryTile extends StatelessWidget {
                               ),
                             )
                           : Icon(NerdIcon.refresh.data),
-                      onPressed: refreshing ? null : onRefreshCacheFromServer,
+                      onPressed: widget.refreshing ? null : widget.onRefreshCacheFromServer,
                     ),
                     IconButton(
                       tooltip: 'Clear cached copy',
                       icon: Icon(NerdIcon.delete.data),
-                      onPressed: onClearCachedCopy,
+                      onPressed: widget.onClearCachedCopy,
                     ),
                   ],
                   Text(
-                    entry.modified.toLocal().toString(),
+                    widget.entry.modified.toLocal().toString(),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -239,6 +304,7 @@ class FileEntryTile extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }

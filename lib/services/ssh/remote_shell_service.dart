@@ -2,12 +2,50 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
+
 import '../../models/remote_file_entry.dart';
 import '../../models/ssh_host.dart';
+import 'remote_command_observer.dart';
 import 'remote_ls_parser.dart';
 
 abstract class RemoteShellService {
-  const RemoteShellService();
+  const RemoteShellService({
+    this.debugMode = false,
+    this.observer,
+  });
+
+  final bool debugMode;
+  final RemoteCommandObserver? observer;
+
+  @protected
+  void emitDebugEvent({
+    required SshHost host,
+    required String operation,
+    required String command,
+    required String output,
+    VerificationResult? verification,
+  }) {
+    if (!debugMode) {
+      return;
+    }
+    observer?.call(
+      RemoteCommandDebugEvent(
+        host: host,
+        operation: operation,
+        command: command,
+        output: output.trim(),
+        verificationCommand: verification?.command,
+        verificationOutput: verification?.output.trim(),
+        verificationPassed: verification?.passed,
+      ),
+    );
+    if (verification?.passed == false) {
+      debugPrint(
+        '[SSH DEBUG] Verification failed for $operation on ${host.name}',
+      );
+    }
+  }
 
   Future<List<RemoteFileEntry>> listDirectory(
     SshHost host,
@@ -81,7 +119,10 @@ abstract class RemoteShellService {
 }
 
 class ProcessRemoteShellService extends RemoteShellService {
-  const ProcessRemoteShellService();
+  const ProcessRemoteShellService({
+    super.debugMode = false,
+    super.observer,
+  });
 
   /// Handles SSH command errors, detecting authentication failures.
   Never _handleSshError(SshHost host, ProcessResult result) {
@@ -89,7 +130,7 @@ class ProcessRemoteShellService extends RemoteShellService {
     final errorMessage = stderrOutput?.isNotEmpty == true
         ? stderrOutput
         : 'SSH exited with ${result.exitCode}';
-    
+
     // Check for common authentication failure patterns
     if (stderrOutput?.contains('Permission denied') == true ||
         stderrOutput?.contains('Authentication failed') == true ||
@@ -97,7 +138,7 @@ class ProcessRemoteShellService extends RemoteShellService {
         result.exitCode == 255) {
       throw Exception('SSH authentication failed for ${host.name}: $errorMessage');
     }
-    
+
     throw Exception(errorMessage);
   }
 
@@ -110,26 +151,9 @@ class ProcessRemoteShellService extends RemoteShellService {
     final sanitizedPath = _sanitizePath(path);
     final lsCommand =
         "cd '${_escapeSingleQuotes(sanitizedPath)}' && ls -al --time-style=+%Y-%m-%dT%H:%M:%S";
-    final result = await Process.run(
-      'ssh',
-      [
-        '-o',
-        'BatchMode=yes',
-        '-o',
-        'StrictHostKeyChecking=no',
-        host.name,
-        lsCommand,
-      ],
-      stdoutEncoding: utf8,
-      stderrEncoding: utf8,
-      runInShell: false,
-    ).timeout(timeout);
+    final run = await _runSsh(host, lsCommand, timeout: timeout);
 
-    if (result.exitCode != 0) {
-      _handleSshError(host, result);
-    }
-
-    return parseLsOutput(result.stdout as String);
+    return parseLsOutput(run.stdout);
   }
 
   @override
@@ -137,25 +161,13 @@ class ProcessRemoteShellService extends RemoteShellService {
     SshHost host, {
     Duration timeout = const Duration(seconds: 5),
   }) async {
-    final result = await Process.run(
-      'ssh',
-      [
-        '-o',
-        'BatchMode=yes',
-        '-o',
-        'StrictHostKeyChecking=no',
-        host.name,
-        'echo \$HOME',
-      ],
-      stdoutEncoding: utf8,
-      stderrEncoding: utf8,
-      runInShell: false,
-    ).timeout(timeout);
-    if (result.exitCode != 0) {
+    try {
+      final run = await _runSsh(host, 'echo \$HOME', timeout: timeout);
+      final output = run.stdout.trim();
+      return output.isEmpty ? '/' : output;
+    } catch (_) {
       return '/';
     }
-    final output = (result.stdout as String?)?.trim();
-    return (output == null || output.isEmpty) ? '/' : output;
   }
 
   @override
@@ -173,18 +185,12 @@ class ProcessRemoteShellService extends RemoteShellService {
       host.name,
       "cat '${_escapeSingleQuotes(normalized)}'",
     ];
-    final result = await Process.run(
-      'ssh',
+    final run = await _runProcess(
       command,
-      stdoutEncoding: utf8,
-      stderrEncoding: utf8,
-      runInShell: false,
-    ).timeout(timeout);
-
-    if (result.exitCode != 0) {
-      _handleSshError(host, result);
-    }
-    return result.stdout as String? ?? '';
+      timeout: timeout,
+      hostForErrors: host,
+    );
+    return run.stdout;
   }
 
   @override
@@ -206,17 +212,24 @@ class ProcessRemoteShellService extends RemoteShellService {
       "base64 -d > '${_escapeSingleQuotes(normalized)}' <<'$delimiter'\n$encoded\n$delimiter",
     ];
 
-    final result = await Process.run(
-      'ssh',
+    final run = await _runProcess(
       command,
-      stdoutEncoding: utf8,
-      stderrEncoding: utf8,
-      runInShell: false,
-    ).timeout(timeout);
-
-    if (result.exitCode != 0) {
-      _handleSshError(host, result);
-    }
+      timeout: timeout,
+      hostForErrors: host,
+    );
+    final verification = await _verifyPathExists(
+      host,
+      normalized,
+      shouldExist: true,
+      timeout: timeout,
+    );
+    emitDebugEvent(
+      host: host,
+      operation: 'writeFile',
+      command: run.command,
+      output: run.stdout,
+      verification: verification,
+    );
   }
 
   @override
@@ -229,10 +242,31 @@ class ProcessRemoteShellService extends RemoteShellService {
     final normalizedSource = _sanitizePath(source);
     final normalizedDest = _sanitizePath(destination);
     await _ensureRemoteDirectory(host, _dirname(normalizedDest));
-    await _runHostCommand(
+    final run = await _runHostCommand(
       host,
       "mv '${_escapeSingleQuotes(normalizedSource)}' '${_escapeSingleQuotes(normalizedDest)}'",
       timeout: timeout,
+    );
+    final verification = await _verifyPathExists(
+      host,
+      normalizedDest,
+      shouldExist: true,
+      timeout: timeout,
+    );
+    final sourceGone = await _verifyPathExists(
+      host,
+      normalizedSource,
+      shouldExist: false,
+      timeout: timeout,
+    );
+    final combinedVerification =
+        verification?.combine(sourceGone) ?? sourceGone;
+    emitDebugEvent(
+      host: host,
+      operation: 'movePath',
+      command: run.command,
+      output: run.stdout,
+      verification: combinedVerification,
     );
   }
 
@@ -248,10 +282,23 @@ class ProcessRemoteShellService extends RemoteShellService {
     final normalizedDest = _sanitizePath(destination);
     await _ensureRemoteDirectory(host, _dirname(normalizedDest));
     final flag = recursive ? '-R ' : '';
-    await _runHostCommand(
+    final run = await _runHostCommand(
       host,
       "cp $flag'${_escapeSingleQuotes(normalizedSource)}' '${_escapeSingleQuotes(normalizedDest)}'",
       timeout: timeout,
+    );
+    final verification = await _verifyPathExists(
+      host,
+      normalizedDest,
+      shouldExist: true,
+      timeout: timeout,
+    );
+    emitDebugEvent(
+      host: host,
+      operation: 'copyPath',
+      command: run.command,
+      output: run.stdout,
+      verification: verification,
     );
   }
 
@@ -262,10 +309,23 @@ class ProcessRemoteShellService extends RemoteShellService {
     Duration timeout = const Duration(seconds: 15),
   }) async {
     final normalized = _sanitizePath(path);
-    await _runHostCommand(
+    final run = await _runHostCommand(
       host,
       "rm -rf '${_escapeSingleQuotes(normalized)}'",
       timeout: timeout,
+    );
+    final verification = await _verifyPathExists(
+      host,
+      normalized,
+      shouldExist: false,
+      timeout: timeout,
+    );
+    emitDebugEvent(
+      host: host,
+      operation: 'deletePath',
+      command: run.command,
+      output: run.stdout,
+      verification: verification,
     );
   }
 
@@ -288,15 +348,24 @@ class ProcessRemoteShellService extends RemoteShellService {
         "${destinationHost.name}:${_singleQuoteForShell(normalizedDest)}";
     final command =
         "scp -o BatchMode=yes -o StrictHostKeyChecking=no $recursiveFlag$escapedSource $escapedDestination";
-    final result = await Process.run(
-      'bash',
-      ['-lc', command],
-      stdoutEncoding: utf8,
-      stderrEncoding: utf8,
-    ).timeout(timeout);
-    if (result.exitCode != 0) {
-      _handleSshError(sourceHost, result);
-    }
+    final run = await _runProcess(
+      ['bash', '-lc', command],
+      timeout: timeout,
+      hostForErrors: sourceHost,
+    );
+    final verification = await _verifyPathExists(
+      destinationHost,
+      normalizedDest,
+      shouldExist: true,
+      timeout: timeout,
+    );
+    emitDebugEvent(
+      host: destinationHost,
+      operation: 'copyBetweenHosts',
+      command: run.command,
+      output: run.stdout,
+      verification: verification,
+    );
   }
 
   @override
@@ -316,15 +385,11 @@ class ProcessRemoteShellService extends RemoteShellService {
     final escapedDestination = _singleQuoteForShell(localDestination);
     final command =
         "scp -o BatchMode=yes -o StrictHostKeyChecking=no $recursiveFlag$escapedSource $escapedDestination";
-    final result = await Process.run(
-      'bash',
-      ['-lc', command],
-      stdoutEncoding: utf8,
-      stderrEncoding: utf8,
-    ).timeout(timeout);
-    if (result.exitCode != 0) {
-      _handleSshError(host, result);
-    }
+    await _runProcess(
+      ['bash', '-lc', command],
+      timeout: timeout,
+      hostForErrors: host,
+    );
   }
 
   @override
@@ -347,15 +412,91 @@ class ProcessRemoteShellService extends RemoteShellService {
         "${host.name}:${_singleQuoteForShell(normalizedDest)}";
     final command =
         "scp -o BatchMode=yes -o StrictHostKeyChecking=no $recursiveFlag$escapedSource $escapedDestination";
+    final run = await _runProcess(
+      ['bash', '-lc', command],
+      timeout: timeout,
+      hostForErrors: host,
+    );
+    final verification = await _verifyPathExists(
+      host,
+      normalizedDest,
+      shouldExist: true,
+      timeout: timeout,
+    );
+    emitDebugEvent(
+      host: host,
+      operation: 'uploadPath',
+      command: run.command,
+      output: run.stdout,
+      verification: verification,
+    );
+  }
+
+  Future<RunResult> _runProcess(
+    List<String> command, {
+    Duration timeout = const Duration(seconds: 10),
+    SshHost? hostForErrors,
+  }) async {
     final result = await Process.run(
-      'bash',
-      ['-lc', command],
+      command.first,
+      command.skip(1).toList(),
       stdoutEncoding: utf8,
       stderrEncoding: utf8,
+      runInShell: false,
     ).timeout(timeout);
+
+    final stdoutStr = (result.stdout as String?) ?? '';
+    final stderrStr = (result.stderr as String?) ?? '';
+    if (result.exitCode != 0) {
+      // Try to raise a helpful error for SSH invocations.
+      if (hostForErrors != null &&
+          (command.first.contains('ssh') ||
+              command.contains('ssh') ||
+              command.first.contains('scp') ||
+              command.contains('scp'))) {
+        _handleSshError(hostForErrors, result);
+      }
+      throw Exception(stderrStr.isNotEmpty ? stderrStr : stdoutStr);
+    }
+
+    final commandString = command.join(' ');
+    return RunResult(
+      command: commandString,
+      stdout: stdoutStr,
+      stderr: stderrStr,
+    );
+  }
+
+  Future<RunResult> _runSsh(
+    SshHost host,
+    String command, {
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    final args = [
+      '-o',
+      'BatchMode=yes',
+      '-o',
+      'StrictHostKeyChecking=no',
+      host.name,
+      command,
+    ];
+    final result = await Process.run(
+      'ssh',
+      args,
+      stdoutEncoding: utf8,
+      stderrEncoding: utf8,
+      runInShell: false,
+    ).timeout(timeout);
+
     if (result.exitCode != 0) {
       _handleSshError(host, result);
     }
+
+    return RunResult(
+      command: 'ssh ${args.join(' ')}',
+      stdout: (result.stdout as String?) ?? '',
+      stderr: (result.stderr as String?) ?? '',
+    );
   }
 
   String _sanitizePath(String path) {
@@ -374,28 +515,13 @@ class ProcessRemoteShellService extends RemoteShellService {
     return "'${input.replaceAll("'", "'\\''")}'";
   }
 
-  Future<void> _runHostCommand(
+  Future<RunResult> _runHostCommand(
     SshHost host,
     String command, {
     Duration timeout = const Duration(seconds: 10),
   }) async {
-    final result = await Process.run(
-      'ssh',
-      [
-        '-o',
-        'BatchMode=yes',
-        '-o',
-        'StrictHostKeyChecking=no',
-        host.name,
-        command,
-      ],
-      stdoutEncoding: utf8,
-      stderrEncoding: utf8,
-      runInShell: false,
-    ).timeout(timeout);
-    if (result.exitCode != 0) {
-      _handleSshError(host, result);
-    }
+    final result = await _runSsh(host, command, timeout: timeout);
+    return result;
   }
 
   Future<void> _ensureRemoteDirectory(SshHost host, String directory) async {
@@ -421,5 +547,65 @@ class ProcessRemoteShellService extends RemoteShellService {
       12,
       (index) => chars[rand.nextInt(chars.length)],
     ).join();
+  }
+
+  Future<VerificationResult?> _verifyPathExists(
+    SshHost host,
+    String path, {
+    required bool shouldExist,
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
+    if (!debugMode) {
+      return null;
+    }
+    final command =
+        "[ -e '${_escapeSingleQuotes(path)}' ] && echo 'EXISTS' || echo 'MISSING'";
+    final run = await _runSsh(host, command, timeout: timeout);
+    final exists = run.stdout.trim() == 'EXISTS';
+    return VerificationResult(
+      command: run.command,
+      output: run.stdout,
+      passed: shouldExist ? exists : !exists,
+    );
+  }
+
+}
+
+class RunResult {
+  const RunResult({
+    required this.command,
+    required this.stdout,
+    required this.stderr,
+  });
+
+  final String command;
+  final String stdout;
+  final String stderr;
+}
+
+class VerificationResult {
+  const VerificationResult({
+    required this.command,
+    required this.output,
+    required this.passed,
+  });
+
+  final String command;
+  final String output;
+  final bool passed;
+
+  VerificationResult combine(VerificationResult? other) {
+    if (other == null) {
+      return this;
+    }
+    final combinedOutput = [
+      output.trim(),
+      other.output.trim(),
+    ].where((element) => element.isNotEmpty).join('\n');
+    return VerificationResult(
+      command: '$command && ${other.command}',
+      output: combinedOutput,
+      passed: passed && other.passed,
+    );
   }
 }

@@ -22,9 +22,13 @@ class SshAuthHandler {
 
   bool _unlockInProgress = false;
   final Map<String, Future<String?>> _pendingPassphrasePrompts = {};
+  bool _disposed = false;
 
   /// Execute a shell action with automatic SSH authentication handling
   Future<T> runShell<T>(Future<T> Function() action) async {
+    if (_disposed) {
+      throw StateError('SshAuthHandler used after dispose');
+    }
     if (shellService is BuiltInRemoteShellService &&
         builtInVault != null &&
         host != null) {
@@ -136,8 +140,16 @@ class SshAuthHandler {
     }
   }
 
+  void dispose() {
+    _disposed = true;
+    _pendingPassphrasePrompts.clear();
+  }
+
   Future<bool> promptUnlock(String keyId) async {
     if (_unlockInProgress) {
+      return false;
+    }
+    if (_disposed || !context.mounted) {
       return false;
     }
     final vault = builtInVault;
@@ -149,15 +161,14 @@ class SshAuthHandler {
     try {
       // Check if password is needed
       final needsPwd = await vault.needsPassword(keyId);
-      String? password;
       if (needsPwd) {
-        password = await _showUnlockDialog(keyId);
-        if (password == null) {
-          debugPrint('[Explorer] Unlock cancelled for key $keyId');
-          return false;
-        }
+        final unlocked = await _showUnlockDialog(
+          keyId,
+          await _keyDisplayName(keyId),
+        );
+        return unlocked;
       }
-      await vault.unlock(keyId, password);
+      await vault.unlock(keyId, null);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Key unlocked for this session.')),
@@ -165,14 +176,6 @@ class SshAuthHandler {
         debugPrint('[Explorer] Unlock succeeded for key $keyId');
       }
       return true;
-    } on BuiltInSshKeyDecryptException {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Incorrect password for that key.')),
-        );
-      }
-      debugPrint('[Explorer] Unlock failed for key $keyId due to bad password');
-      return false;
     } catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(
@@ -187,34 +190,125 @@ class SshAuthHandler {
     }
   }
 
-  Future<String?> _showUnlockDialog(String keyId) async {
+  Future<bool> _showUnlockDialog(String keyId, String displayName) async {
+    if (_disposed || !context.mounted) {
+      return false;
+    }
     final controller = TextEditingController();
-    final result = await showDialog<String>(
+    String? errorText;
+    bool loading = false;
+    final result = await showDialog<bool>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Unlock key $keyId'),
-          content: TextField(
-            controller: controller,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: 'Password'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(null),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(controller.text.trim()),
-              child: const Text('Unlock'),
-            ),
-          ],
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            Future<void> attemptUnlock() async {
+              if (loading) return;
+              final password = controller.text.trim();
+              if (password.isEmpty) {
+                setState(() => errorText = 'Password is required');
+                return;
+              }
+              setState(() {
+                loading = true;
+                errorText = null;
+              });
+              try {
+                await builtInVault?.unlock(keyId, password);
+                if (!_disposed &&
+                    dialogContext.mounted &&
+                    Navigator.of(dialogContext).canPop()) {
+                  Navigator.of(dialogContext).pop(true);
+                }
+              } on BuiltInSshKeyDecryptException {
+                setState(() {
+                  errorText = 'Incorrect password. Please try again.';
+                  loading = false;
+                });
+              } catch (e) {
+                setState(() {
+                  errorText = 'Failed to unlock: $e';
+                  loading = false;
+                });
+              }
+            }
+
+            return AlertDialog(
+              title: Text('Unlock $displayName'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: controller,
+                    obscureText: true,
+                    decoration: const InputDecoration(labelText: 'Password'),
+                    enabled: !loading,
+                  ),
+                  if (host != null) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Host: ${host!.name}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
+                  if (errorText != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      errorText!,
+                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: loading
+                      ? null
+                      : () {
+                          Navigator.of(dialogContext).pop(false);
+                        },
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: loading ? null : attemptUnlock,
+                  child: loading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Unlock'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
-    controller.dispose();
-    return result?.isNotEmpty == true ? result : null;
+    return result == true && !_disposed && context.mounted;
+  }
+
+  Future<String> _keyDisplayName(String keyId) async {
+    final entry = await builtInVault!.keyStore.loadEntry(keyId);
+    if (entry != null) {
+      final label = entry.label.trim();
+      if (label.isNotEmpty) {
+        return label;
+      }
+    }
+    if (host != null) {
+      return '${host!.name} key (${_shortKeyId(keyId)})';
+    }
+    return 'Key ${_shortKeyId(keyId)}';
+  }
+
+  String _shortKeyId(String keyId) {
+    if (keyId.length <= 8) return keyId;
+    return '${keyId.substring(0, 8)}…${keyId.substring(keyId.length - 4)}';
   }
 
   Future<String?> awaitPassphraseInput(String host, String path) async {
@@ -223,6 +317,9 @@ class SshAuthHandler {
     if (existing != null) {
       debugPrint('[Explorer] Awaiting existing passphrase for $key');
       return existing;
+    }
+    if (_disposed) {
+      return null;
     }
     final completer = Completer<String?>();
     _pendingPassphrasePrompts[key] = completer.future;
@@ -242,6 +339,9 @@ class SshAuthHandler {
   }
 
   Future<String?> _promptPassphrase(String host, String path) async {
+    if (_disposed || !context.mounted) {
+      return null;
+    }
     final controller = TextEditingController();
     final result = await showDialog<String>(
       context: context,
@@ -259,16 +359,16 @@ class SshAuthHandler {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(controller.text.trim()),
+              onPressed: () => Navigator.of(context).pop(controller.text.trim()),
               child: const Text('Submit'),
             ),
           ],
         );
       },
     );
-    controller.dispose();
+    if (_disposed || !context.mounted) {
+      return null;
+    }
     return result?.isNotEmpty == true ? result : null;
   }
 }
-

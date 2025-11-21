@@ -10,21 +10,35 @@ class SshConfigService {
     SshConfigSource? source,
     SshConfigParser? parser,
     List<CustomSshHost> customHosts = const [],
+    List<String> additionalEntryPoints = const [],
+    List<String> disabledEntryPoints = const [],
   })  : _source = source ?? SshConfigSource.forPlatform(),
         _parser = parser ?? const SshConfigParser(),
-        _customHosts = customHosts;
+        _customHosts = customHosts,
+        _additionalEntryPoints = additionalEntryPoints,
+        _disabledEntryPoints = disabledEntryPoints;
 
   final SshConfigSource _source;
   final SshConfigParser _parser;
   final List<CustomSshHost> _customHosts;
+  final List<String> _additionalEntryPoints;
+  final List<String> _disabledEntryPoints;
 
   Future<List<SshHost>> loadHosts() async {
     final visited = <String>{};
     final hostsWithSource = <({ParsedHost host, String source})>[];
-    final entryPoints = await _source.entryPoints();
+    final entryPoints = <String>{
+      ...await _source.entryPoints(),
+      ..._additionalEntryPoints,
+    };
+    final blocked = await _canonicalizeAll(_disabledEntryPoints);
 
     for (final entryPoint in entryPoints) {
-      final hosts = await _parser.collectEntries(entryPoint, visited);
+      final hosts = await _parser.collectEntries(
+        entryPoint,
+        visited,
+        blockedPaths: blocked,
+      );
       for (final host in hosts) {
         // Use the actual source path from the parsed host (which tracks includes)
         hostsWithSource.add((host: host, source: host.sourcePath));
@@ -79,5 +93,19 @@ class SshConfigService {
     } catch (_) {
       return false;
     }
+  }
+
+  Future<Set<String>> _canonicalizeAll(List<String> paths) async {
+    final resolved = <String>{};
+    for (final path in paths) {
+      try {
+        final file = File(path);
+        final canonical = await file.resolveSymbolicLinks();
+        resolved.add(canonical);
+      } catch (_) {
+        resolved.add(path);
+      }
+    }
+    return resolved;
   }
 }

@@ -17,6 +17,8 @@ class BuiltInRemoteShellService extends RemoteShellService {
     required this.vault,
     Map<String, String>? hostKeyBindings,
     this.connectTimeout = const Duration(seconds: 10),
+    super.debugMode = false,
+    super.observer,
   }) : _hostKeyBindings = Map.unmodifiable(hostKeyBindings ?? const {});
 
   final BuiltInSshVault vault;
@@ -60,7 +62,8 @@ class BuiltInRemoteShellService extends RemoteShellService {
   }) async {
     final normalized = _sanitizePath(path);
     final command = "cat '${_escapeSingleQuotes(normalized)}'";
-    return _runCommand(host, command, timeout: timeout);
+    final output = await _runCommand(host, command, timeout: timeout);
+    return output;
   }
 
   @override
@@ -75,7 +78,20 @@ class BuiltInRemoteShellService extends RemoteShellService {
     final encoded = base64.encode(utf8.encode(contents));
     final command =
         "base64 -d > '${_escapeSingleQuotes(normalized)}' <<'$delimiter'\n$encoded\n$delimiter";
-    await _runCommand(host, command, timeout: timeout);
+    final output = await _runCommand(host, command, timeout: timeout);
+    final verification = await _verifyRemotePath(
+      host,
+      normalized,
+      shouldExist: true,
+      timeout: timeout,
+    );
+    emitDebugEvent(
+      host: host,
+      operation: 'writeFile',
+      command: command,
+      output: output,
+      verification: verification,
+    );
   }
 
   @override
@@ -87,10 +103,29 @@ class BuiltInRemoteShellService extends RemoteShellService {
   }) async {
     final normalizedSource = _sanitizePath(source);
     final normalizedDest = _sanitizePath(destination);
-    await _runRemoteCommand(
+    final run = await _runRemoteCommand(
       host,
       "mv '${_escapeSingleQuotes(normalizedSource)}' '${_escapeSingleQuotes(normalizedDest)}'",
       timeout: timeout,
+    );
+    final verification = await _verifyRemotePath(
+      host,
+      normalizedDest,
+      shouldExist: true,
+      timeout: timeout,
+    );
+    final sourceGone = await _verifyRemotePath(
+      host,
+      normalizedSource,
+      shouldExist: false,
+      timeout: timeout,
+    );
+    emitDebugEvent(
+      host: host,
+      operation: 'movePath',
+      command: run.command,
+      output: run.stdout,
+      verification: verification?.combine(sourceGone),
     );
   }
 
@@ -105,10 +140,23 @@ class BuiltInRemoteShellService extends RemoteShellService {
     final normalizedSource = _sanitizePath(source);
     final normalizedDest = _sanitizePath(destination);
     final flag = recursive ? '-R ' : '';
-    await _runRemoteCommand(
+    final run = await _runRemoteCommand(
       host,
       "cp $flag'${_escapeSingleQuotes(normalizedSource)}' '${_escapeSingleQuotes(normalizedDest)}'",
       timeout: timeout,
+    );
+    final verification = await _verifyRemotePath(
+      host,
+      normalizedDest,
+      shouldExist: true,
+      timeout: timeout,
+    );
+    emitDebugEvent(
+      host: host,
+      operation: 'copyPath',
+      command: run.command,
+      output: run.stdout,
+      verification: verification,
     );
   }
 
@@ -119,10 +167,23 @@ class BuiltInRemoteShellService extends RemoteShellService {
     Duration timeout = const Duration(seconds: 15),
   }) async {
     final normalized = _sanitizePath(path);
-    await _runRemoteCommand(
+    final run = await _runRemoteCommand(
       host,
       "rm -rf '${_escapeSingleQuotes(normalized)}'",
       timeout: timeout,
+    );
+    final verification = await _verifyRemotePath(
+      host,
+      normalized,
+      shouldExist: false,
+      timeout: timeout,
+    );
+    emitDebugEvent(
+      host: host,
+      operation: 'deletePath',
+      command: run.command,
+      output: run.stdout,
+      verification: verification,
     );
   }
 
@@ -157,6 +218,20 @@ class BuiltInRemoteShellService extends RemoteShellService {
     } finally {
       await tempDir.delete(recursive: true);
     }
+    final verification = await _verifyRemotePath(
+      destinationHost,
+      _sanitizePath(destinationPath),
+      shouldExist: true,
+      timeout: const Duration(seconds: 10),
+    );
+    emitDebugEvent(
+      host: destinationHost,
+      operation: 'copyBetweenHosts',
+      command:
+          'sftp copy ${sourceHost.name}:$sourcePath -> ${destinationHost.name}:$destinationPath',
+      output: 'completed',
+      verification: verification,
+    );
   }
 
   @override
@@ -207,9 +282,49 @@ class BuiltInRemoteShellService extends RemoteShellService {
       await _ensureRemoteDirectory(sftp, _dirname(normalizedDest));
       await _uploadFile(sftp, File(localPath), normalizedDest);
     }).timeout(timeout);
+    final verification = await _verifyRemotePath(
+      host,
+      normalizedDest,
+      shouldExist: true,
+      timeout: const Duration(seconds: 10),
+    );
+    emitDebugEvent(
+      host: host,
+      operation: 'uploadPath',
+      command: 'sftp upload $localPath -> $normalizedDest',
+      output: 'completed',
+      verification: verification,
+    );
   }
 
-  Future<void> _runRemoteCommand(
+  /// Upload file bytes directly (useful for Android where file paths may not be accessible)
+  Future<void> uploadBytes({
+    required SshHost host,
+    required List<int> bytes,
+    required String remoteDestination,
+    Duration timeout = const Duration(minutes: 2),
+  }) async {
+    final normalizedDest = _sanitizePath(remoteDestination);
+    await _withSftp(host, (sftp) async {
+      await _ensureRemoteDirectory(sftp, _dirname(normalizedDest));
+      await _uploadBytes(sftp, bytes, normalizedDest);
+    }).timeout(timeout);
+    final verification = await _verifyRemotePath(
+      host,
+      normalizedDest,
+      shouldExist: true,
+      timeout: const Duration(seconds: 10),
+    );
+    emitDebugEvent(
+      host: host,
+      operation: 'uploadBytes',
+      command: 'sftp upload <bytes> -> $normalizedDest',
+      output: 'completed',
+      verification: verification,
+    );
+  }
+
+  Future<RunResult> _runRemoteCommand(
     SshHost host,
     String command, {
     Duration timeout = const Duration(seconds: 10),
@@ -233,6 +348,7 @@ class BuiltInRemoteShellService extends RemoteShellService {
       // but log a warning
       _log('Warning: Could not parse exit code for command on ${host.name}');
     }
+    return RunResult(command: command, stdout: output, stderr: '');
   }
 
   Future<String> _runCommand(
@@ -561,6 +677,15 @@ class BuiltInRemoteShellService extends RemoteShellService {
     String remotePath,
   ) async {
     final contents = await localFile.readAsBytes();
+    await _uploadBytes(sftp, contents, remotePath);
+  }
+
+  Future<void> _uploadBytes(
+    SftpClient sftp,
+    List<int> bytes,
+    String remotePath,
+  ) async {
+    _log('Uploading ${bytes.length} bytes to $remotePath');
     final file = await sftp.open(
       remotePath,
       mode:
@@ -569,7 +694,11 @@ class BuiltInRemoteShellService extends RemoteShellService {
           SftpFileOpenMode.truncate,
     );
     try {
-      await file.writeBytes(contents);
+      await file.writeBytes(Uint8List.fromList(bytes));
+      _log('Successfully wrote ${bytes.length} bytes to $remotePath');
+    } catch (e) {
+      _log('Error writing bytes to $remotePath: $e');
+      rethrow;
     } finally {
       await file.close();
     }
@@ -664,6 +793,26 @@ class BuiltInRemoteShellService extends RemoteShellService {
       12,
       (index) => chars[rand.nextInt(chars.length)],
     ).join();
+  }
+
+  Future<VerificationResult?> _verifyRemotePath(
+    SshHost host,
+    String path, {
+    required bool shouldExist,
+    Duration timeout = const Duration(seconds: 8),
+  }) async {
+    if (!debugMode) {
+      return null;
+    }
+    final command =
+        "[ -e '${_escapeSingleQuotes(path)}' ] && echo 'EXISTS' || echo 'MISSING'";
+    final output = await _runCommand(host, command, timeout: timeout);
+    final exists = output.trim() == 'EXISTS';
+    return VerificationResult(
+      command: command,
+      output: output,
+      passed: shouldExist ? exists : !exists,
+    );
   }
 }
 

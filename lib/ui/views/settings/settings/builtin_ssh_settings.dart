@@ -1,7 +1,11 @@
 import 'dart:convert';
 
 import 'package:dartssh2/dartssh2.dart';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path/path.dart' as p;
 
 import '../../../../models/ssh_host.dart';
 import '../../../../services/settings/app_settings_controller.dart';
@@ -35,6 +39,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
   final _passwordController = TextEditingController();
   late final VoidCallback _vaultListener;
   bool _isSaving = false;
+  String? _lastPickedFileName;
   List<BuiltInSshKeyEntry> _cachedKeys = [];
   List<SshHost>? _cachedHosts;
 
@@ -626,6 +631,28 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       children: [
         const Text('Add a new key'),
         const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            ElevatedButton.icon(
+              icon: const Icon(Icons.file_open_outlined),
+              label: const Text('Import from file'),
+              onPressed: _isSaving ? null : () => _pickKeyFile(context),
+            ),
+            if (_lastPickedFileName != null)
+              Chip(
+                label: Text(_lastPickedFileName!),
+                avatar: const Icon(Icons.description_outlined, size: 18),
+                onDeleted: () {
+                  setState(() {
+                    _lastPickedFileName = null;
+                  });
+                },
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
         TextField(
           controller: _labelController,
           decoration: const InputDecoration(labelText: 'Key label'),
@@ -658,6 +685,43 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _pickKeyFile(BuildContext context) async {
+    final result = await FilePicker.platform.pickFiles(
+      dialogTitle: 'Select private key (PEM)',
+      allowMultiple: false,
+      withData: true,
+    );
+    final file = result?.files.first;
+    if (file == null) {
+      return;
+    }
+    try {
+      final bytes = file.bytes ??
+          (file.path != null ? await File(file.path!).readAsBytes() : null);
+      if (bytes == null) {
+        throw Exception('Unable to read selected file.');
+      }
+      final contents = String.fromCharCodes(bytes);
+      setState(() {
+        _keyController.text = contents;
+        _labelController.text =
+            _labelController.text.isEmpty ? p.basename(file.name) : _labelController.text;
+        _lastPickedFileName = file.name;
+      });
+      if (!context.mounted) return;
+      _showSnack(context, 'Loaded key from ${file.name}');
+    } catch (error) {
+      if (!context.mounted) return;
+      _showSnack(context, 'Failed to read key: $error');
+    }
+  }
+
+  void _showSnack(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 
@@ -823,6 +887,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       padding: const EdgeInsets.only(bottom: 8),
       child: DropdownButtonFormField<String?>(
         initialValue: mapping,
+        isExpanded: true,
         decoration: InputDecoration(
           labelText: host.name,
           border: const OutlineInputBorder(),
@@ -833,4 +898,3 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
     );
   }
 }
-
