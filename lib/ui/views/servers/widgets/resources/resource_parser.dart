@@ -1,19 +1,22 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math';
 
 import '../../../../../models/ssh_host.dart';
+import '../../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
+import '../../../../../services/ssh/remote_shell_service.dart';
 import 'resource_models.dart';
 
 /// Service for parsing resource data from SSH output
 class ResourceParser {
   ResourceParser({
     required this.host,
+    required this.shellService,
     required this.sampleWindowSeconds,
   });
 
   final SshHost host;
+  final RemoteShellService shellService;
   final double sampleWindowSeconds;
 
   /// Collect resource snapshot by running SSH script
@@ -26,7 +29,8 @@ class ResourceParser {
     const diskStatsAfterMarker = '__CW_DISK_AFTER__';
     const procMarker = '__CW_PROC__';
     const netMarker = '__CW_NET__';
-    final script = '''
+    final script =
+        '''
 disk_stats_before=\$(cat /proc/diskstats)
 cpu_before=\$(head -n1 /proc/stat)
 sleep $sampleWindowSeconds
@@ -85,8 +89,7 @@ echo "\$disk_stats_after"
       sampleWindowSeconds,
     );
     final disks = _parseDisks(diskUsageLines, diskIoRates);
-    final totalMemoryBytes =
-        (memStats.totalGb * pow(1024, 3)).toDouble();
+    final totalMemoryBytes = (memStats.totalGb * pow(1024, 3)).toDouble();
     final processes = _parseProcesses(procLines, totalMemoryBytes);
     final netTotals = _parseNetworkTotals(netLines);
     final diskIoTotal = diskIoRates.values.fold<double>(
@@ -149,8 +152,11 @@ echo "\$disk_stats_after"
     final second = parseLine(lines[1]);
     final total1 = first.fold(0, (sum, value) => sum + value);
     final total2 = second.fold(0, (sum, value) => sum + value);
-    final idle1 = (first.length > 3 ? first[3] : 0) + (first.length > 4 ? first[4] : 0);
-    final idle2 = (second.length > 3 ? second[3] : 0) + (second.length > 4 ? second[4] : 0);
+    final idle1 =
+        (first.length > 3 ? first[3] : 0) + (first.length > 4 ? first[4] : 0);
+    final idle2 =
+        (second.length > 3 ? second[3] : 0) +
+        (second.length > 4 ? second[4] : 0);
     final totalDiff = max(1, total2 - total1);
     final idleDiff = max(0, idle2 - idle1);
     return ((totalDiff - idleDiff) / totalDiff) * 100;
@@ -220,10 +226,14 @@ echo "\$disk_stats_after"
     for (final entry in after.entries) {
       final beforeSample = before[entry.key];
       if (beforeSample == null) continue;
-      final readSectors =
-          max(0, entry.value.readSectors - beforeSample.readSectors);
-      final writeSectors =
-          max(0, entry.value.writeSectors - beforeSample.writeSectors);
+      final readSectors = max(
+        0,
+        entry.value.readSectors - beforeSample.readSectors,
+      );
+      final writeSectors = max(
+        0,
+        entry.value.writeSectors - beforeSample.writeSectors,
+      );
       final readBytesPerSecond = (readSectors * 512) / intervalSeconds;
       final writeBytesPerSecond = (writeSectors * 512) / intervalSeconds;
       rates[entry.key] = DiskIoRate(
@@ -288,8 +298,9 @@ echo "\$disk_stats_after"
       final cmd = parts[2];
       final cpu = double.tryParse(parts[3]) ?? 0;
       final memPercent = double.tryParse(parts[4]) ?? 0;
-      final memBytes =
-          totalMemoryBytes > 0 ? (memPercent / 100) * totalMemoryBytes : 0.0;
+      final memBytes = totalMemoryBytes > 0
+          ? (memPercent / 100) * totalMemoryBytes
+          : 0.0;
       processes.add(
         ProcessInfo(
           pid: pid,
@@ -326,32 +337,24 @@ echo "\$disk_stats_after"
     String script, {
     Duration timeout = const Duration(seconds: 5),
   }) async {
+    final wrapped = 'bash -lc ${shellArgument(script)}';
     try {
-      final result = await Process.run(
-        'ssh',
-        [
-          '-o',
-          'BatchMode=yes',
-          '-o',
-          'StrictHostKeyChecking=no',
-          host.name,
-          script,
-        ],
-        stdoutEncoding: utf8,
-        stderrEncoding: utf8,
-        runInShell: false,
-      ).timeout(timeout);
-      if (result.exitCode != 0) {
-        throw Exception(
-          (result.stderr as String?)?.trim().isNotEmpty == true
-              ? (result.stderr as String).trim()
-              : 'SSH exited with ${result.exitCode}',
-        );
-      }
-      return (result.stdout as String?)?.trim();
+      final output = await shellService.runCommand(
+        host,
+        wrapped,
+        timeout: timeout,
+      );
+      return output.trim();
+    } on BuiltInSshKeyLockedException catch (error) {
+      throw Exception('SSH key locked for ${host.name}: ${error.keyId}');
     } catch (error) {
       throw Exception('SSH command failed: $error');
     }
+  }
+
+  String shellArgument(String script) {
+    final escaped = script.replaceAll("'", r"'\''");
+    return "'$escaped'";
   }
 }
 
@@ -359,4 +362,3 @@ extension<E> on List<E> {
   E? get firstOrNull => isEmpty ? null : first;
   E? elementAtOrNull(int index) => index >= length ? null : this[index];
 }
-

@@ -19,23 +19,12 @@ class ServerTab {
   final GlobalKey bodyKey;
   final String? customName;
 
-  String get title =>
-      customName?.isNotEmpty == true ? customName! : '${host.name} - $label';
+  String get title => _displayName;
 
-  String get label {
-    switch (action) {
-      case ServerAction.empty:
-        return 'Explorer';
-      case ServerAction.fileExplorer:
-        return 'File Explorer';
-      case ServerAction.connectivity:
-        return 'Connectivity';
-      case ServerAction.resources:
-        return 'Resources';
-      case ServerAction.trash:
-        return 'Trash';
-    }
-  }
+  String get label => _displayName;
+
+  String get _displayName =>
+      (customName?.trim().isNotEmpty ?? false) ? customName!.trim() : host.name;
 
   IconData get icon {
     switch (action) {
@@ -87,4 +76,3 @@ class TrashHost extends SshHost {
 
 /// Servers menu action enum
 enum ServersMenuAction { openTrash }
-

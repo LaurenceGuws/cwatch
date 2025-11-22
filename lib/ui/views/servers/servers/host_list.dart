@@ -84,62 +84,103 @@ class _HostListState extends State<HostList> {
 
     if (!showSections) {
       // Single source - no headers needed
-      return ListView.separated(
-        padding: EdgeInsets.zero,
-        itemBuilder: (context, index) => _buildHostTile(widget.hosts[index]),
-        separatorBuilder: (_, _) => SizedBox(height: spacing.base),
-        itemCount: widget.hosts.length,
+      return Column(
+        children: [
+          Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: EdgeInsets.only(
+                right: spacing.base,
+                bottom: spacing.base,
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.add),
+                tooltip: 'Add Server',
+                onPressed: widget.onAddServer,
+              ),
+            ),
+          ),
+          Expanded(
+            child: ListView.separated(
+              padding: EdgeInsets.zero,
+              itemBuilder: (context, index) => _buildHostTile(widget.hosts[index]),
+              separatorBuilder: (_, _) => SizedBox(height: spacing.base),
+              itemCount: widget.hosts.length,
+            ),
+          ),
+        ],
       );
     }
 
     // Multiple sources - show with headers
-    return ListView.builder(
-      padding: EdgeInsets.zero,
-      itemCount: sources.length * 2 - 1, // Headers + separators
-      itemBuilder: (context, index) {
-        if (index.isOdd) {
-          // Separator
-          return SizedBox(height: spacing.base * 2);
-        }
-        final sourceIndex = index ~/ 2;
-        final source = sources[sourceIndex];
-        final hosts = grouped[source]!;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: spacing.base * 2,
-                vertical: spacing.base,
-              ),
-              child: Row(
+    return Column(
+      children: [
+        Align(
+          alignment: Alignment.centerRight,
+          child: Padding(
+            padding: EdgeInsets.only(
+              right: spacing.base,
+              bottom: spacing.base,
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.add),
+              tooltip: 'Add Server',
+              onPressed: widget.onAddServer,
+            ),
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: EdgeInsets.zero,
+            itemCount: sources.length * 2 - 1, // Headers + separators
+            itemBuilder: (context, index) {
+              if (index.isOdd) {
+                // Separator
+                return SizedBox(height: spacing.base * 2);
+              }
+              final sourceIndex = index ~/ 2;
+              final source = sources[sourceIndex];
+              final hosts = grouped[source]!;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      _getSourceDisplayName(source),
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: spacing.base * 2,
+                      vertical: spacing.base,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _getSourceDisplayName(source),
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
                           ),
+                        ),
+                        if (source != 'custom')
+                          IconButton(
+                            icon: const Icon(Icons.edit, size: 18),
+                            tooltip: 'Edit config file',
+                            onPressed: () =>
+                                ExternalAppLauncher.openConfigFile(source, context),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                      ],
                     ),
                   ),
-                  if (source != 'custom')
-                    IconButton(
-                      icon: const Icon(Icons.edit, size: 18),
-                      tooltip: 'Edit config file',
-                      onPressed: () => ExternalAppLauncher.openConfigFile(source, context),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
+                  ...hosts.map((host) => Padding(
+                        padding: EdgeInsets.only(bottom: spacing.base),
+                        child: _buildHostTile(host),
+                      )),
                 ],
-              ),
-            ),
-            ...hosts.map((host) => Padding(
-                  padding: EdgeInsets.only(bottom: spacing.base),
-                  child: _buildHostTile(host),
-                )),
-          ],
-        );
-      },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -286,4 +327,3 @@ class _HostListState extends State<HostList> {
     }
   }
 }
-

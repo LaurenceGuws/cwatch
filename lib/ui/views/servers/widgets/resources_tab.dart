@@ -3,18 +3,25 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../models/ssh_host.dart';
+import '../../../../services/logging/app_logger.dart';
+import '../../../../services/ssh/remote_shell_service.dart';
 import '../../../theme/app_theme.dart';
-import 'resources/resource_utils.dart';
 import 'resources/process_tree_view.dart';
 import 'resources/resource_models.dart';
 import 'resources/resource_panels.dart';
 import 'resources/resource_parser.dart';
+import 'resources/resource_utils.dart';
 import 'resources/resource_widgets.dart';
 
 class ResourcesTab extends StatefulWidget {
-  const ResourcesTab({super.key, required this.host});
+  const ResourcesTab({
+    super.key,
+    required this.host,
+    required this.shellService,
+  });
 
   final SshHost host;
+  final RemoteShellService shellService;
 
   @override
   State<ResourcesTab> createState() => _ResourcesTabState();
@@ -41,8 +48,10 @@ class _ResourcesTabState extends State<ResourcesTab> {
     _networkRateCalculator = NetworkRateCalculator();
     _resourceParser = ResourceParser(
       host: widget.host,
+      shellService: widget.shellService,
       sampleWindowSeconds: _sampleWindowSeconds,
     );
+    AppLogger.d('Loading resources for ${widget.host.name}', tag: 'Resources');
     _loadResources();
   }
 
@@ -88,8 +97,10 @@ class _ResourcesTabState extends State<ResourcesTab> {
         _historyManager.appendNetIn(snapshot.netInMbps);
         _historyManager.appendNetOut(snapshot.netOutMbps);
       });
+      AppLogger.d('Resources loaded for ${widget.host.name}', tag: 'Resources');
       _startPolling();
     } catch (error) {
+      AppLogger.w('Failed to load resources for ${widget.host.name}', tag: 'Resources', error: error);
       if (!mounted) return;
       setState(() {
         _loading = false;
@@ -135,7 +146,9 @@ class _ResourcesTabState extends State<ResourcesTab> {
         _historyManager.appendNetIn(snapshot.netInMbps);
         _historyManager.appendNetOut(snapshot.netOutMbps);
       });
+      AppLogger.d('Resources refreshed for ${widget.host.name}', tag: 'Resources');
     } catch (error) {
+      AppLogger.w('Resource refresh failed for ${widget.host.name}', tag: 'Resources', error: error);
       if (!mounted) return;
       setState(() {
         _error = error.toString();

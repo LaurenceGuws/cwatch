@@ -10,7 +10,7 @@ import 'services/settings/app_settings_controller.dart';
 import 'services/ssh/ssh_config_service.dart';
 import 'services/ssh/builtin/builtin_ssh_key_store.dart';
 import 'services/ssh/builtin/builtin_ssh_vault.dart';
-import 'services/ssh/remote_command_log_controller.dart';
+import 'services/ssh/remote_command_logging.dart';
 import 'ui/theme/app_theme.dart';
 import 'ui/theme/nerd_fonts.dart';
 import 'ui/views/docker/docker_view.dart';
@@ -501,6 +501,7 @@ class _SidebarToggleButton extends StatelessWidget {
     );
   }
 }
+
 
 enum ShellDestination { servers, docker, kubernetes, settings }
 

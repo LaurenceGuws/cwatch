@@ -26,6 +26,7 @@ import 'file_explorer/delete_operations_handler.dart';
 import 'file_explorer/clipboard_operations_handler.dart';
 import 'file_explorer/external_app_launcher.dart';
 import 'file_explorer/dialog_builders.dart';
+import '../servers/servers_widgets.dart';
 
 class FileExplorerTab extends StatefulWidget {
   const FileExplorerTab({
@@ -34,12 +35,14 @@ class FileExplorerTab extends StatefulWidget {
     this.shellService = const ProcessRemoteShellService(),
     required this.trashManager,
     this.builtInVault,
+    required this.onOpenTrash,
   });
 
   final SshHost host;
   final RemoteShellService shellService;
   final ExplorerTrashManager trashManager;
   final BuiltInSshVault? builtInVault;
+  final VoidCallback onOpenTrash;
 
   @override
   State<FileExplorerTab> createState() => _FileExplorerTabState();
@@ -235,7 +238,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildPathNavigator(context),
+        _buildPathHeader(context),
         const SizedBox(height: 12),
         _buildCommandBar(),
         const SizedBox(height: 12),
@@ -263,6 +266,18 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         setState(() => _showBreadcrumbs = show);
       },
       onNavigateToSubdirectory: () => _showNavigateToSubdirectoryDialog(),
+    );
+  }
+
+  Widget _buildPathHeader(BuildContext context) {
+    final navigator = _buildPathNavigator(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: navigator),
+        const SizedBox(width: 8),
+        ServersMenu(onOpenTrash: widget.onOpenTrash),
+      ],
     );
   }
 

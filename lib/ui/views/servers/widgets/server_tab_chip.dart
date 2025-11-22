@@ -15,6 +15,7 @@ class ServerTabChip extends StatelessWidget {
     required this.onSelect,
     required this.onClose,
     this.onRename,
+    this.showActions = true,
     required this.dragIndex,
   });
 
@@ -26,6 +27,7 @@ class ServerTabChip extends StatelessWidget {
   final VoidCallback onSelect;
   final VoidCallback onClose;
   final VoidCallback? onRename;
+  final bool showActions;
   final int dragIndex;
 
   @override
@@ -62,7 +64,7 @@ class ServerTabChip extends StatelessWidget {
               ],
             ),
           ),
-          if (onRename != null)
+          if (showActions && onRename != null)
             IconButton(
               icon: Icon(NerdIcon.pencil.data, size: 16, color: foreground),
               visualDensity: VisualDensity.compact,
@@ -70,17 +72,19 @@ class ServerTabChip extends StatelessWidget {
               tooltip: 'Rename tab',
               onPressed: onRename,
             ),
-          IconButton(
-            icon: Icon(NerdIcon.close.data, size: 16, color: foreground),
-            visualDensity: VisualDensity.compact,
-            splashRadius: 16,
-            tooltip: 'Close tab',
-            onPressed: onClose,
-          ),
-          ReorderableDragStartListener(
-            index: dragIndex,
-            child: Icon(NerdIcon.drag.data, size: 16),
-          ),
+          if (showActions)
+            IconButton(
+              icon: Icon(NerdIcon.close.data, size: 16, color: foreground),
+              visualDensity: VisualDensity.compact,
+              splashRadius: 16,
+              tooltip: 'Close tab',
+              onPressed: onClose,
+            ),
+          if (showActions && dragIndex >= 0)
+            ReorderableDragStartListener(
+              index: dragIndex,
+              child: Icon(NerdIcon.drag.data, size: 16),
+            ),
         ],
       ),
     );

@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import '../../../../models/ssh_host.dart';
 import '../../../theme/app_theme.dart';
 import '../../../theme/nerd_fonts.dart';
+import '../../../../services/logging/app_logger.dart';
 
 class ConnectivityTab extends StatefulWidget {
   const ConnectivityTab({super.key, required this.host});
@@ -35,6 +36,7 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
   @override
   void initState() {
     super.initState();
+    AppLogger.d('Loading connectivity stats for ${widget.host.name}', tag: 'Connectivity');
     _loadStats();
   }
 
@@ -236,8 +238,10 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
           ..add(first);
         _loading = false;
       });
+      AppLogger.d('Initial connectivity stats loaded for ${widget.host.name}', tag: 'Connectivity');
       _startStreaming();
     } catch (error) {
+      AppLogger.w('Failed to load connectivity stats for ${widget.host.name}', tag: 'Connectivity', error: error);
       if (!mounted) return;
       setState(() {
         _loading = false;
@@ -260,7 +264,9 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
         _pushHistory(next);
         _refreshing = false;
       });
+      AppLogger.d('Connectivity stats refreshed for ${widget.host.name}', tag: 'Connectivity');
     } catch (error) {
+      AppLogger.w('Refresh failed for ${widget.host.name}', tag: 'Connectivity', error: error);
       if (!mounted) return;
       setState(() {
         _refreshing = false;
@@ -422,6 +428,7 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
         _error = null;
       });
     } catch (error) {
+      AppLogger.w('Streaming tick failed for ${widget.host.name}', tag: 'Connectivity', error: error);
       if (!mounted) return;
       setState(() {
         _error = error.toString();

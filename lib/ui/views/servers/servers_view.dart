@@ -6,14 +6,12 @@ import '../../../models/ssh_host.dart';
 import '../../../services/ssh/builtin/builtin_ssh_key_store.dart';
 import '../../../services/filesystem/explorer_trash_manager.dart';
 import '../../../services/ssh/remote_shell_service.dart';
-import '../../../services/ssh/remote_command_observer.dart';
-import '../../../services/ssh/remote_command_log_controller.dart';
+import '../../../services/ssh/remote_command_logging.dart';
 import '../../../services/settings/app_settings_controller.dart';
 import '../../../services/ssh/builtin/builtin_remote_shell_service.dart';
 import '../../../services/ssh/builtin/builtin_ssh_vault.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/nerd_fonts.dart';
-import '../../widgets/section_nav_bar.dart';
 import 'servers/add_server_dialog.dart';
 import 'servers/host_list.dart';
 import 'servers/server_models.dart';
@@ -50,36 +48,26 @@ class _ServersViewState extends State<ServersView> {
   final ExplorerTrashManager _trashManager = ExplorerTrashManager();
 
   @override
+  void initState() {
+    super.initState();
+    _tabs.add(
+      _createTab(
+        id: 'host-tab',
+        host: const PlaceholderHost(),
+        action: ServerAction.empty,
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final workspace = _tabs.isEmpty
         ? _buildHostSelection(onHostActivate: _startActionFlowForHost)
         : _buildTabWorkspace();
 
-    return Column(
-      children: [
-        SectionNavBar(
-          title: 'Servers',
-          tabs: const [],
-          leading: widget.leading,
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.add),
-                tooltip: 'Add Server',
-                onPressed: () => _showAddServerDialog(context),
-              ),
-              _buildServersMenu(),
-            ],
-          ),
-        ),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: workspace,
-          ),
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: workspace,
     );
   }
 
@@ -134,19 +122,28 @@ class _ServersViewState extends State<ServersView> {
 
   Widget _buildTabWorkspace() {
     final appTheme = context.appTheme;
+    final clampedIndex = _selectedTabIndex.clamp(0, _tabs.length - 1);
+    final selectedIndex = clampedIndex;
+
     return Column(
       children: [
         Material(
           color: appTheme.section.toolbarBackground,
           child: Row(
             children: [
+              if (widget.leading != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: SizedBox(
+                    height: 48,
+                    child: Center(child: widget.leading),
+                  ),
+                ),
               Expanded(
                 child: SizedBox(
                   height: 48,
-                  child: _tabs.isEmpty
-                      ? const SizedBox.shrink()
-                      : ReorderableListView.builder(
-                          scrollDirection: Axis.horizontal,
+                  child: ReorderableListView.builder(
+                        scrollDirection: Axis.horizontal,
                           padding: appTheme.spacing.inset(
                             horizontal: 1,
                             vertical: 0,
@@ -162,12 +159,16 @@ class _ServersViewState extends State<ServersView> {
                               title: tab.title,
                               label: tab.label,
                               icon: tab.icon,
-                              selected: index == _selectedTabIndex,
-                              onSelect: () =>
-                                  setState(() => _selectedTabIndex = index),
-                              onClose: () => _closeTab(index),
-                              onRename: () => _renameTab(index),
-                              dragIndex: index,
+                              selected: index == selectedIndex,
+                              onSelect: () => setState(() => _selectedTabIndex = index),
+                              onClose: tab.action == ServerAction.empty
+                                  ? () {}
+                                  : () => _closeTab(index),
+                              onRename: tab.action == ServerAction.empty
+                                  ? null
+                                  : () => _renameTab(index),
+                              showActions: tab.action != ServerAction.empty,
+                              dragIndex: tab.action == ServerAction.empty ? -1 : index,
                             );
                           },
                         ),
@@ -187,15 +188,19 @@ class _ServersViewState extends State<ServersView> {
         ),
         Expanded(
           child: IndexedStack(
-            index: _selectedTabIndex.clamp(0, _tabs.length - 1),
-            children: _tabs
-                .map(
-                  (tab) => KeyedSubtree(
-                    key: ValueKey('server-tab-${tab.id}'),
-                    child: _buildTabChild(tab),
-                  ),
-                )
-                .toList(),
+            index: selectedIndex,
+            children: [
+              KeyedSubtree(
+                key: ValueKey('server-tab-${_tabs[0].id}'),
+                child: _buildTabChild(_tabs[0]),
+              ),
+              ..._tabs.skip(1).map(
+                (tab) => KeyedSubtree(
+                  key: ValueKey('server-tab-${tab.id}'),
+                  child: _buildTabChild(tab),
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -222,7 +227,6 @@ class _ServersViewState extends State<ServersView> {
   }
 
   Future<void> _startEmptyTab() async {
-    final tabIndex = _tabs.length;
     setState(() {
       _tabs.add(
         _createTab(
@@ -231,7 +235,7 @@ class _ServersViewState extends State<ServersView> {
           action: ServerAction.empty,
         ),
       );
-      _selectedTabIndex = tabIndex;
+      _selectedTabIndex = _tabs.length - 1;
     });
   }
 
@@ -265,11 +269,16 @@ class _ServersViewState extends State<ServersView> {
           shellService: _shellServiceForHost(tab.host),
           builtInVault: widget.builtInVault,
           trashManager: _trashManager,
+          onOpenTrash: _openTrashTab,
         );
       case ServerAction.connectivity:
         return ConnectivityTab(key: tab.bodyKey, host: tab.host);
       case ServerAction.resources:
-        return ResourcesTab(key: tab.bodyKey, host: tab.host);
+        return ResourcesTab(
+          key: tab.bodyKey,
+          host: tab.host,
+          shellService: _shellServiceForHost(tab.host),
+        );
       case ServerAction.trash:
         return TrashTab(
           key: tab.bodyKey,
@@ -289,6 +298,8 @@ class _ServersViewState extends State<ServersView> {
         hostKeyBindings: settings.builtinSshHostKeyBindings,
         debugMode: settings.debugMode,
         observer: observer,
+        promptUnlock: (keyId, hostName, keyLabel) =>
+            _promptUnlockKey(keyId, hostName, keyLabel),
       );
     }
     return ProcessRemoteShellService(
@@ -307,7 +318,7 @@ class _ServersViewState extends State<ServersView> {
 
   void _closeTab(int index) {
     setState(() {
-      if (index < 0 || index >= _tabs.length) {
+      if (index <= 0 || index >= _tabs.length) {
         return;
       }
       _tabs.removeAt(index);
@@ -323,6 +334,9 @@ class _ServersViewState extends State<ServersView> {
 
   void _handleTabReorder(int oldIndex, int newIndex) {
     setState(() {
+      if (oldIndex == 0 || newIndex == 0) {
+        return;
+      }
       if (oldIndex < newIndex) {
         newIndex -= 1;
       }
@@ -330,11 +344,9 @@ class _ServersViewState extends State<ServersView> {
       _tabs.insert(newIndex, moved);
       if (_selectedTabIndex == oldIndex) {
         _selectedTabIndex = newIndex;
-      } else if (_selectedTabIndex >= oldIndex &&
-          _selectedTabIndex < newIndex) {
+      } else if (_selectedTabIndex >= oldIndex && _selectedTabIndex < newIndex) {
         _selectedTabIndex -= 1;
-      } else if (_selectedTabIndex <= oldIndex &&
-          _selectedTabIndex > newIndex) {
+      } else if (_selectedTabIndex <= oldIndex && _selectedTabIndex > newIndex) {
         _selectedTabIndex += 1;
       }
     });
@@ -401,12 +413,6 @@ class _ServersViewState extends State<ServersView> {
     });
   }
 
-  Widget _buildServersMenu() {
-    return ServersMenu(
-      onOpenTrash: _openTrashTab,
-    );
-  }
-
   void _openTrashTab() {
     setState(() {
       _tabs.add(
@@ -419,5 +425,118 @@ class _ServersViewState extends State<ServersView> {
       );
       _selectedTabIndex = _tabs.length - 1;
     });
+  }
+
+  Future<bool> _promptUnlockKey(
+    String keyId,
+    String hostName,
+    String? keyLabel,
+  ) async {
+    final needsPassword = await widget.builtInVault.needsPassword(keyId);
+    if (!needsPassword) {
+      try {
+        await widget.builtInVault.unlock(keyId, null);
+        if (!mounted) return true;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unlocked key for this session.')),
+        );
+        return true;
+      } catch (_) {
+        // Fall through to prompting
+      }
+    }
+    if (!mounted) return false;
+
+    final controller = TextEditingController();
+    String? errorText;
+    bool loading = false;
+    final success = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            Future<void> attemptUnlock() async {
+              if (loading) return;
+              final password = controller.text.trim();
+              if (password.isEmpty) {
+                setState(() => errorText = 'Password is required');
+                return;
+              }
+              setState(() {
+                loading = true;
+                errorText = null;
+              });
+              try {
+                await widget.builtInVault.unlock(keyId, password);
+                if (!mounted || !dialogContext.mounted) return;
+                Navigator.of(dialogContext).pop(true);
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(
+                    content: Text('Key unlocked for this session.'),
+                  ),
+                );
+              } on BuiltInSshKeyDecryptException {
+                setState(() {
+                  errorText = 'Incorrect password. Please try again.';
+                  loading = false;
+                });
+              } catch (e) {
+                setState(() {
+                  errorText = 'Failed to unlock: $e';
+                  loading = false;
+                });
+              }
+            }
+
+            return AlertDialog(
+              title: Text('Unlock ${keyLabel ?? 'key'}'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Host: $hostName'),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: controller,
+                    obscureText: true,
+                    decoration: const InputDecoration(labelText: 'Password'),
+                    enabled: !loading,
+                  ),
+                  if (errorText != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      errorText!,
+                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: loading
+                      ? null
+                      : () {
+                          Navigator.of(dialogContext).pop(false);
+                        },
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: loading ? null : attemptUnlock,
+                  child: loading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Unlock'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    controller.dispose();
+    return success == true;
   }
 }

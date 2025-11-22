@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -9,7 +10,6 @@ import 'package:dartssh2/dartssh2.dart';
 import 'package:path/path.dart' as p;
 
 import '../../logging/app_logger.dart';
-import '../remote_ls_parser.dart';
 import '../remote_shell_service.dart';
 import 'builtin_ssh_vault.dart';
 
@@ -20,13 +20,17 @@ class BuiltInRemoteShellService extends RemoteShellService {
     this.connectTimeout = const Duration(seconds: 10),
     super.debugMode = false,
     super.observer,
+    this.promptUnlock,
   }) : _hostKeyBindings = Map.unmodifiable(hostKeyBindings ?? const {});
 
   final BuiltInSshVault vault;
   final Duration connectTimeout;
   final Map<String, String> _hostKeyBindings;
+  final Future<bool> Function(String keyId, String hostName, String? keyLabel)?
+  promptUnlock;
   final Map<String, String> _identityPassphrases = {};
   final Map<String, String> _builtInKeyPassphrases = {};
+  final Map<String, Future<void>> _pendingUnlocks = {};
 
   @override
   Future<List<RemoteFileEntry>> listDirectory(
@@ -38,10 +42,14 @@ class BuiltInRemoteShellService extends RemoteShellService {
     final command =
         "cd '${_escapeSingleQuotes(sanitized)}' && ls -al --time-style=+%Y-%m-%dT%H:%M:%S";
     final output = await _runCommand(host, command, timeout: timeout);
-    _log('[BuiltInSSH] listDirectory output for ${host.name}:$path (length=${output.length})');
-    _log('[BuiltInSSH] First 500 chars: ${output.length > 500 ? output.substring(0, 500) : output}');
+    _log(
+      'listDirectory output for ${host.name}:$path (length=${output.length})',
+    );
+    _log(
+      'First 500 chars: ${output.length > 500 ? output.substring(0, 500) : output}',
+    );
     final entries = parseLsOutput(output);
-    _log('[BuiltInSSH] Parsed ${entries.length} entries from output');
+    _log('Parsed ${entries.length} entries from output');
     return entries;
   }
 
@@ -334,7 +342,7 @@ class BuiltInRemoteShellService extends RemoteShellService {
     // Run command and check exit code by appending ; echo $?
     final checkCommand = '$command; echo "EXIT_CODE:\$?"';
     final output = await _runCommand(host, checkCommand, timeout: timeout);
-    
+
     // Check for exit code in output
     final exitCodeMatch = RegExp(r'EXIT_CODE:(\d+)').firstMatch(output);
     if (exitCodeMatch != null) {
@@ -360,8 +368,8 @@ class BuiltInRemoteShellService extends RemoteShellService {
     _log('Running command on ${host.name}: $command');
     final bytes = await _withClient(
       host,
-      (client) => client.run(command),
-    ).timeout(timeout);
+      (client) => client.run(command).timeout(timeout),
+    );
     final output = utf8.decode(bytes, allowMalformed: true);
     _log('Command on ${host.name} completed. Output length=${output.length}');
     return output;
@@ -373,6 +381,7 @@ class BuiltInRemoteShellService extends RemoteShellService {
   ) async {
     SSHClient? client;
     try {
+      await _ensureBuiltInKeyUnlocked(host);
       client = await _openClient(host);
       return await action(client);
     } on SSHAuthFailError catch (error) {
@@ -401,6 +410,61 @@ class BuiltInRemoteShellService extends RemoteShellService {
         // Ignore errors during cleanup
       }
     }
+  }
+
+  Future<void> _ensureBuiltInKeyUnlocked(SshHost host) async {
+    final keyId = _hostKeyBindings[host.name];
+    if (keyId == null) {
+      return;
+    }
+    final pending = _pendingUnlocks[keyId];
+    if (pending != null) {
+      return pending;
+    }
+    final unlockFuture = () async {
+      if (vault.isUnlocked(keyId)) {
+        return;
+      }
+      final entry = await vault.keyStore.loadEntry(keyId);
+      if (entry == null) {
+        _log(
+          'Key $keyId bound to ${host.name} no longer exists. '
+          'Skipping unlock and continuing.',
+        );
+        return;
+      }
+      final needsPassword = await vault.needsPassword(keyId);
+      if (!needsPassword) {
+        try {
+          await vault.unlock(keyId, null);
+          return;
+        } catch (_) {
+          // Fall through to prompt
+        }
+      }
+      if (promptUnlock != null) {
+        final unlocked = await promptUnlock!(keyId, host.name, entry.label);
+        if (unlocked && vault.isUnlocked(keyId)) {
+          return;
+        }
+      }
+      throw BuiltInSshKeyLockedException(host.name, keyId, entry.label);
+    }();
+    _pendingUnlocks[keyId] = unlockFuture;
+    try {
+      await unlockFuture;
+    } finally {
+      _pendingUnlocks.remove(keyId);
+    }
+  }
+
+  @override
+  Future<String> runCommand(
+    SshHost host,
+    String command, {
+    Duration timeout = const Duration(seconds: 10),
+  }) {
+    return _runCommand(host, command, timeout: timeout);
   }
 
   Future<T> _withSftp<T>(
@@ -446,12 +510,12 @@ class BuiltInRemoteShellService extends RemoteShellService {
       'Collecting identities for ${host.name} (files=${host.identityFiles.length})',
     );
     final identities = <SSHKeyPair>[];
-    
+
     // If no identity files specified, use default SSH identity files
     final identityFilesToCheck = host.identityFiles.isEmpty
         ? _getDefaultIdentityFiles()
         : host.identityFiles;
-    
+
     for (final identityPath in identityFilesToCheck) {
       try {
         // Skip non-existent files (especially for default identity files)
@@ -459,7 +523,7 @@ class BuiltInRemoteShellService extends RemoteShellService {
         if (!await identityFile.exists()) {
           continue;
         }
-        
+
         // NEW: If this identity is a built-in key and already unlocked, use that PEM directly.
         final builtInId = _hostKeyBindings[host.name];
         if (builtInId != null) {
@@ -543,10 +607,36 @@ class BuiltInRemoteShellService extends RemoteShellService {
 
       final unlocked = vault.getUnlockedKey(keyId);
       if (unlocked == null) {
+        // Attempt auto-unlock for unencrypted storage
+        final needsPassword = await vault.needsPassword(keyId);
+        if (!needsPassword) {
+          try {
+            await vault.unlock(keyId, null);
+          } catch (_) {
+            // ignore and fall through to prompt/exception
+          }
+        }
+        if (!vault.isUnlocked(keyId) && promptUnlock != null) {
+          final unlockedViaPrompt = await promptUnlock!(
+            keyId,
+            host.name,
+            entry.label,
+          );
+          if (!unlockedViaPrompt) {
+            throw BuiltInSshKeyLockedException(host.name, keyId, entry.label);
+          }
+        }
+        if (!vault.isUnlocked(keyId)) {
+          throw BuiltInSshKeyLockedException(host.name, keyId, entry.label);
+        }
+        _log('Unlocked built-in key $keyId for host ${host.name}');
+      }
+      final unlockedKey = vault.getUnlockedKey(keyId);
+      if (unlockedKey == null) {
         throw BuiltInSshKeyLockedException(host.name, keyId, entry.label);
       }
       _log('Using unlocked built-in key $keyId for host ${host.name}');
-      final pem = utf8.decode(unlocked, allowMalformed: true);
+      final pem = utf8.decode(unlockedKey, allowMalformed: true);
       final passphrase = _builtInKeyPassphrases[keyId];
       try {
         identities.addAll(
@@ -602,7 +692,8 @@ class BuiltInRemoteShellService extends RemoteShellService {
   /// Returns the default SSH identity file paths that SSH would use
   /// when no IdentityFile is specified in the config.
   List<String> _getDefaultIdentityFiles() {
-    final homeDir = Platform.environment['HOME'] ??
+    final homeDir =
+        Platform.environment['HOME'] ??
         Platform.environment['USERPROFILE'] ??
         '';
     if (homeDir.isEmpty) {

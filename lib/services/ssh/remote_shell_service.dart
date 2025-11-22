@@ -2,11 +2,12 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:meta/meta.dart';
+
 import '../../models/remote_file_entry.dart';
 import '../../models/ssh_host.dart';
 import '../logging/app_logger.dart';
-import 'remote_command_observer.dart';
-import 'remote_ls_parser.dart';
+import 'remote_command_logging.dart';
 
 abstract class RemoteShellService {
   const RemoteShellService({this.debugMode = false, this.observer});
@@ -112,6 +113,54 @@ abstract class RemoteShellService {
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
   });
+
+  Future<String> runCommand(
+    SshHost host,
+    String command, {
+    Duration timeout = const Duration(seconds: 10),
+  });
+
+  @protected
+  List<RemoteFileEntry> parseLsOutput(String stdout) {
+    final lines = const LineSplitter().convert(stdout);
+    final entries = <RemoteFileEntry>[];
+    for (final line in lines) {
+      if (line.isEmpty || line.startsWith('total')) {
+        continue;
+      }
+      final parsed = _parseLsLine(line);
+      if (parsed != null) {
+        entries.add(parsed);
+      }
+    }
+    return entries;
+  }
+
+  RemoteFileEntry? _parseLsLine(String line) {
+    // Handle ACL/SELinux indicators (+/@) and symlink targets.
+    final pattern = RegExp(
+      r'^([\-ldcbps])([rwx\-+@]{9,11})\s+\d+\s+\S+\s+\S+\s+(\d+)\s+(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\s+(.+)$',
+    );
+    final match = pattern.firstMatch(line);
+    if (match == null) {
+      return null;
+    }
+    final typeFlag = match.group(1)!;
+    final size = int.tryParse(match.group(3) ?? '') ?? 0;
+    final modified = DateTime.tryParse(match.group(4) ?? '') ?? DateTime.now();
+    var name = match.group(5) ?? '';
+    if (typeFlag == 'l') {
+      final parts = name.split(' -> ');
+      name = parts.first;
+    }
+    final isDirectory = typeFlag == 'd' || typeFlag == 'l';
+    return RemoteFileEntry(
+      name: name,
+      isDirectory: isDirectory,
+      sizeBytes: size,
+      modified: modified,
+    );
+  }
 }
 
 class ProcessRemoteShellService extends RemoteShellService {
@@ -425,6 +474,16 @@ class ProcessRemoteShellService extends RemoteShellService {
       output: run.stdout,
       verification: verification,
     );
+  }
+
+  @override
+  Future<String> runCommand(
+    SshHost host,
+    String command, {
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    final run = await _runSsh(host, command, timeout: timeout);
+    return run.stdout;
   }
 
   Future<RunResult> _runProcess(

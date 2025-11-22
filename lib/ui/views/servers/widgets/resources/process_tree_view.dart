@@ -106,65 +106,84 @@ class _ProcessTreeViewState extends State<ProcessTreeView> {
           },
         ),
       },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ProcessHeader(
-            sortColumn: _sortColumn,
-            ascending: _sortAscending,
-            onSort: _handleSort,
-          ),
-          const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: SizedBox(
-              height: height,
-              child: ScrollConfiguration(
-                behavior: const ScrollBehavior().copyWith(scrollbars: true),
-                child: ListView.builder(
-                  itemCount: rows.length,
-                  padding: EdgeInsets.zero,
-                  itemBuilder: (context, index) {
-                    final row = rows[index];
-                    return ProcessTreeRow(
-                      row: row,
-                      selected: row.info.pid == _selectedPid,
-                      onTap: () {
-                        _focusNode.requestFocus();
-                        setState(() => _selectedPid = row.info.pid);
-                      },
-                      onToggleCollapse: row.isExpandable
-                          ? () => setState(() {
-                                if (_collapsedPids.contains(row.info.pid)) {
-                                  _collapsedPids.remove(row.info.pid);
-                                } else {
-                                  _collapsedPids.add(row.info.pid);
-                                }
-                              })
-                          : null,
-                      onContextMenu: (position) =>
-                          _showContextMenu(context, position, row.info),
-                      onDoubleTap: row.isExpandable
-                          ? () {
-                              setState(() {
-                                if (_collapsedPids.contains(row.info.pid)) {
-                                  _collapsedPids.remove(row.info.pid);
-                                } else {
-                                  _collapsedPids.add(row.info.pid);
-                                }
-                              });
-                            }
-                          : null,
-                    );
-                  },
-                ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final tableWidth =
+              max<double>(_minProcessTableWidth, constraints.maxWidth);
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: tableWidth),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ProcessHeader(
+                    tableWidth: tableWidth,
+                    sortColumn: _sortColumn,
+                    ascending: _sortAscending,
+                    onSort: _handleSort,
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: tableWidth,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: SizedBox(
+                      height: height,
+                      child: ScrollConfiguration(
+                        behavior: const ScrollBehavior()
+                            .copyWith(scrollbars: true),
+                        child: ListView.builder(
+                          itemCount: rows.length,
+                          padding: EdgeInsets.zero,
+                          itemBuilder: (context, index) {
+                            final row = rows[index];
+                            return ProcessTreeRow(
+                              row: row,
+                              selected: row.info.pid == _selectedPid,
+                              onTap: () {
+                                _focusNode.requestFocus();
+                                setState(() => _selectedPid = row.info.pid);
+                              },
+                              onToggleCollapse: row.isExpandable
+                                  ? () => setState(() {
+                                        if (_collapsedPids
+                                            .contains(row.info.pid)) {
+                                          _collapsedPids.remove(row.info.pid);
+                                        } else {
+                                          _collapsedPids.add(row.info.pid);
+                                        }
+                                      })
+                                  : null,
+                              onContextMenu: (position) =>
+                                  _showContextMenu(context, position, row.info),
+                              onDoubleTap: row.isExpandable
+                                  ? () {
+                                      setState(() {
+                                        if (_collapsedPids
+                                            .contains(row.info.pid)) {
+                                          _collapsedPids.remove(row.info.pid);
+                                        } else {
+                                          _collapsedPids.add(row.info.pid);
+                                        }
+                                      });
+                                    }
+                                  : null,
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -469,15 +488,19 @@ class ProcessTreeRow extends StatelessWidget {
         ),
         child: Row(
           children: [
-            SizedBox(
-              width: 90,
-              child: Text(
-                '${row.info.pid}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            Expanded(
+              flex: _pidFlex,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '${row.info.pid}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
             Expanded(
+              flex: _commandFlex,
               child: Padding(
                 padding: const EdgeInsets.only(left: 4),
                 child: Row(
@@ -514,10 +537,9 @@ class ProcessTreeRow extends StatelessWidget {
                 ),
               ),
             ),
-            SizedBox(
-              width: 110,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
+            Expanded(
+              flex: _cpuFlex,
+              child: Align(
                 alignment: Alignment.centerRight,
                 child: Text(
                   displayCpu.toStringAsFixed(1),
@@ -525,10 +547,9 @@ class ProcessTreeRow extends StatelessWidget {
                 ),
               ),
             ),
-            SizedBox(
-              width: 110,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
+            Expanded(
+              flex: _memoryFlex,
+              child: Align(
                 alignment: Alignment.centerRight,
                 child: Text(
                   _formatBytes(displayMemBytes),
@@ -568,11 +589,13 @@ class ProcessTreeRow extends StatelessWidget {
 class ProcessHeader extends StatelessWidget {
   const ProcessHeader({
     super.key,
+    required this.tableWidth,
     required this.sortColumn,
     required this.ascending,
     required this.onSort,
   });
 
+  final double tableWidth;
   final ProcessSortColumn sortColumn;
   final bool ascending;
   final ValueChanged<ProcessSortColumn> onSort;
@@ -581,7 +604,6 @@ class ProcessHeader extends StatelessWidget {
     required BuildContext context,
     required String label,
     required ProcessSortColumn column,
-    double? width,
     bool expand = false,
   }) {
     final isActive = sortColumn == column;
@@ -589,7 +611,8 @@ class ProcessHeader extends StatelessWidget {
         ? (ascending ? Icons.arrow_upward : Icons.arrow_downward)
         : null;
     final content = Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment:
+          expand ? MainAxisAlignment.start : MainAxisAlignment.center,
       children: [
         Text(label, style: Theme.of(context).textTheme.bodySmall),
         if (icon != null) ...[
@@ -605,13 +628,15 @@ class ProcessHeader extends StatelessWidget {
         child: content,
       ),
     );
-    if (expand) {
-      return Expanded(child: child);
-    }
-    return SizedBox(
-      width: width,
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
+    return Expanded(
+      flex: switch (column) {
+        ProcessSortColumn.pid => _pidFlex,
+        ProcessSortColumn.command => _commandFlex,
+        ProcessSortColumn.cpu => _cpuFlex,
+        ProcessSortColumn.memory => _memoryFlex,
+      },
+      child: Align(
+        alignment: expand ? Alignment.centerLeft : Alignment.center,
         child: child,
       ),
     );
@@ -619,39 +644,33 @@ class ProcessHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Row(
-            children: [
-              _buildHeaderCell(
-                context: context,
-                label: 'PID',
-                column: ProcessSortColumn.pid,
-                width: 90,
-              ),
-              _buildHeaderCell(
-                context: context,
-                label: 'Command',
-                column: ProcessSortColumn.command,
-                expand: true,
-              ),
-              _buildHeaderCell(
-                context: context,
-                label: 'CPU',
-                column: ProcessSortColumn.cpu,
-                width: 110,
-              ),
-              _buildHeaderCell(
-                context: context,
-                label: 'Memory',
-                column: ProcessSortColumn.memory,
-                width: 110,
-              ),
-            ],
+    return SizedBox(
+      width: tableWidth,
+      child: Row(
+        children: [
+          _buildHeaderCell(
+            context: context,
+            label: 'PID',
+            column: ProcessSortColumn.pid,
           ),
-        ),
-      ],
+          _buildHeaderCell(
+            context: context,
+            label: 'Command',
+            column: ProcessSortColumn.command,
+            expand: true,
+          ),
+          _buildHeaderCell(
+            context: context,
+            label: 'CPU',
+            column: ProcessSortColumn.cpu,
+          ),
+          _buildHeaderCell(
+            context: context,
+            label: 'Memory',
+            column: ProcessSortColumn.memory,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -688,6 +707,12 @@ class ProcessTreeRowData {
 /// Process sort column enum
 enum ProcessSortColumn { cpu, memory, pid, command }
 
+const _pidFlex = 2;
+const _commandFlex = 6;
+const _cpuFlex = 3;
+const _memoryFlex = 3;
+const _minProcessTableWidth = 620.0;
+
 /// Move selection intent
 class MoveSelectionIntent extends Intent {
   const MoveSelectionIntent(this.offset);
@@ -711,4 +736,3 @@ String _formatBytes(double bytes) {
   }
   return '${(bytes / kb).toStringAsFixed(0)} KB';
 }
-

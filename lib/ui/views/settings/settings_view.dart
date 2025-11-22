@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../models/ssh_host.dart';
 import '../../../services/ssh/builtin/builtin_ssh_key_store.dart';
 import '../../../services/ssh/builtin/builtin_ssh_vault.dart';
-import '../../../services/ssh/remote_command_log_controller.dart';
+import '../../../services/ssh/remote_command_logging.dart';
 import '../../../services/settings/app_settings_controller.dart';
 import '../../theme/nerd_fonts.dart';
 import '../../widgets/section_nav_bar.dart';

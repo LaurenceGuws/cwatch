@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../services/ssh/remote_command_log_controller.dart';
-import '../../../../services/ssh/remote_command_observer.dart';
+import '../../../../services/ssh/remote_command_logging.dart';
 
 class DebugLogsTab extends StatelessWidget {
   const DebugLogsTab({
