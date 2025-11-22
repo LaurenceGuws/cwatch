@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'custom_ssh_host.dart';
+import 'server_workspace_state.dart';
 import 'ssh_client_backend.dart';
 
 class AppSettings {
@@ -18,6 +19,8 @@ class AppSettings {
     this.customSshHosts = const [],
     this.customSshConfigPaths = const [],
     this.disabledSshConfigPaths = const [],
+    this.serverWorkspace,
+    this.settingsTabIndex = 0,
   });
 
   final ThemeMode themeMode;
@@ -33,6 +36,8 @@ class AppSettings {
   final List<CustomSshHost> customSshHosts;
   final List<String> customSshConfigPaths;
   final List<String> disabledSshConfigPaths;
+  final ServerWorkspaceState? serverWorkspace;
+  final int settingsTabIndex;
 
   AppSettings copyWith({
     ThemeMode? themeMode,
@@ -48,6 +53,8 @@ class AppSettings {
     List<CustomSshHost>? customSshHosts,
     List<String>? customSshConfigPaths,
     List<String>? disabledSshConfigPaths,
+    ServerWorkspaceState? serverWorkspace,
+    int? settingsTabIndex,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -67,6 +74,8 @@ class AppSettings {
           customSshConfigPaths ?? this.customSshConfigPaths,
       disabledSshConfigPaths:
           disabledSshConfigPaths ?? this.disabledSshConfigPaths,
+      serverWorkspace: serverWorkspace ?? this.serverWorkspace,
+      settingsTabIndex: settingsTabIndex ?? this.settingsTabIndex,
     );
   }
 
@@ -126,6 +135,14 @@ class AppSettings {
                   ?.whereType<String>()
                   .toList() ??
               const [],
+      serverWorkspace: () {
+        final raw = json['serverWorkspace'];
+        if (raw is Map<String, dynamic>) {
+          return ServerWorkspaceState.fromJson(raw);
+        }
+        return null;
+      }(),
+      settingsTabIndex: (json['settingsTabIndex'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -144,6 +161,8 @@ class AppSettings {
       'customSshHosts': customSshHosts.map((h) => h.toJson()).toList(),
       'customSshConfigPaths': customSshConfigPaths,
       'disabledSshConfigPaths': disabledSshConfigPaths,
+      if (serverWorkspace != null) 'serverWorkspace': serverWorkspace!.toJson(),
+      'settingsTabIndex': settingsTabIndex,
     };
   }
 }

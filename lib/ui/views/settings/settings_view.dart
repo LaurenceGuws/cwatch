@@ -37,6 +37,7 @@ class SettingsView extends StatefulWidget {
 class _SettingsViewState extends State<SettingsView>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  late final VoidCallback _settingsListener;
 
   static const _tabs = [
     Tab(text: 'General'),
@@ -58,10 +59,16 @@ class _SettingsViewState extends State<SettingsView>
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController.addListener(_handleTabChanged);
+    _settingsListener = _syncTabFromSettings;
+    widget.controller.addListener(_settingsListener);
+    _syncTabFromSettings();
   }
 
   @override
   void dispose() {
+    widget.controller.removeListener(_settingsListener);
+    _tabController.removeListener(_handleTabChanged);
     _tabController.dispose();
     super.dispose();
   }
@@ -125,6 +132,32 @@ class _SettingsViewState extends State<SettingsView>
           ],
         );
       },
+    );
+  }
+
+  void _syncTabFromSettings() {
+    if (!widget.controller.isLoaded) {
+      return;
+    }
+    final target = widget.controller.settings.settingsTabIndex.clamp(
+      0,
+      _tabs.length - 1,
+    );
+    if (_tabController.index != target) {
+      _tabController.index = target;
+    }
+  }
+
+  void _handleTabChanged() {
+    if (_tabController.indexIsChanging) {
+      return;
+    }
+    final index = _tabController.index;
+    if (widget.controller.settings.settingsTabIndex == index) {
+      return;
+    }
+    widget.controller.update(
+      (current) => current.copyWith(settingsTabIndex: index),
     );
   }
 }

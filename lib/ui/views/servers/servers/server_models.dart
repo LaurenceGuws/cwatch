@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../models/server_action.dart';
 import '../../../../models/ssh_host.dart';
 import '../../../theme/nerd_fonts.dart';
 
@@ -58,9 +59,6 @@ class ServerTab {
     );
   }
 }
-
-/// Server action enum
-enum ServerAction { fileExplorer, connectivity, resources, empty, trash }
 
 /// Placeholder host for empty tabs
 class PlaceholderHost extends SshHost {

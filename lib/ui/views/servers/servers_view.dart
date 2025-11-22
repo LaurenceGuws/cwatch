@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../models/custom_ssh_host.dart';
+import '../../../models/server_action.dart';
+import '../../../models/server_workspace_state.dart';
 import '../../../models/ssh_client_backend.dart';
 import '../../../models/ssh_host.dart';
 import '../../../services/ssh/builtin/builtin_ssh_key_store.dart';
@@ -46,6 +50,10 @@ class _ServersViewState extends State<ServersView> {
   final List<ServerTab> _tabs = [];
   int _selectedTabIndex = 0;
   final ExplorerTrashManager _trashManager = ExplorerTrashManager();
+  String? _restoredWorkspaceSignature;
+  String? _lastPersistedSignature;
+  late final VoidCallback _settingsListener;
+  bool _pendingWorkspaceSave = false;
 
   @override
   void initState() {
@@ -57,6 +65,23 @@ class _ServersViewState extends State<ServersView> {
         action: ServerAction.empty,
       ),
     );
+    _settingsListener = _handleSettingsChanged;
+    widget.settingsController.addListener(_settingsListener);
+    _restoreWorkspace();
+  }
+
+  @override
+  void didUpdateWidget(covariant ServersView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.hostsFuture != oldWidget.hostsFuture) {
+      _restoreWorkspace();
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.settingsController.removeListener(_settingsListener);
+    super.dispose();
   }
 
   @override
@@ -160,7 +185,10 @@ class _ServersViewState extends State<ServersView> {
                               label: tab.label,
                               icon: tab.icon,
                               selected: index == selectedIndex,
-                              onSelect: () => setState(() => _selectedTabIndex = index),
+                              onSelect: () {
+                                setState(() => _selectedTabIndex = index);
+                                _persistWorkspace();
+                              },
                               onClose: tab.action == ServerAction.empty
                                   ? () {}
                                   : () => _closeTab(index),
@@ -207,6 +235,132 @@ class _ServersViewState extends State<ServersView> {
     );
   }
 
+  void _handleSettingsChanged() {
+    if (!mounted) {
+      return;
+    }
+    _restoreWorkspace();
+    if (_pendingWorkspaceSave && widget.settingsController.isLoaded) {
+      _persistWorkspace();
+    }
+  }
+
+  Future<void> _restoreWorkspace() async {
+    List<SshHost> hosts;
+    try {
+      hosts = await widget.hostsFuture;
+    } catch (_) {
+      hosts = const [];
+    }
+    if (!mounted) {
+      return;
+    }
+    final workspace = widget.settingsController.settings.serverWorkspace;
+    if (workspace == null || workspace.tabs.isEmpty) {
+      return;
+    }
+    final signature = workspace.signature;
+    if (_restoredWorkspaceSignature == signature) {
+      return;
+    }
+    final restoredTabs = _buildTabsFromState(workspace, hosts);
+    if (restoredTabs.isEmpty) {
+      return;
+    }
+    setState(() {
+      _tabs
+        ..clear()
+        ..addAll(restoredTabs);
+      _selectedTabIndex =
+          workspace.selectedIndex.clamp(0, _tabs.length - 1);
+      _restoredWorkspaceSignature = signature;
+      _lastPersistedSignature = signature;
+    });
+  }
+
+  List<ServerTab> _buildTabsFromState(
+    ServerWorkspaceState workspace,
+    List<SshHost> hosts,
+  ) {
+    final restored = <ServerTab>[];
+    for (final tabState in workspace.tabs) {
+      final host = _resolveHost(tabState, hosts);
+      if (host == null) {
+        continue;
+      }
+      restored.add(
+        _createTab(
+          id: tabState.id,
+          host: host,
+          action: tabState.action,
+          customName: tabState.customName,
+        ),
+      );
+    }
+    return restored;
+  }
+
+  SshHost? _resolveHost(ServerTabState tabState, List<SshHost> hosts) {
+    switch (tabState.action) {
+      case ServerAction.empty:
+        return const PlaceholderHost();
+      case ServerAction.trash:
+        return const TrashHost();
+      case ServerAction.fileExplorer:
+      case ServerAction.connectivity:
+      case ServerAction.resources:
+        return _findHostByName(hosts, tabState.hostName);
+    }
+  }
+
+  SshHost? _findHostByName(List<SshHost> hosts, String target) {
+    for (final host in hosts) {
+      if (host.name == target) {
+        return host;
+      }
+    }
+    return null;
+  }
+
+  ServerWorkspaceState _currentWorkspaceState() {
+    final tabs = _tabs
+        .map(
+          (tab) => ServerTabState(
+            id: tab.id,
+            hostName: tab.host.name,
+            action: tab.action,
+            customName: tab.customName,
+          ),
+        )
+        .toList();
+    final clampedIndex =
+        _tabs.isEmpty ? 0 : _selectedTabIndex.clamp(0, _tabs.length - 1);
+    return ServerWorkspaceState(
+      tabs: tabs,
+      selectedIndex: clampedIndex,
+    );
+  }
+
+  void _persistWorkspace() {
+    if (!widget.settingsController.isLoaded) {
+      _pendingWorkspaceSave = true;
+      return;
+    }
+    final workspace = _currentWorkspaceState();
+    final signature = workspace.signature;
+    if (_lastPersistedSignature == signature) {
+      return;
+    }
+    _pendingWorkspaceSave = false;
+    _lastPersistedSignature = signature;
+    _restoredWorkspaceSignature = signature;
+    unawaited(
+      widget.settingsController.update(
+        (current) => current.copyWith(serverWorkspace: workspace),
+      ),
+    );
+  }
+
   Future<void> _startActionFlowForHost(SshHost host) async {
     final action = await ActionPickerDialog.show(context, host);
     if (action != null) {
@@ -224,6 +378,7 @@ class _ServersViewState extends State<ServersView> {
       _tabs.add(tab);
       _selectedTabIndex = _tabs.length - 1;
     });
+    _persistWorkspace();
   }
 
   Future<void> _startEmptyTab() async {
@@ -237,6 +392,7 @@ class _ServersViewState extends State<ServersView> {
       );
       _selectedTabIndex = _tabs.length - 1;
     });
+    _persistWorkspace();
   }
 
   ServerTab _createTab({
@@ -330,6 +486,7 @@ class _ServersViewState extends State<ServersView> {
         _selectedTabIndex -= 1;
       }
     });
+    _persistWorkspace();
   }
 
   void _handleTabReorder(int oldIndex, int newIndex) {
@@ -350,6 +507,7 @@ class _ServersViewState extends State<ServersView> {
         _selectedTabIndex += 1;
       }
     });
+    _persistWorkspace();
   }
 
   Future<void> _activateEmptyTab(String tabId, SshHost host) async {
@@ -371,6 +529,7 @@ class _ServersViewState extends State<ServersView> {
       _tabs[index] = tab;
       _selectedTabIndex = index;
     });
+    _persistWorkspace();
   }
 
   Future<void> _renameTab(int index) async {
@@ -411,6 +570,7 @@ class _ServersViewState extends State<ServersView> {
         setCustomName: true,
       );
     });
+    _persistWorkspace();
   }
 
   void _openTrashTab() {
@@ -425,6 +585,7 @@ class _ServersViewState extends State<ServersView> {
       );
       _selectedTabIndex = _tabs.length - 1;
     });
+    _persistWorkspace();
   }
 
   Future<bool> _promptUnlockKey(

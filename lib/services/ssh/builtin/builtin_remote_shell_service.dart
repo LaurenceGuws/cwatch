@@ -30,7 +30,7 @@ class BuiltInRemoteShellService extends RemoteShellService {
   promptUnlock;
   final Map<String, String> _identityPassphrases = {};
   final Map<String, String> _builtInKeyPassphrases = {};
-  final Map<String, Future<void>> _pendingUnlocks = {};
+  static final Map<String, Future<void>> _pendingUnlocks = {};
 
   @override
   Future<List<RemoteFileEntry>> listDirectory(

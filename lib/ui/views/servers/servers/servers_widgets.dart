@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../models/server_action.dart';
 import '../../../../models/ssh_host.dart';
 import '../../../theme/nerd_fonts.dart';
 import 'server_models.dart';
@@ -107,4 +108,3 @@ class ActionPickerDialog {
     );
   }
 }
-
