@@ -16,6 +16,7 @@ class ServerTabChip extends StatelessWidget {
     required this.onClose,
     this.onRename,
     this.showActions = true,
+    this.showClose = true,
     required this.dragIndex,
   });
 
@@ -28,6 +29,7 @@ class ServerTabChip extends StatelessWidget {
   final VoidCallback onClose;
   final VoidCallback? onRename;
   final bool showActions;
+  final bool showClose;
   final int dragIndex;
 
   @override
@@ -72,7 +74,7 @@ class ServerTabChip extends StatelessWidget {
               tooltip: 'Rename tab',
               onPressed: onRename,
             ),
-          if (showActions)
+          if (showActions && showClose)
             IconButton(
               icon: Icon(NerdIcon.close.data, size: 16, color: foreground),
               visualDensity: VisualDensity.compact,

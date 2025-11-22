@@ -178,6 +178,8 @@ class _ServersViewState extends State<ServersView> {
                           itemCount: _tabs.length,
                           itemBuilder: (context, index) {
                             final tab = _tabs[index];
+                            final canRename = tab.action != ServerAction.empty;
+                            final canDrag = tab.action != ServerAction.empty;
                             return ServerTabChip(
                               key: ValueKey(tab.id),
                               host: tab.host,
@@ -189,14 +191,11 @@ class _ServersViewState extends State<ServersView> {
                                 setState(() => _selectedTabIndex = index);
                                 _persistWorkspace();
                               },
-                              onClose: tab.action == ServerAction.empty
-                                  ? () {}
-                                  : () => _closeTab(index),
-                              onRename: tab.action == ServerAction.empty
-                                  ? null
-                                  : () => _renameTab(index),
-                              showActions: tab.action != ServerAction.empty,
-                              dragIndex: tab.action == ServerAction.empty ? -1 : index,
+                              onClose: () => _closeTab(index),
+                              onRename: canRename ? () => _renameTab(index) : null,
+                              showActions: true,
+                              showClose: true,
+                              dragIndex: canDrag ? index : -1,
                             );
                           },
                         ),
@@ -474,16 +473,25 @@ class _ServersViewState extends State<ServersView> {
 
   void _closeTab(int index) {
     setState(() {
-      if (index <= 0 || index >= _tabs.length) {
+      if (index < 0 || index >= _tabs.length) {
         return;
       }
-      _tabs.removeAt(index);
-      if (_tabs.isEmpty) {
+      if (_tabs.length == 1) {
+        _tabs[0] = _createTab(
+          id: 'host-tab',
+          host: const PlaceholderHost(),
+          action: ServerAction.empty,
+        );
         _selectedTabIndex = 0;
-      } else if (_selectedTabIndex >= _tabs.length) {
-        _selectedTabIndex = _tabs.length - 1;
-      } else if (_selectedTabIndex > index) {
-        _selectedTabIndex -= 1;
+      } else {
+        _tabs.removeAt(index);
+        if (_tabs.isEmpty) {
+          _selectedTabIndex = 0;
+        } else if (_selectedTabIndex >= _tabs.length) {
+          _selectedTabIndex = _tabs.length - 1;
+        } else if (_selectedTabIndex > index) {
+          _selectedTabIndex -= 1;
+        }
       }
     });
     _persistWorkspace();
