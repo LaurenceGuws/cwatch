@@ -194,30 +194,6 @@ class ContextMenuBuilder {
   }
 
   /// Build context menu items for background context menu
-  List<PopupMenuEntry<ExplorerContextAction>> buildBackgroundMenuItems() {
-    final menuItems = <PopupMenuEntry<ExplorerContextAction>>[];
-
-    if (clipboardAvailable) {
-      menuItems.add(
-        PopupMenuItem(
-          value: ExplorerContextAction.paste,
-          enabled: clipboardAvailable,
-          child: Text('Paste ($_shortcutPaste)'),
-        ),
-      );
-    }
-
-    menuItems.add(
-      const PopupMenuItem(
-        value: ExplorerContextAction.upload,
-        child: Text('Upload files here...'),
-      ),
-    );
-
-    return menuItems;
-  }
-
-  /// Handle context menu action
   Future<void> handleAction(
     BuildContext context,
     ExplorerContextAction? action,
@@ -326,4 +302,3 @@ enum ExplorerContextAction {
   download,
   upload,
 }
-

@@ -73,4 +73,4 @@ class TrashHost extends SshHost {
 }
 
 /// Servers menu action enum
-enum ServersMenuAction { openTrash }
+enum ServersMenuAction { upload, openTrash }

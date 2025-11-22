@@ -60,12 +60,14 @@ class SectionNavBar extends StatelessWidget {
                 Text(title, style: Theme.of(context).textTheme.titleLarge),
               if (hasTabs)
                 Flexible(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
                     child: SizedBox(
                       height: 42,
                       child: TabBar(
                         isScrollable: true,
+                        tabAlignment: TabAlignment.start,
+                        padding: EdgeInsets.zero,
                         controller: controller,
                         tabs: showIconsOnly && tabIcons != null && tabIcons!.length == tabs.length
                             ? _buildIconTabs(context, tabs, tabIcons!)

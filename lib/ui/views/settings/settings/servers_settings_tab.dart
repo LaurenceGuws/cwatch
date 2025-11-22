@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
@@ -50,6 +53,19 @@ class _ServersSettingsTabState extends State<ServersSettingsTab> {
     final backend = settings.sshClientBackend;
     final usingBuiltIn = backend == SshClientBackend.builtin;
     final customConfigs = settings.customSshConfigPaths;
+    final supportsPlatformSsh = _supportsPlatformSsh();
+
+    if (!supportsPlatformSsh && backend != SshClientBackend.builtin) {
+      // Force built-in on platforms without a system SSH client.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        widget.controller.update(
+          (current) =>
+              current.copyWith(sshClientBackend: SshClientBackend.builtin),
+        );
+      });
+    }
+
     return ListView(
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -58,42 +74,42 @@ class _ServersSettingsTabState extends State<ServersSettingsTab> {
           title: 'SSH Client',
           description:
               'Select the SSH backend used to interact with your hosts.',
-          child: RadioGroup<SshClientBackend>(
-            groupValue: backend,
-            onChanged: (value) {
-              if (value == null) {
-                return;
-              }
-              widget.controller.update(
-                (current) => current.copyWith(sshClientBackend: value),
-              );
-            },
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                RadioListTile<SshClientBackend>(
-                  value: SshClientBackend.platform,
-                  title: const Text('Platform SSH client'),
-                  subtitle: const Text(
-                    'Use the operating system\'s ssh configuration and binaries.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (supportsPlatformSsh)
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  value: usingBuiltIn,
+                  onChanged: (value) {
+                    final target = value
+                        ? SshClientBackend.builtin
+                        : SshClientBackend.platform;
+                    widget.controller.update(
+                      (current) => current.copyWith(sshClientBackend: target),
+                    );
+                  },
+                  title: Row(
+                    children: const [
+                      Text('Use built-in SSH client'),
+                      SizedBox(width: 8),
+                      Tooltip(
+                        message:
+                            'When off, use the system SSH client and configs. When on, use the app key vault.',
+                        preferBelow: false,
+                        child: Icon(Icons.info_outline, size: 18),
+                      ),
+                    ],
                   ),
+                )
+              else if (usingBuiltIn)
+                BuiltInSshSettings(
+                  controller: widget.controller,
+                  hostsFuture: widget.hostsFuture,
+                  keyStore: widget.builtInKeyStore,
+                  vault: widget.builtInVault,
                 ),
-                RadioListTile<SshClientBackend>(
-                  value: SshClientBackend.builtin,
-                  title: const Text('Built-in SSH client'),
-                  subtitle: const Text(
-                    'Use the app\'s encrypted key store (mobile-ready).',
-                  ),
-                ),
-                if (usingBuiltIn)
-                  BuiltInSshSettings(
-                    controller: widget.controller,
-                    hostsFuture: widget.hostsFuture,
-                    keyStore: widget.builtInKeyStore,
-                    vault: widget.builtInVault,
-                  ),
-              ],
-            ),
+            ],
           ),
         ),
         SettingsSection(
@@ -113,18 +129,19 @@ class _ServersSettingsTabState extends State<ServersSettingsTab> {
                 return Text('Failed to load configs: ${snapshot.error}');
               }
               final hosts = snapshot.data ?? [];
-              final sources = hosts
-                  .map((h) => h.source)
-                  .whereType<String>()
-                  .where((s) => s != 'custom')
-                  .toSet()
-                  .toList()
-                ..sort();
+              final sources =
+                  hosts
+                      .map((h) => h.source)
+                      .whereType<String>()
+                      .where((s) => s != 'custom')
+                      .toSet()
+                      .toList()
+                    ..sort();
               if (sources.isEmpty) {
                 return const Text('No ssh_config files were detected.');
               }
-              final disabled =
-                  widget.controller.settings.disabledSshConfigPaths.toSet();
+              final disabled = widget.controller.settings.disabledSshConfigPaths
+                  .toSet();
               return Column(
                 children: sources
                     .map(
@@ -185,8 +202,9 @@ class _ServersSettingsTabState extends State<ServersSettingsTab> {
       dialogTitle: 'Select ssh_config file',
       allowMultiple: false,
     );
-    final path =
-        (result != null && result.files.isNotEmpty) ? result.files.first.path : null;
+    final path = (result != null && result.files.isNotEmpty)
+        ? result.files.first.path
+        : null;
     if (path == null) {
       return;
     }
@@ -196,9 +214,7 @@ class _ServersSettingsTabState extends State<ServersSettingsTab> {
       return;
     }
     await widget.controller.update(
-      (settings) => settings.copyWith(
-        customSshConfigPaths: [...current, path],
-      ),
+      (settings) => settings.copyWith(customSshConfigPaths: [...current, path]),
     );
     _showSnack('Added SSH config: ${p.basename(path)}');
   }
@@ -224,17 +240,20 @@ class _ServersSettingsTabState extends State<ServersSettingsTab> {
       next.add(path);
     }
     await widget.controller.update(
-      (settings) => settings.copyWith(
-        disabledSshConfigPaths: next.toList(),
-      ),
+      (settings) => settings.copyWith(disabledSshConfigPaths: next.toList()),
     );
     _showSnack(enabled ? 'Enabled $path' : 'Disabled $path');
   }
 
   void _showSnack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  bool _supportsPlatformSsh() {
+    if (kIsWeb) return false;
+    return Platform.isLinux || Platform.isMacOS || Platform.isWindows;
   }
 }

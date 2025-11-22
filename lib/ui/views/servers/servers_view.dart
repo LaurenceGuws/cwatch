@@ -120,26 +120,39 @@ class _ServersViewState extends State<ServersView> {
             // Trigger rebuild when hosts change
             setState(() {});
           },
-          onAddServer: () => _showAddServerDialog(context),
+          onAddServer: (existingNames) => _showAddServerDialog(
+            context,
+            existingNames,
+          ),
         );
       },
     );
   }
 
-  Future<void> _showAddServerDialog(BuildContext context) async {
+  Future<void> _showAddServerDialog(
+    BuildContext context,
+    List<String> existingNames,
+  ) async {
     final keyStore = BuiltInSshKeyStore();
     final result = await showDialog<CustomSshHost>(
       context: context,
       builder: (context) => AddServerDialog(
         keyStore: keyStore,
         vault: widget.builtInVault,
+        existingNames: existingNames,
       ),
     );
     if (result != null) {
-      final current = widget.settingsController.settings.customSshHosts;
+      final current = widget.settingsController.settings;
+      final hosts = [...current.customSshHosts, result];
+      final bindings = Map<String, String>.from(current.builtinSshHostKeyBindings);
+      if (result.identityFile != null && result.identityFile!.isNotEmpty) {
+        bindings[result.name] = result.identityFile!;
+      }
       widget.settingsController.update(
         (settings) => settings.copyWith(
-          customSshHosts: [...current, result],
+          customSshHosts: hosts,
+          builtinSshHostKeyBindings: bindings,
         ),
       );
     }

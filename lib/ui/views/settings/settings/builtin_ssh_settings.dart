@@ -88,9 +88,9 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
     final keyText = _keyController.text.trim();
     final password = _passwordController.text.trim();
     if (label.isEmpty || keyText.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Provide label and key.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Provide label and key.')));
       return;
     }
 
@@ -143,9 +143,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
         if (!mounted) return false;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Unsupported key cipher or format: ${e.message}',
-            ),
+            content: Text('Unsupported key cipher or format: ${e.message}'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 5),
           ),
@@ -279,9 +277,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       builder: (context) {
         return AlertDialog(
           title: Text(
-            isRequired
-                ? 'Key passphrase required'
-                : 'Key validation needed',
+            isRequired ? 'Key passphrase required' : 'Key validation needed',
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -290,9 +286,9 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
               Text(
                 isRequired
                     ? 'This key is encrypted with a passphrase. '
-                        'Please provide the passphrase to validate the key can be decrypted.'
+                          'Please provide the passphrase to validate the key can be decrypted.'
                     : 'The key could not be parsed. It may be encrypted with a passphrase, '
-                        'or it may be unsupported. Please try providing a passphrase if the key is encrypted.',
+                          'or it may be unsupported. Please try providing a passphrase if the key is encrypted.',
               ),
               const SizedBox(height: 16),
               TextField(
@@ -304,7 +300,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
                   helperText: isRequired
                       ? 'This will not be stored, only used for validation.'
                       : 'Leave empty if the key is not encrypted. '
-                          'This will not be stored, only used for validation.',
+                            'This will not be stored, only used for validation.',
                 ),
               ),
             ],
@@ -413,7 +409,8 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
         AppLogger.d('Removed key binding for host $hostName', tag: 'Settings');
       }
       widget.controller.update(
-        (current) => current.copyWith(builtinSshHostKeyBindings: updatedBindings),
+        (current) =>
+            current.copyWith(builtinSshHostKeyBindings: updatedBindings),
       );
     }
 
@@ -443,10 +440,10 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
     } else {
       updated[hostName] = keyId;
     }
-      AppLogger.d(
-        'Host $hostName now uses ${keyId ?? 'platform default'} for SSH.',
-        tag: 'Settings',
-      );
+    AppLogger.d(
+      'Host $hostName now uses ${keyId ?? 'platform default'} for SSH.',
+      tag: 'Settings',
+    );
     widget.controller.update(
       (current) => current.copyWith(builtinSshHostKeyBindings: updated),
     );
@@ -486,14 +483,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Built-in keys remain encrypted on disk and are only decrypted on demand.',
-        ),
         const SizedBox(height: 12),
-        SelectableText(
-          'Powered by dartssh2 · https://pub.dev/documentation/dartssh2/2.13.0/',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
         const SizedBox(height: 12),
         _buildAddKeyForm(context),
         const SizedBox(height: 12),
@@ -516,7 +506,8 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
             if (keys.isNotEmpty) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 for (final entry in keys) {
-                  if (!entry.isEncrypted && !widget.vault.isUnlocked(entry.id)) {
+                  if (!entry.isEncrypted &&
+                      !widget.vault.isUnlocked(entry.id)) {
                     widget.vault.unlock(entry.id, null).catchError((_) {
                       // Ignore errors
                     });
@@ -562,8 +553,10 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
                 final hosts = hostsSnapshot.data ?? _cachedHosts ?? const [];
 
                 // Only show loading spinner if we don't have cached data
-                final isLoading = (keysSnapshot.connectionState == ConnectionState.waiting ||
-                        hostsSnapshot.connectionState == ConnectionState.waiting) &&
+                final isLoading =
+                    (keysSnapshot.connectionState == ConnectionState.waiting ||
+                        hostsSnapshot.connectionState ==
+                            ConnectionState.waiting) &&
                     (_cachedKeys.isEmpty && _cachedHosts == null);
 
                 if (isLoading) {
@@ -609,8 +602,11 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
                           padding: const EdgeInsets.only(top: 12, bottom: 6),
                           child: Text(
                             _getSourceDisplayName(source),
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                           ),
                         ),
@@ -701,7 +697,8 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       return;
     }
     try {
-      final bytes = file.bytes ??
+      final bytes =
+          file.bytes ??
           (file.path != null ? await File(file.path!).readAsBytes() : null);
       if (bytes == null) {
         throw Exception('Unable to read selected file.');
@@ -709,8 +706,9 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       final contents = String.fromCharCodes(bytes);
       setState(() {
         _keyController.text = contents;
-        _labelController.text =
-            _labelController.text.isEmpty ? p.basename(file.name) : _labelController.text;
+        _labelController.text = _labelController.text.isEmpty
+            ? p.basename(file.name)
+            : _labelController.text;
         _lastPickedFileName = file.name;
       });
       if (!context.mounted) return;
@@ -722,9 +720,9 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
   }
 
   void _showSnack(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Widget _buildKeyTile(BuiltInSshKeyEntry entry, BuildContext context) {
@@ -790,9 +788,9 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
   Future<void> _lockKey(String keyId) async {
     widget.vault.forget(keyId);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Key locked.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Key locked.')));
   }
 
   Future<void> _encryptKey(String keyId) async {
@@ -840,9 +838,9 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       _refreshKeys();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to encrypt key: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to encrypt key: $error')));
     }
   }
 

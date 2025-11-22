@@ -71,9 +71,18 @@ class GeneralSettingsTab extends StatelessWidget {
               'Show command feedback and verification steps in the UI when running SSH operations.',
           child: SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Enable SSH debug overlays'),
-            subtitle: const Text(
-              'Displays commands, raw output, and post-action checks like file existence verification.',
+            subtitle: null,
+            title: Row(
+              children: const [
+                Text('Enable SSH debug overlays'),
+                SizedBox(width: 8),
+                Tooltip(
+                  message:
+                      'Displays commands, raw output, and post-action checks like file existence verification.',
+                  preferBelow: false,
+                  child: Icon(Icons.info_outline, size: 18),
+                ),
+              ],
             ),
             value: debugMode,
             onChanged: onDebugModeChanged,

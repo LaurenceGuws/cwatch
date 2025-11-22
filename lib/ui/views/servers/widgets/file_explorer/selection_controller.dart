@@ -38,7 +38,9 @@ class SelectionController {
     final shift = HardwareKeyboard.instance.isShiftPressed;
     final control = HardwareKeyboard.instance.isControlPressed;
     final meta = HardwareKeyboard.instance.isMetaPressed;
-    final multi = control || meta;
+    final isTouch = event.kind == PointerDeviceKind.touch;
+    final touchMulti = isTouch && selectedPaths.isNotEmpty;
+    final multi = control || meta || touchMulti;
     final isMouse = event.kind == PointerDeviceKind.mouse;
     final isSecondaryClick =
         isMouse && (event.buttons & kSecondaryMouseButton) != 0;
@@ -343,4 +345,3 @@ class SelectionController {
     return hardware.isControlPressed || hardware.isMetaPressed;
   }
 }
-

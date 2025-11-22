@@ -29,7 +29,7 @@ class HostList extends StatefulWidget {
   final AppSettingsController settingsController;
   final BuiltInSshVault builtInVault;
   final VoidCallback onHostsChanged;
-  final VoidCallback onAddServer;
+  final ValueChanged<List<String>> onAddServer;
 
   @override
   State<HostList> createState() => _HostListState();
@@ -73,7 +73,7 @@ class _HostListState extends State<HostList> {
             const Text('No SSH hosts found.'),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: widget.onAddServer,
+              onPressed: () => widget.onAddServer(_displayNames()),
               icon: const Icon(Icons.add),
               label: const Text('Add Server'),
             ),
@@ -95,7 +95,7 @@ class _HostListState extends State<HostList> {
             child: Align(
               alignment: Alignment.centerLeft,
               child: ElevatedButton.icon(
-                onPressed: widget.onAddServer,
+                onPressed: () => widget.onAddServer(_displayNames()),
                 icon: const Icon(Icons.add, size: 16),
                 label: const Text('Add Server'),
                 style: ElevatedButton.styleFrom(
@@ -131,7 +131,7 @@ class _HostListState extends State<HostList> {
           child: Align(
             alignment: Alignment.centerLeft,
             child: ElevatedButton.icon(
-              onPressed: widget.onAddServer,
+              onPressed: () => widget.onAddServer(_displayNames()),
               icon: const Icon(Icons.add, size: 16),
               label: const Text('Add Server'),
               style: ElevatedButton.styleFrom(
@@ -296,15 +296,33 @@ class _HostListState extends State<HostList> {
         initialHost: customHost,
         keyStore: keyStore,
         vault: widget.builtInVault,
+        existingNames: _displayNames(except: host),
       ),
     );
     if (result != null) {
       final updated = customHosts.map((h) => h == customHost ? result : h).toList();
+      final bindings =
+          Map<String, String>.from(widget.settingsController.settings.builtinSshHostKeyBindings);
+      if (result.identityFile != null && result.identityFile!.isNotEmpty) {
+        bindings[result.name] = result.identityFile!;
+      } else {
+        bindings.remove(result.name);
+      }
       widget.settingsController.update(
-        (settings) => settings.copyWith(customSshHosts: updated),
+        (settings) => settings.copyWith(
+          customSshHosts: updated,
+          builtinSshHostKeyBindings: bindings,
+        ),
       );
       widget.onHostsChanged();
     }
+  }
+
+  List<String> _displayNames({SshHost? except}) {
+    return widget.hosts
+        .where((h) => except == null || h.name != except.name || h.hostname != except.hostname)
+        .map((h) => h.name)
+        .toList();
   }
 
   Future<void> _deleteCustomHost(SshHost host) async {

@@ -13,11 +13,13 @@ class AddServerDialog extends StatefulWidget {
     this.initialHost,
     required this.keyStore,
     required this.vault,
+    required this.existingNames,
   });
 
   final CustomSshHost? initialHost;
   final BuiltInSshKeyStore keyStore;
   final BuiltInSshVault vault;
+  final List<String> existingNames;
 
   @override
   State<AddServerDialog> createState() => _AddServerDialogState();
@@ -41,9 +43,15 @@ class _AddServerDialogState extends State<AddServerDialog> {
   String? _selectedKeyId;
   Future<List<BuiltInSshKeyEntry>>? _keysFuture;
 
+  late final Set<String> _existingNamesNormalized;
+
   @override
   void initState() {
     super.initState();
+    _existingNamesNormalized = widget.existingNames
+        .map((name) => name.trim().toLowerCase())
+        .where((name) => name.isNotEmpty)
+        .toSet();
     _keysFuture = widget.keyStore.listEntries();
     // Set initial key selection if editing
     if (widget.initialHost?.identityFile != null) {
@@ -104,6 +112,11 @@ class _AddServerDialogState extends State<AddServerDialog> {
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Name is required';
+                      }
+                      final normalized = value.trim().toLowerCase();
+                      // Block duplicate display names when adding or editing.
+                      if (_existingNamesNormalized.contains(normalized)) {
+                        return 'A server with this name already exists';
                       }
                       return null;
                     },
@@ -241,4 +254,3 @@ class _AddServerDialogState extends State<AddServerDialog> {
     );
   }
 }
-

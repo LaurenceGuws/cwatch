@@ -36,7 +36,7 @@ class FileEntryList extends StatelessWidget {
     required this.onDragHover,
     required this.onStopDragSelection,
     required this.onEntryContextMenu,
-    required this.onBackgroundContextMenu,
+    this.onBackgroundContextMenu,
     required this.onKeyEvent,
     required this.onSyncLocalEdit,
     required this.onRefreshCacheFromServer,
@@ -57,7 +57,7 @@ class FileEntryList extends StatelessWidget {
   final ValueChanged3<PointerEnterEvent, int, String> onDragHover;
   final VoidCallback onStopDragSelection;
   final ValueChanged2<RemoteFileEntry, Offset> onEntryContextMenu;
-  final ValueChanged<Offset> onBackgroundContextMenu;
+  final ValueChanged<Offset>? onBackgroundContextMenu;
   final KeyEventResult Function(FocusNode, KeyEvent, List<RemoteFileEntry>) onKeyEvent;
   final ValueChanged<LocalFileSession> onSyncLocalEdit;
   final ValueChanged<LocalFileSession> onRefreshCacheFromServer;
@@ -76,8 +76,9 @@ class FileEntryList extends StatelessWidget {
       onKeyEvent: (node, event) => onKeyEvent(node, event, entries),
       child: GestureDetector(
         behavior: HitTestBehavior.deferToChild,
-        onSecondaryTapDown: (details) =>
-            onBackgroundContextMenu(details.globalPosition),
+        onSecondaryTapDown: onBackgroundContextMenu == null
+            ? null
+            : (details) => onBackgroundContextMenu!(details.globalPosition),
         child: Listener(
           onPointerDown: (_) => focusNode.requestFocus(),
           onPointerUp: (_) => onStopDragSelection(),
@@ -314,4 +315,3 @@ class _FileEntryTileState extends State<FileEntryTile> {
 typedef ValueChanged2<T1, T2> = void Function(T1, T2);
 typedef ValueChanged3<T1, T2, T3> = void Function(T1, T2, T3);
 typedef ValueChanged4<T1, T2, T3, T4> = void Function(T1, T2, T3, T4);
-

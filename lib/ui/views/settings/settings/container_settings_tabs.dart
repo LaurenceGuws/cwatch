@@ -19,7 +19,7 @@ class DockerSettingsTab extends StatelessWidget {
           child: const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
             child: Text(
-              'No configurable Docker settings are available right now. Coming soon...',
+              'No Docker settings to tweak yet.',
             ),
           ),
         ),
@@ -45,7 +45,7 @@ class KubernetesSettingsTab extends StatelessWidget {
           child: const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
             child: Text(
-              'There are no Kubernetes settings to configure at this time. Coming soon...',
+              'No Kubernetes settings to configure yet.',
             ),
           ),
         ),

@@ -276,7 +276,10 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       children: [
         Expanded(child: navigator),
         const SizedBox(width: 8),
-        ServersMenu(onOpenTrash: widget.onOpenTrash),
+        ServersMenu(
+          onOpenTrash: widget.onOpenTrash,
+          onUpload: () => _handleUpload(_currentPath),
+        ),
       ],
     );
   }
@@ -322,7 +325,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       },
       onStopDragSelection: () => _selectionController.stopDragSelection(),
       onEntryContextMenu: _showEntryContextMenu,
-      onBackgroundContextMenu: _showBackgroundContextMenu,
+      onBackgroundContextMenu: null,
       onKeyEvent: (node, event, entries) {
         return _selectionController.handleListKeyEvent(
           node,
@@ -578,53 +581,6 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     }
 
     await builder.handleAction(context, action, entry);
-  }
-
-  Future<void> _showBackgroundContextMenu(Offset position) async {
-    final sortedEntries = _currentSortedEntries();
-    final selectedEntries = _selectionController.getSelectedEntries(sortedEntries);
-    final builder = ContextMenuBuilder(
-      hostName: widget.host.name,
-      currentPath: _currentPath,
-      selectedEntries: selectedEntries,
-      clipboardAvailable: ExplorerClipboard.hasEntries,
-      onOpen: null,
-      onCopyPath: null,
-      onOpenLocally: null,
-      onEditFile: null,
-      onRename: null,
-      onCopy: null,
-      onCut: null,
-      onPaste: () => _handlePaste(targetDirectory: _currentPath),
-      onPasteInto: null,
-      onMove: null,
-      onDelete: null,
-      onDownload: null,
-      onUpload: _handleUpload,
-      joinPath: PathUtils.joinPath,
-    );
-
-    final menuItems = builder.buildBackgroundMenuItems();
-    if (menuItems.isEmpty) {
-      return;
-    }
-
-    final action = await showMenu<ExplorerContextAction>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-        position.dx,
-        position.dy,
-        position.dx,
-        position.dy,
-      ),
-      items: menuItems,
-    );
-
-    if (!mounted) {
-      return;
-    }
-
-    await builder.handleAction(context, action, null);
   }
 
   void _handleEntryDoubleTap(RemoteFileEntry entry) {
