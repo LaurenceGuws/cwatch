@@ -278,7 +278,8 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         const SizedBox(width: 8),
         ServersMenu(
           onOpenTrash: widget.onOpenTrash,
-          onUpload: () => _handleUpload(_currentPath),
+          onUploadFiles: () => _handleUploadFiles(_currentPath),
+          onUploadFolder: () => _handleUploadFolder(_currentPath),
         ),
       ],
     );
@@ -560,7 +561,8 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         }
       },
       onDownload: _handleDownload,
-      onUpload: _handleUpload,
+      onUploadFiles: _handleUploadFiles,
+      onUploadFolder: _handleUploadFolder,
       joinPath: PathUtils.joinPath,
     );
 
@@ -862,8 +864,17 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     );
   }
 
-  Future<void> _handleUpload(String targetDirectory) async {
-    await _fileOpsService.handleUpload(
+  Future<void> _handleUploadFiles(String targetDirectory) async {
+    await _fileOpsService.handleUploadFiles(
+      context: context,
+      targetDirectory: targetDirectory,
+      joinPath: PathUtils.joinPath,
+      refreshCurrentPath: _refreshCurrentPath,
+    );
+  }
+
+  Future<void> _handleUploadFolder(String targetDirectory) async {
+    await _fileOpsService.handleUploadFolder(
       context: context,
       targetDirectory: targetDirectory,
       joinPath: PathUtils.joinPath,

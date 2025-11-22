@@ -275,6 +275,7 @@ class BuiltInRemoteShellService extends RemoteShellService {
     required String remoteDestination,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    void Function(int bytesTransferred)? onBytes,
   }) async {
     final normalizedDest = _sanitizePath(remoteDestination);
     final entryType = FileSystemEntity.typeSync(localPath);
@@ -285,11 +286,11 @@ class BuiltInRemoteShellService extends RemoteShellService {
         }
         final remoteDir = _joinPath(normalizedDest, p.basename(localPath));
         await _ensureRemoteDirectory(sftp, _dirname(remoteDir));
-        await _uploadDirectory(sftp, Directory(localPath), remoteDir);
+        await _uploadDirectory(sftp, Directory(localPath), remoteDir, onBytes: onBytes);
         return;
       }
       await _ensureRemoteDirectory(sftp, _dirname(normalizedDest));
-      await _uploadFile(sftp, File(localPath), normalizedDest);
+      await _uploadFile(sftp, File(localPath), normalizedDest, onBytes: onBytes);
     }).timeout(timeout);
     final verification = await _verifyRemotePath(
       host,
@@ -766,10 +767,34 @@ class BuiltInRemoteShellService extends RemoteShellService {
   Future<void> _uploadFile(
     SftpClient sftp,
     File localFile,
-    String remotePath,
-  ) async {
-    final contents = await localFile.readAsBytes();
-    await _uploadBytes(sftp, contents, remotePath);
+    String remotePath, {
+    void Function(int bytesTransferred)? onBytes,
+  }) async {
+    final file = await sftp.open(
+      remotePath,
+      mode:
+          SftpFileOpenMode.write |
+          SftpFileOpenMode.create |
+          SftpFileOpenMode.truncate,
+    );
+    try {
+      var position = 0;
+      await for (final chunk in localFile.openRead()) {
+        if (chunk.isEmpty) continue;
+        final data = chunk is Uint8List ? chunk : Uint8List.fromList(chunk);
+        await file.writeBytes(
+          data,
+          offset: position,
+        );
+        position += data.length;
+        onBytes?.call(data.length);
+      }
+    } catch (e) {
+      _log('Error streaming $remotePath: $e');
+      rethrow;
+    } finally {
+      await file.close();
+    }
   }
 
   Future<void> _uploadBytes(
@@ -786,7 +811,8 @@ class BuiltInRemoteShellService extends RemoteShellService {
           SftpFileOpenMode.truncate,
     );
     try {
-      await file.writeBytes(Uint8List.fromList(bytes));
+      final data = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
+      await file.writeBytes(data, offset: 0);
       _log('Successfully wrote ${bytes.length} bytes to $remotePath');
     } catch (e) {
       _log('Error writing bytes to $remotePath: $e');
@@ -799,17 +825,18 @@ class BuiltInRemoteShellService extends RemoteShellService {
   Future<void> _uploadDirectory(
     SftpClient sftp,
     Directory localDir,
-    String remoteRoot,
-  ) async {
+    String remoteRoot, {
+    void Function(int bytesTransferred)? onBytes,
+  }) async {
     await _ensureRemoteDirectory(sftp, remoteRoot);
     await for (final entity in localDir.list(recursive: false)) {
       final name = p.basename(entity.path);
       final remotePath = _joinPath(remoteRoot, name);
       if (entity is Directory) {
-        await _uploadDirectory(sftp, entity, remotePath);
+        await _uploadDirectory(sftp, entity, remotePath, onBytes: onBytes);
       } else if (entity is File) {
         await _ensureRemoteDirectory(sftp, _dirname(remotePath));
-        await _uploadFile(sftp, entity, remotePath);
+        await _uploadFile(sftp, entity, remotePath, onBytes: onBytes);
       }
     }
   }

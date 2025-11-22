@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:archive/archive.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
@@ -27,6 +26,7 @@ class FileOperationsService {
   final SshHost host;
   final ExplorerTrashManager trashManager;
   final Future<T> Function<T>(Future<T> Function() action) runShellWrapper;
+  static const Duration _uploadTimeout = Duration(minutes: 20);
 
   /// Copy files/directories
   Future<void> copyPath(
@@ -289,43 +289,19 @@ class FileOperationsService {
     );
 
     try {
-      if (entries.length == 1) {
-        // Single file/directory download
-        progressController.updateProgress(currentItem: entries.first.name);
-        await _downloadSingleEntry(entries.first, downloadDir.path, currentPath, joinPath);
-        progressController.increment();
-      } else {
-        // Multiple files/directories download - download to temp then zip
-        final tempDir = await Directory.systemTemp.createTemp(
-          'cwatch-download-${DateTime.now().microsecondsSinceEpoch}',
+      for (var i = 0; i < entries.length; i++) {
+        final entry = entries[i];
+        if (!context.mounted) return;
+
+        progressController.updateProgress(currentItem: entry.name);
+        final remotePath = joinPath(currentPath, entry.name);
+        await downloadPath(
+          remotePath: remotePath,
+          localDestination: downloadDir.path,
+          recursive: entry.isDirectory,
         );
-        try {
-          // Download all entries to temp directory
-          for (var i = 0; i < entries.length; i++) {
-            final entry = entries[i];
-            if (!context.mounted) return;
-
-            progressController.updateProgress(currentItem: entry.name);
-            final remotePath = joinPath(currentPath, entry.name);
-            await downloadPath(
-              remotePath: remotePath,
-              localDestination: tempDir.path,
-              recursive: entry.isDirectory,
-            );
-            if (!context.mounted) return;
-            progressController.increment();
-          }
-
-          // Create zip archive for multiple items
-          if (!context.mounted) return;
-          progressController.updateProgress(
-            currentItem: 'Creating archive...',
-          );
-          await _createZipArchiveFromTemp(entries, tempDir.path, downloadDir.path);
-          if (!context.mounted) return;
-        } finally {
-          await tempDir.delete(recursive: true);
-        }
+        if (!context.mounted) return;
+        progressController.increment();
       }
 
       if (!context.mounted) return;
@@ -346,114 +322,8 @@ class FileOperationsService {
     }
   }
 
-  Future<void> _downloadSingleEntry(
-    RemoteFileEntry entry,
-    String downloadDir,
-    String currentPath,
-    String Function(String, String) joinPath,
-  ) async {
-    final remotePath = joinPath(currentPath, entry.name);
-
-    if (entry.isDirectory) {
-      // Download directory to temp first, then compress
-      final tempDir = await Directory.systemTemp.createTemp(
-        'cwatch-download-${DateTime.now().microsecondsSinceEpoch}',
-      );
-      try {
-        // Download to temp directory first
-        await downloadPath(
-          remotePath: remotePath,
-          localDestination: tempDir.path,
-          recursive: true,
-        );
-
-        // Find the downloaded directory
-        final downloadedPath = p.join(tempDir.path, entry.name);
-        final downloadedDir = Directory(downloadedPath);
-        if (!await downloadedDir.exists()) {
-          throw Exception('Downloaded directory not found');
-        }
-
-        // Create zip archive
-        final archive = Archive();
-        await _addDirectoryToArchive(archive, downloadedDir, entry.name);
-
-        // Write zip file
-        final zipEncoder = ZipEncoder();
-        final zipBytes = zipEncoder.encode(archive);
-
-        final zipFile = File(p.join(downloadDir, '${entry.name}.zip'));
-        await zipFile.writeAsBytes(zipBytes);
-      } finally {
-        await tempDir.delete(recursive: true);
-      }
-    } else {
-      // Download single file
-      await downloadPath(
-        remotePath: remotePath,
-        localDestination: downloadDir,
-        recursive: false,
-      );
-    }
-  }
-
-  Future<void> _createZipArchiveFromTemp(
-    List<RemoteFileEntry> entries,
-    String tempDir,
-    String downloadDir,
-  ) async {
-    // Create a zip archive containing all downloaded items
-    final archive = Archive();
-    for (final entry in entries) {
-      final downloadedPath = p.join(tempDir, entry.name);
-      final downloadedEntity = FileSystemEntity.typeSync(downloadedPath);
-      if (downloadedEntity == FileSystemEntityType.directory) {
-        await _addDirectoryToArchive(
-          archive,
-          Directory(downloadedPath),
-          entry.name,
-        );
-      } else if (downloadedEntity == FileSystemEntityType.file) {
-        final file = File(downloadedPath);
-        final bytes = await file.readAsBytes();
-        archive.addFile(
-          ArchiveFile(entry.name, bytes.length, bytes),
-        );
-      }
-    }
-
-    // Write zip file
-    final zipEncoder = ZipEncoder();
-    final zipBytes = zipEncoder.encode(archive);
-
-    // Use a default name
-    final zipFileName = entries.length == 1
-        ? '${entries.first.name}.zip'
-        : 'download_${DateTime.now().millisecondsSinceEpoch}.zip';
-    final zipFile = File(p.join(downloadDir, zipFileName));
-    await zipFile.writeAsBytes(zipBytes);
-  }
-
-  Future<void> _addDirectoryToArchive(
-    Archive archive,
-    Directory directory,
-    String archivePath,
-  ) async {
-    await for (final entity in directory.list(recursive: false)) {
-      final name = p.basename(entity.path);
-      final entryPath = p.join(archivePath, name).replaceAll('\\', '/');
-
-      if (entity is File) {
-        final bytes = await entity.readAsBytes();
-        archive.addFile(ArchiveFile(entryPath, bytes.length, bytes));
-      } else if (entity is Directory) {
-        await _addDirectoryToArchive(archive, entity, entryPath);
-      }
-    }
-  }
-
   /// Handle upload operation
-  Future<void> handleUpload({
+  Future<void> handleUploadFiles({
     required BuildContext context,
     required String targetDirectory,
     required String Function(String, String) joinPath,
@@ -461,24 +331,21 @@ class FileOperationsService {
   }) async {
     // Prompt user to select files/directories to upload
     FilePickerResult? result;
-    // On mobile, file picker works differently - use pickFiles for all platforms
-    // On Android, we need to load bytes explicitly
     result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
       dialogTitle: 'Select files to upload',
-      withData: Platform.isAndroid, // Load file data on Android
+      // Avoid loading entire files into memory (especially videos) on mobile.
+      withData: false,
     );
 
-    if (result == null || result.files.isEmpty) {
+    final resultFiles = result?.files ?? const <PlatformFile>[];
+
+    if (result == null || resultFiles.isEmpty) {
       return;
     }
 
-    // On Android, accept files even if path is null (bytes might be available)
-    // On other platforms, require path
-    final files = Platform.isAndroid
-        ? result.files.where((f) => f.path != null || (f.bytes != null && f.bytes!.isNotEmpty)).toList()
-        : result.files.where((f) => f.path != null).toList();
-    
+    final files = resultFiles.where((f) => f.path != null).toList();
+
     if (files.isEmpty) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -488,12 +355,19 @@ class FileOperationsService {
       return;
     }
 
+    final items = await _buildFileItems(files);
+
     // Show progress dialog
     if (!context.mounted) return;
-    final progressController = FileOperationProgressDialog.show(
+    late final FileOperationProgressController progressController;
+    progressController = FileOperationProgressDialog.show(
       context,
       operation: 'Uploading',
-      totalItems: files.length,
+      totalItems: items.length,
+      items: items,
+      onCancel: () {
+        progressController.cancel();
+      },
     );
 
     try {
@@ -506,6 +380,9 @@ class FileOperationsService {
         if (!context.mounted) {
           return;
         }
+        if (progressController.cancelled) {
+          break;
+        }
 
         // Get file name - prefer name from PlatformFile, fallback to path basename
         final fileName = file.name.isNotEmpty 
@@ -513,108 +390,55 @@ class FileOperationsService {
             : (file.path != null ? p.basename(file.path!) : 'file_$i');
         final remotePath = joinPath(targetDirectory, fileName);
 
-        progressController.updateProgress(currentItem: fileName);
+        progressController.markInProgress(i);
 
         try {
-          // On Android, file_picker may return files that aren't directly accessible via path
-          // Try to read bytes directly from PlatformFile if available
-          List<int>? fileBytes;
-          
-          // First, try to get bytes from PlatformFile (works on Android)
-          if (file.bytes != null && file.bytes!.isNotEmpty) {
-            fileBytes = file.bytes;
-            AppLogger.d(
-              'Using PlatformFile.bytes for $fileName (${fileBytes?.length ?? 0} bytes)',
-              tag: 'Explorer',
-            );
-          } else if (file.path != null && file.path!.isNotEmpty) {
-            // Try to read from path if bytes aren't available
-            try {
-              final localFile = File(file.path!);
-              if (await localFile.exists()) {
-                final localEntity = FileSystemEntity.typeSync(file.path!);
-                final isDirectory = localEntity == FileSystemEntityType.directory;
-                if (isDirectory) {
-                  // Directories need to use uploadPath
-                  await uploadPath(
-                    localPath: file.path!,
-                    remoteDestination: remotePath,
-                    recursive: true,
-                  );
-                  if (!context.mounted) return;
-                  successCount++;
-                  progressController.increment();
-                  continue;
-                } else {
-                  fileBytes = await localFile.readAsBytes();
-                  AppLogger.d(
-                    'Read file from path $fileName (${fileBytes.length} bytes)',
-                    tag: 'Explorer',
-                  );
-                }
-              } else {
-                throw Exception('File does not exist: ${file.path}');
-              }
-            } catch (e) {
-              AppLogger.w(
-                'Failed to read file from path ${file.path}',
-                tag: 'Explorer',
-                error: e,
-              );
-              throw Exception('Cannot read file: $e');
-            }
-          } else {
-            throw Exception('File has no accessible path or bytes');
+          if (file.path == null || file.path!.isEmpty) {
+            throw Exception('File has no accessible path');
           }
 
-          if (fileBytes != null && fileBytes.isNotEmpty) {
-            // Use bytes-based upload (works better on Android)
-            if (shellService is BuiltInRemoteShellService) {
-              AppLogger.d(
-                'Uploading $fileName to $remotePath using uploadBytes (${fileBytes.length} bytes)',
-                tag: 'Explorer',
-              );
-              await runShellWrapper(
-                () => (shellService as BuiltInRemoteShellService).uploadBytes(
-                  host: host,
-                  bytes: fileBytes!,
-                  remoteDestination: remotePath,
-                ),
-              );
-              AppLogger.d('Successfully uploaded $fileName', tag: 'Explorer');
-            } else {
-              // Fallback: write to temp file and upload
-              final tempFile = File('${Directory.systemTemp.path}/${DateTime.now().millisecondsSinceEpoch}_$fileName');
-              await tempFile.writeAsBytes(fileBytes);
-              try {
-                await uploadPath(
-                  localPath: tempFile.path,
-                  remoteDestination: remotePath,
-                  recursive: false,
-                );
-              } finally {
-                if (await tempFile.exists()) {
-                  await tempFile.delete();
-                }
-              }
-            }
-          } else {
-            throw Exception('File bytes are empty or null');
+          final localEntityType = FileSystemEntity.typeSync(file.path!);
+          final isDirectory = localEntityType == FileSystemEntityType.directory;
+
+          if (isDirectory) {
+            failCount++;
+            AppLogger.w('Skipping directory in file upload: ${file.path}', tag: 'Explorer');
+            progressController.markFailed(i);
+            continue;
           }
+
+          // Stream from path to avoid loading full file into memory and report progress
+          if (shellService is BuiltInRemoteShellService) {
+            await (shellService as BuiltInRemoteShellService).uploadPath(
+              host: host,
+              localPath: file.path!,
+              remoteDestination: remotePath,
+              recursive: false,
+              timeout: _uploadTimeout,
+              onBytes: (bytes) {
+                progressController.addBytes(bytes);
+              },
+            );
+      } else {
+        await uploadPath(
+          localPath: file.path!,
+          remoteDestination: remotePath,
+          recursive: false,
+        );
+      }
           if (!context.mounted) return;
           successCount++;
+          progressController.markCompleted(i, addSize: shellService is! BuiltInRemoteShellService);
         } catch (error) {
           if (!context.mounted) return;
           failCount++;
+          progressController.markFailed(i);
           AppLogger.w('Failed to upload $fileName', tag: 'Explorer', error: error);
           AppLogger.d(
             'File details: path=${file.path}, name=${file.name}, bytes=${file.bytes?.length ?? 0}',
             tag: 'Explorer',
           );
         }
-
-        if (!context.mounted) return;
-        progressController.increment();
       }
 
       if (!context.mounted) return;
@@ -652,4 +476,293 @@ class FileOperationsService {
       );
     }
   }
+
+  Future<void> handleUploadFolder({
+    required BuildContext context,
+    required String targetDirectory,
+    required String Function(String, String) joinPath,
+    required Future<void> Function() refreshCurrentPath,
+  }) async {
+    final createdRemoteDirs = <String>{};
+
+    final directoryPath = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: 'Select a folder to upload',
+    );
+
+    if (directoryPath == null || directoryPath.isEmpty) {
+      return;
+    }
+
+    final directoryName = p.basename(directoryPath);
+    final baseRemotePath = joinPath(targetDirectory, directoryName).replaceAll('\\', '/');
+    final remoteBaseDir = p.dirname(baseRemotePath).replaceAll('\\', '/');
+
+    final directoryCounts = await _countDirectoryEntries([directoryPath]);
+    final totalItems = directoryCounts.totalUnits == 0 ? 1 : directoryCounts.totalUnits;
+    final items = await _buildDirectoryItems(directoryPath, directoryName);
+
+    if (!context.mounted) return;
+    late final FileOperationProgressController progressController;
+    progressController = FileOperationProgressDialog.show(
+      context,
+      operation: 'Uploading',
+      totalItems: totalItems,
+      items: items,
+      onCancel: () {
+        progressController.cancel();
+      },
+    );
+
+    try {
+      int successCount = 0;
+      int failCount = 0;
+
+      try {
+        await _ensureRemoteDirectory(remoteBaseDir, createdRemoteDirs);
+      } catch (error) {
+        if (!context.mounted) return;
+        failCount++;
+        AppLogger.w('Failed to prepare remote directory for $directoryName', tag: 'Explorer', error: error);
+        progressController.increment();
+        return;
+      }
+
+      var hasFiles = false;
+      try {
+        await for (final entity in Directory(directoryPath).list(recursive: true, followLinks: false)) {
+          if (!context.mounted) {
+            return;
+          }
+          if (progressController.cancelled) {
+            break;
+          }
+          if (entity is! File) {
+            continue;
+          }
+          hasFiles = true;
+          final relativePath = p.relative(entity.path, from: directoryPath).replaceAll('\\', '/');
+          final remotePath = joinPath(baseRemotePath, relativePath).replaceAll('\\', '/');
+          final remoteDir = p.dirname(remotePath).replaceAll('\\', '/');
+          final itemLabel = '$directoryName/$relativePath';
+          final itemIndex = items.indexWhere((i) => i.label == itemLabel);
+          if (itemIndex != -1) {
+            progressController.markInProgress(itemIndex);
+          }
+
+          try {
+            await _ensureRemoteDirectory(remoteDir, createdRemoteDirs);
+            if (shellService is BuiltInRemoteShellService) {
+              await (shellService as BuiltInRemoteShellService).uploadPath(
+                host: host,
+                localPath: entity.path,
+                remoteDestination: remotePath,
+                recursive: false,
+                timeout: _uploadTimeout,
+                onBytes: (bytes) {
+                  if (itemIndex != -1) {
+                    progressController.addBytes(bytes);
+                  }
+                },
+              );
+            } else {
+              await uploadPath(
+                localPath: entity.path,
+                remoteDestination: remotePath,
+                recursive: false,
+              );
+            }
+            if (!context.mounted) return;
+            successCount++;
+            if (itemIndex != -1) {
+              final addSize = shellService is! BuiltInRemoteShellService;
+              progressController.markCompleted(itemIndex, addSize: addSize);
+            }
+          } catch (error) {
+            if (!context.mounted) return;
+            failCount++;
+            if (itemIndex != -1) {
+              progressController.markFailed(itemIndex);
+            }
+            AppLogger.w('Failed to upload $remotePath', tag: 'Explorer', error: error);
+          }
+        }
+      } catch (error) {
+        if (!context.mounted) return;
+        failCount++;
+        AppLogger.w('Failed to read directory $directoryPath', tag: 'Explorer', error: error);
+      }
+
+      if (!hasFiles) {
+        try {
+          await _ensureRemoteDirectory(baseRemotePath, createdRemoteDirs);
+          successCount++;
+        } catch (error) {
+          failCount++;
+          AppLogger.w('Failed to create empty folder $directoryName', tag: 'Explorer', error: error);
+        }
+        final emptyIndex = items.indexWhere((i) => i.label == directoryName);
+        if (emptyIndex != -1) {
+          progressController.markCompleted(emptyIndex);
+        }
+      }
+
+      if (!context.mounted) return;
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+      await refreshCurrentPath();
+
+      if (!context.mounted) return;
+      if (failCount == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Uploaded ${directoryCounts.totalUnits} item${directoryCounts.totalUnits == 1 ? '' : 's'}',
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Uploaded $successCount item${successCount == 1 ? '' : 's'}. $failCount failed.',
+            ),
+          ),
+        );
+      }
+    } catch (error) {
+      if (!context.mounted) return;
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Upload failed: $error')),
+      );
+    }
+  }
+
+  Future<_DirectoryCountResult> _countDirectoryEntries(
+    List<String> directories,
+  ) async {
+    var fileCount = 0;
+    var emptyDirectories = 0;
+
+    for (final directory in directories) {
+      var hasFile = false;
+      try {
+        final dir = Directory(directory);
+        if (!await dir.exists()) {
+          continue;
+        }
+        await for (final entity in dir.list(recursive: true, followLinks: false)) {
+          if (entity is File) {
+            hasFile = true;
+            fileCount++;
+          }
+        }
+      } catch (error) {
+        AppLogger.w('Failed to count files in $directory', tag: 'Explorer', error: error);
+      }
+
+      if (!hasFile) {
+        emptyDirectories++;
+      }
+    }
+
+    return _DirectoryCountResult(
+      fileCount: fileCount,
+      emptyDirectories: emptyDirectories,
+    );
+  }
+
+  Future<List<FileOperationItem>> _buildFileItems(
+    List<PlatformFile> files,
+  ) async {
+    final items = <FileOperationItem>[];
+    for (var i = 0; i < files.length; i++) {
+      final file = files[i];
+      final name = file.name.isNotEmpty
+          ? file.name
+          : (file.path != null ? p.basename(file.path!) : 'file_$i');
+      var size = 0;
+      if (file.path != null && file.path!.isNotEmpty) {
+        try {
+          final stat = await FileStat.stat(file.path!);
+          size = stat.size;
+        } catch (_) {
+          size = 0;
+        }
+      } else if (file.bytes != null) {
+        size = file.bytes!.length;
+      }
+      items.add(FileOperationItem(label: name, sizeBytes: size));
+    }
+    return items;
+  }
+
+  Future<List<FileOperationItem>> _buildDirectoryItems(
+    String directoryPath,
+    String directoryName,
+  ) async {
+    final items = <FileOperationItem>[];
+    var hasFiles = false;
+    try {
+      await for (final entity in Directory(directoryPath).list(recursive: true, followLinks: false)) {
+        if (entity is! File) {
+          continue;
+        }
+        hasFiles = true;
+        final relativePath = p.relative(entity.path, from: directoryPath).replaceAll('\\', '/');
+        var size = 0;
+        try {
+          final stat = await entity.stat();
+          size = stat.size;
+        } catch (_) {
+          size = 0;
+        }
+        items.add(
+          FileOperationItem(
+            label: '$directoryName/$relativePath',
+            sizeBytes: size,
+          ),
+        );
+      }
+    } catch (_) {
+      // Counting errors are logged during upload; ignore here.
+    }
+    if (!hasFiles) {
+      items.add(FileOperationItem(label: directoryName, sizeBytes: 0));
+    }
+    return items;
+  }
+
+  Future<void> _ensureRemoteDirectory(
+    String remotePath,
+    Set<String> created,
+  ) async {
+    if (created.contains(remotePath) || remotePath.isEmpty || remotePath == '.') {
+      return;
+    }
+    final escaped = remotePath.replaceAll("'", r"'\''");
+    await runShellWrapper(
+      () => shellService.runCommand(
+        host,
+        "mkdir -p '$escaped'",
+      ),
+    );
+    created.add(remotePath);
+  }
+}
+
+class _DirectoryCountResult {
+  const _DirectoryCountResult({
+    required this.fileCount,
+    required this.emptyDirectories,
+  });
+
+  final int fileCount;
+  final int emptyDirectories;
+
+  int get totalUnits => fileCount + emptyDirectories;
 }

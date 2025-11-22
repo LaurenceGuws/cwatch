@@ -1,0 +1,19 @@
+Bugs:
+    Explorer:
+    -> Deleting file not updating folder view.
+    -> Breadcrum/textpath looks terrible on mobile if location is deep in folder structure.
+
+Issues:
+    Editor:
+    -> Tree-sitter's syntax highlighting is not working nicely, making random chars random colors.
+       Tree-sitter lib isn't batteries included so its not easy for multiple OS targets.
+       We need to use a better suited library, or redesign the editor. We aren't building an IDE, we are adding a decent editing feature.
+
+    Explorer:
+    -> No create new file/folder option. Add in no-select rightclick menu and settings gear icon menu.
+    -> Our file icon identification needs to expand dramatically. We are targetting techincal and non-technical clients.
+       We can add icons for popular software, vendors, sass or whatever.
+
+    General:
+    -> User input dialogs should be more keyboard friendly, accepting enter and crtl+c as input.
+    

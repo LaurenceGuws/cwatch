@@ -21,7 +21,8 @@ class ContextMenuBuilder {
     required this.onMove,
     required this.onDelete,
     required this.onDownload,
-    required this.onUpload,
+    required this.onUploadFiles,
+    required this.onUploadFolder,
     required this.joinPath,
   });
 
@@ -41,7 +42,8 @@ class ContextMenuBuilder {
   final ValueChanged<RemoteFileEntry>? onMove;
   final ValueChanged<List<RemoteFileEntry>>? onDelete;
   final ValueChanged<List<RemoteFileEntry>>? onDownload;
-  final ValueChanged<String>? onUpload;
+  final ValueChanged<String>? onUploadFiles;
+  final ValueChanged<String>? onUploadFolder;
   final String Function(String, String) joinPath;
 
   static const _shortcutCopy = 'Ctrl+C';
@@ -69,12 +71,16 @@ class ContextMenuBuilder {
         );
       }
 
-      menuItems.add(
-        const PopupMenuItem(
-          value: ExplorerContextAction.upload,
+      menuItems.addAll(const [
+        PopupMenuItem(
+          value: ExplorerContextAction.uploadFiles,
           child: Text('Upload files here...'),
         ),
-      );
+        PopupMenuItem(
+          value: ExplorerContextAction.uploadFolder,
+          child: Text('Upload folder here...'),
+        ),
+      ]);
 
       return menuItems;
     }
@@ -170,12 +176,16 @@ class ContextMenuBuilder {
 
     // Upload action (only show on background or directory)
     if (!isMultiSelect && entry.isDirectory) {
-      menuItems.add(
-        const PopupMenuItem(
-          value: ExplorerContextAction.upload,
+      menuItems.addAll(const [
+        PopupMenuItem(
+          value: ExplorerContextAction.uploadFiles,
           child: Text('Upload files here...'),
         ),
-      );
+        PopupMenuItem(
+          value: ExplorerContextAction.uploadFolder,
+          child: Text('Upload folder here...'),
+        ),
+      ]);
     }
 
     // Delete action
@@ -276,11 +286,18 @@ class ContextMenuBuilder {
       case ExplorerContextAction.download:
         onDownload?.call(selectedEntries);
         break;
-      case ExplorerContextAction.upload:
+      case ExplorerContextAction.uploadFiles:
         if (!isMultiSelect && entry != null && entry.isDirectory) {
-          onUpload?.call(joinPath(currentPath, entry.name));
+          onUploadFiles?.call(joinPath(currentPath, entry.name));
         } else {
-          onUpload?.call(currentPath);
+          onUploadFiles?.call(currentPath);
+        }
+        break;
+      case ExplorerContextAction.uploadFolder:
+        if (!isMultiSelect && entry != null && entry.isDirectory) {
+          onUploadFolder?.call(joinPath(currentPath, entry.name));
+        } else {
+          onUploadFolder?.call(currentPath);
         }
         break;
     }
@@ -300,5 +317,6 @@ enum ExplorerContextAction {
   delete,
   move,
   download,
-  upload,
+  uploadFiles,
+  uploadFolder,
 }

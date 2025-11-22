@@ -36,11 +36,13 @@ class ServersMenu extends StatelessWidget {
   const ServersMenu({
     super.key,
     required this.onOpenTrash,
-    required this.onUpload,
+    required this.onUploadFiles,
+    required this.onUploadFolder,
   });
 
   final VoidCallback onOpenTrash;
-  final VoidCallback onUpload;
+  final VoidCallback onUploadFiles;
+  final VoidCallback onUploadFolder;
 
   @override
   Widget build(BuildContext context) {
@@ -52,15 +54,22 @@ class ServersMenu extends StatelessWidget {
           case ServersMenuAction.openTrash:
             onOpenTrash();
             break;
-          case ServersMenuAction.upload:
-            onUpload();
+          case ServersMenuAction.uploadFiles:
+            onUploadFiles();
+            break;
+          case ServersMenuAction.uploadFolder:
+            onUploadFolder();
             break;
         }
       },
       itemBuilder: (context) => const [
         PopupMenuItem(
-          value: ServersMenuAction.upload,
+          value: ServersMenuAction.uploadFiles,
           child: Text('Upload files...'),
+        ),
+        PopupMenuItem(
+          value: ServersMenuAction.uploadFolder,
+          child: Text('Upload folder...'),
         ),
         PopupMenuItem(
           value: ServersMenuAction.openTrash,
