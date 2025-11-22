@@ -25,6 +25,8 @@ import 'widgets/file_explorer_tab.dart';
 import 'widgets/resources_tab.dart';
 import 'widgets/server_tab_chip.dart';
 import 'widgets/trash_tab.dart';
+import 'widgets/remote_file_editor_tab.dart';
+import '../../../services/ssh/remote_editor_cache.dart';
 
 class ServersView extends StatefulWidget {
   const ServersView({
@@ -321,6 +323,7 @@ class _ServersViewState extends State<ServersView> {
       case ServerAction.fileExplorer:
       case ServerAction.connectivity:
       case ServerAction.resources:
+      case ServerAction.editor:
         return _findHostByName(hosts, tabState.hostName);
     }
   }
@@ -438,6 +441,16 @@ class _ServersViewState extends State<ServersView> {
           builtInVault: widget.builtInVault,
           trashManager: _trashManager,
           onOpenTrash: _openTrashTab,
+          onOpenEditorTab: _openEditorTab,
+        );
+      case ServerAction.editor:
+        final editorPath = tab.customName ?? '';
+        return _EditorTabLoader(
+          key: tab.bodyKey,
+          host: tab.host,
+          shellService: _shellServiceForHost(tab.host),
+          path: editorPath,
+          settingsController: widget.settingsController,
         );
       case ServerAction.connectivity:
         return ConnectivityTab(key: tab.bodyKey, host: tab.host);
@@ -609,6 +622,38 @@ class _ServersViewState extends State<ServersView> {
     _persistWorkspace();
   }
 
+  Future<void> _openEditorTab(String path, String initialContent) async {
+    // Find existing editor tab for this path, or create a new one
+    final existingIndex = _tabs.indexWhere(
+      (tab) => tab.action == ServerAction.editor && tab.customName == path,
+    );
+    
+    if (existingIndex != -1) {
+      // Switch to existing tab
+      setState(() {
+        _selectedTabIndex = existingIndex;
+      });
+      _persistWorkspace();
+      return;
+    }
+
+    // Create new editor tab
+    setState(() {
+      _tabs.add(
+        _createTab(
+          id: 'editor-${DateTime.now().microsecondsSinceEpoch}',
+          host: _tabs.isNotEmpty && _tabs[_selectedTabIndex].host is! PlaceholderHost
+              ? _tabs[_selectedTabIndex].host
+              : const PlaceholderHost(),
+          action: ServerAction.editor,
+          customName: path,
+        ),
+      );
+      _selectedTabIndex = _tabs.length - 1;
+    });
+    _persistWorkspace();
+  }
+
   Future<bool> _promptUnlockKey(
     String keyId,
     String hostName,
@@ -720,5 +765,93 @@ class _ServersViewState extends State<ServersView> {
     );
     controller.dispose();
     return success == true;
+  }
+}
+
+class _EditorTabLoader extends StatefulWidget {
+  const _EditorTabLoader({
+    super.key,
+    required this.host,
+    required this.shellService,
+    required this.path,
+    required this.settingsController,
+  });
+
+  final SshHost host;
+  final RemoteShellService shellService;
+  final String path;
+  final AppSettingsController settingsController;
+
+  @override
+  State<_EditorTabLoader> createState() => _EditorTabLoaderState();
+}
+
+class _EditorTabLoaderState extends State<_EditorTabLoader> {
+  String? _content;
+  String? _error;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFile();
+  }
+
+  Future<void> _loadFile() async {
+    try {
+      final content = await widget.shellService.readFile(widget.host, widget.path);
+      if (!mounted) return;
+      setState(() {
+        _content = content;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('Failed to load file: $_error'),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: _loadFile,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+    if (_content == null) {
+      return const Center(child: Text('No content'));
+    }
+    final cache = RemoteEditorCache();
+    return RemoteFileEditorTab(
+      host: widget.host,
+      shellService: widget.shellService,
+      path: widget.path,
+      initialContent: _content!,
+      settingsController: widget.settingsController,
+      onSave: (content) async {
+        await widget.shellService.writeFile(widget.host, widget.path, content);
+        await cache.materialize(
+          host: widget.host.name,
+          remotePath: widget.path,
+          contents: content,
+        );
+      },
+    );
   }
 }

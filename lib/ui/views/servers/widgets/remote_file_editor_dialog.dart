@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../../services/code/tree_sitter_support.dart';
 import '../../../theme/nerd_fonts.dart';
 import 'code_highlighter.dart';
-import 'tree_sitter_editing_controller.dart';
+import 'syntax_editing_controller.dart';
 
 class RemoteFileEditorDialog extends StatefulWidget {
   const RemoteFileEditorDialog({
@@ -22,25 +21,33 @@ class RemoteFileEditorDialog extends StatefulWidget {
 }
 
 class _RemoteFileEditorDialogState extends State<RemoteFileEditorDialog> {
-  late final TreeSitterEditingController _controller;
-  TreeSitterSession? _session;
+  late final SyntaxEditingController _controller;
   final ScrollController _scrollController = ScrollController();
   bool _dirty = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = TreeSitterEditingController(
+    final language = languageFromPath(widget.path);
+    final theme = CodeHighlightTheme.fromScheme(Theme.of(context).colorScheme);
+    final highlighter = language != null
+        ? HighlightSyntaxHighlighter(language: language, theme: theme)
+        : PlainCodeHighlighter();
+    _controller = SyntaxEditingController(
       text: widget.initialContent,
-      syntaxHighlighter: PlainCodeHighlighter(),
+      syntaxHighlighter: highlighter,
     )..addListener(_handleTextChange);
-    _loadTreeSitterSession();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _controller.updateHighlighter(_buildHighlighter(_session));
+    final language = languageFromPath(widget.path);
+    final theme = CodeHighlightTheme.fromScheme(Theme.of(context).colorScheme);
+    final highlighter = language != null
+        ? HighlightSyntaxHighlighter(language: language, theme: theme)
+        : PlainCodeHighlighter();
+    _controller.updateHighlighter(highlighter);
   }
 
   @override
@@ -107,7 +114,6 @@ class _RemoteFileEditorDialogState extends State<RemoteFileEditorDialog> {
                       path: widget.path,
                       controller: _controller,
                       helperText: widget.helperText,
-                      session: _session,
                     ),
                   ),
                 ],
@@ -132,15 +138,6 @@ class _RemoteFileEditorDialogState extends State<RemoteFileEditorDialog> {
     );
   }
 
-  Future<void> _loadTreeSitterSession() async {
-    final session = await TreeSitterSession.forPath(widget.path);
-    if (!mounted) return;
-    setState(() {
-      _session = session;
-      _controller.updateHighlighter(_buildHighlighter(session));
-    });
-  }
-
   void _handleTextChange() {
     final dirty = _controller.text != widget.initialContent;
     if (dirty != _dirty) {
@@ -151,14 +148,6 @@ class _RemoteFileEditorDialogState extends State<RemoteFileEditorDialog> {
       setState(() {});
     }
   }
-
-  CodeSyntaxHighlighter _buildHighlighter(TreeSitterSession? session) {
-    final theme = CodeHighlightTheme.fromScheme(Theme.of(context).colorScheme);
-    if (session != null && session.isAvailable) {
-      return TreeSitterSyntaxHighlighter(session: session, theme: theme);
-    }
-    return PlainCodeHighlighter();
-  }
 }
 
 class _EditorInspector extends StatelessWidget {
@@ -166,19 +155,18 @@ class _EditorInspector extends StatelessWidget {
     required this.path,
     required this.controller,
     required this.helperText,
-    required this.session,
   });
 
   final String path;
   final TextEditingController controller;
   final String? helperText;
-  final TreeSitterSession? session;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final content = controller.text;
     final lines = content.isEmpty ? 0 : content.split('\n').length;
+    final language = languageFromPath(path);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -188,12 +176,12 @@ class _EditorInspector extends StatelessWidget {
         _InspectorTile(label: 'Characters', value: '${content.length}'),
         _InspectorTile(label: 'Path', value: path),
         const SizedBox(height: 16),
-        Text('Tree-sitter', style: textTheme.titleMedium),
+        Text('Syntax highlighting', style: textTheme.titleMedium),
         const SizedBox(height: 8),
-        Text(session?.statusMessage ?? 'Loading...',
-            style: textTheme.bodySmall),
-        if (session?.languageLabel != null)
-          Text('Grammar: ${session!.languageLabel}', style: textTheme.bodySmall),
+        Text(
+          language != null ? 'Language: $language' : 'No highlighting',
+          style: textTheme.bodySmall,
+        ),
         if (helperText != null) ...[
           const SizedBox(height: 16),
           Text('Notes', style: textTheme.titleMedium),

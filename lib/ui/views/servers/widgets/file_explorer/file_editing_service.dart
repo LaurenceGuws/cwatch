@@ -17,6 +17,7 @@ class FileEditingService {
     required this.runShellWrapper,
     required this.promptMergeDialog,
     required this.launchLocalApp,
+    this.onOpenEditorTab,
   });
 
   final RemoteShellService shellService;
@@ -29,8 +30,9 @@ class FileEditingService {
     required String remote,
   }) promptMergeDialog;
   final Future<void> Function(String path) launchLocalApp;
+  final Future<void> Function(String path, String initialContent)? onOpenEditorTab;
 
-  /// Open a file in the editor dialog
+  /// Open a file in the editor (tab or dialog)
   Future<void> openEditor(
     BuildContext context,
     RemoteFileEntry entry,
@@ -44,26 +46,32 @@ class FileEditingService {
       if (!context.mounted) {
         return;
       }
-      final updated = await showDialog<String>(
-        context: context,
-        builder: (context) =>
-            RemoteFileEditorDialog(path: path, initialContent: contents),
-      );
-      if (updated != null && updated != contents) {
-        await runShellWrapper(
-          () => shellService.writeFile(host, path, updated),
+      
+      // Use tab if callback is provided, otherwise use dialog
+      if (onOpenEditorTab != null) {
+        await onOpenEditorTab!(path, contents);
+      } else {
+        final updated = await showDialog<String>(
+          context: context,
+          builder: (context) =>
+              RemoteFileEditorDialog(path: path, initialContent: contents),
         );
-        final localFile = await cache.materialize(
-          host: host.name,
-          remotePath: path,
-          contents: updated,
-        );
-        if (!context.mounted) {
-          return;
+        if (updated != null && updated != contents) {
+          await runShellWrapper(
+            () => shellService.writeFile(host, path, updated),
+          );
+          final localFile = await cache.materialize(
+            host: host.name,
+            remotePath: path,
+            contents: updated,
+          );
+          if (!context.mounted) {
+            return;
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Saved $path · Cached at ${localFile.path}')),
+          );
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Saved $path · Cached at ${localFile.path}')),
-        );
       }
     } catch (error) {
       if (!context.mounted) {

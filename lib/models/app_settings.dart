@@ -21,6 +21,8 @@ class AppSettings {
     this.disabledSshConfigPaths = const [],
     this.serverWorkspace,
     this.settingsTabIndex = 0,
+    this.editorThemeLight,
+    this.editorThemeDark,
   });
 
   final ThemeMode themeMode;
@@ -38,6 +40,8 @@ class AppSettings {
   final List<String> disabledSshConfigPaths;
   final ServerWorkspaceState? serverWorkspace;
   final int settingsTabIndex;
+  final String? editorThemeLight;
+  final String? editorThemeDark;
 
   AppSettings copyWith({
     ThemeMode? themeMode,
@@ -55,6 +59,8 @@ class AppSettings {
     List<String>? disabledSshConfigPaths,
     ServerWorkspaceState? serverWorkspace,
     int? settingsTabIndex,
+    String? editorThemeLight,
+    String? editorThemeDark,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -76,6 +82,8 @@ class AppSettings {
           disabledSshConfigPaths ?? this.disabledSshConfigPaths,
       serverWorkspace: serverWorkspace ?? this.serverWorkspace,
       settingsTabIndex: settingsTabIndex ?? this.settingsTabIndex,
+      editorThemeLight: editorThemeLight ?? this.editorThemeLight,
+      editorThemeDark: editorThemeDark ?? this.editorThemeDark,
     );
   }
 
@@ -143,6 +151,8 @@ class AppSettings {
         return null;
       }(),
       settingsTabIndex: (json['settingsTabIndex'] as num?)?.toInt() ?? 0,
+      editorThemeLight: json['editorThemeLight'] as String?,
+      editorThemeDark: json['editorThemeDark'] as String?,
     );
   }
 
@@ -163,6 +173,8 @@ class AppSettings {
       'disabledSshConfigPaths': disabledSshConfigPaths,
       if (serverWorkspace != null) 'serverWorkspace': serverWorkspace!.toJson(),
       'settingsTabIndex': settingsTabIndex,
+      if (editorThemeLight != null) 'editorThemeLight': editorThemeLight,
+      if (editorThemeDark != null) 'editorThemeDark': editorThemeDark,
     };
   }
 }

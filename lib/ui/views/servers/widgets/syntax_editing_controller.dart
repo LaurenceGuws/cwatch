@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'code_highlighter.dart';
 
-class TreeSitterEditingController extends TextEditingController {
-  TreeSitterEditingController({
+class SyntaxEditingController extends TextEditingController {
+  SyntaxEditingController({
     required this.syntaxHighlighter,
     required super.text,
   });
@@ -28,3 +28,4 @@ class TreeSitterEditingController extends TextEditingController {
     return TextSpan(style: style, children: spans);
   }
 }
+

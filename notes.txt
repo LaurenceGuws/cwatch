@@ -8,6 +8,7 @@ Issues:
     -> Tree-sitter's syntax highlighting is not working nicely, making random chars random colors.
        Tree-sitter lib isn't batteries included so its not easy for multiple OS targets.
        We need to use a better suited library, or redesign the editor. We aren't building an IDE, we are adding a decent editing feature.
+      I also want to change it from a popup dialog to a standalone tab.
 
     Explorer:
     -> No create new file/folder option. Add in no-select rightclick menu and settings gear icon menu.

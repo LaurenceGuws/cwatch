@@ -33,7 +33,9 @@ dependencies:
   meta: any
   path: ^1.9.0
   fl_chart: ^1.1.1
-  tree_sitter: ^0.2.1
+  flutter_code_editor: ^0.3.0
+  flutter_highlight: ^0.7.0
+  highlight: ^0.7.0
   http: ^1.2.2
   archive: ^4.0.7
   csv: ^6.0.0

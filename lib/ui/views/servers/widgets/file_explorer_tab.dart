@@ -36,6 +36,7 @@ class FileExplorerTab extends StatefulWidget {
     required this.trashManager,
     this.builtInVault,
     required this.onOpenTrash,
+    this.onOpenEditorTab,
   });
 
   final SshHost host;
@@ -43,6 +44,7 @@ class FileExplorerTab extends StatefulWidget {
   final ExplorerTrashManager trashManager;
   final BuiltInSshVault? builtInVault;
   final VoidCallback onOpenTrash;
+  final Future<void> Function(String path, String initialContent)? onOpenEditorTab;
 
   @override
   State<FileExplorerTab> createState() => _FileExplorerTabState();
@@ -97,6 +99,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       runShellWrapper: _runShell,
       promptMergeDialog: _promptMergeDialog,
       launchLocalApp: ExternalAppLauncher.launch,
+      onOpenEditorTab: widget.onOpenEditorTab,
     );
     _selectionController = SelectionController(
       currentPath: _currentPath,
@@ -177,6 +180,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         runShellWrapper: _runShell,
         promptMergeDialog: _promptMergeDialog,
         launchLocalApp: ExternalAppLauncher.launch,
+        onOpenEditorTab: widget.onOpenEditorTab,
       );
       _pathLoadingService = PathLoadingService(
         shellService: widget.shellService,

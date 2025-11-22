@@ -39,6 +39,8 @@ class ServerTab {
         return NerdIcon.database.data;
       case ServerAction.trash:
         return Icons.delete_outline;
+      case ServerAction.editor:
+        return Icons.edit_note;
     }
   }
 

@@ -4,8 +4,6 @@ import 'package:flutter/material.dart';
 
 import 'models/app_settings.dart';
 import 'models/ssh_host.dart';
-import 'services/code/grammar_manifest.dart';
-import 'services/code/tree_sitter_support.dart';
 import 'services/settings/app_settings_controller.dart';
 import 'services/ssh/ssh_config_service.dart';
 import 'services/ssh/builtin/builtin_ssh_key_store.dart';
@@ -20,8 +18,6 @@ import 'ui/views/settings/settings_view.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await GrammarManifest.initialize();
-  TreeSitterEnvironment.configure();
   runApp(const CwatchApp());
 }
 

@@ -1,4 +1,4 @@
-enum ServerAction { fileExplorer, connectivity, resources, empty, trash }
+enum ServerAction { fileExplorer, connectivity, resources, empty, trash, editor }
 
 ServerAction? serverActionFromName(String? value) {
   if (value == null) {
