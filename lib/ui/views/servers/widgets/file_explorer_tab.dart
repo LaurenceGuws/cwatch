@@ -843,14 +843,14 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         context,
         entries,
         _currentPath,
-        () => _loadPath(_currentPath),
+        _refreshCurrentPath,
       );
     } else {
       await _deleteHandler.moveMultipleToTrash(
         context,
         entries,
         _currentPath,
-        () => _loadPath(_currentPath),
+        _refreshCurrentPath,
       );
     }
   }

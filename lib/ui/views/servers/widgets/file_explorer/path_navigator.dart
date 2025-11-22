@@ -139,19 +139,27 @@ class _BreadcrumbsView extends StatelessWidget {
     for (final segment in segments) {
       runningPath += '/$segment';
       final normalizedRunningPath = _normalizePath(runningPath);
-      chips.add(Icon(NerdIcon.arrowRight.data, size: 16));
+      chips.add(_buildSeparator());
       chips.add(
-        ActionChip(
-          label: Text(segment),
-          onPressed: () {
-            onPathChanged(normalizedRunningPath);
-          },
+        Tooltip(
+          message: segment,
+          waitDuration: const Duration(milliseconds: 400),
+          child: ActionChip(
+            label: Text(
+              segment,
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
+            ),
+            onPressed: () {
+              onPathChanged(normalizedRunningPath);
+            },
+          ),
         ),
       );
     }
 
     // Add "+" button to navigate deeper
-    chips.add(Icon(NerdIcon.arrowRight.data, size: 16));
+    chips.add(_buildSeparator());
     chips.add(
       IconButton(
         icon: const Icon(Icons.add, size: 18),
@@ -165,12 +173,26 @@ class _BreadcrumbsView extends StatelessWidget {
       ),
     );
 
-    return Wrap(
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 4,
-      runSpacing: 4,
-      children: chips,
+    final spacedChips = <Widget>[];
+    for (final chip in chips) {
+      if (spacedChips.isNotEmpty) {
+        spacedChips.add(const SizedBox(width: 4));
+      }
+      spacedChips.add(chip);
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: spacedChips,
+      ),
     );
+  }
+
+  Widget _buildSeparator() {
+    return Icon(NerdIcon.arrowRight.data, size: 16);
   }
 }
 
@@ -237,4 +259,3 @@ class _PathFieldView extends StatelessWidget {
     );
   }
 }
-
