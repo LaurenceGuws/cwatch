@@ -65,7 +65,7 @@ enum ServerAction { fileExplorer, connectivity, resources, empty, trash }
 /// Placeholder host for empty tabs
 class PlaceholderHost extends SshHost {
   const PlaceholderHost()
-      : super(name: 'Explorer', hostname: '', port: 0, available: true);
+      : super(name: 'Servers', hostname: '', port: 0, available: true);
 }
 
 /// Trash host for trash tabs

@@ -86,17 +86,24 @@ class _HostListState extends State<HostList> {
       // Single source - no headers needed
       return Column(
         children: [
-          Align(
-            alignment: Alignment.centerRight,
-            child: Padding(
-              padding: EdgeInsets.only(
-                right: spacing.base,
-                bottom: spacing.base,
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.add),
-                tooltip: 'Add Server',
+          Padding(
+            padding: EdgeInsets.only(
+              left: spacing.base * 2,
+              right: spacing.base * 2,
+              bottom: spacing.base,
+            ),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: ElevatedButton.icon(
                 onPressed: widget.onAddServer,
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Add Server'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: spacing.base * 1.5,
+                    vertical: spacing.sm,
+                  ),
+                ),
               ),
             ),
           ),
@@ -115,17 +122,24 @@ class _HostListState extends State<HostList> {
     // Multiple sources - show with headers
     return Column(
       children: [
-        Align(
-          alignment: Alignment.centerRight,
-          child: Padding(
-            padding: EdgeInsets.only(
-              right: spacing.base,
-              bottom: spacing.base,
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.add),
-              tooltip: 'Add Server',
+        Padding(
+          padding: EdgeInsets.only(
+            left: spacing.base * 2,
+            right: spacing.base * 2,
+            bottom: spacing.base,
+          ),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: ElevatedButton.icon(
               onPressed: widget.onAddServer,
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Add Server'),
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.symmetric(
+                  horizontal: spacing.base * 1.5,
+                  vertical: spacing.sm,
+                ),
+              ),
             ),
           ),
         ),
