@@ -1,8 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import '../../../models/docker_container.dart';
 import '../../../models/docker_context.dart';
 import '../../../models/ssh_client_backend.dart';
 import '../../../models/ssh_host.dart';
@@ -16,6 +14,8 @@ import '../../../services/settings/app_settings_controller.dart';
 import '../../theme/nerd_fonts.dart';
 import '../shared/engine_tab.dart';
 import '../shared/engine_workspace.dart';
+import 'widgets/docker_dashboard.dart';
+import 'widgets/docker_engine_picker.dart';
 
 class DockerView extends StatefulWidget {
   const DockerView({
@@ -43,9 +43,9 @@ class _DockerViewState extends State<DockerView> {
   int _selectedIndex = 0;
 
   Future<List<DockerContext>>? _contextsFuture;
-  Future<List<_RemoteDockerStatus>>? _remoteStatusFuture;
+  Future<List<RemoteDockerStatus>>? _remoteStatusFuture;
   bool _remoteScanRequested = false;
-  List<_RemoteDockerStatus> _cachedReady = const [];
+  List<RemoteDockerStatus> _cachedReady = const [];
 
   @override
   void initState() {
@@ -64,7 +64,7 @@ class _DockerViewState extends State<DockerView> {
       icon: NerdIcon.docker.data,
       canDrag: false,
       isPicker: true,
-      body: _EnginePicker(
+      body: EnginePicker(
         tabId: tabId,
         contextsFuture: _contextsFuture,
         cachedReady: _cachedReady,
@@ -150,7 +150,11 @@ class _DockerViewState extends State<DockerView> {
       title: contextName,
       id: 'ctx-$contextName',
       icon: Icons.cloud,
-      body: _DashboardView(docker: _docker, contextName: contextName),
+      body: DockerDashboard(
+        docker: _docker,
+        contextName: contextName,
+        onOpenTab: _openChildTab,
+      ),
     );
   }
 
@@ -161,10 +165,11 @@ class _DockerViewState extends State<DockerView> {
       title: host.name,
       id: 'host-${host.name}',
       icon: Icons.cloud_outlined,
-      body: _DashboardView(
+      body: DockerDashboard(
         docker: _docker,
         remoteHost: host,
         shellService: shell,
+        onOpenTab: _openChildTab,
       ),
     );
   }
@@ -200,7 +205,7 @@ class _DockerViewState extends State<DockerView> {
       setState(() {
         _cachedReady = readyHosts
             .map(
-              (host) => _RemoteDockerStatus(
+              (host) => RemoteDockerStatus(
                 host: host,
                 available: true,
                 detail: 'Cached ready',
@@ -214,7 +219,7 @@ class _DockerViewState extends State<DockerView> {
     }
   }
 
-  Future<List<_RemoteDockerStatus>> _loadRemoteStatuses() async {
+  Future<List<RemoteDockerStatus>> _loadRemoteStatuses() async {
     List<SshHost> hosts;
     try {
       hosts = await widget.hostsFuture;
@@ -228,7 +233,7 @@ class _DockerViewState extends State<DockerView> {
       hosts.map((host) => _probeHost(host)),
       eagerError: false,
     );
-    final statuses = results.whereType<_RemoteDockerStatus>().toList();
+    final statuses = results.whereType<RemoteDockerStatus>().toList();
     final readyNames = statuses
         .where((s) => s.available)
         .map((s) => s.host.name)
@@ -243,7 +248,7 @@ class _DockerViewState extends State<DockerView> {
     return statuses;
   }
 
-  Future<_RemoteDockerStatus> _probeHost(SshHost host) async {
+  Future<RemoteDockerStatus> _probeHost(SshHost host) async {
     final shell = _shellServiceForHost(host);
     const probeCommand =
         "if command -v docker >/dev/null 2>&1; then docker info >/dev/null 2>&1 && echo '__DOCKER_OK__' || echo '__DOCKER_ERROR__'; else echo '__NO_DOCKER__'; fi";
@@ -255,27 +260,27 @@ class _DockerViewState extends State<DockerView> {
       );
       final trimmed = output.trim();
       if (trimmed.contains('__DOCKER_OK__')) {
-        return _RemoteDockerStatus(
+        return RemoteDockerStatus(
           host: host,
           available: true,
           detail: 'Ready',
         );
       }
       if (trimmed.contains('__NO_DOCKER__')) {
-        return _RemoteDockerStatus(
+        return RemoteDockerStatus(
           host: host,
           available: false,
           detail: 'Docker not installed',
         );
       }
       if (trimmed.contains('__DOCKER_ERROR__')) {
-        return _RemoteDockerStatus(
+        return RemoteDockerStatus(
           host: host,
           available: false,
           detail: 'Docker command failed',
         );
       }
-      return _RemoteDockerStatus(
+      return RemoteDockerStatus(
         host: host,
         available: false,
         detail: trimmed.isEmpty
@@ -283,7 +288,7 @@ class _DockerViewState extends State<DockerView> {
             : trimmed.split('\n').first,
       );
     } catch (error) {
-      return _RemoteDockerStatus(
+      return RemoteDockerStatus(
         host: host,
         available: false,
         detail: error.toString(),
@@ -438,541 +443,10 @@ class _DockerViewState extends State<DockerView> {
     return success == true;
   }
 
-}
-
-class _EnginePicker extends StatelessWidget {
-  const _EnginePicker({
-    required this.tabId,
-    required this.contextsFuture,
-    required this.cachedReady,
-    required this.remoteStatusFuture,
-    required this.remoteScanRequested,
-    required this.onRefreshContexts,
-    required this.onScanRemotes,
-    required this.onOpenContext,
-    required this.onOpenHost,
-  });
-
-  final String tabId;
-  final Future<List<DockerContext>>? contextsFuture;
-  final List<_RemoteDockerStatus> cachedReady;
-  final Future<List<_RemoteDockerStatus>>? remoteStatusFuture;
-  final bool remoteScanRequested;
-  final VoidCallback onRefreshContexts;
-  final VoidCallback onScanRemotes;
-  final void Function(String contextName) onOpenContext;
-  final void Function(SshHost host) onOpenHost;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      children: [
-        FutureBuilder<List<DockerContext>>(
-          future: contextsFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-            if (snapshot.hasError) {
-              return _ErrorCard(
-                message: snapshot.error.toString(),
-                onRetry: onRefreshContexts,
-              );
-            }
-            final contexts = snapshot.data ?? const <DockerContext>[];
-            if (contexts.isEmpty) {
-              return _EmptyState(onRefresh: onRefreshContexts);
-            }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 8,
-                  ),
-                  child: Text(
-                    'Local contexts',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: contexts
-                      .map(
-                        (ctx) => _EngineButton(
-                          label: ctx.name,
-                          selected: false,
-                          onDoubleTap: () => onOpenContext(ctx.name),
-                        ),
-                      )
-                      .toList(),
-                ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 12),
-        _RemoteSection(
-          remoteStatusFuture: remoteStatusFuture,
-          scanRequested: remoteScanRequested,
-          cachedReady: cachedReady,
-          onScan: onScanRemotes,
-          onOpenHost: onOpenHost,
-        ),
-      ],
-    );
-  }
-}
-
-class _DashboardView extends StatefulWidget {
-  const _DashboardView({
-    required this.docker,
-    this.contextName,
-    this.remoteHost,
-    this.shellService,
-  });
-
-  final DockerClientService docker;
-  final String? contextName;
-  final SshHost? remoteHost;
-  final RemoteShellService? shellService;
-
-  @override
-  State<_DashboardView> createState() => _DashboardViewState();
-}
-
-class _DashboardViewState extends State<_DashboardView> {
-  Future<List<DockerContainer>>? _containers;
-
-  @override
-  void initState() {
-    super.initState();
-    _containers = _load();
-  }
-
-  Future<List<DockerContainer>> _load() {
-    if (widget.remoteHost != null && widget.shellService != null) {
-      return _loadRemote(widget.shellService!, widget.remoteHost!);
-    }
-    return widget.docker.listContainers(
-      context: widget.contextName,
-      dockerHost: null,
-    );
-  }
-
-  Future<List<DockerContainer>> _loadRemote(
-    RemoteShellService shell,
-    SshHost host,
-  ) async {
-    final output = await shell.runCommand(
-      host,
-      "docker ps -a --format '{{json .}}'",
-      timeout: const Duration(seconds: 8),
-    );
-    return _parseContainers(output);
-  }
-
-  List<DockerContainer> _parseContainers(String output) {
-    final items = <DockerContainer>[];
-    for (final line in const LineSplitter().convert(output)) {
-      final trimmed = line.trim();
-      if (trimmed.isEmpty) continue;
-      try {
-        final decoded = jsonDecode(trimmed);
-        if (decoded is Map<String, dynamic>) {
-          items.add(DockerContainer(
-            id: (decoded['ID'] as String?)?.trim() ?? '',
-            name: (decoded['Names'] as String?)?.trim() ?? '',
-            image: (decoded['Image'] as String?)?.trim() ?? '',
-            state: (decoded['State'] as String?)?.trim() ?? '',
-            status: (decoded['Status'] as String?)?.trim() ?? '',
-            ports: (decoded['Ports'] as String?)?.trim() ?? '',
-            command: (decoded['Command'] as String?)?.trim(),
-            createdAt: (decoded['RunningFor'] as String?)?.trim(),
-          ));
-        }
-      } catch (_) {
-        continue;
-      }
-    }
-    return items;
-  }
-
-  void _refresh() {
+  void _openChildTab(EngineTab tab) {
     setState(() {
-      _containers = _load();
+      _tabs.add(tab);
+      _selectedIndex = _tabs.length - 1;
     });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final title = widget.contextName ?? widget.remoteHost?.name ?? 'Dashboard';
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(title, style: Theme.of(context).textTheme.titleMedium),
-              const Spacer(),
-              IconButton(
-                tooltip: 'Refresh',
-                icon: const Icon(Icons.refresh),
-                onPressed: _refresh,
-              ),
-            ],
-          ),
-          Expanded(
-            child: FutureBuilder<List<DockerContainer>>(
-              future: _containers,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return _ErrorCard(
-                    message: snapshot.error.toString(),
-                    onRetry: _refresh,
-                  );
-                }
-                final containers = snapshot.data ?? const <DockerContainer>[];
-                if (containers.isEmpty) {
-                  return const Center(child: Text('No containers found.'));
-                }
-                final running = containers.where((c) => c.isRunning).length;
-                final stopped = containers.length - running;
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        _StatCard(
-                          label: 'Total',
-                          value: containers.length.toString(),
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        _StatCard(
-                          label: 'Running',
-                          value: running.toString(),
-                          color: Colors.green,
-                        ),
-                        const SizedBox(width: 8),
-                        _StatCard(
-                          label: 'Stopped',
-                          value: stopped.toString(),
-                          color: Colors.orange,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Expanded(
-                      child: ListView.separated(
-                        itemCount: containers.length,
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(height: 8),
-                        itemBuilder: (context, index) {
-                          final container = containers[index];
-                          final color = container.isRunning
-                              ? Colors.green
-                              : Colors.orange;
-                          final statusLabel = container.isRunning
-                              ? 'Running'
-                              : 'Stopped (${container.status})';
-                          return Card(
-                            child: ListTile(
-                              leading: Icon(Icons.dns, color: color),
-                              title: Text(
-                                container.name.isNotEmpty
-                                    ? container.name
-                                    : container.id,
-                              ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Image: ${container.image}'),
-                                  Text(statusLabel),
-                                  if (container.ports.isNotEmpty)
-                                    Text('Ports: ${container.ports}'),
-                                ],
-                              ),
-                              trailing: Text(
-                                container.state,
-                                style: TextStyle(color: color),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EngineButton extends StatelessWidget {
-  const _EngineButton({
-    required this.label,
-    required this.selected,
-    required this.onDoubleTap,
-    this.subtitle,
-  });
-
-  final String label;
-  final String? subtitle;
-  final bool selected;
-  final VoidCallback onDoubleTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final bg = selected
-        ? scheme.primary.withValues(alpha: 0.1)
-        : scheme.surfaceContainerHighest;
-    final borderColor = selected ? scheme.primary : scheme.outlineVariant;
-    return Material(
-      color: bg,
-      borderRadius: BorderRadius.circular(8),
-      child: InkWell(
-        onDoubleTap: onDoubleTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          width: 200,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            border: Border.all(color: borderColor),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: selected ? scheme.primary : null,
-                ),
-              ),
-              if (subtitle != null && subtitle!.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(subtitle!, style: Theme.of(context).textTheme.bodySmall),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RemoteDockerStatus {
-  const _RemoteDockerStatus({
-    required this.host,
-    required this.available,
-    required this.detail,
-  });
-
-  final SshHost host;
-  final bool available;
-  final String detail;
-}
-
-class _RemoteSection extends StatelessWidget {
-  const _RemoteSection({
-    required this.remoteStatusFuture,
-    required this.scanRequested,
-    required this.cachedReady,
-    required this.onScan,
-    required this.onOpenHost,
-  });
-
-  final Future<List<_RemoteDockerStatus>>? remoteStatusFuture;
-  final bool scanRequested;
-  final List<_RemoteDockerStatus> cachedReady;
-  final VoidCallback onScan;
-  final ValueChanged<SshHost> onOpenHost;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          child: Row(
-            children: [
-              Text('Servers', style: Theme.of(context).textTheme.titleMedium),
-              const Spacer(),
-              FilledButton.icon(
-                onPressed: onScan,
-                icon: const Icon(Icons.search),
-                label: const Text('Scan'),
-              ),
-            ],
-          ),
-        ),
-        if (!scanRequested)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: cachedReady.isEmpty
-                ? const Text(
-                    'Scan to check which servers have Docker available.',
-                  )
-                : _RemoteHostList(hosts: cachedReady, onOpenHost: onOpenHost),
-          )
-        else
-          FutureBuilder<List<_RemoteDockerStatus>>(
-            future: remoteStatusFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: LinearProgressIndicator(),
-                );
-              }
-              if (snapshot.hasError) {
-                return _ErrorCard(
-                  message: snapshot.error.toString(),
-                  onRetry: onScan,
-                );
-              }
-              final statuses = snapshot.data ?? const <_RemoteDockerStatus>[];
-              final available = statuses.where((s) => s.available).toList();
-              if (available.isEmpty) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                  child: Text('No Docker-ready remote hosts found.'),
-                );
-              }
-              return _RemoteHostList(hosts: available, onOpenHost: onOpenHost);
-            },
-          ),
-      ],
-    );
-  }
-}
-
-class _RemoteHostList extends StatelessWidget {
-  const _RemoteHostList({required this.hosts, required this.onOpenHost});
-
-  final List<_RemoteDockerStatus> hosts;
-  final ValueChanged<SshHost> onOpenHost;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: hosts
-          .map(
-            (status) => _EngineButton(
-              label: status.host.name,
-              selected: false,
-              subtitle: status.detail,
-              onDoubleTap: () => onOpenHost(status.host),
-            ),
-          )
-          .toList(),
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  final String label;
-  final String value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Expanded(
-      child: Card(
-        color: scheme.surfaceContainerHighest,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: Theme.of(
-                  context,
-                ).textTheme.headlineSmall?.copyWith(color: color),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ErrorCard extends StatelessWidget {
-  const _ErrorCard({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Error', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              Text(message),
-              const SizedBox(height: 12),
-              FilledButton(onPressed: onRetry, child: const Text('Retry')),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.onRefresh});
-
-  final VoidCallback onRefresh;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.dns_outlined, size: 64),
-          const SizedBox(height: 12),
-          const Text('No Docker contexts found.'),
-          const SizedBox(height: 12),
-          FilledButton(onPressed: onRefresh, child: const Text('Refresh')),
-        ],
-      ),
-    );
   }
 }

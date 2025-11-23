@@ -4,6 +4,9 @@ import 'dart:io';
 
 import '../../models/docker_context.dart';
 import '../../models/docker_container.dart';
+import '../../models/docker_image.dart';
+import '../../models/docker_network.dart';
+import '../../models/docker_volume.dart';
 
 class DockerClientService {
   const DockerClientService({
@@ -184,5 +187,190 @@ class DockerClientService {
       command: read('Command').isEmpty ? null : read('Command'),
       createdAt: read('RunningFor').isEmpty ? null : read('RunningFor'),
     );
+  }
+
+  Future<List<DockerImage>> listImages({
+    String? context,
+    bool danglingOnly = false,
+    Duration timeout = const Duration(seconds: 6),
+  }) async {
+    final args = <String>[
+      if (context != null && context.trim().isNotEmpty) ...[
+        '--context',
+        context.trim(),
+      ],
+      'images',
+      '--format',
+      '{{json .}}',
+      if (danglingOnly) '--filter=dangling=true',
+    ];
+
+    try {
+      final result = await processRunner(
+        'docker',
+        args,
+        stdoutEncoding: utf8,
+        stderrEncoding: utf8,
+        runInShell: false,
+      ).timeout(timeout);
+
+      if (result.exitCode != 0) {
+        final stderr = (result.stderr as String?)?.trim();
+        throw Exception(
+          stderr?.isNotEmpty == true
+              ? stderr
+              : 'docker images failed with exit code ${result.exitCode}',
+        );
+      }
+
+      final output = (result.stdout as String?) ?? '';
+      return _parseImageLines(output);
+    } on ProcessException catch (error) {
+      throw Exception('Docker CLI not available: ${error.message}');
+    } on TimeoutException {
+      throw Exception('Timed out while listing images.');
+    }
+  }
+
+  List<DockerImage> _parseImageLines(String output) {
+    final items = <DockerImage>[];
+    for (final line in const LineSplitter().convert(output)) {
+      if (line.trim().isEmpty) continue;
+      try {
+        final decoded = jsonDecode(line);
+        if (decoded is Map<String, dynamic>) {
+          items.add(_imageFromMap(decoded));
+        }
+      } catch (_) {
+        continue;
+      }
+    }
+    return items;
+  }
+
+  DockerImage _imageFromMap(Map<String, dynamic> map) {
+    String read(String key) {
+      final value = map[key];
+      if (value is String) return value.trim();
+      return '';
+    }
+
+    return DockerImage(
+      id: read('ID'),
+      repository: read('Repository'),
+      tag: read('Tag'),
+      size: read('Size'),
+      createdSince: read('CreatedSince').isEmpty ? null : read('CreatedSince'),
+    );
+  }
+
+  Future<List<DockerNetwork>> listNetworks({
+    String? context,
+    Duration timeout = const Duration(seconds: 6),
+  }) async {
+    final args = <String>[
+      if (context != null && context.trim().isNotEmpty) ...[
+        '--context',
+        context.trim(),
+      ],
+      'network',
+      'ls',
+      '--format',
+      '{{json .}}',
+    ];
+    final result = await processRunner(
+      'docker',
+      args,
+      stdoutEncoding: utf8,
+      stderrEncoding: utf8,
+      runInShell: false,
+    ).timeout(timeout);
+    if (result.exitCode != 0) {
+      final stderr = (result.stderr as String?)?.trim();
+      throw Exception(
+        stderr?.isNotEmpty == true
+            ? stderr
+            : 'docker network ls failed with exit code ${result.exitCode}',
+      );
+    }
+    return _parseNetworks((result.stdout as String?) ?? '');
+  }
+
+  List<DockerNetwork> _parseNetworks(String output) {
+    final items = <DockerNetwork>[];
+    for (final line in const LineSplitter().convert(output)) {
+      if (line.trim().isEmpty) continue;
+      try {
+        final decoded = jsonDecode(line);
+        if (decoded is Map<String, dynamic>) {
+          items.add(
+            DockerNetwork(
+              id: (decoded['ID'] as String?)?.trim() ?? '',
+              name: (decoded['Name'] as String?)?.trim() ?? '',
+              driver: (decoded['Driver'] as String?)?.trim() ?? '',
+              scope: (decoded['Scope'] as String?)?.trim() ?? '',
+            ),
+          );
+        }
+      } catch (_) {
+        continue;
+      }
+    }
+    return items;
+  }
+
+  Future<List<DockerVolume>> listVolumes({
+    String? context,
+    Duration timeout = const Duration(seconds: 6),
+  }) async {
+    final args = <String>[
+      if (context != null && context.trim().isNotEmpty) ...[
+        '--context',
+        context.trim(),
+      ],
+      'volume',
+      'ls',
+      '--format',
+      '{{json .}}',
+    ];
+    final result = await processRunner(
+      'docker',
+      args,
+      stdoutEncoding: utf8,
+      stderrEncoding: utf8,
+      runInShell: false,
+    ).timeout(timeout);
+    if (result.exitCode != 0) {
+      final stderr = (result.stderr as String?)?.trim();
+      throw Exception(
+        stderr?.isNotEmpty == true
+            ? stderr
+            : 'docker volume ls failed with exit code ${result.exitCode}',
+      );
+    }
+    return _parseVolumes((result.stdout as String?) ?? '');
+  }
+
+  List<DockerVolume> _parseVolumes(String output) {
+    final items = <DockerVolume>[];
+    for (final line in const LineSplitter().convert(output)) {
+      if (line.trim().isEmpty) continue;
+      try {
+        final decoded = jsonDecode(line);
+        if (decoded is Map<String, dynamic>) {
+          items.add(
+            DockerVolume(
+              name: (decoded['Name'] as String?)?.trim() ?? '',
+              driver: (decoded['Driver'] as String?)?.trim() ?? '',
+              mountpoint: (decoded['Mountpoint'] as String?)?.trim(),
+              scope: (decoded['Scope'] as String?)?.trim(),
+            ),
+          );
+        }
+      } catch (_) {
+        continue;
+      }
+    }
+    return items;
   }
 }
