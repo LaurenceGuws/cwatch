@@ -114,6 +114,13 @@ class ActionPickerDialog {
               onTap: () =>
                   Navigator.of(dialogContext).pop(ServerAction.resources),
             ),
+            ListTile(
+              leading: Icon(NerdIcon.terminal.data),
+              title: const Text('Terminal'),
+              subtitle: const Text('Interactive shell for this server'),
+              onTap: () =>
+                  Navigator.of(dialogContext).pop(ServerAction.terminal),
+            ),
           ],
         ),
         actions: [

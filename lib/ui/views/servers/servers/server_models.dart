@@ -37,6 +37,8 @@ class ServerTab {
         return NerdIcon.accessPoint.data;
       case ServerAction.resources:
         return NerdIcon.database.data;
+      case ServerAction.terminal:
+        return NerdIcon.terminal.data;
       case ServerAction.trash:
         return Icons.delete_outline;
       case ServerAction.editor:

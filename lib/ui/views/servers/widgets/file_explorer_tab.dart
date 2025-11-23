@@ -37,6 +37,7 @@ class FileExplorerTab extends StatefulWidget {
     this.builtInVault,
     required this.onOpenTrash,
     this.onOpenEditorTab,
+    this.onOpenTerminalTab,
   });
 
   final SshHost host;
@@ -45,6 +46,7 @@ class FileExplorerTab extends StatefulWidget {
   final BuiltInSshVault? builtInVault;
   final VoidCallback onOpenTrash;
   final Future<void> Function(String path, String initialContent)? onOpenEditorTab;
+  final ValueChanged<String>? onOpenTerminalTab;
 
   @override
   State<FileExplorerTab> createState() => _FileExplorerTabState();
@@ -567,6 +569,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       onDownload: _handleDownload,
       onUploadFiles: _handleUploadFiles,
       onUploadFolder: _handleUploadFolder,
+      onOpenTerminal: widget.onOpenTerminalTab,
       joinPath: PathUtils.joinPath,
     );
 

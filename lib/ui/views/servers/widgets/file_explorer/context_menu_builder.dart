@@ -23,6 +23,7 @@ class ContextMenuBuilder {
     required this.onDownload,
     required this.onUploadFiles,
     required this.onUploadFolder,
+    this.onOpenTerminal,
     required this.joinPath,
   });
 
@@ -44,6 +45,7 @@ class ContextMenuBuilder {
   final ValueChanged<List<RemoteFileEntry>>? onDownload;
   final ValueChanged<String>? onUploadFiles;
   final ValueChanged<String>? onUploadFolder;
+  final ValueChanged<String>? onOpenTerminal;
   final String Function(String, String) joinPath;
 
   static const _shortcutCopy = 'Ctrl+C';
@@ -71,6 +73,13 @@ class ContextMenuBuilder {
         );
       }
 
+      menuItems.add(
+        const PopupMenuItem(
+          value: ExplorerContextAction.openTerminal,
+          child: Text('Open terminal here'),
+        ),
+      );
+
       menuItems.addAll(const [
         PopupMenuItem(
           value: ExplorerContextAction.uploadFiles,
@@ -89,19 +98,25 @@ class ContextMenuBuilder {
     if (!isMultiSelect) {
       if (entry.isDirectory) {
         menuItems.add(
-        const PopupMenuItem(
-          value: ExplorerContextAction.open,
+          const PopupMenuItem(
+            value: ExplorerContextAction.open,
             child: Text('Open'),
+          ),
+        );
+        menuItems.add(
+          const PopupMenuItem(
+            value: ExplorerContextAction.openTerminal,
+            child: Text('Open terminal here'),
           ),
         );
       } else {
         menuItems.addAll([
-        const PopupMenuItem(
-          value: ExplorerContextAction.openLocally,
+          const PopupMenuItem(
+            value: ExplorerContextAction.openLocally,
             child: Text('Open locally'),
           ),
-        const PopupMenuItem(
-          value: ExplorerContextAction.editFile,
+          const PopupMenuItem(
+            value: ExplorerContextAction.editFile,
             child: Text('Edit (text)'),
           ),
         ]);
@@ -221,6 +236,12 @@ class ContextMenuBuilder {
           onOpen?.call(entry);
         }
         break;
+      case ExplorerContextAction.openTerminal:
+        final targetPath = (!isMultiSelect && entry != null && entry.isDirectory)
+            ? joinPath(currentPath, entry.name)
+            : currentPath;
+        onOpenTerminal?.call(targetPath);
+        break;
       case ExplorerContextAction.copyPath:
         if (!isMultiSelect && entry != null) {
           onCopyPath?.call(entry);
@@ -306,6 +327,7 @@ class ContextMenuBuilder {
 
 enum ExplorerContextAction {
   open,
+  openTerminal,
   copyPath,
   openLocally,
   editFile,

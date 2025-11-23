@@ -23,6 +23,7 @@ import 'servers/servers_widgets.dart';
 import 'widgets/connectivity_tab.dart';
 import 'widgets/file_explorer_tab.dart';
 import 'widgets/resources_tab.dart';
+import 'widgets/terminal_tab.dart';
 import 'widgets/server_tab_chip.dart';
 import 'widgets/trash_tab.dart';
 import 'widgets/remote_file_editor_tab.dart';
@@ -322,6 +323,7 @@ class _ServersViewState extends State<ServersView> {
         return const TrashHost();
       case ServerAction.fileExplorer:
       case ServerAction.connectivity:
+      case ServerAction.terminal:
       case ServerAction.resources:
       case ServerAction.editor:
         return _findHostByName(hosts, tabState.hostName);
@@ -442,6 +444,8 @@ class _ServersViewState extends State<ServersView> {
           trashManager: _trashManager,
           onOpenTrash: _openTrashTab,
           onOpenEditorTab: _openEditorTab,
+          onOpenTerminalTab: (path) =>
+              _openTerminalTab(host: tab.host, initialDirectory: path),
         );
       case ServerAction.editor:
         final editorPath = tab.customName ?? '';
@@ -459,6 +463,12 @@ class _ServersViewState extends State<ServersView> {
           key: tab.bodyKey,
           host: tab.host,
           shellService: _shellServiceForHost(tab.host),
+        );
+      case ServerAction.terminal:
+        return TerminalTab(
+          key: tab.bodyKey,
+          host: tab.host,
+          initialDirectory: tab.customName,
         );
       case ServerAction.trash:
         return TrashTab(
@@ -572,33 +582,39 @@ class _ServersViewState extends State<ServersView> {
     }
     final tab = _tabs[index];
     final controller = TextEditingController(text: tab.title);
-    final newName = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Rename tab'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'Tab name'),
-          onSubmitted: (value) => Navigator.of(context).pop(value),
+    String? newName;
+    try {
+      newName = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Rename tab'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(labelText: 'Tab name'),
+            onSubmitted: (value) => Navigator.of(context).pop(value),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+              child: const Text('Save'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
+      );
+    } finally {
+      _disposeControllerAfterFrame(controller);
+    }
     if (newName == null) {
       return;
     }
+    final trimmedInput = newName.trim();
     setState(() {
-      final trimmed = newName.trim();
+      final trimmed = trimmedInput;
       _tabs[index] = tab.copyWith(
         customName: trimmed.isEmpty ? null : trimmed,
         setCustomName: true,
@@ -647,6 +663,41 @@ class _ServersViewState extends State<ServersView> {
               : const PlaceholderHost(),
           action: ServerAction.editor,
           customName: path,
+        ),
+      );
+      _selectedTabIndex = _tabs.length - 1;
+    });
+    _persistWorkspace();
+  }
+
+  Future<void> _openTerminalTab({
+    required SshHost host,
+    String? initialDirectory,
+  }) async {
+    final trimmedDirectory = initialDirectory?.trim();
+    final normalizedDirectory =
+        (trimmedDirectory?.isNotEmpty ?? false) ? trimmedDirectory : null;
+    final existingIndex = _tabs.indexWhere(
+      (tab) =>
+          tab.action == ServerAction.terminal &&
+          tab.host.name == host.name &&
+          tab.customName == normalizedDirectory,
+    );
+    if (existingIndex != -1) {
+      setState(() {
+        _selectedTabIndex = existingIndex;
+      });
+      _persistWorkspace();
+      return;
+    }
+
+    setState(() {
+      _tabs.add(
+        _createTab(
+          id: 'terminal-${DateTime.now().microsecondsSinceEpoch}',
+          host: host,
+          action: ServerAction.terminal,
+          customName: normalizedDirectory,
         ),
       );
       _selectedTabIndex = _tabs.length - 1;
@@ -763,8 +814,14 @@ class _ServersViewState extends State<ServersView> {
         );
       },
     );
-    controller.dispose();
+    _disposeControllerAfterFrame(controller);
     return success == true;
+  }
+
+  void _disposeControllerAfterFrame(TextEditingController controller) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.dispose();
+    });
   }
 }
 
