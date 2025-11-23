@@ -23,6 +23,8 @@ class AppSettings {
     this.settingsTabIndex = 0,
     this.editorThemeLight,
     this.editorThemeDark,
+    this.dockerRemoteHosts = const [],
+    this.dockerSelectedContext,
   });
 
   final ThemeMode themeMode;
@@ -42,6 +44,8 @@ class AppSettings {
   final int settingsTabIndex;
   final String? editorThemeLight;
   final String? editorThemeDark;
+  final List<String> dockerRemoteHosts;
+  final String? dockerSelectedContext;
 
   AppSettings copyWith({
     ThemeMode? themeMode,
@@ -61,6 +65,8 @@ class AppSettings {
     int? settingsTabIndex,
     String? editorThemeLight,
     String? editorThemeDark,
+    List<String>? dockerRemoteHosts,
+    String? dockerSelectedContext,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -84,6 +90,8 @@ class AppSettings {
       settingsTabIndex: settingsTabIndex ?? this.settingsTabIndex,
       editorThemeLight: editorThemeLight ?? this.editorThemeLight,
       editorThemeDark: editorThemeDark ?? this.editorThemeDark,
+      dockerRemoteHosts: dockerRemoteHosts ?? this.dockerRemoteHosts,
+      dockerSelectedContext: dockerSelectedContext ?? this.dockerSelectedContext,
     );
   }
 
@@ -153,6 +161,12 @@ class AppSettings {
       settingsTabIndex: (json['settingsTabIndex'] as num?)?.toInt() ?? 0,
       editorThemeLight: json['editorThemeLight'] as String?,
       editorThemeDark: json['editorThemeDark'] as String?,
+      dockerRemoteHosts:
+          (json['dockerRemoteHosts'] as List<dynamic>?)
+                  ?.whereType<String>()
+                  .toList() ??
+              const [],
+      dockerSelectedContext: json['dockerSelectedContext'] as String?,
     );
   }
 
@@ -175,6 +189,9 @@ class AppSettings {
       'settingsTabIndex': settingsTabIndex,
       if (editorThemeLight != null) 'editorThemeLight': editorThemeLight,
       if (editorThemeDark != null) 'editorThemeDark': editorThemeDark,
+      'dockerRemoteHosts': dockerRemoteHosts,
+      if (dockerSelectedContext != null)
+        'dockerSelectedContext': dockerSelectedContext,
     };
   }
 }

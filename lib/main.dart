@@ -335,7 +335,13 @@ class _HomeShellState extends State<HomeShell> {
             commandLog: _commandLog,
             leading: buildToggleButton(),
           ),
-          DockerView(leading: buildToggleButton()),
+          DockerView(
+            leading: buildToggleButton(),
+            hostsFuture: _hostsFuture,
+            settingsController: widget.settingsController,
+            builtInVault: _builtInVault,
+            commandLog: _commandLog,
+          ),
           KubernetesView(leading: buildToggleButton()),
           SettingsView(
             controller: widget.settingsController,

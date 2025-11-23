@@ -9,6 +9,7 @@ import 'package:terminal_library/xterm_library/xterm.dart';
 
 import '../../../../models/ssh_host.dart';
 import '../../../../services/ssh/remote_shell_service.dart';
+import '../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
 import '../../../theme/nerd_fonts.dart';
 
 /// Terminal tab that spawns an SSH session via a PTY.
@@ -95,7 +96,7 @@ class _TerminalTabState extends State<TerminalTab> {
         return;
       }
       setState(() {
-        _error = error.toString();
+        _error = _friendlyError(error);
         _connecting = false;
       });
     }
@@ -160,6 +161,15 @@ class _TerminalTabState extends State<TerminalTab> {
   String _shellEscape(String input) {
     final escaped = input.replaceAll("'", r"'\''");
     return "'$escaped'";
+  }
+
+  String _friendlyError(Object error) {
+    if (error is BuiltInSshKeyLockedException) {
+      final keyLabel = (error.keyLabel ?? error.keyId).trim();
+      final label = keyLabel.isNotEmpty ? keyLabel : error.keyId;
+      return 'Unlock SSH key "$label" to start a terminal.';
+    }
+    return error.toString();
   }
 
   Widget _buildHeader(BuildContext context) {
