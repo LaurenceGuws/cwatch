@@ -183,8 +183,9 @@ class _DockerViewState extends State<DockerView> {
   }) {
     final pickerIndex = _tabs.indexWhere((tab) => tab.id == tabId);
     if (pickerIndex == -1) return;
+    final uniqueId = _ensureUniqueId(id);
     _tabs[pickerIndex] = EngineTab(
-      id: id,
+      id: uniqueId,
       title: title,
       label: title,
       icon: icon,
@@ -444,9 +445,20 @@ class _DockerViewState extends State<DockerView> {
   }
 
   void _openChildTab(EngineTab tab) {
+    final uniqueTab = tab.copyWith(id: _ensureUniqueId(tab.id));
     setState(() {
-      _tabs.add(tab);
+      _tabs.add(uniqueTab);
       _selectedIndex = _tabs.length - 1;
     });
+  }
+
+  String _ensureUniqueId(String base) {
+    var candidate = base;
+    var counter = 1;
+    final existing = _tabs.map((t) => t.id).toSet();
+    while (existing.contains(candidate)) {
+      candidate = '$base-${counter++}';
+    }
+    return candidate;
   }
 }

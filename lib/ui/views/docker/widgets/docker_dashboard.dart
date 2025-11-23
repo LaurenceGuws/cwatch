@@ -54,6 +54,28 @@ class _DockerDashboardState extends State<DockerDashboard> {
   }
 
   Future<EngineSnapshot> _load() async {
+    if (widget.contextName != null && widget.contextName!.isNotEmpty) {
+      final containers = await widget.docker.listContainers(
+        context: widget.contextName,
+        dockerHost: null,
+      );
+      final images = await widget.docker.listImages(
+        context: widget.contextName,
+      );
+      final networks = await widget.docker.listNetworks(
+        context: widget.contextName,
+      );
+      final volumes = await widget.docker.listVolumes(
+        context: widget.contextName,
+      );
+      return EngineSnapshot(
+        containers: containers,
+        images: images,
+        networks: networks,
+        volumes: volumes,
+      );
+    }
+
     if (widget.remoteHost != null && widget.shellService != null) {
       final containers = await _loadRemoteContainers(
         widget.shellService!,
@@ -78,17 +100,11 @@ class _DockerDashboardState extends State<DockerDashboard> {
         volumes: volumes,
       );
     }
-    final containers = await widget.docker.listContainers(
-      context: widget.contextName,
-      dockerHost: null,
-    );
-    final images = await widget.docker.listImages(context: widget.contextName);
-    final networks = await widget.docker.listNetworks(
-      context: widget.contextName,
-    );
-    final volumes = await widget.docker.listVolumes(
-      context: widget.contextName,
-    );
+
+    final containers = await widget.docker.listContainers();
+    final images = await widget.docker.listImages();
+    final networks = await widget.docker.listNetworks();
+    final volumes = await widget.docker.listVolumes();
     return EngineSnapshot(
       containers: containers,
       images: images,
@@ -153,6 +169,8 @@ class _DockerDashboardState extends State<DockerDashboard> {
       try {
         final decoded = jsonDecode(trimmed);
         if (decoded is Map<String, dynamic>) {
+          final labelsRaw = (decoded['Labels'] as String?)?.trim() ?? '';
+          final labels = _parseLabels(labelsRaw);
           items.add(
             DockerContainer(
               id: (decoded['ID'] as String?)?.trim() ?? '',
@@ -163,6 +181,8 @@ class _DockerDashboardState extends State<DockerDashboard> {
               ports: (decoded['Ports'] as String?)?.trim() ?? '',
               command: (decoded['Command'] as String?)?.trim(),
               createdAt: (decoded['RunningFor'] as String?)?.trim(),
+              composeProject: labels['com.docker.compose.project'],
+              composeService: labels['com.docker.compose.service'],
             ),
           );
         }
@@ -171,6 +191,18 @@ class _DockerDashboardState extends State<DockerDashboard> {
       }
     }
     return items;
+  }
+
+  Map<String, String> _parseLabels(String labelsRaw) {
+    if (labelsRaw.isEmpty) return const {};
+    final entries = <String, String>{};
+    for (final part in labelsRaw.split(',')) {
+      final kv = part.split('=');
+      if (kv.length == 2) {
+        entries[kv[0].trim()] = kv[1].trim();
+      }
+    }
+    return entries;
   }
 
   List<DockerImage> _parseImages(String output) {
@@ -634,13 +666,32 @@ class _DockerDashboardState extends State<DockerDashboard> {
 
   Future<void> _openExecTerminal(DockerContainer container) async {
     if (widget.remoteHost == null || widget.shellService == null) {
-      await _copyExecCommand(container.id);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No remote host available. Exec command copied.'),
-        ),
-      );
+      final name = container.name.isNotEmpty ? container.name : container.id;
+      final command = 'docker exec -it ${container.id} /bin/sh';
+      if (widget.onOpenTab != null) {
+        final tab = EngineTab(
+          id: 'exec-${container.id}-${DateTime.now().microsecondsSinceEpoch}',
+          title: 'Shell: $name',
+          label: 'Shell: $name',
+          icon: NerdIcon.terminal.data,
+          body: DockerCommandTerminal(
+            host: null,
+            shellService: null,
+            command: command,
+            title: 'Exec shell • $name',
+          ),
+          canDrag: true,
+        );
+        widget.onOpenTab!(tab);
+      } else {
+        await _copyExecCommand(container.id);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No remote host available. Exec command copied.'),
+          ),
+        );
+      }
       return;
     }
     final name = container.name.isNotEmpty ? container.name : container.id;

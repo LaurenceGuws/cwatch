@@ -66,6 +66,10 @@ class AppLogger {
       return;
     }
     final buffer = StringBuffer();
+    final now = _formatNow();
+    final color = _colorFor(level);
+    final reset = '\x1B[0m';
+    buffer.write('$color$now ');
     if (tag != null && tag.isNotEmpty) {
       buffer.write('[$tag] ');
     }
@@ -73,9 +77,30 @@ class AppLogger {
     if (error != null && level != LogLevel.error) {
       buffer.write(' error: $error');
     }
+    buffer.write(reset);
     debugPrint(buffer.toString());
     if (error != null && stackTrace != null) {
-      debugPrint(stackTrace.toString());
+      debugPrint('$color$stackTrace$reset');
+    }
+  }
+
+  String _formatNow() {
+    final now = DateTime.now().toLocal();
+    String two(int n) => n.toString().padLeft(2, '0');
+    String three(int n) => n.toString().padLeft(3, '0');
+    return '${two(now.hour)}:${two(now.minute)}:${two(now.second)}.${three(now.millisecond)}';
+  }
+
+  String _colorFor(LogLevel level) {
+    switch (level) {
+      case LogLevel.debug:
+        return '\x1B[34m'; // blue
+      case LogLevel.info:
+        return '\x1B[32m'; // green
+      case LogLevel.warning:
+        return '\x1B[33m'; // yellow
+      case LogLevel.error:
+        return '\x1B[31m'; // red
     }
   }
 }

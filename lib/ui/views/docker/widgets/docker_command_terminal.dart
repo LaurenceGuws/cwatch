@@ -9,18 +9,18 @@ import '../../../../models/ssh_host.dart';
 import '../../../../services/ssh/remote_shell_service.dart';
 import '../../../theme/nerd_fonts.dart';
 
-/// Lightweight terminal view that runs a provided Docker command over SSH.
+/// Lightweight terminal view that runs a provided Docker command locally or via SSH.
 class DockerCommandTerminal extends StatefulWidget {
   const DockerCommandTerminal({
     super.key,
-    required this.host,
-    required this.shellService,
     required this.command,
     required this.title,
+    this.host,
+    this.shellService,
   });
 
-  final SshHost host;
-  final RemoteShellService shellService;
+  final SshHost? host;
+  final RemoteShellService? shellService;
   final String command;
   final String title;
 
@@ -58,16 +58,30 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     _terminal.onResize = _onResize;
     _terminal.buffer.clear();
     try {
-      final session = await widget.shellService.createTerminalSession(
-        widget.host,
-        options: _sessionOptions(),
-      );
-      _pty = session;
-      session.on(
-        eventName: session.event_output,
-        onCallback: (data, _) => _handlePtyData(data),
-      );
-      _terminal.textInput('${widget.command}\n');
+      if (widget.host != null && widget.shellService != null) {
+        final session = await widget.shellService!.createTerminalSession(
+          widget.host!,
+          options: _sessionOptions(),
+        );
+        _pty = session;
+        session.on(
+          eventName: session.event_output,
+          onCallback: (data, _) => _handlePtyData(data),
+        );
+        _terminal.textInput('${widget.command}\n');
+      } else {
+        final session = TerminalPtyLibrary(
+          executable: 'bash',
+          arguments: ['-lc', widget.command],
+          columns: _sessionOptions().columns,
+          rows: _sessionOptions().rows,
+        );
+        _pty = session;
+        session.on(
+          eventName: session.event_output,
+          onCallback: (data, _) => _handlePtyData(data),
+        );
+      }
       setState(() => _connecting = false);
     } catch (error, stack) {
       debugPrint('DockerCommandTerminal failed: $error\n$stack');

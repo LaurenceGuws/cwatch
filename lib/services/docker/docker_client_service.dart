@@ -7,6 +7,7 @@ import '../../models/docker_container.dart';
 import '../../models/docker_image.dart';
 import '../../models/docker_network.dart';
 import '../../models/docker_volume.dart';
+import '../logging/app_logger.dart';
 
 class DockerClientService {
   const DockerClientService({
@@ -26,6 +27,7 @@ class DockerClientService {
   Future<List<DockerContext>> listContexts({
     Duration timeout = const Duration(seconds: 6),
   }) async {
+    _log('Listing contexts');
     try {
       final result = await processRunner(
         'docker',
@@ -45,6 +47,7 @@ class DockerClientService {
       }
 
       final output = (result.stdout as String?) ?? '';
+      _log('Contexts output length=${output.length}');
       return _parseJsonLines(output);
     } on ProcessException catch (error) {
       throw Exception('Docker CLI not available: ${error.message}');
@@ -113,6 +116,7 @@ class DockerClientService {
     bool includeAll = true,
     Duration timeout = const Duration(seconds: 6),
   }) async {
+    _log('Listing containers context=$context host=$dockerHost');
     final args = <String>[
       if (context != null && context.trim().isNotEmpty) ...[
         '--context',
@@ -146,6 +150,7 @@ class DockerClientService {
       }
 
       final output = (result.stdout as String?) ?? '';
+      _log('Containers output length=${output.length}');
       return _parseContainerLines(output);
     } on ProcessException catch (error) {
       throw Exception('Docker CLI not available: ${error.message}');
@@ -176,7 +181,20 @@ class DockerClientService {
       if (value is String) return value.trim();
       return '';
     }
+    Map<String, String> _labelMap(String raw) {
+      final entries = <String, String>{};
+      for (final part in raw.split(',')) {
+        final kv = part.split('=');
+        if (kv.length == 2) {
+          entries[kv[0].trim()] = kv[1].trim();
+        }
+      }
+      return entries;
+    }
 
+    final labelsRaw = read('Labels');
+    final labels =
+        labelsRaw.isEmpty ? const <String, String>{} : _labelMap(labelsRaw);
     return DockerContainer(
       id: read('ID'),
       name: read('Names'),
@@ -186,6 +204,8 @@ class DockerClientService {
       ports: read('Ports'),
       command: read('Command').isEmpty ? null : read('Command'),
       createdAt: read('RunningFor').isEmpty ? null : read('RunningFor'),
+      composeProject: labels['com.docker.compose.project'],
+      composeService: labels['com.docker.compose.service'],
     );
   }
 
@@ -194,6 +214,7 @@ class DockerClientService {
     bool danglingOnly = false,
     Duration timeout = const Duration(seconds: 6),
   }) async {
+    _log('Listing images context=$context dangling=$danglingOnly');
     final args = <String>[
       if (context != null && context.trim().isNotEmpty) ...[
         '--context',
@@ -224,6 +245,7 @@ class DockerClientService {
       }
 
       final output = (result.stdout as String?) ?? '';
+      _log('Images output length=${output.length}');
       return _parseImageLines(output);
     } on ProcessException catch (error) {
       throw Exception('Docker CLI not available: ${error.message}');
@@ -268,6 +290,7 @@ class DockerClientService {
     String? context,
     Duration timeout = const Duration(seconds: 6),
   }) async {
+    _log('Listing networks context=$context');
     final args = <String>[
       if (context != null && context.trim().isNotEmpty) ...[
         '--context',
@@ -293,7 +316,9 @@ class DockerClientService {
             : 'docker network ls failed with exit code ${result.exitCode}',
       );
     }
-    return _parseNetworks((result.stdout as String?) ?? '');
+    final output = (result.stdout as String?) ?? '';
+    _log('Networks output length=${output.length}');
+    return _parseNetworks(output);
   }
 
   List<DockerNetwork> _parseNetworks(String output) {
@@ -323,6 +348,7 @@ class DockerClientService {
     String? context,
     Duration timeout = const Duration(seconds: 6),
   }) async {
+    _log('Listing volumes context=$context');
     final args = <String>[
       if (context != null && context.trim().isNotEmpty) ...[
         '--context',
@@ -348,7 +374,9 @@ class DockerClientService {
             : 'docker volume ls failed with exit code ${result.exitCode}',
       );
     }
-    return _parseVolumes((result.stdout as String?) ?? '');
+    final output = (result.stdout as String?) ?? '';
+    _log('Volumes output length=${output.length}');
+    return _parseVolumes(output);
   }
 
   List<DockerVolume> _parseVolumes(String output) {
@@ -372,5 +400,9 @@ class DockerClientService {
       }
     }
     return items;
+  }
+
+  void _log(String message) {
+    AppLogger.d(message, tag: 'ProcessDocker');
   }
 }

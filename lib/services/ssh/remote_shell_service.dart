@@ -502,7 +502,11 @@ class ProcessRemoteShellService extends RemoteShellService {
     String command, {
     Duration timeout = const Duration(seconds: 10),
   }) async {
+    _logProcess('Running command on ${host.name}: $command');
     final run = await _runSsh(host, command, timeout: timeout);
+    _logProcess(
+      'Command on ${host.name} completed. Output length=${run.stdout.length}',
+    );
     return run.stdout;
   }
 
@@ -526,6 +530,8 @@ class ProcessRemoteShellService extends RemoteShellService {
     Duration timeout = const Duration(seconds: 10),
     SshHost? hostForErrors,
   }) async {
+    final hostLabel = hostForErrors?.name ?? 'local';
+    _logProcess('Running command on $hostLabel: ${command.join(' ')}');
     final result = await Process.run(
       command.first,
       command.skip(1).toList(),
@@ -549,6 +555,9 @@ class ProcessRemoteShellService extends RemoteShellService {
     }
 
     final commandString = command.join(' ');
+    _logProcess(
+      'Command on $hostLabel completed. Output length=${stdoutStr.length}',
+    );
     return RunResult(
       command: commandString,
       stdout: stdoutStr,
@@ -569,6 +578,7 @@ class ProcessRemoteShellService extends RemoteShellService {
       host.name,
       command,
     ];
+    _logProcess('Running ssh command on ${host.name}: $command');
     final result = await Process.run(
       'ssh',
       args,
@@ -690,6 +700,10 @@ class ProcessRemoteShellService extends RemoteShellService {
       passed: shouldExist ? exists : !exists,
     );
   }
+}
+
+void _logProcess(String message) {
+  AppLogger.d(message, tag: 'ProcessSSH');
 }
 
 class RunResult {

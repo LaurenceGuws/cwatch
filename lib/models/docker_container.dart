@@ -8,6 +8,8 @@ class DockerContainer {
     required this.ports,
     this.command,
     this.createdAt,
+    this.composeProject,
+    this.composeService,
   });
 
   final String id;
@@ -18,6 +20,8 @@ class DockerContainer {
   final String ports;
   final String? command;
   final String? createdAt;
+  final String? composeProject;
+  final String? composeService;
 
   bool get isRunning => state.toLowerCase() == 'running';
 }
