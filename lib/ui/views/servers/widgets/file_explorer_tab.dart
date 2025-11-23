@@ -396,6 +396,10 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     if (result.skipped) {
       return;
     }
+
+    if (!mounted) {
+      return;
+    }
     
     setState(() {
       _loading = true;

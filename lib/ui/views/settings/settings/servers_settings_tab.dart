@@ -101,8 +101,8 @@ class _ServersSettingsTabState extends State<ServersSettingsTab> {
                       ),
                     ],
                   ),
-                )
-              else if (usingBuiltIn)
+                ),
+              if (usingBuiltIn)
                 BuiltInSshSettings(
                   controller: widget.controller,
                   hostsFuture: widget.hostsFuture,

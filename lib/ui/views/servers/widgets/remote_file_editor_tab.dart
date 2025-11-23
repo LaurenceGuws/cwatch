@@ -277,15 +277,18 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(8),
-            child: CodeTheme(
-              data: CodeThemeData(styles: theme),
-              child: CodeField(
-                controller: _controller,
-                textStyle: TextStyle(
-                  fontFamily: NerdFonts.family,
-                  height: 1.35,
-                ),
-                gutterStyle: const GutterStyle(
+              child: CodeTheme(
+                data: CodeThemeData(styles: theme),
+                child: CodeField(
+                  controller: _controller,
+                  expands: true,
+                  maxLines: null,
+                  minLines: null,
+                  textStyle: TextStyle(
+                    fontFamily: NerdFonts.family,
+                    height: 1.35,
+                  ),
+                  gutterStyle: const GutterStyle(
                   showLineNumbers: true,
                   showErrors: false,
                   showFoldingHandles: true,

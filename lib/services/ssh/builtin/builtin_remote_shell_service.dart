@@ -8,6 +8,7 @@ import 'package:cwatch/models/remote_file_entry.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:dartssh2/dartssh2.dart';
 import 'package:path/path.dart' as p;
+import 'package:terminal_library/pty_library/pty_library.dart';
 
 import '../../logging/app_logger.dart';
 import '../remote_shell_service.dart';
@@ -286,11 +287,21 @@ class BuiltInRemoteShellService extends RemoteShellService {
         }
         final remoteDir = _joinPath(normalizedDest, p.basename(localPath));
         await _ensureRemoteDirectory(sftp, _dirname(remoteDir));
-        await _uploadDirectory(sftp, Directory(localPath), remoteDir, onBytes: onBytes);
+        await _uploadDirectory(
+          sftp,
+          Directory(localPath),
+          remoteDir,
+          onBytes: onBytes,
+        );
         return;
       }
       await _ensureRemoteDirectory(sftp, _dirname(normalizedDest));
-      await _uploadFile(sftp, File(localPath), normalizedDest, onBytes: onBytes);
+      await _uploadFile(
+        sftp,
+        File(localPath),
+        normalizedDest,
+        onBytes: onBytes,
+      );
     }).timeout(timeout);
     final verification = await _verifyRemotePath(
       host,
@@ -466,6 +477,34 @@ class BuiltInRemoteShellService extends RemoteShellService {
     Duration timeout = const Duration(seconds: 10),
   }) {
     return _runCommand(host, command, timeout: timeout);
+  }
+
+  @override
+  Future<TerminalPtyLibraryBase> createTerminalSession(
+    SshHost host, {
+    required TerminalSessionOptions options,
+  }) async {
+    SSHClient? client;
+    try {
+      await _ensureBuiltInKeyUnlocked(host);
+      client = await _openClient(host);
+      final config = SSHPtyConfig(
+        width: options.columns > 0 ? options.columns : 80,
+        height: options.rows > 0 ? options.rows : 25,
+        pixelWidth: options.pixelWidth,
+        pixelHeight: options.pixelHeight,
+      );
+      final session = await client.shell(pty: config);
+      return BuiltInTerminalSession(
+        client: client,
+        session: session,
+        rows: options.rows > 0 ? options.rows : 25,
+        columns: options.columns > 0 ? options.columns : 80,
+      );
+    } catch (error) {
+      client?.close();
+      rethrow;
+    }
   }
 
   Future<T> _withSftp<T>(
@@ -782,10 +821,7 @@ class BuiltInRemoteShellService extends RemoteShellService {
       await for (final chunk in localFile.openRead()) {
         if (chunk.isEmpty) continue;
         final data = chunk is Uint8List ? chunk : Uint8List.fromList(chunk);
-        await file.writeBytes(
-          data,
-          offset: position,
-        );
+        await file.writeBytes(data, offset: position);
         position += data.length;
         onBytes?.call(data.length);
       }
@@ -932,6 +968,100 @@ class BuiltInRemoteShellService extends RemoteShellService {
       output: output,
       passed: shouldExist ? exists : !exists,
     );
+  }
+}
+
+class BuiltInTerminalSession extends TerminalPtyLibraryBase {
+  BuiltInTerminalSession({
+    required this.client,
+    required this.session,
+    required super.rows,
+    required super.columns,
+  }) {
+    _stdoutSubscription = session.stdout.listen(
+      _handleOutput,
+      onError: (_) => _cleanup(),
+      onDone: _cleanup,
+    );
+    _stderrSubscription = session.stderr.listen(
+      _handleOutput,
+      onError: (_) => _cleanup(),
+      onDone: _cleanup,
+    );
+    session.done.then((_) => _cleanup());
+  }
+
+  final SSHClient client;
+  final SSHSession session;
+
+  late final StreamSubscription<Uint8List> _stdoutSubscription;
+  late final StreamSubscription<Uint8List> _stderrSubscription;
+  bool _closed = false;
+
+  void _handleOutput(Uint8List data) {
+    if (data.isEmpty || _closed) {
+      return;
+    }
+    event_emitter.emit(eventName: event_output, value: data);
+  }
+
+  void _cleanup() {
+    if (_closed) {
+      return;
+    }
+    _closed = true;
+    _stdoutSubscription.cancel();
+    _stderrSubscription.cancel();
+    try {
+      session.close();
+    } catch (_) {
+      //
+    }
+    try {
+      client.close();
+    } catch (_) {
+      //
+    }
+    event_emitter.clear();
+  }
+
+  @override
+  void write(Uint8List data) {
+    if (_closed) {
+      return;
+    }
+    session.write(data);
+  }
+
+  @override
+  void resize(int rows, int cols) {
+    if (_closed) {
+      return;
+    }
+    session.resizeTerminal(rows, cols);
+  }
+
+  @override
+  bool kill([ProcessSignal signal = ProcessSignal.sigterm]) {
+    if (_closed) {
+      return true;
+    }
+    session.kill(_mapSignal(signal));
+    _cleanup();
+    return true;
+  }
+
+  SSHSignal _mapSignal(ProcessSignal signal) {
+    switch (signal) {
+      case ProcessSignal.sigint:
+        return SSHSignal.INT;
+      case ProcessSignal.sigkill:
+        return SSHSignal.KILL;
+      case ProcessSignal.sigterm:
+        return SSHSignal.TERM;
+      default:
+        return SSHSignal.TERM;
+    }
   }
 }
 

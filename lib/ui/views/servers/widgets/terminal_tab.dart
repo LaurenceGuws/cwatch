@@ -8,6 +8,7 @@ import 'package:terminal_library/pty_library/pty_library.dart';
 import 'package:terminal_library/xterm_library/xterm.dart';
 
 import '../../../../models/ssh_host.dart';
+import '../../../../services/ssh/remote_shell_service.dart';
 import '../../../theme/nerd_fonts.dart';
 
 /// Terminal tab that spawns an SSH session via a PTY.
@@ -16,10 +17,12 @@ class TerminalTab extends StatefulWidget {
     super.key,
     required this.host,
     this.initialDirectory,
+    required this.shellService,
   });
 
   final SshHost host;
   final String? initialDirectory;
+  final RemoteShellService shellService;
 
   @override
   State<TerminalTab> createState() => _TerminalTabState();
@@ -29,7 +32,7 @@ class _TerminalTabState extends State<TerminalTab> {
   final TerminalLibraryFlutterController _controller =
       TerminalLibraryFlutterController();
   final TerminalLibraryFlutter _terminal = TerminalLibraryFlutter(maxLines: 1000);
-  TerminalPtyLibrary? _pty;
+  TerminalPtyLibraryBase? _pty;
   EventEmitterListener? _outputListener;
   bool _connecting = true;
   String? _error;
@@ -47,8 +50,7 @@ class _TerminalTabState extends State<TerminalTab> {
 
   @override
   void dispose() {
-    _outputListener?.cancel();
-    _pty?.kill();
+    _resetSession();
     _controller.dispose();
     super.dispose();
   }
@@ -66,10 +68,13 @@ class _TerminalTabState extends State<TerminalTab> {
     _terminal.buffer.setCursor(0, 0);
 
     try {
-      final pty = _createPty();
-      _pty = pty;
-      _outputListener = pty.on(
-        eventName: pty.event_output,
+      final session = await widget.shellService.createTerminalSession(
+        widget.host,
+        options: _terminalSessionOptions(),
+      );
+      _pty = session;
+      _outputListener = session.on(
+        eventName: session.event_output,
         onCallback: (data, _) => _handlePtyData(data),
       );
 
@@ -77,7 +82,7 @@ class _TerminalTabState extends State<TerminalTab> {
       _terminal.keyInput(TerminalLibraryFlutterKey.enter);
       await _sendInitialDirectory();
       if (!mounted) {
-        pty.kill();
+        session.kill();
         return;
       }
       setState(() {
@@ -96,47 +101,13 @@ class _TerminalTabState extends State<TerminalTab> {
     }
   }
 
-  TerminalPtyLibrary _createPty() {
+  TerminalSessionOptions _terminalSessionOptions() {
     final columns = _terminal.viewWidth > 0 ? _terminal.viewWidth : 80;
     final rows = _terminal.viewHeight > 0 ? _terminal.viewHeight : 25;
-    return TerminalPtyLibrary(
-      executable: 'ssh',
-      arguments: _buildSshArguments(),
+    return TerminalSessionOptions(
       columns: columns,
       rows: rows,
     );
-  }
-
-  List<String> _buildSshArguments() {
-    final args = <String>[
-      '-o',
-      'BatchMode=yes',
-      '-o',
-      'StrictHostKeyChecking=no',
-      '-o',
-      'UserKnownHostsFile=/dev/null',
-      '-p',
-      widget.host.port.toString(),
-    ];
-    for (final identity in widget.host.identityFiles) {
-      if (identity.trim().isNotEmpty) {
-        args.addAll(['-i', identity]);
-      }
-    }
-    args.add(_connectionTarget());
-    return args;
-  }
-
-  String _connectionTarget() {
-    if (widget.host.source == 'custom') {
-      final user = widget.host.user?.trim();
-      final host = widget.host.hostname;
-      if (user?.isNotEmpty ?? false) {
-        return '$user@$host';
-      }
-      return host;
-    }
-    return widget.host.name;
   }
 
   Future<void> _sendInitialDirectory() async {
@@ -181,6 +152,7 @@ class _TerminalTabState extends State<TerminalTab> {
   void _resetSession() {
     _outputListener?.cancel();
     _outputListener = null;
+    _pty?.event_emitter.clear();
     _pty?.kill();
     _pty = null;
   }

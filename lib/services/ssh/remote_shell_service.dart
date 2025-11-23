@@ -3,11 +3,26 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:meta/meta.dart';
+import 'package:terminal_library/pty_library/pty_library.dart';
 
 import '../../models/remote_file_entry.dart';
 import '../../models/ssh_host.dart';
 import '../logging/app_logger.dart';
 import 'remote_command_logging.dart';
+
+class TerminalSessionOptions {
+  const TerminalSessionOptions({
+    this.rows = 25,
+    this.columns = 80,
+    this.pixelWidth = 0,
+    this.pixelHeight = 0,
+  });
+
+  final int rows;
+  final int columns;
+  final int pixelWidth;
+  final int pixelHeight;
+}
 
 abstract class RemoteShellService {
   const RemoteShellService({this.debugMode = false, this.observer});
@@ -118,6 +133,11 @@ abstract class RemoteShellService {
     SshHost host,
     String command, {
     Duration timeout = const Duration(seconds: 10),
+  });
+
+  Future<TerminalPtyLibraryBase> createTerminalSession(
+    SshHost host, {
+    required TerminalSessionOptions options,
   });
 
   @protected
@@ -486,6 +506,21 @@ class ProcessRemoteShellService extends RemoteShellService {
     return run.stdout;
   }
 
+  @override
+  Future<TerminalPtyLibraryBase> createTerminalSession(
+    SshHost host, {
+    required TerminalSessionOptions options,
+  }) async {
+    final columns = options.columns > 0 ? options.columns : 80;
+    final rows = options.rows > 0 ? options.rows : 25;
+    return TerminalPtyLibrary(
+      executable: 'ssh',
+      arguments: _buildSshArgumentsForTerminal(host),
+      columns: columns,
+      rows: rows,
+    );
+  }
+
   Future<RunResult> _runProcess(
     List<String> command, {
     Duration timeout = const Duration(seconds: 10),
@@ -551,6 +586,39 @@ class ProcessRemoteShellService extends RemoteShellService {
       stdout: (result.stdout as String?) ?? '',
       stderr: (result.stderr as String?) ?? '',
     );
+  }
+
+  List<String> _buildSshArgumentsForTerminal(SshHost host) {
+    final args = <String>[
+      '-o',
+      'BatchMode=yes',
+      '-o',
+      'StrictHostKeyChecking=no',
+      '-o',
+      'UserKnownHostsFile=/dev/null',
+      '-p',
+      host.port.toString(),
+    ];
+    for (final identity in host.identityFiles) {
+      final trimmed = identity.trim();
+      if (trimmed.isNotEmpty) {
+        args.addAll(['-i', trimmed]);
+      }
+    }
+    args.add(_terminalConnectionTarget(host));
+    return args;
+  }
+
+  String _terminalConnectionTarget(SshHost host) {
+    if (host.source == 'custom') {
+      final user = host.user?.trim();
+      final hostname = host.hostname;
+      if (user?.isNotEmpty ?? false) {
+        return '$user@$hostname';
+      }
+      return hostname;
+    }
+    return host.name;
   }
 
   String _sanitizePath(String path) {

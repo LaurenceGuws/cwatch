@@ -61,6 +61,7 @@ class _ServersViewState extends State<ServersView> {
   @override
   void initState() {
     super.initState();
+    widget.builtInVault.forgetAll(); // Ensure keys are locked whenever the workspace is reconstructed.
     _tabs.add(
       _createTab(
         id: 'host-tab',
@@ -469,6 +470,7 @@ class _ServersViewState extends State<ServersView> {
           key: tab.bodyKey,
           host: tab.host,
           initialDirectory: tab.customName,
+          shellService: _shellServiceForHost(tab.host),
         );
       case ServerAction.trash:
         return TrashTab(
