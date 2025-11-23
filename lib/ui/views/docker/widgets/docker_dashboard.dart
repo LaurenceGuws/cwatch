@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../models/docker_container.dart';
@@ -41,6 +42,13 @@ class DockerDashboard extends StatefulWidget {
 
 class _DockerDashboardState extends State<DockerDashboard> {
   Future<EngineSnapshot>? _snapshot;
+  final Set<String> _selectedContainerIds = {};
+  final Set<String> _selectedImageKeys = {};
+  final Set<String> _selectedNetworkKeys = {};
+  final Set<String> _selectedVolumeKeys = {};
+  int? _focusedContainerIndex;
+  int? _containerAnchorIndex;
+  final FocusNode _containerFocus = FocusNode(debugLabel: 'docker-containers');
 
   @override
   void initState() {
@@ -50,6 +58,7 @@ class _DockerDashboardState extends State<DockerDashboard> {
 
   @override
   void dispose() {
+    _containerFocus.dispose();
     super.dispose();
   }
 
@@ -321,6 +330,7 @@ class _DockerDashboardState extends State<DockerDashboard> {
                   return const Center(child: Text('No data.'));
                 }
                 final containers = data.containers;
+                _cachedContainers = containers;
                 final images = data.images;
                 final networks = data.networks;
                 final volumes = data.volumes;
@@ -374,11 +384,16 @@ class _DockerDashboardState extends State<DockerDashboard> {
                   children: [
                     Wrap(spacing: 8, runSpacing: 8, children: statsCards),
                     const SizedBox(height: 12),
-                    SectionCard(
-                      title: 'Containers',
-                      child: ContainerPeek(
-                        containers: containers,
-                        onTapDown: _openContainerMenu,
+                    Focus(
+                      focusNode: _containerFocus,
+                      onKeyEvent: _handleContainerKey,
+                      child: SectionCard(
+                        title: 'Containers',
+                        child: ContainerPeek(
+                          containers: containers,
+                          onTapDown: _handleContainerTapDown,
+                          selectedIds: _selectedContainerIds,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -386,7 +401,8 @@ class _DockerDashboardState extends State<DockerDashboard> {
                       title: 'Images',
                       child: ImagePeek(
                         images: images,
-                        onTapDown: _openImageMenu,
+                        onTapDown: _handleImageTapDown,
+                        selectedIds: _selectedImageKeys,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -394,7 +410,8 @@ class _DockerDashboardState extends State<DockerDashboard> {
                       title: 'Networks',
                       child: NetworkList(
                         networks: networks,
-                        onTapDown: _openNetworkMenu,
+                        onTapDown: _handleNetworkTapDown,
+                        selectedIds: _selectedNetworkKeys,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -402,7 +419,8 @@ class _DockerDashboardState extends State<DockerDashboard> {
                       title: 'Volumes',
                       child: VolumeList(
                         volumes: volumes,
-                        onTapDown: _openVolumeMenu,
+                        onTapDown: _handleVolumeTapDown,
+                        selectedIds: _selectedVolumeKeys,
                       ),
                     ),
                   ],
@@ -715,6 +733,188 @@ class _DockerDashboardState extends State<DockerDashboard> {
       await _copyExecCommand(container.id);
     }
   }
+
+  void _handleContainerTapDown(
+    DockerContainer container,
+    TapDownDetails details, {
+    bool secondary = false,
+    int? flatIndex,
+  }) {
+    final key = container.id;
+    _updateSelection(
+      _selectedContainerIds,
+      key,
+      isTouch: details.kind == PointerDeviceKind.touch,
+      index: flatIndex,
+      total: _currentContainers.length,
+    );
+    if (flatIndex != null) {
+      _focusedContainerIndex = flatIndex;
+      _containerAnchorIndex ??= flatIndex;
+    }
+    if (secondary) {
+      _openContainerMenu(container, details);
+    }
+  }
+
+  void _handleImageTapDown(
+    DockerImage image,
+    TapDownDetails details, {
+    bool secondary = false,
+    int? flatIndex,
+  }) {
+    final key = _imageKey(image);
+    _updateSelection(
+      _selectedImageKeys,
+      key,
+      isTouch: details.kind == PointerDeviceKind.touch,
+    );
+    if (secondary) {
+      _openImageMenu(image, details);
+    }
+  }
+
+  void _handleNetworkTapDown(
+    DockerNetwork network,
+    TapDownDetails details, {
+    bool secondary = false,
+    int? flatIndex,
+  }) {
+    final key = network.id.isNotEmpty ? network.id : network.name;
+    _updateSelection(
+      _selectedNetworkKeys,
+      key,
+      isTouch: details.kind == PointerDeviceKind.touch,
+    );
+    if (secondary) {
+      _openNetworkMenu(network, details);
+    }
+  }
+
+  void _handleVolumeTapDown(
+    DockerVolume volume,
+    TapDownDetails details, {
+    bool secondary = false,
+    int? flatIndex,
+  }) {
+    final key = volume.name;
+    _updateSelection(
+      _selectedVolumeKeys,
+      key,
+      isTouch: details.kind == PointerDeviceKind.touch,
+    );
+    if (secondary) {
+      _openVolumeMenu(volume, details);
+    }
+  }
+
+  void _updateSelection(
+    Set<String> set,
+    String key, {
+    required bool isTouch,
+    int? index,
+    int? total,
+  }) {
+    final hardware = HardwareKeyboard.instance;
+    final multi = hardware.isControlPressed || hardware.isMetaPressed;
+    final additiveTouch = isTouch && set.isNotEmpty;
+    final additive = multi || additiveTouch;
+    setState(() {
+      if (additive) {
+        if (set.contains(key)) {
+          set.remove(key);
+        } else {
+          set.add(key);
+        }
+      } else if (hardware.isShiftPressed &&
+          index != null &&
+          total != null &&
+          total > 0 &&
+          _containerAnchorIndex != null) {
+        set.clear();
+        final anchor = _containerAnchorIndex!.clamp(0, total - 1);
+        final target = index.clamp(0, total - 1);
+        final start = anchor < target ? anchor : target;
+        final end = anchor > target ? anchor : target;
+        for (var i = start; i <= end; i++) {
+          set.add(_currentContainers[i].id);
+        }
+      } else {
+        set
+          ..clear()
+          ..add(key);
+        if (index != null) {
+          _containerAnchorIndex = index;
+        }
+      }
+    });
+  }
+
+  String _imageKey(DockerImage image) {
+    final repo = image.repository.isNotEmpty ? image.repository : '<none>';
+    final tag = image.tag.isNotEmpty ? image.tag : '<none>';
+    return '$repo:$tag:${image.id}';
+  }
+
+  KeyEventResult _handleContainerKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (_currentContainers.isEmpty) return KeyEventResult.ignored;
+
+    final hardware = HardwareKeyboard.instance;
+    final shift = hardware.isShiftPressed;
+    final multi = hardware.isControlPressed || hardware.isMetaPressed;
+    final maxIndex = _currentContainers.length - 1;
+    var current = _focusedContainerIndex ?? 0;
+
+    void apply(int target) {
+      target = target.clamp(0, maxIndex);
+      final key = _currentContainers[target].id;
+      _updateSelection(
+        _selectedContainerIds,
+        key,
+        isTouch: false,
+        index: target,
+        total: _currentContainers.length,
+      );
+      setState(() {
+        _focusedContainerIndex = target;
+        _containerAnchorIndex ??= target;
+      });
+    }
+
+    switch (event.logicalKey) {
+      case LogicalKeyboardKey.arrowDown:
+        apply((current + 1).clamp(0, maxIndex));
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.arrowUp:
+        apply((current - 1).clamp(0, maxIndex));
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.home:
+        apply(0);
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.end:
+        apply(maxIndex);
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.keyA:
+        if (multi) {
+          setState(() {
+            _selectedContainerIds
+              ..clear()
+              ..addAll(_currentContainers.map((c) => c.id));
+            _focusedContainerIndex = maxIndex;
+            _containerAnchorIndex = 0;
+          });
+          return KeyEventResult.handled;
+        }
+        break;
+      default:
+        break;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  List<DockerContainer> get _currentContainers => _cachedContainers;
+  List<DockerContainer> _cachedContainers = const [];
 }
 
 class EngineSnapshot {

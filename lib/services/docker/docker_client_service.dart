@@ -10,9 +10,7 @@ import '../../models/docker_volume.dart';
 import '../logging/app_logger.dart';
 
 class DockerClientService {
-  const DockerClientService({
-    this.processRunner = Process.run,
-  });
+  const DockerClientService({this.processRunner = Process.run});
 
   final Future<ProcessResult> Function(
     String executable,
@@ -22,7 +20,8 @@ class DockerClientService {
     bool runInShell,
     Encoding? stdoutEncoding,
     Encoding? stderrEncoding,
-  }) processRunner;
+  })
+  processRunner;
 
   Future<List<DockerContext>> listContexts({
     Duration timeout = const Duration(seconds: 6),
@@ -181,7 +180,8 @@ class DockerClientService {
       if (value is String) return value.trim();
       return '';
     }
-    Map<String, String> _labelMap(String raw) {
+
+    Map<String, String> labelMap(String raw) {
       final entries = <String, String>{};
       for (final part in raw.split(',')) {
         final kv = part.split('=');
@@ -193,8 +193,9 @@ class DockerClientService {
     }
 
     final labelsRaw = read('Labels');
-    final labels =
-        labelsRaw.isEmpty ? const <String, String>{} : _labelMap(labelsRaw);
+    final labels = labelsRaw.isEmpty
+        ? const <String, String>{}
+        : labelMap(labelsRaw);
     return DockerContainer(
       id: read('ID'),
       name: read('Names'),
