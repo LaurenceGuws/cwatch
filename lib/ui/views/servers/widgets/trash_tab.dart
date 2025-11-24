@@ -9,7 +9,7 @@ import '../../../../services/ssh/remote_shell_service.dart';
 import '../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
 import '../../../../services/ssh/builtin/builtin_ssh_key_store.dart';
 import '../../../../services/ssh/builtin/builtin_ssh_vault.dart';
-import 'file_explorer/ssh_auth_handler.dart';
+import '../../shared/tabs/file_explorer/ssh_auth_handler.dart';
 
 class TrashTab extends StatefulWidget {
   const TrashTab({

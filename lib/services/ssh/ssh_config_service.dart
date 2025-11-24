@@ -25,7 +25,14 @@ class SshConfigParser {
       return [];
     }
 
-    final lines = await file.readAsLines();
+    List<String> lines;
+    try {
+      lines = await file.readAsLines();
+    } on FileSystemException {
+      // If the descriptor limit is hit or the file becomes unavailable, skip it gracefully.
+      visited.remove(canonicalPath);
+      return [];
+    }
     final hosts = <ParsedHost>[];
     String? currentName;
     String? hostname;

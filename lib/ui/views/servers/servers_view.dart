@@ -21,12 +21,12 @@ import 'servers/host_list.dart';
 import 'servers/server_models.dart';
 import 'servers/servers_widgets.dart';
 import 'widgets/connectivity_tab.dart';
-import 'widgets/file_explorer_tab.dart';
+import '../shared/tabs/file_explorer_tab.dart';
 import 'widgets/resources_tab.dart';
-import 'widgets/terminal_tab.dart';
-import 'widgets/server_tab_chip.dart';
+import '../shared/tabs/terminal_tab.dart';
+import '../shared/tabs/server_tab_chip.dart';
 import 'widgets/trash_tab.dart';
-import 'widgets/remote_file_editor_tab.dart';
+import '../shared/tabs/remote_file_editor_tab.dart';
 import '../../../services/ssh/remote_editor_cache.dart';
 
 class ServersView extends StatefulWidget {

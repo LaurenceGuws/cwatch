@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../models/docker_context.dart';
 import '../../../../models/ssh_host.dart';
+import '../../../theme/app_theme.dart';
 import 'docker_shared.dart';
 
 class RemoteDockerStatus {
@@ -124,6 +125,7 @@ class RemoteSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final icons = context.appTheme.icons;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -135,7 +137,7 @@ class RemoteSection extends StatelessWidget {
               const Spacer(),
               FilledButton.icon(
                 onPressed: onScan,
-                icon: const Icon(Icons.search),
+                icon: Icon(icons.search),
                 label: const Text('Scan'),
               ),
             ],
@@ -269,11 +271,12 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final icons = context.appTheme.icons;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.dns_outlined, size: 64),
+          Icon(icons.dns, size: 64),
           const SizedBox(height: 12),
           const Text('No Docker contexts found.'),
           const SizedBox(height: 12),

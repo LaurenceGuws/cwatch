@@ -75,6 +75,3 @@ class TrashHost extends SshHost {
   const TrashHost()
       : super(name: 'Trash', hostname: '', port: 0, available: true);
 }
-
-/// Servers menu action enum
-enum ServersMenuAction { uploadFiles, uploadFolder, openTrash }

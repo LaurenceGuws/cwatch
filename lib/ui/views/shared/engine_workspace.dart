@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/nerd_fonts.dart';
-import '../servers/widgets/server_tab_chip.dart';
+import 'tabs/server_tab_chip.dart';
 import 'engine_tab.dart';
 
 class EngineWorkspace extends StatelessWidget {

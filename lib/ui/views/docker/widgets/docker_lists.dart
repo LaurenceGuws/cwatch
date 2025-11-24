@@ -4,7 +4,7 @@ import '../../../../models/docker_container.dart';
 import '../../../../models/docker_image.dart';
 import '../../../../models/docker_network.dart';
 import '../../../../models/docker_volume.dart';
-import '../../../theme/nerd_fonts.dart';
+import '../../../theme/app_theme.dart';
 
 typedef ItemTapDown<T> = void Function(
   T item,
@@ -12,12 +12,6 @@ typedef ItemTapDown<T> = void Function(
   bool secondary,
   int? flatIndex,
 });
-
-const IconData _iconContainer =
-    IconData(0xf4b7, fontFamily: NerdFonts.family);
-const IconData _iconImage = IconData(0xf08cc, fontFamily: NerdFonts.family);
-const IconData _iconNetwork = IconData(0xf060a, fontFamily: NerdFonts.family);
-const IconData _iconVolume = IconData(0xf0c7, fontFamily: NerdFonts.family);
 
 class StatCard extends StatelessWidget {
   const StatCard({
@@ -106,6 +100,7 @@ class _ContainerPeekState extends State<ContainerPeek> {
 
   @override
   Widget build(BuildContext context) {
+    final icons = context.appTheme.icons;
     if (widget.containers.isEmpty) {
       return const EmptyCard(message: 'No containers match your filters.');
     }
@@ -133,7 +128,7 @@ class _ContainerPeekState extends State<ContainerPeek> {
                     if (isCompose && widget.onComposeAction != null)
                       PopupMenuButton<String>(
                         tooltip: 'Compose actions',
-                        icon: const Icon(Icons.settings),
+                        icon: Icon(icons.settings),
                         onSelected: (action) {
                           final name = projectName;
                           if (name != null) {
@@ -157,9 +152,7 @@ class _ContainerPeekState extends State<ContainerPeek> {
                         ],
                       ),
                     Icon(
-                      collapsed
-                          ? Icons.keyboard_arrow_right
-                          : Icons.keyboard_arrow_down,
+                      collapsed ? icons.arrowRight : icons.arrowDown,
                     ),
                   ],
                 ),
@@ -243,6 +236,7 @@ class ContainerList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final icons = context.appTheme.icons;
     if (containers.isEmpty) {
       return const EmptyCard(message: 'No containers match your filters.');
     }
@@ -262,7 +256,7 @@ class ContainerList extends StatelessWidget {
             trailing: isCompose && onComposeAction != null
                 ? PopupMenuButton<String>(
                     tooltip: 'Compose actions',
-                    icon: const Icon(Icons.settings),
+                    icon: Icon(icons.settings),
                     onSelected: (action) {
                       final name = projectName;
                       if (name != null) {
@@ -356,6 +350,7 @@ class ImagePeek extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final icons = context.appTheme.icons;
     if (images.isEmpty) {
       return const EmptyCard(message: 'No images found.');
     }
@@ -399,11 +394,8 @@ class ImagePeek extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Row(
                       children: [
-                        Icon(
-                          _iconImage,
-                          size: 18,
-                          color: Theme.of(context).iconTheme.color,
-                        ),
+                        Icon(icons.image,
+                            size: 18, color: Theme.of(context).iconTheme.color),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Column(
@@ -460,6 +452,7 @@ class ImageList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final icons = context.appTheme.icons;
     if (images.isEmpty) {
       return const EmptyCard(message: 'No images found.');
     }
@@ -499,11 +492,8 @@ class ImageList extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          _iconImage,
-                          size: 18,
-                          color: Theme.of(context).iconTheme.color,
-                        ),
+                        Icon(icons.image,
+                            size: 18, color: Theme.of(context).iconTheme.color),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
@@ -543,6 +533,7 @@ class NetworkList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final icons = context.appTheme.icons;
     if (networks.isEmpty) {
       return const EmptyCard(message: 'No networks found.');
     }
@@ -590,7 +581,7 @@ class NetworkList extends StatelessWidget {
                                 child: Row(
                                   children: [
                                     Icon(
-                                      _iconNetwork,
+                                      icons.network,
                                       size: 18,
                                       color: Theme.of(context).iconTheme.color,
                                     ),
@@ -644,6 +635,7 @@ class VolumeList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final icons = context.appTheme.icons;
     if (volumes.isEmpty) {
       return const EmptyCard(message: 'No volumes found.');
     }
@@ -690,7 +682,7 @@ class VolumeList extends StatelessWidget {
                                 child: Row(
                                   children: [
                                     Icon(
-                                      _iconVolume,
+                                      icons.volume,
                                       size: 18,
                                       color: Theme.of(context).iconTheme.color,
                                     ),
@@ -762,7 +754,9 @@ class _ContainerRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = container.isRunning ? Colors.green : Colors.orange;
+    final icons = context.appTheme.icons;
+    final dockerTheme = context.appTheme.docker;
+    final color = container.isRunning ? dockerTheme.running : dockerTheme.stopped;
     final hasProgress = progressLabel != null && progressLabel!.isNotEmpty;
     final statusLabel = hasProgress
         ? '${progressLabel![0].toUpperCase()}${progressLabel!.substring(1)}…'
@@ -803,7 +797,7 @@ class _ContainerRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: Row(
             children: [
-              Icon(_iconContainer, color: color),
+              Icon(icons.container, color: color),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(

@@ -10,6 +10,7 @@ import '../../../../models/docker_workspace_state.dart';
 import '../../../../models/ssh_host.dart';
 import '../../../../services/docker/docker_client_service.dart';
 import '../../../../services/ssh/remote_shell_service.dart';
+import '../../../theme/app_theme.dart';
 import '../../../theme/nerd_fonts.dart';
 import '../../shared/engine_tab.dart';
 import 'docker_command_terminal.dart';
@@ -47,6 +48,8 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
   final Map<String, List<double>> _netIoHistoryByContainer = {};
   final Map<String, List<double>> _blockIoHistoryByContainer = {};
   static const _historyLimit = 60;
+  AppIcons get _icons => context.appTheme.icons;
+  AppDockerTokens get _dockerTheme => context.appTheme.docker;
 
   @override
   void initState() {
@@ -100,7 +103,7 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
               ),
               IconButton(
                 tooltip: 'Refresh',
-                icon: const Icon(Icons.refresh),
+                icon: Icon(_icons.refresh),
                 onPressed: () => _refreshStats(),
               ),
             ],
@@ -553,18 +556,7 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
 
   Color _colorForLabel(String label) {
     // Deterministic palette assignment so the same container keeps its color.
-    const palette = [
-      Colors.blue,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.teal,
-      Colors.red,
-      Colors.indigo,
-      Colors.pink,
-      Colors.cyan,
-      Colors.brown,
-    ];
+    final palette = _dockerTheme.chartPalette;
     final hash = label.hashCode;
     return palette[hash.abs() % palette.length];
   }
@@ -580,6 +572,7 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
     final double maxX = series
         .map((s) => (s.values.length - 1).toDouble())
         .fold<double>(0, math.max);
+    final gridColor = _dockerTheme.chartGrid.withValues(alpha: 0.15);
     return LineChartData(
       minY: 0,
       maxY: maxY,
@@ -589,11 +582,11 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
         show: true,
         horizontalInterval: maxY / 4,
         getDrawingHorizontalLine: (value) => FlLine(
-          color: Colors.grey.withValues(alpha: 0.15),
+          color: gridColor,
           strokeWidth: 1,
         ),
         getDrawingVerticalLine: (value) => FlLine(
-          color: Colors.grey.withValues(alpha: 0.15),
+          color: gridColor,
           strokeWidth: 1,
         ),
       ),

@@ -8,7 +8,7 @@ import '../../../../services/ssh/builtin/builtin_ssh_vault.dart';
 import '../../../theme/app_theme.dart';
 import '../../../theme/nerd_fonts.dart';
 import 'add_server_dialog.dart';
-import '../widgets/file_explorer/external_app_launcher.dart';
+import '../../shared/tabs/file_explorer/external_app_launcher.dart';
 
 /// Host list widget that displays SSH hosts grouped by source
 class HostList extends StatefulWidget {

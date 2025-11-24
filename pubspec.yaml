@@ -88,5 +88,3 @@ flutter:
     - family: JetBrainsMonoNF
       fonts:
         - asset: assets/fonts/JetBrainsMonoNerdFont-Regular.ttf
-  assets:
-    - assets/data/grammers.csv

@@ -6,6 +6,7 @@ import 'package:terminal_library/xterm_library/xterm.dart';
 
 import '../../../../models/ssh_host.dart';
 import '../../../../services/ssh/remote_shell_service.dart';
+import '../../../theme/app_theme.dart';
 import '../../../theme/nerd_fonts.dart';
 
 /// Lightweight terminal view that runs a provided Docker command locally or via SSH.
@@ -219,7 +220,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
               if (widget.showCopyButton)
                 IconButton(
                   tooltip: 'Copy output',
-                  icon: const Icon(Icons.copy),
+                  icon: Icon(context.appTheme.icons.copy),
                   onPressed: _copyOutput,
                 ),
               ...?widget.actions,

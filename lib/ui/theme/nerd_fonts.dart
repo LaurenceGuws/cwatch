@@ -6,6 +6,7 @@ class NerdFonts {
 
 enum NerdIcon {
   servers,
+  cloud,
   docker,
   kubernetes,
   folder,
@@ -42,8 +43,11 @@ enum NerdIcon {
   database,
   config,
   fileImage,
+  copy,
   lock,
   arrowRight,
+  arrowDown,
+  search,
   pencil,
   drag,
   close;
@@ -52,6 +56,7 @@ enum NerdIcon {
 /// ✔️ CONST map of icons → safe for tree shaking
 const Map<NerdIcon, IconData> nerdIconData = {
   NerdIcon.servers:     IconData(0xf048b, fontFamily: NerdFonts.family),
+  NerdIcon.cloud:       IconData(0xf0c2, fontFamily: NerdFonts.family),
   NerdIcon.docker:      IconData(0xf0868, fontFamily: NerdFonts.family),
   NerdIcon.kubernetes:  IconData(0xf10fe, fontFamily: NerdFonts.family),
   NerdIcon.folder:      IconData(0xf024b, fontFamily: NerdFonts.family),
@@ -88,8 +93,11 @@ const Map<NerdIcon, IconData> nerdIconData = {
   NerdIcon.database:    IconData(0xe706, fontFamily: NerdFonts.family),
   NerdIcon.config:      IconData(0xf107b, fontFamily: NerdFonts.family),
   NerdIcon.fileImage:   IconData(0xf021f, fontFamily: NerdFonts.family),
+  NerdIcon.copy:        IconData(0xf0c5, fontFamily: NerdFonts.family),
   NerdIcon.lock:        IconData(0xf033e, fontFamily: NerdFonts.family),
   NerdIcon.arrowRight:  IconData(0xf0939, fontFamily: NerdFonts.family),
+  NerdIcon.arrowDown:   IconData(0xf063, fontFamily: NerdFonts.family),
+  NerdIcon.search:      IconData(0xf002, fontFamily: NerdFonts.family),
   NerdIcon.pencil:      IconData(0xf03eb, fontFamily: NerdFonts.family),
   NerdIcon.drag:        IconData(0xf01dd, fontFamily: NerdFonts.family),
   NerdIcon.close:       IconData(0xf06c9, fontFamily: NerdFonts.family),
@@ -99,4 +107,3 @@ const Map<NerdIcon, IconData> nerdIconData = {
 extension NerdIconExt on NerdIcon {
   IconData get data => nerdIconData[this]!;
 }
-

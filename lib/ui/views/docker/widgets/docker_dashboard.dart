@@ -20,11 +20,12 @@ import '../../../../services/filesystem/explorer_trash_manager.dart';
 import '../../../../services/ssh/builtin/builtin_ssh_vault.dart';
 import '../../../../services/ssh/remote_shell_service.dart';
 import '../../../../services/settings/app_settings_controller.dart';
+import '../../../theme/app_theme.dart';
 import '../../../theme/nerd_fonts.dart';
 import '../../shared/engine_tab.dart';
-import '../../servers/widgets/file_explorer_tab.dart';
+import '../../shared/tabs/file_explorer_tab.dart';
 import '../../servers/widgets/trash_tab.dart';
-import '../../servers/widgets/remote_file_editor_tab.dart';
+import '../../shared/tabs/remote_file_editor_tab.dart';
 import 'docker_command_terminal.dart';
 import 'docker_lists.dart';
 import 'docker_shared.dart';
@@ -70,6 +71,8 @@ class _DockerDashboardState extends State<DockerDashboard> {
   final Map<String, String> _containerActionInProgress = {};
   bool _containersHydrated = false;
   List<DockerContainer> _cachedContainers = const [];
+  AppIcons get _icons => context.appTheme.icons;
+  AppDockerTokens get _dockerTheme => context.appTheme.docker;
 
   @override
   void initState() {
@@ -334,6 +337,8 @@ class _DockerDashboardState extends State<DockerDashboard> {
   @override
   Widget build(BuildContext context) {
     final title = widget.contextName ?? widget.remoteHost?.name ?? 'Dashboard';
+    final icons = _icons;
+    final dockerTheme = _dockerTheme;
     return Padding(
       padding: const EdgeInsets.all(8),
       child: Column(
@@ -345,7 +350,7 @@ class _DockerDashboardState extends State<DockerDashboard> {
               const Spacer(),
               PopupMenuButton<String>(
                 tooltip: 'Settings',
-                icon: const Icon(Icons.settings),
+                icon: Icon(icons.settings),
                 onSelected: (value) {
                   switch (value) {
                     case 'refresh':
@@ -413,27 +418,27 @@ class _DockerDashboardState extends State<DockerDashboard> {
                   StatCard(
                     label: 'Running',
                     value: running.toString(),
-                    color: Colors.green,
+                    color: dockerTheme.running,
                   ),
                   StatCard(
                     label: 'Stopped',
                     value: stopped.toString(),
-                    color: Colors.orange,
+                    color: dockerTheme.stopped,
                   ),
                   StatCard(
                     label: 'Images',
                     value: images.length.toString(),
-                    color: Colors.blueGrey,
+                    color: dockerTheme.images,
                   ),
                   StatCard(
                     label: 'Networks',
                     value: networks.length.toString(),
-                    color: Colors.teal,
+                    color: dockerTheme.networks,
                   ),
                   StatCard(
                     label: 'Volumes',
                     value: volumes.length.toString(),
-                    color: Colors.deepPurple,
+                    color: dockerTheme.volumes,
                   ),
                 ];
 
@@ -1036,7 +1041,7 @@ done'
       id: 'explore-${container.id}-${DateTime.now().microsecondsSinceEpoch}',
       title: 'Explore ${container.name.isNotEmpty ? container.name : container.id}',
       label: 'Explorer',
-      icon: Icons.folder_open,
+      icon: _icons.folderOpen,
       body: FileExplorerTab(
         host: host,
         shellService: shell,
@@ -1064,7 +1069,7 @@ done'
       id: 'trash-${host.name}-${DateTime.now().microsecondsSinceEpoch}',
       title: 'Trash • ${host.name}',
       label: 'Trash',
-      icon: Icons.delete,
+      icon: _icons.delete,
       body: TrashTab(
         manager: widget.trashManager,
         shellService: shell,
@@ -1086,7 +1091,7 @@ done'
       id: 'editor-${path.hashCode}-${DateTime.now().microsecondsSinceEpoch}',
       title: 'Edit $path',
       label: path,
-      icon: Icons.edit,
+      icon: _icons.edit,
       body: RemoteFileEditorTab(
         host: host,
         shellService: shell,

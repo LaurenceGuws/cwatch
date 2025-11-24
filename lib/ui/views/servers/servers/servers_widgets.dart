@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../../models/server_action.dart';
 import '../../../../models/ssh_host.dart';
 import '../../../theme/nerd_fonts.dart';
-import 'server_models.dart';
 
 /// Error state widget for displaying errors
 class ErrorState extends StatelessWidget {
@@ -27,55 +26,6 @@ class ErrorState extends StatelessWidget {
           Text(error, textAlign: TextAlign.center),
         ],
       ),
-    );
-  }
-}
-
-/// Servers menu widget
-class ServersMenu extends StatelessWidget {
-  const ServersMenu({
-    super.key,
-    required this.onOpenTrash,
-    required this.onUploadFiles,
-    required this.onUploadFolder,
-  });
-
-  final VoidCallback onOpenTrash;
-  final VoidCallback onUploadFiles;
-  final VoidCallback onUploadFolder;
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<ServersMenuAction>(
-      tooltip: 'Server options',
-      icon: const Icon(Icons.settings),
-      onSelected: (value) {
-        switch (value) {
-          case ServersMenuAction.openTrash:
-            onOpenTrash();
-            break;
-          case ServersMenuAction.uploadFiles:
-            onUploadFiles();
-            break;
-          case ServersMenuAction.uploadFolder:
-            onUploadFolder();
-            break;
-        }
-      },
-      itemBuilder: (context) => const [
-        PopupMenuItem(
-          value: ServersMenuAction.uploadFiles,
-          child: Text('Upload files...'),
-        ),
-        PopupMenuItem(
-          value: ServersMenuAction.uploadFolder,
-          child: Text('Upload folder...'),
-        ),
-        PopupMenuItem(
-          value: ServersMenuAction.openTrash,
-          child: Text('Open trash tab'),
-        ),
-      ],
     );
   }
 }

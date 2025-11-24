@@ -12,6 +12,7 @@ import '../../../services/ssh/remote_command_logging.dart';
 import '../../../services/ssh/remote_shell_service.dart';
 import '../../../services/settings/app_settings_controller.dart';
 import '../../../services/filesystem/explorer_trash_manager.dart';
+import '../../theme/app_theme.dart';
 import '../../theme/nerd_fonts.dart';
 import '../../../models/docker_workspace_state.dart';
 import '../shared/engine_tab.dart';
@@ -20,8 +21,8 @@ import 'widgets/docker_dashboard.dart';
 import 'widgets/docker_engine_picker.dart';
 import 'widgets/docker_resources_dashboard.dart';
 import 'widgets/docker_command_terminal.dart';
-import '../servers/widgets/file_explorer_tab.dart';
-import '../servers/widgets/remote_file_editor_tab.dart';
+import '../shared/tabs/file_explorer_tab.dart';
+import '../shared/tabs/remote_file_editor_tab.dart';
 
 class DockerView extends StatefulWidget {
   const DockerView({
@@ -185,11 +186,12 @@ class _DockerViewState extends State<DockerView> {
   }
 
   void _openContextDashboard(String tabId, String contextName) {
+    final icons = context.appTheme.icons;
     _chooseDashboard(
       tabId: tabId,
       title: contextName,
       id: 'ctx-$contextName',
-      icon: Icons.cloud,
+      icon: icons.cloud,
       buildOverview: () => DockerDashboard(
         docker: _docker,
         contextName: contextName,
@@ -207,11 +209,12 @@ class _DockerViewState extends State<DockerView> {
 
   void _openHostDashboard(String tabId, SshHost host) {
     final shell = _shellServiceForHost(host);
+    final icons = context.appTheme.icons;
     _chooseDashboard(
       tabId: tabId,
       title: host.name,
       id: 'host-${host.name}',
-      icon: Icons.cloud_outlined,
+      icon: icons.cloudOutline,
       buildOverview: () => DockerDashboard(
         docker: _docker,
         remoteHost: host,
@@ -747,6 +750,7 @@ class _DockerViewState extends State<DockerView> {
     DockerTabState state,
     List<SshHost> hosts,
   ) {
+    final icons = context.appTheme.icons;
     switch (state.kind) {
       case DockerTabKind.picker:
         return _enginePickerTab(id: state.id);
@@ -870,11 +874,11 @@ class _DockerViewState extends State<DockerView> {
               identityFiles: <String>[],
               source: 'local',
             );
-        return EngineTab(
-          id: state.id,
-          title: 'Explore ${state.containerName ?? state.containerId ?? explorerHost.name}',
-          label: 'Explorer',
-          icon: Icons.folder_open,
+      return EngineTab(
+        id: state.id,
+        title: 'Explore ${state.containerName ?? state.containerId ?? explorerHost.name}',
+        label: 'Explorer',
+        icon: icons.folderOpen,
           canDrag: true,
           body: FileExplorerTab(
             host: explorerHost,
@@ -887,7 +891,7 @@ class _DockerViewState extends State<DockerView> {
                 id: 'editor-${path.hashCode}-${DateTime.now().microsecondsSinceEpoch}',
                 title: 'Edit $path',
                 label: path,
-                icon: Icons.edit,
+                icon: icons.edit,
                 canDrag: true,
                 workspaceState: DockerTabState(
                   id: 'editor-$path',
@@ -928,10 +932,10 @@ class _DockerViewState extends State<DockerView> {
               source: 'local',
             );
         return EngineTab(
-          id: state.id,
-          title: 'Edit ${state.path}',
-          label: state.path ?? 'Editor',
-          icon: Icons.edit,
+        id: state.id,
+        title: 'Edit ${state.path}',
+        label: state.path ?? 'Editor',
+        icon: icons.edit,
           canDrag: true,
           body: DockerEditorLoader(
             host: editorHost,
@@ -949,11 +953,12 @@ class _DockerViewState extends State<DockerView> {
     required String contextName,
     required bool resources,
   }) {
+    final icons = context.appTheme.icons;
     return EngineTab(
       id: id,
       title: contextName,
       label: contextName,
-      icon: Icons.cloud,
+      icon: icons.cloud,
       canDrag: true,
       workspaceState: DockerTabState(
         id: id,
@@ -984,11 +989,12 @@ class _DockerViewState extends State<DockerView> {
     required bool resources,
   }) {
     final shell = _shellServiceForHost(host);
+    final icons = context.appTheme.icons;
     return EngineTab(
       id: id,
       title: host.name,
       label: host.name,
-      icon: Icons.cloud_outlined,
+      icon: icons.cloudOutline,
       canDrag: true,
       workspaceState: DockerTabState(
         id: id,

@@ -99,7 +99,6 @@ import '../../../../models/ssh_host.dart';
 import '../../../../services/settings/app_settings_controller.dart';
 import '../../../../services/ssh/remote_shell_service.dart';
 import '../../../theme/nerd_fonts.dart';
-import 'code_highlighter.dart';
 
 class RemoteFileEditorTab extends StatefulWidget {
   const RemoteFileEditorTab({
@@ -500,7 +499,7 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
   void _showFileInfo(BuildContext context) {
     final content = _controller.text;
     final lines = content.isEmpty ? 0 : content.split('\n').length;
-    final language = languageFromPath(widget.path);
+    final language = _languageFromPath(widget.path);
     final textTheme = Theme.of(context).textTheme;
     
     showDialog(
@@ -547,7 +546,7 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
   }
 
   dynamic _getLanguageForPath(String path) {
-    final languageId = languageFromPath(path);
+    final languageId = _languageFromPath(path);
     if (languageId == null) return null;
 
     // Map language IDs to highlight language objects using dynamic lookup
@@ -607,6 +606,74 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
     
     // Dynamically look up the language from allLanguages map
     return all_langs.allLanguages[lookupKey];
+  }
+
+  String? _languageFromPath(String path) {
+    final trimmed = path.trim();
+    if (trimmed.isEmpty) return null;
+    final dotIndex = trimmed.lastIndexOf('.');
+    if (dotIndex <= 0 || dotIndex == trimmed.length - 1) return null;
+    final ext = trimmed.substring(dotIndex + 1).toLowerCase();
+    switch (ext) {
+      case 'dart':
+        return 'dart';
+      case 'js':
+      case 'jsx':
+        return 'javascript';
+      case 'ts':
+      case 'tsx':
+        return 'typescript';
+      case 'json':
+        return 'json';
+      case 'yml':
+      case 'yaml':
+        return 'yaml';
+      case 'md':
+      case 'markdown':
+        return 'markdown';
+      case 'sh':
+      case 'bash':
+        return 'bash';
+      case 'go':
+        return 'go';
+      case 'rs':
+        return 'rust';
+      case 'py':
+        return 'python';
+      case 'rb':
+        return 'ruby';
+      case 'php':
+        return 'php';
+      case 'java':
+        return 'java';
+      case 'kt':
+      case 'kts':
+        return 'kotlin';
+      case 'swift':
+        return 'swift';
+      case 'c':
+        return 'c';
+      case 'cpp':
+      case 'cc':
+      case 'cxx':
+      case 'hpp':
+      case 'hh':
+      case 'hxx':
+        return 'cpp';
+      case 'cs':
+        return 'csharp';
+      case 'html':
+      case 'htm':
+        return 'html';
+      case 'css':
+        return 'css';
+      case 'xml':
+        return 'xml';
+      case 'toml':
+        return 'toml';
+      default:
+        return null;
+    }
   }
 
   Map<String, String> _getAllThemes() {

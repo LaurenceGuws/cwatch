@@ -9,12 +9,16 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
     required this.tabChip,
     required this.section,
     required this.typography,
+    required this.icons,
+    required this.docker,
   });
 
   final AppSpacing spacing;
   final AppTabChipTokens tabChip;
   final AppSectionTokens section;
   final AppTypographyTokens typography;
+  final AppIcons icons;
+  final AppDockerTokens docker;
 
   factory AppThemeTokens.light(ColorScheme scheme) {
     final baseTheme = ThemeData(
@@ -27,6 +31,8 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
       tabChip: AppTabChipTokens.fromScheme(scheme),
       section: AppSectionTokens.fromScheme(scheme),
       typography: AppTypographyTokens.fromTextTheme(baseTheme.textTheme),
+      icons: AppIcons.nerd(),
+      docker: AppDockerTokens.fromScheme(scheme),
     );
   }
 
@@ -41,6 +47,8 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
       tabChip: AppTabChipTokens.fromScheme(scheme),
       section: AppSectionTokens.fromScheme(scheme),
       typography: AppTypographyTokens.fromTextTheme(baseTheme.textTheme),
+      icons: AppIcons.nerd(),
+      docker: AppDockerTokens.fromScheme(scheme),
     );
   }
 
@@ -50,17 +58,24 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
     AppTabChipTokens? tabChip,
     AppSectionTokens? section,
     AppTypographyTokens? typography,
+    AppIcons? icons,
+    AppDockerTokens? docker,
   }) {
     return AppThemeTokens(
       spacing: spacing ?? this.spacing,
       tabChip: tabChip ?? this.tabChip,
       section: section ?? this.section,
       typography: typography ?? this.typography,
+      icons: icons ?? this.icons,
+      docker: docker ?? this.docker,
     );
   }
 
   @override
-  ThemeExtension<AppThemeTokens> lerp(ThemeExtension<AppThemeTokens>? other, double t) {
+  ThemeExtension<AppThemeTokens> lerp(
+    ThemeExtension<AppThemeTokens>? other,
+    double t,
+  ) {
     if (other is! AppThemeTokens) {
       return this;
     }
@@ -69,6 +84,8 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
       tabChip: AppTabChipTokens.lerp(tabChip, other.tabChip, t),
       section: AppSectionTokens.lerp(section, other.section, t),
       typography: AppTypographyTokens.lerp(typography, other.typography, t),
+      icons: icons,
+      docker: AppDockerTokens.lerp(docker, other.docker, t),
     );
   }
 }
@@ -85,10 +102,140 @@ class AppSpacing {
   double get xl => base * 4;
 
   EdgeInsets inset({double horizontal = 1, double vertical = 1}) {
-    return EdgeInsets.symmetric(horizontal: base * horizontal, vertical: base * vertical);
+    return EdgeInsets.symmetric(
+      horizontal: base * horizontal,
+      vertical: base * vertical,
+    );
   }
 
   EdgeInsets all(double factor) => EdgeInsets.all(base * factor);
+}
+
+class AppIcons {
+  const AppIcons({
+    required this.cloud,
+    required this.cloudOutline,
+    required this.folderOpen,
+    required this.edit,
+    required this.delete,
+    required this.settings,
+    required this.search,
+    required this.dns,
+    required this.arrowRight,
+    required this.arrowDown,
+    required this.refresh,
+    required this.copy,
+    required this.container,
+    required this.image,
+    required this.network,
+    required this.volume,
+  });
+
+  final IconData cloud;
+  final IconData cloudOutline;
+  final IconData folderOpen;
+  final IconData edit;
+  final IconData delete;
+  final IconData settings;
+  final IconData search;
+  final IconData dns;
+  final IconData arrowRight;
+  final IconData arrowDown;
+  final IconData refresh;
+  final IconData copy;
+  final IconData container;
+  final IconData image;
+  final IconData network;
+  final IconData volume;
+
+  factory AppIcons.nerd() = _NerdIcons;
+}
+
+class _NerdIcons extends AppIcons {
+  _NerdIcons()
+    : super(
+        cloud: nerdIconData[NerdIcon.cloud]!,
+        cloudOutline: nerdIconData[NerdIcon.cloud]!,
+        folderOpen: nerdIconData[NerdIcon.folderOpen]!,
+        edit: nerdIconData[NerdIcon.pencil]!,
+        delete: nerdIconData[NerdIcon.delete]!,
+        settings: nerdIconData[NerdIcon.settings]!,
+        search: nerdIconData[NerdIcon.search]!,
+        dns: nerdIconData[NerdIcon.servers]!,
+        arrowRight: nerdIconData[NerdIcon.arrowRight]!,
+        arrowDown: nerdIconData[NerdIcon.arrowDown]!,
+        refresh: nerdIconData[NerdIcon.refresh]!,
+        copy: nerdIconData[NerdIcon.copy]!,
+        container: nerdIconData[NerdIcon.docker]!,
+        image: nerdIconData[NerdIcon.fileImage]!,
+        network: nerdIconData[NerdIcon.accessPoint]!,
+        volume: nerdIconData[NerdIcon.database]!,
+      );
+}
+
+class AppDockerTokens {
+  const AppDockerTokens({
+    required this.running,
+    required this.stopped,
+    required this.images,
+    required this.networks,
+    required this.volumes,
+    required this.chartPalette,
+    required this.chartGrid,
+    required this.chartGridAlt,
+  });
+
+  final Color running;
+  final Color stopped;
+  final Color images;
+  final Color networks;
+  final Color volumes;
+  final List<Color> chartPalette;
+  final Color chartGrid;
+  final Color chartGridAlt;
+
+  factory AppDockerTokens.fromScheme(ColorScheme scheme) {
+    return AppDockerTokens(
+      running: Colors.green,
+      stopped: Colors.orange,
+      images: Colors.blueGrey,
+      networks: Colors.teal,
+      volumes: Colors.deepPurple,
+      chartPalette: const [
+        Colors.blue,
+        Colors.green,
+        Colors.orange,
+        Colors.purple,
+        Colors.teal,
+        Colors.red,
+        Colors.indigo,
+        Colors.pink,
+        Colors.cyan,
+        Colors.brown,
+      ],
+      chartGrid: Colors.grey,
+      chartGridAlt: Colors.grey,
+    );
+  }
+
+  static AppDockerTokens lerp(AppDockerTokens a, AppDockerTokens b, double t) {
+    return AppDockerTokens(
+      running: Color.lerp(a.running, b.running, t) ?? a.running,
+      stopped: Color.lerp(a.stopped, b.stopped, t) ?? a.stopped,
+      images: Color.lerp(a.images, b.images, t) ?? a.images,
+      networks: Color.lerp(a.networks, b.networks, t) ?? a.networks,
+      volumes: Color.lerp(a.volumes, b.volumes, t) ?? a.volumes,
+      chartPalette: List<Color>.generate(
+        a.chartPalette.length,
+        (index) =>
+            Color.lerp(a.chartPalette[index], b.chartPalette[index], t) ??
+            a.chartPalette[index],
+      ),
+      chartGrid: Color.lerp(a.chartGrid, b.chartGrid, t) ?? a.chartGrid,
+      chartGridAlt:
+          Color.lerp(a.chartGridAlt, b.chartGridAlt, t) ?? a.chartGridAlt,
+    );
+  }
 }
 
 class AppTabChipTokens {
@@ -141,16 +288,37 @@ class AppTabChipTokens {
     );
   }
 
-  static AppTabChipTokens lerp(AppTabChipTokens a, AppTabChipTokens b, double t) {
+  static AppTabChipTokens lerp(
+    AppTabChipTokens a,
+    AppTabChipTokens b,
+    double t,
+  ) {
     return AppTabChipTokens(
-      selectedBackground: Color.lerp(a.selectedBackground, b.selectedBackground, t) ?? a.selectedBackground,
-      unselectedBackground: Color.lerp(a.unselectedBackground, b.unselectedBackground, t) ?? a.unselectedBackground,
-      selectedForeground: Color.lerp(a.selectedForeground, b.selectedForeground, t) ?? a.selectedForeground,
-      unselectedForeground: Color.lerp(a.unselectedForeground, b.unselectedForeground, t) ?? a.unselectedForeground,
-      selectedBorder: Color.lerp(a.selectedBorder, b.selectedBorder, t) ?? a.selectedBorder,
-      unselectedBorder: Color.lerp(a.unselectedBorder, b.unselectedBorder, t) ?? a.unselectedBorder,
-      borderRadius: BorderRadius.lerp(a.borderRadius, b.borderRadius, t) ?? a.borderRadius,
-      horizontalPadding: lerpDouble(a.horizontalPadding, b.horizontalPadding, t),
+      selectedBackground:
+          Color.lerp(a.selectedBackground, b.selectedBackground, t) ??
+          a.selectedBackground,
+      unselectedBackground:
+          Color.lerp(a.unselectedBackground, b.unselectedBackground, t) ??
+          a.unselectedBackground,
+      selectedForeground:
+          Color.lerp(a.selectedForeground, b.selectedForeground, t) ??
+          a.selectedForeground,
+      unselectedForeground:
+          Color.lerp(a.unselectedForeground, b.unselectedForeground, t) ??
+          a.unselectedForeground,
+      selectedBorder:
+          Color.lerp(a.selectedBorder, b.selectedBorder, t) ?? a.selectedBorder,
+      unselectedBorder:
+          Color.lerp(a.unselectedBorder, b.unselectedBorder, t) ??
+          a.unselectedBorder,
+      borderRadius:
+          BorderRadius.lerp(a.borderRadius, b.borderRadius, t) ??
+          a.borderRadius,
+      horizontalPadding: lerpDouble(
+        a.horizontalPadding,
+        b.horizontalPadding,
+        t,
+      ),
       verticalPadding: lerpDouble(a.verticalPadding, b.verticalPadding, t),
     );
   }
@@ -200,9 +368,15 @@ class AppSectionTokens {
     );
   }
 
-  static AppSectionTokens lerp(AppSectionTokens a, AppSectionTokens b, double t) {
+  static AppSectionTokens lerp(
+    AppSectionTokens a,
+    AppSectionTokens b,
+    double t,
+  ) {
     return AppSectionTokens(
-      toolbarBackground: Color.lerp(a.toolbarBackground, b.toolbarBackground, t) ?? a.toolbarBackground,
+      toolbarBackground:
+          Color.lerp(a.toolbarBackground, b.toolbarBackground, t) ??
+          a.toolbarBackground,
       divider: Color.lerp(a.divider, b.divider, t) ?? a.divider,
       surface: AppSurfaceStyle.lerp(a.surface, b.surface, t),
     );
@@ -255,17 +429,28 @@ class AppTypographyTokens {
 
   factory AppTypographyTokens.fromTextTheme(TextTheme textTheme) {
     return AppTypographyTokens(
-      sectionTitle: textTheme.titleLarge ?? const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+      sectionTitle:
+          textTheme.titleLarge ??
+          const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
       body: textTheme.bodyMedium ?? const TextStyle(fontSize: 14),
       caption: textTheme.bodySmall ?? const TextStyle(fontSize: 12),
-      code: (textTheme.bodySmall ?? const TextStyle()).copyWith(fontFamily: 'monospace'),
-      tabLabel: textTheme.labelLarge ?? const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      code: (textTheme.bodySmall ?? const TextStyle()).copyWith(
+        fontFamily: 'monospace',
+      ),
+      tabLabel:
+          textTheme.labelLarge ??
+          const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
     );
   }
 
-  static AppTypographyTokens lerp(AppTypographyTokens a, AppTypographyTokens b, double t) {
+  static AppTypographyTokens lerp(
+    AppTypographyTokens a,
+    AppTypographyTokens b,
+    double t,
+  ) {
     return AppTypographyTokens(
-      sectionTitle: TextStyle.lerp(a.sectionTitle, b.sectionTitle, t) ?? a.sectionTitle,
+      sectionTitle:
+          TextStyle.lerp(a.sectionTitle, b.sectionTitle, t) ?? a.sectionTitle,
       body: TextStyle.lerp(a.body, b.body, t) ?? a.body,
       caption: TextStyle.lerp(a.caption, b.caption, t) ?? a.caption,
       code: TextStyle.lerp(a.code, b.code, t) ?? a.code,

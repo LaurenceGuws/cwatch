@@ -237,6 +237,10 @@ class _HomeShellState extends State<HomeShell> {
       }
       _sidebarWidthOverride = next;
     });
+  }
+
+  void _handleSidebarDragEnd() {
+    if (_sidebarCollapsed) return;
     _persistShellState(width: _sidebarWidthOverride);
   }
 
@@ -362,7 +366,10 @@ class _HomeShellState extends State<HomeShell> {
                     width: sidebarWidth,
                     onSelect: _handleDestinationSelected,
                   ),
-                  _SidebarResizeHandle(onDrag: _handleSidebarDrag),
+                  _SidebarResizeHandle(
+                    onDrag: _handleSidebarDrag,
+                    onDragEnd: _handleSidebarDragEnd,
+                  ),
                 ],
                 Expanded(
                   child: IndexedStack(
@@ -458,9 +465,13 @@ class _Sidebar extends StatelessWidget {
 }
 
 class _SidebarResizeHandle extends StatelessWidget {
-  const _SidebarResizeHandle({required this.onDrag});
+  const _SidebarResizeHandle({
+    required this.onDrag,
+    required this.onDragEnd,
+  });
 
   final ValueChanged<double> onDrag;
+  final VoidCallback onDragEnd;
 
   @override
   Widget build(BuildContext context) {
@@ -470,6 +481,7 @@ class _SidebarResizeHandle extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.translucent,
         onHorizontalDragUpdate: (details) => onDrag(details.delta.dx),
+        onHorizontalDragEnd: (_) => onDragEnd(),
         child: SizedBox(
           width: 12,
           child: Center(

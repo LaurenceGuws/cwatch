@@ -26,7 +26,6 @@ import 'file_explorer/delete_operations_handler.dart';
 import 'file_explorer/clipboard_operations_handler.dart';
 import 'file_explorer/external_app_launcher.dart';
 import 'file_explorer/dialog_builders.dart';
-import '../servers/servers_widgets.dart';
 
 class FileExplorerTab extends StatefulWidget {
   const FileExplorerTab({
@@ -282,7 +281,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       children: [
         Expanded(child: navigator),
         const SizedBox(width: 8),
-        ServersMenu(
+        ExplorerMenu(
           onOpenTrash: widget.onOpenTrash,
           onUploadFiles: () => _handleUploadFiles(_currentPath),
           onUploadFolder: () => _handleUploadFolder(_currentPath),
@@ -925,4 +924,54 @@ class CancelledExplorerOperation implements Exception {
 
   @override
   String toString() => 'CancelledExplorerOperation';
+}
+
+enum _ExplorerMenuAction { uploadFiles, uploadFolder, openTrash }
+
+class ExplorerMenu extends StatelessWidget {
+  const ExplorerMenu({
+    super.key,
+    required this.onOpenTrash,
+    required this.onUploadFiles,
+    required this.onUploadFolder,
+  });
+
+  final VoidCallback onOpenTrash;
+  final VoidCallback onUploadFiles;
+  final VoidCallback onUploadFolder;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<_ExplorerMenuAction>(
+      tooltip: 'Explorer options',
+      icon: const Icon(Icons.settings),
+      onSelected: (value) {
+        switch (value) {
+          case _ExplorerMenuAction.openTrash:
+            onOpenTrash();
+            break;
+          case _ExplorerMenuAction.uploadFiles:
+            onUploadFiles();
+            break;
+          case _ExplorerMenuAction.uploadFolder:
+            onUploadFolder();
+            break;
+        }
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem(
+          value: _ExplorerMenuAction.uploadFiles,
+          child: Text('Upload files...'),
+        ),
+        PopupMenuItem(
+          value: _ExplorerMenuAction.uploadFolder,
+          child: Text('Upload folder...'),
+        ),
+        PopupMenuItem(
+          value: _ExplorerMenuAction.openTrash,
+          child: Text('Open trash tab'),
+        ),
+      ],
+    );
+  }
 }
