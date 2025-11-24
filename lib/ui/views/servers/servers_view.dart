@@ -120,6 +120,10 @@ class _ServersViewState extends State<ServersView> {
           onActivate: onHostActivate ?? _startActionFlowForHost,
           settingsController: widget.settingsController,
           builtInVault: widget.builtInVault,
+          onOpenConnectivity: (host) => _addTab(host, ServerAction.connectivity),
+          onOpenResources: (host) => _addTab(host, ServerAction.resources),
+          onOpenTerminal: (host) => _addTab(host, ServerAction.terminal),
+          onOpenExplorer: (host) => _addTab(host, ServerAction.fileExplorer),
           onHostsChanged: () {
             // Trigger rebuild when hosts change
             setState(() {});

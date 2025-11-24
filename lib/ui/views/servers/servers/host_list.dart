@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../../models/custom_ssh_host.dart';
 import '../../../../models/ssh_host.dart';
 import '../../../../services/settings/app_settings_controller.dart';
-import '../../../../services/ssh/builtin/builtin_ssh_key_store.dart';
 import '../../../../services/ssh/builtin/builtin_ssh_vault.dart';
 import '../../../theme/app_theme.dart';
 import '../../../theme/nerd_fonts.dart';
-import 'add_server_dialog.dart';
+import '../../../widgets/lists/section_list.dart';
+import '../../../widgets/lists/section_list_item.dart';
 import '../../shared/tabs/file_explorer/external_app_launcher.dart';
 
 /// Host list widget that displays SSH hosts grouped by source
@@ -21,6 +21,10 @@ class HostList extends StatefulWidget {
     required this.builtInVault,
     required this.onHostsChanged,
     required this.onAddServer,
+    this.onOpenConnectivity,
+    this.onOpenResources,
+    this.onOpenTerminal,
+    this.onOpenExplorer,
   });
 
   final List<SshHost> hosts;
@@ -30,6 +34,10 @@ class HostList extends StatefulWidget {
   final BuiltInSshVault builtInVault;
   final VoidCallback onHostsChanged;
   final ValueChanged<List<String>> onAddServer;
+  final ValueChanged<SshHost>? onOpenConnectivity;
+  final ValueChanged<SshHost>? onOpenResources;
+  final ValueChanged<SshHost>? onOpenTerminal;
+  final ValueChanged<SshHost>? onOpenExplorer;
 
   @override
   State<HostList> createState() => _HostListState();
@@ -51,7 +59,6 @@ class _HostListState extends State<HostList> {
     if (source == 'custom') {
       return 'Added Servers';
     }
-    // Extract filename from path
     final parts = source.split('/');
     return parts.last;
   }
@@ -61,9 +68,6 @@ class _HostListState extends State<HostList> {
     final spacing = context.appTheme.spacing;
     final grouped = _groupHostsBySource();
     final sources = grouped.keys.toList()..sort();
-
-    // Show sections only if more than one source
-    final showSections = sources.length > 1;
 
     if (widget.hosts.isEmpty) {
       return Center(
@@ -82,114 +86,69 @@ class _HostListState extends State<HostList> {
       );
     }
 
-    if (!showSections) {
-      // Single source - no headers needed
-      return Column(
-        children: [
-          Padding(
-            padding: EdgeInsets.only(
-              left: spacing.base * 2,
-              right: spacing.base * 2,
-              bottom: spacing.base,
-            ),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: ElevatedButton.icon(
-                onPressed: () => widget.onAddServer(_displayNames()),
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('Add Server'),
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: spacing.base * 1.5,
-                    vertical: spacing.sm,
-                  ),
-                ),
-              ),
+    final addButton = Padding(
+      padding: EdgeInsets.only(
+        left: spacing.base * 2,
+        right: spacing.base * 2,
+        bottom: spacing.base,
+      ),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: ElevatedButton.icon(
+          onPressed: () => widget.onAddServer(_displayNames()),
+          icon: const Icon(Icons.add, size: 16),
+          label: const Text('Add Server'),
+          style: ElevatedButton.styleFrom(
+            padding: EdgeInsets.symmetric(
+              horizontal: spacing.base * 1.5,
+              vertical: spacing.sm,
             ),
           ),
+        ),
+      ),
+    );
+
+    // Single source
+    if (sources.length == 1) {
+      return Column(
+        children: [
+          addButton,
           Expanded(
-            child: ListView.separated(
-              padding: EdgeInsets.zero,
-              itemBuilder: (context, index) => _buildHostTile(widget.hosts[index]),
-              separatorBuilder: (_, _) => SizedBox(height: spacing.base),
-              itemCount: widget.hosts.length,
+            child: SectionList(
+              children: widget.hosts.map(_buildHostTile).toList(),
             ),
           ),
         ],
       );
     }
 
-    // Multiple sources - show with headers
+    // Multiple sources
     return Column(
       children: [
-        Padding(
-          padding: EdgeInsets.only(
-            left: spacing.base * 2,
-            right: spacing.base * 2,
-            bottom: spacing.base,
-          ),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: ElevatedButton.icon(
-              onPressed: () => widget.onAddServer(_displayNames()),
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('Add Server'),
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(
-                  horizontal: spacing.base * 1.5,
-                  vertical: spacing.sm,
-                ),
-              ),
-            ),
-          ),
-        ),
+        addButton,
         Expanded(
           child: ListView.builder(
             padding: EdgeInsets.zero,
-            itemCount: sources.length * 2 - 1, // Headers + separators
+            itemCount: sources.length,
             itemBuilder: (context, index) {
-              if (index.isOdd) {
-                // Separator
-                return SizedBox(height: spacing.base * 2);
-              }
-              final sourceIndex = index ~/ 2;
-              final source = sources[sourceIndex];
+              final source = sources[index];
               final hosts = grouped[source]!;
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: spacing.base * 2,
-                      vertical: spacing.base,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            _getSourceDisplayName(source),
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                ),
+              return Padding(
+                padding: EdgeInsets.only(bottom: spacing.base * 1.5),
+                child: SectionList(
+                  title: _getSourceDisplayName(source),
+                  trailing: source == 'custom'
+                      ? null
+                      : IconButton(
+                          icon: const Icon(Icons.edit, size: 18),
+                          tooltip: 'Edit config file',
+                          onPressed: () => ExternalAppLauncher.openConfigFile(
+                            source,
+                            context,
                           ),
                         ),
-                        if (source != 'custom')
-                          IconButton(
-                            icon: const Icon(Icons.edit, size: 18),
-                            tooltip: 'Edit config file',
-                            onPressed: () =>
-                                ExternalAppLauncher.openConfigFile(source, context),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                      ],
-                    ),
-                  ),
-                  ...hosts.map((host) => Padding(
-                        padding: EdgeInsets.only(bottom: spacing.base),
-                        child: _buildHostTile(host),
-                      )),
-                ],
+                  children: hosts.map(_buildHostTile).toList(),
+                ),
               );
             },
           ),
@@ -199,163 +158,169 @@ class _HostListState extends State<HostList> {
   }
 
   Widget _buildHostTile(SshHost host) {
-    final spacing = context.appTheme.spacing;
     final availability = host.available ? 'Online' : 'Offline';
     final selected = _selected?.name == host.name;
-    final colorScheme = Theme.of(context).colorScheme;
-    final highlightColor = selected
-        ? colorScheme.primary.withValues(alpha: 0.08)
-        : Colors.transparent;
-    final isCustom = host.source == 'custom';
+    final scheme = Theme.of(context).colorScheme;
+    final statusColor = host.available ? scheme.primary : scheme.error;
 
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _selected = host),
-      onTap: () => widget.onSelect?.call(host),
-      onDoubleTap: () {
+    final badge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: statusColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        availability,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: statusColor,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+
+    return SectionListItem(
+      selected: selected,
+      title: host.name,
+      subtitle:
+          '${host.hostname}:${host.port}'
+          '${host.user?.isNotEmpty == true ? ' • ${host.user}' : ''}',
+      leading: Icon(
+        NerdIcon.servers.data,
+        size: 20,
+        color: selected ? scheme.primary : scheme.onSurfaceVariant,
+      ),
+      badge: badge,
+      onTap: () {
+        setState(() {
+          _selected = host;
+        });
         widget.onSelect?.call(host);
-        widget.onActivate?.call(host);
       },
-      child: Card(
-        margin: EdgeInsets.zero,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: context.appTheme.section.cardRadius,
-        ),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 110),
-          curve: Curves.easeOutCubic,
-          decoration: BoxDecoration(
-            color: highlightColor,
-            borderRadius: context.appTheme.section.cardRadius,
-          ),
-          child: ListTile(
-            dense: true,
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: spacing.base * 2,
-              vertical: spacing.base,
-            ),
-            leading: Icon(
-              host.available
-                  ? NerdIcon.checkCircle.data
-                  : NerdIcon.alert.data,
-              color: host.available ? Colors.green : Colors.red,
-            ),
-            title: Text(
-              host.name,
-              style: selected
-                  ? Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: colorScheme.primary,
-                      )
-                  : null,
-            ),
-            subtitle: Text('${host.hostname}:${host.port}'),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  availability,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: host.available ? Colors.green : Colors.red,
-                  ),
-                ),
-                if (isCustom) ...[
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.edit, size: 20),
-                    tooltip: 'Edit',
-                    onPressed: () => _editCustomHost(host),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 20),
-                    tooltip: 'Delete',
-                    onPressed: () => _deleteCustomHost(host),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
+      onDoubleTap: () {
+        _showContextMenu(host, scheme);
+      },
+      onLongPress: () {
+        widget.onSelect?.call(host);
+        _showContextMenu(host, scheme);
+      },
+      onSecondaryTapDown: (details) {
+        widget.onSelect?.call(host);
+        _showContextMenu(host, scheme, details.globalPosition);
+      },
     );
   }
 
-  Future<void> _editCustomHost(SshHost host) async {
-    final customHosts = widget.settingsController.settings.customSshHosts;
-    final customHost = customHosts.firstWhere(
-      (h) => h.name == host.name && h.hostname == host.hostname,
-    );
-    final keyStore = BuiltInSshKeyStore();
-    final result = await showDialog<CustomSshHost>(
-      context: context,
-      builder: (context) => AddServerDialog(
-        initialHost: customHost,
-        keyStore: keyStore,
-        vault: widget.builtInVault,
-        existingNames: _displayNames(except: host),
-      ),
-    );
-    if (result != null) {
-      final updated = customHosts.map((h) => h == customHost ? result : h).toList();
-      final bindings =
-          Map<String, String>.from(widget.settingsController.settings.builtinSshHostKeyBindings);
-      if (result.identityFile != null && result.identityFile!.isNotEmpty) {
-        bindings[result.name] = result.identityFile!;
-      } else {
-        bindings.remove(result.name);
-      }
-      widget.settingsController.update(
-        (settings) => settings.copyWith(
-          customSshHosts: updated,
-          builtinSshHostKeyBindings: bindings,
+  List<String> _displayNames() => widget.hosts.map((h) => h.name).toList();
+
+  List<PopupMenuEntry<String>> _hostActions(
+    ColorScheme scheme,
+    SshHost host,
+  ) {
+    final isCustom = host is CustomSshHost || host.source == 'custom';
+    return [
+      PopupMenuItem(
+        value: 'connect',
+        child: Row(
+          children: [
+            Icon(NerdIcon.terminal.data, color: scheme.primary, size: 18),
+            const SizedBox(width: 8),
+            const Text('Open terminal'),
+          ],
         ),
-      );
-      widget.onHostsChanged();
+      ),
+      PopupMenuItem(
+        value: 'explore',
+        child: Row(
+          children: [
+            Icon(NerdIcon.folderOpen.data, color: scheme.primary, size: 18),
+            const SizedBox(width: 8),
+            const Text('Open file explorer'),
+          ],
+        ),
+      ),
+      PopupMenuItem(
+        value: 'connectivity',
+        child: Row(
+          children: [
+            Icon(NerdIcon.accessPoint.data, color: scheme.primary, size: 18),
+            const SizedBox(width: 8),
+            const Text('Connectivity dashboard'),
+          ],
+        ),
+      ),
+      PopupMenuItem(
+        value: 'resources',
+        child: Row(
+          children: [
+            Icon(NerdIcon.database.data, color: scheme.primary, size: 18),
+            const SizedBox(width: 8),
+            const Text('Resources dashboard'),
+          ],
+        ),
+      ),
+      const PopupMenuDivider(),
+      PopupMenuItem(
+        enabled: isCustom,
+        value: 'remove',
+        child: Row(
+          children: [
+            Icon(Icons.delete_outline, color: scheme.error, size: 18),
+            const SizedBox(width: 8),
+            Text('Remove', style: TextStyle(color: scheme.error)),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  void _handleHostAction(String? choice, SshHost host) {
+    switch (choice) {
+      case 'connect':
+        if (widget.onOpenTerminal != null) {
+          widget.onOpenTerminal!(host);
+        } else {
+          widget.onActivate?.call(host);
+        }
+        break;
+      case 'explore':
+        if (widget.onOpenExplorer != null) {
+          widget.onOpenExplorer!(host);
+        } else {
+          widget.onActivate?.call(host);
+        }
+        break;
+      case 'connectivity':
+        widget.onOpenConnectivity?.call(host);
+        break;
+      case 'resources':
+        widget.onOpenResources?.call(host);
+        break;
+      case 'remove':
+        final isCustom = host is CustomSshHost || host.source == 'custom';
+        if (isCustom) {
+          final current = widget.settingsController.settings;
+          final updated = [...current.customSshHosts]
+            ..removeWhere((h) => h.name == host.name);
+          widget.settingsController.update(
+            (settings) => settings.copyWith(customSshHosts: updated),
+          );
+          widget.onHostsChanged();
+        }
+        break;
+      default:
+        break;
     }
   }
 
-  List<String> _displayNames({SshHost? except}) {
-    return widget.hosts
-        .where((h) => except == null || h.name != except.name || h.hostname != except.hostname)
-        .map((h) => h.name)
-        .toList();
-  }
-
-  Future<void> _deleteCustomHost(SshHost host) async {
-    final confirmed = await showDialog<bool>(
+  void _showContextMenu(SshHost host, ColorScheme scheme, [Offset? tapPosition]) async {
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox?;
+    final basePosition = overlay?.localToGlobal(Offset.zero) ?? Offset.zero;
+    final anchor = tapPosition ?? basePosition + const Offset(200, 200);
+    final choice = await showMenu<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Server'),
-        content: Text('Are you sure you want to delete "${host.name}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      position: RelativeRect.fromLTRB(anchor.dx, anchor.dy, 0, 0),
+      items: _hostActions(scheme, host),
     );
-    if (confirmed == true) {
-      final customHosts = widget.settingsController.settings.customSshHosts;
-      final updated = customHosts.where(
-        (h) => !(h.name == host.name && h.hostname == host.hostname),
-      ).toList();
-      widget.settingsController.update(
-        (settings) => settings.copyWith(customSshHosts: updated),
-      );
-      widget.onHostsChanged();
-    }
+    _handleHostAction(choice, host);
   }
 }

@@ -17,6 +17,7 @@ import '../../theme/nerd_fonts.dart';
 import '../../../models/docker_workspace_state.dart';
 import '../shared/engine_tab.dart';
 import '../shared/engine_workspace.dart';
+import '../../widgets/action_picker.dart';
 import 'widgets/docker_dashboard.dart';
 import 'widgets/docker_engine_picker.dart';
 import 'widgets/docker_resources_dashboard.dart';
@@ -96,9 +97,9 @@ class _DockerViewState extends State<DockerView> {
         remoteScanRequested: _remoteScanRequested,
         onRefreshContexts: _refreshContexts,
         onScanRemotes: _scanRemotes,
-        onOpenContext: (contextName) =>
-            _openContextDashboard(tabId, contextName),
-        onOpenHost: (host) => _openHostDashboard(tabId, host),
+        onOpenContext: (contextName, anchor) =>
+            _openContextDashboard(tabId, contextName, anchor),
+        onOpenHost: (host, anchor) => _openHostDashboard(tabId, host, anchor),
       ),
     );
     _tabStates[tab.id] = DockerTabState(id: tab.id, kind: DockerTabKind.picker);
@@ -185,89 +186,117 @@ class _DockerViewState extends State<DockerView> {
     _persistWorkspace();
   }
 
-  void _openContextDashboard(String tabId, String contextName) {
+  Future<void> _openContextDashboard(
+    String tabId,
+    String contextName,
+    Offset? anchor,
+  ) async {
     final icons = context.appTheme.icons;
-    _chooseDashboard(
+    final choice = await _pickDashboardTarget(
+      contextName,
+      icons.cloud,
+      anchor,
+    );
+    if (choice == null || !mounted) return;
+    _replacePickerWithDashboard(
       tabId: tabId,
       title: contextName,
       id: 'ctx-$contextName',
       icon: icons.cloud,
-      buildOverview: () => DockerDashboard(
-        docker: _docker,
-        contextName: contextName,
-        trashManager: _trashManager,
-        builtInVault: widget.builtInVault,
-        settingsController: widget.settingsController,
-        onOpenTab: _openChildTab,
-        onCloseTab: _closeTabById,
-      ),
-      buildResources: () => DockerResourcesDashboard(
-        docker: _docker,
-        contextName: contextName,
-      ),
+      body: choice == _DashboardTarget.resources
+          ? DockerResourcesDashboard(
+              docker: _docker,
+              contextName: contextName,
+            )
+          : DockerDashboard(
+              docker: _docker,
+              contextName: contextName,
+              trashManager: _trashManager,
+              builtInVault: widget.builtInVault,
+              settingsController: widget.settingsController,
+              onOpenTab: _openChildTab,
+              onCloseTab: _closeTabById,
+            ),
     );
   }
 
-  void _openHostDashboard(String tabId, SshHost host) {
+  Future<void> _openHostDashboard(
+    String tabId,
+    SshHost host,
+    Offset? anchor,
+  ) async {
     final shell = _shellServiceForHost(host);
     final icons = context.appTheme.icons;
-    _chooseDashboard(
+    final choice = await _pickDashboardTarget(
+      host.name,
+      icons.cloudOutline,
+      anchor,
+    );
+    if (choice == null || !mounted) return;
+    _replacePickerWithDashboard(
       tabId: tabId,
       title: host.name,
       id: 'host-${host.name}',
       icon: icons.cloudOutline,
-      buildOverview: () => DockerDashboard(
-        docker: _docker,
-        remoteHost: host,
-        shellService: shell,
-        trashManager: _trashManager,
-        builtInVault: widget.builtInVault,
-        settingsController: widget.settingsController,
-        onOpenTab: _openChildTab,
-        onCloseTab: _closeTabById,
-      ),
-      buildResources: () => DockerResourcesDashboard(
-        docker: _docker,
-        remoteHost: host,
-        shellService: shell,
-      ),
+      body: choice == _DashboardTarget.resources
+          ? DockerResourcesDashboard(
+              docker: _docker,
+              remoteHost: host,
+              shellService: shell,
+            )
+          : DockerDashboard(
+              docker: _docker,
+              remoteHost: host,
+              shellService: shell,
+              trashManager: _trashManager,
+              builtInVault: widget.builtInVault,
+              settingsController: widget.settingsController,
+              onOpenTab: _openChildTab,
+              onCloseTab: _closeTabById,
+            ),
     );
   }
 
-  void _chooseDashboard({
-    required String tabId,
-    required String title,
-    required String id,
-    required IconData icon,
-    required Widget Function() buildOverview,
-    required Widget Function() buildResources,
-  }) {
-    showDialog<String>(
+  Future<_DashboardTarget?> _pickDashboardTarget(
+    String title,
+    IconData icon,
+    Offset? anchor,
+  ) {
+    final renderBox = context.findRenderObject() as RenderBox?;
+    final size = renderBox?.size ?? MediaQuery.sizeOf(context);
+    final anchorPoint = anchor ?? Offset(size.width / 2, size.height / 2);
+    return showMenu<_DashboardTarget>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Open dashboard'),
-        content: const Text('Choose which dashboard to open.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop('overview'),
-            child: const Text('Overview'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop('resources'),
-            child: const Text('Resources'),
-          ),
-        ],
+      position: RelativeRect.fromLTRB(
+        anchorPoint.dx,
+        anchorPoint.dy,
+        anchorPoint.dx,
+        anchorPoint.dy,
       ),
-    ).then((choice) {
-      if (choice == null) return;
-      _replacePickerWithDashboard(
-        tabId: tabId,
-        title: title,
-        id: id,
-        icon: icon,
-        body: choice == 'overview' ? buildOverview() : buildResources(),
-      );
-    });
+      items: [
+        PopupMenuItem(
+          value: _DashboardTarget.overview,
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+            title: const Text('Overview'),
+            subtitle: const Text('Containers, images, networks, volumes'),
+          ),
+        ),
+        PopupMenuItem(
+          value: _DashboardTarget.resources,
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              context.appTheme.icons.settings,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            title: const Text('Resources'),
+            subtitle: const Text('Resource usage and performance'),
+          ),
+        ),
+      ],
+    );
   }
 
   void _replacePickerWithDashboard({
@@ -1094,6 +1123,8 @@ class _DockerViewState extends State<DockerView> {
     );
   }
 }
+
+enum _DashboardTarget { overview, resources }
 
 class DockerEditorLoader extends StatefulWidget {
   const DockerEditorLoader({

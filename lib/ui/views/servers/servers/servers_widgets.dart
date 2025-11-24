@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../models/server_action.dart';
 import '../../../../models/ssh_host.dart';
 import '../../../theme/nerd_fonts.dart';
+import '../../../widgets/action_picker.dart';
 
 /// Error state widget for displaying errors
 class ErrorState extends StatelessWidget {
@@ -37,49 +38,34 @@ class ActionPickerDialog {
     BuildContext context,
     SshHost host,
   ) {
-    return showDialog<ServerAction>(
+    return ActionPicker.show<ServerAction>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('Actions for ${host.name}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(NerdIcon.folderOpen.data),
-              title: const Text('Open File Explorer'),
-              onTap: () =>
-                  Navigator.of(dialogContext).pop(ServerAction.fileExplorer),
-            ),
-            ListTile(
-              leading: Icon(NerdIcon.accessPoint.data),
-              title: const Text('Connectivity Dashboard'),
-              subtitle: const Text('Latency, jitter & throughput'),
-              onTap: () =>
-                  Navigator.of(dialogContext).pop(ServerAction.connectivity),
-            ),
-            ListTile(
-              leading: Icon(Icons.memory),
-              title: const Text('Resources Dashboard'),
-              subtitle: const Text('CPU, memory, disks, processes'),
-              onTap: () =>
-                  Navigator.of(dialogContext).pop(ServerAction.resources),
-            ),
-            ListTile(
-              leading: Icon(NerdIcon.terminal.data),
-              title: const Text('Terminal'),
-              subtitle: const Text('Interactive shell for this server'),
-              onTap: () =>
-                  Navigator.of(dialogContext).pop(ServerAction.terminal),
-            ),
-          ],
+      title: 'Actions for ${host.name}',
+      options: [
+        ActionOption(
+          title: 'Open File Explorer',
+          value: ServerAction.fileExplorer,
+          icon: NerdIcon.folderOpen.data,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
+        ActionOption(
+          title: 'Connectivity Dashboard',
+          subtitle: 'Latency, jitter & throughput',
+          value: ServerAction.connectivity,
+          icon: NerdIcon.accessPoint.data,
+        ),
+        ActionOption(
+          title: 'Resources Dashboard',
+          subtitle: 'CPU, memory, disks, processes',
+          value: ServerAction.resources,
+          icon: Icons.memory,
+        ),
+        ActionOption(
+          title: 'Terminal',
+          subtitle: 'Interactive shell for this server',
+          value: ServerAction.terminal,
+          icon: NerdIcon.terminal.data,
+        ),
+      ],
     );
   }
 }

@@ -1,8 +1,11 @@
+import 'package:cwatch/ui/theme/nerd_fonts.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../models/docker_context.dart';
 import '../../../../models/ssh_host.dart';
 import '../../../theme/app_theme.dart';
+import '../../../widgets/lists/section_list.dart';
+import '../../../widgets/lists/section_list_item.dart';
 import 'docker_shared.dart';
 
 class RemoteDockerStatus {
@@ -38,8 +41,8 @@ class EnginePicker extends StatelessWidget {
   final bool remoteScanRequested;
   final VoidCallback onRefreshContexts;
   final VoidCallback onScanRemotes;
-  final void Function(String contextName) onOpenContext;
-  final void Function(SshHost host) onOpenHost;
+  final void Function(String contextName, Offset? anchor) onOpenContext;
+  final void Function(SshHost host, Offset? anchor) onOpenHost;
 
   @override
   Widget build(BuildContext context) {
@@ -64,33 +67,25 @@ class EnginePicker extends StatelessWidget {
             if (contexts.isEmpty) {
               return EmptyState(onRefresh: onRefreshContexts);
             }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 8,
+            return SectionList(
+              title: 'Local contexts',
+              children: contexts
+                .map(
+                  (ctx) => SectionListItem(
+                    title: ctx.name,
+                      leading: Icon(
+                        NerdIcon.docker.data,
+                        size: 18,
+                        color: Theme.of(context).iconTheme.color,
+                      ),
+                    onTap: () => onOpenContext(ctx.name, null),
+                    onDoubleTap: () => onOpenContext(ctx.name, null),
+                    onLongPress: () => onOpenContext(ctx.name, null),
+                    onSecondaryTapDown: (details) =>
+                        onOpenContext(ctx.name, details.globalPosition),
                   ),
-                  child: Text(
-                    'Local contexts',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: contexts
-                      .map(
-                        (ctx) => EngineButton(
-                          label: ctx.name,
-                          selected: false,
-                          onDoubleTap: () => onOpenContext(ctx.name),
-                        ),
-                      )
-                      .toList(),
-                ),
-              ],
+                )
+                  .toList(),
             );
           },
         ),
@@ -121,7 +116,7 @@ class RemoteSection extends StatelessWidget {
   final bool scanRequested;
   final List<RemoteDockerStatus> cachedReady;
   final VoidCallback onScan;
-  final ValueChanged<SshHost> onOpenHost;
+  final void Function(SshHost host, Offset? anchor) onOpenHost;
 
   @override
   Widget build(BuildContext context) {
@@ -146,10 +141,10 @@ class RemoteSection extends StatelessWidget {
         if (!scanRequested)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: cachedReady.isEmpty
-                ? const Text(
-                    'Scan to check which servers have Docker available.',
-                  )
+          child: cachedReady.isEmpty
+              ? const Text(
+                  'Scan to check which servers have Docker available.',
+                )
                 : RemoteHostList(hosts: cachedReady, onOpenHost: onOpenHost),
           )
         else
@@ -185,26 +180,49 @@ class RemoteSection extends StatelessWidget {
 }
 
 class RemoteHostList extends StatelessWidget {
-  const RemoteHostList({super.key, required this.hosts, required this.onOpenHost});
+  const RemoteHostList({
+    super.key,
+    required this.hosts,
+    required this.onOpenHost,
+  });
 
   final List<RemoteDockerStatus> hosts;
-  final ValueChanged<SshHost> onOpenHost;
+  final void Function(SshHost host, Offset? anchor) onOpenHost;
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: hosts
-          .map(
-            (status) => EngineButton(
-              label: status.host.name,
-              selected: false,
-              subtitle: status.detail,
-              onDoubleTap: () => onOpenHost(status.host),
+    final scheme = Theme.of(context).colorScheme;
+    return SectionList(
+      children: hosts.map((status) {
+        final statusColor = status.available ? scheme.primary : scheme.error;
+        final badge = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: statusColor.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            status.available ? 'Ready' : 'Unavailable',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: statusColor,
+              fontWeight: FontWeight.w600,
             ),
-          )
-          .toList(),
+          ),
+        );
+        return SectionListItem(
+          title: status.host.name,
+          subtitle: status.detail,
+          badge: badge,
+          onTap: () => onOpenHost(status.host, null),
+          onSecondaryTapDown: (details) =>
+              onOpenHost(status.host, details.globalPosition),
+          leading: Icon(
+            context.appTheme.icons.cloud,
+            size: 20,
+            color: statusColor,
+          ),
+        );
+      }).toList(),
     );
   }
 }

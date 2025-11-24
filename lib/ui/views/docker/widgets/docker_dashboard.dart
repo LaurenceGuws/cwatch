@@ -366,20 +366,24 @@ class _DockerDashboardState extends State<DockerDashboard> {
                       break;
                   }
                 },
-                itemBuilder: (context) => const [
-                  PopupMenuItem(
-                    value: 'refresh',
-                    child: Text('Reload'),
-                  ),
-                  PopupMenuItem(
-                    value: 'prune',
-                    child: Text('System prune'),
-                  ),
-                  PopupMenuItem(
-                    value: 'pruneVolumes',
-                    child: Text('Prune incl. volumes'),
-                  ),
-                ],
+                itemBuilder: (context) {
+                  final scheme = Theme.of(context).colorScheme;
+                  return [
+                    _menuItem('refresh', 'Reload', icons.refresh),
+                    _menuItem(
+                      'prune',
+                      'System prune',
+                      Icons.cleaning_services_outlined,
+                      color: scheme.error,
+                    ),
+                    _menuItem(
+                      'pruneVolumes',
+                      'Prune incl. volumes',
+                      Icons.delete_sweep_outlined,
+                      color: scheme.error,
+                    ),
+                  ];
+                },
               ),
             ],
           ),
@@ -510,22 +514,43 @@ class _DockerDashboardState extends State<DockerDashboard> {
     );
   }
 
+  PopupMenuItem<String> _menuItem(
+    String value,
+    String label,
+    IconData icon, {
+    Color? color,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final resolved = color ?? scheme.primary;
+    return PopupMenuItem(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: resolved),
+          const SizedBox(width: 8),
+          Text(label, style: color != null ? TextStyle(color: color) : null),
+        ],
+      ),
+    );
+  }
+
   void _openContainerMenu(DockerContainer container, TapDownDetails details) {
+    final scheme = Theme.of(context).colorScheme;
     final extraActions = <PopupMenuEntry<String>>[
-      const PopupMenuItem(value: 'logs', child: Text('Tail logs (last 200)')),
-      const PopupMenuItem(value: 'shell', child: Text('Open shell tab')),
-      const PopupMenuItem(
-        value: 'copyExec',
-        child: Text('Copy exec shell command'),
+      _menuItem('logs', 'Tail logs (last 200)', Icons.list_alt_outlined),
+      _menuItem('shell', 'Open shell tab', NerdIcon.terminal.data),
+      _menuItem('copyExec', 'Copy exec shell command', _icons.copy),
+      _menuItem('explore', 'Open explorer', _icons.folderOpen),
+      _menuItem('start', 'Start', Icons.play_arrow_rounded),
+      _menuItem('stop', 'Stop', Icons.stop_rounded),
+      _menuItem('restart', 'Restart', _icons.refresh),
+      const PopupMenuDivider(),
+      _menuItem(
+        'remove',
+        'Remove',
+        Icons.delete_outline,
+        color: scheme.error,
       ),
-      const PopupMenuItem(
-        value: 'explore',
-        child: Text('Open explorer'),
-      ),
-      const PopupMenuItem(value: 'start', child: Text('Start')),
-      const PopupMenuItem(value: 'stop', child: Text('Stop')),
-      const PopupMenuItem(value: 'restart', child: Text('Restart')),
-      const PopupMenuItem(value: 'remove', child: Text('Remove')),
     ];
     _showItemMenu(
       globalPosition: details.globalPosition,
@@ -690,8 +715,8 @@ class _DockerDashboardState extends State<DockerDashboard> {
         globalPosition.dy,
       ),
       items: [
-        PopupMenuItem(value: 'copy', child: Text('Copy $copyLabel')),
-        const PopupMenuItem(value: 'details', child: Text('Details')),
+        _menuItem('copy', 'Copy $copyLabel', _icons.copy),
+        _menuItem('details', 'Details', Icons.info_outline),
         ...extraActions,
       ],
     );
