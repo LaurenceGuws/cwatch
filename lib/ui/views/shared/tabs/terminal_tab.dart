@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:general_lib/event_emitter/event_emitter.dart';
 import 'package:terminal_library/pty_library/pty_library.dart';
 import 'package:terminal_library/xterm_library/xterm.dart';
 
@@ -19,11 +17,13 @@ class TerminalTab extends StatefulWidget {
     required this.host,
     this.initialDirectory,
     required this.shellService,
+    this.onExit,
   });
 
   final SshHost host;
   final String? initialDirectory;
   final RemoteShellService shellService;
+  final VoidCallback? onExit;
 
   @override
   State<TerminalTab> createState() => _TerminalTabState();
@@ -32,16 +32,20 @@ class TerminalTab extends StatefulWidget {
 class _TerminalTabState extends State<TerminalTab> {
   final TerminalLibraryFlutterController _controller =
       TerminalLibraryFlutterController();
-  final TerminalLibraryFlutter _terminal = TerminalLibraryFlutter(maxLines: 1000);
+  final TerminalLibraryFlutter _terminal = TerminalLibraryFlutter(
+    maxLines: 1000,
+  );
   TerminalPtyLibraryBase? _pty;
-  EventEmitterListener? _outputListener;
   bool _connecting = true;
   String? _error;
-  final TerminalLibraryFlutterStyle _textStyle = const TerminalLibraryFlutterStyle(
-    fontFamily: 'JetBrainsMonoNF',
-    fontSize: 14,
-    height: 1.1,
-  );
+  bool _closing = false;
+  int _sessionToken = 0;
+  final TerminalLibraryFlutterStyle _textStyle =
+      const TerminalLibraryFlutterStyle(
+        fontFamily: 'JetBrainsMonoNF',
+        fontSize: 14,
+        height: 1.1,
+      );
 
   @override
   void initState() {
@@ -51,12 +55,16 @@ class _TerminalTabState extends State<TerminalTab> {
 
   @override
   void dispose() {
+    _closing = true;
     _resetSession();
     _controller.dispose();
     super.dispose();
   }
 
   Future<void> _startSession() async {
+    _sessionToken += 1;
+    final token = _sessionToken;
+    _closing = false;
     _resetSession();
     setState(() {
       _connecting = true;
@@ -74,9 +82,16 @@ class _TerminalTabState extends State<TerminalTab> {
         options: _terminalSessionOptions(),
       );
       _pty = session;
-      _outputListener = session.on(
+      session.on(
         eventName: session.event_output,
         onCallback: (data, _) => _handlePtyData(data),
+      );
+      unawaited(
+        session.exitCode.then((_) {
+          if (!mounted || _closing || token != _sessionToken) return;
+          _closing = true;
+          widget.onExit?.call();
+        }),
       );
 
       _terminal.textInput('clear');
@@ -105,10 +120,7 @@ class _TerminalTabState extends State<TerminalTab> {
   TerminalSessionOptions _terminalSessionOptions() {
     final columns = _terminal.viewWidth > 0 ? _terminal.viewWidth : 80;
     final rows = _terminal.viewHeight > 0 ? _terminal.viewHeight : 25;
-    return TerminalSessionOptions(
-      columns: columns,
-      rows: rows,
-    );
+    return TerminalSessionOptions(columns: columns, rows: rows);
   }
 
   Future<void> _sendInitialDirectory() async {
@@ -119,6 +131,23 @@ class _TerminalTabState extends State<TerminalTab> {
     final escaped = _shellEscape(target);
     _terminal.textInput('cd $escaped\n');
     await Future.delayed(const Duration(milliseconds: 100));
+  }
+
+  void _onTerminalOutput(String value) {
+    final bytes = utf8.encode(value);
+    if (bytes.isEmpty) {
+      return;
+    }
+    _pty?.write(Uint8List.fromList(bytes));
+  }
+
+  void _onTerminalResize(
+    int columns,
+    int rows,
+    int pixelWidth,
+    int pixelHeight,
+  ) {
+    _pty?.resize(rows, columns);
   }
 
   void _handlePtyData(dynamic data) {
@@ -138,22 +167,12 @@ class _TerminalTabState extends State<TerminalTab> {
     }
   }
 
-  void _onTerminalOutput(String value) {
-    final bytes = utf8.encode(value);
-    if (bytes.isEmpty) {
-      return;
-    }
-    _pty?.write(Uint8List.fromList(bytes));
-  }
-
-  void _onTerminalResize(int columns, int rows, int pixelWidth, int pixelHeight) {
-    _pty?.resize(rows, columns);
-  }
-
   void _resetSession() {
-    _outputListener?.cancel();
-    _outputListener = null;
-    _pty?.event_emitter.clear();
+    try {
+      _pty?.event_emitter.clear();
+    } catch (_) {
+      // Ignore cleanup errors; the PTY is being torn down.
+    }
     _pty?.kill();
     _pty = null;
   }
@@ -208,15 +227,9 @@ class _TerminalTabState extends State<TerminalTab> {
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
-          Text(
-            _error ?? 'Unknown error',
-            textAlign: TextAlign.center,
-          ),
+          Text(_error ?? 'Unknown error', textAlign: TextAlign.center),
           const SizedBox(height: 12),
-          FilledButton(
-            onPressed: _startSession,
-            child: const Text('Retry'),
-          ),
+          FilledButton(onPressed: _startSession, child: const Text('Retry')),
         ],
       ),
     );
@@ -246,7 +259,7 @@ class _TerminalTabState extends State<TerminalTab> {
             alwaysShowCursor: true,
             deleteDetection:
                 defaultTargetPlatform == TargetPlatform.android ||
-                    defaultTargetPlatform == TargetPlatform.iOS,
+                defaultTargetPlatform == TargetPlatform.iOS,
             textStyle: _textStyle,
           ),
         ),

@@ -23,6 +23,7 @@ class DockerResourcesDashboard extends StatefulWidget {
     this.remoteHost,
     this.shellService,
     this.onOpenTab,
+    this.onCloseTab,
   });
 
   final DockerClientService docker;
@@ -30,6 +31,7 @@ class DockerResourcesDashboard extends StatefulWidget {
   final SshHost? remoteHost;
   final RemoteShellService? shellService;
   final void Function(EngineTab tab)? onOpenTab;
+  final void Function(String tabId)? onCloseTab;
 
   @override
   State<DockerResourcesDashboard> createState() => _DockerResourcesDashboardState();
@@ -364,10 +366,12 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
         widget.contextName != null && widget.contextName!.isNotEmpty
             ? '--context ${widget.contextName!} '
             : '';
-    final command = 'docker ${contextFlag}stats --no-stream --format "{{json .}}"';
+    final command =
+        'docker ${contextFlag}stats --no-stream --format "{{json .}}"; exit';
+    final tabId = 'dstat-${DateTime.now().microsecondsSinceEpoch}';
     widget.onOpenTab!(
       EngineTab(
-        id: 'dstat-${DateTime.now().microsecondsSinceEpoch}',
+        id: tabId,
         title: 'docker stats',
         label: 'docker stats',
         icon: NerdIcon.terminal.data,
@@ -376,6 +380,7 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
           title: 'docker stats',
           host: widget.remoteHost,
           shellService: widget.shellService,
+          onExit: () => widget.onCloseTab?.call(tabId),
         ),
         canDrag: true,
         workspaceState: DockerTabState(

@@ -164,6 +164,7 @@ class _HomeShellState extends State<HomeShell> {
   late final BuiltInSshKeyStore _builtInKeyStore;
   late final BuiltInSshVault _builtInVault;
   late final RemoteCommandLogController _commandLog;
+  String? _hostsSettingsSignature;
 
   @override
   void initState() {
@@ -172,6 +173,9 @@ class _HomeShellState extends State<HomeShell> {
     _builtInKeyStore = BuiltInSshKeyStore();
     _builtInVault = BuiltInSshVault(keyStore: _builtInKeyStore);
     _refreshHosts();
+    _hostsSettingsSignature = _hostSettingsSignature(
+      widget.settingsController.settings,
+    );
     _applyShellSettings(widget.settingsController.settings);
     _shellStateRestored = widget.settingsController.isLoaded;
     _settingsListener = _handleSettingsChanged;
@@ -208,10 +212,15 @@ class _HomeShellState extends State<HomeShell> {
         _shellStateRestored = true;
       });
     }
-    // Refresh hosts when custom hosts change
-    setState(() {
-      _refreshHosts();
-    });
+    final nextSignature = _hostSettingsSignature(
+      widget.settingsController.settings,
+    );
+    if (nextSignature != _hostsSettingsSignature) {
+      _hostsSettingsSignature = nextSignature;
+      setState(() {
+        _refreshHosts();
+      });
+    }
   }
 
   void _applyShellSettings(AppSettings settings) {
@@ -242,6 +251,24 @@ class _HomeShellState extends State<HomeShell> {
   void _handleSidebarDragEnd() {
     if (_sidebarCollapsed) return;
     _persistShellState(width: _sidebarWidthOverride);
+  }
+
+  String _hostSettingsSignature(AppSettings settings) {
+    final hosts = settings.customSshHosts
+        .map(
+          (host) =>
+              '${host.name}|${host.hostname}|${host.port}|${host.user ?? ''}|${host.identityFile ?? ''}',
+        )
+        .join(';');
+    final customConfigs = List<String>.from(settings.customSshConfigPaths)
+      ..sort();
+    final disabledConfigs = List<String>.from(settings.disabledSshConfigPaths)
+      ..sort();
+    return [
+      hosts,
+      customConfigs.join(';'),
+      disabledConfigs.join(';'),
+    ].join('::');
   }
 
   void _toggleSidebar() {
@@ -465,10 +492,7 @@ class _Sidebar extends StatelessWidget {
 }
 
 class _SidebarResizeHandle extends StatelessWidget {
-  const _SidebarResizeHandle({
-    required this.onDrag,
-    required this.onDragEnd,
-  });
+  const _SidebarResizeHandle({required this.onDrag, required this.onDragEnd});
 
   final ValueChanged<double> onDrag;
   final VoidCallback onDragEnd;
@@ -516,7 +540,6 @@ class _SidebarToggleButton extends StatelessWidget {
   }
 }
 
-
 enum ShellDestination { servers, docker, kubernetes, settings }
 
 class _SidebarEntry {
@@ -563,40 +586,40 @@ class _SidebarButton extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-            child: SizedBox.expand(
-              child: Column(
-                children: [
-                  Expanded(
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(icon.data, size: iconSize, color: iconColor),
-                          if (showLabel) ...[
-                            const SizedBox(height: 6),
-                            Flexible(
-                              child: Text(
-                                label,
-                                style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(
-                                      color: textColor,
-                                      fontWeight: selected
-                                          ? FontWeight.w700
-                                          : FontWeight.w500,
-                                      letterSpacing: 0.4,
-                                    ),
-                                textAlign: TextAlign.center,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                softWrap: false,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
+        child: SizedBox.expand(
+          child: Column(
+            children: [
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(icon.data, size: iconSize, color: iconColor),
+                      if (showLabel) ...[
+                        const SizedBox(height: 6),
+                        Flexible(
+                          child: Text(
+                            label,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: textColor,
+                                  fontWeight: selected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  letterSpacing: 0.4,
+                                ),
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: false,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
+                ),
+              ),
               _SidebarDivider(
                 color: selected ? colorScheme.primary : dividerColor,
                 inset: 12,
@@ -606,13 +629,10 @@ class _SidebarButton extends StatelessWidget {
         ),
       ),
     );
-    
+
     // Add tooltip when label is hidden
     if (!showLabel) {
-      return Tooltip(
-        message: label,
-        child: button,
-      );
+      return Tooltip(message: label, child: button);
     }
     return button;
   }

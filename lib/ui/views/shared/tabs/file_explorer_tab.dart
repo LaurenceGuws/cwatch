@@ -13,7 +13,6 @@ import '../../../../services/filesystem/explorer_trash_manager.dart';
 import 'explorer_clipboard.dart';
 import 'merge_conflict_dialog.dart';
 import 'file_explorer/path_navigator.dart';
-import 'file_explorer/command_bar.dart';
 import 'file_explorer/ssh_auth_handler.dart';
 import 'file_explorer/file_operations_service.dart';
 import 'file_explorer/file_entry_list.dart';
@@ -44,7 +43,8 @@ class FileExplorerTab extends StatefulWidget {
   final ExplorerTrashManager trashManager;
   final BuiltInSshVault? builtInVault;
   final VoidCallback onOpenTrash;
-  final Future<void> Function(String path, String initialContent)? onOpenEditorTab;
+  final Future<void> Function(String path, String initialContent)?
+  onOpenEditorTab;
   final ValueChanged<String>? onOpenTerminalTab;
 
   @override
@@ -52,7 +52,6 @@ class FileExplorerTab extends StatefulWidget {
 }
 
 class _FileExplorerTabState extends State<FileExplorerTab> {
-
   final List<RemoteFileEntry> _entries = [];
   final FocusNode _listFocusNode = FocusNode(debugLabel: 'file-explorer-list');
   final ScrollController _scrollController = ScrollController();
@@ -199,17 +198,18 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
   }
 
   Future<void> _initializeExplorer() async {
-    final home = await _runShell(
-      () => widget.shellService.homeDirectory(widget.host),
-    ).catchError((error) {
-      if (error is CancelledExplorerOperation) {
-        if (mounted && Navigator.of(context).canPop()) {
-          Navigator.of(context).pop();
-        }
-        return '';
-      }
-      throw error;
-    });
+    final home =
+        await _runShell(
+          () => widget.shellService.homeDirectory(widget.host),
+        ).catchError((error) {
+          if (error is CancelledExplorerOperation) {
+            if (mounted && Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            }
+            return '';
+          }
+          throw error;
+        });
     if (home.isEmpty) {
       if (mounted) {
         setState(() {
@@ -245,8 +245,6 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       children: [
         _buildPathHeader(context),
         const SizedBox(height: 12),
-        _buildCommandBar(),
-        const SizedBox(height: 12),
         Expanded(
           child: Card(
             clipBehavior: Clip.antiAlias,
@@ -276,6 +274,9 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
 
   Widget _buildPathHeader(BuildContext context) {
     final navigator = _buildPathNavigator(context);
+    final openTerminalHere = widget.onOpenTerminalTab == null
+        ? null
+        : () => widget.onOpenTerminalTab!(_currentPath);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -285,17 +286,9 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
           onOpenTrash: widget.onOpenTrash,
           onUploadFiles: () => _handleUploadFiles(_currentPath),
           onUploadFolder: () => _handleUploadFolder(_currentPath),
+          onOpenTerminalHere: openTerminalHere,
         ),
       ],
-    );
-  }
-
-  Widget _buildCommandBar() {
-    return CommandBar(
-      hostName: widget.host.name,
-      onCommandSubmitted: (command) {
-        _runAdHocCommand(command);
-      },
     );
   }
 
@@ -339,33 +332,55 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
           entries,
           () => setState(() {}),
           () {
-            final selectedEntries = _selectionController.getSelectedEntries(entries);
+            final selectedEntries = _selectionController.getSelectedEntries(
+              entries,
+            );
             if (selectedEntries.isNotEmpty) {
               if (selectedEntries.length > 1) {
                 unawaited(_handleMultiCopy(selectedEntries));
               } else {
-                _handleClipboardSet(selectedEntries.first, ExplorerClipboardOperation.copy);
+                _handleClipboardSet(
+                  selectedEntries.first,
+                  ExplorerClipboardOperation.copy,
+                );
               }
             }
           },
           () {
-            final selectedEntries = _selectionController.getSelectedEntries(entries);
+            final selectedEntries = _selectionController.getSelectedEntries(
+              entries,
+            );
             if (selectedEntries.isNotEmpty) {
               if (selectedEntries.length > 1) {
                 unawaited(_handleMultiCut(selectedEntries));
               } else {
-                _handleClipboardSet(selectedEntries.first, ExplorerClipboardOperation.cut);
+                _handleClipboardSet(
+                  selectedEntries.first,
+                  ExplorerClipboardOperation.cut,
+                );
               }
             }
           },
           () => _handlePaste(targetDirectory: _currentPath),
           () {
-            final selectedEntries = _selectionController.getSelectedEntries(entries);
+            final selectedEntries = _selectionController.getSelectedEntries(
+              entries,
+            );
             if (selectedEntries.isNotEmpty) {
               if (selectedEntries.length > 1) {
-                unawaited(_confirmMultiDelete(selectedEntries, permanent: SelectionController.isShiftPressed()));
+                unawaited(
+                  _confirmMultiDelete(
+                    selectedEntries,
+                    permanent: SelectionController.isShiftPressed(),
+                  ),
+                );
               } else {
-                unawaited(_confirmDelete(selectedEntries.first, permanent: SelectionController.isShiftPressed()));
+                unawaited(
+                  _confirmDelete(
+                    selectedEntries.first,
+                    permanent: SelectionController.isShiftPressed(),
+                  ),
+                );
               }
             }
           },
@@ -391,7 +406,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       forceReload: forceReload,
       isLoading: _loading,
     );
-    
+
     if (result.skipped) {
       return;
     }
@@ -399,12 +414,12 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     if (!mounted) {
       return;
     }
-    
+
     setState(() {
       _loading = true;
       _error = null;
     });
-    
+
     if (result.error != null) {
       if (!mounted) return;
       setState(() {
@@ -413,11 +428,11 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       });
       return;
     }
-    
+
     if (result.entries == null) {
       return;
     }
-    
+
     setState(() {
       _entries
         ..clear()
@@ -435,7 +450,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         }
       }
     });
-    
+
     if (result.allEntries != null) {
       final updates = await _pathLoadingService.hydrateCachedSessions(
         result.allEntries!,
@@ -451,12 +466,15 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
 
   /// Soft refresh: reloads entries without resetting scroll position or selection
   Future<void> _refreshCurrentPath() async {
-    final result = await _pathLoadingService.refreshPath(_currentPath, _entries);
-    
+    final result = await _pathLoadingService.refreshPath(
+      _currentPath,
+      _entries,
+    );
+
     if (result.skipped || result.entries == null) {
       return;
     }
-    
+
     if (result.error != null) {
       AppLogger.w(
         'Failed to refresh current path',
@@ -465,10 +483,12 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       );
       return;
     }
-    
+
     // Preserve scroll position
-    final scrollOffset = _scrollController.hasClients ? _scrollController.offset : 0.0;
-    
+    final scrollOffset = _scrollController.hasClients
+        ? _scrollController.offset
+        : 0.0;
+
     setState(() {
       _entries
         ..clear()
@@ -480,7 +500,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         }
       }
     });
-    
+
     // Restore scroll position after rebuild
     if (_scrollController.hasClients && scrollOffset > 0) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -489,7 +509,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         }
       });
     }
-    
+
     if (result.allEntries != null) {
       final updates = await _pathLoadingService.hydrateCachedSessions(
         result.allEntries!,
@@ -503,28 +523,14 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     }
   }
 
-  void _runAdHocCommand(String command) {
-    final trimmed = command.trim();
-    if (trimmed.isEmpty) {
-      return;
-    }
-    final parts = trimmed.split(' ');
-    if (parts.first == 'cd' && parts.length > 1) {
-      _loadPath(parts[1]);
-    } else if (parts.first == 'ls') {
-      _loadPath(parts.length > 1 ? parts[1] : _currentPath);
-    }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Executed: $trimmed')));
-  }
-
   Future<void> _showEntryContextMenu(
     RemoteFileEntry entry,
     Offset position,
   ) async {
     final sortedEntries = _currentSortedEntries();
-    final selectedEntries = _selectionController.getSelectedEntries(sortedEntries);
+    final selectedEntries = _selectionController.getSelectedEntries(
+      sortedEntries,
+    );
     final builder = ContextMenuBuilder(
       hostName: widget.host.name,
       currentPath: _currentPath,
@@ -535,9 +541,9 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         final path = PathUtils.joinPath(_currentPath, e.name);
         await Clipboard.setData(ClipboardData(text: path));
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Copied $path')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Copied $path')));
         }
       },
       onOpenLocally: _openLocally,
@@ -564,9 +570,15 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       onMove: _promptMove,
       onDelete: (entries) async {
         if (entries.length > 1) {
-          await _confirmMultiDelete(entries, permanent: SelectionController.isShiftPressed());
+          await _confirmMultiDelete(
+            entries,
+            permanent: SelectionController.isShiftPressed(),
+          );
         } else {
-          await _confirmDelete(entries.first, permanent: SelectionController.isShiftPressed());
+          await _confirmDelete(
+            entries.first,
+            permanent: SelectionController.isShiftPressed(),
+          );
         }
       },
       onDownload: _handleDownload,
@@ -609,7 +621,11 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
   }
 
   Future<void> _openLocally(RemoteFileEntry entry) async {
-    final session = await _fileEditingService.openLocally(context, entry, _currentPath);
+    final session = await _fileEditingService.openLocally(
+      context,
+      entry,
+      _currentPath,
+    );
     if (session != null && mounted) {
       setState(() {
         _localEdits[session.remotePath] = session;
@@ -621,17 +637,13 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     setState(() {
       _syncingPaths.add(session.remotePath);
     });
-    await _fileEditingService.syncLocalEdit(
-      context,
-      session,
-      (s) {
-        if (mounted) {
-          setState(() {
-            _localEdits[s.remotePath] = s;
-          });
-        }
-      },
-    );
+    await _fileEditingService.syncLocalEdit(context, session, (s) {
+      if (mounted) {
+        setState(() {
+          _localEdits[s.remotePath] = s;
+        });
+      }
+    });
     if (mounted) {
       setState(() {
         _syncingPaths.remove(session.remotePath);
@@ -704,18 +716,25 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     } catch (error) {
       if (error is CancelledExplorerOperation) return;
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to rename: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to rename: $error')));
     }
   }
 
   Future<void> _promptMove(RemoteFileEntry entry) async {
-    final target = await DialogBuilders.showMoveDialog(context, entry, _currentPath);
+    final target = await DialogBuilders.showMoveDialog(
+      context,
+      entry,
+      _currentPath,
+    );
     if (target == null || target.trim().isEmpty) {
       return;
     }
-    final normalized = PathUtils.normalizePath(target, currentPath: _currentPath);
+    final normalized = PathUtils.normalizePath(
+      target,
+      currentPath: _currentPath,
+    );
     if (normalized == PathUtils.joinPath(_currentPath, entry.name)) {
       return;
     }
@@ -735,9 +754,9 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     } catch (error) {
       if (error is CancelledExplorerOperation) return;
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to move: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to move: $error')));
     }
   }
 
@@ -773,20 +792,17 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     }
   }
 
-
   Future<void> _handlePaste({required String targetDirectory}) async {
     await _fileOpsService.handlePaste(
       context: context,
       targetDirectory: targetDirectory,
       currentPath: _currentPath,
       joinPath: PathUtils.joinPath,
-      normalizePath: (path) => PathUtils.normalizePath(path, currentPath: _currentPath),
+      normalizePath: (path) =>
+          PathUtils.normalizePath(path, currentPath: _currentPath),
       refreshCurrentPath: _refreshCurrentPath,
     );
   }
-
-
-
 
   List<RemoteFileEntry> _currentSortedEntries() {
     final sorted = [..._entries];
@@ -799,15 +815,20 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     return sorted;
   }
 
-
-
-
   Future<void> _handleMultiCopy(List<RemoteFileEntry> entries) async {
-    _clipboardHandler.setClipboardEntries(context, entries, ExplorerClipboardOperation.copy);
+    _clipboardHandler.setClipboardEntries(
+      context,
+      entries,
+      ExplorerClipboardOperation.copy,
+    );
   }
 
   Future<void> _handleMultiCut(List<RemoteFileEntry> entries) async {
-    _clipboardHandler.setClipboardEntries(context, entries, ExplorerClipboardOperation.cut);
+    _clipboardHandler.setClipboardEntries(
+      context,
+      entries,
+      ExplorerClipboardOperation.cut,
+    );
   }
 
   Future<void> _confirmMultiDelete(
@@ -926,7 +947,7 @@ class CancelledExplorerOperation implements Exception {
   String toString() => 'CancelledExplorerOperation';
 }
 
-enum _ExplorerMenuAction { uploadFiles, uploadFolder, openTrash }
+enum _ExplorerMenuAction { uploadFiles, uploadFolder, openTrash, openTerminal }
 
 class ExplorerMenu extends StatelessWidget {
   const ExplorerMenu({
@@ -934,14 +955,39 @@ class ExplorerMenu extends StatelessWidget {
     required this.onOpenTrash,
     required this.onUploadFiles,
     required this.onUploadFolder,
+    this.onOpenTerminalHere,
   });
 
   final VoidCallback onOpenTrash;
   final VoidCallback onUploadFiles;
   final VoidCallback onUploadFolder;
+  final VoidCallback? onOpenTerminalHere;
 
   @override
   Widget build(BuildContext context) {
+    final actions = <PopupMenuEntry<_ExplorerMenuAction>>[
+      const PopupMenuItem(
+        value: _ExplorerMenuAction.uploadFiles,
+        child: Text('Upload files...'),
+      ),
+      const PopupMenuItem(
+        value: _ExplorerMenuAction.uploadFolder,
+        child: Text('Upload folder...'),
+      ),
+      const PopupMenuItem(
+        value: _ExplorerMenuAction.openTrash,
+        child: Text('Open trash tab'),
+      ),
+    ];
+    if (onOpenTerminalHere != null) {
+      actions.add(
+        const PopupMenuItem(
+          value: _ExplorerMenuAction.openTerminal,
+          child: Text('Open terminal here'),
+        ),
+      );
+    }
+
     return PopupMenuButton<_ExplorerMenuAction>(
       tooltip: 'Explorer options',
       icon: const Icon(Icons.settings),
@@ -956,22 +1002,12 @@ class ExplorerMenu extends StatelessWidget {
           case _ExplorerMenuAction.uploadFolder:
             onUploadFolder();
             break;
+          case _ExplorerMenuAction.openTerminal:
+            onOpenTerminalHere?.call();
+            break;
         }
       },
-      itemBuilder: (context) => const [
-        PopupMenuItem(
-          value: _ExplorerMenuAction.uploadFiles,
-          child: Text('Upload files...'),
-        ),
-        PopupMenuItem(
-          value: _ExplorerMenuAction.uploadFolder,
-          child: Text('Upload folder...'),
-        ),
-        PopupMenuItem(
-          value: _ExplorerMenuAction.openTrash,
-          child: Text('Open trash tab'),
-        ),
-      ],
+      itemBuilder: (context) => actions,
     );
   }
 }

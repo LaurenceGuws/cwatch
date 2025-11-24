@@ -44,6 +44,7 @@ class DockerDashboard extends StatefulWidget {
     required this.builtInVault,
     required this.settingsController,
     this.onOpenTab,
+    this.onCloseTab,
   });
 
   final DockerClientService docker;
@@ -54,6 +55,7 @@ class DockerDashboard extends StatefulWidget {
   final BuiltInSshVault builtInVault;
   final AppSettingsController settingsController;
   final OpenTab? onOpenTab;
+  final void Function(String tabId)? onCloseTab;
 
   @override
   State<DockerDashboard> createState() => _DockerDashboardState();
@@ -758,11 +760,12 @@ class _DockerDashboardState extends State<DockerDashboard> {
   Future<void> _openLogsTab(DockerContainer container) async {
     final name = container.name.isNotEmpty ? container.name : container.id;
     final baseCommand = _logsBaseCommand(container.id);
-    final tailCommand = _followLogsCommand(container.id);
+    final tailCommand = _autoCloseCommand(_followLogsCommand(container.id));
 
     if (widget.onOpenTab != null) {
+      final tabId = 'logs-${container.id}-${DateTime.now().microsecondsSinceEpoch}';
       final tab = EngineTab(
-        id: 'logs-${container.id}-${DateTime.now().microsecondsSinceEpoch}',
+        id: tabId,
         title: 'Logs: $name',
         label: 'Logs: $name',
         icon: NerdIcon.terminal.data,
@@ -771,6 +774,7 @@ class _DockerDashboardState extends State<DockerDashboard> {
           shellService: widget.shellService,
           command: tailCommand,
           title: 'Logs • $name',
+          onExit: () => widget.onCloseTab?.call(tabId),
         ),
         canDrag: true,
         workspaceState: DockerTabState(
@@ -795,8 +799,9 @@ class _DockerDashboardState extends State<DockerDashboard> {
     final base = _composeBaseCommand(project);
     final services = _composeServices(project);
     if (widget.onOpenTab != null) {
+      final tabId = 'clogs-$project-${DateTime.now().microsecondsSinceEpoch}';
       final tab = EngineTab(
-        id: 'clogs-$project-${DateTime.now().microsecondsSinceEpoch}',
+        id: tabId,
         title: 'Compose logs: $project',
         label: 'Compose logs: $project',
         icon: NerdIcon.terminal.data,
@@ -806,6 +811,7 @@ class _DockerDashboardState extends State<DockerDashboard> {
           services: services,
           host: widget.remoteHost,
           shellService: widget.shellService,
+          onExit: () => widget.onCloseTab?.call(tabId),
         ),
         canDrag: true,
         workspaceState: DockerTabState(
@@ -857,16 +863,29 @@ class _DockerDashboardState extends State<DockerDashboard> {
     // Reattach after restarts; only the first attach pulls the last 200 lines.
     return '''
 bash -lc '
+trap "exit 130" INT
 tail_arg="--tail 200"
 since=""
 while true; do
   docker ${contextFlag}logs --follow \$tail_arg \$since "$containerId"
+  exit_code=\$?
+  if [ \$exit_code -eq 130 ]; then
+    exit 130
+  fi
   tail_arg="--tail 0"
   since="--since=\$(date -Iseconds)"
   echo "[logs] stream ended; waiting to reattach..."
   sleep 1
 done'
 ''';
+  }
+
+  String _autoCloseCommand(String command) {
+    final trimmed = command.trimRight();
+    if (trimmed.endsWith('exit') || trimmed.endsWith('exit;')) {
+      return command;
+    }
+    return '$trimmed; exit';
   }
 
   Future<void> _showLogsDialog(
@@ -959,10 +978,14 @@ done'
   Future<void> _openExecTerminal(DockerContainer container) async {
     if (widget.remoteHost == null || widget.shellService == null) {
       final name = container.name.isNotEmpty ? container.name : container.id;
-      final command = 'docker exec -it ${container.id} /bin/sh';
+      final command = _autoCloseCommand(
+        'docker exec -it ${container.id} /bin/sh',
+      );
       if (widget.onOpenTab != null) {
+        final tabId =
+            'exec-${container.id}-${DateTime.now().microsecondsSinceEpoch}';
         final tab = EngineTab(
-          id: 'exec-${container.id}-${DateTime.now().microsecondsSinceEpoch}',
+          id: tabId,
           title: 'Shell: $name',
           label: 'Shell: $name',
           icon: NerdIcon.terminal.data,
@@ -971,6 +994,7 @@ done'
             shellService: null,
             command: command,
             title: 'Exec shell • $name',
+            onExit: () => widget.onCloseTab?.call(tabId),
           ),
           canDrag: true,
         );
@@ -987,10 +1011,14 @@ done'
       return;
     }
     final name = container.name.isNotEmpty ? container.name : container.id;
-    final command = 'docker exec -it ${container.id} /bin/sh';
+    final command = _autoCloseCommand(
+      'docker exec -it ${container.id} /bin/sh',
+    );
     if (widget.onOpenTab != null) {
+      final tabId =
+          'exec-${container.id}-${DateTime.now().microsecondsSinceEpoch}';
       final tab = EngineTab(
-        id: 'exec-${container.id}-${DateTime.now().microsecondsSinceEpoch}',
+        id: tabId,
         title: 'Shell: $name',
         label: 'Shell: $name',
         icon: NerdIcon.terminal.data,
@@ -999,6 +1027,7 @@ done'
           shellService: widget.shellService!,
           command: command,
           title: 'Exec shell • $name',
+          onExit: () => widget.onCloseTab?.call(tabId),
         ),
         canDrag: true,
         workspaceState: DockerTabState(

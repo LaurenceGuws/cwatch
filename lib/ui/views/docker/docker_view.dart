@@ -199,6 +199,7 @@ class _DockerViewState extends State<DockerView> {
         builtInVault: widget.builtInVault,
         settingsController: widget.settingsController,
         onOpenTab: _openChildTab,
+        onCloseTab: _closeTabById,
       ),
       buildResources: () => DockerResourcesDashboard(
         docker: _docker,
@@ -223,6 +224,7 @@ class _DockerViewState extends State<DockerView> {
         builtInVault: widget.builtInVault,
         settingsController: widget.settingsController,
         onOpenTab: _openChildTab,
+        onCloseTab: _closeTabById,
       ),
       buildResources: () => DockerResourcesDashboard(
         docker: _docker,
@@ -561,6 +563,23 @@ class _DockerViewState extends State<DockerView> {
     _persistWorkspace();
   }
 
+  void _closeTabById(String id) {
+    final index = _tabs.indexWhere((tab) => tab.id == id);
+    if (index == -1) return;
+    setState(() {
+      _tabStates.remove(_tabs[index].id);
+      _tabs.removeAt(index);
+      if (_tabs.isEmpty) {
+        _selectedIndex = 0;
+      } else if (_selectedIndex >= _tabs.length) {
+        _selectedIndex = _tabs.length - 1;
+      } else if (_selectedIndex > index) {
+        _selectedIndex -= 1;
+      }
+    });
+    _persistWorkspace();
+  }
+
   DockerTabState? _tabStateFromBody(String id, Widget body) {
     if (body is EnginePicker) {
       return DockerTabState(id: id, kind: DockerTabKind.picker);
@@ -812,16 +831,17 @@ class _DockerViewState extends State<DockerView> {
           label: state.title!,
           icon: NerdIcon.terminal.data,
           canDrag: true,
-          body: DockerCommandTerminal(
-            host: host,
-            shellService: shell,
-            command: state.command!,
-            title: state.title!,
-          ),
-          workspaceState: state,
-        );
-      case DockerTabKind.containerShell:
-      case DockerTabKind.containerLogs:
+      body: DockerCommandTerminal(
+        host: host,
+        shellService: shell,
+        command: state.command!,
+        title: state.title!,
+        onExit: () => _closeTabById(state.id),
+      ),
+      workspaceState: state,
+    );
+  case DockerTabKind.containerShell:
+  case DockerTabKind.containerLogs:
         if (state.command == null || state.title == null) return null;
         final host = _hostByName(hosts, state.hostName);
         final shell = host != null ? _shellServiceForHost(host) : null;
@@ -831,14 +851,15 @@ class _DockerViewState extends State<DockerView> {
           label: state.title!,
           icon: NerdIcon.terminal.data,
           canDrag: true,
-          body: DockerCommandTerminal(
-            host: host,
-            shellService: shell,
-            command: state.command!,
-            title: state.title!,
-          ),
-          workspaceState: state,
-        );
+      body: DockerCommandTerminal(
+        host: host,
+        shellService: shell,
+        command: state.command!,
+        title: state.title!,
+        onExit: () => _closeTabById(state.id),
+      ),
+      workspaceState: state,
+    );
       case DockerTabKind.composeLogs:
         if (state.project == null) return null;
         final host = _hostByName(hosts, state.hostName);
@@ -851,15 +872,16 @@ class _DockerViewState extends State<DockerView> {
           label: 'Compose logs: ${state.project}',
           icon: NerdIcon.terminal.data,
           canDrag: true,
-          body: ComposeLogsTerminal(
-            composeBase: composeBase,
-            project: state.project!,
-            services: state.services,
-            host: host,
-            shellService: shell,
-          ),
-          workspaceState: state,
-        );
+      body: ComposeLogsTerminal(
+        composeBase: composeBase,
+        project: state.project!,
+        services: state.services,
+        host: host,
+        shellService: shell,
+        onExit: () => _closeTabById(state.id),
+      ),
+      workspaceState: state,
+    );
       case DockerTabKind.containerExplorer:
         final host = _hostByName(hosts, state.hostName);
         final shell = _containerShell(host, state.containerId);
@@ -971,6 +993,7 @@ class _DockerViewState extends State<DockerView> {
           ? DockerResourcesDashboard(
               docker: _docker,
               contextName: contextName,
+              onCloseTab: _closeTabById,
             )
           : DockerDashboard(
               docker: _docker,
@@ -979,6 +1002,7 @@ class _DockerViewState extends State<DockerView> {
               builtInVault: widget.builtInVault,
               settingsController: widget.settingsController,
               onOpenTab: _openChildTab,
+              onCloseTab: _closeTabById,
             ),
     );
   }
@@ -1008,6 +1032,7 @@ class _DockerViewState extends State<DockerView> {
               docker: _docker,
               remoteHost: host,
               shellService: shell,
+              onCloseTab: _closeTabById,
             )
           : DockerDashboard(
               docker: _docker,
@@ -1017,6 +1042,7 @@ class _DockerViewState extends State<DockerView> {
               builtInVault: widget.builtInVault,
               settingsController: widget.settingsController,
               onOpenTab: _openChildTab,
+              onCloseTab: _closeTabById,
             ),
     );
   }

@@ -36,9 +36,8 @@ class SectionNavBar extends StatelessWidget {
     final hasTabs = tabs.isNotEmpty;
     final viewportWidth = MediaQuery.of(context).size.width;
     final compact = viewportWidth < 640;
-    // Switch to icons earlier to prevent text cutoff (especially "Kubernetes")
-    // Use a higher breakpoint so icons show before text gets truncated
-    final showIconsOnly = viewportWidth < 1000; // Show icons only on small/medium screens
+    // Only collapse to icons on narrow layouts (mobile-ish) to keep labels visible on desktop.
+    final showIconsOnly = compact;
     
     return Material(
       elevation: 1,

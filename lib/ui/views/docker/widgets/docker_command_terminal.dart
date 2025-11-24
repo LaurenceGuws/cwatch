@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -20,6 +21,7 @@ class DockerCommandTerminal extends StatefulWidget {
     this.actions,
     this.showCopyButton = true,
     this.autofocus = true,
+    this.onExit,
   });
 
   final SshHost? host;
@@ -29,6 +31,7 @@ class DockerCommandTerminal extends StatefulWidget {
   final List<Widget>? actions;
   final bool showCopyButton;
   final bool autofocus;
+  final VoidCallback? onExit;
 
   @override
   State<DockerCommandTerminal> createState() => _DockerCommandTerminalState();
@@ -93,6 +96,12 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
           eventName: session.event_output,
           onCallback: (data, _) => _handlePtyData(data),
         );
+        unawaited(
+          session.exitCode.then((_) {
+            if (!mounted || token != _sessionToken) return;
+            widget.onExit?.call();
+          }),
+        );
         _terminal.textInput('${widget.command}\n');
       } else {
         final session = TerminalPtyLibrary(
@@ -109,6 +118,12 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
         session.on(
           eventName: session.event_output,
           onCallback: (data, _) => _handlePtyData(data),
+        );
+        unawaited(
+          session.exitCode.then((_) {
+            if (!mounted || token != _sessionToken) return;
+            widget.onExit?.call();
+          }),
         );
       }
       setState(() => _connecting = false);
@@ -319,6 +334,7 @@ class ComposeLogsTerminal extends StatefulWidget {
     required this.services,
     this.host,
     this.shellService,
+    this.onExit,
   });
 
   final String composeBase;
@@ -326,6 +342,7 @@ class ComposeLogsTerminal extends StatefulWidget {
   final List<String> services;
   final SshHost? host;
   final RemoteShellService? shellService;
+  final VoidCallback? onExit;
 
   @override
   State<ComposeLogsTerminal> createState() => _ComposeLogsTerminalState();
@@ -423,6 +440,7 @@ class _ComposeLogsTerminalState extends State<ComposeLogsTerminal> {
             shellService: widget.shellService,
             showCopyButton: true,
             autofocus: false,
+            onExit: widget.onExit,
           ),
         ),
       ],
@@ -431,15 +449,15 @@ class _ComposeLogsTerminalState extends State<ComposeLogsTerminal> {
 
   String _buildCommand() {
     if (widget.services.isEmpty || _selected.isEmpty) {
-      return '${widget.composeBase} logs -f --tail 200';
+      return '${widget.composeBase} logs -f --tail 200; exit';
     }
     final includeList = _excludeSelection
         ? widget.services.where((s) => !_selected.contains(s)).toList()
         : _selected.toList();
     if (includeList.isEmpty) {
-      return '${widget.composeBase} logs -f --tail 200';
+      return '${widget.composeBase} logs -f --tail 200; exit';
     }
     final servicesArg = includeList.map((s) => '"$s"').join(' ');
-    return '${widget.composeBase} logs -f --tail 200 $servicesArg';
+    return '${widget.composeBase} logs -f --tail 200 $servicesArg; exit';
   }
 }

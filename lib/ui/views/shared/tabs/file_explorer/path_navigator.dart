@@ -44,29 +44,41 @@ class _PathNavigatorState extends State<PathNavigator> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final toggle = ToggleButtons(
+      isSelected: [widget.showBreadcrumbs, !widget.showBreadcrumbs],
+      onPressed: (index) {
+        widget.onShowBreadcrumbsChanged?.call(index == 0);
+      },
+      borderRadius: BorderRadius.circular(10),
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 32),
+      children: const [
+        Icon(Icons.alt_route, size: 16),
+        Icon(Icons.text_fields, size: 16),
+      ],
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(
-              widget.showBreadcrumbs ? 'Breadcrumbs' : 'Path input',
-              style: theme.textTheme.bodySmall,
-            ),
-            const Spacer(),
-            ToggleButtons(
-              isSelected: [widget.showBreadcrumbs, !widget.showBreadcrumbs],
-              onPressed: (index) {
-                widget.onShowBreadcrumbsChanged?.call(index == 0);
-              },
-              borderRadius: BorderRadius.circular(10),
-              constraints: const BoxConstraints(minWidth: 36, minHeight: 32),
-              children: const [
-                Icon(Icons.alt_route, size: 16),
-                Icon(Icons.text_fields, size: 16),
-              ],
-            ),
-          ],
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              toggle,
+              const SizedBox(width: 8),
+              Text(
+                widget.showBreadcrumbs ? 'Breadcrumbs' : 'Path input',
+                style: theme.textTheme.bodySmall,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 8),
         if (widget.showBreadcrumbs)

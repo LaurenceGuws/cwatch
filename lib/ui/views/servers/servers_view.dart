@@ -471,6 +471,7 @@ class _ServersViewState extends State<ServersView> {
           host: tab.host,
           initialDirectory: tab.customName,
           shellService: _shellServiceForHost(tab.host),
+          onExit: () => _closeTabById(tab.id),
         );
       case ServerAction.trash:
         return TrashTab(
@@ -533,6 +534,13 @@ class _ServersViewState extends State<ServersView> {
       }
     });
     _persistWorkspace();
+  }
+
+  void _closeTabById(String id) {
+    final index = _tabs.indexWhere((tab) => tab.id == id);
+    if (index != -1) {
+      _closeTab(index);
+    }
   }
 
   void _handleTabReorder(int oldIndex, int newIndex) {
