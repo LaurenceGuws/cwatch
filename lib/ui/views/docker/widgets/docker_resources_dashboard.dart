@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 import '../../../../models/docker_container_stat.dart';
+import '../../../../models/docker_workspace_state.dart';
 import '../../../../models/ssh_host.dart';
 import '../../../../services/docker/docker_client_service.dart';
 import '../../../../services/ssh/remote_shell_service.dart';
@@ -38,13 +39,13 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
   bool _loading = true;
   String? _error;
   List<DockerContainerStat> _stats = const [];
-  final List<double> _totalCpuHistory = [];
-  final List<double> _totalMemHistory = [];
-  final List<double> _avgCpuHistory = [];
-  final List<double> _avgMemHistory = [];
-  final List<double> _containerCountHistory = [];
+  int _sortColumnIndex = 0;
+  bool _sortAscending = true;
   final Map<String, List<double>> _cpuHistoryByContainer = {};
-  final Map<String, List<double>> _memHistoryByContainer = {};
+  final Map<String, List<double>> _memPercentHistoryByContainer = {};
+  final Map<String, List<double>> _memUsageHistoryByContainer = {};
+  final Map<String, List<double>> _netIoHistoryByContainer = {};
+  final Map<String, List<double>> _blockIoHistoryByContainer = {};
   static const _historyLimit = 60;
 
   @override
@@ -114,17 +115,11 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
                         ? const Center(child: Text('No container stats found.'))
                         : LayoutBuilder(
                             builder: (context, constraints) {
-                              final isWide = constraints.maxWidth >= 900;
-                              final cardWidth = isWide
-                                  ? (constraints.maxWidth - 24) / 2
-                                  : constraints.maxWidth;
                               return ListView(
                                 children: [
-                                  _buildCharts(cardWidth),
-                                  const SizedBox(height: 12),
-                                  _buildSummary(_stats, cardWidth),
+                                  _buildCharts(constraints.maxWidth),
                                   const SizedBox(height: 16),
-                                  _buildContainerTable(cardWidth),
+                                  _buildContainerTable(constraints.maxWidth),
                                 ],
                               );
                             },
@@ -135,58 +130,44 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
     );
   }
 
-  Widget _buildSummary(List<DockerContainerStat> stats, double maxCardWidth) {
-    final cpuValues = stats.map(_cpuPercent).whereType<double>().toList();
-    final memValues = stats.map(_memPercent).whereType<double>().toList();
-    final totalCpu = cpuValues.fold<double>(0, (a, b) => a + b);
-    final totalMem = memValues.fold<double>(0, (a, b) => a + b);
-    final topCpu = _topBy(stats, _cpuPercent);
-    final topMem = _topBy(stats, _memPercent);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Resource usage',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
-            _summaryCard(
-              'CPU (total)',
-              '${totalCpu.toStringAsFixed(1)}%',
-              history: _totalCpuHistory,
-              color: Theme.of(context).colorScheme.primary,
-              maxWidth: maxCardWidth,
-            ),
-            _summaryCard(
-              'Memory (total)',
-              '${totalMem.toStringAsFixed(1)}%',
-              history: _totalMemHistory,
-              color: Colors.teal,
-              maxWidth: maxCardWidth,
-            ),
-            if (topCpu != null)
-              _summaryCard(
-                'Top CPU',
-                '${_nameOf(topCpu)} (${topCpu.cpu})',
-                maxWidth: maxCardWidth,
-              ),
-            if (topMem != null)
-              _summaryCard(
-                'Top Mem',
-                '${_nameOf(topMem)} (${topMem.memPercent})',
-                maxWidth: maxCardWidth,
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-
   Widget _buildCharts(double maxCardWidth) {
+    final memUsageScaled =
+        _scaleForBytes(_seriesFromMap(_memUsageHistoryByContainer));
+    final netIoScaled = _scaleForBytes(_seriesFromMap(_netIoHistoryByContainer));
+    final blockIoScaled =
+        _scaleForBytes(_seriesFromMap(_blockIoHistoryByContainer));
+    final charts = [
+      (
+        title: 'CPU %',
+        subtitle: 'CPU percent by container',
+        series: _seriesFromMap(_cpuHistoryByContainer),
+        unit: null,
+      ),
+      (
+        title: 'Memory %',
+        subtitle: 'Memory percent by container',
+        series: _seriesFromMap(_memPercentHistoryByContainer),
+        unit: null,
+      ),
+      (
+        title: 'Memory used',
+        subtitle: 'Used memory by container (${memUsageScaled.unit})',
+        series: memUsageScaled.series,
+        unit: memUsageScaled.unit,
+      ),
+      (
+        title: 'Net I/O',
+        subtitle: 'Total network I/O by container (${netIoScaled.unit})',
+        series: netIoScaled.series,
+        unit: netIoScaled.unit,
+      ),
+      (
+        title: 'Block I/O',
+        subtitle: 'Total block I/O by container (${blockIoScaled.unit})',
+        series: blockIoScaled.series,
+        unit: blockIoScaled.unit,
+      ),
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -195,100 +176,19 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
-            _lineChartCard(
-              title: 'CPU vs Memory',
-              subtitle: 'Totals over time',
-              series: [
-                _LineSeries(
-                  label: 'CPU %',
-                  values: _totalCpuHistory,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                _LineSeries(
-                  label: 'Mem %',
-                  values: _totalMemHistory,
-                  color: Colors.teal,
-                ),
-              ],
+        ...charts.map(
+          (chart) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _lineChartCard(
+              title: chart.title,
+              subtitle: chart.subtitle,
+              series: chart.series,
               maxWidth: maxCardWidth,
+              unitSuffix: chart.unit,
             ),
-            _lineChartCard(
-              title: 'CPU by container',
-              subtitle: 'Each container as its own series',
-              series: _seriesFromMap(_cpuHistoryByContainer),
-              maxWidth: maxCardWidth,
-            ),
-            _lineChartCard(
-              title: 'Memory by container',
-              subtitle: 'Each container as its own series',
-              series: _seriesFromMap(_memHistoryByContainer),
-              maxWidth: maxCardWidth,
-            ),
-            _lineChartCard(
-              title: 'Per-container averages',
-              subtitle: 'Averages with container count overlay',
-              series: [
-                _LineSeries(
-                  label: 'CPU avg %',
-                  values: _avgCpuHistory,
-                  color: Colors.orange,
-                ),
-                _LineSeries(
-                  label: 'Mem avg %',
-                  values: _avgMemHistory,
-                  color: Colors.purple,
-                ),
-                _LineSeries(
-                  label: 'Containers',
-                  values: _containerCountHistory,
-                  color: Colors.blueGrey,
-                ),
-              ],
-              maxWidth: maxCardWidth,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _summaryCard(
-    String label,
-    String value, {
-    List<double>? history,
-    Color? color,
-    double? maxWidth,
-  }) {
-    return SizedBox(
-      width: maxWidth ?? 220,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              if (history != null && history.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                _Sparkline(
-                  values: history,
-                  color: color ?? Theme.of(context).colorScheme.primary,
-                  height: 48,
-                ),
-              ],
-            ],
           ),
         ),
-      ),
+      ],
     );
   }
 
@@ -309,13 +209,38 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
                 minWidth: maxCardWidth,
               ),
               child: DataTable(
-                columns: const [
-                  DataColumn(label: Text('Container')),
-                  DataColumn(label: Text('CPU')),
-                  DataColumn(label: Text('Mem')),
-                  DataColumn(label: Text('Net I/O')),
-                  DataColumn(label: Text('Block I/O')),
-                  DataColumn(label: Text('PIDs')),
+                sortColumnIndex: _sortColumnIndex,
+                sortAscending: _sortAscending,
+                columns: [
+                  DataColumn(
+                    label: const Text('Container'),
+                    onSort: (index, ascending) => _sortStats(index, ascending),
+                  ),
+                  DataColumn(
+                    numeric: true,
+                    label: const Text('CPU'),
+                    onSort: (index, ascending) => _sortStats(index, ascending),
+                  ),
+                  DataColumn(
+                    numeric: true,
+                    label: const Text('Mem'),
+                    onSort: (index, ascending) => _sortStats(index, ascending),
+                  ),
+                  DataColumn(
+                    numeric: true,
+                    label: const Text('Net I/O'),
+                    onSort: (index, ascending) => _sortStats(index, ascending),
+                  ),
+                  DataColumn(
+                    numeric: true,
+                    label: const Text('Block I/O'),
+                    onSort: (index, ascending) => _sortStats(index, ascending),
+                  ),
+                  DataColumn(
+                    numeric: true,
+                    label: const Text('PIDs'),
+                    onSort: (index, ascending) => _sortStats(index, ascending),
+                  ),
                 ],
                 rows: _stats
                     .map(
@@ -352,20 +277,54 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
     return double.tryParse(value);
   }
 
-  DockerContainerStat? _topBy(
-    List<DockerContainerStat> stats,
-    double? Function(DockerContainerStat) picker,
+  void _sortStats(int columnIndex, bool ascending) {
+    setState(() {
+      _sortColumnIndex = columnIndex;
+      _sortAscending = ascending;
+      _applySort();
+    });
+  }
+
+  void _applySort() {
+    final comparator = _comparatorForColumn(_sortColumnIndex);
+    _stats = [..._stats]..sort((a, b) {
+        final result = comparator(a, b);
+        return _sortAscending ? result : -result;
+      });
+  }
+
+  int Function(DockerContainerStat a, DockerContainerStat b) _comparatorForColumn(
+    int column,
   ) {
-    DockerContainerStat? best;
-    double bestValue = -1;
-    for (final s in stats) {
-      final v = picker(s);
-      if (v != null && v > bestValue) {
-        bestValue = v;
-        best = s;
-      }
+    switch (column) {
+      case 1:
+        return (a, b) => _compareNum(_cpuPercent(a), _cpuPercent(b));
+      case 2:
+        return (a, b) => _compareNum(_memPercent(a), _memPercent(b));
+      case 3:
+        return (a, b) => _compareNum(
+              _parseBytePair(a.netIO),
+              _parseBytePair(b.netIO),
+            );
+      case 4:
+        return (a, b) => _compareNum(
+              _parseBytePair(a.blockIO),
+              _parseBytePair(b.blockIO),
+            );
+      case 5:
+        return (a, b) => _compareNum(_parsePid(a.pids), _parsePid(b.pids));
+      case 0:
+      default:
+        return (a, b) =>
+            _nameOf(a).toLowerCase().compareTo(_nameOf(b).toLowerCase());
     }
-    return best;
+  }
+
+  int _compareNum(num? a, num? b) {
+    if (a == null && b == null) return 0;
+    if (a == null) return -1;
+    if (b == null) return 1;
+    return a.compareTo(b);
   }
 
   List<DockerContainerStat> _parseStats(String output) {
@@ -416,6 +375,13 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
           shellService: widget.shellService,
         ),
         canDrag: true,
+        workspaceState: DockerTabState(
+          id: 'docker-stats',
+          kind: DockerTabKind.command,
+          command: command,
+          title: 'docker stats',
+          hostName: widget.remoteHost?.name,
+        ),
       ),
     );
   }
@@ -429,29 +395,10 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
     }
     try {
       final stats = await _load();
-      final totalCpu = stats
-          .map(_cpuPercent)
-          .whereType<double>()
-          .fold<double>(0, (a, b) => a + b);
-      final totalMem = stats
-          .map(_memPercent)
-          .whereType<double>()
-          .fold<double>(0, (a, b) => a + b);
       setState(() {
         _stats = stats;
         _error = null;
         _loading = false;
-        _appendHistory(_totalCpuHistory, totalCpu);
-        _appendHistory(_totalMemHistory, totalMem);
-        _appendHistory(
-          _avgCpuHistory,
-          stats.isNotEmpty ? totalCpu / stats.length : 0,
-        );
-        _appendHistory(
-          _avgMemHistory,
-          stats.isNotEmpty ? totalMem / stats.length : 0,
-        );
-        _appendHistory(_containerCountHistory, stats.length.toDouble());
         for (final stat in stats) {
           final name = _nameOf(stat);
           _appendHistoryFor(
@@ -460,24 +407,33 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
             _cpuPercent(stat) ?? 0,
           );
           _appendHistoryFor(
-            _memHistoryByContainer,
+            _memPercentHistoryByContainer,
             name,
             _memPercent(stat) ?? 0,
           );
-        }
+          _appendHistoryFor(
+        _memUsageHistoryByContainer,
+        name,
+        _parseBytes(stat.memUsage) ?? 0,
+      );
+      _appendHistoryFor(
+            _netIoHistoryByContainer,
+            name,
+            _parseBytePair(stat.netIO),
+          );
+          _appendHistoryFor(
+        _blockIoHistoryByContainer,
+        name,
+        _parseBytePair(stat.blockIO),
+      );
+    }
+    _applySort();
       });
     } catch (error) {
       setState(() {
         _error = error.toString();
         _loading = false;
       });
-    }
-  }
-
-  void _appendHistory(List<double> list, double value) {
-    list.add(value);
-    if (list.length > _historyLimit) {
-      list.removeAt(0);
     }
   }
 
@@ -493,11 +449,48 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
     }
   }
 
+  double? _parseBytes(String value) {
+    final used = value.split('/').first.trim();
+    return _parseByteValue(used);
+  }
+
+  double _parseBytePair(String value) {
+    final parts = value.split('/');
+    final double first =
+        parts.isNotEmpty ? (_parseByteValue(parts[0].trim()) ?? 0) : 0;
+    final double second =
+        parts.length > 1 ? (_parseByteValue(parts[1].trim()) ?? 0) : 0;
+    return first + second;
+  }
+
+  double? _parseByteValue(String value) {
+    final match = RegExp(r'([0-9]+(?:\.[0-9]+)?)\s*([A-Za-z]+)?')
+        .firstMatch(value.trim());
+    if (match == null) return null;
+    final number = double.tryParse(match.group(1) ?? '');
+    if (number == null) return null;
+    final unit = (match.group(2) ?? 'B').toLowerCase();
+    const multipliers = {
+      'b': 1,
+      'kb': 1024,
+      'kib': 1024,
+      'mb': 1024 * 1024,
+      'mib': 1024 * 1024,
+      'gb': 1024 * 1024 * 1024,
+      'gib': 1024 * 1024 * 1024,
+    };
+    final multiplier = multipliers[unit] ?? 1;
+    return number * multiplier;
+  }
+
+  double _parsePid(String value) => double.tryParse(value) ?? 0;
+
   Widget _lineChartCard({
     required String title,
     required String subtitle,
     required List<_LineSeries> series,
     required double maxWidth,
+    String? unitSuffix,
   }) {
     final hasPoints = series.any((s) => s.values.isNotEmpty);
     return SizedBox(
@@ -529,7 +522,10 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
                 height: 240,
                 child: hasPoints
                     ? LineChart(
-                        _lineChartData(series),
+                        _lineChartData(
+                          series,
+                          unitSuffix: unitSuffix,
+                        ),
                         duration: const Duration(milliseconds: 250),
                         curve: Curves.easeInOut,
                       )
@@ -573,7 +569,10 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
     return palette[hash.abs() % palette.length];
   }
 
-  LineChartData _lineChartData(List<_LineSeries> series) {
+  LineChartData _lineChartData(
+    List<_LineSeries> series, {
+    String? unitSuffix,
+  }) {
     final allValues = series.expand((s) => s.values).toList();
     final double maxY = allValues.isNotEmpty
         ? math.max(allValues.reduce(math.max) * 1.1, 10).toDouble()
@@ -616,7 +615,7 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
             reservedSize: 36,
             interval: maxY / 4,
             getTitlesWidget: (value, meta) => Text(
-              value.toStringAsFixed(0),
+              _formatValue(value, unitSuffix),
               style: Theme.of(context).textTheme.labelSmall,
             ),
           ),
@@ -635,6 +634,15 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
         touchTooltipData: LineTouchTooltipData(
           fitInsideVertically: true,
           fitInsideHorizontally: true,
+          getTooltipItems: (touchedSpots) => touchedSpots
+              .map(
+                (spot) => LineTooltipItem(
+                  '${series[spot.barIndex].label}: ${_formatValue(spot.y, unitSuffix)}',
+                  Theme.of(context).textTheme.labelLarge ??
+                      const TextStyle(color: Colors.white),
+                ),
+              )
+              .toList(),
         ),
       ),
       lineBarsData: series
@@ -662,6 +670,44 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
       spots.add(FlSpot(i.toDouble(), values[i]));
     }
     return spots;
+  }
+
+  _ScaledSeries _scaleForBytes(List<_LineSeries> series) {
+    final allValues = series.expand((s) => s.values).toList();
+    if (allValues.isEmpty) {
+      return _ScaledSeries(series: series, unit: 'B');
+    }
+    final maxValue = allValues.reduce(math.max);
+    final units = [
+      (label: 'B', factor: 1),
+      (label: 'KB', factor: 1024),
+      (label: 'MB', factor: 1024 * 1024),
+      (label: 'GB', factor: 1024 * 1024 * 1024),
+      (label: 'TB', factor: 1024 * 1024 * 1024 * 1024),
+    ];
+    var chosen = units.first;
+    for (final unit in units) {
+      if (maxValue >= unit.factor) {
+        chosen = unit;
+      } else {
+        break;
+      }
+    }
+    final scaledSeries = series
+        .map(
+          (s) => _LineSeries(
+            label: s.label,
+            values: s.values.map((v) => v / chosen.factor).toList(),
+            color: s.color,
+          ),
+        )
+        .toList();
+    return _ScaledSeries(series: scaledSeries, unit: chosen.label);
+  }
+
+  String _formatValue(double value, String? suffix) {
+    final formatted = value >= 10 ? value.toStringAsFixed(1) : value.toStringAsFixed(2);
+    return suffix != null ? '$formatted $suffix' : formatted;
   }
 }
 
@@ -703,61 +749,12 @@ class _ChartLegend extends StatelessWidget {
   }
 }
 
-class _Sparkline extends StatelessWidget {
-  const _Sparkline({
-    required this.values,
-    required this.color,
-    this.height = 32.0,
+class _ScaledSeries {
+  const _ScaledSeries({
+    required this.series,
+    required this.unit,
   });
 
-  final List<double> values;
-  final Color color;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: height,
-      child: CustomPaint(
-        painter: _SparklinePainter(values: values, color: color),
-        size: Size.infinite,
-      ),
-    );
-  }
-}
-
-class _SparklinePainter extends CustomPainter {
-  _SparklinePainter({required this.values, required this.color});
-  final List<double> values;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (values.isEmpty) return;
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-    final min = values.reduce((a, b) => a < b ? a : b);
-    final max = values.reduce((a, b) => a > b ? a : b);
-    final range = (max - min).clamp(1e-3, double.infinity);
-    final dx = values.length > 1
-        ? size.width / (values.length - 1)
-        : size.width;
-    final path = Path();
-    for (var i = 0; i < values.length; i++) {
-      final x = values.length > 1 ? i * dx : 0.0;
-      final norm = (values[i] - min) / range;
-      final y = size.height - (norm * size.height);
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  final List<_LineSeries> series;
+  final String unit;
 }

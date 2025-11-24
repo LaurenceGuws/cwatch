@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'custom_ssh_host.dart';
+import 'docker_workspace_state.dart';
 import 'server_workspace_state.dart';
 import 'ssh_client_backend.dart';
 
@@ -25,6 +26,7 @@ class AppSettings {
     this.editorThemeDark,
     this.dockerRemoteHosts = const [],
     this.dockerSelectedContext,
+    this.dockerWorkspace,
   });
 
   final ThemeMode themeMode;
@@ -46,6 +48,7 @@ class AppSettings {
   final String? editorThemeDark;
   final List<String> dockerRemoteHosts;
   final String? dockerSelectedContext;
+  final DockerWorkspaceState? dockerWorkspace;
 
   AppSettings copyWith({
     ThemeMode? themeMode,
@@ -67,6 +70,7 @@ class AppSettings {
     String? editorThemeDark,
     List<String>? dockerRemoteHosts,
     String? dockerSelectedContext,
+    DockerWorkspaceState? dockerWorkspace,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -92,6 +96,7 @@ class AppSettings {
       editorThemeDark: editorThemeDark ?? this.editorThemeDark,
       dockerRemoteHosts: dockerRemoteHosts ?? this.dockerRemoteHosts,
       dockerSelectedContext: dockerSelectedContext ?? this.dockerSelectedContext,
+      dockerWorkspace: dockerWorkspace ?? this.dockerWorkspace,
     );
   }
 
@@ -167,6 +172,17 @@ class AppSettings {
                   .toList() ??
               const [],
       dockerSelectedContext: json['dockerSelectedContext'] as String?,
+      dockerWorkspace: () {
+        final raw = json['dockerWorkspace'];
+        if (raw is Map<String, dynamic>) {
+          try {
+            return DockerWorkspaceState.fromJson(raw);
+          } catch (_) {
+            return null;
+          }
+        }
+        return null;
+      }(),
     );
   }
 
@@ -192,6 +208,7 @@ class AppSettings {
       'dockerRemoteHosts': dockerRemoteHosts,
       if (dockerSelectedContext != null)
         'dockerSelectedContext': dockerSelectedContext,
+      if (dockerWorkspace != null) 'dockerWorkspace': dockerWorkspace!.toJson(),
     };
   }
 }

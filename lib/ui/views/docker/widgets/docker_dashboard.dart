@@ -12,6 +12,7 @@ import '../../../../models/docker_container.dart';
 import '../../../../models/docker_image.dart';
 import '../../../../models/docker_network.dart';
 import '../../../../models/docker_volume.dart';
+import '../../../../models/docker_workspace_state.dart';
 import '../../../../models/ssh_host.dart';
 import '../../../../models/remote_file_entry.dart';
 import '../../../../services/docker/docker_client_service.dart';
@@ -767,6 +768,15 @@ class _DockerDashboardState extends State<DockerDashboard> {
           title: 'Logs • $name',
         ),
         canDrag: true,
+        workspaceState: DockerTabState(
+          id: 'logs-${container.id}',
+          kind: DockerTabKind.containerLogs,
+          hostName: widget.remoteHost?.name,
+          containerId: container.id,
+          containerName: name,
+          command: tailCommand,
+          title: 'Logs • $name',
+        ),
       );
       widget.onOpenTab!(tab);
       return;
@@ -793,6 +803,14 @@ class _DockerDashboardState extends State<DockerDashboard> {
           shellService: widget.shellService,
         ),
         canDrag: true,
+        workspaceState: DockerTabState(
+          id: 'clogs-$project',
+          kind: DockerTabKind.composeLogs,
+          hostName: widget.remoteHost?.name,
+          project: project,
+          command: base,
+          services: services,
+        ),
       );
       widget.onOpenTab!(tab);
       return;
@@ -978,6 +996,15 @@ done'
           title: 'Exec shell • $name',
         ),
         canDrag: true,
+        workspaceState: DockerTabState(
+          id: 'exec-${container.id}',
+          kind: DockerTabKind.containerShell,
+          hostName: widget.remoteHost!.name,
+          containerId: container.id,
+          containerName: name,
+          command: command,
+          title: 'Exec shell • $name',
+        ),
       );
       widget.onOpenTab!(tab);
     } else {
@@ -989,12 +1016,12 @@ done'
     if (widget.onOpenTab == null) return;
     final isRemote = widget.remoteHost != null && widget.shellService != null;
     final shell = isRemote
-        ? _DockerContainerShellService(
+        ? DockerContainerShellService(
             host: widget.remoteHost!,
             containerId: container.id,
             baseShell: widget.shellService!,
           )
-        : _LocalDockerContainerShellService(containerId: container.id);
+        : LocalDockerContainerShellService(containerId: container.id);
     final host = widget.remoteHost ??
         const SshHost(
           name: 'local',
@@ -1017,8 +1044,15 @@ done'
         builtInVault: widget.builtInVault,
         onOpenTrash: () => _openTrashTab(shell, host),
         onOpenEditorTab: (path, content) =>
-            _openEditorTab(host, shell, path, content),
+            _openEditorTab(host, shell, container.id, path, content),
         onOpenTerminalTab: null,
+      ),
+      workspaceState: DockerTabState(
+        id: 'explore-${container.id}',
+        kind: DockerTabKind.containerExplorer,
+        hostName: host.name,
+        containerId: container.id,
+        containerName: container.name,
       ),
     );
     widget.onOpenTab!(tab);
@@ -1043,6 +1077,7 @@ done'
   Future<void> _openEditorTab(
     SshHost host,
     RemoteShellService shell,
+    String containerId,
     String path,
     String initialContent,
   ) async {
@@ -1061,6 +1096,13 @@ done'
         onSave: (content) async {
           await shell.writeFile(host, path, content);
         },
+      ),
+      workspaceState: DockerTabState(
+        id: 'editor-$path',
+        kind: DockerTabKind.containerEditor,
+        hostName: host.name,
+        containerId: containerId,
+        path: path,
       ),
     );
     widget.onOpenTab!(tab);
@@ -1557,8 +1599,8 @@ class EngineSnapshot {
   final List<DockerVolume> volumes;
 }
 
-class _DockerContainerShellService extends RemoteShellService {
-  _DockerContainerShellService({
+class DockerContainerShellService extends RemoteShellService {
+  DockerContainerShellService({
     required this.host,
     required this.containerId,
     required this.baseShell,
@@ -1769,8 +1811,8 @@ class _DockerContainerShellService extends RemoteShellService {
   }
 }
 
-class _LocalDockerContainerShellService extends RemoteShellService {
-  _LocalDockerContainerShellService({required this.containerId});
+class LocalDockerContainerShellService extends RemoteShellService {
+  LocalDockerContainerShellService({required this.containerId});
 
   final String containerId;
 

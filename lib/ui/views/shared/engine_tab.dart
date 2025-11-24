@@ -10,6 +10,7 @@ class EngineTab {
     this.canRename = false,
     this.canDrag = true,
     this.isPicker = false,
+    this.workspaceState,
   });
 
   final String id;
@@ -20,6 +21,7 @@ class EngineTab {
   final bool canRename;
   final bool canDrag;
   final bool isPicker;
+  final Object? workspaceState;
 
   EngineTab copyWith({
     String? id,
@@ -30,6 +32,7 @@ class EngineTab {
     bool? canRename,
     bool? canDrag,
     bool? isPicker,
+    Object? workspaceState,
   }) {
     return EngineTab(
       id: id ?? this.id,
@@ -40,6 +43,7 @@ class EngineTab {
       canRename: canRename ?? this.canRename,
       canDrag: canDrag ?? this.canDrag,
       isPicker: isPicker ?? this.isPicker,
+      workspaceState: workspaceState ?? this.workspaceState,
     );
   }
 }

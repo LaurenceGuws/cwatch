@@ -13,13 +13,15 @@ import '../../../services/ssh/remote_shell_service.dart';
 import '../../../services/settings/app_settings_controller.dart';
 import '../../../services/filesystem/explorer_trash_manager.dart';
 import '../../theme/nerd_fonts.dart';
+import '../../../models/docker_workspace_state.dart';
 import '../shared/engine_tab.dart';
 import '../shared/engine_workspace.dart';
 import 'widgets/docker_dashboard.dart';
 import 'widgets/docker_engine_picker.dart';
 import 'widgets/docker_resources_dashboard.dart';
+import 'widgets/docker_command_terminal.dart';
 import '../servers/widgets/file_explorer_tab.dart';
-import '../servers/widgets/trash_tab.dart';
+import '../servers/widgets/remote_file_editor_tab.dart';
 
 class DockerView extends StatefulWidget {
   const DockerView({
@@ -46,6 +48,10 @@ class _DockerViewState extends State<DockerView> {
   final ExplorerTrashManager _trashManager = ExplorerTrashManager();
   final List<EngineTab> _tabs = [];
   int _selectedIndex = 0;
+  final Map<String, DockerTabState> _tabStates = {};
+  String? _lastPersistedSignature;
+  bool _pendingWorkspaceSave = false;
+  late final VoidCallback _settingsListener;
 
   Future<List<DockerContext>>? _contextsFuture;
   Future<List<RemoteDockerStatus>>? _remoteStatusFuture;
@@ -56,19 +62,31 @@ class _DockerViewState extends State<DockerView> {
   void initState() {
     super.initState();
     _contextsFuture = _docker.listContexts();
-    _tabs.add(_enginePickerTab());
+    final picker = _enginePickerTab();
+    _tabs.add(picker);
+    _registerTabState(picker.workspaceState as DockerTabState);
+    _settingsListener = _handleSettingsChanged;
+    widget.settingsController.addListener(_settingsListener);
     _loadCachedReady();
+    _restoreWorkspace();
+  }
+
+  @override
+  void dispose() {
+    widget.settingsController.removeListener(_settingsListener);
+    super.dispose();
   }
 
   EngineTab _enginePickerTab({String? id}) {
     final tabId = id ?? _uniqueId();
-    return EngineTab(
+    final tab = EngineTab(
       id: tabId,
       title: 'Docker Engines',
       label: 'Docker Engines',
       icon: NerdIcon.docker.data,
       canDrag: false,
       isPicker: true,
+      workspaceState: DockerTabState(id: tabId, kind: DockerTabKind.picker),
       body: EnginePicker(
         tabId: tabId,
         contextsFuture: _contextsFuture,
@@ -82,6 +100,8 @@ class _DockerViewState extends State<DockerView> {
         onOpenHost: (host) => _openHostDashboard(tabId, host),
       ),
     );
+    _tabStates[tab.id] = DockerTabState(id: tab.id, kind: DockerTabKind.picker);
+    return tab;
   }
 
   String _uniqueId() => DateTime.now().microsecondsSinceEpoch.toString();
@@ -89,7 +109,10 @@ class _DockerViewState extends State<DockerView> {
   void _refreshContexts() {
     setState(() {
       _contextsFuture = _docker.listContexts();
-      _tabs[0] = _enginePickerTab(id: _tabs.first.id);
+      final picker = _enginePickerTab(id: _tabs.first.id);
+      _tabs[0] = picker;
+      _registerTabState(picker.workspaceState as DockerTabState);
+      _persistWorkspace();
     });
   }
 
@@ -97,7 +120,10 @@ class _DockerViewState extends State<DockerView> {
     setState(() {
       _remoteScanRequested = true;
       _remoteStatusFuture = _loadRemoteStatuses();
-      _tabs[0] = _enginePickerTab(id: _tabs.first.id);
+      final picker = _enginePickerTab(id: _tabs.first.id);
+      _tabs[0] = picker;
+      _registerTabState(picker.workspaceState as DockerTabState);
+      _persistWorkspace();
     });
   }
 
@@ -109,9 +135,13 @@ class _DockerViewState extends State<DockerView> {
         tabs: _tabs,
         selectedIndex: _selectedIndex,
         leading: widget.leading,
-        onSelect: (index) => setState(() => _selectedIndex = index),
+        onSelect: (index) {
+          setState(() => _selectedIndex = index);
+          _persistWorkspace();
+        },
         onClose: (index) {
           setState(() {
+            _tabStates.remove(_tabs[index].id);
             _tabs.removeAt(index);
             if (_selectedIndex >= _tabs.length) {
               _selectedIndex = _tabs.length - 1;
@@ -119,6 +149,7 @@ class _DockerViewState extends State<DockerView> {
               _selectedIndex -= 1;
             }
           });
+          _persistWorkspace();
         },
         onReorder: (oldIndex, newIndex) {
           if (oldIndex == 0 || newIndex == 0) return;
@@ -136,6 +167,7 @@ class _DockerViewState extends State<DockerView> {
               _selectedIndex += 1;
             }
           });
+          _persistWorkspace();
         },
         onAddTab: _addEnginePickerTab,
       ),
@@ -144,9 +176,12 @@ class _DockerViewState extends State<DockerView> {
 
   void _addEnginePickerTab() {
     setState(() {
-      _tabs.add(_enginePickerTab());
+      final picker = _enginePickerTab();
+      _tabs.add(picker);
+      _registerTabState(picker.workspaceState as DockerTabState);
       _selectedIndex = _tabs.length - 1;
     });
+    _persistWorkspace();
   }
 
   void _openContextDashboard(String tabId, String contextName) {
@@ -240,7 +275,8 @@ class _DockerViewState extends State<DockerView> {
     final pickerIndex = _tabs.indexWhere((tab) => tab.id == tabId);
     if (pickerIndex == -1) return;
     final uniqueId = _ensureUniqueId(id);
-    _tabs[pickerIndex] = EngineTab(
+    _tabStates.remove(_tabs[pickerIndex].id);
+    final tab = EngineTab(
       id: uniqueId,
       title: title,
       label: title,
@@ -248,8 +284,14 @@ class _DockerViewState extends State<DockerView> {
       body: body,
       canDrag: true,
       isPicker: false,
+      workspaceState: _tabStateFromBody(uniqueId, body),
     );
+    if (tab.workspaceState is DockerTabState) {
+      _registerTabState(tab.workspaceState as DockerTabState);
+    }
+    _tabs[pickerIndex] = tab;
     setState(() => _selectedIndex = pickerIndex);
+    _persistWorkspace();
   }
 
   Future<void> _loadCachedReady() async {
@@ -501,11 +543,492 @@ class _DockerViewState extends State<DockerView> {
   }
 
   void _openChildTab(EngineTab tab) {
-    final uniqueTab = tab.copyWith(id: _ensureUniqueId(tab.id));
+    final uniqueId = _ensureUniqueId(tab.id);
+    final uniqueTab = tab.copyWith(id: uniqueId);
     setState(() {
       _tabs.add(uniqueTab);
       _selectedIndex = _tabs.length - 1;
     });
+    final state = tab.workspaceState is DockerTabState
+        ? (tab.workspaceState as DockerTabState)
+        : _tabStateFromBody(uniqueTab.id, uniqueTab.body);
+    if (state != null) {
+      _registerTabState(_copyStateWithId(state, uniqueId));
+    }
+    _persistWorkspace();
+  }
+
+  DockerTabState? _tabStateFromBody(String id, Widget body) {
+    if (body is EnginePicker) {
+      return DockerTabState(id: id, kind: DockerTabKind.picker);
+    }
+    if (body is DockerDashboard) {
+      if (body.remoteHost != null) {
+        return DockerTabState(
+          id: id,
+          kind: DockerTabKind.hostOverview,
+          hostName: body.remoteHost!.name,
+        );
+      }
+      return DockerTabState(
+        id: id,
+        kind: DockerTabKind.contextOverview,
+        contextName: body.contextName,
+      );
+    }
+    if (body is DockerResourcesDashboard) {
+      if (body.remoteHost != null) {
+        return DockerTabState(
+          id: id,
+          kind: DockerTabKind.hostResources,
+          hostName: body.remoteHost!.name,
+        );
+      }
+      return DockerTabState(
+        id: id,
+        kind: DockerTabKind.contextResources,
+        contextName: body.contextName,
+      );
+    }
+    if (body is DockerCommandTerminal) {
+      return DockerTabState(
+        id: id,
+        kind: DockerTabKind.command,
+        hostName: body.host?.name,
+        command: body.command,
+        title: body.title,
+      );
+    }
+    if (body is ComposeLogsTerminal) {
+      return DockerTabState(
+        id: id,
+        kind: DockerTabKind.composeLogs,
+        hostName: body.host?.name,
+        project: body.project,
+        services: body.services,
+      );
+    }
+    if (body is FileExplorerTab) {
+      return DockerTabState(
+        id: id,
+        kind: DockerTabKind.containerExplorer,
+        hostName: body.host.name,
+      );
+    }
+    if (body is RemoteFileEditorTab) {
+      return DockerTabState(
+        id: id,
+        kind: DockerTabKind.containerEditor,
+        hostName: body.host.name,
+        path: body.path,
+      );
+    }
+    return null;
+  }
+
+  void _registerTabState(DockerTabState? state) {
+    if (state == null) return;
+    _tabStates[state.id] = state;
+  }
+
+  DockerWorkspaceState _currentWorkspaceState() {
+    final persisted = <DockerTabState>[];
+    var selectedPersistedIndex = 0;
+    for (var i = 0; i < _tabs.length; i++) {
+      final tab = _tabs[i];
+      var state = _tabStates[tab.id];
+      if (state == null && tab.workspaceState is DockerTabState) {
+        state = tab.workspaceState as DockerTabState;
+      }
+      if (state != null) {
+        if (i == _selectedIndex) {
+          selectedPersistedIndex = persisted.length;
+        }
+        persisted.add(state);
+      }
+    }
+    final clampedSelected = persisted.isEmpty
+        ? 0
+        : selectedPersistedIndex.clamp(0, persisted.length - 1);
+    return DockerWorkspaceState(
+      tabs: persisted,
+      selectedIndex: clampedSelected,
+    );
+  }
+
+  void _persistWorkspace() {
+    if (!widget.settingsController.isLoaded) {
+      _pendingWorkspaceSave = true;
+      return;
+    }
+    final workspace = _currentWorkspaceState();
+    final signature = workspace.signature;
+    if (_lastPersistedSignature == signature) {
+      return;
+    }
+    _pendingWorkspaceSave = false;
+    _lastPersistedSignature = signature;
+    widget.settingsController.update(
+      (current) => current.copyWith(dockerWorkspace: workspace),
+    );
+  }
+
+  void _handleSettingsChanged() {
+    if (_pendingWorkspaceSave && widget.settingsController.isLoaded) {
+      _persistWorkspace();
+    }
+  }
+
+  Future<void> _restoreWorkspace() async {
+    DockerWorkspaceState? workspace;
+    List<SshHost> hosts = const [];
+    try {
+      hosts = await widget.hostsFuture;
+      workspace = widget.settingsController.settings.dockerWorkspace;
+    } catch (_) {
+      workspace = widget.settingsController.settings.dockerWorkspace;
+    }
+    if (!mounted) return;
+
+    if (workspace == null || workspace.tabs.isEmpty) {
+      setState(() {
+        _tabs
+          ..clear()
+          ..add(_enginePickerTab());
+        _tabStates
+          ..clear()
+          ..addAll({
+            _tabs.first.id:
+                DockerTabState(id: _tabs.first.id, kind: DockerTabKind.picker),
+          });
+        _selectedIndex = 0;
+      });
+      return;
+    }
+
+    final newTabs = <EngineTab>[];
+    final newStates = <String, DockerTabState>{};
+    final usedIds = <String>{};
+
+    for (final state in workspace.tabs) {
+      if (usedIds.contains(state.id)) {
+        continue;
+      }
+      final tab = _tabFromState(state, hosts);
+      if (tab == null) continue;
+      usedIds.add(tab.id);
+      newStates[tab.id] = _copyStateWithId(state, tab.id);
+      newTabs.add(tab);
+    }
+
+    if (newTabs.isEmpty) {
+      final picker = _enginePickerTab();
+      newTabs.add(picker);
+      newStates[picker.id] =
+          DockerTabState(id: picker.id, kind: DockerTabKind.picker);
+    }
+
+    final selected =
+        workspace.selectedIndex.clamp(0, newTabs.length - 1);
+
+    setState(() {
+      _tabs
+        ..clear()
+        ..addAll(newTabs);
+      _tabStates
+        ..clear()
+        ..addAll(newStates);
+      _selectedIndex = selected;
+      _lastPersistedSignature = workspace!.signature;
+    });
+  }
+
+  EngineTab? _tabFromState(
+    DockerTabState state,
+    List<SshHost> hosts,
+  ) {
+    switch (state.kind) {
+      case DockerTabKind.picker:
+        return _enginePickerTab(id: state.id);
+      case DockerTabKind.contextOverview:
+        if (state.contextName == null) return null;
+        return _contextTab(
+          id: state.id,
+          contextName: state.contextName!,
+          resources: false,
+        );
+      case DockerTabKind.contextResources:
+        if (state.contextName == null) return null;
+        return _contextTab(
+          id: state.id,
+          contextName: state.contextName!,
+          resources: true,
+        );
+      case DockerTabKind.hostOverview:
+        if (state.hostName == null) return null;
+        final host = hosts.firstWhere(
+          (h) => h.name == state.hostName,
+          orElse: () => const SshHost(
+            name: '',
+            hostname: '',
+            port: 22,
+            available: false,
+          ),
+        );
+        if (!host.available || host.name.isEmpty) return null;
+        return _hostTab(
+          id: state.id,
+          host: host,
+          resources: false,
+        );
+      case DockerTabKind.hostResources:
+        if (state.hostName == null) return null;
+        final host = hosts.firstWhere(
+          (h) => h.name == state.hostName,
+          orElse: () => const SshHost(
+            name: '',
+            hostname: '',
+            port: 22,
+            available: false,
+          ),
+        );
+        if (!host.available || host.name.isEmpty) return null;
+        return _hostTab(
+          id: state.id,
+          host: host,
+          resources: true,
+        );
+      case DockerTabKind.command:
+        if (state.command == null || state.title == null) return null;
+        final host = _hostByName(hosts, state.hostName);
+        final shell = host != null ? _shellServiceForHost(host) : null;
+        return EngineTab(
+          id: state.id,
+          title: state.title!,
+          label: state.title!,
+          icon: NerdIcon.terminal.data,
+          canDrag: true,
+          body: DockerCommandTerminal(
+            host: host,
+            shellService: shell,
+            command: state.command!,
+            title: state.title!,
+          ),
+          workspaceState: state,
+        );
+      case DockerTabKind.containerShell:
+      case DockerTabKind.containerLogs:
+        if (state.command == null || state.title == null) return null;
+        final host = _hostByName(hosts, state.hostName);
+        final shell = host != null ? _shellServiceForHost(host) : null;
+        return EngineTab(
+          id: state.id,
+          title: state.title!,
+          label: state.title!,
+          icon: NerdIcon.terminal.data,
+          canDrag: true,
+          body: DockerCommandTerminal(
+            host: host,
+            shellService: shell,
+            command: state.command!,
+            title: state.title!,
+          ),
+          workspaceState: state,
+        );
+      case DockerTabKind.composeLogs:
+        if (state.project == null) return null;
+        final host = _hostByName(hosts, state.hostName);
+        final shell = host != null ? _shellServiceForHost(host) : null;
+        final composeBase =
+            state.command ?? 'docker compose -p "${state.project}"';
+        return EngineTab(
+          id: state.id,
+          title: 'Compose logs: ${state.project}',
+          label: 'Compose logs: ${state.project}',
+          icon: NerdIcon.terminal.data,
+          canDrag: true,
+          body: ComposeLogsTerminal(
+            composeBase: composeBase,
+            project: state.project!,
+            services: state.services,
+            host: host,
+            shellService: shell,
+          ),
+          workspaceState: state,
+        );
+      case DockerTabKind.containerExplorer:
+        final host = _hostByName(hosts, state.hostName);
+        final shell = _containerShell(host, state.containerId);
+        if (shell == null) return null;
+        final explorerHost = host ??
+            const SshHost(
+              name: 'local',
+              hostname: 'localhost',
+              port: 22,
+              available: true,
+              user: null,
+              identityFiles: <String>[],
+              source: 'local',
+            );
+        return EngineTab(
+          id: state.id,
+          title: 'Explore ${state.containerName ?? state.containerId ?? explorerHost.name}',
+          label: 'Explorer',
+          icon: Icons.folder_open,
+          canDrag: true,
+          body: FileExplorerTab(
+            host: explorerHost,
+            shellService: shell,
+            trashManager: _trashManager,
+            builtInVault: widget.builtInVault,
+            onOpenTrash: () {},
+            onOpenEditorTab: (path, content) async {
+              final editorTab = EngineTab(
+                id: 'editor-${path.hashCode}-${DateTime.now().microsecondsSinceEpoch}',
+                title: 'Edit $path',
+                label: path,
+                icon: Icons.edit,
+                canDrag: true,
+                workspaceState: DockerTabState(
+                  id: 'editor-$path',
+                  kind: DockerTabKind.containerEditor,
+                  hostName: explorerHost.name,
+                  containerId: state.containerId,
+                  path: path,
+                ),
+                body: RemoteFileEditorTab(
+                  host: explorerHost,
+                  shellService: shell,
+                  path: path,
+                  initialContent: content,
+                  onSave: (value) =>
+                      shell.writeFile(explorerHost, path, value),
+                  settingsController: widget.settingsController,
+                ),
+              );
+              _openChildTab(editorTab);
+            },
+            onOpenTerminalTab: null,
+          ),
+          workspaceState: state,
+        );
+      case DockerTabKind.containerEditor:
+        if (state.path == null || state.containerId == null) return null;
+        final host = _hostByName(hosts, state.hostName);
+        final shell = _containerShell(host, state.containerId);
+        if (shell == null) return null;
+        final editorHost = host ??
+            const SshHost(
+              name: 'local',
+              hostname: 'localhost',
+              port: 22,
+              available: true,
+              user: null,
+              identityFiles: <String>[],
+              source: 'local',
+            );
+        return EngineTab(
+          id: state.id,
+          title: 'Edit ${state.path}',
+          label: state.path ?? 'Editor',
+          icon: Icons.edit,
+          canDrag: true,
+          body: DockerEditorLoader(
+            host: editorHost,
+            shellService: shell,
+            path: state.path!,
+            settingsController: widget.settingsController,
+          ),
+          workspaceState: state,
+        );
+    }
+  }
+
+  EngineTab _contextTab({
+    required String id,
+    required String contextName,
+    required bool resources,
+  }) {
+    return EngineTab(
+      id: id,
+      title: contextName,
+      label: contextName,
+      icon: Icons.cloud,
+      canDrag: true,
+      workspaceState: DockerTabState(
+        id: id,
+        kind: resources
+            ? DockerTabKind.contextResources
+            : DockerTabKind.contextOverview,
+        contextName: contextName,
+      ),
+      body: resources
+          ? DockerResourcesDashboard(
+              docker: _docker,
+              contextName: contextName,
+            )
+          : DockerDashboard(
+              docker: _docker,
+              contextName: contextName,
+              trashManager: _trashManager,
+              builtInVault: widget.builtInVault,
+              settingsController: widget.settingsController,
+              onOpenTab: _openChildTab,
+            ),
+    );
+  }
+
+  EngineTab _hostTab({
+    required String id,
+    required SshHost host,
+    required bool resources,
+  }) {
+    final shell = _shellServiceForHost(host);
+    return EngineTab(
+      id: id,
+      title: host.name,
+      label: host.name,
+      icon: Icons.cloud_outlined,
+      canDrag: true,
+      workspaceState: DockerTabState(
+        id: id,
+        kind: resources
+            ? DockerTabKind.hostResources
+            : DockerTabKind.hostOverview,
+        hostName: host.name,
+      ),
+      body: resources
+          ? DockerResourcesDashboard(
+              docker: _docker,
+              remoteHost: host,
+              shellService: shell,
+            )
+          : DockerDashboard(
+              docker: _docker,
+              remoteHost: host,
+              shellService: shell,
+              trashManager: _trashManager,
+              builtInVault: widget.builtInVault,
+              settingsController: widget.settingsController,
+              onOpenTab: _openChildTab,
+            ),
+    );
+  }
+
+  DockerTabState _copyStateWithId(DockerTabState state, String id) {
+    return DockerTabState(
+      id: id,
+      kind: state.kind,
+      contextName: state.contextName,
+      hostName: state.hostName,
+      containerId: state.containerId,
+      containerName: state.containerName,
+      command: state.command,
+      title: state.title,
+      path: state.path,
+      project: state.project,
+      services: state.services,
+    );
   }
 
   String _ensureUniqueId(String base) {
@@ -516,5 +1039,79 @@ class _DockerViewState extends State<DockerView> {
       candidate = '$base-${counter++}';
     }
     return candidate;
+  }
+
+  SshHost? _hostByName(List<SshHost> hosts, String? name) {
+    if (name == null) return null;
+    try {
+      return hosts.firstWhere((h) => h.name == name);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  RemoteShellService? _containerShell(SshHost? host, String? containerId) {
+    final id = containerId ?? '';
+    if (host == null || host.name == 'local') {
+      return LocalDockerContainerShellService(containerId: id);
+    }
+    return DockerContainerShellService(
+      host: host,
+      containerId: id,
+      baseShell: _shellServiceForHost(host),
+    );
+  }
+}
+
+class DockerEditorLoader extends StatefulWidget {
+  const DockerEditorLoader({
+    super.key,
+    required this.host,
+    required this.shellService,
+    required this.path,
+    required this.settingsController,
+  });
+
+  final SshHost host;
+  final RemoteShellService shellService;
+  final String path;
+  final AppSettingsController settingsController;
+
+  @override
+  State<DockerEditorLoader> createState() => _DockerEditorLoaderState();
+}
+
+class _DockerEditorLoaderState extends State<DockerEditorLoader> {
+  late Future<String> _contentFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _contentFuture = widget.shellService.readFile(widget.host, widget.path);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: _contentFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Failed to load file: ${snapshot.error}'));
+        }
+        final content = snapshot.data ?? '';
+        return RemoteFileEditorTab(
+          host: widget.host,
+          shellService: widget.shellService,
+          path: widget.path,
+          initialContent: content,
+          onSave: (value) =>
+              widget.shellService.writeFile(widget.host, widget.path, value),
+          settingsController: widget.settingsController,
+        );
+      },
+    );
   }
 }
