@@ -10,6 +10,7 @@ class DockerContainer {
     this.createdAt,
     this.composeProject,
     this.composeService,
+    this.startedAt,
   });
 
   final String id;
@@ -22,6 +23,7 @@ class DockerContainer {
   final String? createdAt;
   final String? composeProject;
   final String? composeService;
+  final DateTime? startedAt;
 
   bool get isRunning => state.toLowerCase() == 'running';
 }

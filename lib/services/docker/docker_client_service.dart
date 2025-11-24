@@ -4,6 +4,7 @@ import 'dart:io';
 
 import '../../models/docker_context.dart';
 import '../../models/docker_container.dart';
+import '../../models/docker_container_stat.dart';
 import '../../models/docker_image.dart';
 import '../../models/docker_network.dart';
 import '../../models/docker_volume.dart';
@@ -207,6 +208,7 @@ class DockerClientService {
       createdAt: read('RunningFor').isEmpty ? null : read('RunningFor'),
       composeProject: labels['com.docker.compose.project'],
       composeService: labels['com.docker.compose.service'],
+      startedAt: _parseDockerDate(read('StartedAt')),
     );
   }
 
@@ -348,6 +350,7 @@ class DockerClientService {
   Future<List<DockerVolume>> listVolumes({
     String? context,
     Duration timeout = const Duration(seconds: 6),
+    bool includeSizes = true,
   }) async {
     _log('Listing volumes context=$context');
     final args = <String>[
@@ -377,7 +380,141 @@ class DockerClientService {
     }
     final output = (result.stdout as String?) ?? '';
     _log('Volumes output length=${output.length}');
-    return _parseVolumes(output);
+    var volumes = _parseVolumes(output);
+    if (includeSizes) {
+      final sizes = await _fetchVolumeSizes(context: context);
+      volumes = _applyVolumeSizes(volumes, sizes);
+    }
+    return volumes;
+  }
+
+  Future<void> startContainer({
+    required String id,
+    String? context,
+    Duration timeout = const Duration(seconds: 12),
+  }) async {
+    await _runDockerCommand(
+      ['start', id],
+      context: context,
+      op: 'start',
+      timeout: timeout,
+    );
+  }
+
+  Future<void> stopContainer({
+    required String id,
+    String? context,
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
+    await _runDockerCommand(
+      ['stop', id],
+      context: context,
+      op: 'stop',
+      timeout: timeout,
+    );
+  }
+
+  Future<void> restartContainer({
+    required String id,
+    String? context,
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    await _runDockerCommand(
+      ['restart', id],
+      context: context,
+      op: 'restart',
+      timeout: timeout,
+    );
+  }
+
+  Future<DateTime?> inspectContainerStartTime({
+    required String id,
+    String? context,
+    Duration timeout = const Duration(seconds: 8),
+  }) async {
+    final args = <String>[
+      if (context != null && context.trim().isNotEmpty) ...[
+        '--context',
+        context.trim(),
+      ],
+      'inspect',
+      '-f',
+      '{{json .State.StartedAt}}',
+      id,
+    ];
+    _log('Inspecting start time for $id');
+    final result = await processRunner(
+      'docker',
+      args,
+      stdoutEncoding: utf8,
+      stderrEncoding: utf8,
+      runInShell: false,
+    ).timeout(timeout);
+    if (result.exitCode != 0) {
+      final stderr = (result.stderr as String?)?.trim();
+      throw Exception(
+        stderr?.isNotEmpty == true
+            ? stderr
+            : 'docker inspect failed with exit code ${result.exitCode}',
+      );
+    }
+    final output = ((result.stdout as String?) ?? '').trim();
+    if (output.isEmpty) return null;
+    final cleaned = output.replaceAll('"', '');
+    return _parseDockerDate(cleaned);
+  }
+
+  Future<void> removeContainer({
+    required String id,
+    String? context,
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
+    await _runDockerCommand(
+      ['rm', '-f', id],
+      context: context,
+      op: 'remove',
+      timeout: timeout,
+    );
+  }
+
+  Future<void> systemPrune({String? context, bool includeVolumes = false}) async {
+    final args = ['system', 'prune', '-f'];
+    if (includeVolumes) args.add('--volumes');
+    await _runDockerCommand(args, context: context, op: 'prune');
+  }
+
+  Future<List<DockerContainerStat>> listContainerStats({
+    String? context,
+    Duration timeout = const Duration(seconds: 6),
+  }) async {
+    _log('Listing container stats context=$context');
+    final args = <String>[
+      if (context != null && context.trim().isNotEmpty) ...[
+        '--context',
+        context.trim(),
+      ],
+      'stats',
+      '--no-stream',
+      '--format',
+      '{{json .}}',
+    ];
+    final result = await processRunner(
+      'docker',
+      args,
+      stdoutEncoding: utf8,
+      stderrEncoding: utf8,
+      runInShell: false,
+    ).timeout(timeout);
+    if (result.exitCode != 0) {
+      final stderr = (result.stderr as String?)?.trim();
+      throw Exception(
+        stderr?.isNotEmpty == true
+            ? stderr
+            : 'docker stats failed with exit code ${result.exitCode}',
+      );
+    }
+    final output = (result.stdout as String?) ?? '';
+    return _parseStats(output);
   }
 
   List<DockerVolume> _parseVolumes(String output) {
@@ -393,6 +530,35 @@ class DockerClientService {
               driver: (decoded['Driver'] as String?)?.trim() ?? '',
               mountpoint: (decoded['Mountpoint'] as String?)?.trim(),
               scope: (decoded['Scope'] as String?)?.trim(),
+              size: _volumeSizeOrNull((decoded['Size'] as String?)?.trim()),
+            ),
+          );
+        }
+      } catch (_) {
+        continue;
+      }
+    }
+    return items;
+  }
+
+  List<DockerContainerStat> _parseStats(String output) {
+    final items = <DockerContainerStat>[];
+    for (final line in const LineSplitter().convert(output)) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+      try {
+        final decoded = jsonDecode(trimmed);
+        if (decoded is Map<String, dynamic>) {
+          items.add(
+            DockerContainerStat(
+              id: (decoded['Container'] as String?)?.trim() ?? '',
+              name: (decoded['Name'] as String?)?.trim() ?? '',
+              cpu: (decoded['CPUPerc'] as String?)?.trim() ?? '',
+              memUsage: (decoded['MemUsage'] as String?)?.trim() ?? '',
+              memPercent: (decoded['MemPerc'] as String?)?.trim() ?? '',
+              netIO: (decoded['NetIO'] as String?)?.trim() ?? '',
+              blockIO: (decoded['BlockIO'] as String?)?.trim() ?? '',
+              pids: (decoded['PIDs'] as String?)?.trim() ?? '',
             ),
           );
         }
@@ -405,5 +571,126 @@ class DockerClientService {
 
   void _log(String message) {
     AppLogger.d(message, tag: 'ProcessDocker');
+  }
+
+  String? _volumeSizeOrNull(String? raw) {
+    final value = raw?.trim() ?? '';
+    if (value.isEmpty || value.toUpperCase() == 'N/A') return null;
+    return value;
+  }
+
+  Future<Map<String, String>> _fetchVolumeSizes({
+    String? context,
+    Duration timeout = const Duration(seconds: 8),
+  }) async {
+    try {
+      final args = <String>[
+        if (context != null && context.trim().isNotEmpty) ...[
+          '--context',
+          context.trim(),
+        ],
+        'system',
+        'df',
+        '-v',
+        '--format',
+        '{{json .}}',
+      ];
+      final result = await processRunner(
+        'docker',
+        args,
+        stdoutEncoding: utf8,
+        stderrEncoding: utf8,
+        runInShell: false,
+      ).timeout(timeout);
+      if (result.exitCode != 0) {
+        return const {};
+      }
+      final output = (result.stdout as String?) ?? '';
+      final map = <String, String>{};
+      for (final line in const LineSplitter().convert(output)) {
+        final trimmed = line.trim();
+        if (trimmed.isEmpty) continue;
+        try {
+          final decoded = jsonDecode(trimmed);
+          if (decoded is Map<String, dynamic>) {
+            final type = (decoded['Type'] as String?)?.trim();
+            if (type != null && type.toLowerCase() == 'volume') {
+              final name = (decoded['Name'] as String?)?.trim();
+              final size = _volumeSizeOrNull((decoded['Size'] as String?)?.trim());
+              if (name != null && name.isNotEmpty && size != null) {
+                map[name] = size;
+              }
+            }
+          }
+        } catch (_) {
+          continue;
+        }
+      }
+      return map;
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  List<DockerVolume> _applyVolumeSizes(
+    List<DockerVolume> volumes,
+    Map<String, String> sizes,
+  ) {
+    if (sizes.isEmpty) return volumes;
+    return volumes
+        .map(
+          (v) => sizes.containsKey(v.name)
+              ? DockerVolume(
+                  name: v.name,
+                  driver: v.driver,
+                  mountpoint: v.mountpoint,
+                  scope: v.scope,
+                  size: sizes[v.name],
+                )
+              : v,
+        )
+        .toList();
+  }
+
+  DateTime? _parseDockerDate(String raw) {
+    final value = raw.trim();
+    if (value.isEmpty) return null;
+    final cleaned = value
+        .replaceAll(' +0000 UTC', 'Z')
+        .replaceAll(RegExp(r' [A-Z]{3}$'), '')
+        .replaceFirst(' ', 'T');
+    return DateTime.tryParse(cleaned);
+  }
+
+  Future<void> _runDockerCommand(
+    List<String> args, {
+    String? context,
+    String op = 'cmd',
+    Duration timeout = const Duration(seconds: 12),
+  }) async {
+    final fullArgs = <String>[
+      if (context != null && context.trim().isNotEmpty) ...[
+        '--context',
+        context.trim(),
+      ],
+      ...args,
+    ];
+    _log('Running $op: docker ${fullArgs.join(' ')}');
+    final result = await processRunner(
+      'docker',
+      fullArgs,
+      stdoutEncoding: utf8,
+      stderrEncoding: utf8,
+      runInShell: false,
+    ).timeout(timeout);
+    if (result.exitCode != 0) {
+      final stderr = (result.stderr as String?)?.trim();
+      throw Exception(
+        stderr?.isNotEmpty == true
+            ? stderr
+            : 'docker ${args.first} failed with exit code ${result.exitCode}',
+      );
+    }
+    _log('$op completed exit=${result.exitCode}');
   }
 }

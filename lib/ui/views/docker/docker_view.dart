@@ -11,11 +11,15 @@ import '../../../services/ssh/builtin/builtin_ssh_vault.dart';
 import '../../../services/ssh/remote_command_logging.dart';
 import '../../../services/ssh/remote_shell_service.dart';
 import '../../../services/settings/app_settings_controller.dart';
+import '../../../services/filesystem/explorer_trash_manager.dart';
 import '../../theme/nerd_fonts.dart';
 import '../shared/engine_tab.dart';
 import '../shared/engine_workspace.dart';
 import 'widgets/docker_dashboard.dart';
 import 'widgets/docker_engine_picker.dart';
+import 'widgets/docker_resources_dashboard.dart';
+import '../servers/widgets/file_explorer_tab.dart';
+import '../servers/widgets/trash_tab.dart';
 
 class DockerView extends StatefulWidget {
   const DockerView({
@@ -39,6 +43,7 @@ class DockerView extends StatefulWidget {
 
 class _DockerViewState extends State<DockerView> {
   final DockerClientService _docker = const DockerClientService();
+  final ExplorerTrashManager _trashManager = ExplorerTrashManager();
   final List<EngineTab> _tabs = [];
   int _selectedIndex = 0;
 
@@ -145,33 +150,84 @@ class _DockerViewState extends State<DockerView> {
   }
 
   void _openContextDashboard(String tabId, String contextName) {
-    _replacePickerWithDashboard(
+    _chooseDashboard(
       tabId: tabId,
       title: contextName,
       id: 'ctx-$contextName',
       icon: Icons.cloud,
-      body: DockerDashboard(
+      buildOverview: () => DockerDashboard(
         docker: _docker,
         contextName: contextName,
+        trashManager: _trashManager,
+        builtInVault: widget.builtInVault,
+        settingsController: widget.settingsController,
         onOpenTab: _openChildTab,
+      ),
+      buildResources: () => DockerResourcesDashboard(
+        docker: _docker,
+        contextName: contextName,
       ),
     );
   }
 
   void _openHostDashboard(String tabId, SshHost host) {
     final shell = _shellServiceForHost(host);
-    _replacePickerWithDashboard(
+    _chooseDashboard(
       tabId: tabId,
       title: host.name,
       id: 'host-${host.name}',
       icon: Icons.cloud_outlined,
-      body: DockerDashboard(
+      buildOverview: () => DockerDashboard(
         docker: _docker,
         remoteHost: host,
         shellService: shell,
+        trashManager: _trashManager,
+        builtInVault: widget.builtInVault,
+        settingsController: widget.settingsController,
         onOpenTab: _openChildTab,
       ),
+      buildResources: () => DockerResourcesDashboard(
+        docker: _docker,
+        remoteHost: host,
+        shellService: shell,
+      ),
     );
+  }
+
+  void _chooseDashboard({
+    required String tabId,
+    required String title,
+    required String id,
+    required IconData icon,
+    required Widget Function() buildOverview,
+    required Widget Function() buildResources,
+  }) {
+    showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Open dashboard'),
+        content: const Text('Choose which dashboard to open.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop('overview'),
+            child: const Text('Overview'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop('resources'),
+            child: const Text('Resources'),
+          ),
+        ],
+      ),
+    ).then((choice) {
+      if (choice == null) return;
+      _replacePickerWithDashboard(
+        tabId: tabId,
+        title: title,
+        id: id,
+        icon: icon,
+        body: choice == 'overview' ? buildOverview() : buildResources(),
+      );
+    });
   }
 
   void _replacePickerWithDashboard({

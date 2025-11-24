@@ -1,18 +1,29 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path/path.dart' as p;
+import 'package:terminal_library/pty_library/pty_library.dart';
 
 import '../../../../models/docker_container.dart';
 import '../../../../models/docker_image.dart';
 import '../../../../models/docker_network.dart';
 import '../../../../models/docker_volume.dart';
 import '../../../../models/ssh_host.dart';
+import '../../../../models/remote_file_entry.dart';
 import '../../../../services/docker/docker_client_service.dart';
+import '../../../../services/filesystem/explorer_trash_manager.dart';
+import '../../../../services/ssh/builtin/builtin_ssh_vault.dart';
 import '../../../../services/ssh/remote_shell_service.dart';
+import '../../../../services/settings/app_settings_controller.dart';
 import '../../../theme/nerd_fonts.dart';
 import '../../shared/engine_tab.dart';
+import '../../servers/widgets/file_explorer_tab.dart';
+import '../../servers/widgets/trash_tab.dart';
+import '../../servers/widgets/remote_file_editor_tab.dart';
 import 'docker_command_terminal.dart';
 import 'docker_lists.dart';
 import 'docker_shared.dart';
@@ -27,6 +38,9 @@ class DockerDashboard extends StatefulWidget {
     this.contextName,
     this.remoteHost,
     this.shellService,
+    required this.trashManager,
+    required this.builtInVault,
+    required this.settingsController,
     this.onOpenTab,
   });
 
@@ -34,6 +48,9 @@ class DockerDashboard extends StatefulWidget {
   final String? contextName;
   final SshHost? remoteHost;
   final RemoteShellService? shellService;
+  final ExplorerTrashManager trashManager;
+  final BuiltInSshVault builtInVault;
+  final AppSettingsController settingsController;
   final OpenTab? onOpenTab;
 
   @override
@@ -49,6 +66,9 @@ class _DockerDashboardState extends State<DockerDashboard> {
   int? _focusedContainerIndex;
   int? _containerAnchorIndex;
   final FocusNode _containerFocus = FocusNode(debugLabel: 'docker-containers');
+  final Map<String, String> _containerActionInProgress = {};
+  bool _containersHydrated = false;
+  List<DockerContainer> _cachedContainers = const [];
 
   @override
   void initState() {
@@ -167,7 +187,9 @@ class _DockerDashboardState extends State<DockerDashboard> {
       "docker volume ls --format '{{json .}}'",
       timeout: const Duration(seconds: 8),
     );
-    return _parseVolumes(output);
+    final volumes = _parseVolumes(output);
+    final sizes = await _loadRemoteVolumeSizes(shell, host);
+    return _applyVolumeSizes(volumes, sizes);
   }
 
   List<DockerContainer> _parseContainers(String output) {
@@ -176,8 +198,8 @@ class _DockerDashboardState extends State<DockerDashboard> {
       final trimmed = line.trim();
       if (trimmed.isEmpty) continue;
       try {
-        final decoded = jsonDecode(trimmed);
-        if (decoded is Map<String, dynamic>) {
+          final decoded = jsonDecode(trimmed);
+          if (decoded is Map<String, dynamic>) {
           final labelsRaw = (decoded['Labels'] as String?)?.trim() ?? '';
           final labels = _parseLabels(labelsRaw);
           items.add(
@@ -192,6 +214,9 @@ class _DockerDashboardState extends State<DockerDashboard> {
               createdAt: (decoded['RunningFor'] as String?)?.trim(),
               composeProject: labels['com.docker.compose.project'],
               composeService: labels['com.docker.compose.service'],
+              startedAt: _parseDockerDate(
+                (decoded['StartedAt'] as String?)?.trim() ?? '',
+              ),
             ),
           );
         }
@@ -200,6 +225,16 @@ class _DockerDashboardState extends State<DockerDashboard> {
       }
     }
     return items;
+  }
+
+  DateTime? _parseDockerDate(String raw) {
+    final value = raw.trim();
+    if (value.isEmpty) return null;
+    final cleaned = value
+        .replaceAll(' +0000 UTC', 'Z')
+        .replaceAll(RegExp(r' [A-Z]{3}$'), '')
+        .replaceFirst(' ', 'T');
+    return DateTime.tryParse(cleaned);
   }
 
   Map<String, String> _parseLabels(String labelsRaw) {
@@ -277,6 +312,7 @@ class _DockerDashboardState extends State<DockerDashboard> {
               driver: (decoded['Driver'] as String?)?.trim() ?? '',
               mountpoint: (decoded['Mountpoint'] as String?)?.trim(),
               scope: (decoded['Scope'] as String?)?.trim(),
+              size: _volumeSizeOrNull((decoded['Size'] as String?)?.trim()),
             ),
           );
         }
@@ -289,6 +325,7 @@ class _DockerDashboardState extends State<DockerDashboard> {
 
   void _refresh() {
     setState(() {
+      _containersHydrated = false;
       _snapshot = _load();
     });
   }
@@ -305,10 +342,36 @@ class _DockerDashboardState extends State<DockerDashboard> {
             children: [
               Text(title, style: Theme.of(context).textTheme.titleMedium),
               const Spacer(),
-              IconButton(
-                tooltip: 'Refresh',
-                icon: const Icon(Icons.refresh),
-                onPressed: _refresh,
+              PopupMenuButton<String>(
+                tooltip: 'Settings',
+                icon: const Icon(Icons.settings),
+                onSelected: (value) {
+                  switch (value) {
+                    case 'refresh':
+                      _refresh();
+                      break;
+                    case 'prune':
+                      _runPrune(includeVolumes: false);
+                      break;
+                    case 'pruneVolumes':
+                      _runPrune(includeVolumes: true);
+                      break;
+                  }
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: 'refresh',
+                    child: Text('Reload'),
+                  ),
+                  PopupMenuItem(
+                    value: 'prune',
+                    child: Text('System prune'),
+                  ),
+                  PopupMenuItem(
+                    value: 'pruneVolumes',
+                    child: Text('Prune incl. volumes'),
+                  ),
+                ],
               ),
             ],
           ),
@@ -329,8 +392,11 @@ class _DockerDashboardState extends State<DockerDashboard> {
                 if (data == null) {
                   return const Center(child: Text('No data.'));
                 }
-                final containers = data.containers;
-                _cachedContainers = containers;
+                if (!_containersHydrated) {
+                  _cachedContainers = data.containers;
+                  _containersHydrated = true;
+                }
+                final containers = _cachedContainers;
                 final images = data.images;
                 final networks = data.networks;
                 final volumes = data.volumes;
@@ -393,6 +459,9 @@ class _DockerDashboardState extends State<DockerDashboard> {
                           containers: containers,
                           onTapDown: _handleContainerTapDown,
                           selectedIds: _selectedContainerIds,
+                          busyIds: _containerActionInProgress.keys.toSet(),
+                          actionLabels: _containerActionInProgress,
+                          onComposeAction: _handleComposeAction,
                         ),
                       ),
                     ),
@@ -434,6 +503,22 @@ class _DockerDashboardState extends State<DockerDashboard> {
   }
 
   void _openContainerMenu(DockerContainer container, TapDownDetails details) {
+    final extraActions = <PopupMenuEntry<String>>[
+      const PopupMenuItem(value: 'logs', child: Text('Tail logs (last 200)')),
+      const PopupMenuItem(value: 'shell', child: Text('Open shell tab')),
+      const PopupMenuItem(
+        value: 'copyExec',
+        child: Text('Copy exec shell command'),
+      ),
+      const PopupMenuItem(
+        value: 'explore',
+        child: Text('Open explorer'),
+      ),
+      const PopupMenuItem(value: 'start', child: Text('Start')),
+      const PopupMenuItem(value: 'stop', child: Text('Stop')),
+      const PopupMenuItem(value: 'restart', child: Text('Restart')),
+      const PopupMenuItem(value: 'remove', child: Text('Remove')),
+    ];
     _showItemMenu(
       globalPosition: details.globalPosition,
       title: container.name.isNotEmpty ? container.name : container.id,
@@ -444,24 +529,100 @@ class _DockerDashboardState extends State<DockerDashboard> {
       },
       copyValue: container.id,
       copyLabel: 'Container ID',
-      extraActions: const [
-        PopupMenuItem(value: 'logs', child: Text('Tail logs (last 200)')),
-        PopupMenuItem(value: 'shell', child: Text('Open shell tab')),
-        PopupMenuItem(
-          value: 'copyExec',
-          child: Text('Copy exec shell command'),
-        ),
-      ],
+      extraActions: extraActions,
       onAction: (action) async {
         if (action == 'logs') {
-          await _showLogs(container);
+          await _openLogsTab(container);
         } else if (action == 'shell') {
           await _openExecTerminal(container);
         } else if (action == 'copyExec') {
           await _copyExecCommand(container.id);
+        } else if (action == 'explore') {
+          await _openContainerExplorer(container);
+        } else if (action == 'start') {
+          await _runContainerAction(container, 'start');
+        } else if (action == 'stop') {
+          await _runContainerAction(container, 'stop');
+        } else if (action == 'restart') {
+          await _runContainerAction(container, 'restart');
+        } else if (action == 'remove') {
+          await _runContainerAction(container, 'remove');
         }
       },
     );
+  }
+
+  Future<void> _handleComposeAction(String project, String action) async {
+    switch (action) {
+      case 'logs':
+        await _openComposeLogsTab(project);
+        break;
+      case 'restart':
+        await _runComposeCommand(project, 'restart');
+        break;
+      case 'up':
+        await _runComposeCommand(project, 'up');
+        break;
+      case 'down':
+        await _runComposeCommand(project, 'down');
+        break;
+    }
+  }
+
+  Future<void> _runComposeCommand(String project, String action) async {
+    _markProjectBusy(project, action);
+    final args = <String>[];
+    switch (action) {
+      case 'up':
+        args.addAll(['up', '-d']);
+        break;
+      case 'down':
+        args.add('down');
+        break;
+      case 'restart':
+        args.add('restart');
+        break;
+      default:
+        return;
+    }
+    if (widget.remoteHost != null && widget.shellService != null) {
+      final cmd = '${_composeBaseCommand(project)} ${args.join(' ')}';
+      await widget.shellService!.runCommand(
+        widget.remoteHost!,
+        cmd,
+        timeout: const Duration(seconds: 20),
+      );
+    } else {
+      await widget.docker.processRunner(
+        'bash',
+        ['-lc', '${_composeBaseCommand(project)} ${args.join(' ')}'],
+        stdoutEncoding: utf8,
+        stderrEncoding: utf8,
+        runInShell: false,
+      );
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Compose $action executed for $project.')),
+    );
+    await _syncProjectContainers(project);
+    if (mounted) {
+      setState(() {
+        for (final id in _projectContainerIds(project)) {
+          _containerActionInProgress.remove(id);
+        }
+      });
+    }
+  }
+
+  void _markProjectBusy(String project, String action) {
+    setState(() {
+      for (final c in _cachedContainers) {
+        if (c.composeProject == project) {
+          _containerActionInProgress[c.id] = 'compose $action';
+        }
+      }
+    });
   }
 
   void _openImageMenu(DockerImage image, TapDownDetails details) {
@@ -588,10 +749,110 @@ class _DockerDashboardState extends State<DockerDashboard> {
     ).showSnackBar(SnackBar(content: Text('$label copied to clipboard.')));
   }
 
-  Future<void> _showLogs(DockerContainer container) async {
+  Future<void> _openLogsTab(DockerContainer container) async {
+    final name = container.name.isNotEmpty ? container.name : container.id;
+    final baseCommand = _logsBaseCommand(container.id);
+    final tailCommand = _followLogsCommand(container.id);
+
+    if (widget.onOpenTab != null) {
+      final tab = EngineTab(
+        id: 'logs-${container.id}-${DateTime.now().microsecondsSinceEpoch}',
+        title: 'Logs: $name',
+        label: 'Logs: $name',
+        icon: NerdIcon.terminal.data,
+        body: DockerCommandTerminal(
+          host: widget.remoteHost,
+          shellService: widget.shellService,
+          command: tailCommand,
+          title: 'Logs • $name',
+        ),
+        canDrag: true,
+      );
+      widget.onOpenTab!(tab);
+      return;
+    }
+
+    // Fallback to simple dialog if tabs cannot be opened.
+    await _showLogsDialog(container, baseCommand);
+  }
+
+  Future<void> _openComposeLogsTab(String project) async {
+    final base = _composeBaseCommand(project);
+    final services = _composeServices(project);
+    if (widget.onOpenTab != null) {
+      final tab = EngineTab(
+        id: 'clogs-$project-${DateTime.now().microsecondsSinceEpoch}',
+        title: 'Compose logs: $project',
+        label: 'Compose logs: $project',
+        icon: NerdIcon.terminal.data,
+        body: ComposeLogsTerminal(
+          composeBase: base,
+          project: project,
+          services: services,
+          host: widget.remoteHost,
+          shellService: widget.shellService,
+        ),
+        canDrag: true,
+      );
+      widget.onOpenTab!(tab);
+      return;
+    }
+    await _showLogsDialog(
+      DockerContainer(
+        id: project,
+        name: 'Compose $project',
+        image: '',
+        state: '',
+        status: '',
+        ports: '',
+      ),
+      '$base logs --tail 200',
+    );
+  }
+
+  String _logsBaseCommand(String containerId) {
+    final contextFlag =
+        widget.contextName != null && widget.contextName!.isNotEmpty
+            ? '--context ${widget.contextName!} '
+            : '';
+    return 'docker ${contextFlag}logs $containerId';
+  }
+
+  String _composeBaseCommand(String project) {
+    final contextFlag =
+        widget.contextName != null && widget.contextName!.isNotEmpty
+            ? '--context ${widget.contextName!} '
+            : '';
+    return 'docker ${contextFlag}compose -p "$project"';
+  }
+
+  String _followLogsCommand(String containerId) {
+    final contextFlag =
+        widget.contextName != null && widget.contextName!.isNotEmpty
+            ? '--context ${widget.contextName!} '
+            : '';
+    // Reattach after restarts; only the first attach pulls the last 200 lines.
+    return '''
+bash -lc '
+tail_arg="--tail 200"
+since=""
+while true; do
+  docker ${contextFlag}logs --follow \$tail_arg \$since "$containerId"
+  tail_arg="--tail 0"
+  since="--since=\$(date -Iseconds)"
+  echo "[logs] stream ended; waiting to reattach..."
+  sleep 1
+done'
+''';
+  }
+
+  Future<void> _showLogsDialog(
+    DockerContainer container,
+    String command,
+  ) async {
     if (!mounted) return;
     try {
-      final logs = await _loadLogs(container.id);
+      final logs = await _loadLogsSnapshot(command);
       if (!mounted) return;
       await showDialog<void>(
         context: context,
@@ -635,28 +896,18 @@ class _DockerDashboardState extends State<DockerDashboard> {
     }
   }
 
-  Future<String> _loadLogs(String containerId) async {
+  Future<String> _loadLogsSnapshot(String command) async {
     if (widget.remoteHost != null && widget.shellService != null) {
       return widget.shellService!.runCommand(
         widget.remoteHost!,
-        'docker logs --tail 200 $containerId',
+        '$command --tail 200',
         timeout: const Duration(seconds: 8),
       );
     }
 
-    final args = <String>[
-      if (widget.contextName != null && widget.contextName!.isNotEmpty) ...[
-        '--context',
-        widget.contextName!,
-      ],
-      'logs',
-      '--tail',
-      '200',
-      containerId,
-    ];
     final result = await widget.docker.processRunner(
-      'docker',
-      args,
+      'bash',
+      ['-lc', '$command --tail 200'],
       stdoutEncoding: utf8,
       stderrEncoding: utf8,
       runInShell: false,
@@ -732,6 +983,87 @@ class _DockerDashboardState extends State<DockerDashboard> {
     } else {
       await _copyExecCommand(container.id);
     }
+  }
+
+  Future<void> _openContainerExplorer(DockerContainer container) async {
+    if (widget.onOpenTab == null) return;
+    final isRemote = widget.remoteHost != null && widget.shellService != null;
+    final shell = isRemote
+        ? _DockerContainerShellService(
+            host: widget.remoteHost!,
+            containerId: container.id,
+            baseShell: widget.shellService!,
+          )
+        : _LocalDockerContainerShellService(containerId: container.id);
+    final host = widget.remoteHost ??
+        const SshHost(
+          name: 'local',
+          hostname: 'localhost',
+          port: 22,
+          available: true,
+          user: null,
+          identityFiles: <String>[],
+          source: 'local',
+        );
+    final tab = EngineTab(
+      id: 'explore-${container.id}-${DateTime.now().microsecondsSinceEpoch}',
+      title: 'Explore ${container.name.isNotEmpty ? container.name : container.id}',
+      label: 'Explorer',
+      icon: Icons.folder_open,
+      body: FileExplorerTab(
+        host: host,
+        shellService: shell,
+        trashManager: widget.trashManager,
+        builtInVault: widget.builtInVault,
+        onOpenTrash: () => _openTrashTab(shell, host),
+        onOpenEditorTab: (path, content) =>
+            _openEditorTab(host, shell, path, content),
+        onOpenTerminalTab: null,
+      ),
+    );
+    widget.onOpenTab!(tab);
+  }
+
+  void _openTrashTab(RemoteShellService shell, SshHost host) {
+    if (widget.onOpenTab == null) return;
+    final tab = EngineTab(
+      id: 'trash-${host.name}-${DateTime.now().microsecondsSinceEpoch}',
+      title: 'Trash • ${host.name}',
+      label: 'Trash',
+      icon: Icons.delete,
+      body: TrashTab(
+        manager: widget.trashManager,
+        shellService: shell,
+        builtInVault: widget.builtInVault,
+      ),
+    );
+    widget.onOpenTab!(tab);
+  }
+
+  Future<void> _openEditorTab(
+    SshHost host,
+    RemoteShellService shell,
+    String path,
+    String initialContent,
+  ) async {
+    if (widget.onOpenTab == null) return;
+    final tab = EngineTab(
+      id: 'editor-${path.hashCode}-${DateTime.now().microsecondsSinceEpoch}',
+      title: 'Edit $path',
+      label: path,
+      icon: Icons.edit,
+      body: RemoteFileEditorTab(
+        host: host,
+        shellService: shell,
+        path: path,
+        initialContent: initialContent,
+        settingsController: widget.settingsController,
+        onSave: (content) async {
+          await shell.writeFile(host, path, content);
+        },
+      ),
+    );
+    widget.onOpenTab!(tab);
   }
 
   void _handleContainerTapDown(
@@ -856,12 +1188,122 @@ class _DockerDashboardState extends State<DockerDashboard> {
     return '$repo:$tag:${image.id}';
   }
 
+  Future<void> _runContainerAction(
+    DockerContainer container,
+    String action,
+  ) async {
+    final Duration timeout =
+        action == 'restart' ? const Duration(seconds: 30) : const Duration(seconds: 15);
+    setState(() {
+      _containerActionInProgress[container.id] = action;
+    });
+    try {
+      if (widget.remoteHost != null && widget.shellService != null) {
+        final cmd = 'docker $action ${container.id}';
+        await widget.shellService!.runCommand(
+          widget.remoteHost!,
+          cmd,
+          timeout: timeout,
+        );
+      } else {
+        switch (action) {
+          case 'start':
+            await widget.docker.startContainer(
+              id: container.id,
+              context: widget.contextName,
+              timeout: timeout,
+            );
+            break;
+          case 'stop':
+            await widget.docker.stopContainer(
+              id: container.id,
+              context: widget.contextName,
+              timeout: timeout,
+            );
+            break;
+          case 'restart':
+            await widget.docker.restartContainer(
+              id: container.id,
+              context: widget.contextName,
+              timeout: timeout,
+            );
+            break;
+          case 'remove':
+            await widget.docker.removeContainer(
+              id: container.id,
+              context: widget.contextName,
+              timeout: timeout,
+            );
+            break;
+        }
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Container ${action}ed successfully.')),
+      );
+      switch (action) {
+        case 'restart':
+          await _updateContainerAfterRestart(container);
+          break;
+        case 'start':
+          await _updateContainerAfterStart(container);
+          break;
+        case 'stop':
+          _markContainerStopped(container.id);
+          break;
+        default:
+          _refresh();
+          break;
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to $action: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _containerActionInProgress.remove(container.id);
+        });
+      }
+    }
+  }
+
+  Future<void> _runPrune({required bool includeVolumes}) async {
+    try {
+      if (widget.remoteHost != null && widget.shellService != null) {
+        final cmd = includeVolumes
+            ? 'docker system prune -f --volumes'
+            : 'docker system prune -f';
+        await widget.shellService!.runCommand(
+          widget.remoteHost!,
+          cmd,
+          timeout: const Duration(seconds: 20),
+        );
+      } else {
+        await widget.docker.systemPrune(
+          context: widget.contextName,
+          includeVolumes: includeVolumes,
+        );
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Prune completed.')),
+      );
+      _refresh();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Prune failed: $error')),
+      );
+    }
+  }
+
   KeyEventResult _handleContainerKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     if (_currentContainers.isEmpty) return KeyEventResult.ignored;
 
     final hardware = HardwareKeyboard.instance;
-    final shift = hardware.isShiftPressed;
     final multi = hardware.isControlPressed || hardware.isMetaPressed;
     final maxIndex = _currentContainers.length - 1;
     var current = _focusedContainerIndex ?? 0;
@@ -913,8 +1355,192 @@ class _DockerDashboardState extends State<DockerDashboard> {
     return KeyEventResult.ignored;
   }
 
+  Future<void> _updateContainerAfterRestart(DockerContainer container) async {
+    final startedAt = await _loadStartTime(container);
+    setState(() {
+      _cachedContainers = _cachedContainers.map((c) {
+        if (c.id != container.id) return c;
+        return DockerContainer(
+          id: c.id,
+          name: c.name,
+          image: c.image,
+          state: 'running',
+          status: 'running',
+          ports: c.ports,
+          command: c.command,
+          createdAt: c.createdAt,
+          composeProject: c.composeProject,
+          composeService: c.composeService,
+          startedAt: startedAt ?? DateTime.now().toUtc(),
+        );
+      }).toList();
+    });
+  }
+
+  Future<void> _updateContainerAfterStart(DockerContainer container) async {
+    final startedAt = await _loadStartTime(container);
+    setState(() {
+      _cachedContainers = _cachedContainers.map((c) {
+        if (c.id != container.id) return c;
+        return DockerContainer(
+          id: c.id,
+          name: c.name,
+          image: c.image,
+          state: 'running',
+          status: 'running',
+          ports: c.ports,
+          command: c.command,
+          createdAt: c.createdAt,
+          composeProject: c.composeProject,
+          composeService: c.composeService,
+          startedAt: startedAt ?? DateTime.now().toUtc(),
+        );
+      }).toList();
+    });
+  }
+
+  void _markContainerStopped(String containerId) {
+    setState(() {
+      _cachedContainers = _cachedContainers.map((c) {
+        if (c.id != containerId) return c;
+        return DockerContainer(
+          id: c.id,
+          name: c.name,
+          image: c.image,
+          state: 'exited',
+          status: 'stopped',
+          ports: c.ports,
+          command: c.command,
+          createdAt: c.createdAt,
+          composeProject: c.composeProject,
+          composeService: c.composeService,
+          startedAt: null,
+        );
+      }).toList();
+    });
+  }
+
+  Future<DateTime?> _loadStartTime(DockerContainer container) async {
+    try {
+      if (widget.remoteHost != null && widget.shellService != null) {
+        final output = await widget.shellService!.runCommand(
+          widget.remoteHost!,
+          "docker inspect -f '{{.State.StartedAt}}' ${container.id}",
+          timeout: const Duration(seconds: 8),
+        );
+        final raw = output.trim().replaceAll('"', '');
+        return DateTime.tryParse(raw);
+      }
+      return await widget.docker.inspectContainerStartTime(
+        id: container.id,
+        context: widget.contextName,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   List<DockerContainer> get _currentContainers => _cachedContainers;
-  List<DockerContainer> _cachedContainers = const [];
+
+  Set<String> _projectContainerIds(String project) {
+    return _cachedContainers
+        .where((c) => c.composeProject == project)
+        .map((c) => c.id)
+        .toSet();
+  }
+
+  Future<void> _syncProjectContainers(String project) async {
+    try {
+      final allContainers = widget.remoteHost != null && widget.shellService != null
+          ? await _loadRemoteContainers(widget.shellService!, widget.remoteHost!)
+          : await widget.docker.listContainers(context: widget.contextName);
+      final updatedProject =
+          allContainers.where((c) => c.composeProject == project).toList();
+      setState(() {
+        final others =
+            _cachedContainers.where((c) => c.composeProject != project).toList();
+        _cachedContainers = [...others, ...updatedProject];
+      });
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Compose sync failed: $error')),
+      );
+    }
+  }
+
+  List<String> _composeServices(String project) {
+    final services = _cachedContainers
+        .where((c) => c.composeProject == project && c.composeService != null)
+        .map((c) => c.composeService!)
+        .where((s) => s.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    return services;
+  }
+
+  String? _volumeSizeOrNull(String? raw) {
+    final value = raw?.trim() ?? '';
+    if (value.isEmpty || value.toUpperCase() == 'N/A') return null;
+    return value;
+  }
+
+  Future<Map<String, String>> _loadRemoteVolumeSizes(
+    RemoteShellService shell,
+    SshHost host,
+  ) async {
+    try {
+      final output = await shell.runCommand(
+        host,
+        "docker system df -v --format '{{json .}}'",
+        timeout: const Duration(seconds: 8),
+      );
+      final map = <String, String>{};
+      for (final line in const LineSplitter().convert(output)) {
+        final trimmed = line.trim();
+        if (trimmed.isEmpty) continue;
+        try {
+          final decoded = jsonDecode(trimmed);
+          if (decoded is Map<String, dynamic>) {
+            final type = (decoded['Type'] as String?)?.trim();
+            if (type != null && type.toLowerCase() == 'volume') {
+              final name = (decoded['Name'] as String?)?.trim();
+              final size = _volumeSizeOrNull((decoded['Size'] as String?)?.trim());
+              if (name != null && name.isNotEmpty && size != null) {
+                map[name] = size;
+              }
+            }
+          }
+        } catch (_) {
+          continue;
+        }
+      }
+      return map;
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  List<DockerVolume> _applyVolumeSizes(
+    List<DockerVolume> volumes,
+    Map<String, String> sizes,
+  ) {
+    if (sizes.isEmpty) return volumes;
+    return volumes
+        .map(
+          (v) => sizes.containsKey(v.name)
+              ? DockerVolume(
+                  name: v.name,
+                  driver: v.driver,
+                  mountpoint: v.mountpoint,
+                  scope: v.scope,
+                  size: sizes[v.name],
+                )
+              : v,
+        )
+        .toList();
+  }
 }
 
 class EngineSnapshot {
@@ -929,4 +1555,390 @@ class EngineSnapshot {
   final List<DockerImage> images;
   final List<DockerNetwork> networks;
   final List<DockerVolume> volumes;
+}
+
+class _DockerContainerShellService extends RemoteShellService {
+  _DockerContainerShellService({
+    required this.host,
+    required this.containerId,
+    required this.baseShell,
+  });
+
+  final SshHost host;
+  final String containerId;
+  final RemoteShellService baseShell;
+
+  @override
+  Future<List<RemoteFileEntry>> listDirectory(
+    SshHost host,
+    String path, {
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    final output = await runCommand(
+      host,
+      'ls -la --time-style=+%Y-%m-%dT%H:%M:%S ${_escape(path)}',
+      timeout: timeout,
+    );
+    return parseLsOutput(output);
+  }
+
+  @override
+  Future<String> homeDirectory(
+    SshHost host, {
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
+    final output = await runCommand(
+      host,
+      r'printf %s "$HOME"',
+      timeout: timeout,
+    );
+    return output.trim().isEmpty ? '/' : output.trim();
+  }
+
+  @override
+  Future<String> readFile(
+    SshHost host,
+    String path, {
+    Duration timeout = const Duration(seconds: 15),
+  }) {
+    return runCommand(host, 'cat ${_escape(path)}', timeout: timeout);
+  }
+
+  @override
+  Future<void> writeFile(
+    SshHost host,
+    String path,
+    String contents, {
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
+    final tempDir = await _makeTempDir(timeout: timeout);
+    final tempFile = p.join(tempDir, p.basename(path));
+    await baseShell.writeFile(this.host, tempFile, contents, timeout: timeout);
+    await baseShell.runCommand(
+      this.host,
+      'docker cp ${_escapeLocal(tempFile)} $containerId:${_escape(path)}',
+      timeout: timeout,
+    );
+    await _cleanupTemp(tempDir);
+  }
+
+  @override
+  Future<void> movePath(
+    SshHost host,
+    String source,
+    String destination, {
+    Duration timeout = const Duration(seconds: 15),
+  }) {
+    return runCommand(
+      host,
+      'mv ${_escape(source)} ${_escape(destination)}',
+      timeout: timeout,
+    );
+  }
+
+  @override
+  Future<void> copyPath(
+    SshHost host,
+    String source,
+    String destination, {
+    bool recursive = false,
+    Duration timeout = const Duration(seconds: 20),
+  }) {
+    final flag = recursive ? '-r' : '';
+    return runCommand(
+      host,
+      'cp $flag ${_escape(source)} ${_escape(destination)}',
+      timeout: timeout,
+    );
+  }
+
+  @override
+  Future<void> deletePath(
+    SshHost host,
+    String path, {
+    Duration timeout = const Duration(seconds: 15),
+  }) {
+    return runCommand(host, 'rm -rf ${_escape(path)}', timeout: timeout);
+  }
+
+  @override
+  Future<void> copyBetweenHosts({
+    required SshHost sourceHost,
+    required String sourcePath,
+    required SshHost destinationHost,
+    required String destinationPath,
+    bool recursive = false,
+    Duration timeout = const Duration(minutes: 2),
+  }) {
+    throw UnimplementedError('copyBetweenHosts not supported for containers');
+  }
+
+  @override
+  Future<void> downloadPath({
+    required SshHost host,
+    required String remotePath,
+    required String localDestination,
+    bool recursive = false,
+    Duration timeout = const Duration(minutes: 2),
+  }) async {
+    final tempDir = await _makeTempDir(timeout: timeout);
+    await baseShell.runCommand(
+      this.host,
+      'docker cp $containerId:${_escape(remotePath)} ${_escapeLocal(tempDir)}',
+      timeout: timeout,
+    );
+    final payload = p.join(tempDir, p.basename(remotePath));
+    await baseShell.downloadPath(
+      host: this.host,
+      remotePath: payload,
+      localDestination: localDestination,
+      recursive: recursive,
+      timeout: timeout,
+    );
+    await _cleanupTemp(tempDir);
+  }
+
+  @override
+  Future<void> uploadPath({
+    required SshHost host,
+    required String localPath,
+    required String remoteDestination,
+    bool recursive = false,
+    Duration timeout = const Duration(minutes: 2),
+  }) async {
+    final tempDir = await _makeTempDir(timeout: timeout);
+    final tempDest = p.join(tempDir, p.basename(localPath));
+    await baseShell.uploadPath(
+      host: this.host,
+      localPath: localPath,
+      remoteDestination: tempDest,
+      recursive: recursive,
+      timeout: timeout,
+    );
+    await baseShell.runCommand(
+      this.host,
+      'docker cp ${_escapeLocal(tempDest)} $containerId:${_escape(remoteDestination)}',
+      timeout: timeout,
+    );
+    await _cleanupTemp(tempDir);
+  }
+
+  @override
+  Future<String> runCommand(
+    SshHost host,
+    String command, {
+    Duration timeout = const Duration(seconds: 10),
+  }) {
+    final wrapped =
+        'docker exec $containerId sh -lc ${_escapeSingleCommand(command)}';
+    return baseShell.runCommand(this.host, wrapped, timeout: timeout);
+  }
+
+  @override
+  Future<TerminalPtyLibraryBase> createTerminalSession(
+    SshHost host, {
+    required TerminalSessionOptions options,
+  }) {
+    throw UnimplementedError(
+      'Terminal sessions are not supported from explorer for containers.',
+    );
+  }
+
+  Future<String> _makeTempDir({Duration timeout = const Duration(seconds: 10)}) async {
+    final output = await baseShell.runCommand(
+      host,
+      'mktemp -d /tmp/cwatch-dctr-XXXXXX',
+      timeout: timeout,
+    );
+    return output.trim();
+  }
+
+  Future<void> _cleanupTemp(String tempDir) async {
+    await baseShell.runCommand(
+      host,
+      'rm -rf ${_escapeLocal(tempDir)}',
+      timeout: const Duration(seconds: 5),
+    );
+  }
+
+  String _escape(String path) => "'${path.replaceAll("'", "\\'")}'";
+  String _escapeLocal(String path) => path.replaceAll(' ', '\\ ');
+
+  String _escapeSingleCommand(String command) {
+    return "'${command.replaceAll("'", "'\\''")}'";
+  }
+}
+
+class _LocalDockerContainerShellService extends RemoteShellService {
+  _LocalDockerContainerShellService({required this.containerId});
+
+  final String containerId;
+
+  @override
+  Future<List<RemoteFileEntry>> listDirectory(
+    SshHost host,
+    String path, {
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    final output = await runCommand(
+      host,
+      'ls -la --time-style=+%Y-%m-%dT%H:%M:%S ${_escape(path)}',
+      timeout: timeout,
+    );
+    return parseLsOutput(output);
+  }
+
+  @override
+  Future<String> homeDirectory(
+    SshHost host, {
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
+    final output =
+        await runCommand(host, r'printf %s "$HOME"', timeout: timeout);
+    return output.trim().isEmpty ? '/' : output.trim();
+  }
+
+  @override
+  Future<String> readFile(
+    SshHost host,
+    String path, {
+    Duration timeout = const Duration(seconds: 15),
+  }) {
+    return runCommand(host, 'cat ${_escape(path)}', timeout: timeout);
+  }
+
+  @override
+  Future<void> writeFile(
+    SshHost host,
+    String path,
+    String contents, {
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
+    final tempDir = await Directory.systemTemp.createTemp('cwatch-dctr');
+    final tempFile = File(p.join(tempDir.path, p.basename(path)));
+    await tempFile.writeAsString(contents);
+    await _runDocker(
+      ['cp', tempFile.path, '$containerId:${_escapeBare(path)}'],
+      timeout: timeout,
+    );
+    await tempDir.delete(recursive: true);
+  }
+
+  @override
+  Future<void> movePath(
+    SshHost host,
+    String source,
+    String destination, {
+    Duration timeout = const Duration(seconds: 15),
+  }) {
+    return runCommand(
+      host,
+      'mv ${_escape(source)} ${_escape(destination)}',
+      timeout: timeout,
+    );
+  }
+
+  @override
+  Future<void> copyPath(
+    SshHost host,
+    String source,
+    String destination, {
+    bool recursive = false,
+    Duration timeout = const Duration(seconds: 20),
+  }) {
+    final flag = recursive ? '-r' : '';
+    return runCommand(
+      host,
+      'cp $flag ${_escape(source)} ${_escape(destination)}',
+      timeout: timeout,
+    );
+  }
+
+  @override
+  Future<void> deletePath(
+    SshHost host,
+    String path, {
+    Duration timeout = const Duration(seconds: 15),
+  }) {
+    return runCommand(host, 'rm -rf ${_escape(path)}', timeout: timeout);
+  }
+
+  @override
+  Future<void> copyBetweenHosts({
+    required SshHost sourceHost,
+    required String sourcePath,
+    required SshHost destinationHost,
+    required String destinationPath,
+    bool recursive = false,
+    Duration timeout = const Duration(minutes: 2),
+  }) {
+    throw UnimplementedError('copyBetweenHosts not supported for containers');
+  }
+
+  @override
+  Future<void> downloadPath({
+    required SshHost host,
+    required String remotePath,
+    required String localDestination,
+    bool recursive = false,
+    Duration timeout = const Duration(minutes: 2),
+  }) async {
+    await _runDocker(
+      ['cp', '$containerId:${_escapeBare(remotePath)}', localDestination],
+      timeout: timeout,
+    );
+  }
+
+  @override
+  Future<void> uploadPath({
+    required SshHost host,
+    required String localPath,
+    required String remoteDestination,
+    bool recursive = false,
+    Duration timeout = const Duration(minutes: 2),
+  }) {
+    return _runDocker(
+      ['cp', localPath, '$containerId:${_escapeBare(remoteDestination)}'],
+      timeout: timeout,
+    );
+  }
+
+  @override
+  Future<String> runCommand(
+    SshHost host,
+    String command, {
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    final result = await _runDocker(
+      ['exec', containerId, 'sh', '-lc', command],
+      timeout: timeout,
+    );
+    return result;
+  }
+
+  @override
+  Future<TerminalPtyLibraryBase> createTerminalSession(
+    SshHost host, {
+    required TerminalSessionOptions options,
+  }) {
+    throw UnimplementedError(
+      'Terminal sessions are not supported from explorer for containers.',
+    );
+  }
+
+  Future<String> _runDocker(
+    List<String> args, {
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    final result = await Process.run('docker', args).timeout(timeout);
+    if (result.exitCode != 0) {
+      throw Exception(
+        'docker ${args.join(' ')} failed: ${(result.stderr as String? ?? '').trim()}',
+      );
+    }
+    return (result.stdout as String? ?? '').trimRight();
+  }
+
+  String _escape(String path) => "'${path.replaceAll("'", "\\'")}'";
+  String _escapeBare(String path) => path;
 }

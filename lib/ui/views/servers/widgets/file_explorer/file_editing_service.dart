@@ -4,7 +4,6 @@ import '../../../../../models/remote_file_entry.dart';
 import '../../../../../models/ssh_host.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../../services/ssh/remote_editor_cache.dart';
-import '../remote_file_editor_dialog.dart';
 import 'file_entry_list.dart';
 import 'path_utils.dart';
 
@@ -47,32 +46,15 @@ class FileEditingService {
         return;
       }
       
-      // Use tab if callback is provided, otherwise use dialog
       if (onOpenEditorTab != null) {
         await onOpenEditorTab!(path, contents);
-      } else {
-        final updated = await showDialog<String>(
-          context: context,
-          builder: (context) =>
-              RemoteFileEditorDialog(path: path, initialContent: contents),
-        );
-        if (updated != null && updated != contents) {
-          await runShellWrapper(
-            () => shellService.writeFile(host, path, updated),
-          );
-          final localFile = await cache.materialize(
-            host: host.name,
-            remotePath: path,
-            contents: updated,
-          );
-          if (!context.mounted) {
-            return;
-          }
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Saved $path · Cached at ${localFile.path}')),
-          );
-        }
+        return;
       }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Inline editor unavailable. Open via editor tab instead.'),
+        ),
+      );
     } catch (error) {
       if (!context.mounted) {
         return;
@@ -298,4 +280,3 @@ class FileEditingService {
     return updates;
   }
 }
-

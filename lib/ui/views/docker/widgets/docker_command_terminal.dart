@@ -1,7 +1,6 @@
 import 'dart:convert';
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:terminal_library/pty_library/pty_library.dart';
 import 'package:terminal_library/xterm_library/xterm.dart';
 
@@ -17,12 +16,18 @@ class DockerCommandTerminal extends StatefulWidget {
     required this.title,
     this.host,
     this.shellService,
+    this.actions,
+    this.showCopyButton = true,
+    this.autofocus = true,
   });
 
   final SshHost? host;
   final RemoteShellService? shellService;
   final String command;
   final String title;
+  final List<Widget>? actions;
+  final bool showCopyButton;
+  final bool autofocus;
 
   @override
   State<DockerCommandTerminal> createState() => _DockerCommandTerminalState();
@@ -32,9 +37,12 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   final TerminalLibraryFlutterController _controller =
       TerminalLibraryFlutterController();
   final TerminalLibraryFlutter _terminal = TerminalLibraryFlutter(maxLines: 1000);
+  final ScrollController _scrollController = ScrollController();
   TerminalPtyLibraryBase? _pty;
   bool _connecting = true;
   String? _error;
+  final StringBuffer _outputBuffer = StringBuffer();
+  int _sessionToken = 0;
 
   @override
   void initState() {
@@ -45,14 +53,26 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   @override
   void dispose() {
     _pty?.kill();
+    _scrollController.dispose();
     _controller.dispose();
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(covariant DockerCommandTerminal oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.command != widget.command || oldWidget.host != widget.host) {
+      _start();
+    }
+  }
+
   Future<void> _start() async {
+    _sessionToken += 1;
+    final token = _sessionToken;
     setState(() {
       _connecting = true;
       _error = null;
+      _outputBuffer.clear();
     });
     _terminal.onOutput = _onOutput;
     _terminal.onResize = _onResize;
@@ -63,6 +83,10 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
           widget.host!,
           options: _sessionOptions(),
         );
+        if (token != _sessionToken) {
+          session.kill();
+          return;
+        }
         _pty = session;
         session.on(
           eventName: session.event_output,
@@ -76,6 +100,10 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
           columns: _sessionOptions().columns,
           rows: _sessionOptions().rows,
         );
+        if (token != _sessionToken) {
+          session.kill();
+          return;
+        }
         _pty = session;
         session.on(
           eventName: session.event_output,
@@ -95,6 +123,9 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   TerminalSessionOptions _sessionOptions() {
     final columns = _terminal.viewWidth > 0 ? _terminal.viewWidth : 80;
     final rows = _terminal.viewHeight > 0 ? _terminal.viewHeight : 25;
+    if (columns <= 0 || rows <= 0) {
+      return const TerminalSessionOptions(columns: 80, rows: 25);
+    }
     return TerminalSessionOptions(columns: columns, rows: rows);
   }
 
@@ -102,8 +133,10 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     if (data is Uint8List) {
       final text = utf8.decode(data, allowMalformed: true);
       _terminal.write(text);
+      _outputBuffer.write(text);
     } else if (data is String) {
       _terminal.write(data);
+      _outputBuffer.write(data);
     }
   }
 
@@ -111,10 +144,54 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     final bytes = utf8.encode(value);
     if (bytes.isEmpty) return;
     _pty?.write(Uint8List.fromList(bytes));
+    _outputBuffer.write(value);
   }
 
   void _onResize(int columns, int rows, int pixelWidth, int pixelHeight) {
+    if (columns <= 0 || rows <= 0) return;
     _pty?.resize(rows, columns);
+  }
+
+  Future<void> _copyOutput() async {
+    final selection = _controller.selection;
+    if (selection != null) {
+      final selected = _terminal.buffer.getText(selection);
+      final cleaned = _stripAnsi(selected);
+      if (cleaned.trim().isEmpty) return;
+      await Clipboard.setData(ClipboardData(text: cleaned));
+    } else {
+      if (_outputBuffer.isEmpty) return;
+      final plain = _stripAnsi(_outputBuffer.toString());
+      await Clipboard.setData(ClipboardData(text: plain));
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          selection != null ? 'Selection copied to clipboard' : 'Output copied to clipboard',
+        ),
+      ),
+    );
+  }
+
+  String _stripAnsi(String input) {
+    var output = input;
+    // OSC sequences: ESC ] ... BEL or ESC \
+    output = output.replaceAll(
+      RegExp(r'\x1B\][\s\S]*?(?:\x07|\x1B\\)'),
+      '',
+    );
+    // CSI sequences
+    output = output.replaceAll(
+      RegExp(r'\x1B\[[0-?]*[ -/]*[@-~]'),
+      '',
+    );
+    // Single ESC codes
+    output = output.replaceAll(
+      RegExp(r'\x1B[@-Z\\-_]'),
+      '',
+    );
+    return output;
   }
 
   @override
@@ -139,20 +216,229 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
               ),
+              if (widget.showCopyButton)
+                IconButton(
+                  tooltip: 'Copy output',
+                  icon: const Icon(Icons.copy),
+                  onPressed: _copyOutput,
+                ),
+              ...?widget.actions,
             ],
           ),
         ),
         const Divider(height: 1),
         Expanded(
-          child: TerminalLibraryFlutterViewWidget(
-            _terminal,
-            controller: _controller,
-            autofocus: true,
-            simulateScroll: true,
-            alwaysShowCursor: true,
+          child: Shortcuts(
+            shortcuts: {
+              LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.shift,
+                  LogicalKeyboardKey.arrowUp): const _ScrollByIntent(-160),
+              LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.shift,
+                  LogicalKeyboardKey.arrowDown): const _ScrollByIntent(160),
+              LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.shift,
+                  LogicalKeyboardKey.pageUp): const _ScrollByIntent(-480),
+              LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.shift,
+                  LogicalKeyboardKey.pageDown): const _ScrollByIntent(480),
+              LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.shift,
+                  LogicalKeyboardKey.home): const _ScrollToExtentIntent(up: true),
+              LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.shift,
+                  LogicalKeyboardKey.end): const _ScrollToExtentIntent(up: false),
+              LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.shift,
+                  LogicalKeyboardKey.keyC): const _CopyTerminalIntent(),
+            },
+            child: Actions(
+              actions: {
+                _ScrollByIntent: CallbackAction<_ScrollByIntent>(
+                  onInvoke: (intent) {
+                    _scrollBy(intent.offset);
+                    return null;
+                  },
+                ),
+                _ScrollToExtentIntent: CallbackAction<_ScrollToExtentIntent>(
+                  onInvoke: (intent) {
+                    _scrollToExtent(intent.up);
+                    return null;
+                  },
+                ),
+                _CopyTerminalIntent: CallbackAction<_CopyTerminalIntent>(
+                  onInvoke: (intent) {
+                    _copyOutput();
+                    return null;
+                  },
+                ),
+              },
+              child: TerminalLibraryFlutterViewWidget(
+                _terminal,
+                controller: _controller,
+                scrollController: _scrollController,
+                autofocus: widget.autofocus,
+                simulateScroll: true,
+                alwaysShowCursor: true,
+              ),
+            ),
           ),
         ),
       ],
     );
+  }
+
+  void _scrollBy(double offset) {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    final target = (position.pixels + offset)
+        .clamp(position.minScrollExtent, position.maxScrollExtent);
+    position.jumpTo(target);
+  }
+
+  void _scrollToExtent(bool up) {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    position.jumpTo(up ? position.minScrollExtent : position.maxScrollExtent);
+  }
+}
+
+class _ScrollByIntent extends Intent {
+  const _ScrollByIntent(this.offset);
+  final double offset;
+}
+
+class _ScrollToExtentIntent extends Intent {
+  const _ScrollToExtentIntent({required this.up});
+  final bool up;
+}
+
+class _CopyTerminalIntent extends Intent {
+  const _CopyTerminalIntent();
+}
+
+class ComposeLogsTerminal extends StatefulWidget {
+  const ComposeLogsTerminal({
+    super.key,
+    required this.composeBase,
+    required this.project,
+    required this.services,
+    this.host,
+    this.shellService,
+  });
+
+  final String composeBase;
+  final String project;
+  final List<String> services;
+  final SshHost? host;
+  final RemoteShellService? shellService;
+
+  @override
+  State<ComposeLogsTerminal> createState() => _ComposeLogsTerminalState();
+}
+
+class _ComposeLogsTerminalState extends State<ComposeLogsTerminal> {
+  bool _excludeSelection = false;
+  final Set<String> _selected = {};
+
+  @override
+  Widget build(BuildContext context) {
+    final serviceItems = widget.services;
+    _selected.removeWhere((s) => !serviceItems.contains(s));
+    final command = _buildCommand();
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      'Services',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    if (serviceItems.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Text('None detected'),
+                      )
+                    else
+                      ...serviceItems.map(
+                        (service) => FilterChip(
+                          label: Text(service),
+                          selected: _selected.contains(service),
+                          onSelected: (value) {
+                            setState(() {
+                              if (value) {
+                                _selected.add(service);
+                              } else {
+                                _selected.remove(service);
+                              }
+                            });
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (serviceItems.isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Row(
+                      children: [
+                        const Text('Exclude selected'),
+                        Switch(
+                          value: _excludeSelection,
+                          onChanged: (value) =>
+                              setState(() => _excludeSelection = value),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        TextButton(
+                          onPressed: () =>
+                              setState(() => _selected.addAll(serviceItems)),
+                          child: const Text('Select all'),
+                        ),
+                        TextButton(
+                          onPressed: () => setState(() => _selected.clear()),
+                          child: const Text('Clear'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: DockerCommandTerminal(
+            key: ValueKey(command),
+            command: command,
+            title: 'Compose logs • ${widget.project}',
+            host: widget.host,
+            shellService: widget.shellService,
+            showCopyButton: true,
+            autofocus: false,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _buildCommand() {
+    if (widget.services.isEmpty || _selected.isEmpty) {
+      return '${widget.composeBase} logs -f --tail 200';
+    }
+    final includeList = _excludeSelection
+        ? widget.services.where((s) => !_selected.contains(s)).toList()
+        : _selected.toList();
+    if (includeList.isEmpty) {
+      return '${widget.composeBase} logs -f --tail 200';
+    }
+    final servicesArg = includeList.map((s) => '"$s"').join(' ');
+    return '${widget.composeBase} logs -f --tail 200 $servicesArg';
   }
 }

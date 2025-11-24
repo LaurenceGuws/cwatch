@@ -4,6 +4,7 @@ import '../../../../models/docker_container.dart';
 import '../../../../models/docker_image.dart';
 import '../../../../models/docker_network.dart';
 import '../../../../models/docker_volume.dart';
+import '../../../theme/nerd_fonts.dart';
 
 typedef ItemTapDown<T> = void Function(
   T item,
@@ -11,6 +12,12 @@ typedef ItemTapDown<T> = void Function(
   bool secondary,
   int? flatIndex,
 });
+
+const IconData _iconContainer =
+    IconData(0xf4b7, fontFamily: NerdFonts.family);
+const IconData _iconImage = IconData(0xf08cc, fontFamily: NerdFonts.family);
+const IconData _iconNetwork = IconData(0xf060a, fontFamily: NerdFonts.family);
+const IconData _iconVolume = IconData(0xf0c7, fontFamily: NerdFonts.family);
 
 class StatCard extends StatelessWidget {
   const StatCard({
@@ -77,12 +84,18 @@ class ContainerPeek extends StatefulWidget {
     this.onTap,
     this.onTapDown,
     required this.selectedIds,
+    required this.busyIds,
+    required this.actionLabels,
+    this.onComposeAction,
   });
 
   final List<DockerContainer> containers;
   final ValueChanged<DockerContainer>? onTap;
   final ItemTapDown<DockerContainer>? onTapDown;
   final Set<String> selectedIds;
+  final Set<String> busyIds;
+  final Map<String, String> actionLabels;
+  final void Function(String project, String action)? onComposeAction;
 
   @override
   State<ContainerPeek> createState() => _ContainerPeekState();
@@ -103,6 +116,9 @@ class _ContainerPeekState extends State<ContainerPeek> {
         final project = entry.key;
         final items = entry.value;
         final collapsed = _collapsed.contains(project);
+        final isCompose = project.startsWith('Compose: ');
+        final projectName =
+            isCompose ? project.replaceFirst('Compose: ', '') : null;
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: Column(
@@ -111,9 +127,42 @@ class _ContainerPeekState extends State<ContainerPeek> {
                 dense: true,
                 title: Text(project),
                 subtitle: Text('${items.length} containers'),
-                trailing: Icon(collapsed
-                    ? Icons.keyboard_arrow_right
-                    : Icons.keyboard_arrow_down),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isCompose && widget.onComposeAction != null)
+                      PopupMenuButton<String>(
+                        tooltip: 'Compose actions',
+                        icon: const Icon(Icons.settings),
+                        onSelected: (action) {
+                          final name = projectName;
+                          if (name != null) {
+                            widget.onComposeAction!(name, action);
+                          }
+                        },
+                        itemBuilder: (context) => const [
+                          PopupMenuItem(value: 'logs', child: Text('Tail logs')),
+                          PopupMenuItem(
+                            value: 'restart',
+                            child: Text('Restart project'),
+                          ),
+                          PopupMenuItem(
+                            value: 'up',
+                            child: Text('Compose up (detach)'),
+                          ),
+                          PopupMenuItem(
+                            value: 'down',
+                            child: Text('Compose down'),
+                          ),
+                        ],
+                      ),
+                    Icon(
+                      collapsed
+                          ? Icons.keyboard_arrow_right
+                          : Icons.keyboard_arrow_down,
+                    ),
+                  ],
+                ),
                 onTap: () {
                   setState(() {
                     if (collapsed) {
@@ -135,6 +184,8 @@ class _ContainerPeekState extends State<ContainerPeek> {
                             onTap: widget.onTap,
                             onTapDown: widget.onTapDown,
                             selected: widget.selectedIds.contains(container.id),
+                            busy: widget.busyIds.contains(container.id),
+                            progressLabel: widget.actionLabels[container.id],
                             flatIndex: flatIndex,
                           );
                           flatIndex += 1;
@@ -157,7 +208,7 @@ class _ContainerPeekState extends State<ContainerPeek> {
     for (final c in containers) {
       final key = c.composeProject?.isNotEmpty == true
           ? 'Compose: ${c.composeProject}'
-          : _inferComposeGroup(c.name);
+          : 'Standalone';
       map.putIfAbsent(key, () => []).add(c);
     }
     final sortedKeys = map.keys.toList()
@@ -177,12 +228,18 @@ class ContainerList extends StatelessWidget {
     this.onTap,
     this.onTapDown,
     required this.selectedIds,
+    required this.busyIds,
+    required this.actionLabels,
+    this.onComposeAction,
   });
 
   final List<DockerContainer> containers;
   final ValueChanged<DockerContainer>? onTap;
   final ItemTapDown<DockerContainer>? onTapDown;
   final Set<String> selectedIds;
+  final Set<String> busyIds;
+  final Map<String, String> actionLabels;
+  final void Function(String project, String action)? onComposeAction;
 
   @override
   Widget build(BuildContext context) {
@@ -194,11 +251,38 @@ class ContainerList extends StatelessWidget {
       children: groups.entries.map((entry) {
         final project = entry.key;
         final items = entry.value;
+        final isCompose = project.startsWith('Compose: ');
+        final projectName =
+            isCompose ? project.replaceFirst('Compose: ', '') : null;
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: ExpansionTile(
             title: Text(project),
             subtitle: Text('${items.length} containers'),
+            trailing: isCompose && onComposeAction != null
+                ? PopupMenuButton<String>(
+                    tooltip: 'Compose actions',
+                    icon: const Icon(Icons.settings),
+                    onSelected: (action) {
+                      final name = projectName;
+                      if (name != null) {
+                        onComposeAction!(name, action);
+                      }
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(value: 'logs', child: Text('Tail logs')),
+                      PopupMenuItem(
+                        value: 'restart',
+                        child: Text('Restart project'),
+                      ),
+                      PopupMenuItem(
+                        value: 'up',
+                        child: Text('Compose up (detach)'),
+                      ),
+                      PopupMenuItem(value: 'down', child: Text('Compose down')),
+                    ],
+                  )
+                : null,
             children: items
                 .map(
                   (container) => Padding(
@@ -209,6 +293,8 @@ class ContainerList extends StatelessWidget {
                       onTap: onTap,
                       onTapDown: onTapDown,
                       selected: selectedIds.contains(container.id),
+                      busy: busyIds.contains(container.id),
+                      progressLabel: actionLabels[container.id],
                     ),
                   ),
                 )
@@ -224,7 +310,7 @@ class ContainerList extends StatelessWidget {
     for (final c in containers) {
       final key = c.composeProject?.isNotEmpty == true
           ? 'Compose: ${c.composeProject}'
-          : _inferComposeGroup(c.name);
+          : 'Standalone';
       map.putIfAbsent(key, () => []).add(c);
     }
     final sortedKeys = map.keys.toList()
@@ -234,6 +320,23 @@ class ContainerList extends StatelessWidget {
         return a.compareTo(b);
       });
     return {for (final k in sortedKeys) k: map[k]!};
+  }
+}
+
+class ComposeProjectList extends StatelessWidget {
+  const ComposeProjectList({
+    super.key,
+    required this.projects,
+    required this.onComposeAction,
+  });
+
+  final Map<String, List<DockerContainer>> projects;
+  final void Function(String project, String action) onComposeAction;
+
+  @override
+  Widget build(BuildContext context) {
+    if (projects.isEmpty) return const SizedBox.shrink();
+    return const SizedBox.shrink();
   }
 }
 
@@ -296,7 +399,11 @@ class ImagePeek extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Row(
                       children: [
-                        const Icon(Icons.image, size: 18),
+                        Icon(
+                          _iconImage,
+                          size: 18,
+                          color: Theme.of(context).iconTheme.color,
+                        ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Column(
@@ -390,7 +497,23 @@ class ImageList extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(name, style: Theme.of(context).textTheme.titleSmall),
+                    Row(
+                      children: [
+                        Icon(
+                          _iconImage,
+                          size: 18,
+                          color: Theme.of(context).iconTheme.color,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            name,
+                            style: Theme.of(context).textTheme.titleSmall,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                     Text('Size: ${image.size}',
                         style: Theme.of(context).textTheme.bodySmall),
                   ],
@@ -463,7 +586,19 @@ class NetworkList extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(vertical: 4),
                           child: Row(
                             children: [
-                              Expanded(child: Text(network.name)),
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      _iconNetwork,
+                                      size: 18,
+                                      color: Theme.of(context).iconTheme.color,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(child: Text(network.name)),
+                                  ],
+                                ),
+                              ),
                               Text(network.driver,
                                   style: Theme.of(context).textTheme.bodySmall),
                             ],
@@ -551,9 +686,35 @@ class VolumeList extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(vertical: 4),
                           child: Row(
                             children: [
-                              Expanded(child: Text(volume.name)),
-                              Text(volume.driver,
-                                  style: Theme.of(context).textTheme.bodySmall),
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      _iconVolume,
+                                      size: 18,
+                                      color: Theme.of(context).iconTheme.color,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(child: Text(volume.name)),
+                                  ],
+                                ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    volume.driver,
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                  if (volume.size != null &&
+                                      volume.size!.trim().isNotEmpty)
+                                    Text(
+                                      volume.size!,
+                                      style:
+                                          Theme.of(context).textTheme.bodySmall,
+                                    ),
+                                ],
+                              ),
                             ],
                           ),
                         ),
@@ -586,6 +747,8 @@ class _ContainerRow extends StatelessWidget {
     this.onTap,
     this.onTapDown,
     this.selected = false,
+    this.busy = false,
+    this.progressLabel,
     this.flatIndex,
   });
 
@@ -593,13 +756,20 @@ class _ContainerRow extends StatelessWidget {
   final ValueChanged<DockerContainer>? onTap;
   final ItemTapDown<DockerContainer>? onTapDown;
   final bool selected;
+  final bool busy;
+  final String? progressLabel;
   final int? flatIndex;
 
   @override
   Widget build(BuildContext context) {
     final color = container.isRunning ? Colors.green : Colors.orange;
-    final statusLabel =
-        container.isRunning ? 'Running' : 'Stopped (${container.status})';
+    final hasProgress = progressLabel != null && progressLabel!.isNotEmpty;
+    final statusLabel = hasProgress
+        ? '${progressLabel![0].toUpperCase()}${progressLabel!.substring(1)}…'
+        : container.isRunning
+            ? _runningLabel(container)
+            : 'Stopped (${container.status})';
+    final statusColor = busy ? Theme.of(context).colorScheme.primary : color;
     return GestureDetector(
       onTapDown: onTapDown == null
           ? null
@@ -633,7 +803,7 @@ class _ContainerRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: Row(
             children: [
-              Icon(Icons.dns, color: color),
+              Icon(_iconContainer, color: color),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -652,16 +822,51 @@ class _ContainerRow extends StatelessWidget {
                       style: Theme.of(context)
                           .textTheme
                           .bodySmall
-                          ?.copyWith(color: color),
+                          ?.copyWith(color: statusColor),
                     ),
                   ],
                 ),
               ),
+              if (busy) ...[
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ],
             ],
           ),
         ),
       ),
     );
+  }
+
+  String _runningLabel(DockerContainer container) {
+    if (container.startedAt != null) {
+      final now = DateTime.now();
+      final diff = now.difference(container.startedAt!.toLocal());
+      if (diff.inDays >= 1) {
+        final days = diff.inDays;
+        final hours = diff.inHours % 24;
+        return 'Running for ${days}d ${hours}h';
+      }
+      if (diff.inHours >= 1) {
+        final hours = diff.inHours;
+        final mins = diff.inMinutes % 60;
+        return 'Running for ${hours}h ${mins}m';
+      }
+      if (diff.inMinutes >= 1) {
+        final mins = diff.inMinutes;
+        final secs = diff.inSeconds % 60;
+        return 'Running for ${mins}m ${secs}s';
+      }
+      return 'Running for ${diff.inSeconds}s';
+    }
+    if (container.createdAt != null && container.createdAt!.isNotEmpty) {
+      return 'Running for ${container.createdAt}';
+    }
+    return 'Running';
   }
 }
 
