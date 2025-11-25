@@ -5,8 +5,10 @@ import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
 import 'package:cwatch/services/ssh/terminal_session.dart';
 
+import '../../../../models/app_settings.dart';
 import '../../../../models/ssh_host.dart';
 import '../../../../services/ssh/remote_shell_service.dart';
+import '../../../../services/settings/app_settings_controller.dart';
 import '../../../theme/app_theme.dart';
 import '../../../theme/nerd_fonts.dart';
 
@@ -18,6 +20,7 @@ class DockerCommandTerminal extends StatefulWidget {
     required this.title,
     this.host,
     this.shellService,
+    this.settingsController,
     this.actions,
     this.showCopyButton = true,
     this.autofocus = true,
@@ -29,6 +32,7 @@ class DockerCommandTerminal extends StatefulWidget {
   final String command;
   final String title;
   final List<Widget>? actions;
+  final AppSettingsController? settingsController;
   final bool showCopyButton;
   final bool autofocus;
   final VoidCallback? onExit;
@@ -39,9 +43,7 @@ class DockerCommandTerminal extends StatefulWidget {
 
 class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   final TerminalController _controller = TerminalController();
-  final Terminal _terminal = Terminal(
-    maxLines: 1000,
-  );
+  final Terminal _terminal = Terminal(maxLines: 1000);
   final ScrollController _scrollController = ScrollController();
   TerminalSession? _pty;
   StreamSubscription<Uint8List>? _outputSub;
@@ -209,6 +211,17 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.settingsController != null) {
+      return AnimatedBuilder(
+        animation: widget.settingsController!,
+        builder: (context, _) =>
+            _buildContent(context, widget.settingsController!.settings),
+      );
+    }
+    return _buildContent(context, null);
+  }
+
+  Widget _buildContent(BuildContext context, AppSettings? settings) {
     if (_error != null) {
       return Center(child: Text(_error!));
     }
@@ -318,6 +331,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
                 scrollController: _scrollController,
                 autofocus: widget.autofocus,
                 alwaysShowCursor: true,
+                textStyle: _textStyle(settings),
               ),
             ),
           ),
@@ -364,6 +378,18 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
       return;
     }
     _lastSelectionSignature = signature;
+  }
+
+  TerminalStyle _textStyle(AppSettings? settings) {
+    final fontSize =
+        (settings?.terminalFontSize ?? 14).clamp(8, 32).toDouble();
+    final lineHeight =
+        (settings?.terminalLineHeight ?? 1.4).clamp(0.8, 2.0).toDouble();
+    return TerminalStyle(
+      fontFamily: NerdFonts.effectiveFamily(settings?.terminalFontFamily),
+      fontSize: fontSize,
+      height: lineHeight,
+    );
   }
 
   String _safeSelectionText(BufferRange selection) {

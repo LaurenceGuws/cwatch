@@ -109,6 +109,61 @@ class _SettingsViewState extends State<SettingsView>
                           onZoomChanged: (value) => widget.controller.update(
                             (current) => current.copyWith(zoomFactor: value),
                           ),
+                          appFontFamily: settings.appFontFamily,
+                          onAppFontFamilyChanged: (value) =>
+                              widget.controller.update(
+                                (current) => current.copyWith(
+                                  appFontFamily: value.trim().isEmpty
+                                      ? null
+                                      : value.trim(),
+                                ),
+                              ),
+                          terminalFontFamily: settings.terminalFontFamily,
+                          terminalFontSize: settings.terminalFontSize,
+                          terminalLineHeight: settings.terminalLineHeight,
+                          onTerminalFontFamilyChanged: (value) =>
+                              widget.controller.update(
+                                (current) => current.copyWith(
+                                  terminalFontFamily: value.trim().isEmpty
+                                      ? null
+                                      : value.trim(),
+                                ),
+                              ),
+                          onTerminalFontSizeChanged: (value) =>
+                              widget.controller.update(
+                                (current) => current.copyWith(
+                                  terminalFontSize: value,
+                                ),
+                              ),
+                          onTerminalLineHeightChanged: (value) =>
+                              widget.controller.update(
+                                (current) => current.copyWith(
+                                  terminalLineHeight: value,
+                                ),
+                              ),
+                          editorFontFamily: settings.editorFontFamily,
+                          editorFontSize: settings.editorFontSize,
+                          editorLineHeight: settings.editorLineHeight,
+                          onEditorFontFamilyChanged: (value) =>
+                              widget.controller.update(
+                                (current) => current.copyWith(
+                                  editorFontFamily: value.trim().isEmpty
+                                      ? null
+                                      : value.trim(),
+                                ),
+                              ),
+                          onEditorFontSizeChanged: (value) =>
+                              widget.controller.update(
+                                (current) => current.copyWith(
+                                  editorFontSize: value,
+                                ),
+                              ),
+                          onEditorLineHeightChanged: (value) =>
+                              widget.controller.update(
+                                (current) => current.copyWith(
+                                  editorLineHeight: value,
+                                ),
+                              ),
                         ),
                         ServersSettingsTab(
                           key: const ValueKey('servers_settings_tab'),

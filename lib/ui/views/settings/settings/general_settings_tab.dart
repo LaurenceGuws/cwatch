@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'editor_settings_section.dart';
 import 'settings_section.dart';
+import 'terminal_settings_section.dart';
 
 /// General settings tab widget
 class GeneralSettingsTab extends StatelessWidget {
@@ -12,14 +14,42 @@ class GeneralSettingsTab extends StatelessWidget {
     required this.onThemeChanged,
     required this.onDebugModeChanged,
     required this.onZoomChanged,
+    required this.terminalFontFamily,
+    required this.terminalFontSize,
+    required this.terminalLineHeight,
+    required this.onTerminalFontFamilyChanged,
+    required this.onTerminalFontSizeChanged,
+    required this.onTerminalLineHeightChanged,
+    required this.editorFontFamily,
+    required this.editorFontSize,
+    required this.editorLineHeight,
+    required this.onEditorFontFamilyChanged,
+    required this.onEditorFontSizeChanged,
+    required this.onEditorLineHeightChanged,
+    required this.appFontFamily,
+    required this.onAppFontFamilyChanged,
   });
 
   final ThemeMode selectedTheme;
   final bool debugMode;
   final double zoomFactor;
+  final String? terminalFontFamily;
+  final double terminalFontSize;
+  final double terminalLineHeight;
   final ValueChanged<ThemeMode> onThemeChanged;
   final ValueChanged<bool> onDebugModeChanged;
   final ValueChanged<double> onZoomChanged;
+  final ValueChanged<String> onTerminalFontFamilyChanged;
+  final ValueChanged<double> onTerminalFontSizeChanged;
+  final ValueChanged<double> onTerminalLineHeightChanged;
+  final String? editorFontFamily;
+  final double editorFontSize;
+  final double editorLineHeight;
+  final ValueChanged<String> onEditorFontFamilyChanged;
+  final ValueChanged<double> onEditorFontSizeChanged;
+  final ValueChanged<double> onEditorLineHeightChanged;
+  final String? appFontFamily;
+  final ValueChanged<String> onAppFontFamilyChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -29,21 +59,35 @@ class GeneralSettingsTab extends StatelessWidget {
         SettingsSection(
           title: 'Theme',
           description: 'Switch between light, dark, or system themes.',
-          child: DropdownButtonFormField<ThemeMode>(
-            isExpanded: true,
-            initialValue: selectedTheme,
-            onChanged: (mode) {
-              if (mode != null) {
-                onThemeChanged(mode);
-              }
-            },
-            items: const [
-              DropdownMenuItem(
-                value: ThemeMode.system,
-                child: Text('System Default'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              DropdownButtonFormField<ThemeMode>(
+                isExpanded: true,
+                initialValue: selectedTheme,
+                onChanged: (mode) {
+                  if (mode != null) {
+                    onThemeChanged(mode);
+                  }
+                },
+                items: const [
+                  DropdownMenuItem(
+                    value: ThemeMode.system,
+                    child: Text('System Default'),
+                  ),
+                  DropdownMenuItem(value: ThemeMode.light, child: Text('Light')),
+                  DropdownMenuItem(value: ThemeMode.dark, child: Text('Dark')),
+                ],
               ),
-              DropdownMenuItem(value: ThemeMode.light, child: Text('Light')),
-              DropdownMenuItem(value: ThemeMode.dark, child: Text('Dark')),
+              const SizedBox(height: 12),
+              TextFormField(
+                initialValue: appFontFamily ?? '',
+                decoration: const InputDecoration(
+                  labelText: 'App font family',
+                  hintText: 'JetBrainsMono Nerd Font',
+                ),
+                onChanged: onAppFontFamilyChanged,
+              ),
             ],
           ),
         ),
@@ -87,6 +131,22 @@ class GeneralSettingsTab extends StatelessWidget {
             value: debugMode,
             onChanged: onDebugModeChanged,
           ),
+        ),
+        TerminalSettingsSection(
+          fontFamily: terminalFontFamily,
+          fontSize: terminalFontSize,
+          lineHeight: terminalLineHeight,
+          onFontFamilyChanged: onTerminalFontFamilyChanged,
+          onFontSizeChanged: onTerminalFontSizeChanged,
+          onLineHeightChanged: onTerminalLineHeightChanged,
+        ),
+        EditorSettingsSection(
+          fontFamily: editorFontFamily,
+          fontSize: editorFontSize,
+          lineHeight: editorLineHeight,
+          onFontFamilyChanged: onEditorFontFamilyChanged,
+          onFontSizeChanged: onEditorFontSizeChanged,
+          onLineHeightChanged: onEditorLineHeightChanged,
         ),
       ],
     );

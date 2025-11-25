@@ -89,6 +89,7 @@ flutter:
   # https://flutter.dev/to/asset-from-package
 
   fonts:
-    - family: JetBrainsMonoNF
+    - family: JetBrainsMono Nerd Font
       fonts:
-        - asset: assets/fonts/JetBrainsMonoNerdFont-Regular.ttf
+        # Mono-only variant to avoid mixed metrics with proportional faces.
+        - asset: assets/fonts/JetBrainsMonoNerdFontMono-Regular.ttf

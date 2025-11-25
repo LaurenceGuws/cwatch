@@ -5,9 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:xterm/xterm.dart';
 import 'package:cwatch/services/ssh/terminal_session.dart';
 
+import '../../../../models/app_settings.dart';
 import '../../../../models/ssh_host.dart';
 import '../../../../services/ssh/remote_shell_service.dart';
 import '../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
+import '../../../../services/settings/app_settings_controller.dart';
 import '../../../theme/nerd_fonts.dart';
 
 /// Terminal tab that spawns an SSH session via a PTY.
@@ -17,12 +19,14 @@ class TerminalTab extends StatefulWidget {
     required this.host,
     this.initialDirectory,
     required this.shellService,
+    required this.settingsController,
     this.onExit,
   });
 
   final SshHost host;
   final String? initialDirectory;
   final RemoteShellService shellService;
+  final AppSettingsController settingsController;
   final VoidCallback? onExit;
 
   @override
@@ -31,19 +35,12 @@ class TerminalTab extends StatefulWidget {
 
 class _TerminalTabState extends State<TerminalTab> {
   final TerminalController _controller = TerminalController();
-  final Terminal _terminal = Terminal(
-    maxLines: 1000,
-  );
+  final Terminal _terminal = Terminal(maxLines: 1000);
   TerminalSession? _pty;
   bool _connecting = true;
   String? _error;
   bool _closing = false;
   int _sessionToken = 0;
-  final TerminalStyle _textStyle = const TerminalStyle(
-        fontFamily: 'JetBrainsMonoNF',
-        fontSize: 14,
-        height: 1.1,
-      );
 
   @override
   void initState() {
@@ -224,32 +221,46 @@ class _TerminalTabState extends State<TerminalTab> {
 
   @override
   Widget build(BuildContext context) {
-    if (_connecting) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_error != null) {
-      return _buildError(context);
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildHeader(context),
-        const Divider(height: 1),
-        Expanded(
-          child: TerminalView(
-            _terminal,
-            controller: _controller,
-            autofocus: true,
-            backgroundOpacity: 1,
-            padding: EdgeInsets.zero,
-            alwaysShowCursor: true,
-            deleteDetection:
-                defaultTargetPlatform == TargetPlatform.android ||
-                defaultTargetPlatform == TargetPlatform.iOS,
-            textStyle: _textStyle,
-          ),
-        ),
-      ],
+    return AnimatedBuilder(
+      animation: widget.settingsController,
+      builder: (context, _) {
+        if (_connecting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (_error != null) {
+          return _buildError(context);
+        }
+        final settings = widget.settingsController.settings;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(context),
+            const Divider(height: 1),
+            Expanded(
+              child: TerminalView(
+                _terminal,
+                controller: _controller,
+                autofocus: true,
+                backgroundOpacity: 1,
+                padding: EdgeInsets.zero,
+                alwaysShowCursor: true,
+                deleteDetection:
+                    defaultTargetPlatform == TargetPlatform.android ||
+                    defaultTargetPlatform == TargetPlatform.iOS,
+                textStyle: _textStyle(settings),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  TerminalStyle _textStyle(AppSettings settings) {
+    return TerminalStyle(
+      fontFamily: NerdFonts.effectiveFamily(settings.terminalFontFamily),
+      fontSize: settings.terminalFontSize.clamp(8, 32),
+      height: settings.terminalLineHeight.clamp(0.8, 2.0),
     );
   }
 }

@@ -49,6 +49,8 @@ class _CwatchAppState extends State<CwatchApp> {
       animation: _settingsController,
       builder: (context, _) {
         final settings = _settingsController.settings;
+        final appFontFamily =
+            NerdFonts.effectiveFamily(settings.appFontFamily);
         final lightScheme = ColorScheme.fromSeed(
           seedColor: Colors.blueGrey,
           brightness: Brightness.light,
@@ -57,13 +59,19 @@ class _CwatchAppState extends State<CwatchApp> {
           seedColor: Colors.blueGrey,
           brightness: Brightness.dark,
         );
-        final lightTokens = AppThemeTokens.light(lightScheme);
-        final darkTokens = AppThemeTokens.dark(darkScheme);
+        final lightTokens = AppThemeTokens.light(
+          lightScheme,
+          fontFamily: appFontFamily,
+        );
+        final darkTokens = AppThemeTokens.dark(
+          darkScheme,
+          fontFamily: appFontFamily,
+        );
         return MaterialApp(
           title: 'CWatch',
           themeMode: settings.themeMode,
-          theme: _buildTheme(lightScheme, lightTokens),
-          darkTheme: _buildTheme(darkScheme, darkTokens),
+          theme: _buildTheme(lightScheme, lightTokens, appFontFamily),
+          darkTheme: _buildTheme(darkScheme, darkTokens, appFontFamily),
           builder: (context, child) {
             final mediaQuery = MediaQuery.of(context);
             final zoom = settings.zoomFactor.clamp(0.8, 1.5).toDouble();
@@ -78,12 +86,16 @@ class _CwatchAppState extends State<CwatchApp> {
     );
   }
 
-  ThemeData _buildTheme(ColorScheme scheme, AppThemeTokens tokens) {
+  ThemeData _buildTheme(
+    ColorScheme scheme,
+    AppThemeTokens tokens,
+    String fontFamily,
+  ) {
     final baseRadius = BorderRadius.circular(10);
     return ThemeData(
       colorScheme: scheme,
       useMaterial3: true,
-      fontFamily: NerdFonts.family,
+      fontFamily: fontFamily,
       visualDensity: VisualDensity.compact,
       scaffoldBackgroundColor: scheme.surface,
       cardTheme: CardThemeData(

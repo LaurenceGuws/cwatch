@@ -15,6 +15,7 @@ class AppSettings {
     this.shellSidebarWidth,
     this.shellDestination,
     this.shellSidebarCollapsed = false,
+    this.appFontFamily,
     this.sshClientBackend = SshClientBackend.platform,
     this.builtinSshHostKeyBindings = const {},
     this.customSshHosts = const [],
@@ -24,9 +25,15 @@ class AppSettings {
     this.settingsTabIndex = 0,
     this.editorThemeLight,
     this.editorThemeDark,
+    this.editorFontFamily,
+    this.editorFontSize = 14,
+    this.editorLineHeight = 1.35,
     this.dockerRemoteHosts = const [],
     this.dockerSelectedContext,
     this.dockerWorkspace,
+    this.terminalFontFamily,
+    this.terminalFontSize = 14,
+    this.terminalLineHeight = 1.15,
   });
 
   final ThemeMode themeMode;
@@ -37,6 +44,7 @@ class AppSettings {
   final double? shellSidebarWidth;
   final String? shellDestination;
   final bool shellSidebarCollapsed;
+  final String? appFontFamily;
   final SshClientBackend sshClientBackend;
   final Map<String, String> builtinSshHostKeyBindings;
   final List<CustomSshHost> customSshHosts;
@@ -46,9 +54,15 @@ class AppSettings {
   final int settingsTabIndex;
   final String? editorThemeLight;
   final String? editorThemeDark;
+  final String? editorFontFamily;
+  final double editorFontSize;
+  final double editorLineHeight;
   final List<String> dockerRemoteHosts;
   final String? dockerSelectedContext;
   final DockerWorkspaceState? dockerWorkspace;
+  final String? terminalFontFamily;
+  final double terminalFontSize;
+  final double terminalLineHeight;
 
   AppSettings copyWith({
     ThemeMode? themeMode,
@@ -59,6 +73,7 @@ class AppSettings {
     double? shellSidebarWidth,
     String? shellDestination,
     bool? shellSidebarCollapsed,
+    String? appFontFamily,
     SshClientBackend? sshClientBackend,
     Map<String, String>? builtinSshHostKeyBindings,
     List<CustomSshHost>? customSshHosts,
@@ -68,9 +83,15 @@ class AppSettings {
     int? settingsTabIndex,
     String? editorThemeLight,
     String? editorThemeDark,
+    String? editorFontFamily,
+    double? editorFontSize,
+    double? editorLineHeight,
     List<String>? dockerRemoteHosts,
     String? dockerSelectedContext,
     DockerWorkspaceState? dockerWorkspace,
+    String? terminalFontFamily,
+    double? terminalFontSize,
+    double? terminalLineHeight,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -82,6 +103,7 @@ class AppSettings {
       shellDestination: shellDestination ?? this.shellDestination,
       shellSidebarCollapsed:
           shellSidebarCollapsed ?? this.shellSidebarCollapsed,
+      appFontFamily: appFontFamily ?? this.appFontFamily,
       sshClientBackend: sshClientBackend ?? this.sshClientBackend,
       builtinSshHostKeyBindings:
           builtinSshHostKeyBindings ?? this.builtinSshHostKeyBindings,
@@ -94,9 +116,15 @@ class AppSettings {
       settingsTabIndex: settingsTabIndex ?? this.settingsTabIndex,
       editorThemeLight: editorThemeLight ?? this.editorThemeLight,
       editorThemeDark: editorThemeDark ?? this.editorThemeDark,
+      editorFontFamily: editorFontFamily ?? this.editorFontFamily,
+      editorFontSize: editorFontSize ?? this.editorFontSize,
+      editorLineHeight: editorLineHeight ?? this.editorLineHeight,
       dockerRemoteHosts: dockerRemoteHosts ?? this.dockerRemoteHosts,
       dockerSelectedContext: dockerSelectedContext ?? this.dockerSelectedContext,
       dockerWorkspace: dockerWorkspace ?? this.dockerWorkspace,
+      terminalFontFamily: terminalFontFamily ?? this.terminalFontFamily,
+      terminalFontSize: terminalFontSize ?? this.terminalFontSize,
+      terminalLineHeight: terminalLineHeight ?? this.terminalLineHeight,
     );
   }
 
@@ -136,6 +164,7 @@ class AppSettings {
       shellSidebarWidth: (json['shellSidebarWidth'] as num?)?.toDouble(),
       shellDestination: json['shellDestination'] as String?,
       shellSidebarCollapsed: json['shellSidebarCollapsed'] as bool? ?? false,
+      appFontFamily: json['appFontFamily'] as String?,
       sshClientBackend: SshClientBackendParsing.fromJson(
         json['sshClientBackend'] as String?,
       ),
@@ -166,6 +195,10 @@ class AppSettings {
       settingsTabIndex: (json['settingsTabIndex'] as num?)?.toInt() ?? 0,
       editorThemeLight: json['editorThemeLight'] as String?,
       editorThemeDark: json['editorThemeDark'] as String?,
+      editorFontFamily: json['editorFontFamily'] as String?,
+      editorFontSize: (json['editorFontSize'] as num?)?.toDouble() ?? 14,
+      editorLineHeight:
+          (json['editorLineHeight'] as num?)?.toDouble() ?? 1.35,
       dockerRemoteHosts:
           (json['dockerRemoteHosts'] as List<dynamic>?)
                   ?.whereType<String>()
@@ -183,6 +216,10 @@ class AppSettings {
         }
         return null;
       }(),
+      terminalFontFamily: json['terminalFontFamily'] as String?,
+      terminalFontSize: (json['terminalFontSize'] as num?)?.toDouble() ?? 14,
+      terminalLineHeight:
+          (json['terminalLineHeight'] as num?)?.toDouble() ?? 1.15,
     );
   }
 
@@ -196,6 +233,7 @@ class AppSettings {
       'shellSidebarWidth': shellSidebarWidth,
       'shellDestination': shellDestination,
       'shellSidebarCollapsed': shellSidebarCollapsed,
+      if (appFontFamily != null) 'appFontFamily': appFontFamily,
       'sshClientBackend': sshClientBackend.name,
       'builtinSshHostKeyBindings': builtinSshHostKeyBindings,
       'customSshHosts': customSshHosts.map((h) => h.toJson()).toList(),
@@ -205,10 +243,16 @@ class AppSettings {
       'settingsTabIndex': settingsTabIndex,
       if (editorThemeLight != null) 'editorThemeLight': editorThemeLight,
       if (editorThemeDark != null) 'editorThemeDark': editorThemeDark,
+      if (editorFontFamily != null) 'editorFontFamily': editorFontFamily,
+      'editorFontSize': editorFontSize,
+      'editorLineHeight': editorLineHeight,
       'dockerRemoteHosts': dockerRemoteHosts,
       if (dockerSelectedContext != null)
         'dockerSelectedContext': dockerSelectedContext,
       if (dockerWorkspace != null) 'dockerWorkspace': dockerWorkspace!.toJson(),
+      if (terminalFontFamily != null) 'terminalFontFamily': terminalFontFamily,
+      'terminalFontSize': terminalFontSize,
+      'terminalLineHeight': terminalLineHeight,
     };
   }
 }

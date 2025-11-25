@@ -475,6 +475,7 @@ class _ServersViewState extends State<ServersView> {
           host: tab.host,
           initialDirectory: tab.customName,
           shellService: _shellServiceForHost(tab.host),
+          settingsController: widget.settingsController,
           onExit: () => _closeTabById(tab.id),
         );
       case ServerAction.trash:

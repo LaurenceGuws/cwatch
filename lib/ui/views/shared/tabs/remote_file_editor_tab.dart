@@ -185,6 +185,7 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
     final brightness = colorScheme.brightness;
     final savedTheme = _getSavedThemeForBrightness(brightness);
     final theme = _getThemeForColorScheme(colorScheme, savedTheme);
+    final settings = widget.settingsController.settings;
     return Column(
       children: [
         // Toolbar
@@ -290,20 +291,22 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
             padding: const EdgeInsets.all(8),
             child: CodeTheme(
               data: CodeThemeData(styles: theme),
-              child: CodeField(
-                controller: _controller,
-                expands: true,
-                maxLines: null,
-                minLines: null,
-                textStyle: TextStyle(
-                  fontFamily: NerdFonts.family,
-                  height: 1.35,
-                ),
-                gutterStyle: const GutterStyle(
-                  showLineNumbers: true,
-                  showErrors: false,
-                  showFoldingHandles: true,
-                ),
+            child: CodeField(
+              controller: _controller,
+              expands: true,
+              maxLines: null,
+              minLines: null,
+              textStyle: TextStyle(
+                fontFamily:
+                    NerdFonts.effectiveFamily(settings.editorFontFamily),
+                fontSize: settings.editorFontSize.clamp(8, 32).toDouble(),
+                height: settings.editorLineHeight.clamp(1.0, 2.0).toDouble(),
+              ),
+              gutterStyle: const GutterStyle(
+                showLineNumbers: true,
+                showErrors: false,
+                showFoldingHandles: true,
+              ),
               ),
             ),
           ),

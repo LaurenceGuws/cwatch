@@ -20,11 +20,14 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
   final AppIcons icons;
   final AppDockerTokens docker;
 
-  factory AppThemeTokens.light(ColorScheme scheme) {
+  factory AppThemeTokens.light(
+    ColorScheme scheme, {
+    String fontFamily = NerdFonts.family,
+  }) {
     final baseTheme = ThemeData(
       colorScheme: scheme,
       useMaterial3: true,
-      fontFamily: NerdFonts.family,
+      fontFamily: fontFamily,
     );
     return AppThemeTokens(
       spacing: const AppSpacing(),
@@ -36,11 +39,14 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
     );
   }
 
-  factory AppThemeTokens.dark(ColorScheme scheme) {
+  factory AppThemeTokens.dark(
+    ColorScheme scheme, {
+    String fontFamily = NerdFonts.family,
+  }) {
     final baseTheme = ThemeData(
       colorScheme: scheme,
       useMaterial3: true,
-      fontFamily: NerdFonts.family,
+      fontFamily: fontFamily,
     );
     return AppThemeTokens(
       spacing: const AppSpacing(),

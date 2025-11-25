@@ -1,7 +1,16 @@
 import 'package:flutter/widgets.dart';
 
 class NerdFonts {
-  static const String family = 'JetBrainsMonoNF';
+  // Match the mono family name from pubspec to keep terminal cell metrics stable.
+  static const String family = 'JetBrainsMono Nerd Font';
+
+  static String effectiveFamily(String? override) {
+    final value = override?.trim();
+    if (value == null || value.isEmpty) {
+      return family;
+    }
+    return value;
+  }
 }
 
 enum NerdIcon {
