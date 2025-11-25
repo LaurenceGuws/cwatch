@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:terminal_library/pty_library/pty_library.dart';
 import 'package:terminal_library/xterm_library/xterm.dart';
+import '../../../../services/logging/app_logger.dart';
 
 import '../../../../models/ssh_host.dart';
 import '../../../../services/ssh/remote_shell_service.dart';
@@ -40,23 +41,36 @@ class DockerCommandTerminal extends StatefulWidget {
 class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   final TerminalLibraryFlutterController _controller =
       TerminalLibraryFlutterController();
-  final TerminalLibraryFlutter _terminal = TerminalLibraryFlutter(maxLines: 1000);
+  final TerminalLibraryFlutter _terminal = TerminalLibraryFlutter(
+    maxLines: 1000,
+  );
   final ScrollController _scrollController = ScrollController();
   TerminalPtyLibraryBase? _pty;
   bool _connecting = true;
   String? _error;
   final StringBuffer _outputBuffer = StringBuffer();
   int _sessionToken = 0;
+  String? _lastSelectionSignature;
+  double? _lastLoggedScroll;
 
   @override
   void initState() {
     super.initState();
+    _controller
+      ..setSelectionMode(SelectionMode.line)
+      ..setPointerInputs(
+        const PointerInputs({PointerInput.tap, PointerInput.drag, PointerInput.move}),
+      );
+    _controller.addListener(_logSelectionChange);
+    _scrollController.addListener(_logScrollChange);
     WidgetsBinding.instance.addPostFrameCallback((_) => _start());
   }
 
   @override
   void dispose() {
     _pty?.kill();
+    _controller.removeListener(_logSelectionChange);
+    _scrollController.removeListener(_logScrollChange);
     _scrollController.dispose();
     _controller.dispose();
     super.dispose();
@@ -150,9 +164,11 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
       final text = utf8.decode(data, allowMalformed: true);
       _terminal.write(text);
       _outputBuffer.write(text);
+      _logSelectionChange();
     } else if (data is String) {
       _terminal.write(data);
       _outputBuffer.write(data);
+      _logSelectionChange();
     }
   }
 
@@ -161,6 +177,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     if (bytes.isEmpty) return;
     _pty?.write(Uint8List.fromList(bytes));
     _outputBuffer.write(value);
+    _logSelectionChange();
   }
 
   void _onResize(int columns, int rows, int pixelWidth, int pixelHeight) {
@@ -184,29 +201,23 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          selection != null ? 'Selection copied to clipboard' : 'Output copied to clipboard',
+          selection != null
+              ? 'Selection copied to clipboard'
+              : 'Output copied to clipboard',
         ),
       ),
     );
+    _logSelectionChange(force: true);
   }
 
   String _stripAnsi(String input) {
     var output = input;
     // OSC sequences: ESC ] ... BEL or ESC \
-    output = output.replaceAll(
-      RegExp(r'\x1B\][\s\S]*?(?:\x07|\x1B\\)'),
-      '',
-    );
+    output = output.replaceAll(RegExp(r'\x1B\][\s\S]*?(?:\x07|\x1B\\)'), '');
     // CSI sequences
-    output = output.replaceAll(
-      RegExp(r'\x1B\[[0-?]*[ -/]*[@-~]'),
-      '',
-    );
+    output = output.replaceAll(RegExp(r'\x1B\[[0-?]*[ -/]*[@-~]'), '');
     // Single ESC codes
-    output = output.replaceAll(
-      RegExp(r'\x1B[@-Z\\-_]'),
-      '',
-    );
+    output = output.replaceAll(RegExp(r'\x1B[@-Z\\-_]'), '');
     return output;
   }
 
@@ -246,20 +257,53 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
         Expanded(
           child: Shortcuts(
             shortcuts: {
-              LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.shift,
-                  LogicalKeyboardKey.arrowUp): const _ScrollByIntent(-160),
-              LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.shift,
-                  LogicalKeyboardKey.arrowDown): const _ScrollByIntent(160),
-              LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.shift,
-                  LogicalKeyboardKey.pageUp): const _ScrollByIntent(-480),
-              LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.shift,
-                  LogicalKeyboardKey.pageDown): const _ScrollByIntent(480),
-              LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.shift,
-                  LogicalKeyboardKey.home): const _ScrollToExtentIntent(up: true),
-              LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.shift,
-                  LogicalKeyboardKey.end): const _ScrollToExtentIntent(up: false),
-              LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.shift,
-                  LogicalKeyboardKey.keyC): const _CopyTerminalIntent(),
+              LogicalKeySet(
+                LogicalKeyboardKey.control,
+                LogicalKeyboardKey.shift,
+                LogicalKeyboardKey.arrowUp,
+              ): const _ScrollByIntent(
+                -160,
+              ),
+              LogicalKeySet(
+                LogicalKeyboardKey.control,
+                LogicalKeyboardKey.shift,
+                LogicalKeyboardKey.arrowDown,
+              ): const _ScrollByIntent(
+                160,
+              ),
+              LogicalKeySet(
+                LogicalKeyboardKey.control,
+                LogicalKeyboardKey.shift,
+                LogicalKeyboardKey.pageUp,
+              ): const _ScrollByIntent(
+                -480,
+              ),
+              LogicalKeySet(
+                LogicalKeyboardKey.control,
+                LogicalKeyboardKey.shift,
+                LogicalKeyboardKey.pageDown,
+              ): const _ScrollByIntent(
+                480,
+              ),
+              LogicalKeySet(
+                LogicalKeyboardKey.control,
+                LogicalKeyboardKey.shift,
+                LogicalKeyboardKey.home,
+              ): const _ScrollToExtentIntent(
+                up: true,
+              ),
+              LogicalKeySet(
+                LogicalKeyboardKey.control,
+                LogicalKeyboardKey.shift,
+                LogicalKeyboardKey.end,
+              ): const _ScrollToExtentIntent(
+                up: false,
+              ),
+              LogicalKeySet(
+                LogicalKeyboardKey.control,
+                LogicalKeyboardKey.shift,
+                LogicalKeyboardKey.keyC,
+              ): const _CopyTerminalIntent(),
             },
             child: Actions(
               actions: {
@@ -287,7 +331,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
                 controller: _controller,
                 scrollController: _scrollController,
                 autofocus: widget.autofocus,
-                simulateScroll: true,
+                simulateScroll: false,
                 alwaysShowCursor: true,
               ),
             ),
@@ -300,8 +344,10 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   void _scrollBy(double offset) {
     if (!_scrollController.hasClients) return;
     final position = _scrollController.position;
-    final target = (position.pixels + offset)
-        .clamp(position.minScrollExtent, position.maxScrollExtent);
+    final target = (position.pixels + offset).clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
     position.jumpTo(target);
   }
 
@@ -309,6 +355,57 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     if (!_scrollController.hasClients) return;
     final position = _scrollController.position;
     position.jumpTo(up ? position.minScrollExtent : position.maxScrollExtent);
+  }
+
+  void _logScrollChange() {
+    if (!_scrollController.hasClients) return;
+    final current = _scrollController.position.pixels;
+    // Avoid log spam for tiny deltas.
+    if (_lastLoggedScroll != null &&
+        (current - _lastLoggedScroll!).abs() < 4) {
+      return;
+    }
+    _lastLoggedScroll = current;
+    final selection = _controller.selection;
+    final selectionDesc = selection == null
+        ? 'no selection'
+        : '${selection.begin} -> ${selection.end}';
+    AppLogger.d(
+      'Scroll offset=${current.toStringAsFixed(1)} with $selectionDesc',
+      tag: 'TerminalSelection',
+    );
+  }
+
+  void _logSelectionChange({bool force = false}) {
+    final selection = _controller.selection;
+    if (selection == null) {
+      if (_lastSelectionSignature != null) {
+        AppLogger.d('Selection cleared', tag: 'TerminalSelection');
+        _lastSelectionSignature = null;
+      }
+      return;
+    }
+    final text = _safeSelectionText(selection);
+    final signature = '${selection.begin}-${selection.end}|${text.hashCode}';
+    if (!force && signature == _lastSelectionSignature) {
+      return;
+    }
+    _lastSelectionSignature = signature;
+    final preview = text.length > 160 ? '${text.substring(0, 160)}…' : text;
+    AppLogger.d(
+      'Selection ${selection.begin} -> ${selection.end} '
+      'length=${text.length} "${preview.replaceAll('\n', '\\n')}"',
+      tag: 'TerminalSelection',
+    );
+  }
+
+  String _safeSelectionText(BufferRange selection) {
+    try {
+      return _terminal.buffer.getText(selection);
+    } catch (error) {
+      AppLogger.w('Failed to read selection: $error', tag: 'TerminalSelection');
+      return '';
+    }
   }
 }
 

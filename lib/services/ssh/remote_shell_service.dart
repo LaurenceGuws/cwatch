@@ -241,16 +241,11 @@ class ProcessRemoteShellService extends RemoteShellService {
     Duration timeout = const Duration(seconds: 15),
   }) async {
     final normalized = _sanitizePath(path);
-    final command = [
-      '-o',
-      'BatchMode=yes',
-      '-o',
-      'StrictHostKeyChecking=no',
-      host.name,
-      "cat '${_escapeSingleQuotes(normalized)}'",
-    ];
     final run = await _runProcess(
-      command,
+      _buildSshCommand(
+        host,
+        "cat '${_escapeSingleQuotes(normalized)}'",
+      ),
       timeout: timeout,
       hostForErrors: host,
     );
@@ -267,17 +262,11 @@ class ProcessRemoteShellService extends RemoteShellService {
     final normalized = _sanitizePath(path);
     final delimiter = _randomDelimiter();
     final encoded = base64.encode(utf8.encode(contents));
-    final command = [
-      '-o',
-      'BatchMode=yes',
-      '-o',
-      'StrictHostKeyChecking=no',
-      host.name,
-      "base64 -d > '${_escapeSingleQuotes(normalized)}' <<'$delimiter'\n$encoded\n$delimiter",
-    ];
-
     final run = await _runProcess(
-      command,
+      _buildSshCommand(
+        host,
+        "base64 -d > '${_escapeSingleQuotes(normalized)}' <<'$delimiter'\n$encoded\n$delimiter",
+      ),
       timeout: timeout,
       hostForErrors: host,
     );
@@ -570,35 +559,30 @@ class ProcessRemoteShellService extends RemoteShellService {
     String command, {
     Duration timeout = const Duration(seconds: 10),
   }) async {
-    final args = [
-      '-o',
-      'BatchMode=yes',
-      '-o',
-      'StrictHostKeyChecking=no',
-      host.name,
-      command,
-    ];
-    _logProcess('Running ssh command on ${host.name}: $command');
-    final result = await Process.run(
-      'ssh',
-      args,
-      stdoutEncoding: utf8,
-      stderrEncoding: utf8,
-      runInShell: false,
-    ).timeout(timeout);
-
-    if (result.exitCode != 0) {
-      _handleSshError(host, result);
-    }
-
-    return RunResult(
-      command: 'ssh ${args.join(' ')}',
-      stdout: (result.stdout as String?) ?? '',
-      stderr: (result.stderr as String?) ?? '',
+    final run = await _runProcess(
+      _buildSshCommand(host, command),
+      timeout: timeout,
+      hostForErrors: host,
     );
+    return run;
   }
 
   List<String> _buildSshArgumentsForTerminal(SshHost host) {
+    final args = _buildBaseSshOptions(host);
+    args.add(_connectionTarget(host));
+    return args;
+  }
+
+  List<String> _buildSshCommand(SshHost host, String command) {
+    return [
+      'ssh',
+      ..._buildBaseSshOptions(host),
+      _connectionTarget(host),
+      command,
+    ];
+  }
+
+  List<String> _buildBaseSshOptions(SshHost host) {
     final args = <String>[
       '-o',
       'BatchMode=yes',
@@ -615,11 +599,10 @@ class ProcessRemoteShellService extends RemoteShellService {
         args.addAll(['-i', trimmed]);
       }
     }
-    args.add(_terminalConnectionTarget(host));
     return args;
   }
 
-  String _terminalConnectionTarget(SshHost host) {
+  String _connectionTarget(SshHost host) {
     if (host.source == 'custom') {
       final user = host.user?.trim();
       final hostname = host.hostname;

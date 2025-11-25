@@ -17,7 +17,6 @@ import '../../theme/nerd_fonts.dart';
 import '../../../models/docker_workspace_state.dart';
 import '../shared/engine_tab.dart';
 import '../shared/engine_workspace.dart';
-import '../../widgets/action_picker.dart';
 import 'widgets/docker_dashboard.dart';
 import 'widgets/docker_engine_picker.dart';
 import 'widgets/docker_resources_dashboard.dart';
@@ -192,11 +191,7 @@ class _DockerViewState extends State<DockerView> {
     Offset? anchor,
   ) async {
     final icons = context.appTheme.icons;
-    final choice = await _pickDashboardTarget(
-      contextName,
-      icons.cloud,
-      anchor,
-    );
+    final choice = await _pickDashboardTarget(contextName, icons.cloud, anchor);
     if (choice == null || !mounted) return;
     _replacePickerWithDashboard(
       tabId: tabId,
@@ -204,10 +199,7 @@ class _DockerViewState extends State<DockerView> {
       id: 'ctx-$contextName',
       icon: icons.cloud,
       body: choice == _DashboardTarget.resources
-          ? DockerResourcesDashboard(
-              docker: _docker,
-              contextName: contextName,
-            )
+          ? DockerResourcesDashboard(docker: _docker, contextName: contextName)
           : DockerDashboard(
               docker: _docker,
               contextName: contextName,
@@ -393,11 +385,7 @@ class _DockerViewState extends State<DockerView> {
       );
       final trimmed = output.trim();
       if (trimmed.contains('__DOCKER_OK__')) {
-        return RemoteDockerStatus(
-          host: host,
-          available: true,
-          detail: 'Ready',
-        );
+        return RemoteDockerStatus(host: host, available: true, detail: 'Ready');
       }
       if (trimmed.contains('__NO_DOCKER__')) {
         return RemoteDockerStatus(
@@ -749,8 +737,10 @@ class _DockerViewState extends State<DockerView> {
         _tabStates
           ..clear()
           ..addAll({
-            _tabs.first.id:
-                DockerTabState(id: _tabs.first.id, kind: DockerTabKind.picker),
+            _tabs.first.id: DockerTabState(
+              id: _tabs.first.id,
+              kind: DockerTabKind.picker,
+            ),
           });
         _selectedIndex = 0;
       });
@@ -775,12 +765,13 @@ class _DockerViewState extends State<DockerView> {
     if (newTabs.isEmpty) {
       final picker = _enginePickerTab();
       newTabs.add(picker);
-      newStates[picker.id] =
-          DockerTabState(id: picker.id, kind: DockerTabKind.picker);
+      newStates[picker.id] = DockerTabState(
+        id: picker.id,
+        kind: DockerTabKind.picker,
+      );
     }
 
-    final selected =
-        workspace.selectedIndex.clamp(0, newTabs.length - 1);
+    final selected = workspace.selectedIndex.clamp(0, newTabs.length - 1);
 
     setState(() {
       _tabs
@@ -794,10 +785,7 @@ class _DockerViewState extends State<DockerView> {
     });
   }
 
-  EngineTab? _tabFromState(
-    DockerTabState state,
-    List<SshHost> hosts,
-  ) {
+  EngineTab? _tabFromState(DockerTabState state, List<SshHost> hosts) {
     final icons = context.appTheme.icons;
     switch (state.kind) {
       case DockerTabKind.picker:
@@ -820,36 +808,20 @@ class _DockerViewState extends State<DockerView> {
         if (state.hostName == null) return null;
         final host = hosts.firstWhere(
           (h) => h.name == state.hostName,
-          orElse: () => const SshHost(
-            name: '',
-            hostname: '',
-            port: 22,
-            available: false,
-          ),
+          orElse: () =>
+              const SshHost(name: '', hostname: '', port: 22, available: false),
         );
         if (!host.available || host.name.isEmpty) return null;
-        return _hostTab(
-          id: state.id,
-          host: host,
-          resources: false,
-        );
+        return _hostTab(id: state.id, host: host, resources: false);
       case DockerTabKind.hostResources:
         if (state.hostName == null) return null;
         final host = hosts.firstWhere(
           (h) => h.name == state.hostName,
-          orElse: () => const SshHost(
-            name: '',
-            hostname: '',
-            port: 22,
-            available: false,
-          ),
+          orElse: () =>
+              const SshHost(name: '', hostname: '', port: 22, available: false),
         );
         if (!host.available || host.name.isEmpty) return null;
-        return _hostTab(
-          id: state.id,
-          host: host,
-          resources: true,
-        );
+        return _hostTab(id: state.id, host: host, resources: true);
       case DockerTabKind.command:
         if (state.command == null || state.title == null) return null;
         final host = _hostByName(hosts, state.hostName);
@@ -860,17 +832,17 @@ class _DockerViewState extends State<DockerView> {
           label: state.title!,
           icon: NerdIcon.terminal.data,
           canDrag: true,
-      body: DockerCommandTerminal(
-        host: host,
-        shellService: shell,
-        command: state.command!,
-        title: state.title!,
-        onExit: () => _closeTabById(state.id),
-      ),
-      workspaceState: state,
-    );
-  case DockerTabKind.containerShell:
-  case DockerTabKind.containerLogs:
+          body: DockerCommandTerminal(
+            host: host,
+            shellService: shell,
+            command: state.command!,
+            title: state.title!,
+            onExit: () => _closeTabById(state.id),
+          ),
+          workspaceState: state,
+        );
+      case DockerTabKind.containerShell:
+      case DockerTabKind.containerLogs:
         if (state.command == null || state.title == null) return null;
         final host = _hostByName(hosts, state.hostName);
         final shell = host != null ? _shellServiceForHost(host) : null;
@@ -880,15 +852,15 @@ class _DockerViewState extends State<DockerView> {
           label: state.title!,
           icon: NerdIcon.terminal.data,
           canDrag: true,
-      body: DockerCommandTerminal(
-        host: host,
-        shellService: shell,
-        command: state.command!,
-        title: state.title!,
-        onExit: () => _closeTabById(state.id),
-      ),
-      workspaceState: state,
-    );
+          body: DockerCommandTerminal(
+            host: host,
+            shellService: shell,
+            command: state.command!,
+            title: state.title!,
+            onExit: () => _closeTabById(state.id),
+          ),
+          workspaceState: state,
+        );
       case DockerTabKind.composeLogs:
         if (state.project == null) return null;
         final host = _hostByName(hosts, state.hostName);
@@ -901,21 +873,22 @@ class _DockerViewState extends State<DockerView> {
           label: 'Compose logs: ${state.project}',
           icon: NerdIcon.terminal.data,
           canDrag: true,
-      body: ComposeLogsTerminal(
-        composeBase: composeBase,
-        project: state.project!,
-        services: state.services,
-        host: host,
-        shellService: shell,
-        onExit: () => _closeTabById(state.id),
-      ),
-      workspaceState: state,
-    );
+          body: ComposeLogsTerminal(
+            composeBase: composeBase,
+            project: state.project!,
+            services: state.services,
+            host: host,
+            shellService: shell,
+            onExit: () => _closeTabById(state.id),
+          ),
+          workspaceState: state,
+        );
       case DockerTabKind.containerExplorer:
         final host = _hostByName(hosts, state.hostName);
         final shell = _containerShell(host, state.containerId);
         if (shell == null) return null;
-        final explorerHost = host ??
+        final explorerHost =
+            host ??
             const SshHost(
               name: 'local',
               hostname: 'localhost',
@@ -925,11 +898,12 @@ class _DockerViewState extends State<DockerView> {
               identityFiles: <String>[],
               source: 'local',
             );
-      return EngineTab(
-        id: state.id,
-        title: 'Explore ${state.containerName ?? state.containerId ?? explorerHost.name}',
-        label: 'Explorer',
-        icon: icons.folderOpen,
+        return EngineTab(
+          id: state.id,
+          title:
+              'Explore ${state.containerName ?? state.containerId ?? explorerHost.name}',
+          label: 'Explorer',
+          icon: icons.folderOpen,
           canDrag: true,
           body: FileExplorerTab(
             host: explorerHost,
@@ -956,8 +930,7 @@ class _DockerViewState extends State<DockerView> {
                   shellService: shell,
                   path: path,
                   initialContent: content,
-                  onSave: (value) =>
-                      shell.writeFile(explorerHost, path, value),
+                  onSave: (value) => shell.writeFile(explorerHost, path, value),
                   settingsController: widget.settingsController,
                 ),
               );
@@ -972,7 +945,8 @@ class _DockerViewState extends State<DockerView> {
         final host = _hostByName(hosts, state.hostName);
         final shell = _containerShell(host, state.containerId);
         if (shell == null) return null;
-        final editorHost = host ??
+        final editorHost =
+            host ??
             const SshHost(
               name: 'local',
               hostname: 'localhost',
@@ -983,10 +957,10 @@ class _DockerViewState extends State<DockerView> {
               source: 'local',
             );
         return EngineTab(
-        id: state.id,
-        title: 'Edit ${state.path}',
-        label: state.path ?? 'Editor',
-        icon: icons.edit,
+          id: state.id,
+          title: 'Edit ${state.path}',
+          label: state.path ?? 'Editor',
+          icon: icons.edit,
           canDrag: true,
           body: DockerEditorLoader(
             host: editorHost,

@@ -1,0 +1,19 @@
+name: terminal_library
+description: Patched copy of terminal_library 0.0.6 with fixed selection during scroll.
+version: 0.0.6+patched
+publish_to: "none"
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  general_lib: any
+  general_lib_flutter: any
+  io_universe: any
+  ffi: any
+  flutter:
+    sdk: flutter
+
+dependency_overrides:
+  flutter:
+    sdk: flutter

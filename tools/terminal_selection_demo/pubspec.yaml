@@ -1,0 +1,23 @@
+name: terminal_selection_demo
+description: Minimal repro app for TerminalLibrary selection + scroll behavior.
+publish_to: "none"
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  terminal_library: ^0.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+dependency_overrides:
+  terminal_library:
+    path: ../../packages/terminal_library_patched
+
+flutter:
+  uses-material-design: true

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
-// Import all available themes
 import 'package:flutter_highlight/themes/a11y-dark.dart';
 import 'package:flutter_highlight/themes/a11y-light.dart';
 import 'package:flutter_highlight/themes/agate.dart';
@@ -130,13 +129,14 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
   bool _dirty = false;
   bool _saving = false;
   String? _saveError;
+  String? _languageOverride;
 
   @override
   void initState() {
     super.initState();
     // Normalize line endings to avoid false positives
     _normalizedInitialContent = _normalizeLineEndings(widget.initialContent);
-    final language = _getLanguageForPath(widget.path);
+    final language = _getLanguageForKey(_languageFromPath(widget.path));
     _controller = CodeController(
       text: _normalizedInitialContent,
       language: language,
@@ -166,8 +166,8 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
 
   String? _getSavedThemeForBrightness(Brightness brightness) {
     final settings = widget.settingsController.settings;
-    return brightness == Brightness.dark 
-        ? settings.editorThemeDark 
+    return brightness == Brightness.dark
+        ? settings.editorThemeDark
         : settings.editorThemeLight;
   }
 
@@ -202,14 +202,26 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String?>(
+                      value:
+                          _languageOverride ?? _languageFromPath(widget.path),
+                      items: _languageDropdownItems(),
+                      onChanged: _handleLanguageChanged,
+                      hint: const Text('Language'),
+                    ),
+                  ),
+                ),
                 if (_dirty)
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: Text(
                       'Unsaved changes',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.error,
-                          ),
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
                   ),
                 if (_saveError != null)
@@ -218,8 +230,8 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
                     child: Text(
                       _saveError!,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.error,
-                          ),
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
                   ),
                 PopupMenuButton<String>(
@@ -276,18 +288,18 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(8),
-              child: CodeTheme(
-                data: CodeThemeData(styles: theme),
-                child: CodeField(
-                  controller: _controller,
-                  expands: true,
-                  maxLines: null,
-                  minLines: null,
-                  textStyle: TextStyle(
-                    fontFamily: NerdFonts.family,
-                    height: 1.35,
-                  ),
-                  gutterStyle: const GutterStyle(
+            child: CodeTheme(
+              data: CodeThemeData(styles: theme),
+              child: CodeField(
+                controller: _controller,
+                expands: true,
+                maxLines: null,
+                minLines: null,
+                textStyle: TextStyle(
+                  fontFamily: NerdFonts.family,
+                  height: 1.35,
+                ),
+                gutterStyle: const GutterStyle(
                   showLineNumbers: true,
                   showErrors: false,
                   showFoldingHandles: true,
@@ -317,9 +329,9 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
         _dirty = false;
         _saving = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Saved ${widget.path}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Saved ${widget.path}')));
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -346,20 +358,19 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
     final themes = _getAllThemes();
     final brightness = Theme.of(context).colorScheme.brightness;
     final savedTheme = _getSavedThemeForBrightness(brightness);
-    final currentTheme = savedTheme ?? 
-        (brightness == Brightness.dark 
-            ? 'dracula' 
-            : 'color-brewer');
-    
+    final currentTheme =
+        savedTheme ??
+        (brightness == Brightness.dark ? 'dracula' : 'color-brewer');
+
     String? previewTheme = currentTheme;
     String? originalTheme = savedTheme;
     final themeList = themes.entries.toList();
     int selectedIndex = themeList.indexWhere((e) => e.key == currentTheme);
     if (selectedIndex == -1) selectedIndex = 0;
-    
+
     final scrollController = ScrollController();
     final focusNode = FocusNode();
-    
+
     void selectTheme(int index) {
       if (index >= 0 && index < themeList.length) {
         final themeKey = themeList[index].key;
@@ -369,7 +380,7 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
         setState(() {});
       }
     }
-    
+
     showDialog(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -380,13 +391,16 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
               final itemHeight = 56.0; // Approximate height of ListTile
               final scrollOffset = selectedIndex * itemHeight;
               scrollController.animateTo(
-                scrollOffset.clamp(0.0, scrollController.position.maxScrollExtent),
+                scrollOffset.clamp(
+                  0.0,
+                  scrollController.position.maxScrollExtent,
+                ),
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeOut,
               );
             }
           });
-          
+
           return KeyboardListener(
             focusNode: focusNode,
             autofocus: true,
@@ -395,14 +409,20 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
                 final keyLabel = event.logicalKey.keyLabel;
                 if (keyLabel == 'Arrow Down') {
                   setDialogState(() {
-                    selectedIndex = (selectedIndex + 1).clamp(0, themeList.length - 1);
+                    selectedIndex = (selectedIndex + 1).clamp(
+                      0,
+                      themeList.length - 1,
+                    );
                     selectTheme(selectedIndex);
                     // Scroll to keep selected item visible
                     if (scrollController.hasClients) {
                       final itemHeight = 56.0;
                       final scrollOffset = selectedIndex * itemHeight;
                       scrollController.animateTo(
-                        scrollOffset.clamp(0.0, scrollController.position.maxScrollExtent),
+                        scrollOffset.clamp(
+                          0.0,
+                          scrollController.position.maxScrollExtent,
+                        ),
                         duration: const Duration(milliseconds: 100),
                         curve: Curves.easeOut,
                       );
@@ -410,14 +430,20 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
                   });
                 } else if (keyLabel == 'Arrow Up') {
                   setDialogState(() {
-                    selectedIndex = (selectedIndex - 1).clamp(0, themeList.length - 1);
+                    selectedIndex = (selectedIndex - 1).clamp(
+                      0,
+                      themeList.length - 1,
+                    );
                     selectTheme(selectedIndex);
                     // Scroll to keep selected item visible
                     if (scrollController.hasClients) {
                       final itemHeight = 56.0;
                       final scrollOffset = selectedIndex * itemHeight;
                       scrollController.animateTo(
-                        scrollOffset.clamp(0.0, scrollController.position.maxScrollExtent),
+                        scrollOffset.clamp(
+                          0.0,
+                          scrollController.position.maxScrollExtent,
+                        ),
                         duration: const Duration(milliseconds: 100),
                         curve: Curves.easeOut,
                       );
@@ -443,11 +469,14 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
                     final themeName = entry.value;
                     final isSelected = themeKey == previewTheme;
                     final isFocused = index == selectedIndex;
-                    
+
                     return ListTile(
                       selected: isSelected || isFocused,
                       leading: isSelected
-                          ? Icon(Icons.check, color: Theme.of(context).colorScheme.primary)
+                          ? Icon(
+                              Icons.check,
+                              color: Theme.of(context).colorScheme.primary,
+                            )
                           : const SizedBox(width: 24),
                       title: Text(themeName),
                       onTap: () {
@@ -464,27 +493,32 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
                 ),
               ),
               actions: [
-              TextButton(
-                onPressed: () {
-                  // Revert to original theme
-                  if (originalTheme != null) {
-                    _saveThemeForBrightness(brightness, originalTheme);
-                  } else {
-                    // Clear saved theme to use default
-                    _saveThemeForBrightness(brightness, brightness == Brightness.dark ? 'dracula' : 'color-brewer');
-                  }
-                  setState(() {});
-                  Navigator.of(dialogContext).pop();
-                },
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  // Selection is already applied in real-time, just close
-                  Navigator.of(dialogContext).pop();
-                },
-                child: const Text('Select'),
-              ),
+                TextButton(
+                  onPressed: () {
+                    // Revert to original theme
+                    if (originalTheme != null) {
+                      _saveThemeForBrightness(brightness, originalTheme);
+                    } else {
+                      // Clear saved theme to use default
+                      _saveThemeForBrightness(
+                        brightness,
+                        brightness == Brightness.dark
+                            ? 'dracula'
+                            : 'color-brewer',
+                      );
+                    }
+                    setState(() {});
+                    Navigator.of(dialogContext).pop();
+                  },
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    // Selection is already applied in real-time, just close
+                    Navigator.of(dialogContext).pop();
+                  },
+                  child: const Text('Select'),
+                ),
               ],
             ),
           );
@@ -501,7 +535,7 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
     final lines = content.isEmpty ? 0 : content.split('\n').length;
     final language = _languageFromPath(widget.path);
     final textTheme = Theme.of(context).textTheme;
-    
+
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -516,10 +550,7 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
             const SizedBox(height: 8),
             _InfoRow(label: 'Characters', value: '${content.length}'),
             const SizedBox(height: 8),
-            _InfoRow(
-              label: 'Language',
-              value: language ?? 'Unknown',
-            ),
+            _InfoRow(label: 'Language', value: language ?? 'Unknown'),
             if (_controller.language != null) ...[
               const SizedBox(height: 8),
               _InfoRow(
@@ -545,14 +576,47 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
     );
   }
 
-  dynamic _getLanguageForPath(String path) {
-    final languageId = _languageFromPath(path);
+  List<DropdownMenuItem<String?>> _languageDropdownItems() {
+    final detected = _languageFromPath(widget.path);
+    final entries = [
+      DropdownMenuItem<String?>(
+        value: null,
+        child: Text(
+          detected != null ? 'Auto ($detected)' : 'Auto (plain text)',
+        ),
+      ),
+      ...() {
+        final keys = all_langs.allLanguages.keys.toList()
+          ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+        return keys
+            .map(
+              (key) => DropdownMenuItem<String?>(
+                value: key,
+                child: Text(key),
+              ),
+            )
+            .toList();
+      }(),
+    ];
+    return entries;
+  }
+
+  void _handleLanguageChanged(String? key) {
+    setState(() {
+      _languageOverride = key;
+      _controller.language = _getLanguageForKey(
+        key ?? _languageFromPath(widget.path),
+      );
+    });
+  }
+
+  dynamic _getLanguageForKey(String? languageId) {
     if (languageId == null) return null;
 
     // Map language IDs to highlight language objects using dynamic lookup
     // Handle aliases and special cases
     String? lookupKey = languageId;
-    
+
     // Handle common aliases
     switch (languageId) {
       case 'js':
@@ -596,6 +660,9 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
       case 'pl':
         lookupKey = 'perl';
         break;
+      case 'docker':
+        lookupKey = 'dockerfile';
+        break;
       case 'git':
         return null; // Git not available in highlight package
       case 'toml':
@@ -603,7 +670,7 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
       default:
         lookupKey = languageId;
     }
-    
+
     // Dynamically look up the language from allLanguages map
     return all_langs.allLanguages[lookupKey];
   }
@@ -611,6 +678,20 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
   String? _languageFromPath(String path) {
     final trimmed = path.trim();
     if (trimmed.isEmpty) return null;
+    final baseName = trimmed.split('/').last.toLowerCase();
+    switch (baseName) {
+      case '.bashrc':
+      case '.bash_profile':
+      case '.profile':
+      case '.zshrc':
+      case '.zprofile':
+        return 'bash';
+      case 'dockerfile':
+      case 'containerfile':
+        return 'dockerfile';
+      default:
+        break;
+    }
     final dotIndex = trimmed.lastIndexOf('.');
     if (dotIndex <= 0 || dotIndex == trimmed.length - 1) return null;
     final ext = trimmed.substring(dotIndex + 1).toLowerCase();
@@ -671,6 +752,8 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
         return 'xml';
       case 'toml':
         return 'toml';
+      case 'dockerfile':
+        return 'dockerfile';
       default:
         return null;
     }
@@ -771,10 +854,14 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
     };
   }
 
-  Map<String, TextStyle> _getThemeForColorScheme(ColorScheme scheme, String? savedTheme) {
-    final themeKey = savedTheme ?? 
+  Map<String, TextStyle> _getThemeForColorScheme(
+    ColorScheme scheme,
+    String? savedTheme,
+  ) {
+    final themeKey =
+        savedTheme ??
         (scheme.brightness == Brightness.dark ? 'dracula' : 'color-brewer');
-    
+
     return _getThemeMap(themeKey);
   }
 
@@ -961,7 +1048,8 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
       case 'zenburn':
         return zenburnTheme;
       default:
-        final isDark = Theme.of(context).colorScheme.brightness == Brightness.dark;
+        final isDark =
+            Theme.of(context).colorScheme.brightness == Brightness.dark;
         return isDark ? monokaiSublimeTheme : githubTheme;
     }
   }
@@ -982,17 +1070,9 @@ class _InfoRow extends StatelessWidget {
       children: [
         SizedBox(
           width: 100,
-          child: Text(
-            label,
-            style: theme.bodySmall?.copyWith(color: muted),
-          ),
+          child: Text(label, style: theme.bodySmall?.copyWith(color: muted)),
         ),
-        Expanded(
-          child: Text(
-            value,
-            style: theme.bodyMedium,
-          ),
-        ),
+        Expanded(child: Text(value, style: theme.bodyMedium)),
       ],
     );
   }
