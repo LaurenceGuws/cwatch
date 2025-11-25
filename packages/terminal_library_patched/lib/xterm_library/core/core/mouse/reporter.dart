@@ -16,15 +16,20 @@ abstract class MouseReporter {
     // The position has to be reported using 1-based coordinates.
     final x = position.x + 1;
     final y = position.y + 1;
+    final isMotion = state == TerminalLibraryFlutterMouseButtonState.drag;
+    final isUp = state == TerminalLibraryFlutterMouseButtonState.up;
+
+    final baseButtonId = isUp ? 3 : button.id;
+
+    // Drag events are reported as motion with the current button held down.
+    final buttonId = isMotion ? baseButtonId + 32 : baseButtonId;
+
     switch (reportMode) {
       case MouseReportMode.normal:
       case MouseReportMode.utf:
-        // Button ID 3 is used to signal a button release.
-        final buttonID =
-            state == TerminalLibraryFlutterMouseButtonState.up ? 3 : button.id;
         // The button ID is reported as shifted by 32 to produce a printable
         // character.
-        final btn = String.fromCharCode(32 + buttonID);
+        final btn = String.fromCharCode(32 + buttonId);
         // Normal mode only supports a maximum position of 223, while utf
         // supports positions up to 2015. Both modes send a null byte if the
         // position exceeds that limit.
@@ -38,16 +43,11 @@ abstract class MouseReporter {
             : String.fromCharCode(32 + y + 1);
         return "\x1b[M$btn$col$row";
       case MouseReportMode.sgr:
-        final buttonID = button.id;
-        final upDown =
-            state == TerminalLibraryFlutterMouseButtonState.down ? 'M' : 'm';
-        return "\x1b[<$buttonID;$x;$y$upDown";
+        final upDown = isUp ? 'm' : 'M';
+        return "\x1b[<$buttonId;$x;$y$upDown";
       case MouseReportMode.urxvt:
         // The button ID uses the same id as to report it as in normal mode.
-        final buttonID = 32 +
-            (state == TerminalLibraryFlutterMouseButtonState.up
-                ? 3
-                : button.id);
+        final buttonID = 32 + buttonId;
         return "\x1b[$buttonID;$x;${y}M";
     }
   }

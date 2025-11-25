@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:terminal_library/xterm_library/core/core/mouse/button.dart';
 import 'package:terminal_library/xterm_library/core/core/mouse/button_state.dart';
+import 'package:terminal_library/xterm_library/core/core/mouse/mode.dart';
 import 'package:terminal_library/xterm_library/core/core/buffer/cell_offset.dart';
 import 'package:terminal_library/xterm_library/core/terminal_view.dart';
 import 'package:terminal_library/xterm_library/core/ui/controller.dart';
@@ -79,6 +80,8 @@ class _TerminalLibraryFlutterGestureHandlerState
   CellOffset? _dragStartCell;
   LongPressStartDetails? _lastLongPressStartDetails;
   CellOffset? _lastAnchorCell;
+  Offset? _lastDragOffset;
+  bool _forwardingDragToTerminal = false;
 
   @override
   Widget build(BuildContext context) {
@@ -95,14 +98,23 @@ class _TerminalLibraryFlutterGestureHandlerState
       // onLongPressUp: onLongPressUp,
       onDragStart: onDragStart,
       onDragUpdate: onDragUpdate,
+      onDragEnd: onDragEnd,
       onDoubleTapDown: onDoubleTapDown,
       child: widget.child,
     );
   }
 
-  bool get _shouldSendTapEvent =>
-      !widget.readOnly &&
-      widget.terminalController.shouldSendPointerInput(PointerInput.tap);
+  bool _shouldSendMouseEvent(PointerInput input) {
+    if (widget.readOnly) return false;
+    if (widget.terminalController.shouldSendPointerInput(input)) {
+      return true;
+    }
+    // When an application enables mouse reporting, always forward events to it.
+    return terminalView.widget.terminal.mouseMode != MouseMode.none;
+  }
+
+  bool get _shouldSendTapEvent => _shouldSendMouseEvent(PointerInput.tap);
+  bool get _shouldSendDragEvent => _shouldSendMouseEvent(PointerInput.drag);
 
   void _tapDown(
     GestureTapDownCallback? callback,
@@ -150,8 +162,11 @@ class _TerminalLibraryFlutterGestureHandlerState
     final cell = renderTerminalLibraryFlutter.getCellOffset(
       details.localPosition,
     );
-    final shiftPressed = HardwareKeyboard.instance.logicalKeysPressed
-        .any((key) => key == LogicalKeyboardKey.shiftLeft || key == LogicalKeyboardKey.shiftRight);
+    final shiftPressed = HardwareKeyboard.instance.logicalKeysPressed.any(
+      (key) =>
+          key == LogicalKeyboardKey.shiftLeft ||
+          key == LogicalKeyboardKey.shiftRight,
+    );
 
     if (shiftPressed && _lastAnchorCell != null) {
       renderTerminalLibraryFlutter.selectCharactersFromCells(
@@ -216,6 +231,21 @@ class _TerminalLibraryFlutterGestureHandlerState
   // void onLongPressUp() {}
 
   void onDragStart(DragStartDetails details) {
+    _lastDragOffset = details.localPosition;
+    final mouseMode = terminalView.widget.terminal.mouseMode;
+    _forwardingDragToTerminal = _shouldSendDragEvent &&
+        (mouseMode == MouseMode.upDownScrollDrag ||
+            mouseMode == MouseMode.upDownScrollMove);
+
+    if (_forwardingDragToTerminal) {
+      renderTerminalLibraryFlutter.mouseEvent(
+        TerminalLibraryFlutterMouseButton.left,
+        TerminalLibraryFlutterMouseButtonState.down,
+        details.localPosition,
+      );
+      return;
+    }
+
     _dragStartCell = renderTerminalLibraryFlutter.getCellOffset(
       details.localPosition,
     );
@@ -228,6 +258,16 @@ class _TerminalLibraryFlutterGestureHandlerState
   }
 
   void onDragUpdate(DragUpdateDetails details) {
+    _lastDragOffset = details.localPosition;
+    if (_forwardingDragToTerminal) {
+      renderTerminalLibraryFlutter.mouseEvent(
+        TerminalLibraryFlutterMouseButton.left,
+        TerminalLibraryFlutterMouseButtonState.drag,
+        details.localPosition,
+      );
+      return;
+    }
+
     if (_dragStartCell == null) return;
     final toCell =
         renderTerminalLibraryFlutter.getCellOffset(details.localPosition);
@@ -235,5 +275,18 @@ class _TerminalLibraryFlutterGestureHandlerState
       _dragStartCell!,
       toCell,
     );
+  }
+
+  void onDragEnd(DragEndDetails details) {
+    if (_forwardingDragToTerminal) {
+      renderTerminalLibraryFlutter.mouseEvent(
+        TerminalLibraryFlutterMouseButton.left,
+        TerminalLibraryFlutterMouseButtonState.up,
+        _lastDragOffset ?? Offset.zero,
+      );
+    }
+    _forwardingDragToTerminal = false;
+    _dragStartCell = null;
+    _lastDragOffset = null;
   }
 }

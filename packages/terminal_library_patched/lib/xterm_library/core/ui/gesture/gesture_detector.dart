@@ -23,6 +23,7 @@ class TerminalLibraryFlutterGestureDetector extends StatefulWidget {
     this.onLongPressUp,
     this.onDragStart,
     this.onDragUpdate,
+    this.onDragEnd,
     this.onDoubleTapDown,
   });
 
@@ -72,6 +73,9 @@ class TerminalLibraryFlutterGestureDetector extends StatefulWidget {
 
   /// UncompleteDocumentation
   final GestureDragUpdateCallback? onDragUpdate;
+
+  /// UncompleteDocumentation
+  final GestureDragEndCallback? onDragEnd;
 
   @override
   State<TerminalLibraryFlutterGestureDetector> createState() =>
@@ -173,7 +177,8 @@ class _TerminalLibraryFlutterGestureDetectorState
         instance
           ..dragStartBehavior = DragStartBehavior.down
           ..onStart = widget.onDragStart
-          ..onUpdate = widget.onDragUpdate;
+          ..onUpdate = widget.onDragUpdate
+          ..onEnd = widget.onDragEnd;
       },
     );
 
