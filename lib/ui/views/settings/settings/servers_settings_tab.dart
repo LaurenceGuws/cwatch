@@ -68,7 +68,7 @@ class _ServersSettingsTabState extends State<ServersSettingsTab> {
 
     return ListView(
       controller: _scrollController,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       children: [
         SettingsSection(
           title: 'SSH Client',

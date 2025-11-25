@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../models/explorer_context.dart';
 import '../../../../models/server_action.dart';
 import '../../../../models/ssh_host.dart';
 import '../../../theme/nerd_fonts.dart';
@@ -12,6 +13,7 @@ class ServerTab {
     required this.action,
     required this.bodyKey,
     this.customName,
+    this.explorerContext,
   });
 
   final String id;
@@ -19,6 +21,7 @@ class ServerTab {
   final ServerAction action;
   final GlobalKey bodyKey;
   final String? customName;
+  final ExplorerContext? explorerContext;
 
   String get title => _displayName;
 
@@ -53,6 +56,7 @@ class ServerTab {
     GlobalKey? bodyKey,
     String? customName,
     bool setCustomName = false,
+    ExplorerContext? explorerContext,
   }) {
     return ServerTab(
       id: id ?? this.id,
@@ -60,6 +64,7 @@ class ServerTab {
       action: action ?? this.action,
       bodyKey: bodyKey ?? this.bodyKey,
       customName: setCustomName ? customName : this.customName,
+      explorerContext: explorerContext ?? this.explorerContext,
     );
   }
 }

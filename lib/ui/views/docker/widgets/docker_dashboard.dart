@@ -13,6 +13,7 @@ import '../../../../models/docker_image.dart';
 import '../../../../models/docker_network.dart';
 import '../../../../models/docker_volume.dart';
 import '../../../../models/docker_workspace_state.dart';
+import '../../../../models/explorer_context.dart';
 import '../../../../models/ssh_host.dart';
 import '../../../../models/remote_file_entry.dart';
 import '../../../../services/docker/docker_client_service.dart';
@@ -24,7 +25,7 @@ import '../../../theme/app_theme.dart';
 import '../../../theme/nerd_fonts.dart';
 import '../../shared/engine_tab.dart';
 import '../../shared/tabs/file_explorer_tab.dart';
-import '../../servers/widgets/trash_tab.dart';
+import '../../shared/tabs/trash_tab.dart';
 import '../../shared/tabs/remote_file_editor_tab.dart';
 import 'docker_command_terminal.dart';
 import 'docker_lists.dart';
@@ -1091,6 +1092,12 @@ done'
           identityFiles: <String>[],
           source: 'local',
         );
+    final explorerContext = ExplorerContext.dockerContainer(
+      host: host,
+      containerId: container.id,
+      containerName: container.name,
+      dockerContextName: _dockerContextName(host),
+    );
     final tab = EngineTab(
       id: 'explore-${container.id}-${DateTime.now().microsecondsSinceEpoch}',
       title: 'Explore ${container.name.isNotEmpty ? container.name : container.id}',
@@ -1098,10 +1105,12 @@ done'
       icon: _icons.folderOpen,
       body: FileExplorerTab(
         host: host,
+        explorerContext: explorerContext,
         shellService: shell,
         trashManager: widget.trashManager,
         builtInVault: widget.builtInVault,
-        onOpenTrash: () => _openTrashTab(shell, host),
+          onOpenTrash: (explorerContext) =>
+              _openTrashTab(shell, host, explorerContext),
         onOpenEditorTab: (path, content) =>
             _openEditorTab(host, shell, container.id, path, content),
         onOpenTerminalTab: null,
@@ -1117,7 +1126,19 @@ done'
     widget.onOpenTab!(tab);
   }
 
-  void _openTrashTab(RemoteShellService shell, SshHost host) {
+  String _dockerContextName(SshHost host) {
+    final trimmedContext = widget.contextName?.trim();
+    if (trimmedContext?.isNotEmpty == true) {
+      return trimmedContext!;
+    }
+    return '${host.name}-docker';
+  }
+
+  void _openTrashTab(
+    RemoteShellService shell,
+    SshHost host,
+    ExplorerContext context,
+  ) {
     if (widget.onOpenTab == null) return;
     final tab = EngineTab(
       id: 'trash-${host.name}-${DateTime.now().microsecondsSinceEpoch}',
@@ -1128,6 +1149,7 @@ done'
         manager: widget.trashManager,
         shellService: shell,
         builtInVault: widget.builtInVault,
+        context: context,
       ),
     );
     widget.onOpenTab!(tab);

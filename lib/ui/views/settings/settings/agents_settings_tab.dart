@@ -22,7 +22,7 @@ class AgentsSettingsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       children: [
         SettingsSection(
           title: 'Agent Fleet',
@@ -71,4 +71,3 @@ class AgentsSettingsTab extends StatelessWidget {
     );
   }
 }
-

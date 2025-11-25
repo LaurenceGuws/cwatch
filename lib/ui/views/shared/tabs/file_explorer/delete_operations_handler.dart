@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../../../models/explorer_context.dart';
 import '../../../../../models/remote_file_entry.dart';
 import '../../../../../models/ssh_host.dart';
 import '../../../../../services/filesystem/explorer_trash_manager.dart';
@@ -13,12 +15,14 @@ class DeleteOperationsHandler {
     required this.host,
     required this.trashManager,
     required this.runShellWrapper,
+    required this.explorerContext,
   });
 
   final RemoteShellService shellService;
   final SshHost host;
   final ExplorerTrashManager trashManager;
   final Future<T> Function<T>(Future<T> Function() action) runShellWrapper;
+  final ExplorerContext explorerContext;
 
   /// Delete a single entry permanently
   Future<void> deletePermanently(
@@ -57,6 +61,7 @@ class DeleteOperationsHandler {
         () => trashManager.moveToTrash(
           shellService: shellService,
           host: host,
+          context: explorerContext,
           remotePath: path,
           isDirectory: entry.isDirectory,
           notify: false,
@@ -130,6 +135,7 @@ class DeleteOperationsHandler {
           () => trashManager.moveToTrash(
             shellService: shellService,
             host: host,
+            context: explorerContext,
             remotePath: path,
             isDirectory: entry.isDirectory,
             notify: false,

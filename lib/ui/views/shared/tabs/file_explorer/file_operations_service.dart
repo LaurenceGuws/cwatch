@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../../../../models/explorer_context.dart';
 import '../../../../../models/remote_file_entry.dart';
 import '../../../../../models/ssh_host.dart';
 import '../../../../../services/logging/app_logger.dart';
@@ -20,10 +21,12 @@ class FileOperationsService {
     required this.host,
     required this.trashManager,
     required this.runShellWrapper,
-  });
+    required this.explorerContext,
+  }) : assert(explorerContext.host == host);
 
   final RemoteShellService shellService;
   final SshHost host;
+  final ExplorerContext explorerContext;
   final ExplorerTrashManager trashManager;
   final Future<T> Function<T>(Future<T> Function() action) runShellWrapper;
   static const Duration _uploadTimeout = Duration(minutes: 20);
@@ -128,13 +131,13 @@ class FileOperationsService {
       final destinationPath = joinPath(destinationDir, clipboard.displayName);
 
       // Skip if pasting to same location
-      if (clipboard.host.name == host.name &&
-          clipboard.remotePath == destinationPath) {
-        if (progressController != null) {
-          progressController.increment();
+        if (clipboard.contextId == explorerContext.id &&
+            clipboard.remotePath == destinationPath) {
+          if (progressController != null) {
+            progressController.increment();
+          }
+          continue;
         }
-        continue;
-      }
 
       // Update progress
       if (progressController != null) {
@@ -142,7 +145,8 @@ class FileOperationsService {
       }
 
       try {
-        if (clipboard.host.name == host.name) {
+        final isSameContext = clipboard.contextId == explorerContext.id;
+        if (isSameContext) {
           if (clipboard.operation == ExplorerClipboardOperation.copy) {
             await copyPath(
               clipboard.remotePath,
@@ -156,19 +160,12 @@ class FileOperationsService {
             successCount++;
           }
         } else {
-          await runShellWrapper(
-            () => shellService.copyBetweenHosts(
-              sourceHost: clipboard.host,
-              sourcePath: clipboard.remotePath,
-              destinationHost: host,
-              destinationPath: destinationPath,
-              recursive: clipboard.isDirectory,
-            ),
+          await _copyAcrossContexts(
+            clipboard,
+            destinationPath,
+            move: clipboard.operation == ExplorerClipboardOperation.cut,
           );
           if (clipboard.operation == ExplorerClipboardOperation.cut) {
-            await runShellWrapper(
-              () => shellService.deletePath(clipboard.host, clipboard.remotePath),
-            );
             cutEntries.add(clipboard);
           }
           successCount++;
@@ -752,6 +749,38 @@ class FileOperationsService {
       ),
     );
     created.add(remotePath);
+  }
+
+  Future<void> _copyAcrossContexts(
+    ExplorerClipboardEntry entry,
+    String destinationPath, {
+    required bool move,
+  }) async {
+    final tempDir = await Directory.systemTemp.createTemp('cwatch-explorer-copy-');
+    try {
+      await entry.shellService.downloadPath(
+        host: entry.host,
+        remotePath: entry.remotePath,
+        localDestination: tempDir.path,
+        recursive: entry.isDirectory,
+        timeout: _uploadTimeout,
+      );
+      final payloadPath = p.join(tempDir.path, p.basename(entry.remotePath));
+      await uploadPath(
+        localPath: payloadPath,
+        remoteDestination: destinationPath,
+        recursive: entry.isDirectory,
+      );
+      if (move) {
+        await entry.shellService.deletePath(entry.host, entry.remotePath);
+      }
+    } finally {
+      try {
+        await tempDir.delete(recursive: true);
+      } catch (_) {
+        // Ignore cleanup failures.
+      }
+    }
   }
 }
 

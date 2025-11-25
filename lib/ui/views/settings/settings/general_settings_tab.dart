@@ -74,7 +74,7 @@ class GeneralSettingsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       children: [
         SettingsSection(
           title: 'Theme',

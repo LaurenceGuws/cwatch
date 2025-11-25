@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../models/explorer_context.dart';
 import '../../../../models/remote_file_entry.dart';
 import '../../../../models/ssh_host.dart';
 import '../../../../services/logging/app_logger.dart';
@@ -27,24 +28,26 @@ import 'file_explorer/external_app_launcher.dart';
 import 'file_explorer/dialog_builders.dart';
 
 class FileExplorerTab extends StatefulWidget {
-  const FileExplorerTab({
+  FileExplorerTab({
     super.key,
     required this.host,
+    required this.explorerContext,
     this.shellService = const ProcessRemoteShellService(),
     required this.trashManager,
     this.builtInVault,
     required this.onOpenTrash,
     this.onOpenEditorTab,
     this.onOpenTerminalTab,
-  });
+  }) : assert(explorerContext.host == host);
 
   final SshHost host;
+  final ExplorerContext explorerContext;
   final RemoteShellService shellService;
   final ExplorerTrashManager trashManager;
   final BuiltInSshVault? builtInVault;
-  final VoidCallback onOpenTrash;
+  final ValueChanged<ExplorerContext> onOpenTrash;
   final Future<void> Function(String path, String initialContent)?
-  onOpenEditorTab;
+      onOpenEditorTab;
   final ValueChanged<String>? onOpenTerminalTab;
 
   @override
@@ -91,6 +94,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       host: widget.host,
       trashManager: widget.trashManager,
       runShellWrapper: _runShell,
+      explorerContext: widget.explorerContext,
     );
     _fileEditingService = FileEditingService(
       shellService: widget.shellService,
@@ -112,15 +116,18 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       runShellWrapper: _runShell,
     );
     _deleteHandler = DeleteOperationsHandler(
-      shellService: widget.shellService,
-      host: widget.host,
-      trashManager: widget.trashManager,
-      runShellWrapper: _runShell,
-    );
-    _clipboardHandler = ClipboardOperationsHandler(
-      host: widget.host,
-      currentPath: _currentPath,
-    );
+        shellService: widget.shellService,
+        host: widget.host,
+        trashManager: widget.trashManager,
+        runShellWrapper: _runShell,
+        explorerContext: widget.explorerContext,
+      );
+      _clipboardHandler = ClipboardOperationsHandler(
+        host: widget.host,
+        currentPath: _currentPath,
+        explorerContext: widget.explorerContext,
+        shellService: widget.shellService,
+      );
     _initializeExplorer();
     _clipboardListener = () {
       if (mounted) {
@@ -133,7 +140,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       if (event == null || !mounted) {
         return;
       }
-      if (event.hostName != widget.host.name) {
+      if (event.contextId != widget.explorerContext.id) {
         return;
       }
       final parent = PathUtils.parentDirectory(event.remotePath);
@@ -147,7 +154,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       if (event == null || !mounted) {
         return;
       }
-      if (event.hostName != widget.host.name) {
+      if (event.contextId != widget.explorerContext.id) {
         return;
       }
       if (event.directory == _currentPath) {
@@ -172,6 +179,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         host: widget.host,
         trashManager: widget.trashManager,
         runShellWrapper: _runShell,
+        explorerContext: widget.explorerContext,
       );
       _fileEditingService = FileEditingService(
         shellService: widget.shellService,
@@ -193,6 +201,13 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         host: widget.host,
         trashManager: widget.trashManager,
         runShellWrapper: _runShell,
+        explorerContext: widget.explorerContext,
+      );
+      _clipboardHandler = ClipboardOperationsHandler(
+        host: widget.host,
+        currentPath: _currentPath,
+        explorerContext: widget.explorerContext,
+        shellService: widget.shellService,
       );
     }
   }
@@ -283,7 +298,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         Expanded(child: navigator),
         const SizedBox(width: 8),
         ExplorerMenu(
-          onOpenTrash: widget.onOpenTrash,
+          onOpenTrash: () => widget.onOpenTrash(widget.explorerContext),
           onUploadFiles: () => _handleUploadFiles(_currentPath),
           onUploadFolder: () => _handleUploadFolder(_currentPath),
           onOpenTerminalHere: openTerminalHere,

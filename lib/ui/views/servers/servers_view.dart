@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../models/custom_ssh_host.dart';
+import '../../../models/explorer_context.dart';
 import '../../../models/server_action.dart';
 import '../../../models/server_workspace_state.dart';
 import '../../../models/ssh_client_backend.dart';
@@ -25,7 +26,7 @@ import '../shared/tabs/file_explorer_tab.dart';
 import 'widgets/resources_tab.dart';
 import '../shared/tabs/terminal_tab.dart';
 import '../shared/tabs/server_tab_chip.dart';
-import 'widgets/trash_tab.dart';
+import '../shared/tabs/trash_tab.dart';
 import '../shared/tabs/remote_file_editor_tab.dart';
 import '../../../services/ssh/remote_editor_cache.dart';
 
@@ -95,7 +96,7 @@ class _ServersViewState extends State<ServersView> {
         : _buildTabWorkspace();
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       child: workspace,
     );
   }
@@ -325,7 +326,7 @@ class _ServersViewState extends State<ServersView> {
       case ServerAction.empty:
         return const PlaceholderHost();
       case ServerAction.trash:
-        return const TrashHost();
+        return _findHostByName(hosts, tabState.hostName) ?? const TrashHost();
       case ServerAction.fileExplorer:
       case ServerAction.connectivity:
       case ServerAction.terminal:
@@ -423,6 +424,7 @@ class _ServersViewState extends State<ServersView> {
     required ServerAction action,
     String? customName,
     GlobalKey? bodyKey,
+    ExplorerContext? explorerContext,
   }) {
     return ServerTab(
       id: id,
@@ -430,6 +432,7 @@ class _ServersViewState extends State<ServersView> {
       action: action,
       bodyKey: bodyKey ?? GlobalKey(debugLabel: 'server-tab-$id'),
       customName: customName,
+      explorerContext: explorerContext,
     );
   }
 
@@ -441,9 +444,11 @@ class _ServersViewState extends State<ServersView> {
               _activateEmptyTab(tab.id, selectedHost),
         );
       case ServerAction.fileExplorer:
+        final explorerContext = ExplorerContext.server(tab.host);
         return FileExplorerTab(
           key: tab.bodyKey,
           host: tab.host,
+          explorerContext: explorerContext,
           shellService: _shellServiceForHost(tab.host),
           builtInVault: widget.builtInVault,
           trashManager: _trashManager,
@@ -484,6 +489,7 @@ class _ServersViewState extends State<ServersView> {
           manager: _trashManager,
           shellService: _shellServiceForHost(tab.host),
           builtInVault: widget.builtInVault,
+          context: tab.explorerContext,
         );
     }
   }
@@ -638,14 +644,16 @@ class _ServersViewState extends State<ServersView> {
     _persistWorkspace();
   }
 
-  void _openTrashTab() {
+  void _openTrashTab(ExplorerContext context) {
+    final host = context.host;
     setState(() {
       _tabs.add(
         _createTab(
-          id: 'trash-${DateTime.now().microsecondsSinceEpoch}',
-          host: const TrashHost(),
+          id: 'trash-${host.name}-${DateTime.now().microsecondsSinceEpoch}',
+          host: host,
           action: ServerAction.trash,
-          customName: 'Trash',
+          customName: 'Trash • ${host.name}',
+          explorerContext: context,
         ),
       );
       _selectedTabIndex = _tabs.length - 1;

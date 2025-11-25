@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
+import '../../models/explorer_context.dart';
 import '../../models/ssh_host.dart';
 import '../ssh/remote_shell_service.dart';
 
@@ -35,10 +36,15 @@ class ExplorerTrashManager {
   Future<TrashedEntry> moveToTrash({
     required RemoteShellService shellService,
     required SshHost host,
+    required ExplorerContext context,
     required String remotePath,
     required bool isDirectory,
     bool notify = true,
   }) async {
+    debugPrint(
+      '[Trash] Downloading ${isDirectory ? 'directory' : 'file'} '
+      '$remotePath from host ${host.name} to local trash',
+    );
     final id = DateTime.now().microsecondsSinceEpoch.toString();
     final entryDir = Directory(p.join(_baseDir.path, id));
     await entryDir.create(recursive: true);
@@ -48,6 +54,7 @@ class ExplorerTrashManager {
       localDestination: entryDir.path,
       recursive: isDirectory,
     );
+    debugPrint('[Trash] Stored trash entry $id for host ${host.name}');
     final payloadName = p.basename(remotePath);
     final payloadPath = p.join(entryDir.path, payloadName);
     final sizeBytes = await _computeSize(payloadPath);
@@ -61,6 +68,9 @@ class ExplorerTrashManager {
       localPath: payloadPath,
       sizeBytes: sizeBytes,
       storagePath: entryDir.path,
+      contextId: context.id,
+      contextKind: context.kind,
+      contextLabel: context.label,
     );
     final metaFile = File(p.join(entryDir.path, 'meta.json'));
     await metaFile.writeAsString(jsonEncode(entry.toJson()));
@@ -70,7 +80,9 @@ class ExplorerTrashManager {
     return entry;
   }
 
-  Future<List<TrashedEntry>> loadEntries() async {
+  Future<List<TrashedEntry>> loadEntries({
+    String? contextId,
+  }) async {
     if (!await _baseDir.exists()) {
       return [];
     }
@@ -87,7 +99,11 @@ class ExplorerTrashManager {
         final contents = await metaFile.readAsString();
         final jsonMap = jsonDecode(contents);
         if (jsonMap is Map<String, dynamic>) {
-          entries.add(TrashedEntry.fromJson(jsonMap, storagePath: entity.path));
+          final entry =
+              TrashedEntry.fromJson(jsonMap, storagePath: entity.path);
+          if (contextId == null || entry.contextId == contextId) {
+            entries.add(entry);
+          }
         }
       } catch (_) {
         continue;
@@ -109,17 +125,26 @@ class ExplorerTrashManager {
   Future<void> restoreEntry({
     required TrashedEntry entry,
     required RemoteShellService shellService,
+    SshHost? hostOverride,
   }) async {
+    debugPrint(
+      '[Trash] Restoring ${entry.remotePath} to host ${entry.host.name}',
+    );
+    final targetHost = hostOverride ?? entry.host;
     await shellService.uploadPath(
-      host: entry.host,
+      host: targetHost,
       localPath: entry.localPath,
       remoteDestination: entry.remotePath,
       recursive: entry.isDirectory,
+    );
+    debugPrint(
+      '[Trash] Restore completed for ${entry.remotePath} on host ${entry.host.name}',
     );
     _restoreNotifier.value = TrashRestoreEvent(
       hostName: entry.host.name,
       directory: _directoryOf(entry.remotePath),
       restoredPath: entry.remotePath,
+      contextId: entry.contextId,
     );
     await deleteEntry(entry, notify: false);
     _notifyChanged();
@@ -186,6 +211,9 @@ class TrashedEntry {
     required this.localPath,
     required this.sizeBytes,
     required this.storagePath,
+    required this.contextId,
+    required this.contextKind,
+    required this.contextLabel,
   });
 
   final String id;
@@ -197,6 +225,9 @@ class TrashedEntry {
   final String localPath;
   final int sizeBytes;
   final String storagePath;
+  final String contextId;
+  final ExplorerContextKind contextKind;
+  final String contextLabel;
 
   String get hostName => host.name;
 
@@ -208,6 +239,9 @@ class TrashedEntry {
         'hostname': host.hostname,
         'port': host.port,
         'available': host.available,
+        'source': host.source,
+        'user': host.user,
+        'identityFiles': host.identityFiles,
       },
       'remotePath': remotePath,
       'displayName': displayName,
@@ -215,6 +249,9 @@ class TrashedEntry {
       'trashedAt': trashedAt.toIso8601String(),
       'localPath': localPath,
       'sizeBytes': sizeBytes,
+      'contextId': contextId,
+      'contextKind': contextKind.name,
+      'contextLabel': contextLabel,
     };
   }
 
@@ -230,6 +267,11 @@ class TrashedEntry {
             port: (hostJson['port'] as num?)?.toInt() ?? 22,
             available: hostJson['available'] as bool? ?? true,
             source: hostJson['source'] as String?,
+            user: hostJson['user'] as String?,
+            identityFiles: (hostJson['identityFiles'] as List<dynamic>?)
+                    ?.cast<String>()
+                    .toList() ??
+                const [],
           )
         : const SshHost(
             name: 'Unknown',
@@ -249,6 +291,12 @@ class TrashedEntry {
       localPath: json['localPath'] as String? ?? storagePath,
       sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? 0,
       storagePath: storagePath,
+      contextId: json['contextId'] as String? ?? storagePath,
+      contextKind: ExplorerContextKind.values.firstWhere(
+        (kind) => kind.name == (json['contextKind'] as String? ?? ''),
+        orElse: () => ExplorerContextKind.unknown,
+      ),
+      contextLabel: json['contextLabel'] as String? ?? host.name,
     );
   }
 }
@@ -258,9 +306,11 @@ class TrashRestoreEvent {
     required this.hostName,
     required this.directory,
     required this.restoredPath,
+    required this.contextId,
   });
 
   final String hostName;
   final String directory;
   final String restoredPath;
+  final String contextId;
 }

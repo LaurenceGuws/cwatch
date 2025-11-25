@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+
+import '../../../../../models/explorer_context.dart';
 import '../../../../../models/remote_file_entry.dart';
 import '../../../../../models/ssh_host.dart';
+import '../../../../../services/ssh/remote_shell_service.dart';
 import '../explorer_clipboard.dart';
 import 'path_utils.dart';
 
@@ -9,28 +12,33 @@ class ClipboardOperationsHandler {
   ClipboardOperationsHandler({
     required this.host,
     required this.currentPath,
+    required this.explorerContext,
+    required this.shellService,
   });
 
   final SshHost host;
   String currentPath;
+  final ExplorerContext explorerContext;
+  final RemoteShellService shellService;
 
   /// Set clipboard entry for a single file/folder
   void setClipboardEntry(
-    BuildContext context,
+    BuildContext buildContext,
     RemoteFileEntry entry,
     ExplorerClipboardOperation operation,
   ) {
     final remotePath = PathUtils.joinPath(currentPath, entry.name);
-    ExplorerClipboard.setEntry(
-      ExplorerClipboardEntry(
-        host: host,
-        remotePath: remotePath,
-        displayName: entry.name,
-        isDirectory: entry.isDirectory,
-        operation: operation,
-      ),
-    );
-    ScaffoldMessenger.of(context).showSnackBar(
+      ExplorerClipboard.setEntry(
+        ExplorerClipboardEntry(
+          context: explorerContext,
+          remotePath: remotePath,
+          displayName: entry.name,
+          isDirectory: entry.isDirectory,
+          operation: operation,
+          shellService: shellService,
+        ),
+      );
+    ScaffoldMessenger.of(buildContext).showSnackBar(
       SnackBar(
         content: Text(
           operation == ExplorerClipboardOperation.copy
@@ -43,7 +51,7 @@ class ClipboardOperationsHandler {
 
   /// Set clipboard entries for multiple files/folders
   void setClipboardEntries(
-    BuildContext context,
+    BuildContext buildContext,
     List<RemoteFileEntry> entries,
     ExplorerClipboardOperation operation,
   ) {
@@ -53,17 +61,18 @@ class ClipboardOperationsHandler {
     final clipboardEntries = entries.map((entry) {
       final remotePath = PathUtils.joinPath(currentPath, entry.name);
       return ExplorerClipboardEntry(
-        host: host,
+        context: explorerContext,
         remotePath: remotePath,
         displayName: entry.name,
         isDirectory: entry.isDirectory,
         operation: operation,
+        shellService: shellService,
       );
     }).toList();
     
     ExplorerClipboard.setEntries(clipboardEntries);
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    if (!buildContext.mounted) return;
+    ScaffoldMessenger.of(buildContext).showSnackBar(
       SnackBar(
         content: Text(
           operation == ExplorerClipboardOperation.copy
@@ -78,4 +87,3 @@ class ClipboardOperationsHandler {
     );
   }
 }
-

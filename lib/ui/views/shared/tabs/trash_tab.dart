@@ -3,13 +3,14 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../../../models/explorer_context.dart';
 import '../../../../services/filesystem/explorer_trash_manager.dart';
 import '../../../../services/logging/app_logger.dart';
 import '../../../../services/ssh/remote_shell_service.dart';
 import '../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
 import '../../../../services/ssh/builtin/builtin_ssh_key_store.dart';
 import '../../../../services/ssh/builtin/builtin_ssh_vault.dart';
-import '../../shared/tabs/file_explorer/ssh_auth_handler.dart';
+import 'file_explorer/ssh_auth_handler.dart';
 
 class TrashTab extends StatefulWidget {
   const TrashTab({
@@ -17,11 +18,13 @@ class TrashTab extends StatefulWidget {
     required this.manager,
     this.shellService = const ProcessRemoteShellService(),
     this.builtInVault,
+    this.context,
   });
 
   final ExplorerTrashManager manager;
   final RemoteShellService shellService;
   final BuiltInSshVault? builtInVault;
+  final ExplorerContext? context;
 
   @override
   State<TrashTab> createState() => _TrashTabState();
@@ -34,14 +37,28 @@ class _TrashTabState extends State<TrashTab> {
   @override
   void initState() {
     super.initState();
-    _entriesFuture = widget.manager.loadEntries();
+    _entriesFuture = widget.manager.loadEntries(
+      contextId: widget.context?.id,
+    );
     _changesListener = () {
       if (!mounted) return;
       setState(() {
-        _entriesFuture = widget.manager.loadEntries();
+        _entriesFuture = widget.manager.loadEntries(
+          contextId: widget.context?.id,
+        );
       });
     };
     widget.manager.changes.addListener(_changesListener);
+  }
+
+  @override
+  void didUpdateWidget(covariant TrashTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.context?.id != widget.context?.id) {
+      _entriesFuture = widget.manager.loadEntries(
+        contextId: widget.context?.id,
+      );
+    }
   }
 
   @override
@@ -52,7 +69,9 @@ class _TrashTabState extends State<TrashTab> {
 
   Future<void> _refresh() async {
     setState(() {
-      _entriesFuture = widget.manager.loadEntries();
+      _entriesFuture = widget.manager.loadEntries(
+        contextId: widget.context?.id,
+      );
     });
     await _entriesFuture;
   }
@@ -318,6 +337,10 @@ class _TrashTabState extends State<TrashTab> {
                   separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final entry = entries[index];
+                    final contextDetails =
+                        entry.contextLabel != entry.hostName
+                            ? '${entry.contextLabel} · ${entry.hostName}'
+                            : entry.hostName;
                     return Card(
                       child: ListTile(
                         leading: Icon(
@@ -327,7 +350,8 @@ class _TrashTabState extends State<TrashTab> {
                         ),
                         title: Text(entry.displayName),
                         subtitle: Text(
-                          '${entry.hostName} · ${entry.remotePath}\nTrashed ${entry.trashedAt.toLocal()} · ${_formatBytes(entry.sizeBytes)}',
+                          '$contextDetails · ${entry.remotePath}\n'
+                          'Trashed ${entry.trashedAt.toLocal()} · ${_formatBytes(entry.sizeBytes)}',
                         ),
                         isThreeLine: true,
                         trailing: Wrap(
@@ -371,12 +395,25 @@ class _TrashTabState extends State<TrashTab> {
   }
 
   Future<void> _restoreEntry(TrashedEntry entry) async {
+    AppLogger.d(
+      'Trash restore requested for ${entry.remotePath} on host ${entry.host.name}',
+      tag: 'Trash',
+    );
     try {
-      await _runShell(
-        () => widget.manager.restoreEntry(
+      await _runShell(() async {
+        final exists = await File(entry.localPath).exists();
+        if (!exists) {
+          throw Exception('Local trash payload missing at ${entry.localPath}');
+        }
+        return widget.manager.restoreEntry(
           entry: entry,
           shellService: widget.shellService,
-        ),
+          hostOverride: widget.context?.host,
+        );
+      });
+      AppLogger.d(
+        'Trash restore succeeded for ${entry.remotePath} on host ${entry.host.name}',
+        tag: 'Trash',
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -386,6 +423,11 @@ class _TrashTabState extends State<TrashTab> {
       );
     } catch (error) {
       if (error is CancelledTrashOperation) return;
+      AppLogger.w(
+        'Trash restore failed for ${entry.remotePath} on host ${entry.host.name}',
+        tag: 'Trash',
+        error: error,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,

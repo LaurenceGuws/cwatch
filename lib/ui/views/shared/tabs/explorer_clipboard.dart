@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../../../models/explorer_context.dart';
 import '../../../../models/ssh_host.dart';
+import '../../../../../services/ssh/remote_shell_service.dart';
 
 enum ExplorerClipboardOperation { copy, cut }
 
@@ -8,26 +10,33 @@ class ExplorerClipboardCutEvent {
   const ExplorerClipboardCutEvent({
     required this.hostName,
     required this.remotePath,
+    required this.contextId,
   });
 
   final String hostName;
   final String remotePath;
+  final String contextId;
 }
 
 class ExplorerClipboardEntry {
   const ExplorerClipboardEntry({
-    required this.host,
+    required this.context,
     required this.remotePath,
     required this.displayName,
     required this.isDirectory,
     required this.operation,
+    required this.shellService,
   });
 
-  final SshHost host;
+  final ExplorerContext context;
   final String remotePath;
   final String displayName;
   final bool isDirectory;
   final ExplorerClipboardOperation operation;
+  final RemoteShellService shellService;
+
+  SshHost get host => context.host;
+  String get contextId => context.id;
 }
 
 class ExplorerClipboard {
@@ -67,19 +76,21 @@ class ExplorerClipboard {
   static void notifyCutCompleted(ExplorerClipboardEntry entry) {
     final currentEntries = _notifier.value;
     _notifier.value = currentEntries
-        .where((e) => e.remotePath != entry.remotePath)
+        .where((e) =>
+            e.remotePath != entry.remotePath || e.contextId != entry.contextId)
         .toList();
     _cutNotifier.value = ExplorerClipboardCutEvent(
       hostName: entry.host.name,
       remotePath: entry.remotePath,
+      contextId: entry.contextId,
     );
   }
   
   static void notifyCutsCompleted(List<ExplorerClipboardEntry> entries) {
     final currentEntries = _notifier.value;
-    final cutPaths = entries.map((e) => e.remotePath).toSet();
     final remaining = currentEntries
-        .where((e) => !cutPaths.contains(e.remotePath))
+        .where((e) => entries.every(
+            (cut) => cut.remotePath != e.remotePath || cut.contextId != e.contextId))
         .toList();
     _notifier.value = remaining;
     // Notify for each cut entry
@@ -87,6 +98,7 @@ class ExplorerClipboard {
       _cutNotifier.value = ExplorerClipboardCutEvent(
         hostName: entry.host.name,
         remotePath: entry.remotePath,
+        contextId: entry.contextId,
       );
     }
   }

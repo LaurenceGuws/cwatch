@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../models/docker_context.dart';
+import '../../../models/explorer_context.dart';
 import '../../../models/ssh_client_backend.dart';
 import '../../../models/ssh_host.dart';
 import '../../../services/docker/docker_client_service.dart';
@@ -22,6 +23,7 @@ import 'widgets/docker_engine_picker.dart';
 import 'widgets/docker_resources_dashboard.dart';
 import 'widgets/docker_command_terminal.dart';
 import '../shared/tabs/file_explorer_tab.dart';
+import '../shared/tabs/trash_tab.dart';
 import '../shared/tabs/remote_file_editor_tab.dart';
 
 class DockerView extends StatefulWidget {
@@ -131,7 +133,7 @@ class _DockerViewState extends State<DockerView> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       child: EngineWorkspace(
         tabs: _tabs,
         selectedIndex: _selectedIndex,
@@ -580,6 +582,28 @@ class _DockerViewState extends State<DockerView> {
     _persistWorkspace();
   }
 
+  void _openContainerExplorerTrashTab(
+    RemoteShellService shell,
+    ExplorerContext explorerContext,
+  ) {
+    final icons = context.appTheme.icons;
+    final hostName = explorerContext.host.name;
+    final tabId = 'trash-${hostName}-${DateTime.now().microsecondsSinceEpoch}';
+    final tab = EngineTab(
+      id: tabId,
+      title: 'Trash • $hostName',
+      label: 'Trash',
+      icon: icons.delete,
+      body: TrashTab(
+        manager: _trashManager,
+        shellService: shell,
+        builtInVault: widget.builtInVault,
+        context: explorerContext,
+      ),
+    );
+    _openChildTab(tab);
+  }
+
   void _closeTabById(String id) {
     final index = _tabs.indexWhere((tab) => tab.id == id);
     if (index == -1) return;
@@ -900,6 +924,14 @@ class _DockerViewState extends State<DockerView> {
               identityFiles: <String>[],
               source: 'local',
             );
+        final containerId = state.containerId ?? '';
+        final explorerContext = ExplorerContext.dockerContainer(
+          host: explorerHost,
+          containerId: containerId,
+          containerName: state.containerName,
+          dockerContextName:
+              _dockerContextNameFor(explorerHost, state.contextName),
+        );
         return EngineTab(
           id: state.id,
           title:
@@ -909,10 +941,12 @@ class _DockerViewState extends State<DockerView> {
           canDrag: true,
           body: FileExplorerTab(
             host: explorerHost,
+            explorerContext: explorerContext,
             shellService: shell,
             trashManager: _trashManager,
             builtInVault: widget.builtInVault,
-            onOpenTrash: () {},
+            onOpenTrash: (explorerContext) =>
+                _openContainerExplorerTrashTab(shell, explorerContext),
             onOpenEditorTab: (path, content) async {
               final editorTab = EngineTab(
                 id: 'editor-${path.hashCode}-${DateTime.now().microsecondsSinceEpoch}',
@@ -1097,6 +1131,14 @@ class _DockerViewState extends State<DockerView> {
       containerId: id,
       baseShell: _shellServiceForHost(host),
     );
+  }
+
+  String _dockerContextNameFor(SshHost host, String? contextName) {
+    final trimmed = contextName?.trim();
+    if (trimmed?.isNotEmpty == true) {
+      return trimmed!;
+    }
+    return '${host.name}-docker';
   }
 }
 

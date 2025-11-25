@@ -280,6 +280,18 @@ class BuiltInRemoteShellService extends RemoteShellService {
   }) async {
     final normalizedDest = _sanitizePath(remoteDestination);
     final entryType = FileSystemEntity.typeSync(localPath);
+    _log(
+      'Upload request to ${host.name} (${host.hostname}:${host.port}) '
+      'user=${host.user ?? 'root'} '
+      'local=$localPath -> remote=$normalizedDest '
+      'type=${entryType.name} recursive=$recursive',
+    );
+    if (entryType == FileSystemEntityType.notFound ||
+        entryType == FileSystemEntityType.link) {
+      throw Exception(
+        'Local path "$localPath" is not found or not a regular file/directory.',
+      );
+    }
     await _withSftp(host, (sftp) async {
       if (entryType == FileSystemEntityType.directory) {
         if (!recursive) {
@@ -312,7 +324,8 @@ class BuiltInRemoteShellService extends RemoteShellService {
     emitDebugEvent(
       host: host,
       operation: 'uploadPath',
-      command: 'sftp upload $localPath -> $normalizedDest',
+      command:
+          'sftp upload user=${host.user ?? 'root'} $localPath -> $normalizedDest',
       output: 'completed',
       verification: verification,
     );
@@ -533,6 +546,11 @@ class BuiltInRemoteShellService extends RemoteShellService {
         Platform.environment['USERNAME'] ??
         'root';
     final identities = await _collectIdentities(host);
+    _log(
+      'Opening SSH client to ${host.name}@${host.hostname}:${host.port} '
+      'with ${identities.length} identities '
+      'boundKey=${_hostKeyBindings[host.name] ?? 'none'}',
+    );
     if (identities.isEmpty) {
       socket.destroy();
       throw Exception('No SSH identity available for ${host.name}');
@@ -969,6 +987,10 @@ class BuiltInRemoteShellService extends RemoteShellService {
       passed: shouldExist ? exists : !exists,
     );
   }
+}
+
+extension on FileSystemEntityType {
+  Null get name => null;
 }
 
 class BuiltInTerminalSession implements TerminalSession {

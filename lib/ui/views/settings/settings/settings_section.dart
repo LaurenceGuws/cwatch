@@ -19,9 +19,9 @@ class SettingsSection extends StatelessWidget {
         description != null && description!.trim().isNotEmpty;
     final iconColor = Theme.of(context).colorScheme.primary;
     return Card(
-      margin: const EdgeInsets.only(bottom: 24),
+      margin: const EdgeInsets.only(bottom: 16),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -45,8 +45,8 @@ class SettingsSection extends StatelessWidget {
                   ),
               ],
             ),
-            const SizedBox(height: 8),
-            const Divider(height: 24),
+            const SizedBox(height: 6),
+            const Divider(height: 16),
             child,
           ],
         ),
