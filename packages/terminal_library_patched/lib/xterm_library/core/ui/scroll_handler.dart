@@ -127,10 +127,10 @@ class _TerminalLibraryFlutterScrollGestureHandlerState
 
     return Listener(
       onPointerSignal: (event) {
-        lastPointerPosition = event.position;
+        lastPointerPosition = event.localPosition;
       },
       onPointerDown: (event) {
-        lastPointerPosition = event.position;
+        lastPointerPosition = event.localPosition;
       },
       child: InfiniteScrollView(
         onScroll: _onScroll,
