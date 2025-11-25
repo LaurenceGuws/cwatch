@@ -30,20 +30,23 @@ Bukan maksud kami menipu itu karena harga yang sudah di kalkulasi + bantuan tiba
 
 
 <!-- END LICENSE --> */
+import 'dart:async';
 class ReceivePort {
   ReceivePort();
 
-  SendPort get sendPort {
-    return SendPort();
+  SendPort get sendPort => SendPort();
+
+  StreamSubscription<dynamic> listen(
+    FutureOr<dynamic> Function(dynamic data) callback,
+  ) {
+    return _NoopSubscription();
   }
 
-  listen(Future<dynamic> Function(dynamic data) callback) {}
+  Future<dynamic> get first async => throw UnimplementedError();
 
-  Future get first async => throw UnimplementedError();
+  Stream<T> cast<T>() => throw UnimplementedError();
 
-  cast() {}
-
-  close() {}
+  void close() {}
 }
 
 class SendPort {
@@ -55,7 +58,7 @@ class SendPort {
 
 class Isolate {
   static Future<Isolate> spawn<T>(
-    Future<dynamic> Function(T data) callback,
+    FutureOr<dynamic> Function(T data) callback,
     T data, {
     SendPort? onExit,
     SendPort? onError,
@@ -64,4 +67,30 @@ class Isolate {
   }
 
   void kill() {}
+}
+
+class _NoopSubscription implements StreamSubscription<dynamic> {
+  @override
+  Future<void> cancel() async {}
+
+  @override
+  bool get isPaused => false;
+
+  @override
+  Future<E> asFuture<E>([E? futureValue]) async => futureValue as E;
+
+  @override
+  void onData(void Function(dynamic data)? handleData) {}
+
+  @override
+  void onDone(void Function()? handleDone) {}
+
+  @override
+  void onError(Function? handleError) {}
+
+  @override
+  void pause([Future<void>? resumeSignal]) {}
+
+  @override
+  void resume() {}
 }

@@ -11,6 +11,11 @@ dependencies:
   general_lib_flutter: any
   io_universe: any
   ffi: any
+  convert: any
+  pointycastle: any
+  pinenacl: any
+  asn1lib: any
+  meta: any
   flutter:
     sdk: flutter
 

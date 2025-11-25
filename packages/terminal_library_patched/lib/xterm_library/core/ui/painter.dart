@@ -184,7 +184,6 @@ class TerminalLibraryFlutterPainter {
     final charCode = cellData.content & CellContent.codepointMask;
     if (charCode == 0) return;
 
-    final cacheKey = cellData.getHash() ^ _textScaler.hashCode;
     Paragraph? paragraph;
 
     final cellFlags = cellData.flags;

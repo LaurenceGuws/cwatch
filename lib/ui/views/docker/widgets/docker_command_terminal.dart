@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:terminal_library/pty_library/pty_library.dart';
 import 'package:terminal_library/xterm_library/xterm.dart';
-import '../../../../services/logging/app_logger.dart';
 
 import '../../../../models/ssh_host.dart';
 import '../../../../services/ssh/remote_shell_service.dart';
@@ -59,7 +58,11 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     _controller
       ..setSelectionMode(SelectionMode.line)
       ..setPointerInputs(
-        const PointerInputs({PointerInput.tap, PointerInput.drag, PointerInput.move}),
+        const PointerInputs({
+          PointerInput.tap,
+          PointerInput.drag,
+          PointerInput.move,
+        }),
       );
     _controller.addListener(_logSelectionChange);
     _scrollController.addListener(_logScrollChange);
@@ -361,28 +364,16 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     if (!_scrollController.hasClients) return;
     final current = _scrollController.position.pixels;
     // Avoid log spam for tiny deltas.
-    if (_lastLoggedScroll != null &&
-        (current - _lastLoggedScroll!).abs() < 4) {
+    if (_lastLoggedScroll != null && (current - _lastLoggedScroll!).abs() < 4) {
       return;
     }
     _lastLoggedScroll = current;
-    final selection = _controller.selection;
-    final selectionDesc = selection == null
-        ? 'no selection'
-        : '${selection.begin} -> ${selection.end}';
-    AppLogger.d(
-      'Scroll offset=${current.toStringAsFixed(1)} with $selectionDesc',
-      tag: 'TerminalSelection',
-    );
   }
 
   void _logSelectionChange({bool force = false}) {
     final selection = _controller.selection;
     if (selection == null) {
-      if (_lastSelectionSignature != null) {
-        AppLogger.d('Selection cleared', tag: 'TerminalSelection');
-        _lastSelectionSignature = null;
-      }
+      _lastSelectionSignature = null;
       return;
     }
     final text = _safeSelectionText(selection);
@@ -391,19 +382,12 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
       return;
     }
     _lastSelectionSignature = signature;
-    final preview = text.length > 160 ? '${text.substring(0, 160)}…' : text;
-    AppLogger.d(
-      'Selection ${selection.begin} -> ${selection.end} '
-      'length=${text.length} "${preview.replaceAll('\n', '\\n')}"',
-      tag: 'TerminalSelection',
-    );
   }
 
   String _safeSelectionText(BufferRange selection) {
     try {
       return _terminal.buffer.getText(selection);
     } catch (error) {
-      AppLogger.w('Failed to read selection: $error', tag: 'TerminalSelection');
       return '';
     }
   }

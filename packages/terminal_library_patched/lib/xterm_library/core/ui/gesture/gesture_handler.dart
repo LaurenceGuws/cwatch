@@ -75,15 +75,12 @@ class _TerminalLibraryFlutterGestureHandlerState
   RenderTerminalLibraryFlutter get renderTerminalLibraryFlutter =>
       terminalView.renderTerminalLibraryFlutter;
 
-  DragStartDetails? _lastDragStartDetails;
   CellOffset? _dragStartCell;
-
   LongPressStartDetails? _lastLongPressStartDetails;
 
   @override
   Widget build(BuildContext context) {
     return TerminalLibraryFlutterGestureDetector(
-      child: widget.child,
       onTapUp: widget.onTapUp,
       onSingleTapUp: onSingleTapUp,
       onTapDown: onTapDown,
@@ -97,6 +94,7 @@ class _TerminalLibraryFlutterGestureHandlerState
       onDragStart: onDragStart,
       onDragUpdate: onDragUpdate,
       onDoubleTapDown: onDoubleTapDown,
+      child: widget.child,
     );
   }
 
@@ -201,7 +199,6 @@ class _TerminalLibraryFlutterGestureHandlerState
   // void onLongPressUp() {}
 
   void onDragStart(DragStartDetails details) {
-    _lastDragStartDetails = details;
     _dragStartCell = renderTerminalLibraryFlutter.getCellOffset(
       details.localPosition,
     );
