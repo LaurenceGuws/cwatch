@@ -8,10 +8,10 @@ import 'package:cwatch/models/remote_file_entry.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:dartssh2/dartssh2.dart';
 import 'package:path/path.dart' as p;
-import 'package:terminal_library/pty_library/pty_library.dart';
 
 import '../../logging/app_logger.dart';
 import '../remote_shell_service.dart';
+import '../terminal_session.dart';
 import 'builtin_ssh_vault.dart';
 
 class BuiltInRemoteShellService extends RemoteShellService {
@@ -480,7 +480,7 @@ class BuiltInRemoteShellService extends RemoteShellService {
   }
 
   @override
-  Future<TerminalPtyLibraryBase> createTerminalSession(
+  Future<TerminalSession> createTerminalSession(
     SshHost host, {
     required TerminalSessionOptions options,
   }) async {
@@ -971,12 +971,12 @@ class BuiltInRemoteShellService extends RemoteShellService {
   }
 }
 
-class BuiltInTerminalSession extends TerminalPtyLibraryBase {
+class BuiltInTerminalSession implements TerminalSession {
   BuiltInTerminalSession({
     required this.client,
     required this.session,
-    required super.rows,
-    required super.columns,
+    required this.rows,
+    required this.columns,
   }) {
     _stdoutSubscription = session.stdout.listen(
       _handleOutput,
@@ -993,6 +993,9 @@ class BuiltInTerminalSession extends TerminalPtyLibraryBase {
 
   final SSHClient client;
   final SSHSession session;
+  final int rows;
+  final int columns;
+  final _outputController = StreamController<Uint8List>.broadcast();
 
   late final StreamSubscription<Uint8List> _stdoutSubscription;
   late final StreamSubscription<Uint8List> _stderrSubscription;
@@ -1002,7 +1005,7 @@ class BuiltInTerminalSession extends TerminalPtyLibraryBase {
     if (data.isEmpty || _closed) {
       return;
     }
-    event_emitter.emit(eventName: event_output, value: data);
+    _outputController.add(data);
   }
 
   void _cleanup() {
@@ -1012,17 +1015,18 @@ class BuiltInTerminalSession extends TerminalPtyLibraryBase {
     _closed = true;
     _stdoutSubscription.cancel();
     _stderrSubscription.cancel();
-    try {
-      session.close();
-    } catch (_) {
-      //
-    }
-    try {
-      client.close();
-    } catch (_) {
-      //
-    }
-    event_emitter.clear();
+    _outputController.close();
+    session.close();
+    client.close();
+  }
+
+  @override
+  Stream<Uint8List> get output => _outputController.stream;
+
+  @override
+  Future<int> get exitCode async {
+    await session.done;
+    return 0;
   }
 
   @override
@@ -1042,13 +1046,12 @@ class BuiltInTerminalSession extends TerminalPtyLibraryBase {
   }
 
   @override
-  bool kill([ProcessSignal signal = ProcessSignal.sigterm]) {
+  void kill() {
     if (_closed) {
-      return true;
+      return;
     }
-    session.kill(_mapSignal(signal));
+    session.kill(_mapSignal(ProcessSignal.sigterm));
     _cleanup();
-    return true;
   }
 
   SSHSignal _mapSignal(ProcessSignal signal) {

@@ -6,7 +6,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
-import 'package:terminal_library/pty_library/pty_library.dart';
+import 'package:cwatch/services/ssh/terminal_session.dart';
 
 import '../../../../models/docker_container.dart';
 import '../../../../models/docker_image.dart';
@@ -1836,7 +1836,7 @@ class DockerContainerShellService extends RemoteShellService {
   }
 
   @override
-  Future<TerminalPtyLibraryBase> createTerminalSession(
+  Future<TerminalSession> createTerminalSession(
     SshHost host, {
     required TerminalSessionOptions options,
   }) {
@@ -2018,7 +2018,7 @@ class LocalDockerContainerShellService extends RemoteShellService {
   }
 
   @override
-  Future<TerminalPtyLibraryBase> createTerminalSession(
+  Future<TerminalSession> createTerminalSession(
     SshHost host, {
     required TerminalSessionOptions options,
   }) {

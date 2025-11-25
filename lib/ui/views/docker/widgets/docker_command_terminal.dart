@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:terminal_library/pty_library/pty_library.dart';
-import 'package:terminal_library/xterm_library/xterm.dart';
+import 'package:xterm/xterm.dart';
+import 'package:cwatch/services/ssh/terminal_session.dart';
 
 import '../../../../models/ssh_host.dart';
 import '../../../../services/ssh/remote_shell_service.dart';
@@ -38,13 +38,13 @@ class DockerCommandTerminal extends StatefulWidget {
 }
 
 class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
-  final TerminalLibraryFlutterController _controller =
-      TerminalLibraryFlutterController();
-  final TerminalLibraryFlutter _terminal = TerminalLibraryFlutter(
+  final TerminalController _controller = TerminalController();
+  final Terminal _terminal = Terminal(
     maxLines: 1000,
   );
   final ScrollController _scrollController = ScrollController();
-  TerminalPtyLibraryBase? _pty;
+  TerminalSession? _pty;
+  StreamSubscription<Uint8List>? _outputSub;
   bool _connecting = true;
   String? _error;
   final StringBuffer _outputBuffer = StringBuffer();
@@ -55,15 +55,6 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   @override
   void initState() {
     super.initState();
-    _controller
-      ..setSelectionMode(SelectionMode.line)
-      ..setPointerInputs(
-        const PointerInputs({
-          PointerInput.tap,
-          PointerInput.drag,
-          PointerInput.move,
-        }),
-      );
     _controller.addListener(_logSelectionChange);
     _scrollController.addListener(_logScrollChange);
     WidgetsBinding.instance.addPostFrameCallback((_) => _start());
@@ -72,6 +63,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   @override
   void dispose() {
     _pty?.kill();
+    _outputSub?.cancel();
     _controller.removeListener(_logSelectionChange);
     _scrollController.removeListener(_logScrollChange);
     _scrollController.dispose();
@@ -109,10 +101,8 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
           return;
         }
         _pty = session;
-        session.on(
-          eventName: session.event_output,
-          onCallback: (data, _) => _handlePtyData(data),
-        );
+        _outputSub?.cancel();
+        _outputSub = session.output.listen(_handlePtyData);
         unawaited(
           session.exitCode.then((_) {
             if (!mounted || token != _sessionToken) return;
@@ -121,10 +111,10 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
         );
         _terminal.textInput('${widget.command}\n');
       } else {
-        final session = TerminalPtyLibrary(
+        final session = LocalPtySession(
           executable: 'bash',
           arguments: ['-lc', widget.command],
-          columns: _sessionOptions().columns,
+          cols: _sessionOptions().columns,
           rows: _sessionOptions().rows,
         );
         if (token != _sessionToken) {
@@ -132,10 +122,8 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
           return;
         }
         _pty = session;
-        session.on(
-          eventName: session.event_output,
-          onCallback: (data, _) => _handlePtyData(data),
-        );
+        _outputSub?.cancel();
+        _outputSub = session.output.listen(_handlePtyData);
         unawaited(
           session.exitCode.then((_) {
             if (!mounted || token != _sessionToken) return;
@@ -162,17 +150,12 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     return TerminalSessionOptions(columns: columns, rows: rows);
   }
 
-  void _handlePtyData(dynamic data) {
-    if (data is Uint8List) {
-      final text = utf8.decode(data, allowMalformed: true);
-      _terminal.write(text);
-      _outputBuffer.write(text);
-      _logSelectionChange();
-    } else if (data is String) {
-      _terminal.write(data);
-      _outputBuffer.write(data);
-      _logSelectionChange();
-    }
+  void _handlePtyData(Uint8List data) {
+    if (data.isEmpty) return;
+    final text = utf8.decode(data, allowMalformed: true);
+    _terminal.write(text);
+    _outputBuffer.write(text);
+    _logSelectionChange();
   }
 
   void _onOutput(String value) {
@@ -329,12 +312,11 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
                   },
                 ),
               },
-              child: TerminalLibraryFlutterViewWidget(
+              child: TerminalView(
                 _terminal,
                 controller: _controller,
                 scrollController: _scrollController,
                 autofocus: widget.autofocus,
-                simulateScroll: false,
                 alwaysShowCursor: true,
               ),
             ),

@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:terminal_library/pty_library/pty_library.dart';
-import 'package:terminal_library/xterm_library/xterm.dart';
+import 'package:xterm/xterm.dart';
+import 'package:cwatch/services/ssh/terminal_session.dart';
 
 import '../../../../models/ssh_host.dart';
 import '../../../../services/ssh/remote_shell_service.dart';
@@ -30,18 +30,16 @@ class TerminalTab extends StatefulWidget {
 }
 
 class _TerminalTabState extends State<TerminalTab> {
-  final TerminalLibraryFlutterController _controller =
-      TerminalLibraryFlutterController();
-  final TerminalLibraryFlutter _terminal = TerminalLibraryFlutter(
+  final TerminalController _controller = TerminalController();
+  final Terminal _terminal = Terminal(
     maxLines: 1000,
   );
-  TerminalPtyLibraryBase? _pty;
+  TerminalSession? _pty;
   bool _connecting = true;
   String? _error;
   bool _closing = false;
   int _sessionToken = 0;
-  final TerminalLibraryFlutterStyle _textStyle =
-      const TerminalLibraryFlutterStyle(
+  final TerminalStyle _textStyle = const TerminalStyle(
         fontFamily: 'JetBrainsMonoNF',
         fontSize: 14,
         height: 1.1,
@@ -82,10 +80,7 @@ class _TerminalTabState extends State<TerminalTab> {
         options: _terminalSessionOptions(),
       );
       _pty = session;
-      session.on(
-        eventName: session.event_output,
-        onCallback: (data, _) => _handlePtyData(data),
-      );
+      session.output.listen(_handlePtyData);
       unawaited(
         session.exitCode.then((_) {
           if (!mounted || _closing || token != _sessionToken) return;
@@ -95,7 +90,7 @@ class _TerminalTabState extends State<TerminalTab> {
       );
 
       _terminal.textInput('clear');
-      _terminal.keyInput(TerminalLibraryFlutterKey.enter);
+      _terminal.keyInput(TerminalKey.enter);
       await _sendInitialDirectory();
       if (!mounted) {
         session.kill();
@@ -150,29 +145,21 @@ class _TerminalTabState extends State<TerminalTab> {
     _pty?.resize(rows, columns);
   }
 
-  void _handlePtyData(dynamic data) {
-    if (data is Uint8List) {
-      try {
-        final text = utf8.decode(data, allowMalformed: true);
-        if (text.isNotEmpty) {
-          _terminal.write(text);
-        }
-      } catch (_) {
-        // Ignore decode errors
-      }
+  void _handlePtyData(Uint8List data) {
+    if (data.isEmpty) {
       return;
     }
-    if (data is String && data.isNotEmpty) {
-      _terminal.write(data);
+    try {
+      final text = utf8.decode(data, allowMalformed: true);
+      if (text.isNotEmpty) {
+        _terminal.write(text);
+      }
+    } catch (_) {
+      // Ignore decode errors
     }
   }
 
   void _resetSession() {
-    try {
-      _pty?.event_emitter.clear();
-    } catch (_) {
-      // Ignore cleanup errors; the PTY is being torn down.
-    }
     _pty?.kill();
     _pty = null;
   }
@@ -249,12 +236,11 @@ class _TerminalTabState extends State<TerminalTab> {
         _buildHeader(context),
         const Divider(height: 1),
         Expanded(
-          child: TerminalLibraryFlutterViewWidget(
+          child: TerminalView(
             _terminal,
             controller: _controller,
             autofocus: true,
             backgroundOpacity: 1,
-            simulateScroll: true,
             padding: EdgeInsets.zero,
             alwaysShowCursor: true,
             deleteDetection:

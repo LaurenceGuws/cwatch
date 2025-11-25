@@ -3,12 +3,11 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:meta/meta.dart';
-import 'package:terminal_library/pty_library/pty_library.dart';
-
 import '../../models/remote_file_entry.dart';
 import '../../models/ssh_host.dart';
 import '../logging/app_logger.dart';
 import 'remote_command_logging.dart';
+import 'terminal_session.dart';
 
 class TerminalSessionOptions {
   const TerminalSessionOptions({
@@ -135,7 +134,7 @@ abstract class RemoteShellService {
     Duration timeout = const Duration(seconds: 10),
   });
 
-  Future<TerminalPtyLibraryBase> createTerminalSession(
+  Future<TerminalSession> createTerminalSession(
     SshHost host, {
     required TerminalSessionOptions options,
   });
@@ -500,16 +499,16 @@ class ProcessRemoteShellService extends RemoteShellService {
   }
 
   @override
-  Future<TerminalPtyLibraryBase> createTerminalSession(
+  Future<TerminalSession> createTerminalSession(
     SshHost host, {
     required TerminalSessionOptions options,
   }) async {
     final columns = options.columns > 0 ? options.columns : 80;
     final rows = options.rows > 0 ? options.rows : 25;
-    return TerminalPtyLibrary(
+    return LocalPtySession(
       executable: 'ssh',
       arguments: _buildSshArgumentsForTerminal(host),
-      columns: columns,
+      cols: columns,
       rows: rows,
     );
   }
