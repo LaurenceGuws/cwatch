@@ -1,4 +1,5 @@
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:terminal_library/xterm_library/core/core/mouse/button.dart';
 import 'package:terminal_library/xterm_library/core/core/mouse/button_state.dart';
@@ -77,6 +78,7 @@ class _TerminalLibraryFlutterGestureHandlerState
 
   CellOffset? _dragStartCell;
   LongPressStartDetails? _lastLongPressStartDetails;
+  CellOffset? _lastAnchorCell;
 
   @override
   Widget build(BuildContext context) {
@@ -145,6 +147,20 @@ class _TerminalLibraryFlutterGestureHandlerState
   }
 
   void onTapDown(TapDownDetails details) {
+    final cell = renderTerminalLibraryFlutter.getCellOffset(
+      details.localPosition,
+    );
+    final shiftPressed = HardwareKeyboard.instance.logicalKeysPressed
+        .any((key) => key == LogicalKeyboardKey.shiftLeft || key == LogicalKeyboardKey.shiftRight);
+
+    if (shiftPressed && _lastAnchorCell != null) {
+      renderTerminalLibraryFlutter.selectCharactersFromCells(
+        _lastAnchorCell!,
+        cell,
+      );
+      return;
+    }
+
     // onTapDown is special, as it will always call the supplied callback.
     // The TerminalLibraryFlutterViewWidget depends on it to bring the terminal into focus.
     _tapDown(
@@ -153,6 +169,7 @@ class _TerminalLibraryFlutterGestureHandlerState
       TerminalLibraryFlutterMouseButton.left,
       forceCallback: true,
     );
+    _lastAnchorCell = cell;
   }
 
   void onSingleTapUp(TapUpDetails details) {
@@ -202,6 +219,7 @@ class _TerminalLibraryFlutterGestureHandlerState
     _dragStartCell = renderTerminalLibraryFlutter.getCellOffset(
       details.localPosition,
     );
+    _lastAnchorCell = _dragStartCell;
 
     details.kind == PointerDeviceKind.mouse
         ? renderTerminalLibraryFlutter
