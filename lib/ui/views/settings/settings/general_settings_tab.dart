@@ -17,17 +17,27 @@ class GeneralSettingsTab extends StatelessWidget {
     required this.terminalFontFamily,
     required this.terminalFontSize,
     required this.terminalLineHeight,
+    required this.terminalThemeDark,
+    required this.terminalThemeLight,
     required this.onTerminalFontFamilyChanged,
     required this.onTerminalFontSizeChanged,
     required this.onTerminalLineHeightChanged,
+    required this.onTerminalThemeDarkChanged,
+    required this.onTerminalThemeLightChanged,
     required this.editorFontFamily,
     required this.editorFontSize,
     required this.editorLineHeight,
     required this.onEditorFontFamilyChanged,
     required this.onEditorFontSizeChanged,
     required this.onEditorLineHeightChanged,
+    required this.editorThemeLight,
+    required this.editorThemeDark,
+    required this.onEditorThemeLightChanged,
+    required this.onEditorThemeDarkChanged,
     required this.appFontFamily,
     required this.onAppFontFamilyChanged,
+    required this.appThemeKey,
+    required this.onAppThemeChanged,
   });
 
   final ThemeMode selectedTheme;
@@ -36,20 +46,30 @@ class GeneralSettingsTab extends StatelessWidget {
   final String? terminalFontFamily;
   final double terminalFontSize;
   final double terminalLineHeight;
+  final String terminalThemeDark;
+  final String terminalThemeLight;
   final ValueChanged<ThemeMode> onThemeChanged;
   final ValueChanged<bool> onDebugModeChanged;
   final ValueChanged<double> onZoomChanged;
   final ValueChanged<String> onTerminalFontFamilyChanged;
   final ValueChanged<double> onTerminalFontSizeChanged;
   final ValueChanged<double> onTerminalLineHeightChanged;
+  final ValueChanged<String> onTerminalThemeDarkChanged;
+  final ValueChanged<String> onTerminalThemeLightChanged;
   final String? editorFontFamily;
   final double editorFontSize;
   final double editorLineHeight;
   final ValueChanged<String> onEditorFontFamilyChanged;
   final ValueChanged<double> onEditorFontSizeChanged;
   final ValueChanged<double> onEditorLineHeightChanged;
+  final String? editorThemeLight;
+  final String? editorThemeDark;
+  final ValueChanged<String> onEditorThemeLightChanged;
+  final ValueChanged<String> onEditorThemeDarkChanged;
   final String? appFontFamily;
   final ValueChanged<String> onAppFontFamilyChanged;
+  final String appThemeKey;
+  final ValueChanged<String> onAppThemeChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +95,10 @@ class GeneralSettingsTab extends StatelessWidget {
                     value: ThemeMode.system,
                     child: Text('System Default'),
                   ),
-                  DropdownMenuItem(value: ThemeMode.light, child: Text('Light')),
+                  DropdownMenuItem(
+                    value: ThemeMode.light,
+                    child: Text('Light'),
+                  ),
                   DropdownMenuItem(value: ThemeMode.dark, child: Text('Dark')),
                 ],
               ),
@@ -87,6 +110,25 @@ class GeneralSettingsTab extends StatelessWidget {
                   hintText: 'JetBrainsMono Nerd Font',
                 ),
                 onChanged: onAppFontFamilyChanged,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: appThemeKey,
+                decoration: const InputDecoration(labelText: 'App accent'),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'blue-grey',
+                    child: Text('Blue Grey'),
+                  ),
+                  DropdownMenuItem(value: 'teal', child: Text('Teal')),
+                  DropdownMenuItem(value: 'amber', child: Text('Amber')),
+                  DropdownMenuItem(value: 'indigo', child: Text('Indigo')),
+                  DropdownMenuItem(value: 'purple', child: Text('Purple')),
+                  DropdownMenuItem(value: 'green', child: Text('Green')),
+                ],
+                onChanged: (value) {
+                  if (value != null) onAppThemeChanged(value);
+                },
               ),
             ],
           ),
@@ -136,9 +178,13 @@ class GeneralSettingsTab extends StatelessWidget {
           fontFamily: terminalFontFamily,
           fontSize: terminalFontSize,
           lineHeight: terminalLineHeight,
+          darkTheme: terminalThemeDark,
+          lightTheme: terminalThemeLight,
           onFontFamilyChanged: onTerminalFontFamilyChanged,
           onFontSizeChanged: onTerminalFontSizeChanged,
           onLineHeightChanged: onTerminalLineHeightChanged,
+          onDarkThemeChanged: onTerminalThemeDarkChanged,
+          onLightThemeChanged: onTerminalThemeLightChanged,
         ),
         EditorSettingsSection(
           fontFamily: editorFontFamily,
@@ -147,6 +193,10 @@ class GeneralSettingsTab extends StatelessWidget {
           onFontFamilyChanged: onEditorFontFamilyChanged,
           onFontSizeChanged: onEditorFontSizeChanged,
           onLineHeightChanged: onEditorLineHeightChanged,
+          lightTheme: editorThemeLight,
+          darkTheme: editorThemeDark,
+          onLightThemeChanged: onEditorThemeLightChanged,
+          onDarkThemeChanged: onEditorThemeDarkChanged,
         ),
       ],
     );

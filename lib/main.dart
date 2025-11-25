@@ -51,12 +51,13 @@ class _CwatchAppState extends State<CwatchApp> {
         final settings = _settingsController.settings;
         final appFontFamily =
             NerdFonts.effectiveFamily(settings.appFontFamily);
+        final seed = _seedForKey(settings.appThemeKey);
         final lightScheme = ColorScheme.fromSeed(
-          seedColor: Colors.blueGrey,
+          seedColor: seed,
           brightness: Brightness.light,
         );
         final darkScheme = ColorScheme.fromSeed(
-          seedColor: Colors.blueGrey,
+          seedColor: seed,
           brightness: Brightness.dark,
         );
         final lightTokens = AppThemeTokens.light(
@@ -151,6 +152,24 @@ class _CwatchAppState extends State<CwatchApp> {
       ),
       extensions: [tokens],
     );
+  }
+
+  Color _seedForKey(String key) {
+    switch (key) {
+      case 'teal':
+        return Colors.teal;
+      case 'amber':
+        return Colors.amber;
+      case 'indigo':
+        return Colors.indigo;
+      case 'purple':
+        return Colors.deepPurple;
+      case 'green':
+        return Colors.green;
+      case 'blue-grey':
+      default:
+        return Colors.blueGrey;
+    }
   }
 }
 

@@ -11,6 +11,7 @@ import '../../../../services/ssh/remote_shell_service.dart';
 import '../../../../services/settings/app_settings_controller.dart';
 import '../../../theme/app_theme.dart';
 import '../../../theme/nerd_fonts.dart';
+import '../../shared/tabs/terminal_theme_presets.dart';
 
 /// Lightweight terminal view that runs a provided Docker command locally or via SSH.
 class DockerCommandTerminal extends StatefulWidget {
@@ -332,6 +333,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
                 autofocus: widget.autofocus,
                 alwaysShowCursor: true,
                 textStyle: _textStyle(settings),
+                theme: _terminalTheme(context, settings),
               ),
             ),
           ),
@@ -390,6 +392,14 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
       fontSize: fontSize,
       height: lineHeight,
     );
+  }
+
+  TerminalTheme _terminalTheme(BuildContext context, AppSettings? settings) {
+    final brightness = Theme.of(context).colorScheme.brightness;
+    final key = brightness == Brightness.dark
+        ? settings?.terminalThemeDark ?? 'dracula'
+        : settings?.terminalThemeLight ?? 'solarized-light';
+    return terminalThemeForKey(key);
   }
 
   String _safeSelectionText(BufferRange selection) {

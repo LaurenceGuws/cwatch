@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:flutter_highlight/themes/a11y-dark.dart';
 import 'package:flutter_highlight/themes/a11y-light.dart';
@@ -98,6 +97,7 @@ import '../../../../models/ssh_host.dart';
 import '../../../../services/settings/app_settings_controller.dart';
 import '../../../../services/ssh/remote_shell_service.dart';
 import '../../../theme/nerd_fonts.dart';
+import '../../../widgets/style_picker_dialog.dart';
 
 class RemoteFileEditorTab extends StatefulWidget {
   const RemoteFileEditorTab({
@@ -357,180 +357,36 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
     }
   }
 
-  void _showThemeDialog(BuildContext context) {
+  Future<void> _showThemeDialog(BuildContext context) async {
     final themes = _getAllThemes();
     final brightness = Theme.of(context).colorScheme.brightness;
+    final defaultTheme = brightness == Brightness.dark ? 'dracula' : 'color-brewer';
     final savedTheme = _getSavedThemeForBrightness(brightness);
-    final currentTheme =
-        savedTheme ??
-        (brightness == Brightness.dark ? 'dracula' : 'color-brewer');
+    final initialKey = savedTheme ?? defaultTheme;
+    final options = themes.entries
+        .map((e) => StyleOption(key: e.key, label: e.value))
+        .toList();
 
-    String? previewTheme = currentTheme;
-    String? originalTheme = savedTheme;
-    final themeList = themes.entries.toList();
-    int selectedIndex = themeList.indexWhere((e) => e.key == currentTheme);
-    if (selectedIndex == -1) selectedIndex = 0;
-
-    final scrollController = ScrollController();
-    final focusNode = FocusNode();
-
-    void selectTheme(int index) {
-      if (index >= 0 && index < themeList.length) {
-        final themeKey = themeList[index].key;
-        previewTheme = themeKey;
-        // Update the editor theme in real-time
-        _saveThemeForBrightness(brightness, themeKey);
-        setState(() {});
-      }
-    }
-
-    showDialog(
+    final chosen = await showStylePickerDialog(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          // Scroll to selected item when dialog opens
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (scrollController.hasClients && selectedIndex >= 0) {
-              final itemHeight = 56.0; // Approximate height of ListTile
-              final scrollOffset = selectedIndex * itemHeight;
-              scrollController.animateTo(
-                scrollOffset.clamp(
-                  0.0,
-                  scrollController.position.maxScrollExtent,
-                ),
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOut,
-              );
-            }
-          });
+      title: 'Select editor theme',
+      options: options,
+      selectedKey: initialKey,
+      onPreview: (key) {
+        _saveThemeForBrightness(brightness, key);
+        setState(() {});
+      },
+    );
 
-          return KeyboardListener(
-            focusNode: focusNode,
-            autofocus: true,
-            onKeyEvent: (event) {
-              if (event is KeyDownEvent) {
-                final keyLabel = event.logicalKey.keyLabel;
-                if (keyLabel == 'Arrow Down') {
-                  setDialogState(() {
-                    selectedIndex = (selectedIndex + 1).clamp(
-                      0,
-                      themeList.length - 1,
-                    );
-                    selectTheme(selectedIndex);
-                    // Scroll to keep selected item visible
-                    if (scrollController.hasClients) {
-                      final itemHeight = 56.0;
-                      final scrollOffset = selectedIndex * itemHeight;
-                      scrollController.animateTo(
-                        scrollOffset.clamp(
-                          0.0,
-                          scrollController.position.maxScrollExtent,
-                        ),
-                        duration: const Duration(milliseconds: 100),
-                        curve: Curves.easeOut,
-                      );
-                    }
-                  });
-                } else if (keyLabel == 'Arrow Up') {
-                  setDialogState(() {
-                    selectedIndex = (selectedIndex - 1).clamp(
-                      0,
-                      themeList.length - 1,
-                    );
-                    selectTheme(selectedIndex);
-                    // Scroll to keep selected item visible
-                    if (scrollController.hasClients) {
-                      final itemHeight = 56.0;
-                      final scrollOffset = selectedIndex * itemHeight;
-                      scrollController.animateTo(
-                        scrollOffset.clamp(
-                          0.0,
-                          scrollController.position.maxScrollExtent,
-                        ),
-                        duration: const Duration(milliseconds: 100),
-                        curve: Curves.easeOut,
-                      );
-                    }
-                  });
-                } else if (keyLabel == 'Enter') {
-                  // Selection is already applied, just close
-                  Navigator.of(dialogContext).pop();
-                }
-              }
-            },
-            child: AlertDialog(
-              title: const Text('Select Theme'),
-              content: SizedBox(
-                width: 400,
-                height: 500,
-                child: ListView.builder(
-                  controller: scrollController,
-                  itemCount: themeList.length,
-                  itemBuilder: (context, index) {
-                    final entry = themeList[index];
-                    final themeKey = entry.key;
-                    final themeName = entry.value;
-                    final isSelected = themeKey == previewTheme;
-                    final isFocused = index == selectedIndex;
-
-                    return ListTile(
-                      selected: isSelected || isFocused,
-                      leading: isSelected
-                          ? Icon(
-                              Icons.check,
-                              color: Theme.of(context).colorScheme.primary,
-                            )
-                          : const SizedBox(width: 24),
-                      title: Text(themeName),
-                      onTap: () {
-                        setDialogState(() {
-                          selectedIndex = index;
-                          previewTheme = themeKey;
-                        });
-                        // Update the editor theme in real-time
-                        _saveThemeForBrightness(brightness, themeKey);
-                        setState(() {});
-                      },
-                    );
-                  },
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    // Revert to original theme
-                    if (originalTheme != null) {
-                      _saveThemeForBrightness(brightness, originalTheme);
-                    } else {
-                      // Clear saved theme to use default
-                      _saveThemeForBrightness(
-                        brightness,
-                        brightness == Brightness.dark
-                            ? 'dracula'
-                            : 'color-brewer',
-                      );
-                    }
-                    setState(() {});
-                    Navigator.of(dialogContext).pop();
-                  },
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  onPressed: () {
-                    // Selection is already applied in real-time, just close
-                    Navigator.of(dialogContext).pop();
-                  },
-                  child: const Text('Select'),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    ).then((_) {
-      scrollController.dispose();
-      focusNode.dispose();
-    });
+    // If dialog cancelled, restore the saved choice or default.
+    if (chosen == null) {
+      _saveThemeForBrightness(brightness, savedTheme ?? defaultTheme);
+    } else {
+      _saveThemeForBrightness(brightness, chosen);
+    }
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _showFileInfo(BuildContext context) {

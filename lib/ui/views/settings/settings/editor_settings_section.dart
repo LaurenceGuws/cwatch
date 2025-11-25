@@ -11,6 +11,10 @@ class EditorSettingsSection extends StatefulWidget {
     required this.onFontFamilyChanged,
     required this.onFontSizeChanged,
     required this.onLineHeightChanged,
+    required this.lightTheme,
+    required this.darkTheme,
+    required this.onLightThemeChanged,
+    required this.onDarkThemeChanged,
   });
 
   final String? fontFamily;
@@ -19,6 +23,10 @@ class EditorSettingsSection extends StatefulWidget {
   final ValueChanged<String> onFontFamilyChanged;
   final ValueChanged<double> onFontSizeChanged;
   final ValueChanged<double> onLineHeightChanged;
+  final String? lightTheme;
+  final String? darkTheme;
+  final ValueChanged<String> onLightThemeChanged;
+  final ValueChanged<String> onDarkThemeChanged;
 
   @override
   State<EditorSettingsSection> createState() => _EditorSettingsSectionState();
@@ -89,11 +97,117 @@ class _EditorSettingsSectionState extends State<EditorSettingsSection> {
               onChanged: widget.onLineHeightChanged,
             ),
           ),
+          const SizedBox(height: 12),
+          _ThemePickerRow(
+            label: 'Light theme',
+            value: widget.lightTheme ?? 'atom-one-light',
+            onChanged: widget.onLightThemeChanged,
+          ),
+          const SizedBox(height: 8),
+          _ThemePickerRow(
+            label: 'Dark theme',
+            value: widget.darkTheme ?? 'atom-one-dark',
+            onChanged: widget.onDarkThemeChanged,
+          ),
         ],
       ),
     );
   }
 }
+
+// Shared list of style themes for app, terminal, and editor.
+const Map<String, String> kStyleThemes = {
+  'a11y-dark': 'A11y Dark',
+  'a11y-light': 'A11y Light',
+  'agate': 'Agate',
+  'an-old-hope': 'An Old Hope',
+  'androidstudio': 'Android Studio',
+  'arduino-light': 'Arduino Light',
+  'arta': 'Arta',
+  'ascetic': 'Ascetic',
+  'atelier-cave-dark': 'Atelier Cave Dark',
+  'atelier-cave-light': 'Atelier Cave Light',
+  'atelier-dune-dark': 'Atelier Dune Dark',
+  'atelier-dune-light': 'Atelier Dune Light',
+  'atelier-estuary-dark': 'Atelier Estuary Dark',
+  'atelier-estuary-light': 'Atelier Estuary Light',
+  'atelier-forest-dark': 'Atelier Forest Dark',
+  'atelier-forest-light': 'Atelier Forest Light',
+  'atelier-heath-dark': 'Atelier Heath Dark',
+  'atelier-heath-light': 'Atelier Heath Light',
+  'atelier-lakeside-dark': 'Atelier Lakeside Dark',
+  'atelier-lakeside-light': 'Atelier Lakeside Light',
+  'atelier-plateau-dark': 'Atelier Plateau Dark',
+  'atelier-plateau-light': 'Atelier Plateau Light',
+  'atelier-savanna-dark': 'Atelier Savanna Dark',
+  'atelier-savanna-light': 'Atelier Savanna Light',
+  'atelier-seaside-dark': 'Atelier Seaside Dark',
+  'atelier-seaside-light': 'Atelier Seaside Light',
+  'atelier-sulphurpool-dark': 'Atelier Sulphurpool Dark',
+  'atelier-sulphurpool-light': 'Atelier Sulphurpool Light',
+  'atom-one-dark': 'Atom One Dark',
+  'atom-one-dark-reasonable': 'Atom One Dark Reasonable',
+  'atom-one-light': 'Atom One Light',
+  'brown-paper': 'Brown Paper',
+  'codepen-embed': 'CodePen Embed',
+  'color-brewer': 'Color Brewer',
+  'darcula': 'Darcula',
+  'dark': 'Dark',
+  'default': 'Default',
+  'docco': 'Docco',
+  'dracula': 'Dracula',
+  'far': 'Far',
+  'foundation': 'Foundation',
+  'github': 'GitHub',
+  'github-gist': 'GitHub Gist',
+  'gml': 'GML',
+  'googlecode': 'Google Code',
+  'gradient-dark': 'Gradient Dark',
+  'grayscale': 'Grayscale',
+  'gruvbox-dark': 'Gruvbox Dark',
+  'gruvbox-light': 'Gruvbox Light',
+  'hopscotch': 'Hopscotch',
+  'hybrid': 'Hybrid',
+  'idea': 'IDEA',
+  'ir-black': 'IR Black',
+  'isbl-editor-dark': 'ISBL Editor Dark',
+  'isbl-editor-light': 'ISBL Editor Light',
+  'kimbie.dark': 'Kimbie Dark',
+  'kimbie.light': 'Kimbie Light',
+  'lightfair': 'Lightfair',
+  'magula': 'Magula',
+  'mono-blue': 'Mono Blue',
+  'monokai': 'Monokai',
+  'monokai-sublime': 'Monokai Sublime',
+  'night-owl': 'Night Owl',
+  'nord': 'Nord',
+  'obsidian': 'Obsidian',
+  'ocean': 'Ocean',
+  'paraiso-dark': 'Paraiso Dark',
+  'paraiso-light': 'Paraiso Light',
+  'pojoaque': 'Pojoaque',
+  'purebasic': 'PureBasic',
+  'qtcreator_dark': 'Qt Creator Dark',
+  'qtcreator_light': 'Qt Creator Light',
+  'railscasts': 'RailsCasts',
+  'rainbow': 'Rainbow',
+  'routeros': 'RouterOS',
+  'school-book': 'School Book',
+  'shades-of-purple': 'Shades of Purple',
+  'solarized-dark': 'Solarized Dark',
+  'solarized-light': 'Solarized Light',
+  'sunburst': 'Sunburst',
+  'tomorrow': 'Tomorrow',
+  'tomorrow-night': 'Tomorrow Night',
+  'tomorrow-night-blue': 'Tomorrow Night Blue',
+  'tomorrow-night-bright': 'Tomorrow Night Bright',
+  'tomorrow-night-eighties': 'Tomorrow Night Eighties',
+  'vs': 'VS',
+  'vs2015': 'VS 2015',
+  'xcode': 'Xcode',
+  'xt256': 'XT256',
+  'zenburn': 'Zenburn',
+};
 
 class _SliderRow extends StatelessWidget {
   const _SliderRow({
@@ -120,6 +234,71 @@ class _SliderRow extends StatelessWidget {
         ),
         child,
       ],
+    );
+  }
+}
+
+class _ThemePickerRow extends StatefulWidget {
+  const _ThemePickerRow({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  static const Map<String, String> _themeOptions = kStyleThemes;
+
+  @override
+  State<_ThemePickerRow> createState() => _ThemePickerRowState();
+}
+
+class _ThemePickerRowState extends State<_ThemePickerRow> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.value);
+  }
+
+  @override
+  void didUpdateWidget(covariant _ThemePickerRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value && _controller.text != widget.value) {
+      _controller.text = widget.value;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = _ThemePickerRow._themeOptions.entries.toList()
+      ..sort((a, b) => a.value.compareTo(b.value));
+    if (!items.any((e) => e.key == widget.value)) {
+      items.add(MapEntry(widget.value, widget.value));
+    }
+    return DropdownButtonFormField<String>(
+      initialValue: widget.value,
+      decoration: InputDecoration(labelText: widget.label),
+      items: items
+          .map(
+            (entry) =>
+                DropdownMenuItem(value: entry.key, child: Text(entry.value)),
+          )
+          .toList(),
+      onChanged: (value) {
+        if (value == null) return;
+        _controller.text = value;
+        widget.onChanged(value);
+      },
     );
   }
 }

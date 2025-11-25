@@ -118,9 +118,18 @@ class _SettingsViewState extends State<SettingsView>
                                       : value.trim(),
                                 ),
                               ),
+                          appThemeKey: settings.appThemeKey,
+                          onAppThemeChanged: (value) =>
+                              widget.controller.update(
+                                (current) => current.copyWith(
+                                  appThemeKey: value,
+                                ),
+                              ),
                           terminalFontFamily: settings.terminalFontFamily,
                           terminalFontSize: settings.terminalFontSize,
                           terminalLineHeight: settings.terminalLineHeight,
+                          terminalThemeDark: settings.terminalThemeDark,
+                          terminalThemeLight: settings.terminalThemeLight,
                           onTerminalFontFamilyChanged: (value) =>
                               widget.controller.update(
                                 (current) => current.copyWith(
@@ -139,6 +148,32 @@ class _SettingsViewState extends State<SettingsView>
                               widget.controller.update(
                                 (current) => current.copyWith(
                                   terminalLineHeight: value,
+                                ),
+                              ),
+                          onTerminalThemeDarkChanged: (value) =>
+                              widget.controller.update(
+                                (current) => current.copyWith(
+                                  terminalThemeDark: value,
+                                ),
+                              ),
+                          onTerminalThemeLightChanged: (value) =>
+                              widget.controller.update(
+                                (current) => current.copyWith(
+                                  terminalThemeLight: value,
+                                ),
+                              ),
+                          editorThemeLight: settings.editorThemeLight,
+                          editorThemeDark: settings.editorThemeDark,
+                          onEditorThemeLightChanged: (value) =>
+                              widget.controller.update(
+                                (current) => current.copyWith(
+                                  editorThemeLight: value,
+                                ),
+                              ),
+                          onEditorThemeDarkChanged: (value) =>
+                              widget.controller.update(
+                                (current) => current.copyWith(
+                                  editorThemeDark: value,
                                 ),
                               ),
                           editorFontFamily: settings.editorFontFamily,

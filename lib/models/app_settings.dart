@@ -16,6 +16,7 @@ class AppSettings {
     this.shellDestination,
     this.shellSidebarCollapsed = false,
     this.appFontFamily,
+    this.appThemeKey = 'blue-grey',
     this.sshClientBackend = SshClientBackend.platform,
     this.builtinSshHostKeyBindings = const {},
     this.customSshHosts = const [],
@@ -34,6 +35,8 @@ class AppSettings {
     this.terminalFontFamily,
     this.terminalFontSize = 14,
     this.terminalLineHeight = 1.15,
+    this.terminalThemeDark = 'dracula',
+    this.terminalThemeLight = 'solarized-light',
   });
 
   final ThemeMode themeMode;
@@ -45,6 +48,7 @@ class AppSettings {
   final String? shellDestination;
   final bool shellSidebarCollapsed;
   final String? appFontFamily;
+  final String appThemeKey;
   final SshClientBackend sshClientBackend;
   final Map<String, String> builtinSshHostKeyBindings;
   final List<CustomSshHost> customSshHosts;
@@ -63,6 +67,8 @@ class AppSettings {
   final String? terminalFontFamily;
   final double terminalFontSize;
   final double terminalLineHeight;
+  final String terminalThemeDark;
+  final String terminalThemeLight;
 
   AppSettings copyWith({
     ThemeMode? themeMode,
@@ -74,6 +80,7 @@ class AppSettings {
     String? shellDestination,
     bool? shellSidebarCollapsed,
     String? appFontFamily,
+    String? appThemeKey,
     SshClientBackend? sshClientBackend,
     Map<String, String>? builtinSshHostKeyBindings,
     List<CustomSshHost>? customSshHosts,
@@ -92,6 +99,8 @@ class AppSettings {
     String? terminalFontFamily,
     double? terminalFontSize,
     double? terminalLineHeight,
+    String? terminalThemeDark,
+    String? terminalThemeLight,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -104,6 +113,7 @@ class AppSettings {
       shellSidebarCollapsed:
           shellSidebarCollapsed ?? this.shellSidebarCollapsed,
       appFontFamily: appFontFamily ?? this.appFontFamily,
+      appThemeKey: appThemeKey ?? this.appThemeKey,
       sshClientBackend: sshClientBackend ?? this.sshClientBackend,
       builtinSshHostKeyBindings:
           builtinSshHostKeyBindings ?? this.builtinSshHostKeyBindings,
@@ -125,6 +135,8 @@ class AppSettings {
       terminalFontFamily: terminalFontFamily ?? this.terminalFontFamily,
       terminalFontSize: terminalFontSize ?? this.terminalFontSize,
       terminalLineHeight: terminalLineHeight ?? this.terminalLineHeight,
+      terminalThemeDark: terminalThemeDark ?? this.terminalThemeDark,
+      terminalThemeLight: terminalThemeLight ?? this.terminalThemeLight,
     );
   }
 
@@ -165,6 +177,7 @@ class AppSettings {
       shellDestination: json['shellDestination'] as String?,
       shellSidebarCollapsed: json['shellSidebarCollapsed'] as bool? ?? false,
       appFontFamily: json['appFontFamily'] as String?,
+      appThemeKey: json['appThemeKey'] as String? ?? 'blue-grey',
       sshClientBackend: SshClientBackendParsing.fromJson(
         json['sshClientBackend'] as String?,
       ),
@@ -220,6 +233,9 @@ class AppSettings {
       terminalFontSize: (json['terminalFontSize'] as num?)?.toDouble() ?? 14,
       terminalLineHeight:
           (json['terminalLineHeight'] as num?)?.toDouble() ?? 1.15,
+      terminalThemeDark: json['terminalThemeDark'] as String? ?? 'dracula',
+      terminalThemeLight:
+          json['terminalThemeLight'] as String? ?? 'solarized-light',
     );
   }
 
@@ -234,6 +250,7 @@ class AppSettings {
       'shellDestination': shellDestination,
       'shellSidebarCollapsed': shellSidebarCollapsed,
       if (appFontFamily != null) 'appFontFamily': appFontFamily,
+      'appThemeKey': appThemeKey,
       'sshClientBackend': sshClientBackend.name,
       'builtinSshHostKeyBindings': builtinSshHostKeyBindings,
       'customSshHosts': customSshHosts.map((h) => h.toJson()).toList(),
@@ -253,6 +270,8 @@ class AppSettings {
       if (terminalFontFamily != null) 'terminalFontFamily': terminalFontFamily,
       'terminalFontSize': terminalFontSize,
       'terminalLineHeight': terminalLineHeight,
+      'terminalThemeDark': terminalThemeDark,
+      'terminalThemeLight': terminalThemeLight,
     };
   }
 }

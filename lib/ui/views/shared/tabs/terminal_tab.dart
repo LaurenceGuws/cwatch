@@ -11,6 +11,7 @@ import '../../../../services/ssh/remote_shell_service.dart';
 import '../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
 import '../../../../services/settings/app_settings_controller.dart';
 import '../../../theme/nerd_fonts.dart';
+import 'terminal_theme_presets.dart';
 
 /// Terminal tab that spawns an SSH session via a PTY.
 class TerminalTab extends StatefulWidget {
@@ -248,6 +249,7 @@ class _TerminalTabState extends State<TerminalTab> {
                     defaultTargetPlatform == TargetPlatform.android ||
                     defaultTargetPlatform == TargetPlatform.iOS,
                 textStyle: _textStyle(settings),
+                theme: _terminalTheme(context, settings),
               ),
             ),
           ],
@@ -262,5 +264,13 @@ class _TerminalTabState extends State<TerminalTab> {
       fontSize: settings.terminalFontSize.clamp(8, 32),
       height: settings.terminalLineHeight.clamp(0.8, 2.0),
     );
+  }
+
+  TerminalTheme _terminalTheme(BuildContext context, AppSettings settings) {
+    final brightness = Theme.of(context).colorScheme.brightness;
+    final key = brightness == Brightness.dark
+        ? settings.terminalThemeDark
+        : settings.terminalThemeLight;
+    return terminalThemeForKey(key);
   }
 }
