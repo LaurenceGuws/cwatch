@@ -245,19 +245,58 @@ class _ContainerPeekState extends State<ContainerPeek> {
                       : context.appTheme.docker.stopped),
             ),
             busy: widget.busyIds.contains(container.id),
-            trailing: widget.actionLabels[container.id] != null
-                ? Text(
-                    widget.actionLabels[container.id]!,
-                    style: Theme.of(context).textTheme.labelSmall,
-                  )
-                : null,
+            trailing: () {
+              final actionLabel = widget.actionLabels[container.id];
+              final actionButton = widget.onTapDown == null
+                  ? null
+                  : IconButton(
+                      splashRadius: 16,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                      icon: Icon(Icons.more_vert, size: 20),
+                      tooltip: 'Actions',
+                      onPressed: () => widget.onTapDown!(
+                        container,
+                        TapDownDetails(kind: PointerDeviceKind.touch),
+                        secondary: true,
+                        flatIndex: flatIndex,
+                      ),
+                    );
+              if (actionButton == null && actionLabel == null) {
+                return null;
+              }
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (actionLabel != null) ...[
+                    Text(
+                      actionLabel,
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                    if (actionButton != null) const SizedBox(width: 4),
+                  ],
+                  if (actionButton != null) actionButton,
+                ],
+              );
+            }(),
             onTap: widget.onTap == null ? null : () => widget.onTap!(container),
             onLongPress: widget.onTapDown == null
                 ? null
                 : () => widget.onTapDown!(
                       container,
-                      TapDownDetails(kind: PointerDeviceKind.mouse),
-                      secondary: false,
+                      TapDownDetails(kind: PointerDeviceKind.touch),
+                      secondary: true,
+                      flatIndex: flatIndex,
+                    ),
+            onDoubleTap: widget.onTapDown == null
+                ? null
+                : () => widget.onTapDown!(
+                      container,
+                      TapDownDetails(kind: PointerDeviceKind.touch),
+                      secondary: true,
                       flatIndex: flatIndex,
                     ),
             onSecondaryTapDown: widget.onTapDown == null
@@ -540,6 +579,23 @@ class ImagePeek extends StatelessWidget {
                       TapDownDetails(kind: PointerDeviceKind.mouse),
                       secondary: false,
                     ),
+            trailing: onTapDown == null
+                ? null
+                : IconButton(
+                    splashRadius: 16,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                    icon: Icon(Icons.more_vert, size: 20),
+                    tooltip: 'Actions',
+                    onPressed: () => onTapDown!(
+                      image,
+                      TapDownDetails(kind: PointerDeviceKind.touch),
+                      secondary: true,
+                    ),
+                  ),
           );
         }).toList();
 
@@ -633,6 +689,23 @@ class ImageList extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        if (onTapDown != null) ...[
+                          IconButton(
+                            splashRadius: 16,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 32,
+                              minHeight: 32,
+                            ),
+                            icon: Icon(Icons.more_vert, size: 20),
+                            tooltip: 'Actions',
+                            onPressed: () => onTapDown!(
+                              image,
+                              TapDownDetails(kind: PointerDeviceKind.touch),
+                              secondary: true,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                     Text('Size: ${image.size}',
@@ -699,6 +772,23 @@ class NetworkList extends StatelessWidget {
                       TapDownDetails(kind: PointerDeviceKind.mouse),
                       secondary: false,
                     ),
+            trailing: onTapDown == null
+                ? null
+                : IconButton(
+                    splashRadius: 16,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                    icon: Icon(Icons.more_vert, size: 20),
+                    tooltip: 'Actions',
+                    onPressed: () => onTapDown!(
+                      network,
+                      TapDownDetails(kind: PointerDeviceKind.touch),
+                      secondary: true,
+                    ),
+                  ),
           );
         }).toList();
         return Padding(
@@ -781,6 +871,23 @@ class VolumeList extends StatelessWidget {
                       TapDownDetails(kind: PointerDeviceKind.mouse),
                       secondary: false,
                     ),
+            trailing: onTapDown == null
+                ? null
+                : IconButton(
+                    splashRadius: 16,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                    icon: Icon(Icons.more_vert, size: 20),
+                    tooltip: 'Actions',
+                    onPressed: () => onTapDown!(
+                      volume,
+                      TapDownDetails(kind: PointerDeviceKind.touch),
+                      secondary: true,
+                    ),
+                  ),
           );
         }).toList();
 

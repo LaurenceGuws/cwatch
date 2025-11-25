@@ -588,7 +588,7 @@ class _DockerViewState extends State<DockerView> {
   ) {
     final icons = context.appTheme.icons;
     final hostName = explorerContext.host.name;
-    final tabId = 'trash-${hostName}-${DateTime.now().microsecondsSinceEpoch}';
+    final tabId = 'trash-$hostName-${DateTime.now().microsecondsSinceEpoch}';
     final tab = EngineTab(
       id: tabId,
       title: 'Trash • $hostName',
