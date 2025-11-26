@@ -184,13 +184,13 @@ class _ServersListState extends State<ServersList> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: SizedBox(
-                    height: 48,
+                    height: 36,
                     child: Center(child: widget.leading),
                   ),
                 ),
               Expanded(
                 child: SizedBox(
-                  height: 48,
+                  height: 36,
                   child: ReorderableListView.builder(
                     scrollDirection: Axis.horizontal,
                     padding: appTheme.spacing.inset(horizontal: 1, vertical: 0),

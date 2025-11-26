@@ -540,7 +540,7 @@ class _DockerOverviewState extends State<DockerOverview> {
     final extraActions = <PopupMenuEntry<String>>[
       _menuItem('logs', 'Tail logs (last 200)', Icons.list_alt_outlined),
       _menuItem('shell', 'Open shell tab', NerdIcon.terminal.data),
-      _menuItem('copyExec', 'Copy exec shell command', _icons.copy),
+      _menuItem('copyExec', 'Copy exec command', _icons.copy),
       _menuItem('explore', 'Open explorer', _icons.folderOpen),
       _menuItem('start', 'Start', Icons.play_arrow_rounded),
       _menuItem('stop', 'Stop', Icons.stop_rounded),

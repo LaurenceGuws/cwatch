@@ -142,18 +142,7 @@ class _DockerViewState extends State<DockerView> {
           setState(() => _selectedIndex = index);
           _persistWorkspace();
         },
-        onClose: (index) {
-          setState(() {
-            _tabStates.remove(_tabs[index].id);
-            _tabs.removeAt(index);
-            if (_selectedIndex >= _tabs.length) {
-              _selectedIndex = _tabs.length - 1;
-            } else if (_selectedIndex > index) {
-              _selectedIndex -= 1;
-            }
-          });
-          _persistWorkspace();
-        },
+        onClose: _closeTab,
         onReorder: (oldIndex, newIndex) {
           if (oldIndex == 0 || newIndex == 0) return;
           setState(() {
@@ -183,6 +172,31 @@ class _DockerViewState extends State<DockerView> {
       _tabs.add(picker);
       _registerTabState(picker.workspaceState as DockerTabState);
       _selectedIndex = _tabs.length - 1;
+    });
+    _persistWorkspace();
+  }
+
+  void _closeTab(int index) {
+    setState(() {
+      if (index < 0 || index >= _tabs.length) {
+        return;
+      }
+      if (_tabs.length == 1) {
+        final picker = _enginePickerTab(id: _tabs[index].id);
+        _tabs[index] = picker;
+        _selectedIndex = 0;
+        return;
+      }
+      final removedId = _tabs[index].id;
+      _tabStates.remove(removedId);
+      _tabs.removeAt(index);
+      if (_tabs.isEmpty) {
+        _selectedIndex = 0;
+      } else if (_selectedIndex >= _tabs.length) {
+        _selectedIndex = _tabs.length - 1;
+      } else if (_selectedIndex > index) {
+        _selectedIndex -= 1;
+      }
     });
     _persistWorkspace();
   }

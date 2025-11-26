@@ -5,8 +5,9 @@ import '../../theme/app_theme.dart';
 import '../../theme/nerd_fonts.dart';
 import 'tabs/tab_chip.dart';
 import 'engine_tab.dart';
+import 'tab_list_host.dart';
 
-class DockerEngineList extends StatelessWidget {
+class DockerEngineList extends StatelessWidget implements TabListHost {
   const DockerEngineList({
     super.key,
     required this.tabs,
@@ -18,12 +19,19 @@ class DockerEngineList extends StatelessWidget {
     this.onAddTab,
   });
 
+  @override
   final List<EngineTab> tabs;
+  @override
   final int selectedIndex;
+  @override
   final ValueChanged<int> onSelect;
+  @override
   final ValueChanged<int> onClose;
+  @override
   final void Function(int oldIndex, int newIndex) onReorder;
+  @override
   final Widget? leading;
+  @override
   final VoidCallback? onAddTab;
 
   @override
@@ -41,11 +49,11 @@ class DockerEngineList extends StatelessWidget {
               if (leading != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: SizedBox(height: 48, child: Center(child: leading)),
+                  child: SizedBox(height: 36, child: Center(child: leading)),
                 ),
               Expanded(
                 child: SizedBox(
-                  height: 48,
+                  height: 36,
                   child: ReorderableListView.builder(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -68,7 +76,7 @@ class DockerEngineList extends StatelessWidget {
                         selected: index == safeIndex,
                         onSelect: () => onSelect(index),
                         onClose: () => onClose(index),
-                        closable: tabs.length > 1,
+                        closable: true,
                         onRename: tab.canRename ? () {} : null,
                         dragIndex: tab.canDrag ? index : null,
                       );

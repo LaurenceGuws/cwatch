@@ -20,10 +20,7 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
   final AppIcons icons;
   final AppDockerTokens docker;
 
-  factory AppThemeTokens.light(
-    ColorScheme scheme, {
-    String? fontFamily,
-  }) {
+  factory AppThemeTokens.light(ColorScheme scheme, {String? fontFamily}) {
     final baseTheme = ThemeData(
       colorScheme: scheme,
       useMaterial3: true,
@@ -39,10 +36,7 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
     );
   }
 
-  factory AppThemeTokens.dark(
-    ColorScheme scheme, {
-    String? fontFamily,
-  }) {
+  factory AppThemeTokens.dark(ColorScheme scheme, {String? fontFamily}) {
     final baseTheme = ThemeData(
       colorScheme: scheme,
       useMaterial3: true,
@@ -276,8 +270,8 @@ class AppTabChipTokens {
       selectedBorder: scheme.primary,
       unselectedBorder: scheme.outlineVariant,
       borderRadius: BorderRadius.circular(8),
-      horizontalPadding: 1.5,
-      verticalPadding: 0.75,
+      horizontalPadding: 0.6,
+      verticalPadding: 0.05,
     );
   }
 
