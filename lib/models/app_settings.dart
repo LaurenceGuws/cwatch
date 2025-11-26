@@ -15,6 +15,7 @@ class AppSettings {
     this.shellSidebarWidth,
     this.shellDestination,
     this.shellSidebarCollapsed = false,
+    this.shellSidebarPlacement = 'dynamic',
     this.appFontFamily,
     this.appThemeKey = 'blue-grey',
     this.sshClientBackend = SshClientBackend.platform,
@@ -47,6 +48,7 @@ class AppSettings {
   final double? shellSidebarWidth;
   final String? shellDestination;
   final bool shellSidebarCollapsed;
+  final String? shellSidebarPlacement;
   final String? appFontFamily;
   final String appThemeKey;
   final SshClientBackend sshClientBackend;
@@ -79,6 +81,7 @@ class AppSettings {
     double? shellSidebarWidth,
     String? shellDestination,
     bool? shellSidebarCollapsed,
+    String? shellSidebarPlacement,
     String? appFontFamily,
     String? appThemeKey,
     SshClientBackend? sshClientBackend,
@@ -112,6 +115,8 @@ class AppSettings {
       shellDestination: shellDestination ?? this.shellDestination,
       shellSidebarCollapsed:
           shellSidebarCollapsed ?? this.shellSidebarCollapsed,
+      shellSidebarPlacement:
+          shellSidebarPlacement ?? this.shellSidebarPlacement,
       appFontFamily: appFontFamily ?? this.appFontFamily,
       appThemeKey: appThemeKey ?? this.appThemeKey,
       sshClientBackend: sshClientBackend ?? this.sshClientBackend,
@@ -176,6 +181,7 @@ class AppSettings {
       shellSidebarWidth: (json['shellSidebarWidth'] as num?)?.toDouble(),
       shellDestination: json['shellDestination'] as String?,
       shellSidebarCollapsed: json['shellSidebarCollapsed'] as bool? ?? false,
+      shellSidebarPlacement: json['shellSidebarPlacement'] as String? ?? 'dynamic',
       appFontFamily: json['appFontFamily'] as String?,
       appThemeKey: json['appThemeKey'] as String? ?? 'blue-grey',
       sshClientBackend: SshClientBackendParsing.fromJson(
@@ -249,6 +255,7 @@ class AppSettings {
       'shellSidebarWidth': shellSidebarWidth,
       'shellDestination': shellDestination,
       'shellSidebarCollapsed': shellSidebarCollapsed,
+      'shellSidebarPlacement': shellSidebarPlacement,
       if (appFontFamily != null) 'appFontFamily': appFontFamily,
       'appThemeKey': appThemeKey,
       'sshClientBackend': sshClientBackend.name,

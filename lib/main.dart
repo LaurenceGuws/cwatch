@@ -182,12 +182,9 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
-  static const double _sidebarMinWidth = 44;
-  static const double _sidebarContentMinWidth = 280;
 
   late Future<List<SshHost>> _hostsFuture;
   ShellDestination _selectedDestination = ShellDestination.servers;
-  double? _sidebarWidthOverride;
   bool _sidebarCollapsed = false;
   bool _shellStateRestored = false;
   late final VoidCallback _settingsListener;
@@ -195,6 +192,7 @@ class _HomeShellState extends State<HomeShell> {
   late final BuiltInSshVault _builtInVault;
   late final RemoteCommandLogController _commandLog;
   String? _hostsSettingsSignature;
+  _SidebarPlacement _sidebarPlacement = _SidebarPlacement.dynamic;
 
   @override
   void initState() {
@@ -258,29 +256,8 @@ class _HomeShellState extends State<HomeShell> {
     if (storedDestination != null) {
       _selectedDestination = storedDestination;
     }
-    _sidebarWidthOverride = settings.shellSidebarWidth;
     _sidebarCollapsed = settings.shellSidebarCollapsed;
-  }
-
-  void _handleSidebarDrag(double delta) {
-    if (_sidebarCollapsed) return;
-    if (delta == 0) return;
-    final viewportWidth = MediaQuery.of(context).size.width;
-    final maxWidth = _maxSidebarWidth(viewportWidth);
-    setState(() {
-      final current =
-          _sidebarWidthOverride ?? _defaultSidebarWidth(viewportWidth);
-      final next = (current + delta).clamp(_sidebarMinWidth, maxWidth);
-      if ((next - current).abs() < 0.5) {
-        return;
-      }
-      _sidebarWidthOverride = next;
-    });
-  }
-
-  void _handleSidebarDragEnd() {
-    if (_sidebarCollapsed) return;
-    _persistShellState(width: _sidebarWidthOverride);
+    _sidebarPlacement = _placementFromString(settings.shellSidebarPlacement);
   }
 
   String _hostSettingsSignature(AppSettings settings) {
@@ -301,13 +278,6 @@ class _HomeShellState extends State<HomeShell> {
     ].join('::');
   }
 
-  void _toggleSidebar() {
-    setState(() {
-      _sidebarCollapsed = !_sidebarCollapsed;
-    });
-    _persistShellState(collapsed: _sidebarCollapsed);
-  }
-
   void _handleDestinationSelected(ShellDestination destination) {
     if (_selectedDestination == destination) {
       return;
@@ -316,26 +286,100 @@ class _HomeShellState extends State<HomeShell> {
     _persistShellState(destination: destination);
   }
 
+  Future<void> _showSidebarOptions(BuildContext context, Offset position) async {
+    final choice = await showMenu<_SidebarOption>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx,
+        position.dy,
+      ),
+      items: [
+        CheckedPopupMenuItem(
+          value: _SidebarOption.hide,
+          checked: _sidebarCollapsed,
+          child: const Text('Hide sidebar'),
+        ),
+        const PopupMenuDivider(),
+        CheckedPopupMenuItem(
+          value: _SidebarOption.pinLeft,
+          checked: !_sidebarCollapsed && _sidebarPlacement == _SidebarPlacement.left,
+          child: const Text('Pin to left'),
+        ),
+        CheckedPopupMenuItem(
+          value: _SidebarOption.pinRight,
+          checked: !_sidebarCollapsed && _sidebarPlacement == _SidebarPlacement.right,
+          child: const Text('Pin to right'),
+        ),
+        CheckedPopupMenuItem(
+          value: _SidebarOption.pinBottom,
+          checked: !_sidebarCollapsed && _sidebarPlacement == _SidebarPlacement.bottom,
+          child: const Text('Pin to bottom'),
+        ),
+        CheckedPopupMenuItem(
+          value: _SidebarOption.dynamicPlacement,
+          checked: !_sidebarCollapsed && _sidebarPlacement == _SidebarPlacement.dynamic,
+          child: const Text('Dynamic placement'),
+        ),
+      ],
+    );
+    if (choice != null) {
+      _handleSidebarOption(choice);
+    }
+  }
+
+  void _handleSidebarOption(_SidebarOption option) {
+    setState(() {
+      switch (option) {
+        case _SidebarOption.hide:
+          _sidebarCollapsed = true;
+            break;
+        case _SidebarOption.pinLeft:
+          _sidebarCollapsed = false;
+          _sidebarPlacement = _SidebarPlacement.left;
+          break;
+        case _SidebarOption.pinRight:
+          _sidebarCollapsed = false;
+          _sidebarPlacement = _SidebarPlacement.right;
+          break;
+        case _SidebarOption.pinBottom:
+          _sidebarCollapsed = false;
+          _sidebarPlacement = _SidebarPlacement.bottom;
+          break;
+        case _SidebarOption.dynamicPlacement:
+          _sidebarCollapsed = false;
+          _sidebarPlacement = _SidebarPlacement.dynamic;
+          break;
+      }
+    });
+    _persistShellState(
+      collapsed: _sidebarCollapsed,
+      placement: _sidebarPlacement,
+    );
+  }
+
   void _persistShellState({
-    double? width,
     ShellDestination? destination,
     bool? collapsed,
+    _SidebarPlacement? placement,
   }) {
     final targetDestination = destination ?? _selectedDestination;
     final settings = widget.settingsController.settings;
-    final targetWidth = width ?? settings.shellSidebarWidth;
-    final targetCollapsed = collapsed ?? settings.shellSidebarCollapsed;
-    if (settings.shellSidebarWidth == targetWidth &&
-        settings.shellDestination == targetDestination.name &&
-        settings.shellSidebarCollapsed == targetCollapsed) {
+    final targetCollapsed = collapsed ?? _sidebarCollapsed;
+    final targetPlacement = placement ?? _sidebarPlacement;
+    if (settings.shellDestination == targetDestination.name &&
+        settings.shellSidebarCollapsed == targetCollapsed &&
+        settings.shellSidebarPlacement ==
+            _placementToString(targetPlacement)) {
       return;
     }
     unawaited(
       widget.settingsController.update(
         (current) => current.copyWith(
-          shellSidebarWidth: targetWidth,
           shellDestination: targetDestination.name,
           shellSidebarCollapsed: targetCollapsed,
+          shellSidebarPlacement: _placementToString(targetPlacement),
         ),
       ),
     );
@@ -353,40 +397,18 @@ class _HomeShellState extends State<HomeShell> {
     return null;
   }
 
-  double _defaultSidebarWidth(double viewportWidth) {
-    final desired = viewportWidth * 0.25;
-    final maxWidth = _maxSidebarWidth(viewportWidth);
-    return desired.clamp(_sidebarMinWidth, maxWidth);
-  }
-
-  double _maxSidebarWidth(double viewportWidth) {
-    final limit = viewportWidth - _sidebarContentMinWidth;
-    if (limit <= _sidebarMinWidth) {
-      return _sidebarMinWidth;
-    }
-    return limit;
-  }
-
-  double _effectiveSidebarWidth(double viewportWidth) {
-    final base = _defaultSidebarWidth(viewportWidth);
-    final maxWidth = _maxSidebarWidth(viewportWidth);
-    final override = _sidebarWidthOverride ?? base;
-    return override.clamp(_sidebarMinWidth, maxWidth);
-  }
-
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: widget.settingsController,
       builder: (context, _) {
-        final viewportWidth = MediaQuery.of(context).size.width;
-        final sidebarWidth = _effectiveSidebarWidth(viewportWidth);
         Widget buildToggleButton() {
-          return _SidebarToggleButton(
+          return _SidebarMenuButton(
             collapsed: _sidebarCollapsed,
-            onPressed: _toggleSidebar,
+            onShowOptions: (position) => _showSidebarOptions(context, position),
           );
         }
+        void showOptions(Offset position) => _showSidebarOptions(context, position);
 
         final pages = [
           ServersList(
@@ -413,27 +435,83 @@ class _HomeShellState extends State<HomeShell> {
             leading: buildToggleButton(),
           ),
         ];
+        final viewportWidth = MediaQuery.of(context).size.width;
+        final viewportHeight = MediaQuery.of(context).size.height;
+        final isPortrait = viewportHeight > viewportWidth;
+        final bool showSidebar = !_sidebarCollapsed;
+        Widget? navigationBar;
+        Alignment navigationAlignment = Alignment.centerLeft;
+        EdgeInsets contentPadding = EdgeInsets.zero;
+        if (showSidebar) {
+          switch (_sidebarPlacement) {
+            case _SidebarPlacement.dynamic:
+              if (isPortrait) {
+                navigationBar = _BottomNavBar(
+                  selected: _selectedDestination,
+                  onSelect: _handleDestinationSelected,
+                  onShowOptions: showOptions,
+                );
+              navigationAlignment = Alignment.bottomCenter;
+              contentPadding =
+                  const EdgeInsets.only(bottom: _BottomNavBar.height);
+            } else {
+              navigationBar = _Sidebar(
+                selected: _selectedDestination,
+                onSelect: _handleDestinationSelected,
+                onShowOptions: showOptions,
+              );
+              navigationAlignment = Alignment.centerLeft;
+              contentPadding = const EdgeInsets.only(left: _Sidebar.width);
+            }
+            break;
+            case _SidebarPlacement.left:
+              navigationBar = _Sidebar(
+                selected: _selectedDestination,
+                onSelect: _handleDestinationSelected,
+                onShowOptions: showOptions,
+              );
+              navigationAlignment = Alignment.centerLeft;
+              contentPadding = const EdgeInsets.only(left: _Sidebar.width);
+              break;
+            case _SidebarPlacement.right:
+              navigationBar = _Sidebar(
+                selected: _selectedDestination,
+                onSelect: _handleDestinationSelected,
+                alignRight: true,
+                onShowOptions: showOptions,
+              );
+              navigationAlignment = Alignment.centerRight;
+              contentPadding = const EdgeInsets.only(right: _Sidebar.width);
+              break;
+            case _SidebarPlacement.bottom:
+              navigationBar = _BottomNavBar(
+                selected: _selectedDestination,
+                onSelect: _handleDestinationSelected,
+                onShowOptions: showOptions,
+              );
+              navigationAlignment = Alignment.bottomCenter;
+              contentPadding = const EdgeInsets.only(bottom: _BottomNavBar.height);
+              break;
+          }
+        }
+        final content = Padding(
+          padding: contentPadding,
+          child: IndexedStack(
+            key: const ValueKey('pages-indexed-stack'),
+            index: _selectedDestination.index,
+            children: pages,
+          ),
+        );
         return Scaffold(
           body: SafeArea(
-            child: Row(
+            child: Stack(
               children: [
-                if (!_sidebarCollapsed) ...[
-                  _Sidebar(
-                    selected: _selectedDestination,
-                    width: sidebarWidth,
-                    onSelect: _handleDestinationSelected,
+                Positioned.fill(child: content),
+                if (navigationBar != null)
+                  Align(
+                    alignment: navigationAlignment,
+                    child: navigationBar,
                   ),
-                  _SidebarResizeHandle(
-                    onDrag: _handleSidebarDrag,
-                    onDragEnd: _handleSidebarDragEnd,
-                  ),
-                ],
-                Expanded(
-                  child: IndexedStack(
-                    index: _selectedDestination.index,
-                    children: pages,
-                  ),
-                ),
               ],
             ),
           ),
@@ -443,242 +521,348 @@ class _HomeShellState extends State<HomeShell> {
   }
 }
 
+const List<ShellDestination> _primaryDestinations = [
+  ShellDestination.servers,
+  ShellDestination.docker,
+  ShellDestination.kubernetes,
+];
+
+const List<ShellDestination> _secondaryDestinations = [
+  ShellDestination.settings,
+];
+
 class _Sidebar extends StatelessWidget {
+  static const double width = 56;
+
   const _Sidebar({
     required this.selected,
     required this.onSelect,
-    required this.width,
+    this.onShowOptions,
+    this.alignRight = false,
   });
 
   final ShellDestination selected;
   final ValueChanged<ShellDestination> onSelect;
-  final double width;
+  final bool alignRight;
+  final ValueChanged<Offset>? onShowOptions;
 
   @override
   Widget build(BuildContext context) {
-    final sections = [
-      const [
-        _SidebarEntry(
-          destination: ShellDestination.servers,
-          icon: NerdIcon.servers,
-          label: 'Servers',
-        ),
-        _SidebarEntry(
-          destination: ShellDestination.docker,
-          icon: NerdIcon.docker,
-          label: 'Docker',
-        ),
-        _SidebarEntry(
-          destination: ShellDestination.kubernetes,
-          icon: NerdIcon.kubernetes,
-          label: 'Kubernetes',
-        ),
-      ],
-      const [
-        _SidebarEntry(
-          destination: ShellDestination.settings,
-          icon: NerdIcon.settings,
-          label: 'Settings',
-        ),
-      ],
-    ];
     final colorScheme = Theme.of(context).colorScheme;
-    final dividerColor = colorScheme.outlineVariant;
-    final iconScale = (width / 220).clamp(0.5, 1.0).toDouble();
-    final iconSize = 72 * iconScale;
-    final showLabels = width >= 160;
-    return Container(
-      width: width,
-      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.2),
-      child: Column(
-        children: [
-          for (var i = 0; i < sections.length; i++) ...[
-            Expanded(
-              flex: sections[i].length,
-              child: Column(
-                children: [
-                  for (var entry in sections[i])
-                    Expanded(
-                      child: _SidebarButton(
-                        icon: entry.icon,
-                        label: entry.label,
-                        selected: selected == entry.destination,
-                        onTap: () => onSelect(entry.destination),
-                        dividerColor: dividerColor,
-                        iconSize: iconSize,
-                        showLabel: showLabels,
-                      ),
-                    ),
-                ],
+    final decoration = BoxDecoration(
+      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.22),
+      border: alignRight
+          ? Border(
+              left: BorderSide(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+              ),
+            )
+          : Border(
+              right: BorderSide(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.4),
               ),
             ),
-            if (i < sections.length - 1)
-              _SidebarDivider(color: dividerColor, inset: 12),
-          ],
+    );
+    final content = Container(
+      width: width,
+      decoration: decoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const SizedBox(height: 12),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: _primaryDestinations
+                .map(
+                  (destination) => _NavigationButton(
+                    destination: destination,
+                    icon: _iconForDestination(destination),
+                    label: _labelForDestination(destination),
+                    selected: selected == destination,
+                    onSelect: onSelect,
+                    vertical: true,
+                  ),
+                )
+                .toList(),
+          ),
+          const Spacer(),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: _secondaryDestinations
+                .map(
+                  (destination) => _NavigationButton(
+                    destination: destination,
+                    icon: _iconForDestination(destination),
+                    label: _labelForDestination(destination),
+                    selected: selected == destination,
+                    onSelect: onSelect,
+                    vertical: true,
+                  ),
+                )
+                .toList(),
+          ),
+          const SizedBox(height: 12),
         ],
       ),
     );
+    return GestureDetector(
+      onLongPressStart: (details) => onShowOptions?.call(details.globalPosition),
+      onSecondaryTapDown: (details) =>
+          onShowOptions?.call(details.globalPosition),
+      child: content,
+    );
   }
 }
 
-class _SidebarResizeHandle extends StatelessWidget {
-  const _SidebarResizeHandle({required this.onDrag, required this.onDragEnd});
+class _BottomNavBar extends StatelessWidget {
+  const _BottomNavBar({
+    required this.selected,
+    required this.onSelect,
+    this.onShowOptions,
+  });
 
-  final ValueChanged<double> onDrag;
-  final VoidCallback onDragEnd;
+  final ShellDestination selected;
+  final ValueChanged<ShellDestination> onSelect;
+  final ValueChanged<Offset>? onShowOptions;
+
+  static const List<ShellDestination> _destinations = [
+    ..._primaryDestinations,
+    ..._secondaryDestinations,
+  ];
+  static const double height = 72;
 
   @override
   Widget build(BuildContext context) {
-    final dividerColor = Theme.of(context).colorScheme.outlineVariant;
-    return MouseRegion(
-      cursor: SystemMouseCursors.resizeColumn,
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onHorizontalDragUpdate: (details) => onDrag(details.delta.dx),
-        onHorizontalDragEnd: (_) => onDragEnd(),
-        child: SizedBox(
-          width: 12,
-          child: Center(
-            child: Container(
-              width: 1,
-              height: double.infinity,
-              color: dividerColor,
+    final colorScheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onLongPressStart: (details) =>
+          onShowOptions?.call(details.globalPosition),
+      onSecondaryTapDown: (details) =>
+          onShowOptions?.call(details.globalPosition),
+      child: Container(
+        height: 72,
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.18),
+          border: Border(
+            top: BorderSide(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.4),
             ),
           ),
+        ),
+        child: Row(
+          children: _destinations
+              .map(
+                (destination) => Expanded(
+                  child: _NavigationButton(
+                    destination: destination,
+                    icon: _iconForDestination(destination),
+                    label: _labelForDestination(destination),
+                    selected: selected == destination,
+                    onSelect: onSelect,
+                    vertical: false,
+                  ),
+                ),
+              )
+              .toList(),
         ),
       ),
     );
   }
 }
 
-class _SidebarToggleButton extends StatelessWidget {
-  const _SidebarToggleButton({
-    required this.collapsed,
-    required this.onPressed,
-  });
-
-  final bool collapsed;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: collapsed ? 'Show navigation' : 'Hide navigation',
-      icon: Icon(collapsed ? Icons.menu : Icons.menu_open),
-      onPressed: onPressed,
-    );
-  }
-}
-
-enum ShellDestination { servers, docker, kubernetes, settings }
-
-class _SidebarEntry {
-  const _SidebarEntry({
+class _NavigationButton extends StatefulWidget {
+  const _NavigationButton({
     required this.destination,
     required this.icon,
     required this.label,
+    required this.selected,
+    required this.onSelect,
+    required this.vertical,
   });
 
   final ShellDestination destination;
   final NerdIcon icon;
   final String label;
+  final bool selected;
+  final ValueChanged<ShellDestination> onSelect;
+  final bool vertical;
+
+  @override
+  State<_NavigationButton> createState() => _NavigationButtonState();
 }
 
-class _SidebarButton extends StatelessWidget {
-  const _SidebarButton({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    required this.dividerColor,
-    required this.iconSize,
-    required this.showLabel,
-  });
+class _NavigationButtonState extends State<_NavigationButton> {
+  bool _hovering = false;
 
-  final NerdIcon icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  final Color dividerColor;
-  final double iconSize;
-  final bool showLabel;
+  void _setHovering(bool hovering) {
+    if (_hovering == hovering) return;
+    setState(() => _hovering = hovering);
+  }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final iconColor = selected
+    final defaultColor = colorScheme.onSurfaceVariant;
+    final hoverColor = colorScheme.primary.withValues(alpha: 0.75);
+    final iconColor = widget.selected
         ? colorScheme.primary
-        : colorScheme.onSurfaceVariant;
-    final textColor = selected
-        ? colorScheme.primary
-        : colorScheme.onSurfaceVariant;
-    final button = Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: SizedBox.expand(
-          child: Column(
-            children: [
-              Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(icon.data, size: iconSize, color: iconColor),
-                      if (showLabel) ...[
-                        const SizedBox(height: 6),
-                        Flexible(
-                          child: Text(
-                            label,
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(
-                                  color: textColor,
-                                  fontWeight: selected
-                                      ? FontWeight.w700
-                                      : FontWeight.w500,
-                                  letterSpacing: 0.4,
-                                ),
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            softWrap: false,
-                          ),
-                        ),
-                      ],
-                    ],
+        : (_hovering ? hoverColor : defaultColor);
+    final indicatorColor =
+        widget.selected ? colorScheme.primary : Colors.transparent;
+
+    final iconWidget = Icon(
+      widget.icon.data,
+      size: 30,
+      color: iconColor,
+    );
+
+    final buttonWidth = widget.vertical ? _Sidebar.width : double.infinity;
+    final button = InkWell(
+      onTap: () => widget.onSelect(widget.destination),
+      splashColor: Colors.transparent,
+      hoverColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      child: SizedBox(
+        width: buttonWidth,
+        height: 56,
+        child: widget.vertical
+            ? Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 56,
+                    color: indicatorColor,
                   ),
-                ),
+                  Expanded(child: Center(child: iconWidget)),
+                ],
+              )
+            : Column(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    height: 4,
+                    color: indicatorColor,
+                  ),
+                  const Spacer(),
+                  iconWidget,
+                  const Spacer(),
+                ],
               ),
-              _SidebarDivider(
-                color: selected ? colorScheme.primary : dividerColor,
-                inset: 12,
-              ),
-            ],
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: MouseRegion(
+        onEnter: (_) => _setHovering(true),
+        onExit: (_) => _setHovering(false),
+        cursor: SystemMouseCursors.click,
+        child: Tooltip(message: widget.label, child: button),
+      ),
+    );
+  }
+}
+
+enum _SidebarPlacement { dynamic, left, right, bottom }
+
+enum _SidebarOption { hide, pinLeft, pinRight, pinBottom, dynamicPlacement }
+
+_SidebarPlacement _placementFromString(String? value) {
+  switch (value) {
+    case 'left':
+      return _SidebarPlacement.left;
+    case 'right':
+      return _SidebarPlacement.right;
+    case 'bottom':
+      return _SidebarPlacement.bottom;
+    default:
+      return _SidebarPlacement.dynamic;
+  }
+}
+
+String _placementToString(_SidebarPlacement placement) {
+  switch (placement) {
+    case _SidebarPlacement.left:
+      return 'left';
+    case _SidebarPlacement.right:
+      return 'right';
+    case _SidebarPlacement.dynamic:
+      return 'dynamic';
+    case _SidebarPlacement.bottom:
+      return 'bottom';
+  }
+}
+
+NerdIcon _iconForDestination(ShellDestination destination) {
+  switch (destination) {
+    case ShellDestination.servers:
+      return NerdIcon.servers;
+    case ShellDestination.docker:
+      return NerdIcon.docker;
+    case ShellDestination.kubernetes:
+      return NerdIcon.kubernetes;
+    case ShellDestination.settings:
+      return NerdIcon.settings;
+  }
+}
+
+String _labelForDestination(ShellDestination destination) {
+  switch (destination) {
+    case ShellDestination.servers:
+      return 'Servers';
+    case ShellDestination.docker:
+      return 'Docker';
+    case ShellDestination.kubernetes:
+      return 'Kubernetes';
+    case ShellDestination.settings:
+      return 'Settings';
+  }
+}
+
+class _SidebarMenuButton extends StatefulWidget {
+  const _SidebarMenuButton({
+    required this.collapsed,
+    required this.onShowOptions,
+  });
+
+  final bool collapsed;
+  final ValueChanged<Offset> onShowOptions;
+
+  @override
+  State<_SidebarMenuButton> createState() => _SidebarMenuButtonState();
+}
+
+class _SidebarMenuButtonState extends State<_SidebarMenuButton> {
+  Offset? _tapPosition;
+
+  void _onTapDown(TapDownDetails details) {
+    _tapPosition = details.globalPosition;
+  }
+
+  void _onTap() {
+    final position = _tapPosition ?? Offset.zero;
+    widget.onShowOptions(position);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tooltip = widget.collapsed ? 'Show navigation' : 'Sidebar options';
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTap: _onTap,
+      behavior: HitTestBehavior.translucent,
+      child: Tooltip(
+        message: tooltip,
+        child: SizedBox(
+          width: 48,
+          height: 48,
+          child: Icon(
+            widget.collapsed ? Icons.menu : Icons.menu_open,
           ),
         ),
       ),
     );
-
-    // Add tooltip when label is hidden
-    if (!showLabel) {
-      return Tooltip(message: label, child: button);
-    }
-    return button;
   }
 }
 
-class _SidebarDivider extends StatelessWidget {
-  const _SidebarDivider({required this.color, this.inset = 12});
-
-  final Color color;
-  final double inset;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: inset),
-      child: Divider(color: color, height: 1, thickness: 1),
-    );
-  }
-}
+enum ShellDestination { servers, docker, kubernetes, settings }

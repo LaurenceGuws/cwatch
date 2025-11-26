@@ -158,20 +158,20 @@ class _DockerViewState extends State<DockerView> {
         },
         onClose: _closeTab,
         onReorder: (oldIndex, newIndex) {
+          final selectedTabId =
+              _tabs.isEmpty ? null : _tabs[_selectedIndex].id;
           setState(() {
             if (oldIndex < newIndex) newIndex -= 1;
             final moved = _tabs.removeAt(oldIndex);
             final movedWidget = _tabWidgets.removeAt(oldIndex);
             _tabs.insert(newIndex, moved);
             _tabWidgets.insert(newIndex, movedWidget);
-            if (_selectedIndex == oldIndex) {
-              _selectedIndex = newIndex;
-            } else if (_selectedIndex >= oldIndex &&
-                _selectedIndex < newIndex) {
-              _selectedIndex -= 1;
-            } else if (_selectedIndex <= oldIndex &&
-                _selectedIndex > newIndex) {
-              _selectedIndex += 1;
+            if (selectedTabId == null) {
+              _selectedIndex = 0;
+            } else {
+              final newIndexOfSelected =
+                  _tabs.indexWhere((tab) => tab.id == selectedTabId);
+              _selectedIndex = newIndexOfSelected.clamp(0, _tabs.length - 1);
             }
           });
           _persistWorkspace();
@@ -1220,7 +1220,7 @@ class _DockerViewState extends State<DockerView> {
 }
 
 class _KeepAliveWrapper extends StatefulWidget {
-  const _KeepAliveWrapper({Key? key, required this.child}) : super(key: key);
+  const _KeepAliveWrapper({super.key, required this.child});
 
   final Widget child;
 

@@ -220,6 +220,8 @@ class _TerminalTabState extends State<TerminalTab> {
     );
   }
 
+  static const double _minTerminalHeight = 120;
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -232,27 +234,45 @@ class _TerminalTabState extends State<TerminalTab> {
           return _buildError(context);
         }
         final settings = widget.settingsController.settings;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(context),
-            const Divider(height: 1),
-            Expanded(
-              child: TerminalView(
-                _terminal,
-                controller: _controller,
-                autofocus: true,
-                backgroundOpacity: 1,
-                padding: EdgeInsets.zero,
-                alwaysShowCursor: true,
-                deleteDetection:
-                    defaultTargetPlatform == TargetPlatform.android ||
-                    defaultTargetPlatform == TargetPlatform.iOS,
-                textStyle: _textStyle(settings),
-                theme: _terminalTheme(context, settings),
-              ),
-            ),
-          ],
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxHeight < _minTerminalHeight) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    'Terminal needs at least ${_minTerminalHeight.toInt()} px '
+                    'of vertical space. Increase the window height to use '
+                    'this tab.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(context),
+                const Divider(height: 1),
+                Expanded(
+                  child: TerminalView(
+                    _terminal,
+                    controller: _controller,
+                    autofocus: true,
+                    backgroundOpacity: 1,
+                    padding: EdgeInsets.zero,
+                    alwaysShowCursor: true,
+                    deleteDetection:
+                        defaultTargetPlatform == TargetPlatform.android ||
+                        defaultTargetPlatform == TargetPlatform.iOS,
+                    textStyle: _textStyle(settings),
+                    theme: _terminalTheme(context, settings),
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
