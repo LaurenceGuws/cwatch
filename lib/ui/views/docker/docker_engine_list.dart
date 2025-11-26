@@ -64,25 +64,39 @@ class DockerEngineList extends StatelessWidget implements TabListHost {
                     itemCount: tabs.length,
                     itemBuilder: (context, index) {
                       final tab = tabs[index];
-                      return TabChip(
-                        key: ValueKey(tab.id),
-                        host: SshHost(
-                          name: tab.label,
-                          hostname: '',
-                          port: 0,
-                          available: true,
-                        ),
-                        title: tab.title,
-                        label: tab.label,
-                        icon: tab.icon,
-                        selected: index == safeIndex,
-                        onSelect: () => onSelect(index),
-                        onClose: () => onClose(index),
-                        closable: true,
-                        onRename: tab.canRename ? () {} : null,
-                        dragIndex: tab.canDrag ? index : null,
-                      );
-                    },
+                  final optionsController = tab.optionsController;
+                  Widget buildTab(List<TabChipOption> options) {
+                    return TabChip(
+                      host: SshHost(
+                        name: tab.label,
+                        hostname: '',
+                        port: 0,
+                        available: true,
+                      ),
+                      title: tab.title,
+                      label: tab.label,
+                      icon: tab.icon,
+                      selected: index == safeIndex,
+                      onSelect: () => onSelect(index),
+                      onClose: () => onClose(index),
+                      closable: true,
+                      onRename: tab.canRename ? () {} : null,
+                      dragIndex: tab.canDrag ? index : null,
+                      options: options,
+                    );
+                  }
+                  if (optionsController == null) {
+                    return KeyedSubtree(
+                      key: ValueKey(tab.id),
+                      child: buildTab(const []),
+                    );
+                  }
+                  return ValueListenableBuilder<List<TabChipOption>>(
+                    key: ValueKey(tab.id),
+                    valueListenable: optionsController,
+                    builder: (context, options, _) => buildTab(options),
+                  );
+                },
                   ),
                 ),
               ),

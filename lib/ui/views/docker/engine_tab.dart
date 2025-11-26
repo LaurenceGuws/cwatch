@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../shared/tabs/tab_chip.dart';
+
 class EngineTab {
   const EngineTab({
     required this.id,
@@ -11,6 +13,7 @@ class EngineTab {
     this.canDrag = true,
     this.isPicker = false,
     this.workspaceState,
+    this.optionsController,
   });
 
   final String id;
@@ -22,6 +25,7 @@ class EngineTab {
   final bool canDrag;
   final bool isPicker;
   final Object? workspaceState;
+  final TabOptionsController? optionsController;
 
   EngineTab copyWith({
     String? id,
@@ -33,6 +37,7 @@ class EngineTab {
     bool? canDrag,
     bool? isPicker,
     Object? workspaceState,
+    TabOptionsController? optionsController,
   }) {
     return EngineTab(
       id: id ?? this.id,
@@ -44,6 +49,7 @@ class EngineTab {
       canDrag: canDrag ?? this.canDrag,
       isPicker: isPicker ?? this.isPicker,
       workspaceState: workspaceState ?? this.workspaceState,
+      optionsController: optionsController ?? this.optionsController,
     );
   }
 }

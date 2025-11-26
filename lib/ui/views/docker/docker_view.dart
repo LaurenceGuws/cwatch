@@ -26,6 +26,7 @@ import '../shared/tabs/file_explorer/file_explorer_tab.dart';
 import '../shared/tabs/file_explorer/trash_tab.dart';
 import '../shared/tabs/editor/remote_file_editor_tab.dart';
 import '../shared/default_tab_service.dart';
+import '../shared/tabs/tab_chip.dart';
 
 class DockerView extends StatefulWidget {
   const DockerView({
@@ -124,6 +125,7 @@ class _DockerViewState extends State<DockerView> {
       _contextsFuture = _docker.listContexts();
       final currentId = _tabs.first.id;
       final picker = _tabService.createBase(id: currentId);
+      _disposeTabOptions(_tabs[0]);
       _tabs[0] = picker;
       _tabWidgets[0] = _tabWidgetFor(picker);
       _registerTabState(picker.workspaceState as DockerTabState);
@@ -137,6 +139,7 @@ class _DockerViewState extends State<DockerView> {
       _remoteStatusFuture = _loadRemoteStatuses();
       final currentId = _tabs.first.id;
       final picker = _tabService.createBase(id: currentId);
+      _disposeTabOptions(_tabs[0]);
       _tabs[0] = picker;
       _tabWidgets[0] = _tabWidgetFor(picker);
       _registerTabState(picker.workspaceState as DockerTabState);
@@ -195,12 +198,18 @@ class _DockerViewState extends State<DockerView> {
     _persistWorkspace();
   }
 
+  void _disposeTabOptions(EngineTab tab) {
+    tab.optionsController?.dispose();
+  }
+
   void _closeTab(int index) {
     setState(() {
       if (index < 0 || index >= _tabs.length) {
         return;
       }
-      final removedId = _tabs[index].id;
+      final removedTab = _tabs[index];
+      final removedId = removedTab.id;
+      _disposeTabOptions(removedTab);
       if (_tabs.length == 1) {
         final picker = _tabService.createBase(id: removedId);
         _tabStates.remove(removedId);
@@ -237,30 +246,22 @@ class _DockerViewState extends State<DockerView> {
     final choice = await _pickDashboardTarget(contextName, icons.cloud, anchor);
     if (choice == null || !mounted) return;
     final newId = 'ctx-$contextName-${DateTime.now().microsecondsSinceEpoch}';
-    final body = choice == _DashboardTarget.resources
-        ? DockerResources(docker: _docker, contextName: contextName)
-        : DockerOverview(
-            docker: _docker,
+    final newTab = choice == _DashboardTarget.resources
+        ? _buildResourcesTab(
+            id: newId,
+            title: contextName,
+            label: contextName,
+            icon: icons.cloud,
             contextName: contextName,
-            trashManager: _trashManager,
-            builtInVault: widget.builtInVault,
-            settingsController: widget.settingsController,
-            onOpenTab: _openChildTab,
-            onCloseTab: _closeTabById,
+          )
+        : _buildOverviewTab(
+            id: newId,
+            title: contextName,
+            label: contextName,
+            icon: icons.cloud,
+            contextName: contextName,
           );
-    _replaceTab(
-      tabId,
-      EngineTab(
-        id: newId,
-        title: contextName,
-        label: contextName,
-        icon: icons.cloud,
-        body: body,
-        canDrag: true,
-        isPicker: false,
-        workspaceState: _tabStateFromBody(newId, body),
-      ),
-    );
+    _replaceTab(tabId, newTab);
   }
 
   Future<void> _openHostDashboard(
@@ -277,38 +278,32 @@ class _DockerViewState extends State<DockerView> {
     );
     if (choice == null || !mounted) return;
     final newId = 'host-${host.name}-${DateTime.now().microsecondsSinceEpoch}';
-    final body = choice == _DashboardTarget.resources
-        ? DockerResources(
-            docker: _docker,
+    final newTab = choice == _DashboardTarget.resources
+        ? _buildResourcesTab(
+            id: newId,
+            title: host.name,
+            label: host.name,
+            icon: icons.cloudOutline,
             remoteHost: host,
             shellService: shell,
           )
-        : DockerOverview(
-            docker: _docker,
+        : _buildOverviewTab(
+            id: newId,
+            title: host.name,
+            label: host.name,
+            icon: icons.cloudOutline,
             remoteHost: host,
             shellService: shell,
-            trashManager: _trashManager,
-            builtInVault: widget.builtInVault,
-            settingsController: widget.settingsController,
-            onOpenTab: _openChildTab,
-            onCloseTab: _closeTabById,
           );
-    _replaceTab(
-      tabId,
-      EngineTab(
-        id: newId,
-        title: host.name,
-        label: host.name,
-        icon: icons.cloudOutline,
-        body: body,
-        canDrag: true,
-        isPicker: false,
-        workspaceState: _tabStateFromBody(newId, body),
-      ),
-    );
+    _replaceTab(tabId, newTab);
   }
 
   void _replaceTab(String tabId, EngineTab tab) {
+    final currentIndex = _tabs.indexWhere((existing) => existing.id == tabId);
+    if (currentIndex == -1) {
+      return;
+    }
+    _disposeTabOptions(_tabs[currentIndex]);
     final index = _tabService.replaceTab(_tabs, tabId, tab);
     if (index == null) {
       return;
@@ -399,6 +394,7 @@ class _DockerViewState extends State<DockerView> {
             .toList();
         final currentId = _tabs.first.id;
         final picker = _tabService.createBase(id: currentId);
+        _disposeTabOptions(_tabs[0]);
         _tabs[0] = picker;
         _tabWidgets[0] = _tabWidgetFor(picker);
       });
@@ -432,6 +428,7 @@ class _DockerViewState extends State<DockerView> {
         _cachedReady = statuses.where((s) => s.available).toList();
         final currentId = _tabs.first.id;
         final picker = _tabService.createBase(id: currentId);
+        _disposeTabOptions(_tabs[0]);
         _tabs[0] = picker;
         _tabWidgetFor(picker);
       });
@@ -645,6 +642,71 @@ class _DockerViewState extends State<DockerView> {
       _registerTabState(_copyStateWithId(state, uniqueId));
     }
     _persistWorkspace();
+  }
+
+  EngineTab _buildOverviewTab({
+    required String id,
+    required String title,
+    required String label,
+    required IconData icon,
+    String? contextName,
+    SshHost? remoteHost,
+    RemoteShellService? shellService,
+  }) {
+    final controller = TabOptionsController();
+    final body = DockerOverview(
+      docker: _docker,
+      contextName: contextName,
+      remoteHost: remoteHost,
+      shellService: shellService,
+      trashManager: _trashManager,
+      builtInVault: widget.builtInVault,
+      settingsController: widget.settingsController,
+      onOpenTab: _openChildTab,
+      onCloseTab: _closeTabById,
+      optionsController: controller,
+    );
+    return EngineTab(
+      id: id,
+      title: title,
+      label: label,
+      icon: icon,
+      body: body,
+      canDrag: true,
+      workspaceState: _tabStateFromBody(id, body),
+      optionsController: controller,
+    );
+  }
+
+  EngineTab _buildResourcesTab({
+    required String id,
+    required String title,
+    required String label,
+    required IconData icon,
+    String? contextName,
+    SshHost? remoteHost,
+    RemoteShellService? shellService,
+  }) {
+    final controller = TabOptionsController();
+    final body = DockerResources(
+      docker: _docker,
+      contextName: contextName,
+      remoteHost: remoteHost,
+      shellService: shellService,
+      onOpenTab: _openChildTab,
+      onCloseTab: _closeTabById,
+      optionsController: controller,
+    );
+    return EngineTab(
+      id: id,
+      title: title,
+      label: label,
+      icon: icon,
+      body: body,
+      canDrag: true,
+      workspaceState: _tabStateFromBody(id, body),
+      optionsController: controller,
+    );
   }
 
   void _openContainerExplorerTrashTab(
@@ -1092,35 +1154,21 @@ class _DockerViewState extends State<DockerView> {
     required bool resources,
   }) {
     final icons = context.appTheme.icons;
-    return EngineTab(
-      id: id,
-      title: contextName,
-      label: contextName,
-      icon: icons.cloud,
-      canDrag: true,
-      workspaceState: DockerTabState(
-        id: id,
-        kind: resources
-            ? DockerTabKind.contextResources
-            : DockerTabKind.contextOverview,
-        contextName: contextName,
-      ),
-      body: resources
-          ? DockerResources(
-              docker: _docker,
-              contextName: contextName,
-              onCloseTab: _closeTabById,
-            )
-          : DockerOverview(
-              docker: _docker,
-              contextName: contextName,
-              trashManager: _trashManager,
-              builtInVault: widget.builtInVault,
-              settingsController: widget.settingsController,
-              onOpenTab: _openChildTab,
-              onCloseTab: _closeTabById,
-            ),
-    );
+    return resources
+        ? _buildResourcesTab(
+            id: id,
+            title: contextName,
+            label: contextName,
+            icon: icons.cloud,
+            contextName: contextName,
+          )
+        : _buildOverviewTab(
+            id: id,
+            title: contextName,
+            label: contextName,
+            icon: icons.cloud,
+            contextName: contextName,
+          );
   }
 
   EngineTab _hostTab({
@@ -1130,37 +1178,23 @@ class _DockerViewState extends State<DockerView> {
   }) {
     final shell = _shellServiceForHost(host);
     final icons = context.appTheme.icons;
-    return EngineTab(
-      id: id,
-      title: host.name,
-      label: host.name,
-      icon: icons.cloudOutline,
-      canDrag: true,
-      workspaceState: DockerTabState(
-        id: id,
-        kind: resources
-            ? DockerTabKind.hostResources
-            : DockerTabKind.hostOverview,
-        hostName: host.name,
-      ),
-      body: resources
-          ? DockerResources(
-              docker: _docker,
-              remoteHost: host,
-              shellService: shell,
-              onCloseTab: _closeTabById,
-            )
-          : DockerOverview(
-              docker: _docker,
-              remoteHost: host,
-              shellService: shell,
-              trashManager: _trashManager,
-              builtInVault: widget.builtInVault,
-              settingsController: widget.settingsController,
-              onOpenTab: _openChildTab,
-              onCloseTab: _closeTabById,
-            ),
-    );
+    return resources
+        ? _buildResourcesTab(
+            id: id,
+            title: host.name,
+            label: host.name,
+            icon: icons.cloudOutline,
+            remoteHost: host,
+            shellService: shell,
+          )
+        : _buildOverviewTab(
+            id: id,
+            title: host.name,
+            label: host.name,
+            icon: icons.cloudOutline,
+            remoteHost: host,
+            shellService: shell,
+          );
   }
 
   DockerTabState _copyStateWithId(DockerTabState state, String id) {

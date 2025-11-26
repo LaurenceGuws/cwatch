@@ -10,12 +10,23 @@ class TabChipOption {
     required this.onSelected,
     this.icon,
     this.enabled = true,
+    this.color,
   });
 
   final String label;
   final VoidCallback onSelected;
   final IconData? icon;
   final bool enabled;
+  final Color? color;
+}
+
+class TabOptionsController extends ValueNotifier<List<TabChipOption>> {
+  TabOptionsController([List<TabChipOption>? initialOptions])
+      : super(initialOptions ?? const []);
+
+  void update(List<TabChipOption> options) {
+    value = options;
+  }
 }
 
 class TabCloseWarning {
@@ -194,16 +205,21 @@ class TabChip extends StatelessWidget {
         itemBuilder: (context) {
           return List.generate(menuOptions.length, (index) {
             final option = menuOptions[index];
+            final textStyle =
+                option.color != null ? TextStyle(color: option.color) : null;
             return PopupMenuItem<int>(
               value: index,
               enabled: option.enabled,
               child: Row(
                 children: [
                   if (option.icon != null) ...[
-                    Icon(option.icon, size: 18),
+                    Icon(option.icon, size: 18, color: option.color),
                     const SizedBox(width: 8),
                   ],
-                  Text(option.label),
+                  Text(
+                    option.label,
+                    style: textStyle,
+                  ),
                 ],
               ),
             );

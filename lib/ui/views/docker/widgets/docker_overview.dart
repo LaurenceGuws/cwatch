@@ -24,6 +24,7 @@ import '../../../../services/settings/app_settings_controller.dart';
 import '../../../theme/app_theme.dart';
 import '../../../theme/nerd_fonts.dart';
 import '../engine_tab.dart';
+import '../../shared/tabs/tab_chip.dart';
 import '../../shared/tabs/file_explorer/file_explorer_tab.dart';
 import '../../shared/tabs/file_explorer/trash_tab.dart';
 import '../../shared/tabs/editor/remote_file_editor_tab.dart';
@@ -46,6 +47,7 @@ class DockerOverview extends StatefulWidget {
     required this.settingsController,
     this.onOpenTab,
     this.onCloseTab,
+    this.optionsController,
   });
 
   final DockerClientService docker;
@@ -57,6 +59,7 @@ class DockerOverview extends StatefulWidget {
   final AppSettingsController settingsController;
   final OpenTab? onOpenTab;
   final void Function(String tabId)? onCloseTab;
+  final TabOptionsController? optionsController;
 
   @override
   State<DockerOverview> createState() => _DockerOverviewState();
@@ -76,11 +79,46 @@ class _DockerOverviewState extends State<DockerOverview> {
   List<DockerContainer> _cachedContainers = const [];
   AppIcons get _icons => context.appTheme.icons;
   AppDockerTokens get _dockerTheme => context.appTheme.docker;
+  bool _tabOptionsRegistered = false;
 
   @override
   void initState() {
     super.initState();
     _snapshot = _load();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _registerTabOptions();
+  }
+
+  void _registerTabOptions() {
+    if (_tabOptionsRegistered || widget.optionsController == null) {
+      return;
+    }
+    _tabOptionsRegistered = true;
+    final icons = _icons;
+    final scheme = Theme.of(context).colorScheme;
+    widget.optionsController!.update([
+      TabChipOption(
+        label: 'Reload',
+        icon: icons.refresh,
+        onSelected: _refresh,
+      ),
+      TabChipOption(
+        label: 'System prune',
+        icon: Icons.cleaning_services_outlined,
+        color: scheme.error,
+        onSelected: () => _runPrune(includeVolumes: false),
+      ),
+      TabChipOption(
+        label: 'Prune incl. volumes',
+        icon: Icons.delete_sweep_outlined,
+        color: scheme.error,
+        onSelected: () => _runPrune(includeVolumes: true),
+      ),
+    ]);
   }
 
   @override
@@ -339,55 +377,12 @@ class _DockerOverviewState extends State<DockerOverview> {
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.contextName ?? widget.remoteHost?.name ?? 'Dashboard';
-    final icons = _icons;
     final dockerTheme = _dockerTheme;
     return Padding(
       padding: const EdgeInsets.all(8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text(title, style: Theme.of(context).textTheme.titleMedium),
-              const Spacer(),
-              PopupMenuButton<String>(
-                tooltip: 'Settings',
-                icon: Icon(icons.settings),
-                onSelected: (value) {
-                  switch (value) {
-                    case 'refresh':
-                      _refresh();
-                      break;
-                    case 'prune':
-                      _runPrune(includeVolumes: false);
-                      break;
-                    case 'pruneVolumes':
-                      _runPrune(includeVolumes: true);
-                      break;
-                  }
-                },
-                itemBuilder: (context) {
-                  final scheme = Theme.of(context).colorScheme;
-                  return [
-                    _menuItem('refresh', 'Reload', icons.refresh),
-                    _menuItem(
-                      'prune',
-                      'System prune',
-                      Icons.cleaning_services_outlined,
-                      color: scheme.error,
-                    ),
-                    _menuItem(
-                      'pruneVolumes',
-                      'Prune incl. volumes',
-                      Icons.delete_sweep_outlined,
-                      color: scheme.error,
-                    ),
-                  ];
-                },
-              ),
-            ],
-          ),
           Expanded(
             child: FutureBuilder<EngineSnapshot>(
               future: _snapshot,

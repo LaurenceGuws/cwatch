@@ -12,6 +12,7 @@ import '../../../../services/docker/docker_client_service.dart';
 import '../../../../services/ssh/remote_shell_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../../theme/nerd_fonts.dart';
+import '../../shared/tabs/tab_chip.dart';
 import '../engine_tab.dart';
 import 'docker_command_terminal.dart';
 
@@ -24,6 +25,7 @@ class DockerResources extends StatefulWidget {
     this.shellService,
     this.onOpenTab,
     this.onCloseTab,
+    this.optionsController,
   });
 
   final DockerClientService docker;
@@ -32,6 +34,7 @@ class DockerResources extends StatefulWidget {
   final RemoteShellService? shellService;
   final void Function(EngineTab tab)? onOpenTab;
   final void Function(String tabId)? onCloseTab;
+  final TabOptionsController? optionsController;
 
   @override
   State<DockerResources> createState() => _DockerResourcesState();
@@ -52,12 +55,39 @@ class _DockerResourcesState extends State<DockerResources> {
   static const _historyLimit = 60;
   AppIcons get _icons => context.appTheme.icons;
   AppDockerTokens get _dockerTheme => context.appTheme.docker;
+  bool _tabOptionsRegistered = false;
 
   @override
   void initState() {
     super.initState();
     _refreshStats(initial: true);
     _startPolling();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _registerTabOptions();
+  }
+
+  void _registerTabOptions() {
+    if (_tabOptionsRegistered || widget.optionsController == null) {
+      return;
+    }
+    _tabOptionsRegistered = true;
+    final icons = _icons;
+    widget.optionsController!.update([
+      TabChipOption(
+        label: 'Open `docker stats`',
+        icon: NerdIcon.terminal.data,
+        onSelected: _openStatsTab,
+      ),
+      TabChipOption(
+        label: 'Refresh',
+        icon: icons.refresh,
+        onSelected: _refreshStats,
+      ),
+    ]);
   }
 
   @override
@@ -87,31 +117,11 @@ class _DockerResourcesState extends State<DockerResources> {
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.contextName ?? widget.remoteHost?.name ?? 'Resources';
     return Padding(
       padding: const EdgeInsets.all(8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text(
-                'Resources • $title',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const Spacer(),
-              IconButton(
-                tooltip: 'Open `docker stats`',
-                icon: Icon(NerdIcon.terminal.data),
-                onPressed: _openStatsTab,
-              ),
-              IconButton(
-                tooltip: 'Refresh',
-                icon: Icon(_icons.refresh),
-                onPressed: () => _refreshStats(),
-              ),
-            ],
-          ),
           const SizedBox(height: 8),
           Expanded(
             child: _loading

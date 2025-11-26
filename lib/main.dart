@@ -193,6 +193,7 @@ class _HomeShellState extends State<HomeShell> {
   late final RemoteCommandLogController _commandLog;
   String? _hostsSettingsSignature;
   _SidebarPlacement _sidebarPlacement = _SidebarPlacement.dynamic;
+  final Map<ShellDestination, Widget> _pageCache = {};
 
   @override
   void initState() {
@@ -235,8 +236,14 @@ class _HomeShellState extends State<HomeShell> {
       return;
     }
     if (!_shellStateRestored) {
+      final previousDestination = _selectedDestination;
       setState(() {
         _applyShellSettings(widget.settingsController.settings);
+        if (_selectedDestination != previousDestination) {
+          _pageCache.removeWhere(
+            (destination, _) => destination != _selectedDestination,
+          );
+        }
         _shellStateRestored = true;
       });
     }
@@ -284,6 +291,57 @@ class _HomeShellState extends State<HomeShell> {
     }
     setState(() => _selectedDestination = destination);
     _persistShellState(destination: destination);
+  }
+
+  void _ensurePageCached(ShellDestination destination, BuildContext context) {
+    if (_pageCache.containsKey(destination)) {
+      return;
+    }
+    _pageCache[destination] = _buildPageForDestination(destination, context);
+  }
+
+  Widget _buildSidebarToggleButton(BuildContext context) {
+    return _SidebarMenuButton(
+      collapsed: _sidebarCollapsed,
+      onShowOptions: (position) => _showSidebarOptions(context, position),
+    );
+  }
+
+  Widget _buildPageForDestination(
+    ShellDestination destination,
+    BuildContext context,
+  ) {
+    final toggleButton = _buildSidebarToggleButton(context);
+    switch (destination) {
+      case ShellDestination.servers:
+        return ServersList(
+          hostsFuture: _hostsFuture,
+          settingsController: widget.settingsController,
+          builtInVault: _builtInVault,
+          commandLog: _commandLog,
+          leading: toggleButton,
+        );
+      case ShellDestination.docker:
+        return DockerView(
+          leading: toggleButton,
+          hostsFuture: _hostsFuture,
+          settingsController: widget.settingsController,
+          builtInVault: _builtInVault,
+          commandLog: _commandLog,
+        );
+      case ShellDestination.kubernetes:
+        return KubernetesView(leading: toggleButton);
+      case ShellDestination.settings:
+        return SettingsView(
+          controller: widget.settingsController,
+          hostsFuture: _hostsFuture,
+          builtInKeyStore: _builtInKeyStore,
+          builtInVault: _builtInVault,
+          commandLog: _commandLog,
+          leading: toggleButton,
+        );
+    }
+    return const SizedBox.shrink();
   }
 
   Future<void> _showSidebarOptions(BuildContext context, Offset position) async {
@@ -402,39 +460,8 @@ class _HomeShellState extends State<HomeShell> {
     return AnimatedBuilder(
       animation: widget.settingsController,
       builder: (context, _) {
-        Widget buildToggleButton() {
-          return _SidebarMenuButton(
-            collapsed: _sidebarCollapsed,
-            onShowOptions: (position) => _showSidebarOptions(context, position),
-          );
-        }
         void showOptions(Offset position) => _showSidebarOptions(context, position);
-
-        final pages = [
-          ServersList(
-            hostsFuture: _hostsFuture,
-            settingsController: widget.settingsController,
-            builtInVault: _builtInVault,
-            commandLog: _commandLog,
-            leading: buildToggleButton(),
-          ),
-          DockerView(
-            leading: buildToggleButton(),
-            hostsFuture: _hostsFuture,
-            settingsController: widget.settingsController,
-            builtInVault: _builtInVault,
-            commandLog: _commandLog,
-          ),
-          KubernetesView(leading: buildToggleButton()),
-          SettingsView(
-            controller: widget.settingsController,
-            hostsFuture: _hostsFuture,
-            builtInKeyStore: _builtInKeyStore,
-            builtInVault: _builtInVault,
-            commandLog: _commandLog,
-            leading: buildToggleButton(),
-          ),
-        ];
+        _ensurePageCached(_selectedDestination, context);
         final viewportWidth = MediaQuery.of(context).size.width;
         final viewportHeight = MediaQuery.of(context).size.height;
         final isPortrait = viewportHeight > viewportWidth;
@@ -499,7 +526,10 @@ class _HomeShellState extends State<HomeShell> {
           child: IndexedStack(
             key: const ValueKey('pages-indexed-stack'),
             index: _selectedDestination.index,
-            children: pages,
+            children: ShellDestination.values
+                .map((destination) =>
+                    _pageCache[destination] ?? const SizedBox.shrink())
+                .toList(),
           ),
         );
         return Scaffold(

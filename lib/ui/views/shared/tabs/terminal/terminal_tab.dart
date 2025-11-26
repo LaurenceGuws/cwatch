@@ -46,6 +46,7 @@ class _TerminalTabState extends State<TerminalTab> {
   @override
   void initState() {
     super.initState();
+    _attachTerminalHandlers();
     WidgetsBinding.instance.addPostFrameCallback((_) => _startSession());
   }
 
@@ -58,6 +59,7 @@ class _TerminalTabState extends State<TerminalTab> {
   }
 
   Future<void> _startSession() async {
+    _attachTerminalHandlers();
     _sessionToken += 1;
     final token = _sessionToken;
     _closing = false;
@@ -67,8 +69,6 @@ class _TerminalTabState extends State<TerminalTab> {
       _error = null;
     });
 
-    _terminal.onOutput = _onTerminalOutput;
-    _terminal.onResize = _onTerminalResize;
     _terminal.buffer.clear();
     _terminal.buffer.setCursor(0, 0);
 
@@ -78,6 +78,7 @@ class _TerminalTabState extends State<TerminalTab> {
         options: _terminalSessionOptions(),
       );
       _pty = session;
+      _applyTerminalSizeToSession();
       session.output.listen(_handlePtyData);
       unawaited(
         session.exitCode.then((_) {
@@ -141,6 +142,24 @@ class _TerminalTabState extends State<TerminalTab> {
     int pixelHeight,
   ) {
     _pty?.resize(rows, columns);
+  }
+
+  void _applyTerminalSizeToSession() {
+    final session = _pty;
+    if (session == null) {
+      return;
+    }
+    final rows = _terminal.viewHeight;
+    final columns = _terminal.viewWidth;
+    if (rows <= 0 || columns <= 0) {
+      return;
+    }
+    session.resize(rows, columns);
+  }
+
+  void _attachTerminalHandlers() {
+    _terminal.onOutput = _onTerminalOutput;
+    _terminal.onResize = _onTerminalResize;
   }
 
   void _handlePtyData(Uint8List data) {
