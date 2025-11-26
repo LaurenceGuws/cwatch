@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../models/remote_file_entry.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../theme/nerd_fonts.dart';
-import '../file_icon_resolver.dart';
+import 'file_icon_resolver.dart';
 
 /// Local file session model
 class LocalFileSession {
@@ -53,12 +53,14 @@ class FileEntryList extends StatelessWidget {
   final ScrollController scrollController;
   final FocusNode focusNode;
   final ValueChanged<RemoteFileEntry> onEntryDoubleTap;
-  final ValueChanged4<PointerDownEvent, List<RemoteFileEntry>, int, String> onEntryPointerDown;
+  final ValueChanged4<PointerDownEvent, List<RemoteFileEntry>, int, String>
+  onEntryPointerDown;
   final ValueChanged3<PointerEnterEvent, int, String> onDragHover;
   final VoidCallback onStopDragSelection;
   final ValueChanged2<RemoteFileEntry, Offset> onEntryContextMenu;
   final ValueChanged<Offset>? onBackgroundContextMenu;
-  final KeyEventResult Function(FocusNode, KeyEvent, List<RemoteFileEntry>) onKeyEvent;
+  final KeyEventResult Function(FocusNode, KeyEvent, List<RemoteFileEntry>)
+  onKeyEvent;
   final ValueChanged<LocalFileSession> onSyncLocalEdit;
   final ValueChanged<LocalFileSession> onRefreshCacheFromServer;
   final ValueChanged<LocalFileSession> onClearCachedCopy;
@@ -102,13 +104,21 @@ class FileEntryList extends StatelessWidget {
                 syncing: syncingPaths.contains(remotePath),
                 refreshing: refreshingPaths.contains(remotePath),
                 onDoubleTap: () => onEntryDoubleTap(entry),
-                onContextMenu: (position) => onEntryContextMenu(entry, position),
-                onPointerDown: (event) => onEntryPointerDown(event, entries, index, remotePath),
+                onContextMenu: (position) =>
+                    onEntryContextMenu(entry, position),
+                onPointerDown: (event) =>
+                    onEntryPointerDown(event, entries, index, remotePath),
                 onDragHover: (event) => onDragHover(event, index, remotePath),
                 onStopDragSelection: onStopDragSelection,
-                onSyncLocalEdit: session != null ? () => onSyncLocalEdit(session) : null,
-                onRefreshCacheFromServer: session != null ? () => onRefreshCacheFromServer(session) : null,
-                onClearCachedCopy: session != null ? () => onClearCachedCopy(session) : null,
+                onSyncLocalEdit: session != null
+                    ? () => onSyncLocalEdit(session)
+                    : null,
+                onRefreshCacheFromServer: session != null
+                    ? () => onRefreshCacheFromServer(session)
+                    : null,
+                onClearCachedCopy: session != null
+                    ? () => onClearCachedCopy(session)
+                    : null,
               );
             },
           ),
@@ -181,7 +191,9 @@ class _FileEntryTileState extends State<FileEntryTile> {
         ? colorScheme.primary.withValues(alpha: 0.08)
         : Colors.transparent;
     final titleStyle = widget.selected
-        ? Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.primary)
+        ? Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: colorScheme.primary)
         : null;
     return MouseRegion(
       onEnter: widget.onDragHover,
@@ -200,7 +212,8 @@ class _FileEntryTileState extends State<FileEntryTile> {
         },
         onPointerMove: (event) {
           // If pointer moves significantly, it's a scroll, not a tap
-          if (event.kind == PointerDeviceKind.touch && _tapDownPosition != null) {
+          if (event.kind == PointerDeviceKind.touch &&
+              _tapDownPosition != null) {
             final delta = (event.position - _tapDownPosition!).distance;
             if (delta > 10) {
               _hasMoved = true;
@@ -210,15 +223,17 @@ class _FileEntryTileState extends State<FileEntryTile> {
         onPointerUp: (event) {
           widget.onStopDragSelection();
           // If it was a touch tap without movement, handle it
-          if (event.kind == PointerDeviceKind.touch && 
-              !_hasMoved && 
+          if (event.kind == PointerDeviceKind.touch &&
+              !_hasMoved &&
               _tapDownTime != null &&
               DateTime.now().difference(_tapDownTime!).inMilliseconds < 500) {
-            widget.onPointerDown(PointerDownEvent(
-              position: _tapDownPosition ?? event.position,
-              kind: PointerDeviceKind.touch,
-              buttons: kPrimaryButton,
-            ));
+            widget.onPointerDown(
+              PointerDownEvent(
+                position: _tapDownPosition ?? event.position,
+                kind: PointerDeviceKind.touch,
+                buttons: kPrimaryButton,
+              ),
+            );
           }
           _tapDownPosition = null;
           _tapDownTime = null;
@@ -236,7 +251,8 @@ class _FileEntryTileState extends State<FileEntryTile> {
           behavior: HitTestBehavior.translucent,
           child: InkWell(
             onDoubleTap: widget.onDoubleTap,
-            onSecondaryTapDown: (details) => widget.onContextMenu(details.globalPosition),
+            onSecondaryTapDown: (details) =>
+                widget.onContextMenu(details.globalPosition),
             splashFactory: NoSplash.splashFactory,
             hoverColor: Colors.transparent,
             highlightColor: Colors.transparent,
@@ -246,66 +262,71 @@ class _FileEntryTileState extends State<FileEntryTile> {
               color: highlightColor,
               child: ListTile(
                 dense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 6,
-              ),
-              leading: Icon(
-                FileIconResolver.iconFor(widget.entry),
-                color: widget.selected ? colorScheme.primary : null,
-              ),
-              title: Text(widget.entry.name, style: titleStyle),
-              subtitle: Text(
-                widget.entry.isDirectory
-                    ? 'Directory'
-                    : '${(widget.entry.sizeBytes / 1024).toStringAsFixed(1)} KB',
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (!widget.entry.isDirectory && widget.session != null) ...[
-                    IconButton(
-                      tooltip: 'Push local changes to server',
-                      icon: widget.syncing
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : Icon(NerdIcon.cloudUpload.data),
-                      onPressed: widget.syncing ? null : widget.onSyncLocalEdit,
-                    ),
-                    IconButton(
-                      tooltip: 'Refresh cache from server',
-                      icon: widget.refreshing
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : Icon(NerdIcon.refresh.data),
-                      onPressed: widget.refreshing ? null : widget.onRefreshCacheFromServer,
-                    ),
-                    IconButton(
-                      tooltip: 'Clear cached copy',
-                      icon: Icon(NerdIcon.delete.data),
-                      onPressed: widget.onClearCachedCopy,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                leading: Icon(
+                  FileIconResolver.iconFor(widget.entry),
+                  color: widget.selected ? colorScheme.primary : null,
+                ),
+                title: Text(widget.entry.name, style: titleStyle),
+                subtitle: Text(
+                  widget.entry.isDirectory
+                      ? 'Directory'
+                      : '${(widget.entry.sizeBytes / 1024).toStringAsFixed(1)} KB',
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!widget.entry.isDirectory &&
+                        widget.session != null) ...[
+                      IconButton(
+                        tooltip: 'Push local changes to server',
+                        icon: widget.syncing
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Icon(NerdIcon.cloudUpload.data),
+                        onPressed: widget.syncing
+                            ? null
+                            : widget.onSyncLocalEdit,
+                      ),
+                      IconButton(
+                        tooltip: 'Refresh cache from server',
+                        icon: widget.refreshing
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Icon(NerdIcon.refresh.data),
+                        onPressed: widget.refreshing
+                            ? null
+                            : widget.onRefreshCacheFromServer,
+                      ),
+                      IconButton(
+                        tooltip: 'Clear cached copy',
+                        icon: Icon(NerdIcon.delete.data),
+                        onPressed: widget.onClearCachedCopy,
+                      ),
+                    ],
+                    Text(
+                      widget.entry.modified.toLocal().toString(),
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
-                  Text(
-                    widget.entry.modified.toLocal().toString(),
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
+                ),
               ),
             ),
           ),
         ),
-      ),
       ),
     );
   }

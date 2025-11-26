@@ -22,13 +22,14 @@ import 'servers/host_list.dart';
 import 'servers/server_models.dart';
 import 'servers/servers_widgets.dart';
 import 'widgets/connectivity_tab.dart';
-import '../shared/tabs/file_explorer_tab.dart';
+import '../shared/tabs/file_explorer/file_explorer_tab.dart';
 import 'widgets/resources_tab.dart';
-import '../shared/tabs/terminal_tab.dart';
+import '../shared/tabs/terminal/terminal_tab.dart';
 import '../shared/tabs/tab_chip.dart';
-import '../shared/tabs/trash_tab.dart';
-import '../shared/tabs/remote_file_editor_tab.dart';
+import '../shared/tabs/file_explorer/trash_tab.dart';
+import '../shared/tabs/editor/remote_file_editor_tab.dart';
 import '../../../services/ssh/remote_editor_cache.dart';
+import '../shared/default_tab_service.dart';
 
 class ServersList extends StatefulWidget {
   const ServersList({
@@ -58,19 +59,28 @@ class _ServersListState extends State<ServersList> {
   String? _lastPersistedSignature;
   late final VoidCallback _settingsListener;
   bool _pendingWorkspaceSave = false;
+  late final DefaultTabService<ServerTab> _tabService;
+  static const _defaultTabId = 'host-tab';
+  final Map<String, Widget> _tabBodies = {};
+  String? _activeDefaultTabId;
 
   @override
   void initState() {
     super.initState();
     widget.builtInVault
         .forgetAll(); // Ensure keys are locked whenever the workspace is reconstructed.
-    _tabs.add(
-      _createTab(
-        id: 'host-tab',
+    _tabService = DefaultTabService<ServerTab>(
+      baseTabBuilder: ({String? id}) => _createTab(
+        id: id ?? _defaultTabId,
         host: const PlaceholderHost(),
         action: ServerAction.empty,
       ),
+      tabId: (tab) => tab.id,
     );
+    final base = _tabService.createBase();
+    _tabs.add(base);
+    _tabBodies[base.id] = _buildTabWidget(base);
+    _activeDefaultTabId = base.id;
     _settingsListener = _handleSettingsChanged;
     widget.settingsController.addListener(_settingsListener);
     _restoreWorkspace();
@@ -239,14 +249,14 @@ class _ServersListState extends State<ServersList> {
             children: [
               KeyedSubtree(
                 key: ValueKey('server-tab-${_tabs[0].id}'),
-                child: _buildTabChild(_tabs[0]),
+                child: _tabWidgetFor(_tabs[0]),
               ),
               ..._tabs
                   .skip(1)
                   .map(
                     (tab) => KeyedSubtree(
                       key: ValueKey('server-tab-${tab.id}'),
-                      child: _buildTabChild(tab),
+                      child: _tabWidgetFor(tab),
                     ),
                   ),
             ],
@@ -305,6 +315,11 @@ class _ServersListState extends State<ServersList> {
       _tabs
         ..clear()
         ..addAll(restoredTabs);
+      _tabBodies
+        ..clear()
+        ..addEntries(
+          restoredTabs.map((tab) => MapEntry(tab.id, _buildTabWidget(tab))),
+        );
       _selectedTabIndex = workspace.selectedIndex.clamp(0, _tabs.length - 1);
       _restoredWorkspaceSignature = signature;
       _lastPersistedSignature = signature;
@@ -408,22 +423,42 @@ class _ServersListState extends State<ServersList> {
         host: host,
         action: action,
       );
+      if (_replaceDefaultTab(tab)) {
+        return;
+      }
+      _tabBodies[tab.id] = _buildTabWidget(tab);
       _tabs.add(tab);
       _selectedTabIndex = _tabs.length - 1;
     });
     _persistWorkspace();
   }
 
+  bool _replaceDefaultTab(ServerTab tab) {
+    final id = _activeDefaultTabId;
+    if (id == null) {
+      return false;
+    }
+    final index = _tabService.replaceTab(_tabs, id, tab);
+    if (index == null) {
+      return false;
+    }
+    _selectedTabIndex = index;
+    _tabBodies[tab.id] = _buildTabWidget(tab);
+    _activeDefaultTabId = null;
+    return true;
+  }
+
+  void _addEmptyTabPlaceholder() {
+    final placeholder = _tabService.createBase(id: _defaultTabId);
+    _tabs.add(placeholder);
+    _tabBodies[placeholder.id] = _buildTabWidget(placeholder);
+    _activeDefaultTabId = placeholder.id;
+    _selectedTabIndex = _tabs.length - 1;
+  }
+
   Future<void> _startEmptyTab() async {
     setState(() {
-      _tabs.add(
-        _createTab(
-          id: 'empty-${DateTime.now().microsecondsSinceEpoch}',
-          host: const PlaceholderHost(),
-          action: ServerAction.empty,
-        ),
-      );
-      _selectedTabIndex = _tabs.length - 1;
+      _addEmptyTabPlaceholder();
     });
     _persistWorkspace();
   }
@@ -446,7 +481,11 @@ class _ServersListState extends State<ServersList> {
     );
   }
 
-  Widget _buildTabChild(ServerTab tab) {
+  Widget _tabWidgetFor(ServerTab tab) {
+    return _tabBodies[tab.id] ??= _buildTabWidget(tab);
+  }
+
+  Widget _buildTabWidget(ServerTab tab) {
     switch (tab.action) {
       case ServerAction.empty:
         return _buildHostSelection(
@@ -537,14 +576,14 @@ class _ServersListState extends State<ServersList> {
         return;
       }
       if (_tabs.length == 1) {
-        _tabs[0] = _createTab(
-          id: 'host-tab',
-          host: const PlaceholderHost(),
-          action: ServerAction.empty,
-        );
+        final placeholder = _tabService.createBase(id: _defaultTabId);
+        _tabs[0] = placeholder;
+        _tabBodies[placeholder.id] = _buildTabWidget(placeholder);
         _selectedTabIndex = 0;
       } else {
+        final removedId = _tabs[index].id;
         _tabs.removeAt(index);
+        _tabBodies.remove(removedId);
         if (_tabs.isEmpty) {
           _selectedTabIndex = 0;
         } else if (_selectedTabIndex >= _tabs.length) {
@@ -566,9 +605,6 @@ class _ServersListState extends State<ServersList> {
 
   void _handleTabReorder(int oldIndex, int newIndex) {
     setState(() {
-      if (oldIndex == 0 || newIndex == 0) {
-        return;
-      }
       if (oldIndex < newIndex) {
         newIndex -= 1;
       }
@@ -605,6 +641,7 @@ class _ServersListState extends State<ServersList> {
     setState(() {
       _tabs[index] = tab;
       _selectedTabIndex = index;
+      _tabBodies[tab.id] = _buildTabWidget(tab);
     });
     _persistWorkspace();
   }

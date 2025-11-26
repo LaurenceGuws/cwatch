@@ -11,7 +11,7 @@ import '../../../../services/ssh/remote_shell_service.dart';
 import '../../../../services/settings/app_settings_controller.dart';
 import '../../../theme/app_theme.dart';
 import '../../../theme/nerd_fonts.dart';
-import '../../shared/tabs/terminal_theme_presets.dart';
+import '../../shared/tabs/terminal/terminal_theme_presets.dart';
 
 /// Lightweight terminal view that runs a provided Docker command locally or via SSH.
 class DockerCommandTerminal extends StatefulWidget {
@@ -383,10 +383,10 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   }
 
   TerminalStyle _textStyle(AppSettings? settings) {
-    final fontSize =
-        (settings?.terminalFontSize ?? 14).clamp(8, 32).toDouble();
-    final lineHeight =
-        (settings?.terminalLineHeight ?? 1.4).clamp(0.8, 2.0).toDouble();
+    final fontSize = (settings?.terminalFontSize ?? 14).clamp(8, 32).toDouble();
+    final lineHeight = (settings?.terminalLineHeight ?? 1.4)
+        .clamp(0.8, 2.0)
+        .toDouble();
     return TerminalStyle(
       fontFamily: NerdFonts.effectiveFamily(settings?.terminalFontFamily),
       fontSize: fontSize,

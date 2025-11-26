@@ -11,7 +11,7 @@ import '../../../../../services/logging/app_logger.dart';
 import '../../../../../services/filesystem/explorer_trash_manager.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
-import '../explorer_clipboard.dart';
+import 'explorer_clipboard.dart';
 import '../../../../widgets/file_operation_progress_dialog.dart';
 
 /// Service for handling file operations (copy, move, delete, download, upload)
@@ -56,9 +56,7 @@ class FileOperationsService {
 
   /// Delete files/directories
   Future<void> deletePath(String path) async {
-    await runShellWrapper(
-      () => shellService.deletePath(host, path),
-    );
+    await runShellWrapper(() => shellService.deletePath(host, path));
   }
 
   /// Download files/directories
@@ -115,7 +113,8 @@ class FileOperationsService {
       if (!context.mounted) return;
       progressController = FileOperationProgressDialog.show(
         context,
-        operation: clipboardEntries.first.operation == ExplorerClipboardOperation.copy
+        operation:
+            clipboardEntries.first.operation == ExplorerClipboardOperation.copy
             ? 'Copying'
             : 'Moving',
         totalItems: clipboardEntries.length,
@@ -131,13 +130,13 @@ class FileOperationsService {
       final destinationPath = joinPath(destinationDir, clipboard.displayName);
 
       // Skip if pasting to same location
-        if (clipboard.contextId == explorerContext.id &&
-            clipboard.remotePath == destinationPath) {
-          if (progressController != null) {
-            progressController.increment();
-          }
-          continue;
+      if (clipboard.contextId == explorerContext.id &&
+          clipboard.remotePath == destinationPath) {
+        if (progressController != null) {
+          progressController.increment();
         }
+        continue;
+      }
 
       // Update progress
       if (progressController != null) {
@@ -175,7 +174,11 @@ class FileOperationsService {
         }
       } catch (error) {
         failCount++;
-        AppLogger.w('Failed to paste ${clipboard.displayName}', tag: 'Explorer', error: error);
+        AppLogger.w(
+          'Failed to paste ${clipboard.displayName}',
+          tag: 'Explorer',
+          error: error,
+        );
         if (progressController != null) {
           progressController.increment();
         }
@@ -243,7 +246,9 @@ class FileOperationsService {
         try {
           final externalDir = await getExternalStorageDirectory();
           if (externalDir != null) {
-            final downloadsDir = Directory(p.join(externalDir.path, 'Downloads'));
+            final downloadsDir = Directory(
+              p.join(externalDir.path, 'Downloads'),
+            );
             selectedDirectory = downloadsDir.path;
           } else {
             // Last resort: use app's documents directory
@@ -252,11 +257,17 @@ class FileOperationsService {
             selectedDirectory = downloadsDir.path;
           }
         } catch (e) {
-          AppLogger.w('Failed to get Android storage directory', tag: 'Explorer', error: e);
+          AppLogger.w(
+            'Failed to get Android storage directory',
+            tag: 'Explorer',
+            error: e,
+          );
           // Show error and return
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Failed to access download directory')),
+              const SnackBar(
+                content: Text('Failed to access download directory'),
+              ),
             );
           }
           return;
@@ -313,9 +324,9 @@ class FileOperationsService {
     } catch (error) {
       if (!context.mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Download failed: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Download failed: $error')));
     }
   }
 
@@ -373,7 +384,7 @@ class FileOperationsService {
 
       for (var i = 0; i < files.length; i++) {
         final file = files[i];
-        
+
         if (!context.mounted) {
           return;
         }
@@ -382,8 +393,8 @@ class FileOperationsService {
         }
 
         // Get file name - prefer name from PlatformFile, fallback to path basename
-        final fileName = file.name.isNotEmpty 
-            ? file.name 
+        final fileName = file.name.isNotEmpty
+            ? file.name
             : (file.path != null ? p.basename(file.path!) : 'file_$i');
         final remotePath = joinPath(targetDirectory, fileName);
 
@@ -399,7 +410,10 @@ class FileOperationsService {
 
           if (isDirectory) {
             failCount++;
-            AppLogger.w('Skipping directory in file upload: ${file.path}', tag: 'Explorer');
+            AppLogger.w(
+              'Skipping directory in file upload: ${file.path}',
+              tag: 'Explorer',
+            );
             progressController.markFailed(i);
             continue;
           }
@@ -416,21 +430,28 @@ class FileOperationsService {
                 progressController.addBytes(bytes);
               },
             );
-      } else {
-        await uploadPath(
-          localPath: file.path!,
-          remoteDestination: remotePath,
-          recursive: false,
-        );
-      }
+          } else {
+            await uploadPath(
+              localPath: file.path!,
+              remoteDestination: remotePath,
+              recursive: false,
+            );
+          }
           if (!context.mounted) return;
           successCount++;
-          progressController.markCompleted(i, addSize: shellService is! BuiltInRemoteShellService);
+          progressController.markCompleted(
+            i,
+            addSize: shellService is! BuiltInRemoteShellService,
+          );
         } catch (error) {
           if (!context.mounted) return;
           failCount++;
           progressController.markFailed(i);
-          AppLogger.w('Failed to upload $fileName', tag: 'Explorer', error: error);
+          AppLogger.w(
+            'Failed to upload $fileName',
+            tag: 'Explorer',
+            error: error,
+          );
           AppLogger.d(
             'File details: path=${file.path}, name=${file.name}, bytes=${file.bytes?.length ?? 0}',
             tag: 'Explorer',
@@ -468,9 +489,9 @@ class FileOperationsService {
         Navigator.of(context, rootNavigator: true).pop();
       }
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Upload failed: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Upload failed: $error')));
     }
   }
 
@@ -491,11 +512,16 @@ class FileOperationsService {
     }
 
     final directoryName = p.basename(directoryPath);
-    final baseRemotePath = joinPath(targetDirectory, directoryName).replaceAll('\\', '/');
+    final baseRemotePath = joinPath(
+      targetDirectory,
+      directoryName,
+    ).replaceAll('\\', '/');
     final remoteBaseDir = p.dirname(baseRemotePath).replaceAll('\\', '/');
 
     final directoryCounts = await _countDirectoryEntries([directoryPath]);
-    final totalItems = directoryCounts.totalUnits == 0 ? 1 : directoryCounts.totalUnits;
+    final totalItems = directoryCounts.totalUnits == 0
+        ? 1
+        : directoryCounts.totalUnits;
     final items = await _buildDirectoryItems(directoryPath, directoryName);
 
     if (!context.mounted) return;
@@ -519,14 +545,20 @@ class FileOperationsService {
       } catch (error) {
         if (!context.mounted) return;
         failCount++;
-        AppLogger.w('Failed to prepare remote directory for $directoryName', tag: 'Explorer', error: error);
+        AppLogger.w(
+          'Failed to prepare remote directory for $directoryName',
+          tag: 'Explorer',
+          error: error,
+        );
         progressController.increment();
         return;
       }
 
       var hasFiles = false;
       try {
-        await for (final entity in Directory(directoryPath).list(recursive: true, followLinks: false)) {
+        await for (final entity in Directory(
+          directoryPath,
+        ).list(recursive: true, followLinks: false)) {
           if (!context.mounted) {
             return;
           }
@@ -537,8 +569,13 @@ class FileOperationsService {
             continue;
           }
           hasFiles = true;
-          final relativePath = p.relative(entity.path, from: directoryPath).replaceAll('\\', '/');
-          final remotePath = joinPath(baseRemotePath, relativePath).replaceAll('\\', '/');
+          final relativePath = p
+              .relative(entity.path, from: directoryPath)
+              .replaceAll('\\', '/');
+          final remotePath = joinPath(
+            baseRemotePath,
+            relativePath,
+          ).replaceAll('\\', '/');
           final remoteDir = p.dirname(remotePath).replaceAll('\\', '/');
           final itemLabel = '$directoryName/$relativePath';
           final itemIndex = items.indexWhere((i) => i.label == itemLabel);
@@ -580,13 +617,21 @@ class FileOperationsService {
             if (itemIndex != -1) {
               progressController.markFailed(itemIndex);
             }
-            AppLogger.w('Failed to upload $remotePath', tag: 'Explorer', error: error);
+            AppLogger.w(
+              'Failed to upload $remotePath',
+              tag: 'Explorer',
+              error: error,
+            );
           }
         }
       } catch (error) {
         if (!context.mounted) return;
         failCount++;
-        AppLogger.w('Failed to read directory $directoryPath', tag: 'Explorer', error: error);
+        AppLogger.w(
+          'Failed to read directory $directoryPath',
+          tag: 'Explorer',
+          error: error,
+        );
       }
 
       if (!hasFiles) {
@@ -595,7 +640,11 @@ class FileOperationsService {
           successCount++;
         } catch (error) {
           failCount++;
-          AppLogger.w('Failed to create empty folder $directoryName', tag: 'Explorer', error: error);
+          AppLogger.w(
+            'Failed to create empty folder $directoryName',
+            tag: 'Explorer',
+            error: error,
+          );
         }
         final emptyIndex = items.indexWhere((i) => i.label == directoryName);
         if (emptyIndex != -1) {
@@ -633,9 +682,9 @@ class FileOperationsService {
         Navigator.of(context, rootNavigator: true).pop();
       }
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Upload failed: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Upload failed: $error')));
     }
   }
 
@@ -652,14 +701,21 @@ class FileOperationsService {
         if (!await dir.exists()) {
           continue;
         }
-        await for (final entity in dir.list(recursive: true, followLinks: false)) {
+        await for (final entity in dir.list(
+          recursive: true,
+          followLinks: false,
+        )) {
           if (entity is File) {
             hasFile = true;
             fileCount++;
           }
         }
       } catch (error) {
-        AppLogger.w('Failed to count files in $directory', tag: 'Explorer', error: error);
+        AppLogger.w(
+          'Failed to count files in $directory',
+          tag: 'Explorer',
+          error: error,
+        );
       }
 
       if (!hasFile) {
@@ -705,12 +761,16 @@ class FileOperationsService {
     final items = <FileOperationItem>[];
     var hasFiles = false;
     try {
-      await for (final entity in Directory(directoryPath).list(recursive: true, followLinks: false)) {
+      await for (final entity in Directory(
+        directoryPath,
+      ).list(recursive: true, followLinks: false)) {
         if (entity is! File) {
           continue;
         }
         hasFiles = true;
-        final relativePath = p.relative(entity.path, from: directoryPath).replaceAll('\\', '/');
+        final relativePath = p
+            .relative(entity.path, from: directoryPath)
+            .replaceAll('\\', '/');
         var size = 0;
         try {
           final stat = await entity.stat();
@@ -738,15 +798,14 @@ class FileOperationsService {
     String remotePath,
     Set<String> created,
   ) async {
-    if (created.contains(remotePath) || remotePath.isEmpty || remotePath == '.') {
+    if (created.contains(remotePath) ||
+        remotePath.isEmpty ||
+        remotePath == '.') {
       return;
     }
     final escaped = remotePath.replaceAll("'", r"'\''");
     await runShellWrapper(
-      () => shellService.runCommand(
-        host,
-        "mkdir -p '$escaped'",
-      ),
+      () => shellService.runCommand(host, "mkdir -p '$escaped'"),
     );
     created.add(remotePath);
   }
@@ -756,7 +815,9 @@ class FileOperationsService {
     String destinationPath, {
     required bool move,
   }) async {
-    final tempDir = await Directory.systemTemp.createTemp('cwatch-explorer-copy-');
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cwatch-explorer-copy-',
+    );
     try {
       await entry.shellService.downloadPath(
         host: entry.host,

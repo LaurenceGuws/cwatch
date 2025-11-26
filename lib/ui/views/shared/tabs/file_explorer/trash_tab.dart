@@ -3,14 +3,14 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import '../../../../models/explorer_context.dart';
-import '../../../../services/filesystem/explorer_trash_manager.dart';
-import '../../../../services/logging/app_logger.dart';
-import '../../../../services/ssh/remote_shell_service.dart';
-import '../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
-import '../../../../services/ssh/builtin/builtin_ssh_key_store.dart';
-import '../../../../services/ssh/builtin/builtin_ssh_vault.dart';
-import 'file_explorer/ssh_auth_handler.dart';
+import '../../../../../models/explorer_context.dart';
+import '../../../../../services/filesystem/explorer_trash_manager.dart';
+import '../../../../../services/logging/app_logger.dart';
+import '../../../../../services/ssh/remote_shell_service.dart';
+import '../../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
+import '../../../../../services/ssh/builtin/builtin_ssh_key_store.dart';
+import '../../../../../services/ssh/builtin/builtin_ssh_vault.dart';
+import 'ssh_auth_handler.dart';
 
 class TrashTab extends StatefulWidget {
   const TrashTab({
@@ -37,9 +37,7 @@ class _TrashTabState extends State<TrashTab> {
   @override
   void initState() {
     super.initState();
-    _entriesFuture = widget.manager.loadEntries(
-      contextId: widget.context?.id,
-    );
+    _entriesFuture = widget.manager.loadEntries(contextId: widget.context?.id);
     _changesListener = () {
       if (!mounted) return;
       setState(() {
@@ -115,9 +113,7 @@ class _TrashTabState extends State<TrashTab> {
         }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Passphrase stored for $keyLabel.'),
-            ),
+            SnackBar(content: Text('Passphrase stored for $keyLabel.')),
           );
         }
         continue;
@@ -337,10 +333,9 @@ class _TrashTabState extends State<TrashTab> {
                   separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final entry = entries[index];
-                    final contextDetails =
-                        entry.contextLabel != entry.hostName
-                            ? '${entry.contextLabel} · ${entry.hostName}'
-                            : entry.hostName;
+                    final contextDetails = entry.contextLabel != entry.hostName
+                        ? '${entry.contextLabel} · ${entry.hostName}'
+                        : entry.hostName;
                     return Card(
                       child: ListTile(
                         leading: Icon(

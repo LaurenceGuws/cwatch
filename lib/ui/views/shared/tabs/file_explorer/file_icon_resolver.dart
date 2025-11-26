@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 
-import '../../../../models/remote_file_entry.dart';
-import '../../../theme/nerd_fonts.dart';
+import '../../../../../models/remote_file_entry.dart';
+import '../../../../theme/nerd_fonts.dart';
 
 class FileIconResolver {
   const FileIconResolver._();

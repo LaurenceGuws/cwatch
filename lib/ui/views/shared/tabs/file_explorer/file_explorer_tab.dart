@@ -3,29 +3,29 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../models/explorer_context.dart';
-import '../../../../models/remote_file_entry.dart';
-import '../../../../models/ssh_host.dart';
-import '../../../../services/logging/app_logger.dart';
-import '../../../../services/ssh/remote_shell_service.dart';
-import '../../../../services/ssh/builtin/builtin_ssh_vault.dart';
-import '../../../../services/ssh/remote_editor_cache.dart';
-import '../../../../services/filesystem/explorer_trash_manager.dart';
+import '../../../../../models/explorer_context.dart';
+import '../../../../../models/remote_file_entry.dart';
+import '../../../../../models/ssh_host.dart';
+import '../../../../../services/logging/app_logger.dart';
+import '../../../../../services/ssh/remote_shell_service.dart';
+import '../../../../../services/ssh/builtin/builtin_ssh_vault.dart';
+import '../../../../../services/ssh/remote_editor_cache.dart';
+import '../../../../../services/filesystem/explorer_trash_manager.dart';
 import 'explorer_clipboard.dart';
 import 'merge_conflict_dialog.dart';
-import 'file_explorer/path_navigator.dart';
-import 'file_explorer/ssh_auth_handler.dart';
-import 'file_explorer/file_operations_service.dart';
-import 'file_explorer/file_entry_list.dart';
-import 'file_explorer/context_menu_builder.dart';
-import 'file_explorer/path_utils.dart';
-import 'file_explorer/file_editing_service.dart';
-import 'file_explorer/selection_controller.dart';
-import 'file_explorer/path_loading_service.dart';
-import 'file_explorer/delete_operations_handler.dart';
-import 'file_explorer/clipboard_operations_handler.dart';
-import 'file_explorer/external_app_launcher.dart';
-import 'file_explorer/dialog_builders.dart';
+import 'path_navigator.dart';
+import 'ssh_auth_handler.dart';
+import 'file_operations_service.dart';
+import 'file_entry_list.dart';
+import 'context_menu_builder.dart';
+import 'path_utils.dart';
+import 'file_editing_service.dart';
+import 'selection_controller.dart';
+import 'path_loading_service.dart';
+import 'delete_operations_handler.dart';
+import 'clipboard_operations_handler.dart';
+import 'external_app_launcher.dart';
+import 'dialog_builders.dart';
 
 class FileExplorerTab extends StatefulWidget {
   FileExplorerTab({
@@ -47,7 +47,7 @@ class FileExplorerTab extends StatefulWidget {
   final BuiltInSshVault? builtInVault;
   final ValueChanged<ExplorerContext> onOpenTrash;
   final Future<void> Function(String path, String initialContent)?
-      onOpenEditorTab;
+  onOpenEditorTab;
   final ValueChanged<String>? onOpenTerminalTab;
 
   @override
@@ -116,18 +116,18 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       runShellWrapper: _runShell,
     );
     _deleteHandler = DeleteOperationsHandler(
-        shellService: widget.shellService,
-        host: widget.host,
-        trashManager: widget.trashManager,
-        runShellWrapper: _runShell,
-        explorerContext: widget.explorerContext,
-      );
-      _clipboardHandler = ClipboardOperationsHandler(
-        host: widget.host,
-        currentPath: _currentPath,
-        explorerContext: widget.explorerContext,
-        shellService: widget.shellService,
-      );
+      shellService: widget.shellService,
+      host: widget.host,
+      trashManager: widget.trashManager,
+      runShellWrapper: _runShell,
+      explorerContext: widget.explorerContext,
+    );
+    _clipboardHandler = ClipboardOperationsHandler(
+      host: widget.host,
+      currentPath: _currentPath,
+      explorerContext: widget.explorerContext,
+      shellService: widget.shellService,
+    );
     _initializeExplorer();
     _clipboardListener = () {
       if (mounted) {

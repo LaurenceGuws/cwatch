@@ -5,12 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:xterm/xterm.dart';
 import 'package:cwatch/services/ssh/terminal_session.dart';
 
-import '../../../../models/app_settings.dart';
-import '../../../../models/ssh_host.dart';
-import '../../../../services/ssh/remote_shell_service.dart';
-import '../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
-import '../../../../services/settings/app_settings_controller.dart';
-import '../../../theme/nerd_fonts.dart';
+import '../../../../../models/app_settings.dart';
+import '../../../../../models/ssh_host.dart';
+import '../../../../../services/ssh/remote_shell_service.dart';
+import '../../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
+import '../../../../../services/settings/app_settings_controller.dart';
+import '../../../../theme/nerd_fonts.dart';
 import 'terminal_theme_presets.dart';
 
 /// Terminal tab that spawns an SSH session via a PTY.

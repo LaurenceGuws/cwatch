@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../theme/nerd_fonts.dart';
+import '../../../../theme/nerd_fonts.dart';
 
 class MergeConflictDialog extends StatefulWidget {
   const MergeConflictDialog({
@@ -59,7 +59,9 @@ class _MergeConflictDialogState extends State<MergeConflictDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Remote file changed while you edited locally. Review differences and provide the merged result.'),
+            const Text(
+              'Remote file changed while you edited locally. Review differences and provide the merged result.',
+            ),
             const SizedBox(height: 16),
             SizedBox(
               height: diffHeight,
@@ -96,7 +98,9 @@ class _MergeConflictDialogState extends State<MergeConflictDialog> {
                       controller: _mergedController,
                       maxLines: null,
                       expands: true,
-                      decoration: const InputDecoration(border: OutlineInputBorder()),
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                      ),
                       style: const TextStyle(fontFamily: 'monospace'),
                     ),
                   ),
@@ -121,17 +125,25 @@ class _MergeConflictDialogState extends State<MergeConflictDialog> {
   }
 
   void _scrollToFirstDiff() {
-    int remoteIndex = _remoteDiffLines.indexWhere((line) => line.type != DiffType.same);
-    int localIndex = _localDiffLines.indexWhere((line) => line.type != DiffType.same);
+    int remoteIndex = _remoteDiffLines.indexWhere(
+      (line) => line.type != DiffType.same,
+    );
+    int localIndex = _localDiffLines.indexWhere(
+      (line) => line.type != DiffType.same,
+    );
     remoteIndex = remoteIndex == -1 ? _remoteDiffLines.length : remoteIndex;
     localIndex = localIndex == -1 ? _localDiffLines.length : localIndex;
     final targetIndex = remoteIndex < localIndex ? remoteIndex : localIndex;
     final offset = targetIndex * 20.0;
     if (_remoteController.hasClients) {
-      _remoteController.jumpTo(offset.clamp(0, _remoteController.position.maxScrollExtent));
+      _remoteController.jumpTo(
+        offset.clamp(0, _remoteController.position.maxScrollExtent),
+      );
     }
     if (_localController.hasClients) {
-      _localController.jumpTo(offset.clamp(0, _localController.position.maxScrollExtent));
+      _localController.jumpTo(
+        offset.clamp(0, _localController.position.maxScrollExtent),
+      );
     }
   }
 
@@ -196,10 +208,16 @@ class _DiffPane extends StatelessWidget {
                   final colors = _colorsForType(line.type, context);
                   return Container(
                     color: colors.background,
-                    padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 2,
+                      horizontal: 4,
+                    ),
                     child: Text(
                       line.text,
-                      style: TextStyle(fontFamily: 'monospace', color: colors.foreground),
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        color: colors.foreground,
+                      ),
                     ),
                   );
                 },

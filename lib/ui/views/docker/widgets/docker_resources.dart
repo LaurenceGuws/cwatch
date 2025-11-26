@@ -12,7 +12,7 @@ import '../../../../services/docker/docker_client_service.dart';
 import '../../../../services/ssh/remote_shell_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../../theme/nerd_fonts.dart';
-import '../../shared/engine_tab.dart';
+import '../engine_tab.dart';
 import 'docker_command_terminal.dart';
 
 class DockerResources extends StatefulWidget {

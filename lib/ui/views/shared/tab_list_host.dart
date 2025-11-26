@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'engine_tab.dart';
+import '../docker/engine_tab.dart';
 
 /// Shared tab-list contract so different views expose the same build inputs.
 abstract class TabListHost {

@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 
-import '../../../../../models/explorer_context.dart';
-import '../../../../models/ssh_host.dart';
-import '../../../../../services/ssh/remote_shell_service.dart';
+import '../../../../../../models/explorer_context.dart';
+import '../../../../../models/ssh_host.dart';
+import '../../../../../../services/ssh/remote_shell_service.dart';
 
 enum ExplorerClipboardOperation { copy, cut }
 
@@ -47,26 +47,27 @@ class ExplorerClipboard {
   static final ValueNotifier<ExplorerClipboardCutEvent?> _cutNotifier =
       ValueNotifier<ExplorerClipboardCutEvent?>(null);
 
-  static ValueListenable<List<ExplorerClipboardEntry>> get listenable => _notifier;
+  static ValueListenable<List<ExplorerClipboardEntry>> get listenable =>
+      _notifier;
   static ValueListenable<ExplorerClipboardCutEvent?> get cutEvents =>
       _cutNotifier;
-  
+
   // Backward compatibility: get first entry if single, null if empty
   static ExplorerClipboardEntry? get entry {
     final entries = _notifier.value;
     return entries.isEmpty ? null : entries.first;
   }
-  
+
   // Get all entries
   static List<ExplorerClipboardEntry> get entries => _notifier.value;
-  
+
   // Check if clipboard has content
   static bool get hasEntries => _notifier.value.isNotEmpty;
 
   static void setEntry(ExplorerClipboardEntry? entry) {
     _notifier.value = entry == null ? [] : [entry];
   }
-  
+
   static void setEntries(List<ExplorerClipboardEntry> entries) {
     _notifier.value = entries;
   }
@@ -76,8 +77,11 @@ class ExplorerClipboard {
   static void notifyCutCompleted(ExplorerClipboardEntry entry) {
     final currentEntries = _notifier.value;
     _notifier.value = currentEntries
-        .where((e) =>
-            e.remotePath != entry.remotePath || e.contextId != entry.contextId)
+        .where(
+          (e) =>
+              e.remotePath != entry.remotePath ||
+              e.contextId != entry.contextId,
+        )
         .toList();
     _cutNotifier.value = ExplorerClipboardCutEvent(
       hostName: entry.host.name,
@@ -85,12 +89,16 @@ class ExplorerClipboard {
       contextId: entry.contextId,
     );
   }
-  
+
   static void notifyCutsCompleted(List<ExplorerClipboardEntry> entries) {
     final currentEntries = _notifier.value;
     final remaining = currentEntries
-        .where((e) => entries.every(
-            (cut) => cut.remotePath != e.remotePath || cut.contextId != e.contextId))
+        .where(
+          (e) => entries.every(
+            (cut) =>
+                cut.remotePath != e.remotePath || cut.contextId != e.contextId,
+          ),
+        )
         .toList();
     _notifier.value = remaining;
     // Notify for each cut entry

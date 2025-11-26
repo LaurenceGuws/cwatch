@@ -93,11 +93,11 @@ import 'package:flutter_highlight/themes/zenburn.dart';
 // Import all languages dynamically via all.dart
 import 'package:highlight/languages/all.dart' as all_langs;
 
-import '../../../../models/ssh_host.dart';
-import '../../../../services/settings/app_settings_controller.dart';
-import '../../../../services/ssh/remote_shell_service.dart';
-import '../../../theme/nerd_fonts.dart';
-import '../../../widgets/style_picker_dialog.dart';
+import '../../../../../models/ssh_host.dart';
+import '../../../../../services/settings/app_settings_controller.dart';
+import '../../../../../services/ssh/remote_shell_service.dart';
+import '../../../../theme/nerd_fonts.dart';
+import '../../../../widgets/style_picker_dialog.dart';
 
 class RemoteFileEditorTab extends StatefulWidget {
   const RemoteFileEditorTab({
@@ -291,22 +291,23 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
             padding: const EdgeInsets.all(8),
             child: CodeTheme(
               data: CodeThemeData(styles: theme),
-            child: CodeField(
-              controller: _controller,
-              expands: true,
-              maxLines: null,
-              minLines: null,
-              textStyle: TextStyle(
-                fontFamily:
-                    NerdFonts.effectiveFamily(settings.editorFontFamily),
-                fontSize: settings.editorFontSize.clamp(8, 32).toDouble(),
-                height: settings.editorLineHeight.clamp(1.0, 2.0).toDouble(),
-              ),
-              gutterStyle: const GutterStyle(
-                showLineNumbers: true,
-                showErrors: false,
-                showFoldingHandles: true,
-              ),
+              child: CodeField(
+                controller: _controller,
+                expands: true,
+                maxLines: null,
+                minLines: null,
+                textStyle: TextStyle(
+                  fontFamily: NerdFonts.effectiveFamily(
+                    settings.editorFontFamily,
+                  ),
+                  fontSize: settings.editorFontSize.clamp(8, 32).toDouble(),
+                  height: settings.editorLineHeight.clamp(1.0, 2.0).toDouble(),
+                ),
+                gutterStyle: const GutterStyle(
+                  showLineNumbers: true,
+                  showErrors: false,
+                  showFoldingHandles: true,
+                ),
               ),
             ),
           ),
@@ -360,7 +361,9 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
   Future<void> _showThemeDialog(BuildContext context) async {
     final themes = _getAllThemes();
     final brightness = Theme.of(context).colorScheme.brightness;
-    final defaultTheme = brightness == Brightness.dark ? 'dracula' : 'color-brewer';
+    final defaultTheme = brightness == Brightness.dark
+        ? 'dracula'
+        : 'color-brewer';
     final savedTheme = _getSavedThemeForBrightness(brightness);
     final initialKey = savedTheme ?? defaultTheme;
     final options = themes.entries
@@ -449,10 +452,7 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
           ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
         return keys
             .map(
-              (key) => DropdownMenuItem<String?>(
-                value: key,
-                child: Text(key),
-              ),
+              (key) => DropdownMenuItem<String?>(value: key, child: Text(key)),
             )
             .toList();
       }(),
