@@ -29,7 +29,6 @@ import '../shared/tabs/tab_chip.dart';
 import '../shared/tabs/file_explorer/trash_tab.dart';
 import '../shared/tabs/editor/remote_file_editor_tab.dart';
 import '../../../services/ssh/remote_editor_cache.dart';
-import '../shared/default_tab_service.dart';
 
 class ServersList extends StatefulWidget {
   const ServersList({
@@ -59,28 +58,31 @@ class _ServersListState extends State<ServersList> {
   String? _lastPersistedSignature;
   late final VoidCallback _settingsListener;
   bool _pendingWorkspaceSave = false;
-  late final DefaultTabService<ServerTab> _tabService;
-  static const _defaultTabId = 'host-tab';
   final Map<String, Widget> _tabBodies = {};
-  String? _activeDefaultTabId;
+  static int _placeholderSequence = 0;
+
+  static String _newPlaceholderId() {
+    final sequence = _placeholderSequence++;
+    return 'host-tab-${DateTime.now().microsecondsSinceEpoch}-$sequence';
+  }
+
+  ServerTab _createPlaceholderTab() {
+    final id = _newPlaceholderId();
+    return _createTab(
+      id: id,
+      host: const PlaceholderHost(),
+      action: ServerAction.empty,
+    );
+  }
 
   @override
   void initState() {
     super.initState();
     widget.builtInVault
         .forgetAll(); // Ensure keys are locked whenever the workspace is reconstructed.
-    _tabService = DefaultTabService<ServerTab>(
-      baseTabBuilder: ({String? id}) => _createTab(
-        id: id ?? _defaultTabId,
-        host: const PlaceholderHost(),
-        action: ServerAction.empty,
-      ),
-      tabId: (tab) => tab.id,
-    );
-    final base = _tabService.createBase();
+    final base = _createPlaceholderTab();
     _tabs.add(base);
     _tabBodies[base.id] = _buildTabWidget(base);
-    _activeDefaultTabId = base.id;
     _settingsListener = _handleSettingsChanged;
     widget.settingsController.addListener(_settingsListener);
     _restoreWorkspace();
@@ -423,7 +425,7 @@ class _ServersListState extends State<ServersList> {
         host: host,
         action: action,
       );
-      if (_replaceDefaultTab(tab)) {
+      if (_replacePlaceholderWithSelectedTab(tab)) {
         return;
       }
       _tabBodies[tab.id] = _buildTabWidget(tab);
@@ -433,26 +435,27 @@ class _ServersListState extends State<ServersList> {
     _persistWorkspace();
   }
 
-  bool _replaceDefaultTab(ServerTab tab) {
-    final id = _activeDefaultTabId;
-    if (id == null) {
+  bool _replacePlaceholderWithSelectedTab(ServerTab tab) {
+    if (_tabs.isEmpty) {
       return false;
     }
-    final index = _tabService.replaceTab(_tabs, id, tab);
-    if (index == null) {
+    final index = _selectedTabIndex.clamp(0, _tabs.length - 1);
+    final current = _tabAt(index);
+    if (current.action != ServerAction.empty) {
       return false;
     }
-    _selectedTabIndex = index;
+    _tabs[index] = tab;
+    _tabBodies.remove(current.id);
     _tabBodies[tab.id] = _buildTabWidget(tab);
-    _activeDefaultTabId = null;
     return true;
   }
 
+  ServerTab _tabAt(int index) => _tabs[index];
+
   void _addEmptyTabPlaceholder() {
-    final placeholder = _tabService.createBase(id: _defaultTabId);
+    final placeholder = _createPlaceholderTab();
     _tabs.add(placeholder);
     _tabBodies[placeholder.id] = _buildTabWidget(placeholder);
-    _activeDefaultTabId = placeholder.id;
     _selectedTabIndex = _tabs.length - 1;
   }
 
@@ -576,8 +579,10 @@ class _ServersListState extends State<ServersList> {
         return;
       }
       if (_tabs.length == 1) {
-        final placeholder = _tabService.createBase(id: _defaultTabId);
+        final placeholder = _createPlaceholderTab();
+        final replacedId = _tabs[0].id;
         _tabs[0] = placeholder;
+        _tabBodies.remove(replacedId);
         _tabBodies[placeholder.id] = _buildTabWidget(placeholder);
         _selectedTabIndex = 0;
       } else {

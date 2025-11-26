@@ -107,16 +107,10 @@ class TabChip extends StatelessWidget {
               hoverColor: foreground.withValues(alpha: 0.12),
               padding: const EdgeInsets.all(2),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-              child: dragIndex != null
-                  ? ReorderableDragStartListener(
-                      index: dragIndex!,
-                      child: Icon(NerdIcon.drag.data, size: 16),
-                    )
-                  : Icon(
-                      NerdIcon.drag.data,
-                      size: 16,
-                      color: foreground.withValues(alpha: 0.4),
-                    ),
+              child: _DragHandle(
+                dragIndex: dragIndex,
+                foreground: foreground,
+              ),
             ),
           ),
           SizedBox(width: spacing.xs),
@@ -308,5 +302,66 @@ class _TabChipActionState extends State<_TabChipAction> {
   void _setHovering(bool value) {
     if (_hovering == value) return;
     setState(() => _hovering = value);
+  }
+}
+
+class _DragHandle extends StatefulWidget {
+  const _DragHandle({
+    required this.dragIndex,
+    required this.foreground,
+  });
+
+  final int? dragIndex;
+  final Color foreground;
+
+  @override
+  State<_DragHandle> createState() => _DragHandleState();
+}
+
+class _DragHandleState extends State<_DragHandle> {
+  final ValueNotifier<bool> _dragActive = ValueNotifier(false);
+
+  void _setDragActive(bool value) {
+    _dragActive.value = value;
+  }
+
+  Widget get _handle => SizedBox(
+        width: 20,
+        height: 20,
+        child: Center(
+          child: ValueListenableBuilder<bool>(
+            valueListenable: _dragActive,
+            builder: (context, active, child) {
+              final icon = active ? NerdIcon.dragSelect.data : NerdIcon.drag.data;
+              final color = active
+                  ? widget.foreground
+                  : widget.foreground.withValues(alpha: 0.4);
+              return Icon(icon, size: 16, color: color);
+            },
+          ),
+        ),
+      );
+
+  @override
+  void dispose() {
+    _dragActive.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.dragIndex == null) {
+      return _handle;
+    }
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: (_) => _setDragActive(true),
+      onPointerUp: (_) => _setDragActive(false),
+      onPointerCancel: (_) => _setDragActive(false),
+      child: ReorderableDragStartListener(
+        index: widget.dragIndex!,
+        child: _handle,
+      ),
+    );
   }
 }

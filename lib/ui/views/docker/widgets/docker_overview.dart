@@ -100,7 +100,7 @@ class _DockerOverviewState extends State<DockerOverview> {
     _tabOptionsRegistered = true;
     final icons = _icons;
     final scheme = Theme.of(context).colorScheme;
-    widget.optionsController!.update([
+    final options = [
       TabChipOption(
         label: 'Reload',
         icon: icons.refresh,
@@ -118,7 +118,11 @@ class _DockerOverviewState extends State<DockerOverview> {
         color: scheme.error,
         onSelected: () => _runPrune(includeVolumes: true),
       ),
-    ]);
+    ];
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      widget.optionsController?.update(options);
+    });
   }
 
   @override

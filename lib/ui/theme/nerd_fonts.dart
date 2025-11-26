@@ -59,12 +59,13 @@ enum NerdIcon {
   search,
   pencil,
   drag,
+  dragSelect,
   close;
 }
 
 /// ✔️ CONST map of icons → safe for tree shaking
 const Map<NerdIcon, IconData> nerdIconData = {
-  NerdIcon.servers:     IconData(0xf048b, fontFamily: NerdFonts.family),
+  NerdIcon.servers:     IconData(0xeb50, fontFamily: NerdFonts.family),
   NerdIcon.cloud:       IconData(0xf0c2, fontFamily: NerdFonts.family),
   NerdIcon.docker:      IconData(0xf0868, fontFamily: NerdFonts.family),
   NerdIcon.kubernetes:  IconData(0xf10fe, fontFamily: NerdFonts.family),
@@ -108,8 +109,9 @@ const Map<NerdIcon, IconData> nerdIconData = {
   NerdIcon.arrowDown:   IconData(0xf063, fontFamily: NerdFonts.family),
   NerdIcon.search:      IconData(0xf002, fontFamily: NerdFonts.family),
   NerdIcon.pencil:      IconData(0xf03eb, fontFamily: NerdFonts.family),
-  NerdIcon.drag:        IconData(0xf01dd, fontFamily: NerdFonts.family),
-  NerdIcon.close:       IconData(0xf06c9, fontFamily: NerdFonts.family),
+  NerdIcon.drag:        IconData(0xf256, fontFamily: NerdFonts.family),
+  NerdIcon.dragSelect:  IconData(0xf255, fontFamily: NerdFonts.family),
+  NerdIcon.close:       IconData(0xe20d, fontFamily: NerdFonts.family),
 };
 
 /// ✔️ Nice extension API
