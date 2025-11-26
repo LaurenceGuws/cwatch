@@ -15,8 +15,8 @@ import '../../../theme/nerd_fonts.dart';
 import '../../shared/engine_tab.dart';
 import 'docker_command_terminal.dart';
 
-class DockerResourcesDashboard extends StatefulWidget {
-  const DockerResourcesDashboard({
+class DockerResources extends StatefulWidget {
+  const DockerResources({
     super.key,
     required this.docker,
     this.contextName,
@@ -34,10 +34,10 @@ class DockerResourcesDashboard extends StatefulWidget {
   final void Function(String tabId)? onCloseTab;
 
   @override
-  State<DockerResourcesDashboard> createState() => _DockerResourcesDashboardState();
+  State<DockerResources> createState() => _DockerResourcesState();
 }
 
-class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
+class _DockerResourcesState extends State<DockerResources> {
   Timer? _poller;
   bool _loading = true;
   String? _error;
@@ -95,8 +95,10 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
         children: [
           Row(
             children: [
-              Text('Resources • $title',
-                  style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                'Resources • $title',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               const Spacer(),
               IconButton(
                 tooltip: 'Open `docker stats`',
@@ -115,20 +117,20 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? Center(child: Text('Failed to load stats: $_error'))
-                    : _stats.isEmpty
-                        ? const Center(child: Text('No container stats found.'))
-                        : LayoutBuilder(
-                            builder: (context, constraints) {
-                              return ListView(
-                                children: [
-                                  _buildCharts(constraints.maxWidth),
-                                  const SizedBox(height: 16),
-                                  _buildContainerTable(constraints.maxWidth),
-                                ],
-                              );
-                            },
-                          ),
+                ? Center(child: Text('Failed to load stats: $_error'))
+                : _stats.isEmpty
+                ? const Center(child: Text('No container stats found.'))
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      return ListView(
+                        children: [
+                          _buildCharts(constraints.maxWidth),
+                          const SizedBox(height: 16),
+                          _buildContainerTable(constraints.maxWidth),
+                        ],
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -136,11 +138,15 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
   }
 
   Widget _buildCharts(double maxCardWidth) {
-    final memUsageScaled =
-        _scaleForBytes(_seriesFromMap(_memUsageHistoryByContainer));
-    final netIoScaled = _scaleForBytes(_seriesFromMap(_netIoHistoryByContainer));
-    final blockIoScaled =
-        _scaleForBytes(_seriesFromMap(_blockIoHistoryByContainer));
+    final memUsageScaled = _scaleForBytes(
+      _seriesFromMap(_memUsageHistoryByContainer),
+    );
+    final netIoScaled = _scaleForBytes(
+      _seriesFromMap(_netIoHistoryByContainer),
+    );
+    final blockIoScaled = _scaleForBytes(
+      _seriesFromMap(_blockIoHistoryByContainer),
+    );
     final charts = [
       (
         title: 'CPU %',
@@ -176,10 +182,7 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Resource trends',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
+        Text('Resource trends', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         ...charts.map(
           (chart) => Padding(
@@ -201,18 +204,13 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Container stats',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
+        Text('Container stats', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         Card(
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minWidth: maxCardWidth,
-              ),
+              constraints: BoxConstraints(minWidth: maxCardWidth),
               child: DataTable(
                 sortColumnIndex: _sortColumnIndex,
                 sortAscending: _sortAscending,
@@ -253,7 +251,9 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
                         cells: [
                           DataCell(Text(_nameOf(stat))),
                           DataCell(Text(stat.cpu)),
-                          DataCell(Text('${stat.memUsage} (${stat.memPercent})')),
+                          DataCell(
+                            Text('${stat.memUsage} (${stat.memPercent})'),
+                          ),
                           DataCell(Text(stat.netIO)),
                           DataCell(Text(stat.blockIO)),
                           DataCell(Text(stat.pids)),
@@ -292,30 +292,26 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
 
   void _applySort() {
     final comparator = _comparatorForColumn(_sortColumnIndex);
-    _stats = [..._stats]..sort((a, b) {
+    _stats = [..._stats]
+      ..sort((a, b) {
         final result = comparator(a, b);
         return _sortAscending ? result : -result;
       });
   }
 
-  int Function(DockerContainerStat a, DockerContainerStat b) _comparatorForColumn(
-    int column,
-  ) {
+  int Function(DockerContainerStat a, DockerContainerStat b)
+  _comparatorForColumn(int column) {
     switch (column) {
       case 1:
         return (a, b) => _compareNum(_cpuPercent(a), _cpuPercent(b));
       case 2:
         return (a, b) => _compareNum(_memPercent(a), _memPercent(b));
       case 3:
-        return (a, b) => _compareNum(
-              _parseBytePair(a.netIO),
-              _parseBytePair(b.netIO),
-            );
+        return (a, b) =>
+            _compareNum(_parseBytePair(a.netIO), _parseBytePair(b.netIO));
       case 4:
-        return (a, b) => _compareNum(
-              _parseBytePair(a.blockIO),
-              _parseBytePair(b.blockIO),
-            );
+        return (a, b) =>
+            _compareNum(_parseBytePair(a.blockIO), _parseBytePair(b.blockIO));
       case 5:
         return (a, b) => _compareNum(_parsePid(a.pids), _parsePid(b.pids));
       case 0:
@@ -364,8 +360,8 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
     if (widget.onOpenTab == null) return;
     final contextFlag =
         widget.contextName != null && widget.contextName!.isNotEmpty
-            ? '--context ${widget.contextName!} '
-            : '';
+        ? '--context ${widget.contextName!} '
+        : '';
     final command =
         'docker ${contextFlag}stats --no-stream --format "{{json .}}"; exit';
     final tabId = 'dstat-${DateTime.now().microsecondsSinceEpoch}';
@@ -420,22 +416,22 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
             _memPercent(stat) ?? 0,
           );
           _appendHistoryFor(
-        _memUsageHistoryByContainer,
-        name,
-        _parseBytes(stat.memUsage) ?? 0,
-      );
-      _appendHistoryFor(
+            _memUsageHistoryByContainer,
+            name,
+            _parseBytes(stat.memUsage) ?? 0,
+          );
+          _appendHistoryFor(
             _netIoHistoryByContainer,
             name,
             _parseBytePair(stat.netIO),
           );
           _appendHistoryFor(
-        _blockIoHistoryByContainer,
-        name,
-        _parseBytePair(stat.blockIO),
-      );
-    }
-    _applySort();
+            _blockIoHistoryByContainer,
+            name,
+            _parseBytePair(stat.blockIO),
+          );
+        }
+        _applySort();
       });
     } catch (error) {
       setState(() {
@@ -464,16 +460,19 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
 
   double _parseBytePair(String value) {
     final parts = value.split('/');
-    final double first =
-        parts.isNotEmpty ? (_parseByteValue(parts[0].trim()) ?? 0) : 0;
-    final double second =
-        parts.length > 1 ? (_parseByteValue(parts[1].trim()) ?? 0) : 0;
+    final double first = parts.isNotEmpty
+        ? (_parseByteValue(parts[0].trim()) ?? 0)
+        : 0;
+    final double second = parts.length > 1
+        ? (_parseByteValue(parts[1].trim()) ?? 0)
+        : 0;
     return first + second;
   }
 
   double? _parseByteValue(String value) {
-    final match = RegExp(r'([0-9]+(?:\.[0-9]+)?)\s*([A-Za-z]+)?')
-        .firstMatch(value.trim());
+    final match = RegExp(
+      r'([0-9]+(?:\.[0-9]+)?)\s*([A-Za-z]+)?',
+    ).firstMatch(value.trim());
     if (match == null) return null;
     final number = double.tryParse(match.group(1) ?? '');
     if (number == null) return null;
@@ -517,12 +516,7 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
                 spacing: 12,
                 runSpacing: 4,
                 children: series
-                    .map(
-                      (s) => _ChartLegend(
-                        label: s.label,
-                        color: s.color,
-                      ),
-                    )
+                    .map((s) => _ChartLegend(label: s.label, color: s.color))
                     .toList(),
               ),
               const SizedBox(height: 8),
@@ -530,10 +524,7 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
                 height: 240,
                 child: hasPoints
                     ? LineChart(
-                        _lineChartData(
-                          series,
-                          unitSuffix: unitSuffix,
-                        ),
+                        _lineChartData(series, unitSuffix: unitSuffix),
                         duration: const Duration(milliseconds: 250),
                         curve: Curves.easeInOut,
                       )
@@ -566,10 +557,7 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
     return palette[hash.abs() % palette.length];
   }
 
-  LineChartData _lineChartData(
-    List<_LineSeries> series, {
-    String? unitSuffix,
-  }) {
+  LineChartData _lineChartData(List<_LineSeries> series, {String? unitSuffix}) {
     final allValues = series.expand((s) => s.values).toList();
     final double maxY = allValues.isNotEmpty
         ? math.max(allValues.reduce(math.max) * 1.1, 10).toDouble()
@@ -586,14 +574,10 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
       gridData: FlGridData(
         show: true,
         horizontalInterval: maxY / 4,
-        getDrawingHorizontalLine: (value) => FlLine(
-          color: gridColor,
-          strokeWidth: 1,
-        ),
-        getDrawingVerticalLine: (value) => FlLine(
-          color: gridColor,
-          strokeWidth: 1,
-        ),
+        getDrawingHorizontalLine: (value) =>
+            FlLine(color: gridColor, strokeWidth: 1),
+        getDrawingVerticalLine: (value) =>
+            FlLine(color: gridColor, strokeWidth: 1),
       ),
       titlesData: FlTitlesData(
         bottomTitles: AxisTitles(
@@ -619,13 +603,13 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
           ),
         ),
         topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        rightTitles: const AxisTitles(
+          sideTitles: SideTitles(showTitles: false),
+        ),
       ),
       borderData: FlBorderData(
         show: true,
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant,
-        ),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       ),
       lineTouchData: LineTouchData(
         handleBuiltInTouches: true,
@@ -704,7 +688,9 @@ class _DockerResourcesDashboardState extends State<DockerResourcesDashboard> {
   }
 
   String _formatValue(double value, String? suffix) {
-    final formatted = value >= 10 ? value.toStringAsFixed(1) : value.toStringAsFixed(2);
+    final formatted = value >= 10
+        ? value.toStringAsFixed(1)
+        : value.toStringAsFixed(2);
     return suffix != null ? '$formatted $suffix' : formatted;
   }
 }
@@ -748,10 +734,7 @@ class _ChartLegend extends StatelessWidget {
 }
 
 class _ScaledSeries {
-  const _ScaledSeries({
-    required this.series,
-    required this.unit,
-  });
+  const _ScaledSeries({required this.series, required this.unit});
 
   final List<_LineSeries> series;
   final String unit;

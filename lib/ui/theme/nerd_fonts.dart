@@ -1,8 +1,8 @@
 import 'package:flutter/widgets.dart';
 
 class NerdFonts {
-  // Match the mono family name from pubspec to keep terminal cell metrics stable.
-  static const String family = 'JetBrainsMono Nerd Font';
+  // Match the family name from pubspec to keep terminal cell metrics stable.
+  static const String family = 'JetBrainsMonoNF';
 
   static String effectiveFamily(String? override) {
     final value = override?.trim();

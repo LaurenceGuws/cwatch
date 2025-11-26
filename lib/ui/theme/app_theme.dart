@@ -22,7 +22,7 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
 
   factory AppThemeTokens.light(
     ColorScheme scheme, {
-    String fontFamily = NerdFonts.family,
+    String? fontFamily,
   }) {
     final baseTheme = ThemeData(
       colorScheme: scheme,
@@ -41,7 +41,7 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
 
   factory AppThemeTokens.dark(
     ColorScheme scheme, {
-    String fontFamily = NerdFonts.family,
+    String? fontFamily,
   }) {
     final baseTheme = ThemeData(
       colorScheme: scheme,

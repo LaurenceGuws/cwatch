@@ -25,13 +25,13 @@ import 'widgets/connectivity_tab.dart';
 import '../shared/tabs/file_explorer_tab.dart';
 import 'widgets/resources_tab.dart';
 import '../shared/tabs/terminal_tab.dart';
-import '../shared/tabs/server_tab_chip.dart';
+import '../shared/tabs/tab_chip.dart';
 import '../shared/tabs/trash_tab.dart';
 import '../shared/tabs/remote_file_editor_tab.dart';
 import '../../../services/ssh/remote_editor_cache.dart';
 
-class ServersView extends StatefulWidget {
-  const ServersView({
+class ServersList extends StatefulWidget {
+  const ServersList({
     super.key,
     required this.hostsFuture,
     required this.settingsController,
@@ -47,10 +47,10 @@ class ServersView extends StatefulWidget {
   final Widget? leading;
 
   @override
-  State<ServersView> createState() => _ServersViewState();
+  State<ServersList> createState() => _ServersListState();
 }
 
-class _ServersViewState extends State<ServersView> {
+class _ServersListState extends State<ServersList> {
   final List<ServerTab> _tabs = [];
   int _selectedTabIndex = 0;
   final ExplorerTrashManager _trashManager = ExplorerTrashManager();
@@ -62,7 +62,8 @@ class _ServersViewState extends State<ServersView> {
   @override
   void initState() {
     super.initState();
-    widget.builtInVault.forgetAll(); // Ensure keys are locked whenever the workspace is reconstructed.
+    widget.builtInVault
+        .forgetAll(); // Ensure keys are locked whenever the workspace is reconstructed.
     _tabs.add(
       _createTab(
         id: 'host-tab',
@@ -76,7 +77,7 @@ class _ServersViewState extends State<ServersView> {
   }
 
   @override
-  void didUpdateWidget(covariant ServersView oldWidget) {
+  void didUpdateWidget(covariant ServersList oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.hostsFuture != oldWidget.hostsFuture) {
       _restoreWorkspace();
@@ -121,7 +122,8 @@ class _ServersViewState extends State<ServersView> {
           onActivate: onHostActivate ?? _startActionFlowForHost,
           settingsController: widget.settingsController,
           builtInVault: widget.builtInVault,
-          onOpenConnectivity: (host) => _addTab(host, ServerAction.connectivity),
+          onOpenConnectivity: (host) =>
+              _addTab(host, ServerAction.connectivity),
           onOpenResources: (host) => _addTab(host, ServerAction.resources),
           onOpenTerminal: (host) => _addTab(host, ServerAction.terminal),
           onOpenExplorer: (host) => _addTab(host, ServerAction.fileExplorer),
@@ -129,10 +131,8 @@ class _ServersViewState extends State<ServersView> {
             // Trigger rebuild when hosts change
             setState(() {});
           },
-          onAddServer: (existingNames) => _showAddServerDialog(
-            context,
-            existingNames,
-          ),
+          onAddServer: (existingNames) =>
+              _showAddServerDialog(context, existingNames),
         );
       },
     );
@@ -154,7 +154,9 @@ class _ServersViewState extends State<ServersView> {
     if (result != null) {
       final current = widget.settingsController.settings;
       final hosts = [...current.customSshHosts, result];
-      final bindings = Map<String, String>.from(current.builtinSshHostKeyBindings);
+      final bindings = Map<String, String>.from(
+        current.builtinSshHostKeyBindings,
+      );
       if (result.identityFile != null && result.identityFile!.isNotEmpty) {
         bindings[result.name] = result.identityFile!;
       }
@@ -190,37 +192,33 @@ class _ServersViewState extends State<ServersView> {
                 child: SizedBox(
                   height: 48,
                   child: ReorderableListView.builder(
-                        scrollDirection: Axis.horizontal,
-                          padding: appTheme.spacing.inset(
-                            horizontal: 1,
-                            vertical: 0,
-                          ),
-                          buildDefaultDragHandles: false,
-                          onReorder: _handleTabReorder,
-                          itemCount: _tabs.length,
-                          itemBuilder: (context, index) {
-                            final tab = _tabs[index];
-                            final canRename = tab.action != ServerAction.empty;
-                            final canDrag = tab.action != ServerAction.empty;
-                            return ServerTabChip(
-                              key: ValueKey(tab.id),
-                              host: tab.host,
-                              title: tab.title,
-                              label: tab.label,
-                              icon: tab.icon,
-                              selected: index == selectedIndex,
-                              onSelect: () {
-                                setState(() => _selectedTabIndex = index);
-                                _persistWorkspace();
-                              },
-                              onClose: () => _closeTab(index),
-                              onRename: canRename ? () => _renameTab(index) : null,
-                              showActions: true,
-                              showClose: true,
-                              dragIndex: canDrag ? index : -1,
-                            );
-                          },
-                        ),
+                    scrollDirection: Axis.horizontal,
+                    padding: appTheme.spacing.inset(horizontal: 1, vertical: 0),
+                    buildDefaultDragHandles: false,
+                    onReorder: _handleTabReorder,
+                    itemCount: _tabs.length,
+                    itemBuilder: (context, index) {
+                      final tab = _tabs[index];
+                      final canRename = tab.action != ServerAction.empty;
+                      final canDrag = tab.action != ServerAction.empty;
+                      return TabChip(
+                        key: ValueKey(tab.id),
+                        host: tab.host,
+                        title: tab.title,
+                        label: tab.label,
+                        icon: tab.icon,
+                        selected: index == selectedIndex,
+                        onSelect: () {
+                          setState(() => _selectedTabIndex = index);
+                          _persistWorkspace();
+                        },
+                        onClose: () => _closeTab(index),
+                        onRename: canRename ? () => _renameTab(index) : null,
+                        closeWarning: _closeWarningForTab(tab),
+                        dragIndex: canDrag ? index : null,
+                      );
+                    },
+                  ),
                 ),
               ),
               IconButton(
@@ -243,17 +241,32 @@ class _ServersViewState extends State<ServersView> {
                 key: ValueKey('server-tab-${_tabs[0].id}'),
                 child: _buildTabChild(_tabs[0]),
               ),
-              ..._tabs.skip(1).map(
-                (tab) => KeyedSubtree(
-                  key: ValueKey('server-tab-${tab.id}'),
-                  child: _buildTabChild(tab),
-                ),
-              ),
+              ..._tabs
+                  .skip(1)
+                  .map(
+                    (tab) => KeyedSubtree(
+                      key: ValueKey('server-tab-${tab.id}'),
+                      child: _buildTabChild(tab),
+                    ),
+                  ),
             ],
           ),
         ),
       ],
     );
+  }
+
+  TabCloseWarning? _closeWarningForTab(ServerTab tab) {
+    if (tab.action == ServerAction.terminal) {
+      return const TabCloseWarning(
+        title: 'Disconnect terminal session?',
+        message:
+            'This tab is hosting a remote shell. Closing it will terminate the SSH session and any running commands.',
+        confirmLabel: 'Close tab',
+        cancelLabel: 'Keep tab open',
+      );
+    }
+    return null;
   }
 
   void _handleSettingsChanged() {
@@ -292,8 +305,7 @@ class _ServersViewState extends State<ServersView> {
       _tabs
         ..clear()
         ..addAll(restoredTabs);
-      _selectedTabIndex =
-          workspace.selectedIndex.clamp(0, _tabs.length - 1);
+      _selectedTabIndex = workspace.selectedIndex.clamp(0, _tabs.length - 1);
       _restoredWorkspaceSignature = signature;
       _lastPersistedSignature = signature;
     });
@@ -356,12 +368,10 @@ class _ServersViewState extends State<ServersView> {
           ),
         )
         .toList();
-    final clampedIndex =
-        _tabs.isEmpty ? 0 : _selectedTabIndex.clamp(0, _tabs.length - 1);
-    return ServerWorkspaceState(
-      tabs: tabs,
-      selectedIndex: clampedIndex,
-    );
+    final clampedIndex = _tabs.isEmpty
+        ? 0
+        : _selectedTabIndex.clamp(0, _tabs.length - 1);
+    return ServerWorkspaceState(tabs: tabs, selectedIndex: clampedIndex);
   }
 
   void _persistWorkspace() {
@@ -566,9 +576,11 @@ class _ServersViewState extends State<ServersView> {
       _tabs.insert(newIndex, moved);
       if (_selectedTabIndex == oldIndex) {
         _selectedTabIndex = newIndex;
-      } else if (_selectedTabIndex >= oldIndex && _selectedTabIndex < newIndex) {
+      } else if (_selectedTabIndex >= oldIndex &&
+          _selectedTabIndex < newIndex) {
         _selectedTabIndex -= 1;
-      } else if (_selectedTabIndex <= oldIndex && _selectedTabIndex > newIndex) {
+      } else if (_selectedTabIndex <= oldIndex &&
+          _selectedTabIndex > newIndex) {
         _selectedTabIndex += 1;
       }
     });
@@ -621,7 +633,8 @@ class _ServersViewState extends State<ServersView> {
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+              onPressed: () =>
+                  Navigator.of(context).pop(controller.text.trim()),
               child: const Text('Save'),
             ),
           ],
@@ -666,7 +679,7 @@ class _ServersViewState extends State<ServersView> {
     final existingIndex = _tabs.indexWhere(
       (tab) => tab.action == ServerAction.editor && tab.customName == path,
     );
-    
+
     if (existingIndex != -1) {
       // Switch to existing tab
       setState(() {
@@ -681,7 +694,9 @@ class _ServersViewState extends State<ServersView> {
       _tabs.add(
         _createTab(
           id: 'editor-${DateTime.now().microsecondsSinceEpoch}',
-          host: _tabs.isNotEmpty && _tabs[_selectedTabIndex].host is! PlaceholderHost
+          host:
+              _tabs.isNotEmpty &&
+                  _tabs[_selectedTabIndex].host is! PlaceholderHost
               ? _tabs[_selectedTabIndex].host
               : const PlaceholderHost(),
           action: ServerAction.editor,
@@ -698,8 +713,9 @@ class _ServersViewState extends State<ServersView> {
     String? initialDirectory,
   }) async {
     final trimmedDirectory = initialDirectory?.trim();
-    final normalizedDirectory =
-        (trimmedDirectory?.isNotEmpty ?? false) ? trimmedDirectory : null;
+    final normalizedDirectory = (trimmedDirectory?.isNotEmpty ?? false)
+        ? trimmedDirectory
+        : null;
     final existingIndex = _tabs.indexWhere(
       (tab) =>
           tab.action == ServerAction.terminal &&
@@ -807,7 +823,9 @@ class _ServersViewState extends State<ServersView> {
                     const SizedBox(height: 8),
                     Text(
                       errorText!,
-                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
                   ],
                 ],
@@ -879,7 +897,10 @@ class _EditorTabLoaderState extends State<_EditorTabLoader> {
 
   Future<void> _loadFile() async {
     try {
-      final content = await widget.shellService.readFile(widget.host, widget.path);
+      final content = await widget.shellService.readFile(
+        widget.host,
+        widget.path,
+      );
       if (!mounted) return;
       setState(() {
         _content = content;
@@ -906,10 +927,7 @@ class _EditorTabLoaderState extends State<_EditorTabLoader> {
           children: [
             Text('Failed to load file: $_error'),
             const SizedBox(height: 16),
-            FilledButton(
-              onPressed: _loadFile,
-              child: const Text('Retry'),
-            ),
+            FilledButton(onPressed: _loadFile, child: const Text('Retry')),
           ],
         ),
       );

@@ -17,10 +17,10 @@ import '../../theme/app_theme.dart';
 import '../../theme/nerd_fonts.dart';
 import '../../../models/docker_workspace_state.dart';
 import '../shared/engine_tab.dart';
-import '../shared/engine_workspace.dart';
-import 'widgets/docker_dashboard.dart';
+import '../shared/docker_engine_list.dart';
+import 'widgets/docker_overview.dart';
 import 'widgets/docker_engine_picker.dart';
-import 'widgets/docker_resources_dashboard.dart';
+import 'widgets/docker_resources.dart';
 import 'widgets/docker_command_terminal.dart';
 import '../shared/tabs/file_explorer_tab.dart';
 import '../shared/tabs/trash_tab.dart';
@@ -134,7 +134,7 @@ class _DockerViewState extends State<DockerView> {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      child: EngineWorkspace(
+      child: DockerEngineList(
         tabs: _tabs,
         selectedIndex: _selectedIndex,
         leading: widget.leading,
@@ -201,8 +201,8 @@ class _DockerViewState extends State<DockerView> {
       id: 'ctx-$contextName',
       icon: icons.cloud,
       body: choice == _DashboardTarget.resources
-          ? DockerResourcesDashboard(docker: _docker, contextName: contextName)
-          : DockerDashboard(
+          ? DockerResources(docker: _docker, contextName: contextName)
+          : DockerOverview(
               docker: _docker,
               contextName: contextName,
               trashManager: _trashManager,
@@ -233,12 +233,12 @@ class _DockerViewState extends State<DockerView> {
       id: 'host-${host.name}',
       icon: icons.cloudOutline,
       body: choice == _DashboardTarget.resources
-          ? DockerResourcesDashboard(
+          ? DockerResources(
               docker: _docker,
               remoteHost: host,
               shellService: shell,
             )
-          : DockerDashboard(
+          : DockerOverview(
               docker: _docker,
               remoteHost: host,
               shellService: shell,
@@ -625,7 +625,7 @@ class _DockerViewState extends State<DockerView> {
     if (body is EnginePicker) {
       return DockerTabState(id: id, kind: DockerTabKind.picker);
     }
-    if (body is DockerDashboard) {
+    if (body is DockerOverview) {
       if (body.remoteHost != null) {
         return DockerTabState(
           id: id,
@@ -639,7 +639,7 @@ class _DockerViewState extends State<DockerView> {
         contextName: body.contextName,
       );
     }
-    if (body is DockerResourcesDashboard) {
+    if (body is DockerResources) {
       if (body.remoteHost != null) {
         return DockerTabState(
           id: id,
@@ -929,8 +929,10 @@ class _DockerViewState extends State<DockerView> {
           host: explorerHost,
           containerId: containerId,
           containerName: state.containerName,
-          dockerContextName:
-              _dockerContextNameFor(explorerHost, state.contextName),
+          dockerContextName: _dockerContextNameFor(
+            explorerHost,
+            state.contextName,
+          ),
         );
         return EngineTab(
           id: state.id,
@@ -1029,12 +1031,12 @@ class _DockerViewState extends State<DockerView> {
         contextName: contextName,
       ),
       body: resources
-          ? DockerResourcesDashboard(
+          ? DockerResources(
               docker: _docker,
               contextName: contextName,
               onCloseTab: _closeTabById,
             )
-          : DockerDashboard(
+          : DockerOverview(
               docker: _docker,
               contextName: contextName,
               trashManager: _trashManager,
@@ -1067,13 +1069,13 @@ class _DockerViewState extends State<DockerView> {
         hostName: host.name,
       ),
       body: resources
-          ? DockerResourcesDashboard(
+          ? DockerResources(
               docker: _docker,
               remoteHost: host,
               shellService: shell,
               onCloseTab: _closeTabById,
             )
-          : DockerDashboard(
+          : DockerOverview(
               docker: _docker,
               remoteHost: host,
               shellService: shell,

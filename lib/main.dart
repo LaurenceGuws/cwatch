@@ -13,7 +13,7 @@ import 'ui/theme/app_theme.dart';
 import 'ui/theme/nerd_fonts.dart';
 import 'ui/views/docker/docker_view.dart';
 import 'ui/views/kubernetes/kubernetes_view.dart';
-import 'ui/views/servers/servers_view.dart';
+import 'ui/views/servers/servers_list.dart';
 import 'ui/views/settings/settings_view.dart';
 
 Future<void> main() async {
@@ -49,8 +49,7 @@ class _CwatchAppState extends State<CwatchApp> {
       animation: _settingsController,
       builder: (context, _) {
         final settings = _settingsController.settings;
-        final appFontFamily =
-            NerdFonts.effectiveFamily(settings.appFontFamily);
+        final appFontFamily = settings.appFontFamily;
         final seed = _seedForKey(settings.appThemeKey);
         final lightScheme = ColorScheme.fromSeed(
           seedColor: seed,
@@ -90,7 +89,7 @@ class _CwatchAppState extends State<CwatchApp> {
   ThemeData _buildTheme(
     ColorScheme scheme,
     AppThemeTokens tokens,
-    String fontFamily,
+    String? fontFamily,
   ) {
     final baseRadius = BorderRadius.circular(10);
     return ThemeData(
@@ -390,7 +389,7 @@ class _HomeShellState extends State<HomeShell> {
         }
 
         final pages = [
-          ServersView(
+          ServersList(
             hostsFuture: _hostsFuture,
             settingsController: widget.settingsController,
             builtInVault: _builtInVault,

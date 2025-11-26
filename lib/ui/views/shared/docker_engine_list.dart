@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/nerd_fonts.dart';
-import 'tabs/server_tab_chip.dart';
+import 'tabs/tab_chip.dart';
 import 'engine_tab.dart';
 
-class EngineWorkspace extends StatelessWidget {
-  const EngineWorkspace({
+class DockerEngineList extends StatelessWidget {
+  const DockerEngineList({
     super.key,
     required this.tabs,
     required this.selectedIndex,
@@ -29,7 +29,9 @@ class EngineWorkspace extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appTheme = context.appTheme;
-    final safeIndex = tabs.isEmpty ? 0 : selectedIndex.clamp(0, tabs.length - 1);
+    final safeIndex = tabs.isEmpty
+        ? 0
+        : selectedIndex.clamp(0, tabs.length - 1);
     return Column(
       children: [
         Material(
@@ -39,10 +41,7 @@ class EngineWorkspace extends StatelessWidget {
               if (leading != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: SizedBox(
-                    height: 48,
-                    child: Center(child: leading),
-                  ),
+                  child: SizedBox(height: 48, child: Center(child: leading)),
                 ),
               Expanded(
                 child: SizedBox(
@@ -55,7 +54,7 @@ class EngineWorkspace extends StatelessWidget {
                     itemCount: tabs.length,
                     itemBuilder: (context, index) {
                       final tab = tabs[index];
-                      return ServerTabChip(
+                      return TabChip(
                         key: ValueKey(tab.id),
                         host: SshHost(
                           name: tab.label,
@@ -68,12 +67,10 @@ class EngineWorkspace extends StatelessWidget {
                         icon: tab.icon,
                         selected: index == safeIndex,
                         onSelect: () => onSelect(index),
-                        onClose:
-                            tabs.length <= 1 ? () {} : () => onClose(index),
+                        onClose: () => onClose(index),
+                        closable: tabs.length > 1,
                         onRename: tab.canRename ? () {} : null,
-                        showActions: true,
-                        showClose: tabs.length > 1,
-                        dragIndex: tab.canDrag ? index : -1,
+                        dragIndex: tab.canDrag ? index : null,
                       );
                     },
                   ),
@@ -94,15 +91,15 @@ class EngineWorkspace extends StatelessWidget {
             children: tabs.isEmpty
                 ? [const SizedBox.shrink()]
                 : tabs
-                    .asMap()
-                    .entries
-                    .map(
-                      (entry) => KeyedSubtree(
-                        key: ValueKey('engine-tab-${entry.value.id}'),
-                        child: entry.value.body,
-                      ),
-                    )
-                    .toList(),
+                      .asMap()
+                      .entries
+                      .map(
+                        (entry) => KeyedSubtree(
+                          key: ValueKey('engine-tab-${entry.value.id}'),
+                          child: entry.value.body,
+                        ),
+                      )
+                      .toList(),
           ),
         ),
       ],
