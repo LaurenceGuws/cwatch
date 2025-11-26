@@ -1,0 +1,77 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (X11; Linux x86_64; rv:145.0) Gecko/20100101 Firefox/145.0" version="29.1.1">
+  <diagram name="Page-1" id="LD7jSF-bJJHL32GSe6L3">
+    <mxGraphModel dx="389" dy="637" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="NC3eF1LrRqhAwoH5gMUm-1" parent="1" style="whiteSpace=wrap;html=1;aspect=fixed;" value="Tab state manager&lt;br&gt;&lt;div&gt;- server tabs state&lt;/div&gt;&lt;div&gt;- Docker tab state&lt;br&gt;- K8s tab state&lt;br&gt;- Settings tab state&lt;/div&gt;" vertex="1">
+          <mxGeometry height="230" width="230" x="680" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="NC3eF1LrRqhAwoH5gMUm-2" parent="1" style="whiteSpace=wrap;html=1;aspect=fixed;" value="Servers" vertex="1">
+          <mxGeometry height="80" width="80" x="425" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="NC3eF1LrRqhAwoH5gMUm-3" parent="1" style="whiteSpace=wrap;html=1;aspect=fixed;" value="Docker" vertex="1">
+          <mxGeometry height="80" width="80" x="425" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="NC3eF1LrRqhAwoH5gMUm-4" parent="1" style="whiteSpace=wrap;html=1;aspect=fixed;" value="Kubernettes" vertex="1">
+          <mxGeometry height="80" width="80" x="425" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="NC3eF1LrRqhAwoH5gMUm-5" parent="1" style="whiteSpace=wrap;html=1;aspect=fixed;" value="Settings" vertex="1">
+          <mxGeometry height="80" width="80" x="425" y="580" as="geometry" />
+        </mxCell>
+        <mxCell id="NC3eF1LrRqhAwoH5gMUm-8" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;entryX=-0.001;entryY=0.124;entryDx=0;entryDy=0;entryPerimeter=0;" target="NC3eF1LrRqhAwoH5gMUm-1" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points" />
+            <mxPoint x="510" y="265" as="sourcePoint" />
+            <mxPoint x="560" y="215" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="NC3eF1LrRqhAwoH5gMUm-9" connectable="0" parent="NC3eF1LrRqhAwoH5gMUm-8" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Make a tab" vertex="1">
+          <mxGeometry relative="1" x="-0.374" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="NC3eF1LrRqhAwoH5gMUm-10" edge="1" parent="1" source="NC3eF1LrRqhAwoH5gMUm-3" style="endArrow=classic;html=1;rounded=0;entryX=-0.013;entryY=0.308;entryDx=0;entryDy=0;entryPerimeter=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="NC3eF1LrRqhAwoH5gMUm-1" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points">
+              <mxPoint x="580" y="380" />
+            </Array>
+            <mxPoint x="550" y="430" as="sourcePoint" />
+            <mxPoint x="600" y="380" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="NC3eF1LrRqhAwoH5gMUm-11" connectable="0" parent="NC3eF1LrRqhAwoH5gMUm-10" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Make tab" vertex="1">
+          <mxGeometry relative="1" x="-0.2866" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="NC3eF1LrRqhAwoH5gMUm-12" edge="1" parent="1" source="NC3eF1LrRqhAwoH5gMUm-4" style="endArrow=classic;html=1;rounded=0;entryX=0.007;entryY=0.706;entryDx=0;entryDy=0;entryPerimeter=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="NC3eF1LrRqhAwoH5gMUm-1" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points" />
+            <mxPoint x="560" y="500" as="sourcePoint" />
+            <mxPoint x="732" y="531" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="NC3eF1LrRqhAwoH5gMUm-13" connectable="0" parent="NC3eF1LrRqhAwoH5gMUm-12" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Make tab" vertex="1">
+          <mxGeometry relative="1" x="-0.2866" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="NC3eF1LrRqhAwoH5gMUm-14" edge="1" parent="1" source="NC3eF1LrRqhAwoH5gMUm-5" style="endArrow=classic;html=1;rounded=0;entryX=0;entryY=0.913;entryDx=0;entryDy=0;entryPerimeter=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="NC3eF1LrRqhAwoH5gMUm-1" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points">
+              <mxPoint x="600" y="580" />
+            </Array>
+            <mxPoint x="540" y="618" as="sourcePoint" />
+            <mxPoint x="717" y="610" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="NC3eF1LrRqhAwoH5gMUm-15" connectable="0" parent="NC3eF1LrRqhAwoH5gMUm-14" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Make tab" vertex="1">
+          <mxGeometry relative="1" x="-0.2866" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
