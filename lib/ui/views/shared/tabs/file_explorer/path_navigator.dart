@@ -57,46 +57,36 @@ class _PathNavigatorState extends State<PathNavigator> {
       ],
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: theme.colorScheme.outlineVariant),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              toggle,
-              const SizedBox(width: 8),
-              Text(
-                widget.showBreadcrumbs ? 'Breadcrumbs' : 'Path input',
-                style: theme.textTheme.bodySmall,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        if (widget.showBreadcrumbs)
-          _BreadcrumbsView(
+    final content = widget.showBreadcrumbs
+        ? _BreadcrumbsView(
             currentPath: widget.currentPath,
             onPathChanged: widget.onPathChanged,
-            onNavigateToSubdirectory: widget.onNavigateToSubdirectory ?? () {},
+            onNavigateToSubdirectory:
+                widget.onNavigateToSubdirectory ?? () {},
           )
-        else
-          _PathFieldView(
+        : _PathFieldView(
             currentPath: widget.currentPath,
             pathHistory: widget.pathHistory,
             onPathChanged: widget.onPathChanged,
             controllerCallback: (controller) {
               _pathFieldController = controller;
             },
-          ),
-      ],
+          );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          toggle,
+          const SizedBox(width: 8),
+          Expanded(child: content),
+        ],
+      ),
     );
   }
 }

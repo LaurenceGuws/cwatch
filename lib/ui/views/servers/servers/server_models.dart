@@ -4,17 +4,19 @@ import '../../../../models/explorer_context.dart';
 import '../../../../models/server_action.dart';
 import '../../../../models/ssh_host.dart';
 import '../../../theme/nerd_fonts.dart';
+import '../../shared/tabs/tab_chip.dart';
 
 /// Server tab data model
 class ServerTab {
-  const ServerTab({
+  ServerTab({
     required this.id,
     required this.host,
     required this.action,
     required this.bodyKey,
     this.customName,
     this.explorerContext,
-  });
+    TabOptionsController? optionsController,
+  }) : optionsController = optionsController ?? TabOptionsController();
 
   final String id;
   final SshHost host;
@@ -22,6 +24,7 @@ class ServerTab {
   final GlobalKey bodyKey;
   final String? customName;
   final ExplorerContext? explorerContext;
+  final TabOptionsController optionsController;
 
   String get title => _displayName;
 
@@ -57,6 +60,7 @@ class ServerTab {
     String? customName,
     bool setCustomName = false,
     ExplorerContext? explorerContext,
+    TabOptionsController? optionsController,
   }) {
     return ServerTab(
       id: id ?? this.id,
@@ -65,6 +69,7 @@ class ServerTab {
       bodyKey: bodyKey ?? this.bodyKey,
       customName: setCustomName ? customName : this.customName,
       explorerContext: explorerContext ?? this.explorerContext,
+      optionsController: optionsController ?? this.optionsController,
     );
   }
 }

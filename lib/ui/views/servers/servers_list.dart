@@ -211,23 +211,29 @@ class _ServersListState extends State<ServersList> {
                     itemCount: _tabs.length,
                     itemBuilder: (context, index) {
                       final tab = _tabs[index];
-                      final canRename = tab.action != ServerAction.empty;
-                      final canDrag = tab.action != ServerAction.empty;
-                      return TabChip(
+                      return ValueListenableBuilder<List<TabChipOption>>(
                         key: ValueKey(tab.id),
-                        host: tab.host,
-                        title: tab.title,
-                        label: tab.label,
-                        icon: tab.icon,
-                        selected: index == selectedIndex,
-                        onSelect: () {
-                          setState(() => _selectedTabIndex = index);
-                          _persistWorkspace();
+                        valueListenable: tab.optionsController,
+                        builder: (context, options, _) {
+                          final canRename = tab.action != ServerAction.empty;
+                          final canDrag = tab.action != ServerAction.empty;
+                          return TabChip(
+                            host: tab.host,
+                            title: tab.title,
+                            label: tab.label,
+                            icon: tab.icon,
+                            selected: index == selectedIndex,
+                            onSelect: () {
+                              setState(() => _selectedTabIndex = index);
+                              _persistWorkspace();
+                            },
+                            onClose: () => _closeTab(index),
+                            onRename: canRename ? () => _renameTab(index) : null,
+                            closeWarning: _closeWarningForTab(tab),
+                            dragIndex: canDrag ? index : null,
+                            options: options,
+                          );
                         },
-                        onClose: () => _closeTab(index),
-                        onRename: canRename ? () => _renameTab(index) : null,
-                        closeWarning: _closeWarningForTab(tab),
-                        dragIndex: canDrag ? index : null,
                       );
                     },
                   ),
@@ -314,6 +320,7 @@ class _ServersListState extends State<ServersList> {
       return;
     }
     setState(() {
+      _disposeTabControllers(_tabs);
       _tabs
         ..clear()
         ..addAll(restoredTabs);
@@ -444,6 +451,7 @@ class _ServersListState extends State<ServersList> {
     if (current.action != ServerAction.empty) {
       return false;
     }
+    current.optionsController.dispose();
     _tabs[index] = tab;
     _tabBodies.remove(current.id);
     _tabBodies[tab.id] = _buildTabWidget(tab);
@@ -473,6 +481,7 @@ class _ServersListState extends State<ServersList> {
     String? customName,
     GlobalKey? bodyKey,
     ExplorerContext? explorerContext,
+    TabOptionsController? optionsController,
   }) {
     return ServerTab(
       id: id,
@@ -481,11 +490,18 @@ class _ServersListState extends State<ServersList> {
       bodyKey: bodyKey ?? GlobalKey(debugLabel: 'server-tab-$id'),
       customName: customName,
       explorerContext: explorerContext,
+      optionsController: optionsController,
     );
   }
 
   Widget _tabWidgetFor(ServerTab tab) {
     return _tabBodies[tab.id] ??= _buildTabWidget(tab);
+  }
+
+  void _disposeTabControllers(Iterable<ServerTab> tabs) {
+    for (final tab in tabs) {
+      tab.optionsController.dispose();
+    }
   }
 
   Widget _buildTabWidget(ServerTab tab) {
@@ -508,6 +524,7 @@ class _ServersListState extends State<ServersList> {
           onOpenEditorTab: _openEditorTab,
           onOpenTerminalTab: (path) =>
               _openTerminalTab(host: tab.host, initialDirectory: path),
+          optionsController: tab.optionsController,
         );
       case ServerAction.editor:
         final editorPath = tab.customName ?? '';
@@ -517,6 +534,7 @@ class _ServersListState extends State<ServersList> {
           shellService: _shellServiceForHost(tab.host),
           path: editorPath,
           settingsController: widget.settingsController,
+          optionsController: tab.optionsController,
         );
       case ServerAction.connectivity:
         return ConnectivityTab(key: tab.bodyKey, host: tab.host);
@@ -533,6 +551,7 @@ class _ServersListState extends State<ServersList> {
           initialDirectory: tab.customName,
           shellService: _shellServiceForHost(tab.host),
           settingsController: widget.settingsController,
+          optionsController: tab.optionsController,
           onExit: () => _closeTabById(tab.id),
         );
       case ServerAction.trash:
@@ -579,14 +598,17 @@ class _ServersListState extends State<ServersList> {
         return;
       }
       if (_tabs.length == 1) {
+        final replacedTab = _tabs[0];
+        replacedTab.optionsController.dispose();
         final placeholder = _createPlaceholderTab();
-        final replacedId = _tabs[0].id;
         _tabs[0] = placeholder;
-        _tabBodies.remove(replacedId);
+        _tabBodies.remove(replacedTab.id);
         _tabBodies[placeholder.id] = _buildTabWidget(placeholder);
         _selectedTabIndex = 0;
       } else {
-        final removedId = _tabs[index].id;
+        final removedTab = _tabs[index];
+        removedTab.optionsController.dispose();
+        final removedId = removedTab.id;
         _tabs.removeAt(index);
         _tabBodies.remove(removedId);
         if (_tabs.isEmpty) {
@@ -644,8 +666,11 @@ class _ServersListState extends State<ServersList> {
       customName: _tabs[index].customName,
     );
     setState(() {
+      final oldTab = _tabs[index];
+      oldTab.optionsController.dispose();
       _tabs[index] = tab;
       _selectedTabIndex = index;
+      _tabBodies.remove(oldTab.id);
       _tabBodies[tab.id] = _buildTabWidget(tab);
     });
     _persistWorkspace();
@@ -915,12 +940,14 @@ class _EditorTabLoader extends StatefulWidget {
     required this.shellService,
     required this.path,
     required this.settingsController,
+    this.optionsController,
   });
 
   final SshHost host;
   final RemoteShellService shellService;
   final String path;
   final AppSettingsController settingsController;
+  final TabOptionsController? optionsController;
 
   @override
   State<_EditorTabLoader> createState() => _EditorTabLoaderState();
@@ -992,6 +1019,7 @@ class _EditorTabLoaderState extends State<_EditorTabLoader> {
           contents: content,
         );
       },
+      optionsController: widget.optionsController,
     );
   }
 }

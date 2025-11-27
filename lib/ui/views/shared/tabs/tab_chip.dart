@@ -21,11 +21,35 @@ class TabChipOption {
 }
 
 class TabOptionsController extends ValueNotifier<List<TabChipOption>> {
-  TabOptionsController([List<TabChipOption>? initialOptions])
-      : super(initialOptions ?? const []);
+  TabOptionsController([super.value = const []]);
 
   void update(List<TabChipOption> options) {
     value = options;
+  }
+}
+
+class CompositeTabOptionsController extends TabOptionsController {
+  CompositeTabOptionsController([super.value = const []]);
+
+  final List<TabChipOption> _baseOptions = [];
+  final List<TabChipOption> _overlayOptions = [];
+
+  void updateBase(List<TabChipOption> options) {
+    _baseOptions
+      ..clear()
+      ..addAll(options);
+    _refresh();
+  }
+
+  void updateOverlay(List<TabChipOption> options) {
+    _overlayOptions
+      ..clear()
+      ..addAll(options);
+    _refresh();
+  }
+
+  void _refresh() {
+    value = List.unmodifiable([..._baseOptions, ..._overlayOptions]);
   }
 }
 

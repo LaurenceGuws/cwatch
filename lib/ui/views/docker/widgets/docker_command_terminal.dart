@@ -9,8 +9,8 @@ import '../../../../models/app_settings.dart';
 import '../../../../models/ssh_host.dart';
 import '../../../../services/ssh/remote_shell_service.dart';
 import '../../../../services/settings/app_settings_controller.dart';
-import '../../../theme/app_theme.dart';
 import '../../../theme/nerd_fonts.dart';
+import '../../shared/tabs/tab_chip.dart';
 import '../../shared/tabs/terminal/terminal_theme_presets.dart';
 
 /// Lightweight terminal view that runs a provided Docker command locally or via SSH.
@@ -22,21 +22,21 @@ class DockerCommandTerminal extends StatefulWidget {
     this.host,
     this.shellService,
     this.settingsController,
-    this.actions,
     this.showCopyButton = true,
     this.autofocus = true,
     this.onExit,
+    this.optionsController,
   });
 
   final SshHost? host;
   final RemoteShellService? shellService;
   final String command;
   final String title;
-  final List<Widget>? actions;
   final AppSettingsController? settingsController;
   final bool showCopyButton;
   final bool autofocus;
   final VoidCallback? onExit;
+  final TabOptionsController? optionsController;
 
   @override
   State<DockerCommandTerminal> createState() => _DockerCommandTerminalState();
@@ -79,6 +79,10 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.command != widget.command || oldWidget.host != widget.host) {
       _start();
+    }
+    if (oldWidget.optionsController != widget.optionsController ||
+        oldWidget.showCopyButton != widget.showCopyButton) {
+      _updateTabOptions();
     }
   }
 
@@ -135,12 +139,14 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
         );
       }
       setState(() => _connecting = false);
+      _updateTabOptions();
     } catch (error, stack) {
       debugPrint('DockerCommandTerminal failed: $error\n$stack');
       setState(() {
         _connecting = false;
         _error = error.toString();
       });
+      _updateTabOptions();
     }
   }
 
@@ -197,6 +203,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
       ),
     );
     _logSelectionChange(force: true);
+    _updateTabOptions();
   }
 
   String _stripAnsi(String input) {
@@ -229,116 +236,87 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     if (_connecting) {
       return const Center(child: CircularProgressIndicator());
     }
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            children: [
-              Icon(NerdIcon.terminal.data, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  widget.title,
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
-              ),
-              if (widget.showCopyButton)
-                IconButton(
-                  tooltip: 'Copy output',
-                  icon: Icon(context.appTheme.icons.copy),
-                  onPressed: _copyOutput,
-                ),
-              ...?widget.actions,
-            ],
-          ),
+    return Shortcuts(
+      shortcuts: {
+        LogicalKeySet(
+          LogicalKeyboardKey.control,
+          LogicalKeyboardKey.shift,
+          LogicalKeyboardKey.arrowUp,
+        ): const _ScrollByIntent(
+          -160,
         ),
-        const Divider(height: 1),
-        Expanded(
-          child: Shortcuts(
-            shortcuts: {
-              LogicalKeySet(
-                LogicalKeyboardKey.control,
-                LogicalKeyboardKey.shift,
-                LogicalKeyboardKey.arrowUp,
-              ): const _ScrollByIntent(
-                -160,
-              ),
-              LogicalKeySet(
-                LogicalKeyboardKey.control,
-                LogicalKeyboardKey.shift,
-                LogicalKeyboardKey.arrowDown,
-              ): const _ScrollByIntent(
-                160,
-              ),
-              LogicalKeySet(
-                LogicalKeyboardKey.control,
-                LogicalKeyboardKey.shift,
-                LogicalKeyboardKey.pageUp,
-              ): const _ScrollByIntent(
-                -480,
-              ),
-              LogicalKeySet(
-                LogicalKeyboardKey.control,
-                LogicalKeyboardKey.shift,
-                LogicalKeyboardKey.pageDown,
-              ): const _ScrollByIntent(
-                480,
-              ),
-              LogicalKeySet(
-                LogicalKeyboardKey.control,
-                LogicalKeyboardKey.shift,
-                LogicalKeyboardKey.home,
-              ): const _ScrollToExtentIntent(
-                up: true,
-              ),
-              LogicalKeySet(
-                LogicalKeyboardKey.control,
-                LogicalKeyboardKey.shift,
-                LogicalKeyboardKey.end,
-              ): const _ScrollToExtentIntent(
-                up: false,
-              ),
-              LogicalKeySet(
-                LogicalKeyboardKey.control,
-                LogicalKeyboardKey.shift,
-                LogicalKeyboardKey.keyC,
-              ): const _CopyTerminalIntent(),
+        LogicalKeySet(
+          LogicalKeyboardKey.control,
+          LogicalKeyboardKey.shift,
+          LogicalKeyboardKey.arrowDown,
+        ): const _ScrollByIntent(
+          160,
+        ),
+        LogicalKeySet(
+          LogicalKeyboardKey.control,
+          LogicalKeyboardKey.shift,
+          LogicalKeyboardKey.pageUp,
+        ): const _ScrollByIntent(
+          -480,
+        ),
+        LogicalKeySet(
+          LogicalKeyboardKey.control,
+          LogicalKeyboardKey.shift,
+          LogicalKeyboardKey.pageDown,
+        ): const _ScrollByIntent(
+          480,
+        ),
+        LogicalKeySet(
+          LogicalKeyboardKey.control,
+          LogicalKeyboardKey.shift,
+          LogicalKeyboardKey.home,
+        ): const _ScrollToExtentIntent(
+          up: true,
+        ),
+        LogicalKeySet(
+          LogicalKeyboardKey.control,
+          LogicalKeyboardKey.shift,
+          LogicalKeyboardKey.end,
+        ): const _ScrollToExtentIntent(
+          up: false,
+        ),
+        LogicalKeySet(
+          LogicalKeyboardKey.control,
+          LogicalKeyboardKey.shift,
+          LogicalKeyboardKey.keyC,
+        ): const _CopyTerminalIntent(),
+      },
+      child: Actions(
+        actions: {
+          _ScrollByIntent: CallbackAction<_ScrollByIntent>(
+            onInvoke: (intent) {
+              _scrollBy(intent.offset);
+              return null;
             },
-            child: Actions(
-              actions: {
-                _ScrollByIntent: CallbackAction<_ScrollByIntent>(
-                  onInvoke: (intent) {
-                    _scrollBy(intent.offset);
-                    return null;
-                  },
-                ),
-                _ScrollToExtentIntent: CallbackAction<_ScrollToExtentIntent>(
-                  onInvoke: (intent) {
-                    _scrollToExtent(intent.up);
-                    return null;
-                  },
-                ),
-                _CopyTerminalIntent: CallbackAction<_CopyTerminalIntent>(
-                  onInvoke: (intent) {
-                    _copyOutput();
-                    return null;
-                  },
-                ),
-              },
-              child: TerminalView(
-                _terminal,
-                controller: _controller,
-                scrollController: _scrollController,
-                autofocus: widget.autofocus,
-                alwaysShowCursor: true,
-                textStyle: _textStyle(settings),
-                theme: _terminalTheme(context, settings),
-              ),
-            ),
           ),
+          _ScrollToExtentIntent: CallbackAction<_ScrollToExtentIntent>(
+            onInvoke: (intent) {
+              _scrollToExtent(intent.up);
+              return null;
+            },
+          ),
+          _CopyTerminalIntent: CallbackAction<_CopyTerminalIntent>(
+            onInvoke: (intent) {
+              _copyOutput();
+              return null;
+            },
+          ),
+        },
+        child: TerminalView(
+          _terminal,
+          controller: _controller,
+          scrollController: _scrollController,
+          autofocus: widget.autofocus,
+          alwaysShowCursor: true,
+          textStyle: _textStyle(settings),
+          theme: _terminalTheme(context, settings),
         ),
-      ],
+      ),
     );
   }
 
@@ -372,6 +350,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     final selection = _controller.selection;
     if (selection == null) {
       _lastSelectionSignature = null;
+      _updateTabOptions();
       return;
     }
     final text = _safeSelectionText(selection);
@@ -380,6 +359,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
       return;
     }
     _lastSelectionSignature = signature;
+    _updateTabOptions();
   }
 
   TerminalStyle _textStyle(AppSettings? settings) {
@@ -409,6 +389,32 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
       return '';
     }
   }
+
+  bool get _hasCopyableText =>
+      _controller.selection != null || _outputBuffer.isNotEmpty;
+
+  void _updateTabOptions() {
+    final controller = widget.optionsController;
+    if (controller == null) {
+      return;
+    }
+    final options = <TabChipOption>[];
+    if (widget.showCopyButton) {
+      options.add(
+        TabChipOption(
+          label: 'Copy output',
+          icon: Icons.copy,
+          enabled: _hasCopyableText,
+          onSelected: _copyOutput,
+        ),
+      );
+    }
+    if (controller is CompositeTabOptionsController) {
+      controller.updateBase(options);
+      return;
+    }
+    controller.update(options);
+  }
 }
 
 class _ScrollByIntent extends Intent {
@@ -434,6 +440,7 @@ class ComposeLogsTerminal extends StatefulWidget {
     this.host,
     this.shellService,
     this.onExit,
+    this.optionsController,
   });
 
   final String composeBase;
@@ -442,6 +449,7 @@ class ComposeLogsTerminal extends StatefulWidget {
   final SshHost? host;
   final RemoteShellService? shellService;
   final VoidCallback? onExit;
+  final TabOptionsController? optionsController;
 
   @override
   State<ComposeLogsTerminal> createState() => _ComposeLogsTerminalState();
@@ -450,6 +458,24 @@ class ComposeLogsTerminal extends StatefulWidget {
 class _ComposeLogsTerminalState extends State<ComposeLogsTerminal> {
   bool _excludeSelection = false;
   final Set<String> _selected = {};
+  int _restartToken = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateTabOptions();
+  }
+
+  @override
+  void didUpdateWidget(covariant ComposeLogsTerminal oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.optionsController != widget.optionsController ||
+        oldWidget.project != widget.project ||
+        oldWidget.composeBase != widget.composeBase ||
+        oldWidget.services != widget.services) {
+      _updateTabOptions();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -457,82 +483,18 @@ class _ComposeLogsTerminalState extends State<ComposeLogsTerminal> {
     _selected.removeWhere((s) => !serviceItems.contains(s));
     final command = _buildCommand();
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(
-                      'Services',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    if (serviceItems.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 8),
-                        child: Text('None detected'),
-                      )
-                    else
-                      ...serviceItems.map(
-                        (service) => FilterChip(
-                          label: Text(service),
-                          selected: _selected.contains(service),
-                          onSelected: (value) {
-                            setState(() {
-                              if (value) {
-                                _selected.add(service);
-                              } else {
-                                _selected.remove(service);
-                              }
-                            });
-                          },
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              if (serviceItems.isNotEmpty)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Row(
-                      children: [
-                        const Text('Exclude selected'),
-                        Switch(
-                          value: _excludeSelection,
-                          onChanged: (value) =>
-                              setState(() => _excludeSelection = value),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        TextButton(
-                          onPressed: () =>
-                              setState(() => _selected.addAll(serviceItems)),
-                          child: const Text('Select all'),
-                        ),
-                        TextButton(
-                          onPressed: () => setState(() => _selected.clear()),
-                          child: const Text('Clear'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-            ],
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          child: Text(
+            'Services • ${_serviceSummary(serviceItems)}',
+            style: Theme.of(context).textTheme.bodySmall,
           ),
         ),
-        const Divider(height: 1),
         Expanded(
           child: DockerCommandTerminal(
-            key: ValueKey(command),
+            key: ValueKey('$command-$_restartToken'),
             command: command,
             title: 'Compose logs • ${widget.project}',
             host: widget.host,
@@ -540,6 +502,7 @@ class _ComposeLogsTerminalState extends State<ComposeLogsTerminal> {
             showCopyButton: true,
             autofocus: false,
             onExit: widget.onExit,
+            optionsController: widget.optionsController,
           ),
         ),
       ],
@@ -558,5 +521,151 @@ class _ComposeLogsTerminalState extends State<ComposeLogsTerminal> {
     }
     final servicesArg = includeList.map((s) => '"$s"').join(' ');
     return '${widget.composeBase} logs -f --tail 200 $servicesArg; exit';
+  }
+
+  void _restartLogs() {
+    setState(() => _restartToken += 1);
+    _updateTabOptions();
+  }
+
+  String _serviceSummary(List<String> items) {
+    if (items.isEmpty) {
+      return 'none detected';
+    }
+    if (_selected.isEmpty && !_excludeSelection) {
+      return 'all (${items.length})';
+    }
+    final active = _excludeSelection
+        ? items.where((service) => !_selected.contains(service)).toList()
+        : _selected.toList();
+    if (active.isEmpty) {
+      return 'none selected';
+    }
+    if (active.length > 3) {
+      return '${active.take(3).join(', ')}…';
+    }
+    return active.join(', ');
+  }
+
+  Future<void> _showServiceDialog() async {
+    if (widget.services.isEmpty) {
+      return;
+    }
+    final serviceItems = widget.services;
+    final dialogSelected = Set<String>.from(_selected);
+    var dialogExcludeSelection = _excludeSelection;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Filter services'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        if (serviceItems.isEmpty)
+                          const Text('No services detected')
+                        else
+                          ...serviceItems.map(
+                            (service) => FilterChip(
+                              label: Text(service),
+                              selected: dialogSelected.contains(service),
+                              onSelected: (value) => setState(() {
+                                if (value) {
+                                  dialogSelected.add(service);
+                                } else {
+                                  dialogSelected.remove(service);
+                                }
+                              }),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Text('Exclude selected'),
+                        Switch(
+                          value: dialogExcludeSelection,
+                          onChanged: (value) =>
+                              setState(() => dialogExcludeSelection = value),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        TextButton(
+                          onPressed: () => setState(
+                              () => dialogSelected.addAll(serviceItems)),
+                          child: const Text('Select all'),
+                        ),
+                        TextButton(
+                          onPressed: () => setState(() => dialogSelected.clear()),
+                          child: const Text('Clear'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text('Apply'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    if (result != true) {
+      return;
+    }
+    setState(() {
+      _selected
+        ..clear()
+        ..addAll(dialogSelected);
+      _excludeSelection = dialogExcludeSelection;
+      _restartToken += 1;
+    });
+    _updateTabOptions();
+  }
+
+  void _updateTabOptions() {
+    final controller = widget.optionsController;
+    if (controller == null) {
+      return;
+    }
+    final overlay = [
+      TabChipOption(
+        label: 'Services…',
+        icon: Icons.filter_list,
+        onSelected: _showServiceDialog,
+      ),
+      TabChipOption(
+        label: 'Restart tail',
+        icon: Icons.refresh,
+        onSelected: _restartLogs,
+      ),
+    ];
+    if (controller is CompositeTabOptionsController) {
+      controller.updateOverlay(overlay);
+      return;
+    }
+    controller.update(overlay);
   }
 }

@@ -375,6 +375,7 @@ class _DockerResourcesState extends State<DockerResources> {
     final command =
         'docker ${contextFlag}stats --no-stream --format "{{json .}}"; exit';
     final tabId = 'dstat-${DateTime.now().microsecondsSinceEpoch}';
+    final controller = TabOptionsController();
     widget.onOpenTab!(
       EngineTab(
         id: tabId,
@@ -387,6 +388,7 @@ class _DockerResourcesState extends State<DockerResources> {
           host: widget.remoteHost,
           shellService: widget.shellService,
           onExit: () => widget.onCloseTab?.call(tabId),
+          optionsController: controller,
         ),
         canDrag: true,
         workspaceState: DockerTabState(
@@ -396,6 +398,7 @@ class _DockerResourcesState extends State<DockerResources> {
           title: 'docker stats',
           hostName: widget.remoteHost?.name,
         ),
+        optionsController: controller,
       ),
     );
   }

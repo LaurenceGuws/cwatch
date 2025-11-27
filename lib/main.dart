@@ -182,7 +182,6 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
-
   late Future<List<SshHost>> _hostsFuture;
   ShellDestination _selectedDestination = ShellDestination.servers;
   bool _sidebarCollapsed = false;
@@ -341,10 +340,12 @@ class _HomeShellState extends State<HomeShell> {
           leading: toggleButton,
         );
     }
-    return const SizedBox.shrink();
   }
 
-  Future<void> _showSidebarOptions(BuildContext context, Offset position) async {
+  Future<void> _showSidebarOptions(
+    BuildContext context,
+    Offset position,
+  ) async {
     final choice = await showMenu<_SidebarOption>(
       context: context,
       position: RelativeRect.fromLTRB(
@@ -362,22 +363,29 @@ class _HomeShellState extends State<HomeShell> {
         const PopupMenuDivider(),
         CheckedPopupMenuItem(
           value: _SidebarOption.pinLeft,
-          checked: !_sidebarCollapsed && _sidebarPlacement == _SidebarPlacement.left,
+          checked:
+              !_sidebarCollapsed && _sidebarPlacement == _SidebarPlacement.left,
           child: const Text('Pin to left'),
         ),
         CheckedPopupMenuItem(
           value: _SidebarOption.pinRight,
-          checked: !_sidebarCollapsed && _sidebarPlacement == _SidebarPlacement.right,
+          checked:
+              !_sidebarCollapsed &&
+              _sidebarPlacement == _SidebarPlacement.right,
           child: const Text('Pin to right'),
         ),
         CheckedPopupMenuItem(
           value: _SidebarOption.pinBottom,
-          checked: !_sidebarCollapsed && _sidebarPlacement == _SidebarPlacement.bottom,
+          checked:
+              !_sidebarCollapsed &&
+              _sidebarPlacement == _SidebarPlacement.bottom,
           child: const Text('Pin to bottom'),
         ),
         CheckedPopupMenuItem(
           value: _SidebarOption.dynamicPlacement,
-          checked: !_sidebarCollapsed && _sidebarPlacement == _SidebarPlacement.dynamic,
+          checked:
+              !_sidebarCollapsed &&
+              _sidebarPlacement == _SidebarPlacement.dynamic,
           child: const Text('Dynamic placement'),
         ),
       ],
@@ -392,7 +400,7 @@ class _HomeShellState extends State<HomeShell> {
       switch (option) {
         case _SidebarOption.hide:
           _sidebarCollapsed = true;
-            break;
+          break;
         case _SidebarOption.pinLeft:
           _sidebarCollapsed = false;
           _sidebarPlacement = _SidebarPlacement.left;
@@ -428,8 +436,7 @@ class _HomeShellState extends State<HomeShell> {
     final targetPlacement = placement ?? _sidebarPlacement;
     if (settings.shellDestination == targetDestination.name &&
         settings.shellSidebarCollapsed == targetCollapsed &&
-        settings.shellSidebarPlacement ==
-            _placementToString(targetPlacement)) {
+        settings.shellSidebarPlacement == _placementToString(targetPlacement)) {
       return;
     }
     unawaited(
@@ -460,7 +467,8 @@ class _HomeShellState extends State<HomeShell> {
     return AnimatedBuilder(
       animation: widget.settingsController,
       builder: (context, _) {
-        void showOptions(Offset position) => _showSidebarOptions(context, position);
+        void showOptions(Offset position) =>
+            _showSidebarOptions(context, position);
         _ensurePageCached(_selectedDestination, context);
         final viewportWidth = MediaQuery.of(context).size.width;
         final viewportHeight = MediaQuery.of(context).size.height;
@@ -478,19 +486,20 @@ class _HomeShellState extends State<HomeShell> {
                   onSelect: _handleDestinationSelected,
                   onShowOptions: showOptions,
                 );
-              navigationAlignment = Alignment.bottomCenter;
-              contentPadding =
-                  const EdgeInsets.only(bottom: _BottomNavBar.height);
-            } else {
-              navigationBar = _Sidebar(
-                selected: _selectedDestination,
-                onSelect: _handleDestinationSelected,
-                onShowOptions: showOptions,
-              );
-              navigationAlignment = Alignment.centerLeft;
-              contentPadding = const EdgeInsets.only(left: _Sidebar.width);
-            }
-            break;
+                navigationAlignment = Alignment.bottomCenter;
+                contentPadding = const EdgeInsets.only(
+                  bottom: _BottomNavBar.height,
+                );
+              } else {
+                navigationBar = _Sidebar(
+                  selected: _selectedDestination,
+                  onSelect: _handleDestinationSelected,
+                  onShowOptions: showOptions,
+                );
+                navigationAlignment = Alignment.centerLeft;
+                contentPadding = const EdgeInsets.only(left: _Sidebar.width);
+              }
+              break;
             case _SidebarPlacement.left:
               navigationBar = _Sidebar(
                 selected: _selectedDestination,
@@ -517,7 +526,9 @@ class _HomeShellState extends State<HomeShell> {
                 onShowOptions: showOptions,
               );
               navigationAlignment = Alignment.bottomCenter;
-              contentPadding = const EdgeInsets.only(bottom: _BottomNavBar.height);
+              contentPadding = const EdgeInsets.only(
+                bottom: _BottomNavBar.height,
+              );
               break;
           }
         }
@@ -527,8 +538,10 @@ class _HomeShellState extends State<HomeShell> {
             key: const ValueKey('pages-indexed-stack'),
             index: _selectedDestination.index,
             children: ShellDestination.values
-                .map((destination) =>
-                    _pageCache[destination] ?? const SizedBox.shrink())
+                .map(
+                  (destination) =>
+                      _pageCache[destination] ?? const SizedBox.shrink(),
+                )
                 .toList(),
           ),
         );
@@ -538,10 +551,7 @@ class _HomeShellState extends State<HomeShell> {
               children: [
                 Positioned.fill(child: content),
                 if (navigationBar != null)
-                  Align(
-                    alignment: navigationAlignment,
-                    child: navigationBar,
-                  ),
+                  Align(alignment: navigationAlignment, child: navigationBar),
               ],
             ),
           ),
@@ -636,7 +646,8 @@ class _Sidebar extends StatelessWidget {
       ),
     );
     return GestureDetector(
-      onLongPressStart: (details) => onShowOptions?.call(details.globalPosition),
+      onLongPressStart: (details) =>
+          onShowOptions?.call(details.globalPosition),
       onSecondaryTapDown: (details) =>
           onShowOptions?.call(details.globalPosition),
       child: content,
@@ -737,14 +748,11 @@ class _NavigationButtonState extends State<_NavigationButton> {
     final iconColor = widget.selected
         ? colorScheme.primary
         : (_hovering ? hoverColor : defaultColor);
-    final indicatorColor =
-        widget.selected ? colorScheme.primary : Colors.transparent;
+    final indicatorColor = widget.selected
+        ? colorScheme.primary
+        : Colors.transparent;
 
-    final iconWidget = Icon(
-      widget.icon.data,
-      size: 30,
-      color: iconColor,
-    );
+    final iconWidget = Icon(widget.icon.data, size: 30, color: iconColor);
 
     final buttonWidth = widget.vertical ? _Sidebar.width : double.infinity;
     final button = InkWell(
@@ -758,11 +766,7 @@ class _NavigationButtonState extends State<_NavigationButton> {
         child: widget.vertical
             ? Row(
                 children: [
-                  Container(
-                    width: 4,
-                    height: 56,
-                    color: indicatorColor,
-                  ),
+                  Container(width: 4, height: 56, color: indicatorColor),
                   Expanded(child: Center(child: iconWidget)),
                 ],
               )
@@ -886,9 +890,7 @@ class _SidebarMenuButtonState extends State<_SidebarMenuButton> {
         child: SizedBox(
           width: 48,
           height: 48,
-          child: Icon(
-            widget.collapsed ? Icons.menu : Icons.menu_open,
-          ),
+          child: Icon(widget.collapsed ? Icons.menu : Icons.menu_open),
         ),
       ),
     );

@@ -11,6 +11,7 @@ import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
 import '../../../../../services/settings/app_settings_controller.dart';
 import '../../../../theme/nerd_fonts.dart';
+import '../tab_chip.dart';
 import 'terminal_theme_presets.dart';
 
 /// Terminal tab that spawns an SSH session via a PTY.
@@ -22,6 +23,7 @@ class TerminalTab extends StatefulWidget {
     required this.shellService,
     required this.settingsController,
     this.onExit,
+    this.optionsController,
   });
 
   final SshHost host;
@@ -29,6 +31,7 @@ class TerminalTab extends StatefulWidget {
   final RemoteShellService shellService;
   final AppSettingsController settingsController;
   final VoidCallback? onExit;
+  final TabOptionsController? optionsController;
 
   @override
   State<TerminalTab> createState() => _TerminalTabState();
@@ -58,6 +61,14 @@ class _TerminalTabState extends State<TerminalTab> {
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(covariant TerminalTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.optionsController != widget.optionsController) {
+      _updateTabOptions();
+    }
+  }
+
   Future<void> _startSession() async {
     _attachTerminalHandlers();
     _sessionToken += 1;
@@ -68,6 +79,7 @@ class _TerminalTabState extends State<TerminalTab> {
       _connecting = true;
       _error = null;
     });
+    _updateTabOptions();
 
     _terminal.buffer.clear();
     _terminal.buffer.setCursor(0, 0);
@@ -181,6 +193,17 @@ class _TerminalTabState extends State<TerminalTab> {
     _pty = null;
   }
 
+  void _updateTabOptions() {
+    final options = [
+      TabChipOption(
+        label: 'Restart terminal',
+        icon: Icons.refresh,
+        onSelected: _startSession,
+      ),
+    ];
+    widget.optionsController?.update(options);
+  }
+
   String _shellEscape(String input) {
     final escaped = input.replaceAll("'", r"'\''");
     return "'$escaped'";
@@ -193,32 +216,6 @@ class _TerminalTabState extends State<TerminalTab> {
       return 'Unlock SSH key "$label" to start a terminal.';
     }
     return error.toString();
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    final hostLabel = widget.initialDirectory?.trim().isNotEmpty == true
-        ? widget.initialDirectory!.trim()
-        : '~';
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        children: [
-          Icon(NerdIcon.terminal.data, size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '${widget.host.name} • $hostLabel',
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-          ),
-          IconButton(
-            tooltip: 'Restart terminal',
-            icon: const Icon(Icons.refresh),
-            onPressed: _startSession,
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildError(BuildContext context) {
@@ -269,27 +266,21 @@ class _TerminalTabState extends State<TerminalTab> {
                 ),
               );
             }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(context),
-                const Divider(height: 1),
-                Expanded(
-                  child: TerminalView(
-                    _terminal,
-                    controller: _controller,
-                    autofocus: true,
-                    backgroundOpacity: 1,
-                    padding: EdgeInsets.zero,
-                    alwaysShowCursor: true,
-                    deleteDetection:
-                        defaultTargetPlatform == TargetPlatform.android ||
-                        defaultTargetPlatform == TargetPlatform.iOS,
-                    textStyle: _textStyle(settings),
-                    theme: _terminalTheme(context, settings),
-                  ),
-                ),
-              ],
+            return SizedBox(
+              width: double.infinity,
+              child: TerminalView(
+                _terminal,
+                controller: _controller,
+                autofocus: true,
+                backgroundOpacity: 1,
+                padding: EdgeInsets.zero,
+                alwaysShowCursor: true,
+                deleteDetection:
+                    defaultTargetPlatform == TargetPlatform.android ||
+                    defaultTargetPlatform == TargetPlatform.iOS,
+                textStyle: _textStyle(settings),
+                theme: _terminalTheme(context, settings),
+              ),
             );
           },
         );

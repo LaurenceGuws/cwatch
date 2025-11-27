@@ -98,6 +98,7 @@ import '../../../../../services/settings/app_settings_controller.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../theme/nerd_fonts.dart';
 import '../../../../widgets/style_picker_dialog.dart';
+import '../tab_chip.dart';
 
 class RemoteFileEditorTab extends StatefulWidget {
   const RemoteFileEditorTab({
@@ -109,6 +110,7 @@ class RemoteFileEditorTab extends StatefulWidget {
     required this.onSave,
     required this.settingsController,
     this.helperText,
+    this.optionsController,
   });
 
   final SshHost host;
@@ -118,6 +120,7 @@ class RemoteFileEditorTab extends StatefulWidget {
   final Future<void> Function(String content) onSave;
   final AppSettingsController settingsController;
   final String? helperText;
+  final TabOptionsController? optionsController;
 
   @override
   State<RemoteFileEditorTab> createState() => _RemoteFileEditorTabState();
@@ -128,8 +131,6 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
   late String _normalizedInitialContent;
   bool _dirty = false;
   bool _saving = false;
-  String? _saveError;
-  String? _languageOverride;
 
   @override
   void initState() {
@@ -142,6 +143,7 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
       language: language,
     )..addListener(_handleTextChange);
     widget.settingsController.addListener(_handleSettingsChanged);
+    _updateTabOptions();
   }
 
   String _normalizeLineEndings(String text) {
@@ -186,133 +188,29 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
     final savedTheme = _getSavedThemeForBrightness(brightness);
     final theme = _getThemeForColorScheme(colorScheme, savedTheme);
     final settings = widget.settingsController.settings;
-    return Column(
-      children: [
-        // Toolbar
-        Material(
-          elevation: 1,
-          color: Theme.of(context).colorScheme.surface,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    widget.path,
-                    style: Theme.of(context).textTheme.titleSmall,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String?>(
-                      value:
-                          _languageOverride ?? _languageFromPath(widget.path),
-                      items: _languageDropdownItems(),
-                      onChanged: _handleLanguageChanged,
-                      hint: const Text('Language'),
-                    ),
-                  ),
-                ),
-                if (_dirty)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: Text(
-                      'Unsaved changes',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ),
-                if (_saveError != null)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: Text(
-                      _saveError!,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ),
-                PopupMenuButton<String>(
-                  tooltip: 'Settings',
-                  icon: const Icon(Icons.settings),
-                  onSelected: (value) {
-                    if (value == 'file-info') {
-                      _showFileInfo(context);
-                    } else if (value == 'theme') {
-                      _showThemeDialog(context);
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'file-info',
-                      child: Row(
-                        children: [
-                          Icon(Icons.info_outline, size: 20),
-                          SizedBox(width: 8),
-                          Text('File Info'),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuDivider(),
-                    const PopupMenuItem(
-                      value: 'theme',
-                      child: Row(
-                        children: [
-                          Icon(Icons.palette, size: 20),
-                          SizedBox(width: 8),
-                          Text('Theme'),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 4),
-                FilledButton.icon(
-                  onPressed: _dirty && !_saving ? _handleSave : null,
-                  icon: _saving
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Icon(NerdIcon.cloudUpload.data),
-                  label: const Text('Save'),
-                ),
-              ],
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: CodeTheme(
+        data: CodeThemeData(styles: theme),
+        child: CodeField(
+          controller: _controller,
+          expands: true,
+          maxLines: null,
+          minLines: null,
+          textStyle: TextStyle(
+            fontFamily: NerdFonts.effectiveFamily(
+              settings.editorFontFamily,
             ),
+            fontSize: settings.editorFontSize.clamp(8, 32).toDouble(),
+            height: settings.editorLineHeight.clamp(1.0, 2.0).toDouble(),
+          ),
+          gutterStyle: const GutterStyle(
+            showLineNumbers: true,
+            showErrors: false,
+            showFoldingHandles: true,
           ),
         ),
-        // Editor content - full width and scrollable
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: CodeTheme(
-              data: CodeThemeData(styles: theme),
-              child: CodeField(
-                controller: _controller,
-                expands: true,
-                maxLines: null,
-                minLines: null,
-                textStyle: TextStyle(
-                  fontFamily: NerdFonts.effectiveFamily(
-                    settings.editorFontFamily,
-                  ),
-                  fontSize: settings.editorFontSize.clamp(8, 32).toDouble(),
-                  height: settings.editorLineHeight.clamp(1.0, 2.0).toDouble(),
-                ),
-                gutterStyle: const GutterStyle(
-                  showLineNumbers: true,
-                  showErrors: false,
-                  showFoldingHandles: true,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -320,8 +218,8 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
     if (_saving) return;
     setState(() {
       _saving = true;
-      _saveError = null;
     });
+    _updateTabOptions();
     try {
       // Use fullText to save the complete content including folded blocks
       final contentToSave = _controller.fullText;
@@ -333,6 +231,7 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
         _dirty = false;
         _saving = false;
       });
+      _updateTabOptions();
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Saved ${widget.path}')));
@@ -340,8 +239,8 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _saveError = 'Save failed: $error';
       });
+      _updateTabOptions();
     }
   }
 
@@ -353,8 +252,8 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
     if (dirty != _dirty) {
       setState(() {
         _dirty = dirty;
-        _saveError = null;
       });
+      _updateTabOptions();
     }
   }
 
@@ -389,7 +288,50 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
     }
     if (mounted) {
       setState(() {});
+      _updateTabOptions();
     }
+  }
+
+  List<TabChipOption>? _pendingTabOptions;
+  bool _optionsScheduled = false;
+
+  void _updateTabOptions() {
+    final options = [
+      TabChipOption(
+        label: 'Save',
+        icon: NerdIcon.cloudUpload.data,
+        enabled: _dirty && !_saving,
+        onSelected: _handleSave,
+      ),
+      TabChipOption(
+        label: 'File info',
+        icon: Icons.info_outline,
+        onSelected: () => _showFileInfo(context),
+      ),
+      TabChipOption(
+        label: 'Theme',
+        icon: Icons.palette,
+        onSelected: () => _showThemeDialog(context),
+      ),
+    ];
+    final controller = widget.optionsController;
+    if (controller == null) {
+      return;
+    }
+    _pendingTabOptions = options;
+    if (_optionsScheduled) {
+      return;
+    }
+    _optionsScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _optionsScheduled = false;
+      final pending = _pendingTabOptions;
+      if (pending == null) {
+        return;
+      }
+      _pendingTabOptions = null;
+      controller.update(pending);
+    });
   }
 
   void _showFileInfo(BuildContext context) {
@@ -436,37 +378,6 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
         ],
       ),
     );
-  }
-
-  List<DropdownMenuItem<String?>> _languageDropdownItems() {
-    final detected = _languageFromPath(widget.path);
-    final entries = [
-      DropdownMenuItem<String?>(
-        value: null,
-        child: Text(
-          detected != null ? 'Auto ($detected)' : 'Auto (plain text)',
-        ),
-      ),
-      ...() {
-        final keys = all_langs.allLanguages.keys.toList()
-          ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-        return keys
-            .map(
-              (key) => DropdownMenuItem<String?>(value: key, child: Text(key)),
-            )
-            .toList();
-      }(),
-    ];
-    return entries;
-  }
-
-  void _handleLanguageChanged(String? key) {
-    setState(() {
-      _languageOverride = key;
-      _controller.language = _getLanguageForKey(
-        key ?? _languageFromPath(widget.path),
-      );
-    });
   }
 
   dynamic _getLanguageForKey(String? languageId) {

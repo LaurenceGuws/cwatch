@@ -987,42 +987,50 @@ class _DockerViewState extends State<DockerView> {
         if (state.command == null || state.title == null) return null;
         final host = _hostByName(hosts, state.hostName);
         final shell = host != null ? _shellServiceForHost(host) : null;
+        final controller = CompositeTabOptionsController();
+        final body = DockerCommandTerminal(
+          host: host,
+          shellService: shell,
+          command: state.command!,
+          title: state.title!,
+          settingsController: widget.settingsController,
+          onExit: () => _closeTabById(state.id),
+          optionsController: controller,
+        );
         return EngineTab(
           id: state.id,
           title: state.title!,
           label: state.title!,
           icon: NerdIcon.terminal.data,
           canDrag: true,
-          body: DockerCommandTerminal(
-            host: host,
-            shellService: shell,
-            command: state.command!,
-            title: state.title!,
-            settingsController: widget.settingsController,
-            onExit: () => _closeTabById(state.id),
-          ),
+          body: body,
           workspaceState: state,
+          optionsController: controller,
         );
       case DockerTabKind.containerShell:
       case DockerTabKind.containerLogs:
         if (state.command == null || state.title == null) return null;
         final host = _hostByName(hosts, state.hostName);
         final shell = host != null ? _shellServiceForHost(host) : null;
+        final controller = CompositeTabOptionsController();
+        final body = DockerCommandTerminal(
+          host: host,
+          shellService: shell,
+          command: state.command!,
+          title: state.title!,
+          settingsController: widget.settingsController,
+          onExit: () => _closeTabById(state.id),
+          optionsController: controller,
+        );
         return EngineTab(
           id: state.id,
           title: state.title!,
           label: state.title!,
           icon: NerdIcon.terminal.data,
           canDrag: true,
-          body: DockerCommandTerminal(
-            host: host,
-            shellService: shell,
-            command: state.command!,
-            title: state.title!,
-            settingsController: widget.settingsController,
-            onExit: () => _closeTabById(state.id),
-          ),
+          body: body,
           workspaceState: state,
+          optionsController: controller,
         );
       case DockerTabKind.composeLogs:
         if (state.project == null) return null;
@@ -1030,21 +1038,25 @@ class _DockerViewState extends State<DockerView> {
         final shell = host != null ? _shellServiceForHost(host) : null;
         final composeBase =
             state.command ?? 'docker compose -p "${state.project}"';
+        final controller = CompositeTabOptionsController();
+        final body = ComposeLogsTerminal(
+          composeBase: composeBase,
+          project: state.project!,
+          services: state.services,
+          host: host,
+          shellService: shell,
+          onExit: () => _closeTabById(state.id),
+          optionsController: controller,
+        );
         return EngineTab(
           id: state.id,
           title: 'Compose logs: ${state.project}',
           label: 'Compose logs: ${state.project}',
           icon: NerdIcon.terminal.data,
           canDrag: true,
-          body: ComposeLogsTerminal(
-            composeBase: composeBase,
-            project: state.project!,
-            services: state.services,
-            host: host,
-            shellService: shell,
-            onExit: () => _closeTabById(state.id),
-          ),
+          body: body,
           workspaceState: state,
+          optionsController: controller,
         );
       case DockerTabKind.containerExplorer:
         final host = _hostByName(hosts, state.hostName);
@@ -1071,6 +1083,7 @@ class _DockerViewState extends State<DockerView> {
             state.contextName,
           ),
         );
+        final controller = CompositeTabOptionsController();
         return EngineTab(
           id: state.id,
           title:
@@ -1112,8 +1125,10 @@ class _DockerViewState extends State<DockerView> {
               _openChildTab(editorTab);
             },
             onOpenTerminalTab: null,
+            optionsController: controller,
           ),
           workspaceState: state,
+          optionsController: controller,
         );
       case DockerTabKind.containerEditor:
         if (state.path == null || state.containerId == null) return null;

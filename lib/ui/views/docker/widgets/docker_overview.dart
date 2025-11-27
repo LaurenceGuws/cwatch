@@ -783,31 +783,34 @@ class _DockerOverviewState extends State<DockerOverview> {
     final tailCommand = _autoCloseCommand(_followLogsCommand(container.id));
 
     if (widget.onOpenTab != null) {
-      final tabId =
-          'logs-${container.id}-${DateTime.now().microsecondsSinceEpoch}';
-      final tab = EngineTab(
-        id: tabId,
-        title: 'Logs: $name',
-        label: 'Logs: $name',
-        icon: NerdIcon.terminal.data,
-        body: DockerCommandTerminal(
-          host: widget.remoteHost,
-          shellService: widget.shellService,
-          command: tailCommand,
-          title: 'Logs • $name',
-          onExit: () => widget.onCloseTab?.call(tabId),
-        ),
-        canDrag: true,
-        workspaceState: DockerTabState(
-          id: 'logs-${container.id}',
-          kind: DockerTabKind.containerLogs,
-          hostName: widget.remoteHost?.name,
-          containerId: container.id,
-          containerName: name,
-          command: tailCommand,
-          title: 'Logs • $name',
-        ),
-      );
+    final controller = CompositeTabOptionsController();
+    final tabId =
+        'logs-${container.id}-${DateTime.now().microsecondsSinceEpoch}';
+    final tab = EngineTab(
+      id: tabId,
+      title: 'Logs: $name',
+      label: 'Logs: $name',
+      icon: NerdIcon.terminal.data,
+      body: DockerCommandTerminal(
+        host: widget.remoteHost,
+        shellService: widget.shellService,
+        command: tailCommand,
+        title: 'Logs • $name',
+        onExit: () => widget.onCloseTab?.call(tabId),
+        optionsController: controller,
+      ),
+      canDrag: true,
+      workspaceState: DockerTabState(
+        id: 'logs-${container.id}',
+        kind: DockerTabKind.containerLogs,
+        hostName: widget.remoteHost?.name,
+        containerId: container.id,
+        containerName: name,
+        command: tailCommand,
+        title: 'Logs • $name',
+      ),
+      optionsController: controller,
+    );
       widget.onOpenTab!(tab);
       return;
     }
@@ -820,30 +823,33 @@ class _DockerOverviewState extends State<DockerOverview> {
     final base = _composeBaseCommand(project);
     final services = _composeServices(project);
     if (widget.onOpenTab != null) {
-      final tabId = 'clogs-$project-${DateTime.now().microsecondsSinceEpoch}';
-      final tab = EngineTab(
-        id: tabId,
-        title: 'Compose logs: $project',
-        label: 'Compose logs: $project',
-        icon: NerdIcon.terminal.data,
-        body: ComposeLogsTerminal(
-          composeBase: base,
-          project: project,
-          services: services,
-          host: widget.remoteHost,
-          shellService: widget.shellService,
-          onExit: () => widget.onCloseTab?.call(tabId),
-        ),
-        canDrag: true,
-        workspaceState: DockerTabState(
-          id: 'clogs-$project',
-          kind: DockerTabKind.composeLogs,
-          hostName: widget.remoteHost?.name,
-          project: project,
-          command: base,
-          services: services,
-        ),
-      );
+    final controller = CompositeTabOptionsController();
+    final tabId = 'clogs-$project-${DateTime.now().microsecondsSinceEpoch}';
+    final tab = EngineTab(
+      id: tabId,
+      title: 'Compose logs: $project',
+      label: 'Compose logs: $project',
+      icon: NerdIcon.terminal.data,
+      body: ComposeLogsTerminal(
+        composeBase: base,
+        project: project,
+        services: services,
+        host: widget.remoteHost,
+        shellService: widget.shellService,
+        onExit: () => widget.onCloseTab?.call(tabId),
+        optionsController: controller,
+      ),
+      canDrag: true,
+      workspaceState: DockerTabState(
+        id: 'clogs-$project',
+        kind: DockerTabKind.composeLogs,
+        hostName: widget.remoteHost?.name,
+        project: project,
+        command: base,
+        services: services,
+      ),
+      optionsController: controller,
+    );
       widget.onOpenTab!(tab);
       return;
     }
@@ -1094,6 +1100,7 @@ done'
       containerName: container.name,
       dockerContextName: _dockerContextName(host),
     );
+    final controller = CompositeTabOptionsController();
     final tab = EngineTab(
       id: 'explore-${container.id}-${DateTime.now().microsecondsSinceEpoch}',
       title:
@@ -1111,6 +1118,7 @@ done'
         onOpenEditorTab: (path, content) =>
             _openEditorTab(host, shell, container.id, path, content),
         onOpenTerminalTab: null,
+        optionsController: controller,
       ),
       workspaceState: DockerTabState(
         id: 'explore-${container.id}',
@@ -1119,6 +1127,7 @@ done'
         containerId: container.id,
         containerName: container.name,
       ),
+      optionsController: controller,
     );
     widget.onOpenTab!(tab);
   }

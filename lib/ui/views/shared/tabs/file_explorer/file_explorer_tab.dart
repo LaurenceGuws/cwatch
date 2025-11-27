@@ -26,6 +26,7 @@ import 'delete_operations_handler.dart';
 import 'clipboard_operations_handler.dart';
 import 'external_app_launcher.dart';
 import 'dialog_builders.dart';
+import '../tab_chip.dart';
 
 class FileExplorerTab extends StatefulWidget {
   FileExplorerTab({
@@ -38,6 +39,7 @@ class FileExplorerTab extends StatefulWidget {
     required this.onOpenTrash,
     this.onOpenEditorTab,
     this.onOpenTerminalTab,
+    this.optionsController,
   }) : assert(explorerContext.host == host);
 
   final SshHost host;
@@ -49,6 +51,7 @@ class FileExplorerTab extends StatefulWidget {
   final Future<void> Function(String path, String initialContent)?
   onOpenEditorTab;
   final ValueChanged<String>? onOpenTerminalTab;
+  final TabOptionsController? optionsController;
 
   @override
   State<FileExplorerTab> createState() => _FileExplorerTabState();
@@ -79,6 +82,8 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
   bool _loading = true;
   String? _error;
   bool _showBreadcrumbs = true;
+  List<TabChipOption>? _pendingTabOptions;
+  bool _optionsScheduled = false;
 
   @override
   void initState() {
@@ -162,11 +167,17 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       }
     };
     widget.trashManager.restoreEvents.addListener(_trashRestoreListener);
+    _updateTabOptions();
   }
 
   @override
   void didUpdateWidget(covariant FileExplorerTab oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.optionsController != widget.optionsController ||
+        oldWidget.onOpenTerminalTab != widget.onOpenTerminalTab ||
+        oldWidget.onOpenTrash != widget.onOpenTrash) {
+      _updateTabOptions();
+    }
     if (oldWidget.shellService != widget.shellService) {
       _sshAuthHandler = SshAuthHandler(
         shellService: widget.shellService,
@@ -258,7 +269,10 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildPathHeader(context),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: _buildPathNavigator(context),
+        ),
         const SizedBox(height: 12),
         Expanded(
           child: Card(
@@ -284,26 +298,6 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         setState(() => _showBreadcrumbs = show);
       },
       onNavigateToSubdirectory: () => _showNavigateToSubdirectoryDialog(),
-    );
-  }
-
-  Widget _buildPathHeader(BuildContext context) {
-    final navigator = _buildPathNavigator(context);
-    final openTerminalHere = widget.onOpenTerminalTab == null
-        ? null
-        : () => widget.onOpenTerminalTab!(_currentPath);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: navigator),
-        const SizedBox(width: 8),
-        ExplorerMenu(
-          onOpenTrash: () => widget.onOpenTrash(widget.explorerContext),
-          onUploadFiles: () => _handleUploadFiles(_currentPath),
-          onUploadFolder: () => _handleUploadFolder(_currentPath),
-          onOpenTerminalHere: openTerminalHere,
-        ),
-      ],
     );
   }
 
@@ -441,6 +435,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         _loading = false;
         _error = result.error;
       });
+      _updateTabOptions();
       return;
     }
 
@@ -465,6 +460,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         }
       }
     });
+    _updateTabOptions();
 
     if (result.allEntries != null) {
       final updates = await _pathLoadingService.hydrateCachedSessions(
@@ -953,6 +949,62 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       _loadPath(targetPath);
     }
   }
+
+  void _updateTabOptions() {
+    final controller = widget.optionsController;
+    if (controller == null) {
+      return;
+    }
+    final options = <TabChipOption>[];
+    options.add(
+      TabChipOption(
+        label: 'Upload files…',
+        icon: Icons.upload_file,
+        onSelected: () => _handleUploadFiles(_currentPath),
+      ),
+    );
+    options.add(
+      TabChipOption(
+        label: 'Upload folder…',
+        icon: Icons.folder,
+        onSelected: () => _handleUploadFolder(_currentPath),
+      ),
+    );
+    options.add(
+      TabChipOption(
+        label: 'Open trash',
+        icon: Icons.delete_outline,
+        onSelected: () => widget.onOpenTrash(widget.explorerContext),
+      ),
+    );
+    if (widget.onOpenTerminalTab != null) {
+      options.add(
+        TabChipOption(
+          label: 'Open terminal here',
+          icon: Icons.terminal,
+          onSelected: () => widget.onOpenTerminalTab!(_currentPath),
+        ),
+      );
+    }
+    _scheduleTabOptions(controller, options);
+  }
+
+  void _scheduleTabOptions(
+    TabOptionsController controller,
+    List<TabChipOption> options,
+  ) {
+    _pendingTabOptions = options;
+    if (_optionsScheduled) {
+      return;
+    }
+    _optionsScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _optionsScheduled = false;
+      final pending = _pendingTabOptions!;
+      _pendingTabOptions = null;
+      controller.update(pending);
+    });
+  }
 }
 
 class CancelledExplorerOperation implements Exception {
@@ -960,69 +1012,4 @@ class CancelledExplorerOperation implements Exception {
 
   @override
   String toString() => 'CancelledExplorerOperation';
-}
-
-enum _ExplorerMenuAction { uploadFiles, uploadFolder, openTrash, openTerminal }
-
-class ExplorerMenu extends StatelessWidget {
-  const ExplorerMenu({
-    super.key,
-    required this.onOpenTrash,
-    required this.onUploadFiles,
-    required this.onUploadFolder,
-    this.onOpenTerminalHere,
-  });
-
-  final VoidCallback onOpenTrash;
-  final VoidCallback onUploadFiles;
-  final VoidCallback onUploadFolder;
-  final VoidCallback? onOpenTerminalHere;
-
-  @override
-  Widget build(BuildContext context) {
-    final actions = <PopupMenuEntry<_ExplorerMenuAction>>[
-      const PopupMenuItem(
-        value: _ExplorerMenuAction.uploadFiles,
-        child: Text('Upload files...'),
-      ),
-      const PopupMenuItem(
-        value: _ExplorerMenuAction.uploadFolder,
-        child: Text('Upload folder...'),
-      ),
-      const PopupMenuItem(
-        value: _ExplorerMenuAction.openTrash,
-        child: Text('Open trash tab'),
-      ),
-    ];
-    if (onOpenTerminalHere != null) {
-      actions.add(
-        const PopupMenuItem(
-          value: _ExplorerMenuAction.openTerminal,
-          child: Text('Open terminal here'),
-        ),
-      );
-    }
-
-    return PopupMenuButton<_ExplorerMenuAction>(
-      tooltip: 'Explorer options',
-      icon: const Icon(Icons.settings),
-      onSelected: (value) {
-        switch (value) {
-          case _ExplorerMenuAction.openTrash:
-            onOpenTrash();
-            break;
-          case _ExplorerMenuAction.uploadFiles:
-            onUploadFiles();
-            break;
-          case _ExplorerMenuAction.uploadFolder:
-            onUploadFolder();
-            break;
-          case _ExplorerMenuAction.openTerminal:
-            onOpenTerminalHere?.call();
-            break;
-        }
-      },
-      itemBuilder: (context) => actions,
-    );
-  }
 }
