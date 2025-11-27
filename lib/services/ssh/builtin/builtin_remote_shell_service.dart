@@ -1064,7 +1064,8 @@ class BuiltInTerminalSession implements TerminalSession {
     if (_closed) {
       return;
     }
-    session.resizeTerminal(rows, cols);
+    // SSH expects width (columns) first, then height (rows).
+    session.resizeTerminal(cols, rows);
   }
 
   @override
