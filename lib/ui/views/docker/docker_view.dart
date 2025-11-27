@@ -56,7 +56,8 @@ class _DockerViewState extends State<DockerView> {
   late final DefaultTabService<EngineTab> _tabService;
   final Map<String, DockerTabState> _tabStates = {};
   final Map<String, Widget> _tabBodies = {};
-  final Map<String, GlobalObjectKey<_KeepAliveWrapperState>> _keepAliveKeys = {};
+  final Map<String, GlobalObjectKey<_KeepAliveWrapperState>> _keepAliveKeys =
+      {};
   final List<Widget> _tabWidgets = [];
   String? _lastPersistedSignature;
   bool _pendingWorkspaceSave = false;
@@ -161,8 +162,7 @@ class _DockerViewState extends State<DockerView> {
         },
         onClose: _closeTab,
         onReorder: (oldIndex, newIndex) {
-          final selectedTabId =
-              _tabs.isEmpty ? null : _tabs[_selectedIndex].id;
+          final selectedTabId = _tabs.isEmpty ? null : _tabs[_selectedIndex].id;
           setState(() {
             if (oldIndex < newIndex) newIndex -= 1;
             final moved = _tabs.removeAt(oldIndex);
@@ -172,8 +172,9 @@ class _DockerViewState extends State<DockerView> {
             if (selectedTabId == null) {
               _selectedIndex = 0;
             } else {
-              final newIndexOfSelected =
-                  _tabs.indexWhere((tab) => tab.id == selectedTabId);
+              final newIndexOfSelected = _tabs.indexWhere(
+                (tab) => tab.id == selectedTabId,
+              );
               _selectedIndex = newIndexOfSelected.clamp(0, _tabs.length - 1);
             }
           });
@@ -367,7 +368,9 @@ class _DockerViewState extends State<DockerView> {
   Widget _tabWidgetFor(EngineTab tab) {
     final keepAliveKey = _keepAliveKeys.putIfAbsent(
       tab.id,
-      () => GlobalObjectKey<_KeepAliveWrapperState>('engine-tab-keepalive-${tab.id}'),
+      () => GlobalObjectKey<_KeepAliveWrapperState>(
+        'engine-tab-keepalive-${tab.id}',
+      ),
     );
     return _tabBodies[tab.id] ??= KeyedSubtree(
       key: ValueKey('engine-tab-${tab.id}'),
@@ -929,21 +932,21 @@ class _DockerViewState extends State<DockerView> {
 
     final selected = workspace.selectedIndex.clamp(0, newTabs.length - 1);
 
-      setState(() {
-        _tabs
-          ..clear()
-          ..addAll(newTabs);
-        _tabStates
-          ..clear()
-          ..addAll(newStates);
-        _tabBodies.clear();
-        _keepAliveKeys.clear();
-        _tabWidgets
-          ..clear()
-          ..addAll(newTabs.map(_tabWidgetFor));
-        _selectedIndex = selected;
-        _lastPersistedSignature = workspace!.signature;
-      });
+    setState(() {
+      _tabs
+        ..clear()
+        ..addAll(newTabs);
+      _tabStates
+        ..clear()
+        ..addAll(newStates);
+      _tabBodies.clear();
+      _keepAliveKeys.clear();
+      _tabWidgets
+        ..clear()
+        ..addAll(newTabs.map(_tabWidgetFor));
+      _selectedIndex = selected;
+      _lastPersistedSignature = workspace!.signature;
+    });
   }
 
   EngineTab? _tabFromState(DockerTabState state, List<SshHost> hosts) {
@@ -1060,7 +1063,11 @@ class _DockerViewState extends State<DockerView> {
         );
       case DockerTabKind.containerExplorer:
         final host = _hostByName(hosts, state.hostName);
-        final shell = _containerShell(host, state.containerId);
+        final shell = _containerShell(
+          host,
+          state.containerId,
+          contextName: state.contextName,
+        );
         if (shell == null) return null;
         final explorerHost =
             host ??
@@ -1133,7 +1140,11 @@ class _DockerViewState extends State<DockerView> {
       case DockerTabKind.containerEditor:
         if (state.path == null || state.containerId == null) return null;
         final host = _hostByName(hosts, state.hostName);
-        final shell = _containerShell(host, state.containerId);
+        final shell = _containerShell(
+          host,
+          state.containerId,
+          contextName: state.contextName,
+        );
         if (shell == null) return null;
         final editorHost =
             host ??
@@ -1247,10 +1258,17 @@ class _DockerViewState extends State<DockerView> {
     }
   }
 
-  RemoteShellService? _containerShell(SshHost? host, String? containerId) {
+  RemoteShellService? _containerShell(
+    SshHost? host,
+    String? containerId, {
+    String? contextName,
+  }) {
     final id = containerId ?? '';
     if (host == null || host.name == 'local') {
-      return LocalDockerContainerShellService(containerId: id);
+      return LocalDockerContainerShellService(
+        containerId: id,
+        contextName: contextName,
+      );
     }
     return DockerContainerShellService(
       host: host,

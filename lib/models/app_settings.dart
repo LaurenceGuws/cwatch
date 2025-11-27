@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'custom_ssh_host.dart';
 import 'docker_workspace_state.dart';
 import 'server_workspace_state.dart';
+import 'kubernetes_workspace_state.dart';
 import 'ssh_client_backend.dart';
 
 class AppSettings {
@@ -23,7 +24,9 @@ class AppSettings {
     this.customSshHosts = const [],
     this.customSshConfigPaths = const [],
     this.disabledSshConfigPaths = const [],
+    this.kubernetesConfigPaths = const [],
     this.serverWorkspace,
+    this.kubernetesWorkspace,
     this.settingsTabIndex = 0,
     this.editorThemeLight,
     this.editorThemeDark,
@@ -56,7 +59,9 @@ class AppSettings {
   final List<CustomSshHost> customSshHosts;
   final List<String> customSshConfigPaths;
   final List<String> disabledSshConfigPaths;
+  final List<String> kubernetesConfigPaths;
   final ServerWorkspaceState? serverWorkspace;
+  final KubernetesWorkspaceState? kubernetesWorkspace;
   final int settingsTabIndex;
   final String? editorThemeLight;
   final String? editorThemeDark;
@@ -89,7 +94,9 @@ class AppSettings {
     List<CustomSshHost>? customSshHosts,
     List<String>? customSshConfigPaths,
     List<String>? disabledSshConfigPaths,
+    List<String>? kubernetesConfigPaths,
     ServerWorkspaceState? serverWorkspace,
+    KubernetesWorkspaceState? kubernetesWorkspace,
     int? settingsTabIndex,
     String? editorThemeLight,
     String? editorThemeDark,
@@ -127,7 +134,10 @@ class AppSettings {
           customSshConfigPaths ?? this.customSshConfigPaths,
       disabledSshConfigPaths:
           disabledSshConfigPaths ?? this.disabledSshConfigPaths,
+      kubernetesConfigPaths:
+          kubernetesConfigPaths ?? this.kubernetesConfigPaths,
       serverWorkspace: serverWorkspace ?? this.serverWorkspace,
+      kubernetesWorkspace: kubernetesWorkspace ?? this.kubernetesWorkspace,
       settingsTabIndex: settingsTabIndex ?? this.settingsTabIndex,
       editorThemeLight: editorThemeLight ?? this.editorThemeLight,
       editorThemeDark: editorThemeDark ?? this.editorThemeDark,
@@ -204,10 +214,26 @@ class AppSettings {
                   ?.whereType<String>()
                   .toList() ??
               const [],
+      kubernetesConfigPaths:
+          (json['kubernetesConfigPaths'] as List<dynamic>?)
+                  ?.whereType<String>()
+                  .toList() ??
+              const [],
       serverWorkspace: () {
         final raw = json['serverWorkspace'];
         if (raw is Map<String, dynamic>) {
           return ServerWorkspaceState.fromJson(raw);
+        }
+        return null;
+      }(),
+      kubernetesWorkspace: () {
+        final raw = json['kubernetesWorkspace'];
+        if (raw is Map<String, dynamic>) {
+          try {
+            return KubernetesWorkspaceState.fromJson(raw);
+          } catch (_) {
+            return null;
+          }
         }
         return null;
       }(),
@@ -263,7 +289,10 @@ class AppSettings {
       'customSshHosts': customSshHosts.map((h) => h.toJson()).toList(),
       'customSshConfigPaths': customSshConfigPaths,
       'disabledSshConfigPaths': disabledSshConfigPaths,
+      'kubernetesConfigPaths': kubernetesConfigPaths,
       if (serverWorkspace != null) 'serverWorkspace': serverWorkspace!.toJson(),
+      if (kubernetesWorkspace != null)
+        'kubernetesWorkspace': kubernetesWorkspace!.toJson(),
       'settingsTabIndex': settingsTabIndex,
       if (editorThemeLight != null) 'editorThemeLight': editorThemeLight,
       if (editorThemeDark != null) 'editorThemeDark': editorThemeDark,

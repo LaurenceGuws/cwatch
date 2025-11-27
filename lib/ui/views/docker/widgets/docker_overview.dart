@@ -101,11 +101,7 @@ class _DockerOverviewState extends State<DockerOverview> {
     final icons = _icons;
     final scheme = Theme.of(context).colorScheme;
     final options = [
-      TabChipOption(
-        label: 'Reload',
-        icon: icons.refresh,
-        onSelected: _refresh,
-      ),
+      TabChipOption(label: 'Reload', icon: icons.refresh, onSelected: _refresh),
       TabChipOption(
         label: 'System prune',
         icon: Icons.cleaning_services_outlined,
@@ -537,7 +533,7 @@ class _DockerOverviewState extends State<DockerOverview> {
   void _openContainerMenu(DockerContainer container, TapDownDetails details) {
     final scheme = Theme.of(context).colorScheme;
     final extraActions = <PopupMenuEntry<String>>[
-      _menuItem('logs', 'Tail logs (last 200)', Icons.list_alt_outlined),
+      _menuItem('logs', 'Tail logs', Icons.list_alt_outlined),
       _menuItem('shell', 'Open shell tab', NerdIcon.terminal.data),
       _menuItem('copyExec', 'Copy exec command', _icons.copy),
       _menuItem('explore', 'Open explorer', _icons.folderOpen),
@@ -783,34 +779,34 @@ class _DockerOverviewState extends State<DockerOverview> {
     final tailCommand = _autoCloseCommand(_followLogsCommand(container.id));
 
     if (widget.onOpenTab != null) {
-    final controller = CompositeTabOptionsController();
-    final tabId =
-        'logs-${container.id}-${DateTime.now().microsecondsSinceEpoch}';
-    final tab = EngineTab(
-      id: tabId,
-      title: 'Logs: $name',
-      label: 'Logs: $name',
-      icon: NerdIcon.terminal.data,
-      body: DockerCommandTerminal(
-        host: widget.remoteHost,
-        shellService: widget.shellService,
-        command: tailCommand,
-        title: 'Logs • $name',
-        onExit: () => widget.onCloseTab?.call(tabId),
+      final controller = CompositeTabOptionsController();
+      final tabId =
+          'logs-${container.id}-${DateTime.now().microsecondsSinceEpoch}';
+      final tab = EngineTab(
+        id: tabId,
+        title: 'Logs: $name',
+        label: 'Logs: $name',
+        icon: NerdIcon.terminal.data,
+        body: DockerCommandTerminal(
+          host: widget.remoteHost,
+          shellService: widget.shellService,
+          command: tailCommand,
+          title: 'Logs • $name',
+          onExit: () => widget.onCloseTab?.call(tabId),
+          optionsController: controller,
+        ),
+        canDrag: true,
+        workspaceState: DockerTabState(
+          id: 'logs-${container.id}',
+          kind: DockerTabKind.containerLogs,
+          hostName: widget.remoteHost?.name,
+          containerId: container.id,
+          containerName: name,
+          command: tailCommand,
+          title: 'Logs • $name',
+        ),
         optionsController: controller,
-      ),
-      canDrag: true,
-      workspaceState: DockerTabState(
-        id: 'logs-${container.id}',
-        kind: DockerTabKind.containerLogs,
-        hostName: widget.remoteHost?.name,
-        containerId: container.id,
-        containerName: name,
-        command: tailCommand,
-        title: 'Logs • $name',
-      ),
-      optionsController: controller,
-    );
+      );
       widget.onOpenTab!(tab);
       return;
     }
@@ -823,33 +819,33 @@ class _DockerOverviewState extends State<DockerOverview> {
     final base = _composeBaseCommand(project);
     final services = _composeServices(project);
     if (widget.onOpenTab != null) {
-    final controller = CompositeTabOptionsController();
-    final tabId = 'clogs-$project-${DateTime.now().microsecondsSinceEpoch}';
-    final tab = EngineTab(
-      id: tabId,
-      title: 'Compose logs: $project',
-      label: 'Compose logs: $project',
-      icon: NerdIcon.terminal.data,
-      body: ComposeLogsTerminal(
-        composeBase: base,
-        project: project,
-        services: services,
-        host: widget.remoteHost,
-        shellService: widget.shellService,
-        onExit: () => widget.onCloseTab?.call(tabId),
+      final controller = CompositeTabOptionsController();
+      final tabId = 'clogs-$project-${DateTime.now().microsecondsSinceEpoch}';
+      final tab = EngineTab(
+        id: tabId,
+        title: 'Compose logs: $project',
+        label: 'Compose logs: $project',
+        icon: NerdIcon.terminal.data,
+        body: ComposeLogsTerminal(
+          composeBase: base,
+          project: project,
+          services: services,
+          host: widget.remoteHost,
+          shellService: widget.shellService,
+          onExit: () => widget.onCloseTab?.call(tabId),
+          optionsController: controller,
+        ),
+        canDrag: true,
+        workspaceState: DockerTabState(
+          id: 'clogs-$project',
+          kind: DockerTabKind.composeLogs,
+          hostName: widget.remoteHost?.name,
+          project: project,
+          command: base,
+          services: services,
+        ),
         optionsController: controller,
-      ),
-      canDrag: true,
-      workspaceState: DockerTabState(
-        id: 'clogs-$project',
-        kind: DockerTabKind.composeLogs,
-        hostName: widget.remoteHost?.name,
-        project: project,
-        command: base,
-        services: services,
-      ),
-      optionsController: controller,
-    );
+      );
       widget.onOpenTab!(tab);
       return;
     }
@@ -1082,7 +1078,10 @@ done'
             containerId: container.id,
             baseShell: widget.shellService!,
           )
-        : LocalDockerContainerShellService(containerId: container.id);
+        : LocalDockerContainerShellService(
+            containerId: container.id,
+            contextName: widget.contextName,
+          );
     final host =
         widget.remoteHost ??
         const SshHost(
@@ -1913,9 +1912,13 @@ class DockerContainerShellService extends RemoteShellService {
 }
 
 class LocalDockerContainerShellService extends RemoteShellService {
-  LocalDockerContainerShellService({required this.containerId});
+  LocalDockerContainerShellService({
+    required this.containerId,
+    this.contextName,
+  });
 
   final String containerId;
+  final String? contextName;
 
   @override
   Future<List<RemoteFileEntry>> listDirectory(
@@ -2082,7 +2085,12 @@ class LocalDockerContainerShellService extends RemoteShellService {
     List<String> args, {
     Duration timeout = const Duration(seconds: 10),
   }) async {
-    final result = await Process.run('docker', args).timeout(timeout);
+    final commandArgs = <String>[];
+    if (contextName?.trim().isNotEmpty == true) {
+      commandArgs.addAll(['--context', contextName!.trim()]);
+    }
+    commandArgs.addAll(args);
+    final result = await Process.run('docker', commandArgs).timeout(timeout);
     if (result.exitCode != 0) {
       throw Exception(
         'docker ${args.join(' ')} failed: ${(result.stderr as String? ?? '').trim()}',

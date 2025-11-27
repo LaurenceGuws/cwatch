@@ -8,8 +8,6 @@
 6. Add suddle color to explorer cache buttons.
 7. Improve clipboard consistency. make clipboard permanent list.
 8. Add proper logging instead of simple debug panel. for stack tracing history.
-9. Use a different x for close icon "\ue20d"
-10. Use this icon for serers "\ueb50"
 11. change docker tab icons to docker related icons
 12. Docker resource tab graphs need bigger contras in colors for lines.
 13. Allow for system password handling
@@ -19,5 +17,4 @@
 17. Process tree tables need to look sortable with color.
 18. Add filtering everywhere.
 19. rightclick menu must popup next to selected area.
-20. Use this for drag button select "\uf255", and this for at rest "\uf256"
-21. Fix terminal TUI only seening half width.
+21. Fix terminal selection copy

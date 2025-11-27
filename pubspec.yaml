@@ -31,6 +31,7 @@ dependencies:
   flutter:
     sdk: flutter
   meta: any
+  yaml: ^3.1.1
   path: ^1.9.0
   fl_chart: ^1.1.1
   flutter_code_editor: ^0.3.0
@@ -92,4 +93,4 @@ flutter:
     - family: JetBrainsMonoNF
       fonts:
         - asset: assets/fonts/JetBrainsMonoNerdFont-Regular.ttf
-        - asset: assets/fonts/JetBrainsMonoNerdFontMono-Regular.ttf
+        # - asset: assets/fonts/JetBrainsMonoNerdFontMono-Regular.ttf

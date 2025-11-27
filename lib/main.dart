@@ -12,7 +12,7 @@ import 'services/ssh/remote_command_logging.dart';
 import 'ui/theme/app_theme.dart';
 import 'ui/theme/nerd_fonts.dart';
 import 'ui/views/docker/docker_view.dart';
-import 'ui/views/kubernetes/kubernetes_view.dart';
+import 'ui/views/kubernetes/kubernetes_context_list.dart';
 import 'ui/views/servers/servers_list.dart';
 import 'ui/views/settings/settings_view.dart';
 
@@ -329,7 +329,10 @@ class _HomeShellState extends State<HomeShell> {
           commandLog: _commandLog,
         );
       case ShellDestination.kubernetes:
-        return KubernetesView(leading: toggleButton);
+        return KubernetesContextList(
+          leading: toggleButton,
+          settingsController: widget.settingsController,
+        );
       case ShellDestination.settings:
         return SettingsView(
           controller: widget.settingsController,

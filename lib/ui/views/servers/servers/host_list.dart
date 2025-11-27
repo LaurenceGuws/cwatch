@@ -212,10 +212,7 @@ class _HostListState extends State<HostList> {
 
   List<String> _displayNames() => widget.hosts.map((h) => h.name).toList();
 
-  List<PopupMenuEntry<String>> _hostActions(
-    ColorScheme scheme,
-    SshHost host,
-  ) {
+  List<PopupMenuEntry<String>> _hostActions(ColorScheme scheme, SshHost host) {
     final isCustom = host is CustomSshHost || host.source == 'custom';
     return [
       PopupMenuItem(
@@ -244,7 +241,7 @@ class _HostListState extends State<HostList> {
           children: [
             Icon(NerdIcon.accessPoint.data, color: scheme.primary, size: 18),
             const SizedBox(width: 8),
-            const Text('Connectivity dashboard'),
+            const Text('Connectivity'),
           ],
         ),
       ),
@@ -254,7 +251,7 @@ class _HostListState extends State<HostList> {
           children: [
             Icon(NerdIcon.database.data, color: scheme.primary, size: 18),
             const SizedBox(width: 8),
-            const Text('Resources dashboard'),
+            const Text('Resources'),
           ],
         ),
       ),
@@ -312,13 +309,24 @@ class _HostListState extends State<HostList> {
     }
   }
 
-  void _showContextMenu(SshHost host, ColorScheme scheme, [Offset? tapPosition]) async {
-    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox?;
+  void _showContextMenu(
+    SshHost host,
+    ColorScheme scheme, [
+    Offset? tapPosition,
+  ]) async {
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
     final basePosition = overlay?.localToGlobal(Offset.zero) ?? Offset.zero;
     final anchor = tapPosition ?? basePosition + const Offset(200, 200);
+    final relative = RelativeRect.fromLTRB(
+      anchor.dx - basePosition.dx,
+      anchor.dy - basePosition.dy,
+      anchor.dx - basePosition.dx,
+      anchor.dy - basePosition.dy,
+    );
     final choice = await showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(anchor.dx, anchor.dy, 0, 0),
+      position: relative,
       items: _hostActions(scheme, host),
     );
     _handleHostAction(choice, host);
