@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
 import 'package:cwatch/services/ssh/terminal_session.dart';
 
@@ -218,6 +219,99 @@ class _TerminalTabState extends State<TerminalTab> {
     return error.toString();
   }
 
+  Future<void> _showContextMenu(Offset globalPosition) async {
+    final overlay = Overlay.of(context);
+    final renderBox = overlay.context.findRenderObject() as RenderBox?;
+    if (renderBox == null) {
+      return;
+    }
+    final selection = _controller.selection;
+    final action = await showMenu<_TerminalMenuAction>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(globalPosition.dx, globalPosition.dy, 0, 0),
+        Offset.zero & renderBox.size,
+      ),
+      items: [
+        PopupMenuItem(
+          value: _TerminalMenuAction.copy,
+          enabled: selection != null,
+          child: const Text('Copy selection'),
+        ),
+        const PopupMenuItem(
+          value: _TerminalMenuAction.paste,
+          child: Text('Paste'),
+        ),
+        const PopupMenuItem(
+          value: _TerminalMenuAction.selectAll,
+          child: Text('Select all'),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem(
+          value: _TerminalMenuAction.clear,
+          child: Text('Clear screen'),
+        ),
+      ],
+    );
+
+    switch (action) {
+      case _TerminalMenuAction.copy:
+        await _copySelectionToClipboard();
+        break;
+      case _TerminalMenuAction.paste:
+        await _pasteFromClipboard();
+        break;
+      case _TerminalMenuAction.selectAll:
+        _selectAll();
+        break;
+      case _TerminalMenuAction.clear:
+        _sendClearCommand();
+        break;
+      case null:
+        break;
+    }
+  }
+
+  Future<void> _copySelectionToClipboard() async {
+    final selection = _controller.selection;
+    if (selection == null) {
+      return;
+    }
+    final text = _terminal.buffer.getText(selection);
+    if (text.isEmpty) {
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: text));
+  }
+
+  Future<void> _pasteFromClipboard() async {
+    final data = await Clipboard.getData('text/plain');
+    final text = data?.text;
+    if (text == null || text.isEmpty) {
+      return;
+    }
+    _terminal.textInput(text);
+  }
+
+  void _selectAll() {
+    final buffer = _terminal.buffer;
+    final lineCount = buffer.lines.length;
+    if (lineCount == 0) {
+      return;
+    }
+    final endLine = lineCount - 1;
+    final endCol = buffer.viewWidth > 0 ? buffer.viewWidth - 1 : 0;
+    final base = buffer.createAnchor(0, 0);
+    final extent = buffer.createAnchor(endCol, endLine);
+    _controller.setSelection(base, extent);
+  }
+
+  void _sendClearCommand() {
+    _controller.clearSelection();
+    _terminal.textInput('clear');
+    _terminal.keyInput(TerminalKey.enter);
+  }
+
   Widget _buildError(BuildContext context) {
     return Center(
       child: Column(
@@ -280,6 +374,8 @@ class _TerminalTabState extends State<TerminalTab> {
                     defaultTargetPlatform == TargetPlatform.iOS,
                 textStyle: _textStyle(settings),
                 theme: _terminalTheme(context, settings),
+                onSecondaryTapDown: (details, _) =>
+                    _showContextMenu(details.globalPosition),
               ),
             );
           },
@@ -303,4 +399,11 @@ class _TerminalTabState extends State<TerminalTab> {
         : settings.terminalThemeLight;
     return terminalThemeForKey(key);
   }
+}
+
+enum _TerminalMenuAction {
+  copy,
+  paste,
+  selectAll,
+  clear,
 }
