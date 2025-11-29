@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:cwatch/models/remote_file_entry.dart';
@@ -39,9 +38,9 @@ class BuiltInRemoteShellService extends RemoteShellService {
     String path, {
     Duration timeout = const Duration(seconds: 10),
   }) async {
-    final sanitized = _sanitizePath(path);
+    final sanitized = sanitizePath(path);
     final command =
-        "cd '${_escapeSingleQuotes(sanitized)}' && ls -al --time-style=+%Y-%m-%dT%H:%M:%S";
+        "cd '${escapeSingleQuotes(sanitized)}' && ls -al --time-style=+%Y-%m-%dT%H:%M:%S";
     final output = await _runCommand(host, command, timeout: timeout);
     _log(
       'listDirectory output for ${host.name}:$path (length=${output.length})',
@@ -70,8 +69,8 @@ class BuiltInRemoteShellService extends RemoteShellService {
     String path, {
     Duration timeout = const Duration(seconds: 15),
   }) async {
-    final normalized = _sanitizePath(path);
-    final command = "cat '${_escapeSingleQuotes(normalized)}'";
+    final normalized = sanitizePath(path);
+    final command = "cat '${escapeSingleQuotes(normalized)}'";
     final output = await _runCommand(host, command, timeout: timeout);
     return output;
   }
@@ -83,11 +82,11 @@ class BuiltInRemoteShellService extends RemoteShellService {
     String contents, {
     Duration timeout = const Duration(seconds: 15),
   }) async {
-    final normalized = _sanitizePath(path);
-    final delimiter = _randomDelimiter();
+    final normalized = sanitizePath(path);
+    final delimiter = randomDelimiter();
     final encoded = base64.encode(utf8.encode(contents));
     final command =
-        "base64 -d > '${_escapeSingleQuotes(normalized)}' <<'$delimiter'\n$encoded\n$delimiter";
+        "base64 -d > '${escapeSingleQuotes(normalized)}' <<'$delimiter'\n$encoded\n$delimiter";
     final output = await _runCommand(host, command, timeout: timeout);
     final verification = await _verifyRemotePath(
       host,
@@ -111,11 +110,11 @@ class BuiltInRemoteShellService extends RemoteShellService {
     String destination, {
     Duration timeout = const Duration(seconds: 15),
   }) async {
-    final normalizedSource = _sanitizePath(source);
-    final normalizedDest = _sanitizePath(destination);
+    final normalizedSource = sanitizePath(source);
+    final normalizedDest = sanitizePath(destination);
     final run = await _runRemoteCommand(
       host,
-      "mv '${_escapeSingleQuotes(normalizedSource)}' '${_escapeSingleQuotes(normalizedDest)}'",
+      "mv '${escapeSingleQuotes(normalizedSource)}' '${escapeSingleQuotes(normalizedDest)}'",
       timeout: timeout,
     );
     final verification = await _verifyRemotePath(
@@ -147,12 +146,12 @@ class BuiltInRemoteShellService extends RemoteShellService {
     bool recursive = false,
     Duration timeout = const Duration(seconds: 20),
   }) async {
-    final normalizedSource = _sanitizePath(source);
-    final normalizedDest = _sanitizePath(destination);
+    final normalizedSource = sanitizePath(source);
+    final normalizedDest = sanitizePath(destination);
     final flag = recursive ? '-R ' : '';
     final run = await _runRemoteCommand(
       host,
-      "cp $flag'${_escapeSingleQuotes(normalizedSource)}' '${_escapeSingleQuotes(normalizedDest)}'",
+      "cp $flag'${escapeSingleQuotes(normalizedSource)}' '${escapeSingleQuotes(normalizedDest)}'",
       timeout: timeout,
     );
     final verification = await _verifyRemotePath(
@@ -176,10 +175,10 @@ class BuiltInRemoteShellService extends RemoteShellService {
     String path, {
     Duration timeout = const Duration(seconds: 15),
   }) async {
-    final normalized = _sanitizePath(path);
+    final normalized = sanitizePath(path);
     final run = await _runRemoteCommand(
       host,
-      "rm -rf '${_escapeSingleQuotes(normalized)}'",
+      "rm -rf '${escapeSingleQuotes(normalized)}'",
       timeout: timeout,
     );
     final verification = await _verifyRemotePath(
@@ -230,7 +229,7 @@ class BuiltInRemoteShellService extends RemoteShellService {
     }
     final verification = await _verifyRemotePath(
       destinationHost,
-      _sanitizePath(destinationPath),
+      sanitizePath(destinationPath),
       shouldExist: true,
       timeout: const Duration(seconds: 10),
     );
@@ -252,7 +251,7 @@ class BuiltInRemoteShellService extends RemoteShellService {
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
   }) async {
-    final sanitized = _sanitizePath(remotePath);
+    final sanitized = sanitizePath(remotePath);
     final destinationDir = Directory(localDestination);
     await destinationDir.create(recursive: true);
     await _withSftp(host, (sftp) async {
@@ -278,7 +277,7 @@ class BuiltInRemoteShellService extends RemoteShellService {
     Duration timeout = const Duration(minutes: 2),
     void Function(int bytesTransferred)? onBytes,
   }) async {
-    final normalizedDest = _sanitizePath(remoteDestination);
+    final normalizedDest = sanitizePath(remoteDestination);
     final entryType = FileSystemEntity.typeSync(localPath);
     _log(
       'Upload request to ${host.name} (${host.hostname}:${host.port}) '
@@ -298,7 +297,7 @@ class BuiltInRemoteShellService extends RemoteShellService {
           throw Exception('Uploading directories requires recursive flag.');
         }
         final remoteDir = _joinPath(normalizedDest, p.basename(localPath));
-        await _ensureRemoteDirectory(sftp, _dirname(remoteDir));
+        await _ensureRemoteDirectory(sftp, dirnameFromPath(remoteDir));
         await _uploadDirectory(
           sftp,
           Directory(localPath),
@@ -307,7 +306,7 @@ class BuiltInRemoteShellService extends RemoteShellService {
         );
         return;
       }
-      await _ensureRemoteDirectory(sftp, _dirname(normalizedDest));
+      await _ensureRemoteDirectory(sftp, dirnameFromPath(normalizedDest));
       await _uploadFile(
         sftp,
         File(localPath),
@@ -338,9 +337,9 @@ class BuiltInRemoteShellService extends RemoteShellService {
     required String remoteDestination,
     Duration timeout = const Duration(minutes: 2),
   }) async {
-    final normalizedDest = _sanitizePath(remoteDestination);
+    final normalizedDest = sanitizePath(remoteDestination);
     await _withSftp(host, (sftp) async {
-      await _ensureRemoteDirectory(sftp, _dirname(normalizedDest));
+      await _ensureRemoteDirectory(sftp, dirnameFromPath(normalizedDest));
       await _uploadBytes(sftp, bytes, normalizedDest);
     }).timeout(timeout);
     final verification = await _verifyRemotePath(
@@ -889,14 +888,14 @@ class BuiltInRemoteShellService extends RemoteShellService {
       if (entity is Directory) {
         await _uploadDirectory(sftp, entity, remotePath, onBytes: onBytes);
       } else if (entity is File) {
-        await _ensureRemoteDirectory(sftp, _dirname(remotePath));
+        await _ensureRemoteDirectory(sftp, dirnameFromPath(remotePath));
         await _uploadFile(sftp, entity, remotePath, onBytes: onBytes);
       }
     }
   }
 
   Future<void> _ensureRemoteDirectory(SftpClient sftp, String path) async {
-    final normalized = _sanitizePath(path);
+    final normalized = sanitizePath(path);
     if (normalized == '/' || normalized.isEmpty) {
       return;
     }
@@ -932,40 +931,12 @@ class BuiltInRemoteShellService extends RemoteShellService {
     }
   }
 
-  String _sanitizePath(String path) {
-    if (path.isEmpty) return '/';
-    if (path.startsWith('/')) {
-      return path;
-    }
-    return '/$path';
-  }
-
   String _joinPath(String base, String segment) {
     if (segment.isEmpty) return base;
     final trimmedBase = base.endsWith('/')
         ? base.substring(0, base.length - 1)
         : base;
     return '$trimmedBase/$segment';
-  }
-
-  String _dirname(String path) {
-    final normalized = _sanitizePath(path);
-    final index = normalized.lastIndexOf('/');
-    if (index <= 0) {
-      return '/';
-    }
-    return normalized.substring(0, index);
-  }
-
-  String _escapeSingleQuotes(String input) => input.replaceAll("'", r"'\''");
-
-  String _randomDelimiter() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    final rand = Random();
-    return List.generate(
-      12,
-      (index) => chars[rand.nextInt(chars.length)],
-    ).join();
   }
 
   Future<VerificationResult?> _verifyRemotePath(
@@ -978,7 +949,7 @@ class BuiltInRemoteShellService extends RemoteShellService {
       return null;
     }
     final command =
-        "[ -e '${_escapeSingleQuotes(path)}' ] && echo 'EXISTS' || echo 'MISSING'";
+        "[ -e '${escapeSingleQuotes(path)}' ] && echo 'EXISTS' || echo 'MISSING'";
     final output = await _runCommand(host, command, timeout: timeout);
     final exists = output.trim() == 'EXISTS';
     return VerificationResult(

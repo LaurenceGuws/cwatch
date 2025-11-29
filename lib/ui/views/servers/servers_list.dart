@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/workspace/workspace_tracker.dart';
 import '../../../models/custom_ssh_host.dart';
 import '../../../models/explorer_context.dart';
 import '../../../models/server_action.dart';
@@ -54,10 +55,8 @@ class _ServersListState extends State<ServersList> {
   final List<ServerTab> _tabs = [];
   int _selectedTabIndex = 0;
   final ExplorerTrashManager _trashManager = ExplorerTrashManager();
-  String? _restoredWorkspaceSignature;
-  String? _lastPersistedSignature;
   late final VoidCallback _settingsListener;
-  bool _pendingWorkspaceSave = false;
+  final WorkspaceTracker _workspaceTracker = WorkspaceTracker();
   final Map<String, Widget> _tabBodies = {};
   static int _placeholderSequence = 0;
 
@@ -292,7 +291,8 @@ class _ServersListState extends State<ServersList> {
       return;
     }
     _restoreWorkspace();
-    if (_pendingWorkspaceSave && widget.settingsController.isLoaded) {
+    if (_workspaceTracker.pendingSave &&
+        widget.settingsController.isLoaded) {
       _persistWorkspace();
     }
   }
@@ -312,7 +312,7 @@ class _ServersListState extends State<ServersList> {
       return;
     }
     final signature = workspace.signature;
-    if (_restoredWorkspaceSignature == signature) {
+    if (_workspaceTracker.hasRestored(signature)) {
       return;
     }
     final restoredTabs = _buildTabsFromState(workspace, hosts);
@@ -330,8 +330,7 @@ class _ServersListState extends State<ServersList> {
           restoredTabs.map((tab) => MapEntry(tab.id, _buildTabWidget(tab))),
         );
       _selectedTabIndex = workspace.selectedIndex.clamp(0, _tabs.length - 1);
-      _restoredWorkspaceSignature = signature;
-      _lastPersistedSignature = signature;
+      _workspaceTracker.markRestored(signature);
     });
   }
 
@@ -400,17 +399,15 @@ class _ServersListState extends State<ServersList> {
 
   void _persistWorkspace() {
     if (!widget.settingsController.isLoaded) {
-      _pendingWorkspaceSave = true;
+      _workspaceTracker.deferSave();
       return;
     }
     final workspace = _currentWorkspaceState();
     final signature = workspace.signature;
-    if (_lastPersistedSignature == signature) {
+    if (!_workspaceTracker.shouldPersist(signature)) {
       return;
     }
-    _pendingWorkspaceSave = false;
-    _lastPersistedSignature = signature;
-    _restoredWorkspaceSignature = signature;
+    _workspaceTracker.markPersisted(signature);
     unawaited(
       widget.settingsController.update(
         (current) => current.copyWith(serverWorkspace: workspace),

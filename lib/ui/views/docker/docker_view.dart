@@ -15,6 +15,7 @@ import '../../../services/settings/app_settings_controller.dart';
 import '../../../services/filesystem/explorer_trash_manager.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/nerd_fonts.dart';
+import '../../../core/workspace/workspace_tracker.dart';
 import '../../../models/docker_workspace_state.dart';
 import 'engine_tab.dart';
 import 'docker_engine_list.dart';
@@ -59,8 +60,7 @@ class _DockerViewState extends State<DockerView> {
   final Map<String, GlobalObjectKey<_KeepAliveWrapperState>> _keepAliveKeys =
       {};
   final List<Widget> _tabWidgets = [];
-  String? _lastPersistedSignature;
-  bool _pendingWorkspaceSave = false;
+  final WorkspaceTracker _workspaceTracker = WorkspaceTracker();
   late final VoidCallback _settingsListener;
 
   Future<List<DockerContext>>? _contextsFuture;
@@ -855,23 +855,23 @@ class _DockerViewState extends State<DockerView> {
 
   void _persistWorkspace() {
     if (!widget.settingsController.isLoaded) {
-      _pendingWorkspaceSave = true;
+      _workspaceTracker.deferSave();
       return;
     }
     final workspace = _currentWorkspaceState();
     final signature = workspace.signature;
-    if (_lastPersistedSignature == signature) {
+    if (!_workspaceTracker.shouldPersist(signature)) {
       return;
     }
-    _pendingWorkspaceSave = false;
-    _lastPersistedSignature = signature;
+    _workspaceTracker.markPersisted(signature);
     widget.settingsController.update(
       (current) => current.copyWith(dockerWorkspace: workspace),
     );
   }
 
   void _handleSettingsChanged() {
-    if (_pendingWorkspaceSave && widget.settingsController.isLoaded) {
+    if (_workspaceTracker.pendingSave &&
+        widget.settingsController.isLoaded) {
       _persistWorkspace();
     }
   }
@@ -903,6 +903,10 @@ class _DockerViewState extends State<DockerView> {
         _keepAliveKeys.clear();
         _selectedIndex = 0;
       });
+      return;
+    }
+    final signature = workspace.signature;
+    if (_workspaceTracker.hasRestored(signature)) {
       return;
     }
 
@@ -945,7 +949,7 @@ class _DockerViewState extends State<DockerView> {
         ..clear()
         ..addAll(newTabs.map(_tabWidgetFor));
       _selectedIndex = selected;
-      _lastPersistedSignature = workspace!.signature;
+      _workspaceTracker.markRestored(signature);
     });
   }
 

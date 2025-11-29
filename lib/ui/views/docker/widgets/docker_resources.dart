@@ -76,18 +76,23 @@ class _DockerResourcesState extends State<DockerResources> {
     }
     _tabOptionsRegistered = true;
     final icons = _icons;
-    widget.optionsController!.update([
-      TabChipOption(
-        label: 'Open `docker stats`',
-        icon: NerdIcon.terminal.data,
-        onSelected: _openStatsTab,
-      ),
-      TabChipOption(
-        label: 'Refresh',
-        icon: icons.refresh,
-        onSelected: _refreshStats,
-      ),
-    ]);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || widget.optionsController == null) {
+        return;
+      }
+      widget.optionsController!.update([
+        TabChipOption(
+          label: 'Open `docker stats`',
+          icon: NerdIcon.terminal.data,
+          onSelected: _openStatsTab,
+        ),
+        TabChipOption(
+          label: 'Refresh',
+          icon: icons.refresh,
+          onSelected: _refreshStats,
+        ),
+      ]);
+    });
   }
 
   @override

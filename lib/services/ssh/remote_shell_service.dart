@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 
 import 'package:meta/meta.dart';
 import '../../models/remote_file_entry.dart';
@@ -8,6 +7,7 @@ import '../../models/ssh_host.dart';
 import '../logging/app_logger.dart';
 import 'remote_command_logging.dart';
 import 'terminal_session.dart';
+import 'remote_path_utils.dart';
 
 class TerminalSessionOptions {
   const TerminalSessionOptions({
@@ -23,7 +23,7 @@ class TerminalSessionOptions {
   final int pixelHeight;
 }
 
-abstract class RemoteShellService {
+abstract class RemoteShellService with RemotePathUtils {
   const RemoteShellService({this.debugMode = false, this.observer});
 
   final bool debugMode;
@@ -211,9 +211,9 @@ class ProcessRemoteShellService extends RemoteShellService {
     String path, {
     Duration timeout = const Duration(seconds: 10),
   }) async {
-    final sanitizedPath = _sanitizePath(path);
+    final sanitizedPath = sanitizePath(path);
     final lsCommand =
-        "cd '${_escapeSingleQuotes(sanitizedPath)}' && ls -al --time-style=+%Y-%m-%dT%H:%M:%S";
+        "cd '${escapeSingleQuotes(sanitizedPath)}' && ls -al --time-style=+%Y-%m-%dT%H:%M:%S";
     final run = await _runSsh(host, lsCommand, timeout: timeout);
 
     return parseLsOutput(run.stdout);
@@ -239,11 +239,11 @@ class ProcessRemoteShellService extends RemoteShellService {
     String path, {
     Duration timeout = const Duration(seconds: 15),
   }) async {
-    final normalized = _sanitizePath(path);
+    final normalized = sanitizePath(path);
     final run = await _runProcess(
       _buildSshCommand(
         host,
-        "cat '${_escapeSingleQuotes(normalized)}'",
+        "cat '${escapeSingleQuotes(normalized)}'",
       ),
       timeout: timeout,
       hostForErrors: host,
@@ -258,13 +258,13 @@ class ProcessRemoteShellService extends RemoteShellService {
     String contents, {
     Duration timeout = const Duration(seconds: 15),
   }) async {
-    final normalized = _sanitizePath(path);
-    final delimiter = _randomDelimiter();
+    final normalized = sanitizePath(path);
+    final delimiter = randomDelimiter();
     final encoded = base64.encode(utf8.encode(contents));
     final run = await _runProcess(
       _buildSshCommand(
         host,
-        "base64 -d > '${_escapeSingleQuotes(normalized)}' <<'$delimiter'\n$encoded\n$delimiter",
+        "base64 -d > '${escapeSingleQuotes(normalized)}' <<'$delimiter'\n$encoded\n$delimiter",
       ),
       timeout: timeout,
       hostForErrors: host,
@@ -291,12 +291,12 @@ class ProcessRemoteShellService extends RemoteShellService {
     String destination, {
     Duration timeout = const Duration(seconds: 15),
   }) async {
-    final normalizedSource = _sanitizePath(source);
-    final normalizedDest = _sanitizePath(destination);
-    await _ensureRemoteDirectory(host, _dirname(normalizedDest));
+    final normalizedSource = sanitizePath(source);
+    final normalizedDest = sanitizePath(destination);
+    await _ensureRemoteDirectory(host, dirnameFromPath(normalizedDest));
     final run = await _runHostCommand(
       host,
-      "mv '${_escapeSingleQuotes(normalizedSource)}' '${_escapeSingleQuotes(normalizedDest)}'",
+      "mv '${escapeSingleQuotes(normalizedSource)}' '${escapeSingleQuotes(normalizedDest)}'",
       timeout: timeout,
     );
     final verification = await _verifyPathExists(
@@ -330,13 +330,13 @@ class ProcessRemoteShellService extends RemoteShellService {
     bool recursive = false,
     Duration timeout = const Duration(seconds: 20),
   }) async {
-    final normalizedSource = _sanitizePath(source);
-    final normalizedDest = _sanitizePath(destination);
-    await _ensureRemoteDirectory(host, _dirname(normalizedDest));
+    final normalizedSource = sanitizePath(source);
+    final normalizedDest = sanitizePath(destination);
+    await _ensureRemoteDirectory(host, dirnameFromPath(normalizedDest));
     final flag = recursive ? '-R ' : '';
     final run = await _runHostCommand(
       host,
-      "cp $flag'${_escapeSingleQuotes(normalizedSource)}' '${_escapeSingleQuotes(normalizedDest)}'",
+      "cp $flag'${escapeSingleQuotes(normalizedSource)}' '${escapeSingleQuotes(normalizedDest)}'",
       timeout: timeout,
     );
     final verification = await _verifyPathExists(
@@ -360,10 +360,10 @@ class ProcessRemoteShellService extends RemoteShellService {
     String path, {
     Duration timeout = const Duration(seconds: 15),
   }) async {
-    final normalized = _sanitizePath(path);
+    final normalized = sanitizePath(path);
     final run = await _runHostCommand(
       host,
-      "rm -rf '${_escapeSingleQuotes(normalized)}'",
+      "rm -rf '${escapeSingleQuotes(normalized)}'",
       timeout: timeout,
     );
     final verification = await _verifyPathExists(
@@ -390,14 +390,14 @@ class ProcessRemoteShellService extends RemoteShellService {
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
   }) async {
-    final normalizedSource = _sanitizePath(sourcePath);
-    final normalizedDest = _sanitizePath(destinationPath);
-    await _ensureRemoteDirectory(destinationHost, _dirname(normalizedDest));
+    final normalizedSource = sanitizePath(sourcePath);
+    final normalizedDest = sanitizePath(destinationPath);
+    await _ensureRemoteDirectory(destinationHost, dirnameFromPath(normalizedDest));
     final recursiveFlag = recursive ? '-r ' : '';
     final escapedSource =
-        "${sourceHost.name}:${_singleQuoteForShell(normalizedSource)}";
+        "${sourceHost.name}:${singleQuoteForShell(normalizedSource)}";
     final escapedDestination =
-        "${destinationHost.name}:${_singleQuoteForShell(normalizedDest)}";
+        "${destinationHost.name}:${singleQuoteForShell(normalizedDest)}";
     final command =
         "scp -o BatchMode=yes -o StrictHostKeyChecking=no $recursiveFlag$escapedSource $escapedDestination";
     final run = await _runProcess(
@@ -428,13 +428,13 @@ class ProcessRemoteShellService extends RemoteShellService {
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
   }) async {
-    final normalizedSource = _sanitizePath(remotePath);
+    final normalizedSource = sanitizePath(remotePath);
     final destinationDir = Directory(localDestination);
     await destinationDir.create(recursive: true);
     final recursiveFlag = recursive ? '-r ' : '';
     final escapedSource =
-        "${host.name}:${_singleQuoteForShell(normalizedSource)}";
-    final escapedDestination = _singleQuoteForShell(localDestination);
+        "${host.name}:${singleQuoteForShell(normalizedSource)}";
+    final escapedDestination = singleQuoteForShell(localDestination);
     final command =
         "scp -o BatchMode=yes -o StrictHostKeyChecking=no $recursiveFlag$escapedSource $escapedDestination";
     await _runProcess(
@@ -452,16 +452,16 @@ class ProcessRemoteShellService extends RemoteShellService {
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
   }) async {
-    final normalizedDest = _sanitizePath(remoteDestination);
+    final normalizedDest = sanitizePath(remoteDestination);
     final source =
         FileSystemEntity.typeSync(localPath) == FileSystemEntityType.directory
         ? localPath
         : localPath;
-    await _ensureRemoteDirectory(host, _dirname(normalizedDest));
+    await _ensureRemoteDirectory(host, dirnameFromPath(normalizedDest));
     final recursiveFlag = recursive ? '-r ' : '';
-    final escapedSource = _singleQuoteForShell(source);
+    final escapedSource = singleQuoteForShell(source);
     final escapedDestination =
-        "${host.name}:${_singleQuoteForShell(normalizedDest)}";
+        "${host.name}:${singleQuoteForShell(normalizedDest)}";
     final command =
         "scp -o BatchMode=yes -o StrictHostKeyChecking=no $recursiveFlag$escapedSource $escapedDestination";
     final run = await _runProcess(
@@ -613,22 +613,6 @@ class ProcessRemoteShellService extends RemoteShellService {
     return host.name;
   }
 
-  String _sanitizePath(String path) {
-    if (path.isEmpty) {
-      return '/';
-    }
-    if (path.startsWith('/')) {
-      return path;
-    }
-    return '/$path';
-  }
-
-  String _escapeSingleQuotes(String input) => input.replaceAll("'", r"'\''");
-
-  String _singleQuoteForShell(String input) {
-    return "'${input.replaceAll("'", "'\\''")}'";
-  }
-
   Future<RunResult> _runHostCommand(
     SshHost host,
     String command, {
@@ -642,25 +626,7 @@ class ProcessRemoteShellService extends RemoteShellService {
     if (directory.isEmpty) {
       return;
     }
-    await _runHostCommand(host, "mkdir -p '${_escapeSingleQuotes(directory)}'");
-  }
-
-  String _dirname(String path) {
-    final normalized = _sanitizePath(path);
-    final index = normalized.lastIndexOf('/');
-    if (index <= 0) {
-      return '/';
-    }
-    return normalized.substring(0, index);
-  }
-
-  String _randomDelimiter() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    final rand = Random();
-    return List.generate(
-      12,
-      (index) => chars[rand.nextInt(chars.length)],
-    ).join();
+    await _runHostCommand(host, "mkdir -p '${escapeSingleQuotes(directory)}'");
   }
 
   Future<VerificationResult?> _verifyPathExists(
@@ -673,7 +639,7 @@ class ProcessRemoteShellService extends RemoteShellService {
       return null;
     }
     final command =
-        "[ -e '${_escapeSingleQuotes(path)}' ] && echo 'EXISTS' || echo 'MISSING'";
+        "[ -e '${escapeSingleQuotes(path)}' ] && echo 'EXISTS' || echo 'MISSING'";
     final run = await _runSsh(host, command, timeout: timeout);
     final exists = run.stdout.trim() == 'EXISTS';
     return VerificationResult(

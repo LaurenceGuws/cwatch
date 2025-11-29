@@ -18,3 +18,7 @@
 18. Add filtering everywhere.
 19. rightclick menu must popup next to selected area.
 21. Fix terminal selection copy
+
+22. Make docker container shells use "docker exec -it <container> /bin/sh -c \
+  "eval $(grep ^$(id -un): /etc/passwd | cut -d : -f 7-)"
+"
