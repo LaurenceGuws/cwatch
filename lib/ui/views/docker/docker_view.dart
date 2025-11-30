@@ -15,10 +15,11 @@ import '../../../services/settings/app_settings_controller.dart';
 import '../../../services/filesystem/explorer_trash_manager.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/nerd_fonts.dart';
+import '../../../core/tabs/tab_host_view.dart';
 import '../../../core/workspace/workspace_persistence.dart';
+import '../../../core/tabs/tab_host.dart';
 import '../../../models/docker_workspace_state.dart';
 import 'engine_tab.dart';
-import 'docker_engine_list.dart';
 import 'widgets/docker_overview.dart';
 import 'widgets/docker_engine_picker.dart';
 import 'widgets/docker_resources.dart';
@@ -26,7 +27,6 @@ import 'widgets/docker_command_terminal.dart';
 import '../shared/tabs/file_explorer/file_explorer_tab.dart';
 import '../shared/tabs/file_explorer/trash_tab.dart';
 import '../shared/tabs/editor/remote_file_editor_tab.dart';
-import '../shared/default_tab_service.dart';
 import '../shared/tabs/tab_chip.dart';
 
 class DockerView extends StatefulWidget {
@@ -52,35 +52,46 @@ class DockerView extends StatefulWidget {
 class _DockerViewState extends State<DockerView> {
   final DockerClientService _docker = const DockerClientService();
   final ExplorerTrashManager _trashManager = ExplorerTrashManager();
-  final List<EngineTab> _tabs = [];
-  int _selectedIndex = 0;
-  late final DefaultTabService<EngineTab> _tabService;
+  late final TabHostController<EngineTab> _tabController;
   final Map<String, DockerTabState> _tabStates = {};
   final Map<String, Widget> _tabBodies = {};
   final Map<String, GlobalObjectKey<_KeepAliveWrapperState>> _keepAliveKeys =
       {};
-  final List<Widget> _tabWidgets = [];
+  final Map<String, Widget> _tabWidgets = {};
   late final WorkspacePersistence<DockerWorkspaceState>
       _workspacePersistence;
   late final VoidCallback _settingsListener;
+  late final VoidCallback _tabsListener;
 
   Future<List<DockerContext>>? _contextsFuture;
   Future<List<RemoteDockerStatus>>? _remoteStatusFuture;
   bool _remoteScanRequested = false;
   List<RemoteDockerStatus> _cachedReady = const [];
 
+  List<EngineTab> get _tabs => _tabController.tabs;
+  int get _selectedIndex => _tabController.selectedIndex;
+  void _replaceBaseTab(EngineTab tab) {
+    if (_tabController.tabs.isEmpty) {
+      _tabController.addTab(tab);
+    } else {
+      _tabController.replaceBaseTab(tab);
+    }
+    _tabBodies[tab.id] = _tabWidgetFor(tab);
+  }
+
   @override
   void initState() {
     super.initState();
     _contextsFuture = _docker.listContexts();
-    _tabService = DefaultTabService<EngineTab>(
-      baseTabBuilder: ({String? id}) => _enginePickerTab(id: id),
+    _tabController = TabHostController<EngineTab>(
+      baseTabBuilder: () => _enginePickerTab(),
       tabId: (tab) => tab.id,
     );
-    final picker = _tabService.createBase();
-    _tabs.add(picker);
-    _tabWidgets.add(_tabWidgetFor(picker));
+    final picker = _tabController.tabs.first;
+    _tabWidgets[picker.id] = _tabWidgetFor(picker);
     _registerTabState(picker.workspaceState as DockerTabState);
+    _tabsListener = () => setState(() {});
+    _tabController.addListener(_tabsListener);
     _settingsListener = _handleSettingsChanged;
     _workspacePersistence = WorkspacePersistence(
       settingsController: widget.settingsController,
@@ -96,6 +107,7 @@ class _DockerViewState extends State<DockerView> {
 
   @override
   void dispose() {
+    _tabController.removeListener(_tabsListener);
     widget.settingsController.removeListener(_settingsListener);
     super.dispose();
   }
@@ -130,81 +142,122 @@ class _DockerViewState extends State<DockerView> {
   String _uniqueId() => DateTime.now().microsecondsSinceEpoch.toString();
 
   void _refreshContexts() {
-    setState(() {
-      _contextsFuture = _docker.listContexts();
-      final currentId = _tabs.first.id;
-      final picker = _tabService.createBase(id: currentId);
-      _disposeTabOptions(_tabs[0]);
-      _tabs[0] = picker;
-      _tabWidgets[0] = _tabWidgetFor(picker);
-      _registerTabState(picker.workspaceState as DockerTabState);
-      _persistWorkspace();
-    });
+    _contextsFuture = _docker.listContexts();
+    final currentId = _tabs.first.id;
+    final picker = _enginePickerTab(id: currentId);
+    _disposeTabOptions(_tabs[0]);
+    _replaceBaseTab(picker);
+    _registerTabState(picker.workspaceState as DockerTabState);
+    _persistWorkspace();
   }
 
   void _scanRemotes() {
-    setState(() {
-      _remoteScanRequested = true;
-      _remoteStatusFuture = _loadRemoteStatuses();
-      final currentId = _tabs.first.id;
-      final picker = _tabService.createBase(id: currentId);
-      _disposeTabOptions(_tabs[0]);
-      _tabs[0] = picker;
-      _tabWidgets[0] = _tabWidgetFor(picker);
-      _registerTabState(picker.workspaceState as DockerTabState);
-      _persistWorkspace();
-    });
+    _remoteScanRequested = true;
+    _remoteStatusFuture = _loadRemoteStatuses();
+    final currentId = _tabs.first.id;
+    final picker = _enginePickerTab(id: currentId);
+    _disposeTabOptions(_tabs[0]);
+    _replaceBaseTab(picker);
+    _registerTabState(picker.workspaceState as DockerTabState);
+    _persistWorkspace();
   }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      child: DockerEngineList(
-        tabs: _tabs,
-        selectedIndex: _selectedIndex,
-        leading: widget.leading,
-        onSelect: (index) {
-          setState(() => _selectedIndex = index);
-          _persistWorkspace();
-        },
-        onClose: _closeTab,
-        onReorder: (oldIndex, newIndex) {
-          final selectedTabId = _tabs.isEmpty ? null : _tabs[_selectedIndex].id;
-          setState(() {
-            if (oldIndex < newIndex) newIndex -= 1;
-            final moved = _tabs.removeAt(oldIndex);
-            final movedWidget = _tabWidgets.removeAt(oldIndex);
-            _tabs.insert(newIndex, moved);
-            _tabWidgets.insert(newIndex, movedWidget);
-            if (selectedTabId == null) {
-              _selectedIndex = 0;
-            } else {
-              final newIndexOfSelected = _tabs.indexWhere(
-                (tab) => tab.id == selectedTabId,
-              );
-              _selectedIndex = newIndexOfSelected.clamp(0, _tabs.length - 1);
-            }
-          });
-          _persistWorkspace();
-        },
-        onAddTab: _addEnginePickerTab,
-        tabContents: _tabWidgets.isEmpty
-            ? const [SizedBox.shrink()]
-            : List<Widget>.from(_tabWidgets),
+      child: Column(
+        children: [
+          Expanded(
+            child: Material(
+              color: context.appTheme.section.toolbarBackground,
+              child: TabHostView<EngineTab>(
+                controller: _tabController,
+                tabBarHeight: 36,
+                leading: widget.leading != null
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: SizedBox(
+                          height: 36,
+                          child: Center(child: widget.leading),
+                        ),
+                      )
+                    : null,
+                onReorder: (oldIndex, newIndex) {
+                  final selectedTabId =
+                      _tabs.isEmpty ? null : _tabs[_selectedIndex].id;
+                  if (oldIndex < newIndex) newIndex -= 1;
+                  _tabController.reorder(oldIndex, newIndex);
+                  if (selectedTabId != null) {
+                    final newIndexOfSelected = _tabs.indexWhere(
+                      (tab) => tab.id == selectedTabId,
+                    );
+                    _tabController.select(
+                      newIndexOfSelected.clamp(0, _tabs.length - 1),
+                    );
+                  }
+                  _persistWorkspace();
+                },
+                onAddTab: _addEnginePickerTab,
+                buildChip: (context, index, tab) {
+                  final optionsController = tab.optionsController;
+                  Widget buildTab(List<TabChipOption> options) {
+                    return TabChip(
+                      host: SshHost(
+                        name: tab.label,
+                        hostname: '',
+                        port: 0,
+                        available: true,
+                      ),
+                      title: tab.title,
+                      label: tab.label,
+                      icon: tab.icon,
+                      selected: index == _selectedIndex,
+                      onSelect: () {
+                        _tabController.select(index);
+                        _persistWorkspace();
+                      },
+                      onClose: () => _closeTab(index),
+                      closable: true,
+                      onRename: tab.canRename ? () {} : null,
+                      dragIndex: tab.canDrag ? index : null,
+                      options: options,
+                    );
+                  }
+
+                  if (optionsController == null) {
+                    return KeyedSubtree(
+                      key: ValueKey(tab.id),
+                      child: buildTab(const []),
+                    );
+                  }
+                  return ValueListenableBuilder<List<TabChipOption>>(
+                    key: ValueKey(tab.id),
+                    valueListenable: optionsController,
+                    builder: (context, options, _) => buildTab(options),
+                  );
+                },
+                buildBody: (tab) => KeyedSubtree(
+                  key: ValueKey('engine-tab-${tab.id}'),
+                  child: _tabWidgets[tab.id] ?? const SizedBox.shrink(),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: context.appTheme.spacing.inset(horizontal: 2, vertical: 0),
+            child: Divider(height: 1, color: context.appTheme.section.divider),
+          ),
+        ],
       ),
     );
   }
 
   void _addEnginePickerTab() {
-    setState(() {
-      final picker = _enginePickerTab();
-      _tabs.add(picker);
-      _tabWidgets.add(_tabWidgetFor(picker));
-      _registerTabState(picker.workspaceState as DockerTabState);
-      _selectedIndex = _tabs.length - 1;
-    });
-    _persistWorkspace();
+    final picker = _enginePickerTab();
+    _registerTabState(picker.workspaceState as DockerTabState);
+    _tabWidgets[picker.id] = _tabWidgetFor(picker);
+    _tabController.addTab(picker);
   }
 
   void _disposeTabOptions(EngineTab tab) {
@@ -212,37 +265,20 @@ class _DockerViewState extends State<DockerView> {
   }
 
   void _closeTab(int index) {
-    setState(() {
-      if (index < 0 || index >= _tabs.length) {
-        return;
-      }
-      final removedTab = _tabs[index];
-      final removedId = removedTab.id;
-      _disposeTabOptions(removedTab);
-      if (_tabs.length == 1) {
-        final picker = _tabService.createBase(id: removedId);
-        _tabStates.remove(removedId);
-        _tabBodies.remove(removedId);
-        _keepAliveKeys.remove(removedId);
-        _tabs[index] = picker;
-        _tabWidgets[index] = _tabWidgetFor(picker);
-        _registerTabState(picker.workspaceState as DockerTabState);
-        _selectedIndex = 0;
-        return;
-      }
-      _tabStates.remove(removedId);
-      _tabBodies.remove(removedId);
-      _keepAliveKeys.remove(removedId);
-      _tabs.removeAt(index);
-      _tabWidgets.removeAt(index);
-      if (_tabs.isEmpty) {
-        _selectedIndex = 0;
-      } else if (_selectedIndex >= _tabs.length) {
-        _selectedIndex = _tabs.length - 1;
-      } else if (_selectedIndex > index) {
-        _selectedIndex -= 1;
-      }
-    });
+    if (index < 0 || index >= _tabs.length) {
+      return;
+    }
+    final removedTab = _tabs[index];
+    final removedId = removedTab.id;
+    _disposeTabOptions(removedTab);
+    _tabStates.remove(removedId);
+    _tabBodies.remove(removedId);
+    _keepAliveKeys.remove(removedId);
+    _tabWidgets.remove(removedId);
+    final baseReplacement = _enginePickerTab(id: removedId);
+    _registerTabState(baseReplacement.workspaceState as DockerTabState);
+    _tabWidgets[baseReplacement.id] = _tabWidgetFor(baseReplacement);
+    _tabController.closeTab(index, baseReplacement: baseReplacement);
     _persistWorkspace();
   }
 
@@ -313,22 +349,14 @@ class _DockerViewState extends State<DockerView> {
       return;
     }
     _disposeTabOptions(_tabs[currentIndex]);
-    final index = _tabService.replaceTab(_tabs, tabId, tab);
-    if (index == null) {
-      return;
-    }
     _tabBodies.remove(tabId);
     _keepAliveKeys.remove(tabId);
-    final newWidget = _tabWidgetFor(tab);
-    setState(() {
-      _tabStates.remove(tabId);
-      if (tab.workspaceState is DockerTabState) {
-        _registerTabState(tab.workspaceState as DockerTabState);
-      }
-      _selectedIndex = index;
-      _tabWidgets[index] = newWidget;
-    });
-    _persistWorkspace();
+    _tabStates.remove(tabId);
+    if (tab.workspaceState is DockerTabState) {
+      _registerTabState(tab.workspaceState as DockerTabState);
+    }
+    _tabWidgets[tab.id] = _tabWidgetFor(tab);
+    _tabController.replaceTab(tabId, tab);
   }
 
   Future<_DashboardTarget?> _pickDashboardTarget(
@@ -404,10 +432,9 @@ class _DockerViewState extends State<DockerView> {
             )
             .toList();
         final currentId = _tabs.first.id;
-        final picker = _tabService.createBase(id: currentId);
+        final picker = _enginePickerTab(id: currentId);
         _disposeTabOptions(_tabs[0]);
-        _tabs[0] = picker;
-        _tabWidgets[0] = _tabWidgetFor(picker);
+        _replaceBaseTab(picker);
       });
     } catch (_) {
       // ignore
@@ -438,10 +465,9 @@ class _DockerViewState extends State<DockerView> {
       setState(() {
         _cachedReady = statuses.where((s) => s.available).toList();
         final currentId = _tabs.first.id;
-        final picker = _tabService.createBase(id: currentId);
+        final picker = _enginePickerTab(id: currentId);
         _disposeTabOptions(_tabs[0]);
-        _tabs[0] = picker;
-        _tabWidgetFor(picker);
+        _replaceBaseTab(picker);
       });
     }
     return statuses;
@@ -641,11 +667,8 @@ class _DockerViewState extends State<DockerView> {
   void _openChildTab(EngineTab tab) {
     final uniqueId = _ensureUniqueId(tab.id);
     final uniqueTab = tab.copyWith(id: uniqueId);
-    setState(() {
-      _tabs.add(uniqueTab);
-      _tabWidgets.add(_tabWidgetFor(uniqueTab));
-      _selectedIndex = _tabs.length - 1;
-    });
+    _tabWidgets[uniqueTab.id] = _tabWidgetFor(uniqueTab);
+    _tabController.addTab(uniqueTab);
     final state = tab.workspaceState is DockerTabState
         ? (tab.workspaceState as DockerTabState)
         : _tabStateFromBody(uniqueTab.id, uniqueTab.body);
@@ -745,21 +768,12 @@ class _DockerViewState extends State<DockerView> {
   void _closeTabById(String id) {
     final index = _tabs.indexWhere((tab) => tab.id == id);
     if (index == -1) return;
-    setState(() {
-      final removedId = _tabs[index].id;
-      _tabStates.remove(removedId);
-      _tabBodies.remove(removedId);
-      _keepAliveKeys.remove(removedId);
-      _tabs.removeAt(index);
-      _tabWidgets.removeAt(index);
-      if (_tabs.isEmpty) {
-        _selectedIndex = 0;
-      } else if (_selectedIndex >= _tabs.length) {
-        _selectedIndex = _tabs.length - 1;
-      } else if (_selectedIndex > index) {
-        _selectedIndex -= 1;
-      }
-    });
+    final removedId = _tabs[index].id;
+    _tabStates.remove(removedId);
+    _tabBodies.remove(removedId);
+    _keepAliveKeys.remove(removedId);
+    _tabWidgets.remove(removedId);
+    _tabController.closeTab(index, baseReplacement: _enginePickerTab(id: removedId));
     _persistWorkspace();
   }
 
@@ -883,19 +897,20 @@ class _DockerViewState extends State<DockerView> {
 
     if (workspace == null || workspace.tabs.isEmpty) {
       setState(() {
-        _tabs
-          ..clear()
-          ..add(_enginePickerTab());
+        final picker = _enginePickerTab();
         _tabStates
           ..clear()
           ..addAll({
-            _tabs.first.id: DockerTabState(
-              id: _tabs.first.id,
+            picker.id: DockerTabState(
+              id: picker.id,
               kind: DockerTabKind.picker,
             ),
           });
         _keepAliveKeys.clear();
-        _selectedIndex = 0;
+        _tabWidgets.clear();
+        _tabBodies.clear();
+        _tabWidgets[picker.id] = _tabWidgetFor(picker);
+        _tabController.replaceAll([picker]);
       });
       return;
     }
@@ -930,21 +945,17 @@ class _DockerViewState extends State<DockerView> {
     final selected =
         restoredWorkspace.selectedIndex.clamp(0, newTabs.length - 1);
 
-    setState(() {
-      _tabs
-        ..clear()
-        ..addAll(newTabs);
-      _tabStates
-        ..clear()
-        ..addAll(newStates);
-      _tabBodies.clear();
-      _keepAliveKeys.clear();
-      _tabWidgets
-        ..clear()
-        ..addAll(newTabs.map(_tabWidgetFor));
-      _selectedIndex = selected;
-      _workspacePersistence.markRestored(restoredWorkspace);
-    });
+    _tabStates
+      ..clear()
+      ..addAll(newStates);
+    _tabBodies.clear();
+    _keepAliveKeys.clear();
+    _tabWidgets.clear();
+    for (final tab in newTabs) {
+      _tabWidgets[tab.id] = _tabWidgetFor(tab);
+    }
+    _tabController.replaceAll(newTabs, selectedIndex: selected);
+    _workspacePersistence.markRestored(restoredWorkspace);
   }
 
   EngineTab? _tabFromState(DockerTabState state, List<SshHost> hosts) {

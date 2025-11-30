@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/tabs/tab_host.dart';
 import '../../../core/workspace/workspace_persistence.dart';
 import '../../../models/custom_ssh_host.dart';
 import '../../../models/explorer_context.dart';
 import '../../../models/server_action.dart';
 import '../../../models/server_workspace_state.dart';
+import '../../../core/tabs/tab_host_view.dart';
 import '../../../models/ssh_client_backend.dart';
 import '../../../models/ssh_host.dart';
 import '../../../services/ssh/builtin/builtin_ssh_key_store.dart';
@@ -17,7 +19,6 @@ import '../../../services/settings/app_settings_controller.dart';
 import '../../../services/ssh/builtin/builtin_remote_shell_service.dart';
 import '../../../services/ssh/builtin/builtin_ssh_vault.dart';
 import '../../theme/app_theme.dart';
-import '../../theme/nerd_fonts.dart';
 import 'servers/add_server_dialog.dart';
 import 'servers/host_list.dart';
 import 'servers/server_models.dart';
@@ -52,13 +53,18 @@ class ServersList extends StatefulWidget {
 }
 
 class _ServersListState extends State<ServersList> {
-  final List<ServerTab> _tabs = [];
-  int _selectedTabIndex = 0;
+  late final TabHostController<ServerTab> _tabController;
   final ExplorerTrashManager _trashManager = ExplorerTrashManager();
   late final VoidCallback _settingsListener;
+  late final VoidCallback _tabsListener;
   late final WorkspacePersistence<ServerWorkspaceState> _workspacePersistence;
   final Map<String, Widget> _tabBodies = {};
+  final Map<String, ServerTab> _tabCache = {};
   static int _placeholderSequence = 0;
+
+  List<ServerTab> get _tabs => _tabController.tabs;
+  int get _selectedTabIndex => _tabController.selectedIndex;
+  void _selectTab(int index) => _tabController.select(index);
 
   static String _newPlaceholderId() {
     final sequence = _placeholderSequence++;
@@ -77,9 +83,15 @@ class _ServersListState extends State<ServersList> {
   @override
   void initState() {
     super.initState();
-    final base = _createPlaceholderTab();
-    _tabs.add(base);
+    _tabController = TabHostController<ServerTab>(
+      baseTabBuilder: _createPlaceholderTab,
+      tabId: (tab) => tab.id,
+    );
+    final base = _tabController.tabs.first;
+    _tabCache[base.id] = base;
     _tabBodies[base.id] = _buildTabWidget(base);
+    _tabsListener = _handleTabsChanged;
+    _tabController.addListener(_tabsListener);
     _settingsListener = _handleSettingsChanged;
     _workspacePersistence = WorkspacePersistence(
       settingsController: widget.settingsController,
@@ -102,6 +114,8 @@ class _ServersListState extends State<ServersList> {
 
   @override
   void dispose() {
+    _tabController.removeListener(_tabsListener);
+    _tabController.dispose();
     widget.settingsController.removeListener(_settingsListener);
     super.dispose();
   }
@@ -187,92 +201,61 @@ class _ServersListState extends State<ServersList> {
 
   Widget _buildTabWorkspace() {
     final appTheme = context.appTheme;
-    final clampedIndex = _selectedTabIndex.clamp(0, _tabs.length - 1);
-    final selectedIndex = clampedIndex;
-
     return Column(
       children: [
-        Material(
-          color: appTheme.section.toolbarBackground,
-          child: Row(
-            children: [
-              if (widget.leading != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: SizedBox(
-                    height: 36,
-                    child: Center(child: widget.leading),
-                  ),
-                ),
-              Expanded(
-                child: SizedBox(
-                  height: 36,
-                  child: ReorderableListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: appTheme.spacing.inset(horizontal: 1, vertical: 0),
-                    buildDefaultDragHandles: false,
-                    onReorder: _handleTabReorder,
-                    itemCount: _tabs.length,
-                    itemBuilder: (context, index) {
-                      final tab = _tabs[index];
-                      return ValueListenableBuilder<List<TabChipOption>>(
-                        key: ValueKey(tab.id),
-                        valueListenable: tab.optionsController,
-                        builder: (context, options, _) {
-                          final canRename = tab.action != ServerAction.empty;
-                          final canDrag = tab.action != ServerAction.empty;
-                          return TabChip(
-                            host: tab.host,
-                            title: tab.title,
-                            label: tab.label,
-                            icon: tab.icon,
-                            selected: index == selectedIndex,
-                            onSelect: () {
-                              setState(() => _selectedTabIndex = index);
-                              _persistWorkspace();
-                            },
-                            onClose: () => _closeTab(index),
-                            onRename: canRename ? () => _renameTab(index) : null,
-                            closeWarning: _closeWarningForTab(tab),
-                            dragIndex: canDrag ? index : null,
-                            options: options,
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
+        Expanded(
+          child: Material(
+            color: appTheme.section.toolbarBackground,
+            child: TabHostView<ServerTab>(
+              controller: _tabController,
+              tabBarHeight: 36,
+              leading: widget.leading != null
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: SizedBox(
+                        height: 36,
+                        child: Center(child: widget.leading),
+                      ),
+                    )
+                  : null,
+              onReorder: _handleTabReorder,
+              onAddTab: _startEmptyTab,
+              buildChip: (context, index, tab) {
+                return ValueListenableBuilder<List<TabChipOption>>(
+                  key: ValueKey(tab.id),
+                  valueListenable: tab.optionsController,
+                  builder: (context, options, _) {
+                    final canRename = tab.action != ServerAction.empty;
+                    final canDrag = tab.action != ServerAction.empty;
+                    return TabChip(
+                      host: tab.host,
+                      title: tab.title,
+                      label: tab.label,
+                      icon: tab.icon,
+                      selected: index == _selectedTabIndex,
+                      onSelect: () {
+                        _selectTab(index);
+                        _persistWorkspace();
+                      },
+                      onClose: () => _closeTab(index),
+                      onRename: canRename ? () => _renameTab(index) : null,
+                      closeWarning: _closeWarningForTab(tab),
+                      dragIndex: canDrag ? index : null,
+                      options: options,
+                    );
+                  },
+                );
+              },
+              buildBody: (tab) => KeyedSubtree(
+                key: ValueKey('server-tab-${tab.id}'),
+                child: _tabWidgetFor(tab),
               ),
-              IconButton(
-                tooltip: 'New tab',
-                icon: Icon(NerdIcon.add.data),
-                onPressed: _startEmptyTab,
-              ),
-            ],
+            ),
           ),
         ),
         Padding(
           padding: appTheme.spacing.inset(horizontal: 2, vertical: 0),
           child: Divider(height: 1, color: appTheme.section.divider),
-        ),
-        Expanded(
-          child: IndexedStack(
-            index: selectedIndex,
-            children: [
-              KeyedSubtree(
-                key: ValueKey('server-tab-${_tabs[0].id}'),
-                child: _tabWidgetFor(_tabs[0]),
-              ),
-              ..._tabs
-                  .skip(1)
-                  .map(
-                    (tab) => KeyedSubtree(
-                      key: ValueKey('server-tab-${tab.id}'),
-                      child: _tabWidgetFor(tab),
-                    ),
-                  ),
-            ],
-          ),
         ),
       ],
     );
@@ -299,6 +282,23 @@ class _ServersListState extends State<ServersList> {
     _workspacePersistence.persistIfPending(_persistWorkspace);
   }
 
+  void _handleTabsChanged() {
+    final currentTabs = _tabController.tabs;
+    final currentIds = currentTabs.map((tab) => tab.id).toSet();
+    final removedIds = _tabCache.keys.where((id) => !currentIds.contains(id));
+    for (final id in removedIds.toList()) {
+      _tabCache[id]?.optionsController.dispose();
+      _tabCache.remove(id);
+      _tabBodies.remove(id);
+    }
+    for (final tab in currentTabs) {
+      _tabCache[tab.id] = tab;
+      _tabBodies.putIfAbsent(tab.id, () => _buildTabWidget(tab));
+    }
+    setState(() {});
+    unawaited(_persistWorkspace());
+  }
+
   Future<void> _restoreWorkspace() async {
     List<SshHost> hosts;
     try {
@@ -320,19 +320,14 @@ class _ServersListState extends State<ServersList> {
     if (restoredTabs.isEmpty) {
       return;
     }
-    setState(() {
-      _disposeTabControllers(_tabs);
-      _tabs
-        ..clear()
-        ..addAll(restoredTabs);
-      _tabBodies
-        ..clear()
-        ..addEntries(
-          restoredTabs.map((tab) => MapEntry(tab.id, _buildTabWidget(tab))),
-        );
-      _selectedTabIndex = workspace.selectedIndex.clamp(0, _tabs.length - 1);
-      _workspacePersistence.markRestored(workspace);
-    });
+    _workspacePersistence.markRestored(workspace);
+    _disposeTabControllers(_tabs);
+    _tabBodies.clear();
+    _tabCache.clear();
+    _tabController.replaceAll(
+      restoredTabs,
+      selectedIndex: workspace.selectedIndex,
+    );
   }
 
   List<ServerTab> _buildTabsFromState(
@@ -411,20 +406,16 @@ class _ServersListState extends State<ServersList> {
   }
 
   void _addTab(SshHost host, ServerAction action) {
-    setState(() {
-      final tab = _createTab(
-        id: '${host.name}-${DateTime.now().microsecondsSinceEpoch}',
-        host: host,
-        action: action,
-      );
-      if (_replacePlaceholderWithSelectedTab(tab)) {
-        return;
-      }
-      _tabBodies[tab.id] = _buildTabWidget(tab);
-      _tabs.add(tab);
-      _selectedTabIndex = _tabs.length - 1;
-    });
-    _persistWorkspace();
+    final tab = _createTab(
+      id: '${host.name}-${DateTime.now().microsecondsSinceEpoch}',
+      host: host,
+      action: action,
+    );
+    if (_replacePlaceholderWithSelectedTab(tab)) {
+      return;
+    }
+    _tabBodies[tab.id] = _buildTabWidget(tab);
+    _tabController.addTab(tab);
   }
 
   bool _replacePlaceholderWithSelectedTab(ServerTab tab) {
@@ -437,9 +428,10 @@ class _ServersListState extends State<ServersList> {
       return false;
     }
     current.optionsController.dispose();
-    _tabs[index] = tab;
     _tabBodies.remove(current.id);
+    _tabCache.remove(current.id);
     _tabBodies[tab.id] = _buildTabWidget(tab);
+    _tabController.replaceTab(current.id, tab);
     return true;
   }
 
@@ -447,16 +439,12 @@ class _ServersListState extends State<ServersList> {
 
   void _addEmptyTabPlaceholder() {
     final placeholder = _createPlaceholderTab();
-    _tabs.add(placeholder);
     _tabBodies[placeholder.id] = _buildTabWidget(placeholder);
-    _selectedTabIndex = _tabs.length - 1;
+    _tabController.addTab(placeholder);
   }
 
   Future<void> _startEmptyTab() async {
-    setState(() {
-      _addEmptyTabPlaceholder();
-    });
-    _persistWorkspace();
+    _addEmptyTabPlaceholder();
   }
 
   ServerTab _createTab({
@@ -578,34 +566,14 @@ class _ServersListState extends State<ServersList> {
   }
 
   void _closeTab(int index) {
-    setState(() {
-      if (index < 0 || index >= _tabs.length) {
-        return;
-      }
-      if (_tabs.length == 1) {
-        final replacedTab = _tabs[0];
-        replacedTab.optionsController.dispose();
-        final placeholder = _createPlaceholderTab();
-        _tabs[0] = placeholder;
-        _tabBodies.remove(replacedTab.id);
-        _tabBodies[placeholder.id] = _buildTabWidget(placeholder);
-        _selectedTabIndex = 0;
-      } else {
-        final removedTab = _tabs[index];
-        removedTab.optionsController.dispose();
-        final removedId = removedTab.id;
-        _tabs.removeAt(index);
-        _tabBodies.remove(removedId);
-        if (_tabs.isEmpty) {
-          _selectedTabIndex = 0;
-        } else if (_selectedTabIndex >= _tabs.length) {
-          _selectedTabIndex = _tabs.length - 1;
-        } else if (_selectedTabIndex > index) {
-          _selectedTabIndex -= 1;
-        }
-      }
-    });
-    _persistWorkspace();
+    if (index < 0 || index >= _tabs.length) {
+      return;
+    }
+    final removedTab = _tabs[index];
+    removedTab.optionsController.dispose();
+    _tabBodies.remove(removedTab.id);
+    _tabCache.remove(removedTab.id);
+    _tabController.closeTab(index);
   }
 
   void _closeTabById(String id) {
@@ -616,23 +584,10 @@ class _ServersListState extends State<ServersList> {
   }
 
   void _handleTabReorder(int oldIndex, int newIndex) {
-    setState(() {
-      if (oldIndex < newIndex) {
-        newIndex -= 1;
-      }
-      final moved = _tabs.removeAt(oldIndex);
-      _tabs.insert(newIndex, moved);
-      if (_selectedTabIndex == oldIndex) {
-        _selectedTabIndex = newIndex;
-      } else if (_selectedTabIndex >= oldIndex &&
-          _selectedTabIndex < newIndex) {
-        _selectedTabIndex -= 1;
-      } else if (_selectedTabIndex <= oldIndex &&
-          _selectedTabIndex > newIndex) {
-        _selectedTabIndex += 1;
-      }
-    });
-    _persistWorkspace();
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+    _tabController.reorder(oldIndex, newIndex);
   }
 
   Future<void> _activateEmptyTab(String tabId, SshHost host) async {
@@ -650,15 +605,12 @@ class _ServersListState extends State<ServersList> {
       action: action,
       customName: _tabs[index].customName,
     );
-    setState(() {
-      final oldTab = _tabs[index];
-      oldTab.optionsController.dispose();
-      _tabs[index] = tab;
-      _selectedTabIndex = index;
-      _tabBodies.remove(oldTab.id);
-      _tabBodies[tab.id] = _buildTabWidget(tab);
-    });
-    _persistWorkspace();
+    final oldTab = _tabs[index];
+    oldTab.optionsController.dispose();
+    _tabBodies.remove(oldTab.id);
+    _tabBodies[tab.id] = _buildTabWidget(tab);
+    _tabController.replaceTab(oldTab.id, tab);
+    _selectTab(index);
   }
 
   Future<void> _renameTab(int index) async {
@@ -699,31 +651,28 @@ class _ServersListState extends State<ServersList> {
       return;
     }
     final trimmedInput = newName.trim();
-    setState(() {
-      final trimmed = trimmedInput;
-      _tabs[index] = tab.copyWith(
-        customName: trimmed.isEmpty ? null : trimmed,
-        setCustomName: true,
-      );
-    });
-    _persistWorkspace();
+    final updated = tab.copyWith(
+      customName: trimmedInput.isEmpty ? null : trimmedInput,
+      setCustomName: true,
+    );
+    _tabBodies.remove(tab.id);
+    _tabBodies[updated.id] = _buildTabWidget(updated);
+    _tabCache.remove(tab.id);
+    _tabCache[updated.id] = updated;
+    _tabController.replaceTab(tab.id, updated);
   }
 
   void _openTrashTab(ExplorerContext context) {
     final host = context.host;
-    setState(() {
-      _tabs.add(
-        _createTab(
-          id: 'trash-${host.name}-${DateTime.now().microsecondsSinceEpoch}',
-          host: host,
-          action: ServerAction.trash,
-          customName: 'Trash • ${host.name}',
-          explorerContext: context,
-        ),
-      );
-      _selectedTabIndex = _tabs.length - 1;
-    });
-    _persistWorkspace();
+    final tab = _createTab(
+      id: 'trash-${host.name}-${DateTime.now().microsecondsSinceEpoch}',
+      host: host,
+      action: ServerAction.trash,
+      customName: 'Trash • ${host.name}',
+      explorerContext: context,
+    );
+    _tabBodies[tab.id] = _buildTabWidget(tab);
+    _tabController.addTab(tab);
   }
 
   Future<void> _openEditorTab(String path, String initialContent) async {
@@ -734,30 +683,21 @@ class _ServersListState extends State<ServersList> {
 
     if (existingIndex != -1) {
       // Switch to existing tab
-      setState(() {
-        _selectedTabIndex = existingIndex;
-      });
-      _persistWorkspace();
+      _selectTab(existingIndex);
       return;
     }
 
     // Create new editor tab
-    setState(() {
-      _tabs.add(
-        _createTab(
-          id: 'editor-${DateTime.now().microsecondsSinceEpoch}',
-          host:
-              _tabs.isNotEmpty &&
-                  _tabs[_selectedTabIndex].host is! PlaceholderHost
-              ? _tabs[_selectedTabIndex].host
-              : const PlaceholderHost(),
-          action: ServerAction.editor,
-          customName: path,
-        ),
-      );
-      _selectedTabIndex = _tabs.length - 1;
-    });
-    _persistWorkspace();
+    final tab = _createTab(
+      id: 'editor-${DateTime.now().microsecondsSinceEpoch}',
+      host: _tabs.isNotEmpty && _tabs[_selectedTabIndex].host is! PlaceholderHost
+          ? _tabs[_selectedTabIndex].host
+          : const PlaceholderHost(),
+      action: ServerAction.editor,
+      customName: path,
+    );
+    _tabBodies[tab.id] = _buildTabWidget(tab);
+    _tabController.addTab(tab);
   }
 
   Future<void> _openTerminalTab({
@@ -775,25 +715,18 @@ class _ServersListState extends State<ServersList> {
           tab.customName == normalizedDirectory,
     );
     if (existingIndex != -1) {
-      setState(() {
-        _selectedTabIndex = existingIndex;
-      });
-      _persistWorkspace();
+      _selectTab(existingIndex);
       return;
     }
 
-    setState(() {
-      _tabs.add(
-        _createTab(
-          id: 'terminal-${DateTime.now().microsecondsSinceEpoch}',
-          host: host,
-          action: ServerAction.terminal,
-          customName: normalizedDirectory,
-        ),
-      );
-      _selectedTabIndex = _tabs.length - 1;
-    });
-    _persistWorkspace();
+    final tab = _createTab(
+      id: 'terminal-${DateTime.now().microsecondsSinceEpoch}',
+      host: host,
+      action: ServerAction.terminal,
+      customName: normalizedDirectory,
+    );
+    _tabBodies[tab.id] = _buildTabWidget(tab);
+    _tabController.addTab(tab);
   }
 
   Future<bool> _promptUnlockKey(
