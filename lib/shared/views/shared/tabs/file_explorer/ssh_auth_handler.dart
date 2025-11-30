@@ -3,21 +3,20 @@ import 'package:flutter/material.dart';
 import '../../../../../models/ssh_host.dart';
 import '../../../../../services/logging/app_logger.dart';
 import '../../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
-import '../../../../../services/ssh/builtin/builtin_ssh_key_store.dart';
-import '../../../../../services/ssh/builtin/builtin_ssh_vault.dart';
+import '../../../../../services/ssh/builtin/builtin_ssh_key_service.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 
 /// Handler for SSH authentication, unlocking keys, and passphrase prompts
 class SshAuthHandler {
   SshAuthHandler({
     required this.shellService,
-    required this.builtInVault,
+    required this.keyService,
     required this.context,
     this.host,
   });
 
   final RemoteShellService shellService;
-  final BuiltInSshVault? builtInVault;
+  final BuiltInSshKeyService? keyService;
   final BuildContext context;
   final SshHost? host;
 
@@ -32,16 +31,16 @@ class SshAuthHandler {
       throw StateError('SshAuthHandler used after dispose');
     }
     if (shellService is BuiltInRemoteShellService &&
-        builtInVault != null &&
+        keyService != null &&
         host != null) {
       final service = shellService as BuiltInRemoteShellService;
       final keyId = service.getActiveBuiltInKeyId(host!);
-      if (keyId != null && builtInVault!.isUnlocked(keyId)) {
+      if (keyId != null && keyService!.isUnlocked(keyId)) {
         // Key already unlocked → do not repeat unlock flow.
         return action();
       }
     }
-    if (builtInVault == null) {
+    if (keyService == null) {
       return action();
     }
     return _withBuiltinUnlock(action);
@@ -157,30 +156,28 @@ class SshAuthHandler {
     if (_disposed || !context.mounted) {
       return false;
     }
-    final vault = builtInVault;
-    if (vault == null) {
+    final service = keyService;
+    if (service == null) {
       return false;
     }
     _unlockInProgress = true;
     AppLogger.d('Prompting unlock for key $keyId', tag: 'Explorer');
     try {
-      // Check if password is needed
-      final needsPwd = await vault.needsPassword(keyId);
-      if (needsPwd) {
-        final unlocked = await _showUnlockDialog(
-          keyId,
-          displayName ?? await _keyDisplayName(keyId),
-        );
-        return unlocked;
+      final initial = await service.unlock(keyId, password: null);
+      if (initial.status == BuiltInSshKeyUnlockStatus.unlocked) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Key unlocked for this session.')),
+          );
+          AppLogger.d('Unlock succeeded for key $keyId', tag: 'Explorer');
+        }
+        return true;
       }
-      await vault.unlock(keyId, null);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Key unlocked for this session.')),
-        );
-        AppLogger.d('Unlock succeeded for key $keyId', tag: 'Explorer');
-      }
-      return true;
+      final unlocked = await _showUnlockDialog(
+        keyId,
+        displayName ?? await _keyDisplayName(keyId),
+      );
+      return unlocked;
     } catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(
@@ -224,17 +221,27 @@ class SshAuthHandler {
                 errorText = null;
               });
               try {
-                await builtInVault?.unlock(keyId, password);
-                if (!_disposed &&
-                    dialogContext.mounted &&
-                    Navigator.of(dialogContext).canPop()) {
-                  Navigator.of(dialogContext).pop(true);
+                final result =
+                    await keyService?.unlock(keyId, password: password);
+                if (result?.status ==
+                    BuiltInSshKeyUnlockStatus.unlocked) {
+                  if (!_disposed &&
+                      dialogContext.mounted &&
+                      Navigator.of(dialogContext).canPop()) {
+                    Navigator.of(dialogContext).pop(true);
+                  }
+                } else if (result?.status ==
+                    BuiltInSshKeyUnlockStatus.incorrectPassword) {
+                  setState(() {
+                    errorText = 'Incorrect password. Please try again.';
+                    loading = false;
+                  });
+                } else {
+                  setState(() {
+                    errorText = result?.message ?? 'Failed to unlock.';
+                    loading = false;
+                  });
                 }
-              } on BuiltInSshKeyDecryptException {
-                setState(() {
-                  errorText = 'Incorrect password. Please try again.';
-                  loading = false;
-                });
               } catch (e) {
                 setState(() {
                   errorText = 'Failed to unlock: $e';
@@ -292,7 +299,7 @@ class SshAuthHandler {
   }
 
   Future<String> _keyDisplayName(String keyId) async {
-    final entry = await builtInVault!.keyStore.loadEntry(keyId);
+    final entry = await keyService?.loadKey(keyId);
     if (entry != null) {
       final label = entry.label.trim();
       if (label.isNotEmpty) {

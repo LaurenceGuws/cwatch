@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 
 import 'package:cwatch/models/ssh_host.dart';
-import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_store.dart';
-import 'package:cwatch/services/ssh/builtin/builtin_ssh_vault.dart';
 import 'package:cwatch/services/ssh/remote_command_logging.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/widgets/section_nav_bar.dart';
+import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'container_settings_tabs.dart';
 import 'debug_logs_tab.dart';
 import 'general_settings_tab.dart';
@@ -16,8 +15,7 @@ class SettingsView extends StatefulWidget {
   const SettingsView({
     required this.controller,
     required this.hostsFuture,
-    required this.builtInKeyStore,
-    required this.builtInVault,
+    required this.keyService,
     required this.commandLog,
     this.leading,
     super.key,
@@ -25,8 +23,7 @@ class SettingsView extends StatefulWidget {
 
   final AppSettingsController controller;
   final Future<List<SshHost>> hostsFuture;
-  final BuiltInSshKeyStore builtInKeyStore;
-  final BuiltInSshVault builtInVault;
+  final BuiltInSshKeyService keyService;
   final RemoteCommandLogController commandLog;
   final Widget? leading;
 
@@ -194,8 +191,7 @@ class _SettingsViewState extends State<SettingsView>
                           key: const ValueKey('servers_settings_tab'),
                           controller: widget.controller,
                           hostsFuture: widget.hostsFuture,
-                          builtInKeyStore: widget.builtInKeyStore,
-                          builtInVault: widget.builtInVault,
+                          keyService: widget.keyService,
                         ),
                         DockerSettingsTab(),
                         KubernetesSettingsTab(),

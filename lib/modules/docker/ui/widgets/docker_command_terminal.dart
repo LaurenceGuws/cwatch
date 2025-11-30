@@ -98,46 +98,34 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     _terminal.onResize = _onResize;
     _terminal.buffer.clear();
     try {
-      if (widget.host != null && widget.shellService != null) {
-        final session = await widget.shellService!.createTerminalSession(
-          widget.host!,
-          options: _sessionOptions(),
-        );
-        if (token != _sessionToken) {
-          session.kill();
-          return;
-        }
-        _pty = session;
-        _outputSub?.cancel();
-        _outputSub = session.output.listen(_handlePtyData);
-        unawaited(
-          session.exitCode.then((_) {
-            if (!mounted || token != _sessionToken) return;
-            widget.onExit?.call();
-          }),
-        );
-        _terminal.textInput('${widget.command}\n');
-      } else {
-        final session = LocalPtySession(
-          executable: 'bash',
-          arguments: ['-lc', widget.command],
-          cols: _sessionOptions().columns,
-          rows: _sessionOptions().rows,
-        );
-        if (token != _sessionToken) {
-          session.kill();
-          return;
-        }
-        _pty = session;
-        _outputSub?.cancel();
-        _outputSub = session.output.listen(_handlePtyData);
-        unawaited(
-          session.exitCode.then((_) {
-            if (!mounted || token != _sessionToken) return;
-            widget.onExit?.call();
-          }),
-        );
+      final session = widget.host != null && widget.shellService != null
+          ? await widget.shellService!.createTerminalSession(
+              widget.host!,
+              options: _sessionOptions(),
+            )
+          : LocalPtySession(
+              executable: 'bash',
+              arguments: const ['-l'],
+              cols: _sessionOptions().columns,
+              rows: _sessionOptions().rows,
+            );
+
+      if (token != _sessionToken) {
+        session.kill();
+        return;
       }
+      _pty = session;
+      _outputSub?.cancel();
+      _outputSub = session.output.listen(_handlePtyData);
+      unawaited(
+        session.exitCode.then((_) {
+          if (!mounted || token != _sessionToken) return;
+          widget.onExit?.call();
+        }),
+      );
+
+      // Send the command into the PTY after the session is ready.
+      _terminal.textInput('${widget.command}\n');
       setState(() => _connecting = false);
       _updateTabOptions();
     } catch (error, stack) {

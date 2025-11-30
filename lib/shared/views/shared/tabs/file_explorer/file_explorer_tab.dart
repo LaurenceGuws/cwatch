@@ -8,7 +8,7 @@ import '../../../../../models/remote_file_entry.dart';
 import '../../../../../models/ssh_host.dart';
 import '../../../../../services/logging/app_logger.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
-import '../../../../../services/ssh/builtin/builtin_ssh_vault.dart';
+import '../../../../../services/ssh/builtin/builtin_ssh_key_service.dart';
 import '../../../../../services/ssh/remote_editor_cache.dart';
 import '../../../../../services/filesystem/explorer_trash_manager.dart';
 import 'explorer_clipboard.dart';
@@ -35,7 +35,7 @@ class FileExplorerTab extends StatefulWidget {
     required this.explorerContext,
     this.shellService = const ProcessRemoteShellService(),
     required this.trashManager,
-    this.builtInVault,
+    this.keyService,
     required this.onOpenTrash,
     this.onOpenEditorTab,
     this.onOpenTerminalTab,
@@ -46,7 +46,7 @@ class FileExplorerTab extends StatefulWidget {
   final ExplorerContext explorerContext;
   final RemoteShellService shellService;
   final ExplorerTrashManager trashManager;
-  final BuiltInSshVault? builtInVault;
+  final BuiltInSshKeyService? keyService;
   final ValueChanged<ExplorerContext> onOpenTrash;
   final Future<void> Function(String path, String initialContent)?
   onOpenEditorTab;
@@ -90,7 +90,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     super.initState();
     _sshAuthHandler = SshAuthHandler(
       shellService: widget.shellService,
-      builtInVault: widget.builtInVault,
+      keyService: widget.keyService,
       context: context,
       host: widget.host,
     );
@@ -181,7 +181,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
     if (oldWidget.shellService != widget.shellService) {
       _sshAuthHandler = SshAuthHandler(
         shellService: widget.shellService,
-        builtInVault: widget.builtInVault,
+        keyService: widget.keyService,
         context: context,
         host: widget.host,
       );

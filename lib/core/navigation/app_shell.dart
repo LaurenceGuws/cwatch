@@ -10,6 +10,7 @@ import '../../modules/servers/view.dart';
 import '../../modules/settings/view.dart';
 import '../../services/settings/app_settings_controller.dart';
 import '../../services/ssh/builtin/builtin_ssh_key_store.dart';
+import '../../services/ssh/builtin/builtin_ssh_key_service.dart';
 import '../../services/ssh/builtin/builtin_ssh_vault.dart';
 import '../../services/ssh/remote_command_logging.dart';
 import '../../services/ssh/ssh_config_service.dart';
@@ -34,6 +35,7 @@ class _HomeShellState extends State<HomeShell> {
   late final VoidCallback _settingsListener;
   late final BuiltInSshKeyStore _builtInKeyStore;
   late final BuiltInSshVault _builtInVault;
+  late final BuiltInSshKeyService _builtInKeyService;
   late final RemoteCommandLogController _commandLog;
   String? _hostsSettingsSignature;
   _SidebarPlacement _sidebarPlacement = _SidebarPlacement.dynamic;
@@ -46,6 +48,10 @@ class _HomeShellState extends State<HomeShell> {
     _commandLog = RemoteCommandLogController();
     _builtInKeyStore = BuiltInSshKeyStore();
     _builtInVault = BuiltInSshVault(keyStore: _builtInKeyStore);
+    _builtInKeyService = BuiltInSshKeyService(
+      keyStore: _builtInKeyStore,
+      vault: _builtInVault,
+    );
     _refreshHosts();
     _moduleRegistry = ModuleRegistry(_buildModules());
     _moduleRegistry.addListener(_handleModulesChanged);
@@ -313,21 +319,20 @@ class _HomeShellState extends State<HomeShell> {
       ServersModule(
         hostsFuture: _hostsFuture,
         settingsController: widget.settingsController,
-        builtInVault: _builtInVault,
+        keyService: _builtInKeyService,
         commandLog: _commandLog,
       ),
       DockerModule(
         hostsFuture: _hostsFuture,
         settingsController: widget.settingsController,
-        builtInVault: _builtInVault,
+        keyService: _builtInKeyService,
         commandLog: _commandLog,
       ),
       KubernetesModule(settingsController: widget.settingsController),
       SettingsModule(
         controller: widget.settingsController,
         hostsFuture: _hostsFuture,
-        builtInKeyStore: _builtInKeyStore,
-        builtInVault: _builtInVault,
+        keyService: _builtInKeyService,
         commandLog: _commandLog,
       ),
     ];

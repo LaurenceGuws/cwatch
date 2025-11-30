@@ -1,6 +1,3 @@
-import 'dart:convert';
-
-import 'package:dartssh2/dartssh2.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -11,8 +8,7 @@ import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_entry.dart';
-import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_store.dart';
-import 'package:cwatch/services/ssh/builtin/builtin_ssh_vault.dart';
+import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 
 /// Built-in SSH settings widget for managing SSH keys
 class BuiltInSshSettings extends StatefulWidget {
@@ -20,14 +16,12 @@ class BuiltInSshSettings extends StatefulWidget {
     super.key,
     required this.controller,
     required this.hostsFuture,
-    required this.keyStore,
-    required this.vault,
+    required this.keyService,
   });
 
   final AppSettingsController controller;
   final Future<List<SshHost>> hostsFuture;
-  final BuiltInSshKeyStore keyStore;
-  final BuiltInSshVault vault;
+  final BuiltInSshKeyService keyService;
 
   @override
   State<BuiltInSshSettings> createState() => _BuiltInSshSettingsState();
@@ -47,9 +41,9 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
   @override
   void initState() {
     super.initState();
-    _keysFuture = widget.keyStore.listEntries();
+    _keysFuture = widget.keyService.listKeys();
     _vaultListener = () => setState(() {});
-    widget.vault.addListener(_vaultListener);
+    widget.keyService.vault.addListener(_vaultListener);
     _autoUnlockPlaintextKeys();
   }
 
@@ -57,9 +51,9 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
     // Automatically unlock plaintext keys (they don't need a password)
     final keys = await _keysFuture;
     for (final entry in keys) {
-      if (!entry.isEncrypted && !widget.vault.isUnlocked(entry.id)) {
+      if (!entry.isEncrypted && !widget.keyService.isUnlocked(entry.id)) {
         try {
-          await widget.vault.unlock(entry.id, null);
+          await widget.keyService.unlock(entry.id, password: null);
         } catch (_) {
           // Ignore errors - key might be invalid
         }
@@ -69,7 +63,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
 
   @override
   void dispose() {
-    widget.vault.removeListener(_vaultListener);
+    widget.keyService.vault.removeListener(_vaultListener);
     _labelController.dispose();
     _keyController.dispose();
     _passwordController.dispose();
@@ -78,7 +72,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
 
   void _refreshKeys() {
     setState(() {
-      _keysFuture = widget.keyStore.listEntries();
+      _keysFuture = widget.keyService.listKeys();
     });
     _autoUnlockPlaintextKeys();
   }
@@ -94,161 +88,59 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       return;
     }
 
-    // Try to parse the key without passphrase first
-    bool keyIsEncrypted = false;
-    bool parseSucceeded = false;
-    try {
-      SSHKeyPair.fromPem(keyText);
-      parseSucceeded = true;
-      keyIsEncrypted = false;
-    } on ArgumentError catch (e) {
-      if (e.message == 'passphrase is required for encrypted key') {
-        keyIsEncrypted = true;
-      } else {
-        // Other parsing error - might be encrypted or unsupported
-        // We'll try with passphrase to determine which
-        keyIsEncrypted = false; // Will prompt anyway
-      }
-    } on StateError catch (e) {
-      if (e.message.contains('encrypted')) {
-        keyIsEncrypted = true;
-      } else {
-        // Other parsing error - might be encrypted or unsupported
-        keyIsEncrypted = false; // Will prompt anyway
-      }
-    } catch (e) {
-      // Parsing failed - might be encrypted or unsupported
-      // We'll try with passphrase to determine which
-      keyIsEncrypted = false; // Will prompt anyway
-    }
-
-    // Helper function to validate key with passphrase
-    Future<bool> validateKeyWithPassphrase(String passphraseToTest) async {
-      try {
-        SSHKeyPair.fromPem(keyText, passphraseToTest);
-        keyIsEncrypted = true; // Confirmed encrypted
-        AppLogger.d('Encrypted key validation successful', tag: 'Settings');
-        return true;
-      } on SSHKeyDecryptError catch (e) {
-        if (!mounted) return false;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Invalid passphrase: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-        return false;
-      } on UnsupportedError catch (e) {
-        if (!mounted) return false;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Unsupported key cipher or format: ${e.message}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-        return false;
-      } catch (e) {
-        if (!mounted) return false;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Key cannot be parsed even with passphrase. '
-              'It may be unsupported or malformed: ${e.toString()}',
-            ),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-        return false;
-      }
-    }
-
-    // If parsing failed, always validate - might be encrypted or unsupported
-    if (!parseSucceeded) {
-      String? passphrase;
-
-      // Use form password if provided, otherwise prompt
-      if (password.isNotEmpty) {
-        passphrase = password;
-        AppLogger.d('Using password from form for validation', tag: 'Settings');
-      } else {
-        passphrase = await _promptForKeyPassphrase(
-          context,
-          isRequired: keyIsEncrypted,
-        );
-        if (passphrase == null || !mounted) {
-          if (keyIsEncrypted) {
-            // User cancelled required passphrase
-            return;
-          }
-          // User cancelled - reject since parsing already failed
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text(
-                'Key cannot be parsed. It may be encrypted, unsupported, or malformed.',
-              ),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 5),
-            ),
-          );
-          return;
-        }
-
-        // If user chose "Try without passphrase", we already know it fails
-        if (passphrase.isEmpty) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text(
-                'Key cannot be parsed without passphrase. '
-                'It may be encrypted, unsupported, or malformed.',
-              ),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 5),
-            ),
-          );
-          return;
-        }
-      }
-
-      // Test decryption/parsing with passphrase
-      final isValid = await validateKeyWithPassphrase(passphrase);
-      if (!isValid) {
-        return; // Don't save invalid key
-      }
-    } else if (keyIsEncrypted) {
-      // Key was detected as encrypted, validate passphrase
-      String? passphrase;
-
-      // Use form password if provided, otherwise prompt
-      if (password.isNotEmpty) {
-        passphrase = password;
-        AppLogger.d('Using password from form for validation', tag: 'Settings');
-      } else {
-        passphrase = await _promptForKeyPassphrase(context, isRequired: true);
-        if (passphrase == null || !mounted) {
-          return; // User cancelled
-        }
-      }
-
-      // Test decryption
-      final isValid = await validateKeyWithPassphrase(passphrase);
-      if (!isValid) {
-        return; // Don't save invalid key
-      }
-    }
-
     setState(() => _isSaving = true);
     AppLogger.d('Adding built-in key "$label"', tag: 'Settings');
     try {
-      await widget.keyStore.addEntry(
+      final addResult = await widget.keyService.addKey(
         label: label,
-        keyData: utf8.encode(keyText),
-        password: password.isEmpty ? null : password,
+        keyPem: keyText,
+        storagePassword: password.isEmpty ? null : password,
+        keyPassphrase: null,
       );
+      if (addResult.status == BuiltInSshKeyAddStatus.needsPassphrase) {
+        if (!mounted) return;
+        setState(() => _isSaving = false);
+        final passphrase = await _promptForKeyPassphrase(
+          context,
+          isRequired: true,
+        );
+        if (passphrase == null || passphrase.isEmpty) {
+          return;
+        }
+        setState(() => _isSaving = true);
+        final retry = await widget.keyService.addKey(
+          label: label,
+          keyPem: keyText,
+          storagePassword: password.isEmpty ? null : password,
+          keyPassphrase: passphrase,
+        );
+        if (retry.status != BuiltInSshKeyAddStatus.success) {
+          if (!mounted) return;
+          final message = retry.message ??
+              'Unable to import key. Please check the passphrase or format.';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+          return;
+        }
+      } else if (addResult.status != BuiltInSshKeyAddStatus.success) {
+        if (!mounted) return;
+        final message = addResult.message ??
+            'Key cannot be parsed. It may be encrypted, unsupported, or malformed.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+        return;
+      }
+
       _labelController.clear();
       _keyController.clear();
       _passwordController.clear();
@@ -327,8 +219,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
   }
 
   Future<void> _unlockKey(String keyId) async {
-    // Check if the entry needs a password
-    final entry = await widget.keyStore.loadEntry(keyId);
+    final entry = await widget.keyService.loadKey(keyId);
     if (!mounted) return;
     String? password;
     if (entry != null && entry.isEncrypted) {
@@ -338,22 +229,25 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       }
     }
     AppLogger.d('Unlocking built-in key $keyId', tag: 'Settings');
-    try {
-      await widget.vault.unlock(keyId, password);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Key unlocked for this session.')),
-      );
-    } on BuiltInSshKeyDecryptException {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Incorrect password for that key.')),
-      );
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to unlock key: $error')));
+    final result = await widget.keyService.unlock(keyId, password: password);
+    if (!mounted) return;
+    switch (result.status) {
+      case BuiltInSshKeyUnlockStatus.unlocked:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Key unlocked for this session.')),
+        );
+        break;
+      case BuiltInSshKeyUnlockStatus.incorrectPassword:
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.message ?? 'Incorrect password.')),
+        );
+        break;
+      default:
+        final message = result.message ?? 'Failed to unlock key.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+        break;
     }
   }
 
@@ -415,8 +309,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
     }
 
     AppLogger.d('Removing built-in key $keyId', tag: 'Settings');
-    await widget.keyStore.deleteEntry(keyId);
-    widget.vault.forget(keyId);
+    await widget.keyService.deleteKey(keyId);
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
@@ -425,7 +318,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
   }
 
   void _clearUnlocked() {
-    widget.vault.forgetAll();
+    widget.keyService.lockAll();
     AppLogger.d('Cleared unlocked built-in keys from memory', tag: 'Settings');
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Unlocked keys cleared from memory.')),
@@ -507,10 +400,14 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 for (final entry in keys) {
                   if (!entry.isEncrypted &&
-                      !widget.vault.isUnlocked(entry.id)) {
-                    widget.vault.unlock(entry.id, null).catchError((_) {
-                      // Ignore errors
-                    });
+                      !widget.keyService.isUnlocked(entry.id)) {
+                    widget.keyService
+                        .unlock(entry.id, password: null)
+                        .catchError(
+                      (_) => const BuiltInSshKeyUnlockResult(
+                        status: BuiltInSshKeyUnlockStatus.failed,
+                      ),
+                    );
                   }
                 }
               });
@@ -727,7 +624,8 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
 
   Widget _buildKeyTile(BuiltInSshKeyEntry entry, BuildContext context) {
     // Plaintext keys are always considered unlocked
-    final isUnlocked = widget.vault.isUnlocked(entry.id) || !entry.isEncrypted;
+    final isUnlocked =
+        widget.keyService.isUnlocked(entry.id) || !entry.isEncrypted;
     final fingerprint = entry.fingerprint.length > 12
         ? '${entry.fingerprint.substring(0, 12)}…'
         : entry.fingerprint;
@@ -786,7 +684,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
   }
 
   Future<void> _lockKey(String keyId) async {
-    widget.vault.forget(keyId);
+    widget.keyService.lock(keyId);
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
@@ -799,8 +697,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       return;
     }
 
-    // Load the current entry
-    final entry = await widget.keyStore.loadEntry(keyId);
+    final entry = await widget.keyService.loadKey(keyId);
     if (entry == null || entry.isEncrypted) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -810,26 +707,11 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       return;
     }
 
-    // Get the plaintext key data
-    final keyData = utf8.encode(entry.plaintext!);
-
-    // Delete the old entry
-    await widget.keyStore.deleteEntry(keyId);
-    widget.vault.forget(keyId);
-
-    // Create a new encrypted entry with the same ID
     try {
-      final newEntry = await widget.keyStore.buildEntry(
-        id: keyId,
-        label: entry.label,
-        keyData: keyData,
-        keyIsEncrypted: entry.keyHasPassphrase,
+      await widget.keyService.encryptStoredKey(
+        keyId: keyId,
         password: password,
       );
-      await widget.keyStore.writeEntry(newEntry);
-
-      // Auto-unlock the newly encrypted key
-      await widget.vault.unlock(keyId, password);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

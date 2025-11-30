@@ -8,8 +8,7 @@ import '../../../../../services/filesystem/explorer_trash_manager.dart';
 import '../../../../../services/logging/app_logger.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
-import '../../../../../services/ssh/builtin/builtin_ssh_key_store.dart';
-import '../../../../../services/ssh/builtin/builtin_ssh_vault.dart';
+import '../../../../../services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'ssh_auth_handler.dart';
 
 class TrashTab extends StatefulWidget {
@@ -17,13 +16,13 @@ class TrashTab extends StatefulWidget {
     super.key,
     required this.manager,
     this.shellService = const ProcessRemoteShellService(),
-    this.builtInVault,
+    this.keyService,
     this.context,
   });
 
   final ExplorerTrashManager manager;
   final RemoteShellService shellService;
-  final BuiltInSshVault? builtInVault;
+  final BuiltInSshKeyService? keyService;
   final ExplorerContext? context;
 
   @override
@@ -78,7 +77,7 @@ class _TrashTabState extends State<TrashTab> {
   final Map<String, Future<String?>> _pendingPassphrasePrompts = {};
 
   Future<T> _runShell<T>(Future<T> Function() action) async {
-    if (widget.builtInVault == null) {
+    if (widget.keyService == null) {
       return action();
     }
     try {
@@ -171,38 +170,46 @@ class _TrashTabState extends State<TrashTab> {
     if (_unlockInProgress) {
       return false;
     }
-    final vault = widget.builtInVault;
-    if (vault == null) {
+    final service = widget.keyService;
+    if (service == null) {
       return false;
     }
     _unlockInProgress = true;
     AppLogger.d('Prompting unlock for key $keyId', tag: 'Trash');
     try {
-      // Check if password is needed
-      final needsPwd = await vault.needsPassword(keyId);
-      String? password;
-      if (needsPwd) {
-        password = await _showUnlockDialog(keyId);
-        if (password == null) {
-          AppLogger.d('Unlock cancelled for key $keyId', tag: 'Trash');
-          return false;
+      final initial = await service.unlock(keyId, password: null);
+      if (initial.status == BuiltInSshKeyUnlockStatus.unlocked) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Key unlocked for this session.')),
+          );
+          AppLogger.d('Unlock succeeded for key $keyId', tag: 'Trash');
         }
+        return true;
       }
-      await vault.unlock(keyId, password);
+      String? password;
+      password = await _showUnlockDialog(keyId);
+      if (password == null) {
+        AppLogger.d('Unlock cancelled for key $keyId', tag: 'Trash');
+        return false;
+      }
+      final result = await service.unlock(keyId, password: password);
+      if (result.status == BuiltInSshKeyUnlockStatus.unlocked) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Key unlocked for this session.')),
+          );
+          AppLogger.d('Unlock succeeded for key $keyId', tag: 'Trash');
+        }
+        return true;
+      }
+      final message = result.message ?? 'Incorrect password for that key.';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Key unlocked for this session.')),
-        );
-        AppLogger.d('Unlock succeeded for key $keyId', tag: 'Trash');
-      }
-      return true;
-    } on BuiltInSshKeyDecryptException {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Incorrect password for that key.')),
+          SnackBar(content: Text(message)),
         );
       }
-      AppLogger.w('Unlock failed: bad password for key $keyId', tag: 'Trash');
+      AppLogger.w('Unlock failed for key $keyId: $message', tag: 'Trash');
       return false;
     } catch (error) {
       if (mounted) {

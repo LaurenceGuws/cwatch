@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:cwatch/models/custom_ssh_host.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
-import 'package:cwatch/services/ssh/builtin/builtin_ssh_vault.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/widgets/lists/section_list.dart';
@@ -18,7 +17,6 @@ class HostList extends StatefulWidget {
     required this.onSelect,
     required this.onActivate,
     required this.settingsController,
-    required this.builtInVault,
     required this.onHostsChanged,
     required this.onAddServer,
     this.onOpenConnectivity,
@@ -31,7 +29,6 @@ class HostList extends StatefulWidget {
   final ValueChanged<SshHost>? onSelect;
   final ValueChanged<SshHost>? onActivate;
   final AppSettingsController settingsController;
-  final BuiltInSshVault builtInVault;
   final VoidCallback onHostsChanged;
   final ValueChanged<List<String>> onAddServer;
   final ValueChanged<SshHost>? onOpenConnectivity;

@@ -18,7 +18,7 @@ import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/models/remote_file_entry.dart';
 import 'package:cwatch/services/docker/docker_client_service.dart';
 import 'package:cwatch/services/filesystem/explorer_trash_manager.dart';
-import 'package:cwatch/services/ssh/builtin/builtin_ssh_vault.dart';
+import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
@@ -43,7 +43,7 @@ class DockerOverview extends StatefulWidget {
     this.remoteHost,
     this.shellService,
     required this.trashManager,
-    required this.builtInVault,
+    required this.keyService,
     required this.settingsController,
     this.onOpenTab,
     this.onCloseTab,
@@ -55,7 +55,7 @@ class DockerOverview extends StatefulWidget {
   final SshHost? remoteHost;
   final RemoteShellService? shellService;
   final ExplorerTrashManager trashManager;
-  final BuiltInSshVault builtInVault;
+  final BuiltInSshKeyService keyService;
   final AppSettingsController settingsController;
   final OpenTab? onOpenTab;
   final void Function(String tabId)? onCloseTab;
@@ -1001,9 +1001,12 @@ done'
   Future<void> _openExecTerminal(DockerContainer container) async {
     if (widget.remoteHost == null || widget.shellService == null) {
       final name = container.name.isNotEmpty ? container.name : container.id;
-      final command = _autoCloseCommand(
-        'docker exec -it ${container.id} /bin/sh',
-      );
+      final contextFlag =
+          widget.contextName != null && widget.contextName!.isNotEmpty
+              ? '--context ${widget.contextName!} '
+              : '';
+      final command =
+          _autoCloseCommand('docker ${contextFlag}exec -it ${container.id} /bin/sh');
       if (widget.onOpenTab != null) {
         final tabId =
             'exec-${container.id}-${DateTime.now().microsecondsSinceEpoch}';
@@ -1034,9 +1037,13 @@ done'
       return;
     }
     final name = container.name.isNotEmpty ? container.name : container.id;
-    final command = _autoCloseCommand(
-      'docker exec -it ${container.id} /bin/sh',
-    );
+    // Keep the container shell session alive; user will exit manually.
+    final contextFlag =
+        widget.contextName != null && widget.contextName!.isNotEmpty
+            ? '--context ${widget.contextName!} '
+            : '';
+    final command =
+        _autoCloseCommand('docker ${contextFlag}exec -it ${container.id} /bin/sh');
     if (widget.onOpenTab != null) {
       final tabId =
           'exec-${container.id}-${DateTime.now().microsecondsSinceEpoch}';
@@ -1111,7 +1118,7 @@ done'
         explorerContext: explorerContext,
         shellService: shell,
         trashManager: widget.trashManager,
-        builtInVault: widget.builtInVault,
+        keyService: widget.keyService,
         onOpenTrash: (explorerContext) =>
             _openTrashTab(shell, host, explorerContext),
         onOpenEditorTab: (path, content) =>
@@ -1153,7 +1160,7 @@ done'
       body: TrashTab(
         manager: widget.trashManager,
         shellService: shell,
-        builtInVault: widget.builtInVault,
+        keyService: widget.keyService,
         context: context,
       ),
     );

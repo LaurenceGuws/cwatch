@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:cwatch/models/custom_ssh_host.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_entry.dart';
-import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_store.dart';
-import 'package:cwatch/services/ssh/builtin/builtin_ssh_vault.dart';
+import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'add_key_dialog.dart';
 
 /// Dialog for adding or editing a server
@@ -11,14 +10,12 @@ class AddServerDialog extends StatefulWidget {
   const AddServerDialog({
     super.key,
     this.initialHost,
-    required this.keyStore,
-    required this.vault,
+    required this.keyService,
     required this.existingNames,
   });
 
   final CustomSshHost? initialHost;
-  final BuiltInSshKeyStore keyStore;
-  final BuiltInSshVault vault;
+  final BuiltInSshKeyService keyService;
   final List<String> existingNames;
 
   @override
@@ -52,7 +49,7 @@ class _AddServerDialogState extends State<AddServerDialog> {
         .map((name) => name.trim().toLowerCase())
         .where((name) => name.isNotEmpty)
         .toSet();
-    _keysFuture = widget.keyStore.listEntries();
+    _keysFuture = widget.keyService.listKeys();
     // Set initial key selection if editing
     if (widget.initialHost?.identityFile != null) {
       // Try to find matching key by ID
@@ -203,14 +200,13 @@ class _AddServerDialogState extends State<AddServerDialog> {
                             final newKey = await showDialog<BuiltInSshKeyEntry>(
                               context: context,
                               builder: (context) => AddKeyDialog(
-                                keyStore: widget.keyStore,
-                                vault: widget.vault,
+                                keyService: widget.keyService,
                               ),
                             );
                             if (newKey != null && mounted) {
                               setState(() {
                                 _selectedKeyId = newKey.id;
-                                _keysFuture = widget.keyStore.listEntries();
+                                _keysFuture = widget.keyService.listKeys();
                               });
                             }
                           } else {

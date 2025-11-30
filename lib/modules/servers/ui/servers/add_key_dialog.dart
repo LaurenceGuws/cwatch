@@ -1,23 +1,17 @@
-import 'dart:convert';
 import 'dart:io';
-
-import 'package:dartssh2/dartssh2.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
-import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_store.dart';
-import 'package:cwatch/services/ssh/builtin/builtin_ssh_vault.dart';
+import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 
 /// Dialog for adding an SSH key
 class AddKeyDialog extends StatefulWidget {
   const AddKeyDialog({
     super.key,
-    required this.keyStore,
-    required this.vault,
+    required this.keyService,
   });
 
-  final BuiltInSshKeyStore keyStore;
-  final BuiltInSshVault vault;
+  final BuiltInSshKeyService keyService;
 
   @override
   State<AddKeyDialog> createState() => _AddKeyDialogState();
@@ -72,216 +66,63 @@ class _AddKeyDialogState extends State<AddKeyDialog> {
     final keyText = _keyController.text.trim();
     final password = _passwordController.text.trim();
 
-    // Validate encrypted keys (same logic as settings view)
-    bool keyIsEncrypted = false;
-    bool parseSucceeded = false;
+    setState(() => _isSaving = true);
     try {
-      SSHKeyPair.fromPem(keyText);
-      parseSucceeded = true;
-      keyIsEncrypted = false;
-    } on ArgumentError catch (e) {
-      if (e.message == 'passphrase is required for encrypted key') {
-        keyIsEncrypted = true;
-      }
-    } on StateError catch (e) {
-      if (e.message.contains('encrypted')) {
-        keyIsEncrypted = true;
-      }
-    } catch (_) {
-      // Parsing failed - might be encrypted or unsupported
-    }
-
-    // If parsing failed, validate with passphrase
-    if (!parseSucceeded) {
-      String? passphrase;
-      if (password.isNotEmpty) {
-        passphrase = password;
-      } else {
-        // Prompt for passphrase
-        final passphraseResult = await showDialog<String>(
-          context: context,
-          builder: (context) {
-            final controller = TextEditingController();
-            return AlertDialog(
-              title: const Text('Key validation needed'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'The key could not be parsed. It may be encrypted with a passphrase, '
-                    'or it may be unsupported. Please try providing a passphrase if the key is encrypted.',
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: controller,
-                    autofocus: true,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Key passphrase',
-                      helperText: 'Leave empty if the key is not encrypted.',
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(''),
-                  child: const Text('Try without passphrase'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(null),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () =>
-                      Navigator.of(context).pop(controller.text.trim()),
-                  child: const Text('Validate'),
-                ),
-              ],
-            );
-          },
-        );
-        if (passphraseResult == null) {
-          return; // User cancelled
-        }
-        passphrase = passphraseResult.isEmpty ? null : passphraseResult;
-      }
-
-      if (passphrase != null && passphrase.isNotEmpty) {
-        try {
-          SSHKeyPair.fromPem(keyText, passphrase);
-          keyIsEncrypted = true;
-        } on SSHKeyDecryptError catch (e) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Invalid passphrase: ${e.toString()}'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 5),
-            ),
-          );
-          return;
-        } on UnsupportedError catch (e) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Unsupported key cipher or format: ${e.message}'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 5),
-            ),
-          );
-          return;
-        } catch (e) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Key cannot be parsed even with passphrase. '
-                'It may be unsupported or malformed: ${e.toString()}',
-              ),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 5),
-            ),
-          );
-          return;
-        }
-      } else {
-        // No passphrase provided but parsing failed
+      // Let the key service own validation and passphrase handling.
+      final addResult = await widget.keyService.addKey(
+        label: label,
+        keyPem: keyText,
+        storagePassword: password.isEmpty ? null : password,
+        keyPassphrase: null,
+      );
+      if (addResult.status == BuiltInSshKeyAddStatus.needsPassphrase) {
         if (!mounted) return;
+        setState(() => _isSaving = false);
+        final passphrase = await _promptPassphrase(
+          title: 'Key passphrase required',
+          helper:
+              'This passphrase is used only to validate the key during import.',
+        );
+        if (passphrase == null || passphrase.isEmpty) {
+          return;
+        }
+        setState(() => _isSaving = true);
+        final retry = await widget.keyService.addKey(
+          label: label,
+          keyPem: keyText,
+          storagePassword: password.isEmpty ? null : password,
+          keyPassphrase: passphrase,
+        );
+        if (retry.status != BuiltInSshKeyAddStatus.success) {
+          if (!mounted) return;
+          final message = retry.message ??
+              'Unable to import key. Please check the passphrase or format.';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+          return;
+        }
+        if (!mounted) return;
+        Navigator.of(context).pop(retry.entry);
+        return;
+      } else if (addResult.status != BuiltInSshKeyAddStatus.success) {
+        if (!mounted) return;
+        final message = addResult.message ??
+            'Key cannot be parsed. It may be encrypted, unsupported, or malformed.';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text(
-              'Key cannot be parsed without passphrase. '
-              'It may be encrypted, unsupported, or malformed.',
-            ),
+            content: Text(message),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 5),
           ),
         );
         return;
       }
-    } else if (keyIsEncrypted) {
-      // Key was detected as encrypted, validate passphrase
-      if (password.isEmpty) {
-        // Prompt for passphrase
-        final passphraseResult = await showDialog<String>(
-          context: context,
-          builder: (context) {
-            final controller = TextEditingController();
-            return AlertDialog(
-              title: const Text(
-                'Key passphrase required',
-                overflow: TextOverflow.visible,
-                softWrap: true,
-              ),
-              contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-              content: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: 500,
-                  maxHeight: MediaQuery.of(context).size.height * 0.8,
-                ),
-                child: SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.8,
-                  child: TextField(
-                    controller: controller,
-                    autofocus: true,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Key passphrase',
-                    ),
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(null),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () =>
-                      Navigator.of(context).pop(controller.text.trim()),
-                  child: const Text('Validate'),
-                ),
-              ],
-            );
-          },
-        );
-        if (passphraseResult == null) {
-          return; // User cancelled
-        }
-        try {
-          SSHKeyPair.fromPem(keyText, passphraseResult);
-        } on SSHKeyDecryptError catch (e) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Invalid passphrase: ${e.toString()}'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 5),
-            ),
-          );
-          return;
-        } catch (e) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to validate key: ${e.toString()}'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 5),
-            ),
-          );
-          return;
-        }
-      }
-    }
-
-    setState(() => _isSaving = true);
-    try {
-      final entry = await widget.keyStore.addEntry(
-        label: label,
-        keyData: utf8.encode(keyText),
-        password: password.isEmpty ? null : password,
-      );
+      final entry = addResult.entry;
       if (!mounted) return;
       Navigator.of(context).pop(entry);
     } catch (error) {
@@ -389,5 +230,39 @@ class _AddKeyDialogState extends State<AddKeyDialog> {
       ],
     );
   }
-}
 
+  Future<String?> _promptPassphrase({
+    required String title,
+    String? helper,
+  }) {
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        final controller = TextEditingController();
+        return AlertDialog(
+          title: Text(title),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            obscureText: true,
+            decoration: InputDecoration(
+              labelText: 'Key passphrase',
+              helperText: helper,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(null),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () =>
+                  Navigator.of(context).pop(controller.text.trim()),
+              child: const Text('Continue'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}

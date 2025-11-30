@@ -6,9 +6,7 @@ import 'package:cwatch/models/explorer_context.dart';
 import 'package:cwatch/models/ssh_client_backend.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/services/docker/docker_client_service.dart';
-import 'package:cwatch/services/ssh/builtin/builtin_remote_shell_service.dart';
-import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_store.dart';
-import 'package:cwatch/services/ssh/builtin/builtin_ssh_vault.dart';
+import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/services/ssh/remote_command_logging.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
@@ -35,14 +33,14 @@ class DockerView extends StatefulWidget {
     this.leading,
     required this.hostsFuture,
     required this.settingsController,
-    required this.builtInVault,
+    required this.keyService,
     required this.commandLog,
   });
 
   final Widget? leading;
   final Future<List<SshHost>> hostsFuture;
   final AppSettingsController settingsController;
-  final BuiltInSshVault builtInVault;
+  final BuiltInSshKeyService keyService;
   final RemoteCommandLogController commandLog;
 
   @override
@@ -521,8 +519,7 @@ class _DockerViewState extends State<DockerView> {
     final settings = widget.settingsController.settings;
     final observer = settings.debugMode ? widget.commandLog.add : null;
     if (settings.sshClientBackend == SshClientBackend.builtin) {
-      return BuiltInRemoteShellService(
-        vault: widget.builtInVault,
+      return widget.keyService.buildShellService(
         hostKeyBindings: settings.builtinSshHostKeyBindings,
         debugMode: settings.debugMode,
         observer: observer,
@@ -553,19 +550,15 @@ class _DockerViewState extends State<DockerView> {
     String hostName,
     String? keyLabel,
   ) async {
-    final needsPassword = await widget.builtInVault.needsPassword(keyId);
-    if (!needsPassword) {
-      try {
-        await widget.builtInVault.unlock(keyId, null);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Unlocked key for this session.')),
-          );
-        }
-        return true;
-      } catch (_) {
-        // fall through to prompt
+    final initialResult =
+        await widget.keyService.unlock(keyId, password: null);
+    if (initialResult.status == BuiltInSshKeyUnlockStatus.unlocked) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unlocked key for this session.')),
+        );
       }
+      return true;
     }
     if (!mounted) return false;
 
@@ -590,19 +583,30 @@ class _DockerViewState extends State<DockerView> {
                 errorText = null;
               });
               try {
-                await widget.builtInVault.unlock(keyId, password);
-                if (!mounted || !dialogContext.mounted) return;
-                Navigator.of(dialogContext).pop(true);
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(
-                    content: Text('Key unlocked for this session.'),
-                  ),
+                final result = await widget.keyService.unlock(
+                  keyId,
+                  password: password,
                 );
-              } on BuiltInSshKeyDecryptException {
-                setState(() {
-                  errorText = 'Incorrect password. Please try again.';
-                  loading = false;
-                });
+                if (result.status == BuiltInSshKeyUnlockStatus.unlocked) {
+                  if (!mounted || !dialogContext.mounted) return;
+                  Navigator.of(dialogContext).pop(true);
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    const SnackBar(
+                      content: Text('Key unlocked for this session.'),
+                    ),
+                  );
+                } else if (result.status ==
+                    BuiltInSshKeyUnlockStatus.incorrectPassword) {
+                  setState(() {
+                    errorText = 'Incorrect password. Please try again.';
+                    loading = false;
+                  });
+                } else {
+                  setState(() {
+                    errorText = result.message ?? 'Failed to unlock.';
+                    loading = false;
+                  });
+                }
               } catch (e) {
                 setState(() {
                   errorText = 'Failed to unlock: $e';
@@ -694,7 +698,7 @@ class _DockerViewState extends State<DockerView> {
       remoteHost: remoteHost,
       shellService: shellService,
       trashManager: _trashManager,
-      builtInVault: widget.builtInVault,
+      keyService: widget.keyService,
       settingsController: widget.settingsController,
       onOpenTab: _openChildTab,
       onCloseTab: _closeTabById,
@@ -758,7 +762,7 @@ class _DockerViewState extends State<DockerView> {
       body: TrashTab(
         manager: _trashManager,
         shellService: shell,
-        builtInVault: widget.builtInVault,
+        keyService: widget.keyService,
         context: explorerContext,
       ),
     );
@@ -1004,11 +1008,12 @@ class _DockerViewState extends State<DockerView> {
         if (state.command == null || state.title == null) return null;
         final host = _hostByName(hosts, state.hostName);
         final shell = host != null ? _shellServiceForHost(host) : null;
+        final command = _sanitizeExecCommand(state.command!);
         final controller = CompositeTabOptionsController();
         final body = DockerCommandTerminal(
           host: host,
           shellService: shell,
-          command: state.command!,
+          command: command,
           title: state.title!,
           settingsController: widget.settingsController,
           onExit: () => _closeTabById(state.id),
@@ -1029,11 +1034,12 @@ class _DockerViewState extends State<DockerView> {
         if (state.command == null || state.title == null) return null;
         final host = _hostByName(hosts, state.hostName);
         final shell = host != null ? _shellServiceForHost(host) : null;
+        final command = _sanitizeExecCommand(state.command!);
         final controller = CompositeTabOptionsController();
         final body = DockerCommandTerminal(
           host: host,
           shellService: shell,
-          command: state.command!,
+          command: command,
           title: state.title!,
           settingsController: widget.settingsController,
           onExit: () => _closeTabById(state.id),
@@ -1117,7 +1123,7 @@ class _DockerViewState extends State<DockerView> {
             explorerContext: explorerContext,
             shellService: shell,
             trashManager: _trashManager,
-            builtInVault: widget.builtInVault,
+            keyService: widget.keyService,
             onOpenTrash: (explorerContext) =>
                 _openContainerExplorerTrashTab(shell, explorerContext),
             onOpenEditorTab: (path, content) async {
@@ -1297,6 +1303,15 @@ class _DockerViewState extends State<DockerView> {
       return trimmed!;
     }
     return '${host.name}-docker';
+  }
+
+  String _sanitizeExecCommand(String command) {
+    const suffix = '; exit';
+    final trimmed = command.trimRight();
+    if (trimmed.endsWith(suffix)) {
+      return trimmed.substring(0, trimmed.length - suffix.length).trimRight();
+    }
+    return command;
   }
 }
 

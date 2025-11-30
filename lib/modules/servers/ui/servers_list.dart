@@ -13,9 +13,7 @@ import 'package:cwatch/models/ssh_client_backend.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/services/filesystem/explorer_trash_manager.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
-import 'package:cwatch/services/ssh/builtin/builtin_remote_shell_service.dart';
-import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_store.dart';
-import 'package:cwatch/services/ssh/builtin/builtin_ssh_vault.dart';
+import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/services/ssh/remote_command_logging.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
@@ -37,14 +35,14 @@ class ServersList extends StatefulWidget {
     super.key,
     required this.hostsFuture,
     required this.settingsController,
-    required this.builtInVault,
+    required this.keyService,
     required this.commandLog,
     this.leading,
   });
 
   final Future<List<SshHost>> hostsFuture;
   final AppSettingsController settingsController;
-  final BuiltInSshVault builtInVault;
+  final BuiltInSshKeyService keyService;
   final RemoteCommandLogController commandLog;
   final Widget? leading;
 
@@ -146,14 +144,13 @@ class _ServersListState extends State<ServersList> {
           return ErrorState(error: snapshot.error.toString());
         }
         final hosts = snapshot.data ?? <SshHost>[];
-        return HostList(
-          hosts: hosts,
-          onSelect: onHostSelected,
-          onActivate: onHostActivate ?? _startActionFlowForHost,
-          settingsController: widget.settingsController,
-          builtInVault: widget.builtInVault,
-          onOpenConnectivity: (host) =>
-              _addTab(host, ServerAction.connectivity),
+      return HostList(
+        hosts: hosts,
+        onSelect: onHostSelected,
+        onActivate: onHostActivate ?? _startActionFlowForHost,
+        settingsController: widget.settingsController,
+        onOpenConnectivity: (host) =>
+            _addTab(host, ServerAction.connectivity),
           onOpenResources: (host) => _addTab(host, ServerAction.resources),
           onOpenTerminal: (host) => _addTab(host, ServerAction.terminal),
           onOpenExplorer: (host) => _addTab(host, ServerAction.fileExplorer),
@@ -172,12 +169,10 @@ class _ServersListState extends State<ServersList> {
     BuildContext context,
     List<String> existingNames,
   ) async {
-    final keyStore = BuiltInSshKeyStore();
     final result = await showDialog<CustomSshHost>(
       context: context,
       builder: (context) => AddServerDialog(
-        keyStore: keyStore,
-        vault: widget.builtInVault,
+        keyService: widget.keyService,
         existingNames: existingNames,
       ),
     );
@@ -491,7 +486,7 @@ class _ServersListState extends State<ServersList> {
           host: tab.host,
           explorerContext: explorerContext,
           shellService: _shellServiceForHost(tab.host),
-          builtInVault: widget.builtInVault,
+          keyService: widget.keyService,
           trashManager: _trashManager,
           onOpenTrash: _openTrashTab,
           onOpenEditorTab: _openEditorTab,
@@ -532,7 +527,7 @@ class _ServersListState extends State<ServersList> {
           key: tab.bodyKey,
           manager: _trashManager,
           shellService: _shellServiceForHost(tab.host),
-          builtInVault: widget.builtInVault,
+          keyService: widget.keyService,
           context: tab.explorerContext,
         );
     }
@@ -542,8 +537,7 @@ class _ServersListState extends State<ServersList> {
     final settings = widget.settingsController.settings;
     final observer = _debugObserver();
     if (settings.sshClientBackend == SshClientBackend.builtin) {
-      return BuiltInRemoteShellService(
-        vault: widget.builtInVault,
+      return widget.keyService.buildShellService(
         hostKeyBindings: settings.builtinSshHostKeyBindings,
         debugMode: settings.debugMode,
         observer: observer,
@@ -735,18 +729,14 @@ class _ServersListState extends State<ServersList> {
     String hostName,
     String? keyLabel,
   ) async {
-    final needsPassword = await widget.builtInVault.needsPassword(keyId);
-    if (!needsPassword) {
-      try {
-        await widget.builtInVault.unlock(keyId, null);
-        if (!mounted) return true;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unlocked key for this session.')),
-        );
-        return true;
-      } catch (_) {
-        // Fall through to prompting
-      }
+    final initialResult =
+        await widget.keyService.unlock(keyId, password: null);
+    if (initialResult.status == BuiltInSshKeyUnlockStatus.unlocked) {
+      if (!mounted) return true;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unlocked key for this session.')),
+      );
+      return true;
     }
     if (!mounted) return false;
 
@@ -771,19 +761,30 @@ class _ServersListState extends State<ServersList> {
                 errorText = null;
               });
               try {
-                await widget.builtInVault.unlock(keyId, password);
-                if (!mounted || !dialogContext.mounted) return;
-                Navigator.of(dialogContext).pop(true);
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(
-                    content: Text('Key unlocked for this session.'),
-                  ),
+                final result = await widget.keyService.unlock(
+                  keyId,
+                  password: password,
                 );
-              } on BuiltInSshKeyDecryptException {
-                setState(() {
-                  errorText = 'Incorrect password. Please try again.';
-                  loading = false;
-                });
+                if (result.status == BuiltInSshKeyUnlockStatus.unlocked) {
+                  if (!mounted || !dialogContext.mounted) return;
+                  Navigator.of(dialogContext).pop(true);
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    const SnackBar(
+                      content: Text('Key unlocked for this session.'),
+                    ),
+                  );
+                } else if (result.status ==
+                    BuiltInSshKeyUnlockStatus.incorrectPassword) {
+                  setState(() {
+                    errorText = 'Incorrect password. Please try again.';
+                    loading = false;
+                  });
+                } else {
+                  setState(() {
+                    errorText = result.message ?? 'Failed to unlock.';
+                    loading = false;
+                  });
+                }
               } catch (e) {
                 setState(() {
                   errorText = 'Failed to unlock: $e';

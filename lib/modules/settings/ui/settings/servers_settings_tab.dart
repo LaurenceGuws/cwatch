@@ -7,8 +7,7 @@ import 'package:path/path.dart' as p;
 
 import 'package:cwatch/models/ssh_client_backend.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
-import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_store.dart';
-import 'package:cwatch/services/ssh/builtin/builtin_ssh_vault.dart';
+import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'builtin_ssh_settings.dart';
 import 'settings_section.dart';
@@ -19,14 +18,12 @@ class ServersSettingsTab extends StatefulWidget {
     super.key,
     required this.controller,
     required this.hostsFuture,
-    required this.builtInKeyStore,
-    required this.builtInVault,
+    required this.keyService,
   });
 
   final AppSettingsController controller;
   final Future<List<SshHost>> hostsFuture;
-  final BuiltInSshKeyStore builtInKeyStore;
-  final BuiltInSshVault builtInVault;
+  final BuiltInSshKeyService keyService;
 
   @override
   State<ServersSettingsTab> createState() => _ServersSettingsTabState();
@@ -106,8 +103,7 @@ class _ServersSettingsTabState extends State<ServersSettingsTab> {
                 BuiltInSshSettings(
                   controller: widget.controller,
                   hostsFuture: widget.hostsFuture,
-                  keyStore: widget.builtInKeyStore,
-                  vault: widget.builtInVault,
+                  keyService: widget.keyService,
                 ),
             ],
           ),
