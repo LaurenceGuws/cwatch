@@ -10,7 +10,6 @@ import '../../../../../models/ssh_host.dart';
 import '../../../../../services/logging/app_logger.dart';
 import '../../../../../services/filesystem/explorer_trash_manager.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
-import '../../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
 import 'explorer_clipboard.dart';
 import '../../../../widgets/file_operation_progress_dialog.dart';
 
@@ -419,29 +418,16 @@ class FileOperationsService {
           }
 
           // Stream from path to avoid loading full file into memory and report progress
-          if (shellService is BuiltInRemoteShellService) {
-            await (shellService as BuiltInRemoteShellService).uploadPath(
-              host: host,
-              localPath: file.path!,
-              remoteDestination: remotePath,
-              recursive: false,
-              timeout: _uploadTimeout,
-              onBytes: (bytes) {
-                progressController.addBytes(bytes);
-              },
-            );
-          } else {
-            await uploadPath(
-              localPath: file.path!,
-              remoteDestination: remotePath,
-              recursive: false,
-            );
-          }
+          await uploadPath(
+            localPath: file.path!,
+            remoteDestination: remotePath,
+            recursive: false,
+          );
           if (!context.mounted) return;
           successCount++;
           progressController.markCompleted(
             i,
-            addSize: shellService is! BuiltInRemoteShellService,
+            addSize: true,
           );
         } catch (error) {
           if (!context.mounted) return;
@@ -585,31 +571,15 @@ class FileOperationsService {
 
           try {
             await _ensureRemoteDirectory(remoteDir, createdRemoteDirs);
-            if (shellService is BuiltInRemoteShellService) {
-              await (shellService as BuiltInRemoteShellService).uploadPath(
-                host: host,
-                localPath: entity.path,
-                remoteDestination: remotePath,
-                recursive: false,
-                timeout: _uploadTimeout,
-                onBytes: (bytes) {
-                  if (itemIndex != -1) {
-                    progressController.addBytes(bytes);
-                  }
-                },
-              );
-            } else {
-              await uploadPath(
-                localPath: entity.path,
-                remoteDestination: remotePath,
-                recursive: false,
-              );
-            }
+            await uploadPath(
+              localPath: entity.path,
+              remoteDestination: remotePath,
+              recursive: false,
+            );
             if (!context.mounted) return;
             successCount++;
             if (itemIndex != -1) {
-              final addSize = shellService is! BuiltInRemoteShellService;
-              progressController.markCompleted(itemIndex, addSize: addSize);
+              progressController.markCompleted(itemIndex, addSize: true);
             }
           } catch (error) {
             if (!context.mounted) return;

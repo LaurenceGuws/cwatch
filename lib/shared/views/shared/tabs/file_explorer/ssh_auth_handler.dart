@@ -30,16 +30,6 @@ class SshAuthHandler {
     if (_disposed) {
       throw StateError('SshAuthHandler used after dispose');
     }
-    if (shellService is BuiltInRemoteShellService &&
-        keyService != null &&
-        host != null) {
-      final service = shellService as BuiltInRemoteShellService;
-      final keyId = service.getActiveBuiltInKeyId(host!);
-      if (keyId != null && keyService!.isUnlocked(keyId)) {
-        // Key already unlocked → do not repeat unlock flow.
-        return action();
-      }
-    }
     if (keyService == null) {
       return action();
     }
@@ -76,10 +66,8 @@ class SshAuthHandler {
           );
           rethrow;
         }
-        final service = shellService;
-        if (service is BuiltInRemoteShellService) {
-          service.setBuiltInKeyPassphrase(error.keyId, passphrase);
-        }
+        (shellService as BuiltInRemoteShellService)
+            .setBuiltInKeyPassphrase(error.keyId, passphrase);
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Passphrase stored for $keyLabel.')),
@@ -115,10 +103,8 @@ class SshAuthHandler {
           );
           rethrow;
         }
-        final service = shellService;
-        if (service is BuiltInRemoteShellService) {
-          service.setIdentityPassphrase(error.identityPath, passphrase);
-        }
+        (shellService as BuiltInRemoteShellService)
+            .setIdentityPassphrase(error.identityPath, passphrase);
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
