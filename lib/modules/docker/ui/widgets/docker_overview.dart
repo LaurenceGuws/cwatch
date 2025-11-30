@@ -1175,6 +1175,7 @@ done'
     String initialContent,
   ) async {
     if (widget.onOpenTab == null) return;
+    final optionsController = TabOptionsController();
     final tab = EngineTab(
       id: 'editor-${path.hashCode}-${DateTime.now().microsecondsSinceEpoch}',
       title: 'Edit $path',
@@ -1189,6 +1190,7 @@ done'
         onSave: (content) async {
           await shell.writeFile(host, path, content);
         },
+        optionsController: optionsController,
       ),
       workspaceState: DockerTabState(
         id: 'editor-$path',
@@ -1197,6 +1199,7 @@ done'
         containerId: containerId,
         path: path,
       ),
+      optionsController: optionsController,
     );
     widget.onOpenTab!(tab);
   }

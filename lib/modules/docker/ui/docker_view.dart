@@ -1127,6 +1127,7 @@ class _DockerViewState extends State<DockerView> {
             onOpenTrash: (explorerContext) =>
                 _openContainerExplorerTrashTab(shell, explorerContext),
             onOpenEditorTab: (path, content) async {
+              final editorOptions = TabOptionsController();
               final editorTab = EngineTab(
                 id: 'editor-${path.hashCode}-${DateTime.now().microsecondsSinceEpoch}',
                 title: 'Edit $path',
@@ -1147,7 +1148,9 @@ class _DockerViewState extends State<DockerView> {
                   initialContent: content,
                   onSave: (value) => shell.writeFile(explorerHost, path, value),
                   settingsController: widget.settingsController,
+                  optionsController: editorOptions,
                 ),
+                optionsController: editorOptions,
               );
               _openChildTab(editorTab);
             },
@@ -1177,6 +1180,7 @@ class _DockerViewState extends State<DockerView> {
               identityFiles: <String>[],
               source: 'local',
             );
+        final controller = TabOptionsController();
         return EngineTab(
           id: state.id,
           title: 'Edit ${state.path}',
@@ -1188,8 +1192,10 @@ class _DockerViewState extends State<DockerView> {
             shellService: shell,
             path: state.path!,
             settingsController: widget.settingsController,
+            optionsController: controller,
           ),
           workspaceState: state,
+          optionsController: controller,
         );
     }
   }
@@ -1345,12 +1351,14 @@ class DockerEditorLoader extends StatefulWidget {
     required this.shellService,
     required this.path,
     required this.settingsController,
+    required this.optionsController,
   });
 
   final SshHost host;
   final RemoteShellService shellService;
   final String path;
   final AppSettingsController settingsController;
+  final TabOptionsController optionsController;
 
   @override
   State<DockerEditorLoader> createState() => _DockerEditorLoaderState();
@@ -1385,6 +1393,7 @@ class _DockerEditorLoaderState extends State<DockerEditorLoader> {
           onSave: (value) =>
               widget.shellService.writeFile(widget.host, widget.path, value),
           settingsController: widget.settingsController,
+          optionsController: widget.optionsController,
         );
       },
     );
