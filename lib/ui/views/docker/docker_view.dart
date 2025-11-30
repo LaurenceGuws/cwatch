@@ -15,7 +15,7 @@ import '../../../services/settings/app_settings_controller.dart';
 import '../../../services/filesystem/explorer_trash_manager.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/nerd_fonts.dart';
-import '../../../core/workspace/workspace_tracker.dart';
+import '../../../core/workspace/workspace_persistence.dart';
 import '../../../models/docker_workspace_state.dart';
 import 'engine_tab.dart';
 import 'docker_engine_list.dart';
@@ -60,7 +60,8 @@ class _DockerViewState extends State<DockerView> {
   final Map<String, GlobalObjectKey<_KeepAliveWrapperState>> _keepAliveKeys =
       {};
   final List<Widget> _tabWidgets = [];
-  final WorkspaceTracker _workspaceTracker = WorkspaceTracker();
+  late final WorkspacePersistence<DockerWorkspaceState>
+      _workspacePersistence;
   late final VoidCallback _settingsListener;
 
   Future<List<DockerContext>>? _contextsFuture;
@@ -81,6 +82,13 @@ class _DockerViewState extends State<DockerView> {
     _tabWidgets.add(_tabWidgetFor(picker));
     _registerTabState(picker.workspaceState as DockerTabState);
     _settingsListener = _handleSettingsChanged;
+    _workspacePersistence = WorkspacePersistence(
+      settingsController: widget.settingsController,
+      readFromSettings: (settings) => settings.dockerWorkspace,
+      writeToSettings: (current, workspace) =>
+          current.copyWith(dockerWorkspace: workspace),
+      signatureOf: (workspace) => workspace.signature,
+    );
     widget.settingsController.addListener(_settingsListener);
     _loadCachedReady();
     _restoreWorkspace();
@@ -853,27 +861,13 @@ class _DockerViewState extends State<DockerView> {
     );
   }
 
-  void _persistWorkspace() {
-    if (!widget.settingsController.isLoaded) {
-      _workspaceTracker.deferSave();
-      return;
-    }
+  Future<void> _persistWorkspace() async {
     final workspace = _currentWorkspaceState();
-    final signature = workspace.signature;
-    if (!_workspaceTracker.shouldPersist(signature)) {
-      return;
-    }
-    _workspaceTracker.markPersisted(signature);
-    widget.settingsController.update(
-      (current) => current.copyWith(dockerWorkspace: workspace),
-    );
+    await _workspacePersistence.persist(workspace);
   }
 
   void _handleSettingsChanged() {
-    if (_workspaceTracker.pendingSave &&
-        widget.settingsController.isLoaded) {
-      _persistWorkspace();
-    }
+    _workspacePersistence.persistIfPending(_persistWorkspace);
   }
 
   Future<void> _restoreWorkspace() async {
@@ -905,11 +899,9 @@ class _DockerViewState extends State<DockerView> {
       });
       return;
     }
-    final signature = workspace.signature;
-    if (_workspaceTracker.hasRestored(signature)) {
+    if (!_workspacePersistence.shouldRestore(workspace)) {
       return;
     }
-
     final newTabs = <EngineTab>[];
     final newStates = <String, DockerTabState>{};
     final usedIds = <String>{};
@@ -934,7 +926,9 @@ class _DockerViewState extends State<DockerView> {
       );
     }
 
-    final selected = workspace.selectedIndex.clamp(0, newTabs.length - 1);
+    final restoredWorkspace = workspace;
+    final selected =
+        restoredWorkspace.selectedIndex.clamp(0, newTabs.length - 1);
 
     setState(() {
       _tabs
@@ -949,7 +943,7 @@ class _DockerViewState extends State<DockerView> {
         ..clear()
         ..addAll(newTabs.map(_tabWidgetFor));
       _selectedIndex = selected;
-      _workspaceTracker.markRestored(signature);
+      _workspacePersistence.markRestored(restoredWorkspace);
     });
   }
 

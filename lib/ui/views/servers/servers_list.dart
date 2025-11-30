@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../core/workspace/workspace_tracker.dart';
+import '../../../core/workspace/workspace_persistence.dart';
 import '../../../models/custom_ssh_host.dart';
 import '../../../models/explorer_context.dart';
 import '../../../models/server_action.dart';
@@ -56,7 +56,7 @@ class _ServersListState extends State<ServersList> {
   int _selectedTabIndex = 0;
   final ExplorerTrashManager _trashManager = ExplorerTrashManager();
   late final VoidCallback _settingsListener;
-  final WorkspaceTracker _workspaceTracker = WorkspaceTracker();
+  late final WorkspacePersistence<ServerWorkspaceState> _workspacePersistence;
   final Map<String, Widget> _tabBodies = {};
   static int _placeholderSequence = 0;
 
@@ -77,12 +77,17 @@ class _ServersListState extends State<ServersList> {
   @override
   void initState() {
     super.initState();
-    widget.builtInVault
-        .forgetAll(); // Ensure keys are locked whenever the workspace is reconstructed.
     final base = _createPlaceholderTab();
     _tabs.add(base);
     _tabBodies[base.id] = _buildTabWidget(base);
     _settingsListener = _handleSettingsChanged;
+    _workspacePersistence = WorkspacePersistence(
+      settingsController: widget.settingsController,
+      readFromSettings: (settings) => settings.serverWorkspace,
+      writeToSettings: (current, workspace) =>
+          current.copyWith(serverWorkspace: workspace),
+      signatureOf: (workspace) => workspace.signature,
+    );
     widget.settingsController.addListener(_settingsListener);
     _restoreWorkspace();
   }
@@ -291,10 +296,7 @@ class _ServersListState extends State<ServersList> {
       return;
     }
     _restoreWorkspace();
-    if (_workspaceTracker.pendingSave &&
-        widget.settingsController.isLoaded) {
-      _persistWorkspace();
-    }
+    _workspacePersistence.persistIfPending(_persistWorkspace);
   }
 
   Future<void> _restoreWorkspace() async {
@@ -311,8 +313,7 @@ class _ServersListState extends State<ServersList> {
     if (workspace == null || workspace.tabs.isEmpty) {
       return;
     }
-    final signature = workspace.signature;
-    if (_workspaceTracker.hasRestored(signature)) {
+    if (!_workspacePersistence.shouldRestore(workspace)) {
       return;
     }
     final restoredTabs = _buildTabsFromState(workspace, hosts);
@@ -330,7 +331,7 @@ class _ServersListState extends State<ServersList> {
           restoredTabs.map((tab) => MapEntry(tab.id, _buildTabWidget(tab))),
         );
       _selectedTabIndex = workspace.selectedIndex.clamp(0, _tabs.length - 1);
-      _workspaceTracker.markRestored(signature);
+      _workspacePersistence.markRestored(workspace);
     });
   }
 
@@ -397,22 +398,9 @@ class _ServersListState extends State<ServersList> {
     return ServerWorkspaceState(tabs: tabs, selectedIndex: clampedIndex);
   }
 
-  void _persistWorkspace() {
-    if (!widget.settingsController.isLoaded) {
-      _workspaceTracker.deferSave();
-      return;
-    }
+  Future<void> _persistWorkspace() async {
     final workspace = _currentWorkspaceState();
-    final signature = workspace.signature;
-    if (!_workspaceTracker.shouldPersist(signature)) {
-      return;
-    }
-    _workspaceTracker.markPersisted(signature);
-    unawaited(
-      widget.settingsController.update(
-        (current) => current.copyWith(serverWorkspace: workspace),
-      ),
-    );
+    await _workspacePersistence.persist(workspace);
   }
 
   Future<void> _startActionFlowForHost(SshHost host) async {
