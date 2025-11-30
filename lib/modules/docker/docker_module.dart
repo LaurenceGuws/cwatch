@@ -1,1 +1,1 @@
-export 'package:cwatch/ui/views/docker/docker_view.dart';
+export 'package:cwatch/modules/docker/ui/docker_view.dart';

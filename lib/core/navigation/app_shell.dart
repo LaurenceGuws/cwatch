@@ -4,16 +4,17 @@ import 'package:flutter/material.dart';
 
 import '../../models/app_settings.dart';
 import '../../models/ssh_host.dart';
-import '../../modules/docker/docker_module.dart';
-import '../../modules/kubernetes/kubernetes_module.dart';
-import '../../modules/servers/servers_module.dart';
-import '../../modules/settings/settings_module.dart';
+import '../../modules/docker/view.dart';
+import '../../modules/kubernetes/view.dart';
+import '../../modules/servers/view.dart';
+import '../../modules/settings/view.dart';
 import '../../services/settings/app_settings_controller.dart';
 import '../../services/ssh/builtin/builtin_ssh_key_store.dart';
 import '../../services/ssh/builtin/builtin_ssh_vault.dart';
 import '../../services/ssh/remote_command_logging.dart';
 import '../../services/ssh/ssh_config_service.dart';
-import '../../ui/theme/nerd_fonts.dart';
+import '../../shared/theme/nerd_fonts.dart';
+import 'module_registry.dart';
 import 'shell_module.dart';
 
 class HomeShell extends StatefulWidget {
@@ -37,7 +38,7 @@ class _HomeShellState extends State<HomeShell> {
   String? _hostsSettingsSignature;
   _SidebarPlacement _sidebarPlacement = _SidebarPlacement.dynamic;
   final Map<String, Widget> _pageCache = {};
-  late final List<ShellModule> _modules;
+  late final ModuleRegistry _moduleRegistry;
 
   @override
   void initState() {
@@ -46,7 +47,8 @@ class _HomeShellState extends State<HomeShell> {
     _builtInKeyStore = BuiltInSshKeyStore();
     _builtInVault = BuiltInSshVault(keyStore: _builtInKeyStore);
     _refreshHosts();
-    _modules = _buildModules();
+    _moduleRegistry = ModuleRegistry(_buildModules());
+    _moduleRegistry.addListener(_handleModulesChanged);
     _hostsSettingsSignature = _hostSettingsSignature(
       widget.settingsController.settings,
     );
@@ -72,8 +74,24 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void dispose() {
     _commandLog.dispose();
+    _moduleRegistry.removeListener(_handleModulesChanged);
     widget.settingsController.removeListener(_settingsListener);
     super.dispose();
+  }
+
+  void _handleModulesChanged() {
+    if (!mounted) return;
+    setState(() {
+      final modules = _moduleRegistry.modules;
+      if (modules.isEmpty) {
+        _selectedDestination = '';
+        return;
+      }
+      final exists = modules.any((module) => module.id == _selectedDestination);
+      if (!exists) {
+        _selectedDestination = modules.first.id;
+      }
+    });
   }
 
   void _handleSettingsChanged() {
@@ -91,6 +109,9 @@ class _HomeShellState extends State<HomeShell> {
         }
         _shellStateRestored = true;
       });
+    }
+    if (_moduleRegistry.modules.isEmpty) {
+      return;
     }
     final nextSignature = _hostSettingsSignature(
       widget.settingsController.settings,
@@ -153,7 +174,7 @@ class _HomeShellState extends State<HomeShell> {
   Widget _buildPageForDestination(String destination, BuildContext context) {
     final toggleButton = _buildSidebarToggleButton(context);
     final module = _moduleById(destination);
-    return module?.builder(context, toggleButton) ?? const SizedBox.shrink();
+    return module?.build(context, toggleButton) ?? const SizedBox.shrink();
   }
 
   Future<void> _showSidebarOptions(
@@ -265,72 +286,49 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   String? _destinationFromName(String? value) =>
-      _modules.any((module) => module.id == value)
-          ? value
-          : (_modules.isNotEmpty ? _modules.first.id : null);
+      _moduleRegistry.modules.any((module) => module.id == value)
+      ? value
+      : (_moduleRegistry.modules.isNotEmpty
+            ? _moduleRegistry.modules.first.id
+            : null);
 
   int _moduleIndex(String id) {
-    if (_modules.isEmpty) return 0;
-    final index = _modules.indexWhere((module) => module.id == id);
+    final modules = _moduleRegistry.modules;
+    if (modules.isEmpty) return 0;
+    final index = modules.indexWhere((module) => module.id == id);
     return index == -1 ? 0 : index;
   }
 
-  ShellModule? _moduleById(String id) {
-    if (_modules.isEmpty) return null;
-    return _modules.firstWhere(
+  ShellModuleView? _moduleById(String id) {
+    final modules = _moduleRegistry.modules;
+    if (modules.isEmpty) return null;
+    return modules.firstWhere(
       (module) => module.id == id,
-      orElse: () => _modules.first,
+      orElse: () => modules.first,
     );
   }
 
-  List<ShellModule> _buildModules() {
+  List<ShellModuleView> _buildModules() {
     return [
-      ShellModule(
-        id: 'servers',
-        label: 'Servers',
-        icon: NerdIcon.servers,
-        builder: (context, leading) => ServersList(
-          hostsFuture: _hostsFuture,
-          settingsController: widget.settingsController,
-          builtInVault: _builtInVault,
-          commandLog: _commandLog,
-          leading: leading,
-        ),
+      ServersModule(
+        hostsFuture: _hostsFuture,
+        settingsController: widget.settingsController,
+        builtInVault: _builtInVault,
+        commandLog: _commandLog,
       ),
-      ShellModule(
-        id: 'docker',
-        label: 'Docker',
-        icon: NerdIcon.docker,
-        builder: (context, leading) => DockerView(
-          leading: leading,
-          hostsFuture: _hostsFuture,
-          settingsController: widget.settingsController,
-          builtInVault: _builtInVault,
-          commandLog: _commandLog,
-        ),
+      DockerModule(
+        hostsFuture: _hostsFuture,
+        settingsController: widget.settingsController,
+        builtInVault: _builtInVault,
+        commandLog: _commandLog,
       ),
-      ShellModule(
-        id: 'kubernetes',
-        label: 'Kubernetes',
-        icon: NerdIcon.kubernetes,
-        builder: (context, leading) => KubernetesContextList(
-          leading: leading,
-          settingsController: widget.settingsController,
-        ),
-      ),
-      ShellModule(
-        id: 'settings',
-        label: 'Settings',
-        icon: NerdIcon.settings,
-        isPrimary: false,
-        builder: (context, leading) => SettingsView(
-          controller: widget.settingsController,
-          hostsFuture: _hostsFuture,
-          builtInKeyStore: _builtInKeyStore,
-          builtInVault: _builtInVault,
-          commandLog: _commandLog,
-          leading: leading,
-        ),
+      KubernetesModule(settingsController: widget.settingsController),
+      SettingsModule(
+        controller: widget.settingsController,
+        hostsFuture: _hostsFuture,
+        builtInKeyStore: _builtInKeyStore,
+        builtInVault: _builtInVault,
+        commandLog: _commandLog,
       ),
     ];
   }
@@ -346,13 +344,18 @@ class _HomeShellState extends State<HomeShell> {
         final viewportWidth = MediaQuery.of(context).size.width;
         final viewportHeight = MediaQuery.of(context).size.height;
         final isPortrait = viewportHeight > viewportWidth;
-        final primaryModules =
-            _modules.where((module) => module.isPrimary).toList();
-        final secondaryModules =
-            _modules.where((module) => !module.isPrimary).toList();
+        final modules = _moduleRegistry.modules;
+        final primaryModules = modules
+            .where((module) => module.isPrimary)
+            .toList();
+        final secondaryModules = modules
+            .where((module) => !module.isPrimary)
+            .toList();
         final selectedIndex = _moduleIndex(_selectedDestination);
-        final safeSelectedIndex =
-            selectedIndex.clamp(0, (_modules.length - 1).clamp(0, 9999));
+        final safeSelectedIndex = selectedIndex.clamp(
+          0,
+          (modules.length - 1).clamp(0, 9999),
+        );
         final bool showSidebar = !_sidebarCollapsed;
         Widget? navigationBar;
         Alignment navigationAlignment = Alignment.centerLeft;
@@ -362,7 +365,7 @@ class _HomeShellState extends State<HomeShell> {
             case _SidebarPlacement.dynamic:
               if (isPortrait) {
                 navigationBar = _BottomNavBar(
-                  modules: _modules,
+                  modules: modules,
                   selected: _selectedDestination,
                   onSelect: _handleDestinationSelected,
                   onShowOptions: showOptions,
@@ -408,7 +411,7 @@ class _HomeShellState extends State<HomeShell> {
               break;
             case _SidebarPlacement.bottom:
               navigationBar = _BottomNavBar(
-                modules: _modules,
+                modules: modules,
                 selected: _selectedDestination,
                 onSelect: _handleDestinationSelected,
                 onShowOptions: showOptions,
@@ -425,10 +428,9 @@ class _HomeShellState extends State<HomeShell> {
           child: IndexedStack(
             key: const ValueKey('pages-indexed-stack'),
             index: safeSelectedIndex,
-            children: _modules
+            children: modules
                 .map(
-                  (module) =>
-                      _pageCache[module.id] ?? const SizedBox.shrink(),
+                  (module) => _pageCache[module.id] ?? const SizedBox.shrink(),
                 )
                 .toList(),
           ),
@@ -461,8 +463,8 @@ class _Sidebar extends StatelessWidget {
     this.alignRight = false,
   });
 
-  final List<ShellModule> primaryModules;
-  final List<ShellModule> secondaryModules;
+  final List<ShellModuleView> primaryModules;
+  final List<ShellModuleView> secondaryModules;
   final String selected;
   final ValueChanged<String> onSelect;
   final bool alignRight;
@@ -545,7 +547,7 @@ class _BottomNavBar extends StatelessWidget {
     this.onShowOptions,
   });
 
-  final List<ShellModule> modules;
+  final List<ShellModuleView> modules;
   final String selected;
   final ValueChanged<String> onSelect;
   final ValueChanged<Offset>? onShowOptions;
@@ -750,10 +752,4 @@ String _placementToString(_SidebarPlacement placement) {
   }
 }
 
-enum _SidebarOption {
-  hide,
-  pinLeft,
-  pinRight,
-  pinBottom,
-  dynamicPlacement,
-}
+enum _SidebarOption { hide, pinLeft, pinRight, pinBottom, dynamicPlacement }

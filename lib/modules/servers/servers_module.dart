@@ -1,1 +1,1 @@
-export 'package:cwatch/ui/views/servers/servers_list.dart';
+export 'package:cwatch/modules/servers/ui/servers_list.dart';

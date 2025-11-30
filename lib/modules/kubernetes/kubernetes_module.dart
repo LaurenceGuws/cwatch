@@ -1,1 +1,1 @@
-export 'package:cwatch/ui/views/kubernetes/kubernetes_context_list.dart';
+export 'package:cwatch/modules/kubernetes/ui/kubernetes_context_list.dart';

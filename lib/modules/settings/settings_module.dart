@@ -1,1 +1,1 @@
-export 'package:cwatch/ui/views/settings/settings_view.dart';
+export 'package:cwatch/modules/settings/ui/settings/settings_view.dart';

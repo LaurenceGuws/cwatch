@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/settings/app_settings_controller.dart';
 import '../navigation/app_shell.dart';
-import '../../ui/theme/app_theme.dart';
+import '../../shared/theme/app_theme.dart';
 
 Future<void> runAppBootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
