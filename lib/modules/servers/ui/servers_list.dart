@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import 'package:cwatch/core/tabs/tab_host.dart';
 import 'package:cwatch/core/tabs/tab_host_view.dart';
-import 'package:cwatch/core/workspace/workspace_persistence.dart';
 import 'package:cwatch/models/custom_ssh_host.dart';
 import 'package:cwatch/models/explorer_context.dart';
 import 'package:cwatch/models/server_action.dart';
@@ -21,14 +20,11 @@ import 'servers/add_server_dialog.dart';
 import 'servers/host_list.dart';
 import 'servers/server_models.dart';
 import 'servers/servers_widgets.dart';
-import 'widgets/connectivity_tab.dart';
-import 'package:cwatch/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart';
-import 'widgets/resources_tab.dart';
-import 'package:cwatch/shared/views/shared/tabs/terminal/terminal_tab.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
-import 'package:cwatch/shared/views/shared/tabs/file_explorer/trash_tab.dart';
-import 'package:cwatch/shared/views/shared/tabs/editor/remote_file_editor_tab.dart';
+import 'package:cwatch/shared/views/shared/tabs/editor/remote_file_editor_loader.dart';
 import 'package:cwatch/services/ssh/remote_editor_cache.dart';
+import 'server_tab_factory.dart';
+import 'server_workspace_controller.dart';
 
 class ServersList extends StatefulWidget {
   const ServersList({
@@ -55,10 +51,11 @@ class _ServersListState extends State<ServersList> {
   final ExplorerTrashManager _trashManager = ExplorerTrashManager();
   late final VoidCallback _settingsListener;
   late final VoidCallback _tabsListener;
-  late final WorkspacePersistence<ServerWorkspaceState> _workspacePersistence;
   final Map<String, Widget> _tabBodies = {};
   final Map<String, ServerTab> _tabCache = {};
   static int _placeholderSequence = 0;
+  late final ServerWorkspaceController _workspaceController;
+  ServerTabFactory get _tabFactory => _workspaceController.tabFactory;
 
   List<ServerTab> get _tabs => _tabController.tabs;
   int get _selectedTabIndex => _tabController.selectedIndex;
@@ -71,16 +68,21 @@ class _ServersListState extends State<ServersList> {
 
   ServerTab _createPlaceholderTab() {
     final id = _newPlaceholderId();
-    return _createTab(
-      id: id,
-      host: const PlaceholderHost(),
-      action: ServerAction.empty,
-    );
+    return _tabFactory.emptyTab(id: id);
   }
 
   @override
   void initState() {
     super.initState();
+    _workspaceController = ServerWorkspaceController(
+      settingsController: widget.settingsController,
+      keyService: widget.keyService,
+      commandLog: widget.commandLog,
+      hostsLoader: () => widget.hostsFuture,
+      trashManager: _trashManager,
+      shellServiceForHost: _shellServiceForHost,
+      editorBuilder: _buildEditorBody,
+    );
     _tabController = TabHostController<ServerTab>(
       baseTabBuilder: _createPlaceholderTab,
       tabId: (tab) => tab.id,
@@ -91,13 +93,6 @@ class _ServersListState extends State<ServersList> {
     _tabsListener = _handleTabsChanged;
     _tabController.addListener(_tabsListener);
     _settingsListener = _handleSettingsChanged;
-    _workspacePersistence = WorkspacePersistence(
-      settingsController: widget.settingsController,
-      readFromSettings: (settings) => settings.serverWorkspace,
-      writeToSettings: (current, workspace) =>
-          current.copyWith(serverWorkspace: workspace),
-      signatureOf: (workspace) => workspace.signature,
-    );
     widget.settingsController.addListener(_settingsListener);
     _restoreWorkspace();
   }
@@ -144,13 +139,13 @@ class _ServersListState extends State<ServersList> {
           return ErrorState(error: snapshot.error.toString());
         }
         final hosts = snapshot.data ?? <SshHost>[];
-      return HostList(
-        hosts: hosts,
-        onSelect: onHostSelected,
-        onActivate: onHostActivate ?? _startActionFlowForHost,
-        settingsController: widget.settingsController,
-        onOpenConnectivity: (host) =>
-            _addTab(host, ServerAction.connectivity),
+        return HostList(
+          hosts: hosts,
+          onSelect: onHostSelected,
+          onActivate: onHostActivate ?? _startActionFlowForHost,
+          settingsController: widget.settingsController,
+          onOpenConnectivity: (host) =>
+              _addTab(host, ServerAction.connectivity),
           onOpenResources: (host) => _addTab(host, ServerAction.resources),
           onOpenTerminal: (host) => _addTab(host, ServerAction.terminal),
           onOpenExplorer: (host) => _addTab(host, ServerAction.fileExplorer),
@@ -274,7 +269,9 @@ class _ServersListState extends State<ServersList> {
       return;
     }
     _restoreWorkspace();
-    _workspacePersistence.persistIfPending(_persistWorkspace);
+    _workspaceController.workspacePersistence.persistIfPending(
+      _persistWorkspace,
+    );
   }
 
   void _handleTabsChanged() {
@@ -295,12 +292,7 @@ class _ServersListState extends State<ServersList> {
   }
 
   Future<void> _restoreWorkspace() async {
-    List<SshHost> hosts;
-    try {
-      hosts = await widget.hostsFuture;
-    } catch (_) {
-      hosts = const [];
-    }
+    final hosts = await _workspaceController.loadHosts();
     if (!mounted) {
       return;
     }
@@ -308,14 +300,15 @@ class _ServersListState extends State<ServersList> {
     if (workspace == null || workspace.tabs.isEmpty) {
       return;
     }
-    if (!_workspacePersistence.shouldRestore(workspace)) {
+    if (!_workspaceController.workspacePersistence.shouldRestore(workspace)) {
       return;
     }
-    final restoredTabs = _buildTabsFromState(workspace, hosts);
+    final restoredTabs =
+        _workspaceController.buildTabsFromState(workspace, hosts);
     if (restoredTabs.isEmpty) {
       return;
     }
-    _workspacePersistence.markRestored(workspace);
+    _workspaceController.workspacePersistence.markRestored(workspace);
     _disposeTabControllers(_tabs);
     _tabBodies.clear();
     _tabCache.clear();
@@ -325,72 +318,16 @@ class _ServersListState extends State<ServersList> {
     );
   }
 
-  List<ServerTab> _buildTabsFromState(
-    ServerWorkspaceState workspace,
-    List<SshHost> hosts,
-  ) {
-    final restored = <ServerTab>[];
-    for (final tabState in workspace.tabs) {
-      final host = _resolveHost(tabState, hosts);
-      if (host == null) {
-        continue;
-      }
-      restored.add(
-        _createTab(
-          id: tabState.id,
-          host: host,
-          action: tabState.action,
-          customName: tabState.customName,
-        ),
-      );
-    }
-    return restored;
-  }
-
-  SshHost? _resolveHost(ServerTabState tabState, List<SshHost> hosts) {
-    switch (tabState.action) {
-      case ServerAction.empty:
-        return const PlaceholderHost();
-      case ServerAction.trash:
-        return _findHostByName(hosts, tabState.hostName) ?? const TrashHost();
-      case ServerAction.fileExplorer:
-      case ServerAction.connectivity:
-      case ServerAction.terminal:
-      case ServerAction.resources:
-      case ServerAction.editor:
-        return _findHostByName(hosts, tabState.hostName);
-    }
-  }
-
-  SshHost? _findHostByName(List<SshHost> hosts, String target) {
-    for (final host in hosts) {
-      if (host.name == target) {
-        return host;
-      }
-    }
-    return null;
-  }
-
   ServerWorkspaceState _currentWorkspaceState() {
-    final tabs = _tabs
-        .map(
-          (tab) => ServerTabState(
-            id: tab.id,
-            hostName: tab.host.name,
-            action: tab.action,
-            customName: tab.customName,
-          ),
-        )
-        .toList();
-    final clampedIndex = _tabs.isEmpty
-        ? 0
-        : _selectedTabIndex.clamp(0, _tabs.length - 1);
-    return ServerWorkspaceState(tabs: tabs, selectedIndex: clampedIndex);
+    return _workspaceController.currentWorkspaceState(
+      _tabs,
+      _selectedTabIndex,
+    );
   }
 
   Future<void> _persistWorkspace() async {
     final workspace = _currentWorkspaceState();
-    await _workspacePersistence.persist(workspace);
+    await _workspaceController.workspacePersistence.persist(workspace);
   }
 
   Future<void> _startActionFlowForHost(SshHost host) async {
@@ -433,7 +370,7 @@ class _ServersListState extends State<ServersList> {
   ServerTab _tabAt(int index) => _tabs[index];
 
   void _addEmptyTabPlaceholder() {
-    final placeholder = _createPlaceholderTab();
+    final placeholder = _tabFactory.emptyTab(id: _newPlaceholderId());
     _tabBodies[placeholder.id] = _buildTabWidget(placeholder);
     _tabController.addTab(placeholder);
   }
@@ -449,17 +386,49 @@ class _ServersListState extends State<ServersList> {
     String? customName,
     GlobalKey? bodyKey,
     ExplorerContext? explorerContext,
-    TabOptionsController? optionsController,
+    String? initialContent,
   }) {
-    return ServerTab(
-      id: id,
-      host: host,
-      action: action,
-      bodyKey: bodyKey ?? GlobalKey(debugLabel: 'server-tab-$id'),
-      customName: customName,
-      explorerContext: explorerContext,
-      optionsController: optionsController,
-    );
+    switch (action) {
+      case ServerAction.fileExplorer:
+        return _tabFactory.explorerTab(
+          id: id,
+          host: host,
+          bodyKey: bodyKey,
+          explorerContext: explorerContext,
+        );
+      case ServerAction.editor:
+        return _tabFactory.editorTab(
+          id: id,
+          host: host,
+          path: customName ?? '',
+          initialContent: initialContent,
+          bodyKey: bodyKey,
+        );
+      case ServerAction.terminal:
+        return _tabFactory.terminalTab(
+          id: id,
+          host: host,
+          initialDirectory: customName,
+          bodyKey: bodyKey,
+        );
+      case ServerAction.resources:
+        return _tabFactory.resourcesTab(id: id, host: host, bodyKey: bodyKey);
+      case ServerAction.connectivity:
+        return _tabFactory.connectivityTab(
+          id: id,
+          host: host,
+          bodyKey: bodyKey,
+        );
+      case ServerAction.trash:
+        return _tabFactory.trashTab(
+          id: id,
+          host: host,
+          explorerContext: explorerContext,
+          bodyKey: bodyKey,
+        );
+      case ServerAction.empty:
+        return _tabFactory.emptyTab(id: id);
+    }
   }
 
   Widget _tabWidgetFor(ServerTab tab) {
@@ -473,64 +442,34 @@ class _ServersListState extends State<ServersList> {
   }
 
   Widget _buildTabWidget(ServerTab tab) {
-    switch (tab.action) {
-      case ServerAction.empty:
-        return _buildHostSelection(
-          onHostActivate: (selectedHost) =>
-              _activateEmptyTab(tab.id, selectedHost),
-        );
-      case ServerAction.fileExplorer:
-        final explorerContext = ExplorerContext.server(tab.host);
-        return FileExplorerTab(
-          key: tab.bodyKey,
-          host: tab.host,
-          explorerContext: explorerContext,
-          shellService: _shellServiceForHost(tab.host),
-          keyService: widget.keyService,
-          trashManager: _trashManager,
-          onOpenTrash: _openTrashTab,
-          onOpenEditorTab: _openEditorTab,
-          onOpenTerminalTab: (path) =>
-              _openTerminalTab(host: tab.host, initialDirectory: path),
-          optionsController: tab.optionsController,
-        );
-      case ServerAction.editor:
-        final editorPath = tab.customName ?? '';
-        return _EditorTabLoader(
-          key: tab.bodyKey,
-          host: tab.host,
-          shellService: _shellServiceForHost(tab.host),
-          path: editorPath,
-          settingsController: widget.settingsController,
-          optionsController: tab.optionsController,
-        );
-      case ServerAction.connectivity:
-        return ConnectivityTab(key: tab.bodyKey, host: tab.host);
-      case ServerAction.resources:
-        return ResourcesTab(
-          key: tab.bodyKey,
-          host: tab.host,
-          shellService: _shellServiceForHost(tab.host),
-        );
-      case ServerAction.terminal:
-        return TerminalTab(
-          key: tab.bodyKey,
-          host: tab.host,
-          initialDirectory: tab.customName,
-          shellService: _shellServiceForHost(tab.host),
-          settingsController: widget.settingsController,
-          optionsController: tab.optionsController,
-          onExit: () => _closeTabById(tab.id),
-        );
-      case ServerAction.trash:
-        return TrashTab(
-          key: tab.bodyKey,
-          manager: _trashManager,
-          shellService: _shellServiceForHost(tab.host),
-          keyService: widget.keyService,
-          context: tab.explorerContext,
-        );
+    if (tab.action == ServerAction.empty) {
+      return _buildHostSelection(
+        onHostActivate: (selectedHost) =>
+            _activateEmptyTab(tab.id, selectedHost),
+      );
     }
+    return _tabFactory.buildBody(
+      tab,
+      onOpenEditorTab: (path, content) =>
+          _openEditorTabForHost(tab.host, path, content),
+      onOpenTerminalTab: (host, {initialDirectory}) =>
+          _openTerminalTab(host: host, initialDirectory: initialDirectory),
+      onOpenTrash: _openTrashTab,
+      onCloseTab: _closeTabById,
+    );
+  }
+
+  Widget _buildEditorBody(ServerTab tab) {
+    final editorPath = tab.customName ?? '';
+    return _EditorTabLoader(
+      key: tab.bodyKey,
+      host: tab.host,
+      shellService: _shellServiceForHost(tab.host),
+      path: editorPath,
+      settingsController: widget.settingsController,
+      initialContent: tab.initialContent,
+      optionsController: tab.optionsController,
+    );
   }
 
   RemoteShellService _shellServiceForHost(SshHost host) {
@@ -658,38 +597,37 @@ class _ServersListState extends State<ServersList> {
 
   void _openTrashTab(ExplorerContext context) {
     final host = context.host;
-    final tab = _createTab(
+    final tab = _tabFactory.trashTab(
       id: 'trash-${host.name}-${DateTime.now().microsecondsSinceEpoch}',
       host: host,
-      action: ServerAction.trash,
-      customName: 'Trash • ${host.name}',
       explorerContext: context,
     );
     _tabBodies[tab.id] = _buildTabWidget(tab);
     _tabController.addTab(tab);
   }
 
-  Future<void> _openEditorTab(String path, String initialContent) async {
-    // Find existing editor tab for this path, or create a new one
+  Future<void> _openEditorTabForHost(
+    SshHost host,
+    String path,
+    String initialContent,
+  ) async {
     final existingIndex = _tabs.indexWhere(
-      (tab) => tab.action == ServerAction.editor && tab.customName == path,
+      (tab) =>
+          tab.action == ServerAction.editor &&
+          tab.customName == path &&
+          tab.host.name == host.name,
     );
 
     if (existingIndex != -1) {
-      // Switch to existing tab
       _selectTab(existingIndex);
       return;
     }
 
-    // Create new editor tab
-    final tab = _createTab(
+    final tab = _tabFactory.editorTab(
       id: 'editor-${DateTime.now().microsecondsSinceEpoch}',
-      host:
-          _tabs.isNotEmpty && _tabs[_selectedTabIndex].host is! PlaceholderHost
-          ? _tabs[_selectedTabIndex].host
-          : const PlaceholderHost(),
-      action: ServerAction.editor,
-      customName: path,
+      host: host,
+      path: path,
+      initialContent: initialContent,
     );
     _tabBodies[tab.id] = _buildTabWidget(tab);
     _tabController.addTab(tab);
@@ -714,11 +652,10 @@ class _ServersListState extends State<ServersList> {
       return;
     }
 
-    final tab = _createTab(
+    final tab = _tabFactory.terminalTab(
       id: 'terminal-${DateTime.now().microsecondsSinceEpoch}',
       host: host,
-      action: ServerAction.terminal,
-      customName: normalizedDirectory,
+      initialDirectory: normalizedDirectory,
     );
     _tabBodies[tab.id] = _buildTabWidget(tab);
     _tabController.addTab(tab);
@@ -853,13 +790,14 @@ class _ServersListState extends State<ServersList> {
   }
 }
 
-class _EditorTabLoader extends StatefulWidget {
+class _EditorTabLoader extends StatelessWidget {
   const _EditorTabLoader({
     super.key,
     required this.host,
     required this.shellService,
     required this.path,
     required this.settingsController,
+    this.initialContent,
     this.optionsController,
   });
 
@@ -867,79 +805,27 @@ class _EditorTabLoader extends StatefulWidget {
   final RemoteShellService shellService;
   final String path;
   final AppSettingsController settingsController;
+  final String? initialContent;
   final TabOptionsController? optionsController;
 
   @override
-  State<_EditorTabLoader> createState() => _EditorTabLoaderState();
-}
-
-class _EditorTabLoaderState extends State<_EditorTabLoader> {
-  String? _content;
-  String? _error;
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadFile();
-  }
-
-  Future<void> _loadFile() async {
-    try {
-      final content = await widget.shellService.readFile(
-        widget.host,
-        widget.path,
-      );
-      if (!mounted) return;
-      setState(() {
-        _content = content;
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('Failed to load file: $_error'),
-            const SizedBox(height: 16),
-            FilledButton(onPressed: _loadFile, child: const Text('Retry')),
-          ],
-        ),
-      );
-    }
-    if (_content == null) {
-      return const Center(child: Text('No content'));
-    }
     final cache = RemoteEditorCache();
-    return RemoteFileEditorTab(
-      host: widget.host,
-      shellService: widget.shellService,
-      path: widget.path,
-      initialContent: _content!,
-      settingsController: widget.settingsController,
+    return RemoteFileEditorLoader(
+      host: host,
+      shellService: shellService,
+      path: path,
+      settingsController: settingsController,
+      initialContent: initialContent,
+      optionsController: optionsController,
       onSave: (content) async {
-        await widget.shellService.writeFile(widget.host, widget.path, content);
+        await shellService.writeFile(host, path, content);
         await cache.materialize(
-          host: widget.host.name,
-          remotePath: widget.path,
+          host: host.name,
+          remotePath: path,
           contents: content,
         );
       },
-      optionsController: widget.optionsController,
     );
   }
 }

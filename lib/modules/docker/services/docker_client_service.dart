@@ -2,13 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import '../../models/docker_context.dart';
-import '../../models/docker_container.dart';
-import '../../models/docker_container_stat.dart';
-import '../../models/docker_image.dart';
-import '../../models/docker_network.dart';
-import '../../models/docker_volume.dart';
-import '../logging/app_logger.dart';
+import 'package:cwatch/models/docker_context.dart';
+import 'package:cwatch/models/docker_container.dart';
+import 'package:cwatch/models/docker_container_stat.dart';
+import 'package:cwatch/models/docker_image.dart';
+import 'package:cwatch/models/docker_network.dart';
+import 'package:cwatch/models/docker_volume.dart';
+import 'package:cwatch/services/logging/app_logger.dart';
 
 class DockerClientService {
   const DockerClientService({this.processRunner = Process.run});

@@ -15,6 +15,7 @@ class ServerTab {
     required this.bodyKey,
     this.customName,
     this.explorerContext,
+    this.initialContent,
     TabOptionsController? optionsController,
   }) : optionsController = optionsController ?? TabOptionsController();
 
@@ -24,6 +25,7 @@ class ServerTab {
   final GlobalKey bodyKey;
   final String? customName;
   final ExplorerContext? explorerContext;
+  final String? initialContent;
   final TabOptionsController optionsController;
 
   String get title => _displayName;
@@ -60,6 +62,7 @@ class ServerTab {
     String? customName,
     bool setCustomName = false,
     ExplorerContext? explorerContext,
+    String? initialContent,
     TabOptionsController? optionsController,
   }) {
     return ServerTab(
@@ -69,6 +72,7 @@ class ServerTab {
       bodyKey: bodyKey ?? this.bodyKey,
       customName: setCustomName ? customName : this.customName,
       explorerContext: explorerContext ?? this.explorerContext,
+      initialContent: initialContent ?? this.initialContent,
       optionsController: optionsController ?? this.optionsController,
     );
   }

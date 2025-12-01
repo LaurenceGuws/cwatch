@@ -5,7 +5,7 @@ import 'package:cwatch/models/docker_context.dart';
 import 'package:cwatch/models/explorer_context.dart';
 import 'package:cwatch/models/ssh_client_backend.dart';
 import 'package:cwatch/models/ssh_host.dart';
-import 'package:cwatch/services/docker/docker_client_service.dart';
+import 'package:cwatch/modules/docker/services/docker_client_service.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/services/ssh/remote_command_logging.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
@@ -22,10 +22,12 @@ import 'widgets/docker_overview.dart';
 import 'widgets/docker_engine_picker.dart';
 import 'widgets/docker_resources.dart';
 import 'widgets/docker_command_terminal.dart';
+import 'widgets/remote_scan_dialog.dart';
+import '../services/docker_container_shell_service.dart';
 import 'package:cwatch/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart';
-import 'package:cwatch/shared/views/shared/tabs/file_explorer/trash_tab.dart';
-import 'package:cwatch/shared/views/shared/tabs/editor/remote_file_editor_tab.dart';
+import 'package:cwatch/shared/views/shared/tabs/editor/remote_file_editor_loader.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
+import 'docker_tab_factory.dart';
 
 class DockerView extends StatefulWidget {
   const DockerView({
@@ -50,6 +52,12 @@ class DockerView extends StatefulWidget {
 class _DockerViewState extends State<DockerView> {
   final DockerClientService _docker = const DockerClientService();
   final ExplorerTrashManager _trashManager = ExplorerTrashManager();
+  DockerTabFactory get _tabFactory => DockerTabFactory(
+    docker: _docker,
+    settingsController: widget.settingsController,
+    trashManager: _trashManager,
+    keyService: widget.keyService,
+  );
   late final TabHostController<EngineTab> _tabController;
   final Map<String, DockerTabState> _tabStates = {};
   final Map<String, Widget> _tabBodies = {};
@@ -63,17 +71,33 @@ class _DockerViewState extends State<DockerView> {
   Future<List<DockerContext>>? _contextsFuture;
   Future<List<RemoteDockerStatus>>? _remoteStatusFuture;
   bool _remoteScanRequested = false;
+  bool _scanningRemotes = false;
+  int _scanToken = 0;
+  final Set<int> _cancelledScans = {};
+  final ValueNotifier<List<SshHost>> _scanHostsNotifier =
+      ValueNotifier<List<SshHost>>(const []);
+  final ValueNotifier<List<RemoteDockerStatus>> _scanStatusesNotifier =
+      ValueNotifier<List<RemoteDockerStatus>>(const []);
+  final ValueNotifier<bool> _scanningNotifier = ValueNotifier<bool>(false);
   List<RemoteDockerStatus> _cachedReady = const [];
 
   List<EngineTab> get _tabs => _tabController.tabs;
   int get _selectedIndex => _tabController.selectedIndex;
   void _replaceBaseTab(EngineTab tab) {
+    final selectedId =
+        _tabs.isEmpty ? null : _tabs[_selectedIndex.clamp(0, _tabs.length - 1)].id;
     if (_tabController.tabs.isEmpty) {
       _tabController.addTab(tab);
     } else {
       _tabController.replaceBaseTab(tab);
     }
     _tabBodies[tab.id] = _tabWidgetFor(tab);
+    if (selectedId != null) {
+      final restoredIndex = _tabs.indexWhere((t) => t.id == selectedId);
+      if (restoredIndex != -1) {
+        _tabController.select(restoredIndex);
+      }
+    }
   }
 
   @override
@@ -149,14 +173,44 @@ class _DockerViewState extends State<DockerView> {
   }
 
   void _scanRemotes() {
+    if (_scanningRemotes) return;
+    final token = ++_scanToken;
+    _scanningRemotes = true;
+    _scanningNotifier.value = true;
     _remoteScanRequested = true;
-    _remoteStatusFuture = _loadRemoteStatuses();
-    final currentId = _tabs.first.id;
-    final picker = _enginePickerTab(id: currentId);
-    _disposeTabOptions(_tabs[0]);
-    _replaceBaseTab(picker);
-    _registerTabState(picker.workspaceState as DockerTabState);
-    _persistWorkspace();
+    _scanStatusesNotifier.value = const [];
+    _remoteStatusFuture = _loadRemoteStatuses(manual: true, token: token);
+    bool dialogOpen = true;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return RemoteScanDialog(
+          onCancel: () {
+            _cancelledScans.add(token);
+            dialogOpen = false;
+            Navigator.of(dialogContext).pop();
+            setState(() {
+              _scanningRemotes = false;
+              _scanningNotifier.value = false;
+            });
+          },
+          hostsListenable: _scanHostsNotifier,
+          statusesListenable: _scanStatusesNotifier,
+          scanningListenable: _scanningNotifier,
+        );
+      },
+    );
+    _remoteStatusFuture!.whenComplete(() {
+      if (!mounted) return;
+      if (!_isScanCancelled(token) && dialogOpen) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+      setState(() {
+        _scanningRemotes = false;
+        _scanningNotifier.value = false;
+      });
+    });
   }
 
   @override
@@ -439,7 +493,10 @@ class _DockerViewState extends State<DockerView> {
     }
   }
 
-  Future<List<RemoteDockerStatus>> _loadRemoteStatuses() async {
+  Future<List<RemoteDockerStatus>> _loadRemoteStatuses({
+    bool manual = false,
+    int token = 0,
+  }) async {
     List<SshHost> hosts;
     try {
       hosts = await widget.hostsFuture;
@@ -449,6 +506,9 @@ class _DockerViewState extends State<DockerView> {
     if (!mounted || hosts.isEmpty) {
       return const [];
     }
+    setState(() {
+      _scanHostsNotifier.value = hosts;
+    });
     final results = await Future.wait(
       hosts.map((host) => _probeHost(host)),
       eagerError: false,
@@ -458,17 +518,32 @@ class _DockerViewState extends State<DockerView> {
         .where((s) => s.available)
         .map((s) => s.host.name)
         .toList();
-    await _persistReadyHosts(readyNames);
-    if (mounted) {
-      setState(() {
-        _cachedReady = statuses.where((s) => s.available).toList();
-        final currentId = _tabs.first.id;
-        final picker = _enginePickerTab(id: currentId);
-        _disposeTabOptions(_tabs[0]);
-        _replaceBaseTab(picker);
-      });
+    if (manual && !_isScanCancelled(token)) {
+      await _persistReadyHosts(readyNames);
+      if (mounted) {
+        setState(() {
+          _scanStatusesNotifier.value = statuses;
+          _cachedReady = statuses.where((s) => s.available).toList();
+        });
+        _refreshPickerTabs();
+      }
     }
     return statuses;
+  }
+
+  bool _isScanCancelled(int token) => _cancelledScans.contains(token);
+
+  void _refreshPickerTabs() {
+    final pickerIds = _tabs.where((tab) {
+      if (tab.workspaceState is DockerTabState) {
+        final state = tab.workspaceState as DockerTabState;
+        return state.kind == DockerTabKind.picker;
+      }
+      return tab.body is EnginePicker;
+    }).map((t) => t.id).toList();
+    for (final id in pickerIds) {
+      _replaceTab(id, _enginePickerTab(id: id));
+    }
   }
 
   Future<RemoteDockerStatus> _probeHost(SshHost host) async {
@@ -550,8 +625,7 @@ class _DockerViewState extends State<DockerView> {
     String hostName,
     String? keyLabel,
   ) async {
-    final initialResult =
-        await widget.keyService.unlock(keyId, password: null);
+    final initialResult = await widget.keyService.unlock(keyId, password: null);
     if (initialResult.status == BuiltInSshKeyUnlockStatus.unlocked) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -691,28 +765,16 @@ class _DockerViewState extends State<DockerView> {
     SshHost? remoteHost,
     RemoteShellService? shellService,
   }) {
-    final controller = TabOptionsController();
-    final body = DockerOverview(
-      docker: _docker,
-      contextName: contextName,
-      remoteHost: remoteHost,
-      shellService: shellService,
-      trashManager: _trashManager,
-      keyService: widget.keyService,
-      settingsController: widget.settingsController,
-      onOpenTab: _openChildTab,
-      onCloseTab: _closeTabById,
-      optionsController: controller,
-    );
-    return EngineTab(
+    return _tabFactory.overview(
       id: id,
       title: title,
       label: label,
       icon: icon,
-      body: body,
-      canDrag: true,
-      workspaceState: _tabStateFromBody(id, body),
-      optionsController: controller,
+      contextName: contextName,
+      remoteHost: remoteHost,
+      shellService: shellService,
+      onOpenTab: _openChildTab,
+      onCloseTab: _closeTabById,
     );
   }
 
@@ -725,48 +787,17 @@ class _DockerViewState extends State<DockerView> {
     SshHost? remoteHost,
     RemoteShellService? shellService,
   }) {
-    final controller = TabOptionsController();
-    final body = DockerResources(
-      docker: _docker,
+    return _tabFactory.resources(
+      id: id,
+      title: title,
+      label: label,
+      icon: icon,
       contextName: contextName,
       remoteHost: remoteHost,
       shellService: shellService,
       onOpenTab: _openChildTab,
       onCloseTab: _closeTabById,
-      optionsController: controller,
     );
-    return EngineTab(
-      id: id,
-      title: title,
-      label: label,
-      icon: icon,
-      body: body,
-      canDrag: true,
-      workspaceState: _tabStateFromBody(id, body),
-      optionsController: controller,
-    );
-  }
-
-  void _openContainerExplorerTrashTab(
-    RemoteShellService shell,
-    ExplorerContext explorerContext,
-  ) {
-    final icons = context.appTheme.icons;
-    final hostName = explorerContext.host.name;
-    final tabId = 'trash-$hostName-${DateTime.now().microsecondsSinceEpoch}';
-    final tab = EngineTab(
-      id: tabId,
-      title: 'Trash • $hostName',
-      label: 'Trash',
-      icon: icons.delete,
-      body: TrashTab(
-        manager: _trashManager,
-        shellService: shell,
-        keyService: widget.keyService,
-        context: explorerContext,
-      ),
-    );
-    _openChildTab(tab);
   }
 
   void _closeTabById(String id) {
@@ -841,7 +872,7 @@ class _DockerViewState extends State<DockerView> {
         hostName: body.host.name,
       );
     }
-    if (body is RemoteFileEditorTab) {
+    if (body is RemoteFileEditorLoader) {
       return DockerTabState(
         id: id,
         kind: DockerTabKind.containerEditor,
@@ -988,46 +1019,40 @@ class _DockerViewState extends State<DockerView> {
         );
       case DockerTabKind.hostOverview:
         if (state.hostName == null) return null;
-        final host = hosts.firstWhere(
-          (h) => h.name == state.hostName,
-          orElse: () =>
-              const SshHost(name: '', hostname: '', port: 22, available: false),
-        );
-        if (!host.available || host.name.isEmpty) return null;
+        final host = _hostByName(hosts, state.hostName) ??
+            SshHost(
+              name: state.hostName!,
+              hostname: '',
+              port: 22,
+              available: false,
+            );
+        if (host.name.isEmpty) return null;
         return _hostTab(id: state.id, host: host, resources: false);
       case DockerTabKind.hostResources:
         if (state.hostName == null) return null;
-        final host = hosts.firstWhere(
-          (h) => h.name == state.hostName,
-          orElse: () =>
-              const SshHost(name: '', hostname: '', port: 22, available: false),
-        );
-        if (!host.available || host.name.isEmpty) return null;
+        final host = _hostByName(hosts, state.hostName) ??
+            SshHost(
+              name: state.hostName!,
+              hostname: '',
+              port: 22,
+              available: false,
+            );
+        if (host.name.isEmpty) return null;
         return _hostTab(id: state.id, host: host, resources: true);
       case DockerTabKind.command:
         if (state.command == null || state.title == null) return null;
         final host = _hostByName(hosts, state.hostName);
         final shell = host != null ? _shellServiceForHost(host) : null;
         final command = _sanitizeExecCommand(state.command!);
-        final controller = CompositeTabOptionsController();
-        final body = DockerCommandTerminal(
-          host: host,
-          shellService: shell,
-          command: command,
-          title: state.title!,
-          settingsController: widget.settingsController,
-          onExit: () => _closeTabById(state.id),
-          optionsController: controller,
-        );
-        return EngineTab(
+        return _tabFactory.commandTerminal(
           id: state.id,
           title: state.title!,
           label: state.title!,
+          command: command,
           icon: NerdIcon.terminal.data,
-          canDrag: true,
-          body: body,
-          workspaceState: state,
-          optionsController: controller,
+          host: host,
+          shellService: shell,
+          onExit: () => _closeTabById(state.id),
         );
       case DockerTabKind.containerShell:
       case DockerTabKind.containerLogs:
@@ -1035,25 +1060,16 @@ class _DockerViewState extends State<DockerView> {
         final host = _hostByName(hosts, state.hostName);
         final shell = host != null ? _shellServiceForHost(host) : null;
         final command = _sanitizeExecCommand(state.command!);
-        final controller = CompositeTabOptionsController();
-        final body = DockerCommandTerminal(
-          host: host,
-          shellService: shell,
-          command: command,
-          title: state.title!,
-          settingsController: widget.settingsController,
-          onExit: () => _closeTabById(state.id),
-          optionsController: controller,
-        );
-        return EngineTab(
+        return _tabFactory.commandTerminal(
           id: state.id,
           title: state.title!,
           label: state.title!,
+          command: command,
           icon: NerdIcon.terminal.data,
-          canDrag: true,
-          body: body,
-          workspaceState: state,
-          optionsController: controller,
+          host: host,
+          shellService: shell,
+          onExit: () => _closeTabById(state.id),
+          kind: state.kind,
         );
       case DockerTabKind.composeLogs:
         if (state.project == null) return null;
@@ -1061,25 +1077,17 @@ class _DockerViewState extends State<DockerView> {
         final shell = host != null ? _shellServiceForHost(host) : null;
         final composeBase =
             state.command ?? 'docker compose -p "${state.project}"';
-        final controller = CompositeTabOptionsController();
-        final body = ComposeLogsTerminal(
+        return _tabFactory.composeLogs(
+          id: state.id,
+          title: 'Compose logs: ${state.project}',
+          label: 'Compose logs: ${state.project}',
+          icon: NerdIcon.terminal.data,
           composeBase: composeBase,
           project: state.project!,
           services: state.services,
           host: host,
           shellService: shell,
           onExit: () => _closeTabById(state.id),
-          optionsController: controller,
-        );
-        return EngineTab(
-          id: state.id,
-          title: 'Compose logs: ${state.project}',
-          label: 'Compose logs: ${state.project}',
-          icon: NerdIcon.terminal.data,
-          canDrag: true,
-          body: body,
-          workspaceState: state,
-          optionsController: controller,
         );
       case DockerTabKind.containerExplorer:
         final host = _hostByName(hosts, state.hostName);
@@ -1110,55 +1118,19 @@ class _DockerViewState extends State<DockerView> {
             state.contextName,
           ),
         );
-        final controller = CompositeTabOptionsController();
-        return EngineTab(
+        return _tabFactory.explorer(
           id: state.id,
           title:
               'Explore ${state.containerName ?? state.containerId ?? explorerHost.name}',
           label: 'Explorer',
           icon: icons.folderOpen,
-          canDrag: true,
-          body: FileExplorerTab(
-            host: explorerHost,
-            explorerContext: explorerContext,
-            shellService: shell,
-            trashManager: _trashManager,
-            keyService: widget.keyService,
-            onOpenTrash: (explorerContext) =>
-                _openContainerExplorerTrashTab(shell, explorerContext),
-            onOpenEditorTab: (path, content) async {
-              final editorOptions = TabOptionsController();
-              final editorTab = EngineTab(
-                id: 'editor-${path.hashCode}-${DateTime.now().microsecondsSinceEpoch}',
-                title: 'Edit $path',
-                label: path,
-                icon: icons.edit,
-                canDrag: true,
-                workspaceState: DockerTabState(
-                  id: 'editor-$path',
-                  kind: DockerTabKind.containerEditor,
-                  hostName: explorerHost.name,
-                  containerId: state.containerId,
-                  path: path,
-                ),
-                body: RemoteFileEditorTab(
-                  host: explorerHost,
-                  shellService: shell,
-                  path: path,
-                  initialContent: content,
-                  onSave: (value) => shell.writeFile(explorerHost, path, value),
-                  settingsController: widget.settingsController,
-                  optionsController: editorOptions,
-                ),
-                optionsController: editorOptions,
-              );
-              _openChildTab(editorTab);
-            },
-            onOpenTerminalTab: null,
-            optionsController: controller,
-          ),
-          workspaceState: state,
-          optionsController: controller,
+          host: explorerHost,
+          shellService: shell,
+          explorerContext: explorerContext,
+          containerId: containerId,
+          containerName: state.containerName,
+          dockerContextName: state.contextName,
+          onOpenTab: _openChildTab,
         );
       case DockerTabKind.containerEditor:
         if (state.path == null || state.containerId == null) return null;
@@ -1180,22 +1152,17 @@ class _DockerViewState extends State<DockerView> {
               identityFiles: <String>[],
               source: 'local',
             );
-        final controller = TabOptionsController();
-        return EngineTab(
+        return _tabFactory.containerEditor(
           id: state.id,
           title: 'Edit ${state.path}',
           label: state.path ?? 'Editor',
           icon: icons.edit,
-          canDrag: true,
-          body: DockerEditorLoader(
-            host: editorHost,
-            shellService: shell,
-            path: state.path!,
-            settingsController: widget.settingsController,
-            optionsController: controller,
-          ),
-          workspaceState: state,
-          optionsController: controller,
+          host: editorHost,
+          shellService: shell,
+          path: state.path!,
+          containerId: state.containerId,
+          containerName: state.containerName,
+          contextName: state.contextName,
         );
     }
   }
@@ -1343,59 +1310,3 @@ class _KeepAliveWrapperState extends State<_KeepAliveWrapper>
 }
 
 enum _DashboardTarget { overview, resources }
-
-class DockerEditorLoader extends StatefulWidget {
-  const DockerEditorLoader({
-    super.key,
-    required this.host,
-    required this.shellService,
-    required this.path,
-    required this.settingsController,
-    required this.optionsController,
-  });
-
-  final SshHost host;
-  final RemoteShellService shellService;
-  final String path;
-  final AppSettingsController settingsController;
-  final TabOptionsController optionsController;
-
-  @override
-  State<DockerEditorLoader> createState() => _DockerEditorLoaderState();
-}
-
-class _DockerEditorLoaderState extends State<DockerEditorLoader> {
-  late Future<String> _contentFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _contentFuture = widget.shellService.readFile(widget.host, widget.path);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<String>(
-      future: _contentFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(child: Text('Failed to load file: ${snapshot.error}'));
-        }
-        final content = snapshot.data ?? '';
-        return RemoteFileEditorTab(
-          host: widget.host,
-          shellService: widget.shellService,
-          path: widget.path,
-          initialContent: content,
-          onSave: (value) =>
-              widget.shellService.writeFile(widget.host, widget.path, value),
-          settingsController: widget.settingsController,
-          optionsController: widget.optionsController,
-        );
-      },
-    );
-  }
-}

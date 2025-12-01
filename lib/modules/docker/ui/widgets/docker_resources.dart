@@ -6,15 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 import 'package:cwatch/models/docker_container_stat.dart';
-import 'package:cwatch/models/docker_workspace_state.dart';
 import 'package:cwatch/models/ssh_host.dart';
-import 'package:cwatch/services/docker/docker_client_service.dart';
+import 'package:cwatch/modules/docker/services/docker_client_service.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 import '../engine_tab.dart';
-import 'docker_command_terminal.dart';
+import '../docker_tab_factory.dart';
 
 class DockerResources extends StatefulWidget {
   const DockerResources({
@@ -26,6 +25,7 @@ class DockerResources extends StatefulWidget {
     this.onOpenTab,
     this.onCloseTab,
     this.optionsController,
+    required this.tabFactory,
   });
 
   final DockerClientService docker;
@@ -35,6 +35,7 @@ class DockerResources extends StatefulWidget {
   final void Function(EngineTab tab)? onOpenTab;
   final void Function(String tabId)? onCloseTab;
   final TabOptionsController? optionsController;
+  final DockerTabFactory tabFactory;
 
   @override
   State<DockerResources> createState() => _DockerResourcesState();
@@ -380,30 +381,16 @@ class _DockerResourcesState extends State<DockerResources> {
     final command =
         'docker ${contextFlag}stats --no-stream --format "{{json .}}"; exit';
     final tabId = 'dstat-${DateTime.now().microsecondsSinceEpoch}';
-    final controller = TabOptionsController();
     widget.onOpenTab!(
-      EngineTab(
+      widget.tabFactory.commandTerminal(
         id: tabId,
         title: 'docker stats',
         label: 'docker stats',
+        command: command,
         icon: NerdIcon.terminal.data,
-        body: DockerCommandTerminal(
-          command: command,
-          title: 'docker stats',
-          host: widget.remoteHost,
-          shellService: widget.shellService,
-          onExit: () => widget.onCloseTab?.call(tabId),
-          optionsController: controller,
-        ),
-        canDrag: true,
-        workspaceState: DockerTabState(
-          id: 'docker-stats',
-          kind: DockerTabKind.command,
-          command: command,
-          title: 'docker stats',
-          hostName: widget.remoteHost?.name,
-        ),
-        optionsController: controller,
+        host: widget.remoteHost,
+        shellService: widget.shellService,
+        onExit: () => widget.onCloseTab?.call(tabId),
       ),
     );
   }

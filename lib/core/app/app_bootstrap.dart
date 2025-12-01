@@ -3,11 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../services/settings/app_settings_controller.dart';
+import '../../services/ssh/terminal_session.dart';
 import '../navigation/app_shell.dart';
 import '../../shared/theme/app_theme.dart';
 
 Future<void> runAppBootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await LocalPtySession.cleanupStaleSessions();
   runApp(const CwatchApp());
 }
 

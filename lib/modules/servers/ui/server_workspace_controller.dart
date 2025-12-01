@@ -1,0 +1,142 @@
+import 'package:cwatch/core/workspace/workspace_persistence.dart';
+import 'package:cwatch/models/server_action.dart';
+import 'package:cwatch/models/server_workspace_state.dart';
+import 'package:cwatch/models/ssh_host.dart';
+import 'package:cwatch/services/filesystem/explorer_trash_manager.dart';
+import 'package:cwatch/services/settings/app_settings_controller.dart';
+import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
+import 'package:cwatch/services/ssh/remote_command_logging.dart';
+import 'package:cwatch/services/ssh/remote_shell_service.dart';
+
+import 'server_tab_factory.dart';
+import 'servers/server_models.dart';
+
+class ServerWorkspaceController {
+  ServerWorkspaceController({
+    required this.settingsController,
+    required this.keyService,
+    required this.commandLog,
+    required Future<List<SshHost>> Function() hostsLoader,
+    required this.trashManager,
+    required RemoteShellService Function(SshHost host) shellServiceForHost,
+    required EditorBodyBuilder editorBuilder,
+  }) : _hostsLoader = hostsLoader {
+    tabFactory = ServerTabFactory(
+      settingsController: settingsController,
+      trashManager: trashManager,
+      keyService: keyService,
+      shellServiceForHost: shellServiceForHost,
+      editorBuilder: editorBuilder,
+    );
+    workspacePersistence = WorkspacePersistence(
+      settingsController: settingsController,
+      readFromSettings: (settings) => settings.serverWorkspace,
+      writeToSettings: (current, workspace) =>
+          current.copyWith(serverWorkspace: workspace),
+      signatureOf: (workspace) => workspace.signature,
+    );
+  }
+
+  final AppSettingsController settingsController;
+  final BuiltInSshKeyService keyService;
+  final RemoteCommandLogController commandLog;
+  final ExplorerTrashManager trashManager;
+  final Future<List<SshHost>> Function() _hostsLoader;
+
+  late final ServerTabFactory tabFactory;
+  late final WorkspacePersistence<ServerWorkspaceState> workspacePersistence;
+
+  Future<List<SshHost>> loadHosts() async {
+    try {
+      return await _hostsLoader();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  ServerWorkspaceState currentWorkspaceState(
+    List<ServerTab> tabs,
+    int selectedIndex,
+  ) {
+    final states = tabs
+        .map(
+          (tab) => ServerTabState(
+            id: tab.id,
+            hostName: tab.host.name,
+            action: tab.action,
+            customName: tab.customName,
+          ),
+        )
+        .toList();
+    final clampedIndex = states.isEmpty
+        ? 0
+        : selectedIndex.clamp(0, states.length - 1);
+    return ServerWorkspaceState(tabs: states, selectedIndex: clampedIndex);
+  }
+
+  List<ServerTab> buildTabsFromState(
+    ServerWorkspaceState workspace,
+    List<SshHost> hosts,
+  ) {
+    final restored = <ServerTab>[];
+    for (final tabState in workspace.tabs) {
+      final host = _resolveHost(tabState, hosts);
+      if (host == null) {
+        continue;
+      }
+      restored.add(_createTabFromState(tabState, host));
+    }
+    return restored;
+  }
+
+  ServerTab _createTabFromState(ServerTabState state, SshHost host) {
+    switch (state.action) {
+      case ServerAction.fileExplorer:
+        return tabFactory.explorerTab(id: state.id, host: host);
+      case ServerAction.editor:
+        return tabFactory.editorTab(
+          id: state.id,
+          host: host,
+          path: state.customName ?? '',
+        );
+      case ServerAction.terminal:
+        return tabFactory.terminalTab(
+          id: state.id,
+          host: host,
+          initialDirectory: state.customName,
+        );
+      case ServerAction.resources:
+        return tabFactory.resourcesTab(id: state.id, host: host);
+      case ServerAction.connectivity:
+        return tabFactory.connectivityTab(id: state.id, host: host);
+      case ServerAction.trash:
+        return tabFactory.trashTab(id: state.id, host: host);
+      case ServerAction.empty:
+        return tabFactory.emptyTab(id: state.id);
+    }
+  }
+
+  SshHost? _resolveHost(ServerTabState tabState, List<SshHost> hosts) {
+    switch (tabState.action) {
+      case ServerAction.empty:
+        return const PlaceholderHost();
+      case ServerAction.trash:
+        return _findHostByName(hosts, tabState.hostName) ?? const TrashHost();
+      case ServerAction.fileExplorer:
+      case ServerAction.connectivity:
+      case ServerAction.terminal:
+      case ServerAction.resources:
+      case ServerAction.editor:
+        return _findHostByName(hosts, tabState.hostName);
+    }
+  }
+
+  SshHost? _findHostByName(List<SshHost> hosts, String target) {
+    for (final host in hosts) {
+      if (host.name == target) {
+        return host;
+      }
+    }
+    return null;
+  }
+}
