@@ -63,14 +63,22 @@ class DockerContainerShellService extends RemoteShellService {
     Duration timeout = const Duration(seconds: 15),
   }) async {
     final tempDir = await _makeTempDir(timeout: timeout);
-    final tempFile = p.join(tempDir, p.basename(path));
-    await baseShell.writeFile(this.host, tempFile, contents, timeout: timeout);
-    await baseShell.runCommand(
-      this.host,
-      'docker cp ${_escapeLocal(tempFile)} $containerId:${_escape(path)}',
-      timeout: timeout,
-    );
-    await _cleanupTemp(tempDir);
+    try {
+      final tempFile = p.join(tempDir, p.basename(path));
+      await baseShell.writeFile(
+        this.host,
+        tempFile,
+        contents,
+        timeout: timeout,
+      );
+      await baseShell.runCommand(
+        this.host,
+        'docker cp ${_escapeLocal(tempFile)} $containerId:${_escape(path)}',
+        timeout: timeout,
+      );
+    } finally {
+      await _cleanupTemp(tempDir);
+    }
   }
 
   @override
@@ -121,7 +129,9 @@ class DockerContainerShellService extends RemoteShellService {
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
   }) {
-    throw UnimplementedError('copyBetweenHosts not supported for containers');
+    return Future.error(
+      Exception('Cross-host copy is not supported for container sessions'),
+    );
   }
 
   @override
@@ -133,20 +143,23 @@ class DockerContainerShellService extends RemoteShellService {
     Duration timeout = const Duration(minutes: 2),
   }) async {
     final tempDir = await _makeTempDir(timeout: timeout);
-    await baseShell.runCommand(
-      this.host,
-      'docker cp $containerId:${_escape(remotePath)} ${_escapeLocal(tempDir)}',
-      timeout: timeout,
-    );
-    final payload = p.join(tempDir, p.basename(remotePath));
-    await baseShell.downloadPath(
-      host: this.host,
-      remotePath: payload,
-      localDestination: localDestination,
-      recursive: recursive,
-      timeout: timeout,
-    );
-    await _cleanupTemp(tempDir);
+    try {
+      await baseShell.runCommand(
+        this.host,
+        'docker cp $containerId:${_escape(remotePath)} ${_escapeLocal(tempDir)}',
+        timeout: timeout,
+      );
+      final payload = p.join(tempDir, p.basename(remotePath));
+      await baseShell.downloadPath(
+        host: this.host,
+        remotePath: payload,
+        localDestination: localDestination,
+        recursive: recursive,
+        timeout: timeout,
+      );
+    } finally {
+      await _cleanupTemp(tempDir);
+    }
   }
 
   @override
@@ -158,20 +171,23 @@ class DockerContainerShellService extends RemoteShellService {
     Duration timeout = const Duration(minutes: 2),
   }) async {
     final tempDir = await _makeTempDir(timeout: timeout);
-    final tempDest = p.join(tempDir, p.basename(localPath));
-    await baseShell.uploadPath(
-      host: this.host,
-      localPath: localPath,
-      remoteDestination: tempDest,
-      recursive: recursive,
-      timeout: timeout,
-    );
-    await baseShell.runCommand(
-      this.host,
-      'docker cp ${_escapeLocal(tempDest)} $containerId:${_escape(remoteDestination)}',
-      timeout: timeout,
-    );
-    await _cleanupTemp(tempDir);
+    try {
+      final tempDest = p.join(tempDir, p.basename(localPath));
+      await baseShell.uploadPath(
+        host: this.host,
+        localPath: localPath,
+        remoteDestination: tempDest,
+        recursive: recursive,
+        timeout: timeout,
+      );
+      await baseShell.runCommand(
+        this.host,
+        'docker cp ${_escapeLocal(tempDest)} $containerId:${_escape(remoteDestination)}',
+        timeout: timeout,
+      );
+    } finally {
+      await _cleanupTemp(tempDir);
+    }
   }
 
   @override
@@ -276,14 +292,17 @@ class LocalDockerContainerShellService extends RemoteShellService {
     Duration timeout = const Duration(seconds: 15),
   }) async {
     final tempDir = await Directory.systemTemp.createTemp('cwatch-dctr');
-    final tempFile = File(p.join(tempDir.path, p.basename(path)));
-    await tempFile.writeAsString(contents);
-    await _runDocker([
-      'cp',
-      tempFile.path,
-      '$containerId:${_escapeBare(path)}',
-    ], timeout: timeout);
-    await tempDir.delete(recursive: true);
+    try {
+      final tempFile = File(p.join(tempDir.path, p.basename(path)));
+      await tempFile.writeAsString(contents);
+      await _runDocker([
+        'cp',
+        tempFile.path,
+        '$containerId:${_escapeBare(path)}',
+      ], timeout: timeout);
+    } finally {
+      await tempDir.delete(recursive: true);
+    }
   }
 
   @override
@@ -334,7 +353,9 @@ class LocalDockerContainerShellService extends RemoteShellService {
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
   }) {
-    throw UnimplementedError('copyBetweenHosts not supported for containers');
+    return Future.error(
+      Exception('Cross-host copy is not supported for container sessions'),
+    );
   }
 
   @override

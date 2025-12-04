@@ -62,6 +62,7 @@ class DockerTabFactory {
       icon: icon,
       body: body,
       canDrag: true,
+      canRename: true,
       workspaceState: DockerTabState(
         id: id,
         kind: contextName != null
@@ -103,6 +104,7 @@ class DockerTabFactory {
       icon: icon,
       body: body,
       canDrag: true,
+      canRename: true,
       workspaceState: DockerTabState(
         id: id,
         kind: contextName != null
@@ -135,6 +137,7 @@ class DockerTabFactory {
       label: label,
       icon: icon,
       canDrag: true,
+      canRename: true,
       body: FileExplorerTab(
         host: host,
         explorerContext: explorerContext,
@@ -202,6 +205,7 @@ class DockerTabFactory {
       label: label,
       icon: icon,
       canDrag: true,
+      canRename: true,
       body: RemoteFileEditorLoader(
         host: host,
         shellService: shellService,
@@ -244,6 +248,7 @@ class DockerTabFactory {
       label: label,
       icon: icon,
       canDrag: true,
+      canRename: true,
       body: DockerCommandTerminal(
         command: command,
         title: title,
@@ -277,6 +282,7 @@ class DockerTabFactory {
     required List<String> services,
     required SshHost? host,
     required RemoteShellService? shellService,
+    String? contextName,
     VoidCallback? onExit,
   }) {
     final controller = CompositeTabOptionsController();
@@ -286,6 +292,7 @@ class DockerTabFactory {
       label: label,
       icon: icon,
       canDrag: true,
+      canRename: true,
       body: ComposeLogsTerminal(
         composeBase: composeBase,
         project: project,
@@ -299,9 +306,11 @@ class DockerTabFactory {
         id: id,
         kind: DockerTabKind.composeLogs,
         hostName: host?.name,
+        contextName: contextName,
         project: project,
         services: services,
         title: title,
+        command: composeBase,
       ),
       optionsController: controller,
     );
@@ -320,6 +329,7 @@ class DockerTabFactory {
       title: title,
       label: label,
       icon: icon,
+      canRename: true,
       body: TrashTab(
         manager: trashManager,
         shellService: shellService,

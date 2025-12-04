@@ -2,6 +2,7 @@ import 'dart:convert';
 
 enum DockerTabKind {
   picker,
+  placeholder,
   contextOverview,
   contextResources,
   hostOverview,

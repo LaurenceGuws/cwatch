@@ -23,7 +23,6 @@ import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import '../engine_tab.dart';
 import '../docker_tab_factory.dart';
-import 'docker_command_terminal.dart';
 import '../../services/docker_container_shell_service.dart';
 import 'docker_lists.dart';
 import 'docker_shared.dart';
@@ -128,10 +127,13 @@ class _DockerOverviewState extends State<DockerOverview> {
   }
 
   Future<EngineSnapshot> _load() async {
-    return _engineService.fetch(
-      contextName: widget.contextName,
-      remoteHost: widget.remoteHost,
-      shell: widget.shellService,
+    return _runWithRetry(
+      () => _engineService.fetch(
+        contextName: widget.contextName,
+        remoteHost: widget.remoteHost,
+        shell: widget.shellService,
+      ),
+      retry: widget.remoteHost != null && widget.shellService != null,
     );
   }
 
@@ -140,6 +142,19 @@ class _DockerOverviewState extends State<DockerOverview> {
       _containersHydrated = false;
       _snapshot = _load();
     });
+  }
+
+  Future<T> _runWithRetry<T>(
+    Future<T> Function() operation, {
+    bool retry = false,
+  }) async {
+    try {
+      return await operation();
+    } catch (error) {
+      if (!retry) rethrow;
+      await Future.delayed(const Duration(milliseconds: 350));
+      return operation();
+    }
   }
 
   @override
@@ -585,6 +600,7 @@ class _DockerOverviewState extends State<DockerOverview> {
         services: services,
         host: widget.remoteHost,
         shellService: widget.shellService,
+        contextName: widget.contextName,
         onExit: () => widget.onCloseTab?.call(tabId),
       );
       widget.onOpenTab!(tab);
@@ -740,44 +756,6 @@ done'
   }
 
   Future<void> _openExecTerminal(DockerContainer container) async {
-    if (widget.remoteHost == null || widget.shellService == null) {
-      final name = container.name.isNotEmpty ? container.name : container.id;
-      final contextFlag =
-          widget.contextName != null && widget.contextName!.isNotEmpty
-          ? '--context ${widget.contextName!} '
-          : '';
-      final command = _autoCloseCommand(
-        'docker ${contextFlag}exec -it ${container.id} /bin/sh',
-      );
-      if (widget.onOpenTab != null) {
-        final tabId =
-            'exec-${container.id}-${DateTime.now().microsecondsSinceEpoch}';
-        final tab = EngineTab(
-          id: tabId,
-          title: 'Shell: $name',
-          label: 'Shell: $name',
-          icon: NerdIcon.terminal.data,
-          body: DockerCommandTerminal(
-            host: null,
-            shellService: null,
-            command: command,
-            title: 'Exec shell • $name',
-            onExit: () => widget.onCloseTab?.call(tabId),
-          ),
-          canDrag: true,
-        );
-        widget.onOpenTab!(tab);
-      } else {
-        await _copyExecCommand(container.id);
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No remote host available. Exec command copied.'),
-          ),
-        );
-      }
-      return;
-    }
     final name = container.name.isNotEmpty ? container.name : container.id;
     // Keep the container shell session alive; user will exit manually.
     final contextFlag =
@@ -787,36 +765,27 @@ done'
     final command = _autoCloseCommand(
       'docker ${contextFlag}exec -it ${container.id} /bin/sh',
     );
-    if (widget.onOpenTab != null) {
-      final tabId =
-          'exec-${container.id}-${DateTime.now().microsecondsSinceEpoch}';
-      final tab = EngineTab(
-        id: tabId,
-        title: 'Shell: $name',
-        label: 'Shell: $name',
-        icon: NerdIcon.terminal.data,
-        body: DockerCommandTerminal(
-          host: widget.remoteHost!,
-          shellService: widget.shellService!,
-          command: command,
-          title: 'Exec shell • $name',
-          onExit: () => widget.onCloseTab?.call(tabId),
-        ),
-        canDrag: true,
-        workspaceState: DockerTabState(
-          id: 'exec-${container.id}',
-          kind: DockerTabKind.containerShell,
-          hostName: widget.remoteHost!.name,
-          containerId: container.id,
-          containerName: name,
-          command: command,
-          title: 'Exec shell • $name',
-        ),
-      );
-      widget.onOpenTab!(tab);
-    } else {
+    if (widget.onOpenTab == null) {
       await _copyExecCommand(container.id);
+      return;
     }
+    final tabId =
+        'exec-${container.id}-${DateTime.now().microsecondsSinceEpoch}';
+    final tab = widget.tabFactory.commandTerminal(
+      id: tabId,
+      title: 'Shell: $name',
+      label: 'Shell: $name',
+      command: command,
+      icon: NerdIcon.terminal.data,
+      host: widget.remoteHost,
+      shellService: widget.shellService,
+      onExit: () => widget.onCloseTab?.call(tabId),
+      kind: DockerTabKind.containerShell,
+      containerId: container.id,
+      containerName: name,
+      contextName: widget.contextName,
+    );
+    widget.onOpenTab!(tab);
   }
 
   Future<void> _openContainerExplorer(DockerContainer container) async {
@@ -1007,45 +976,50 @@ done'
       _containerActionInProgress[container.id] = action;
     });
     try {
-      if (widget.remoteHost != null && widget.shellService != null) {
-        final cmd = 'docker $action ${container.id}';
-        await widget.shellService!.runCommand(
-          widget.remoteHost!,
-          cmd,
-          timeout: timeout,
-        );
-      } else {
-        switch (action) {
-          case 'start':
-            await widget.docker.startContainer(
-              id: container.id,
-              context: widget.contextName,
+      await _runWithRetry(
+        () async {
+          if (widget.remoteHost != null && widget.shellService != null) {
+            final cmd = 'docker $action ${container.id}';
+            await widget.shellService!.runCommand(
+              widget.remoteHost!,
+              cmd,
               timeout: timeout,
             );
-            break;
-          case 'stop':
-            await widget.docker.stopContainer(
-              id: container.id,
-              context: widget.contextName,
-              timeout: timeout,
-            );
-            break;
-          case 'restart':
-            await widget.docker.restartContainer(
-              id: container.id,
-              context: widget.contextName,
-              timeout: timeout,
-            );
-            break;
-          case 'remove':
-            await widget.docker.removeContainer(
-              id: container.id,
-              context: widget.contextName,
-              timeout: timeout,
-            );
-            break;
-        }
-      }
+            return;
+          }
+          switch (action) {
+            case 'start':
+              await widget.docker.startContainer(
+                id: container.id,
+                context: widget.contextName,
+                timeout: timeout,
+              );
+              break;
+            case 'stop':
+              await widget.docker.stopContainer(
+                id: container.id,
+                context: widget.contextName,
+                timeout: timeout,
+              );
+              break;
+            case 'restart':
+              await widget.docker.restartContainer(
+                id: container.id,
+                context: widget.contextName,
+                timeout: timeout,
+              );
+              break;
+            case 'remove':
+              await widget.docker.removeContainer(
+                id: container.id,
+                context: widget.contextName,
+                timeout: timeout,
+              );
+              break;
+          }
+        },
+        retry: widget.remoteHost != null && widget.shellService != null,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Container ${action}ed successfully.')),
