@@ -1,11 +1,11 @@
 import 'package:flutter/widgets.dart';
 
+import 'package:cwatch/core/models/tab_state.dart';
 import 'package:cwatch/core/workspace/workspace_persistence.dart';
 import 'package:cwatch/models/docker_workspace_state.dart';
 import 'package:cwatch/modules/docker/ui/engine_tab.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/modules/docker/ui/widgets/docker_command_terminal.dart';
-import 'package:cwatch/modules/docker/ui/widgets/docker_engine_picker.dart';
 import 'package:cwatch/modules/docker/ui/widgets/docker_overview.dart';
 import 'package:cwatch/modules/docker/ui/widgets/docker_resources.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
@@ -13,11 +13,19 @@ import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/shared/views/shared/tabs/editor/remote_file_editor_loader.dart';
 import 'package:cwatch/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart';
 import 'package:cwatch/models/explorer_context.dart';
+import 'package:cwatch/modules/docker/ui/widgets/docker_engine_picker.dart';
+import 'package:cwatch/core/services/remote_endpoint_cache.dart';
 
 /// Small controller to centralise Docker workspace persistence and tab state
 /// derivation, mirroring the server workspace controller pattern.
 class DockerWorkspaceController {
-  DockerWorkspaceController({required this.settingsController}) {
+  DockerWorkspaceController({required this.settingsController})
+    : endpointCache = RemoteEndpointCache(
+        settingsController: settingsController,
+        readNames: (settings) => settings.dockerRemoteHosts,
+        writeNames: (current, names) =>
+            current.copyWith(dockerRemoteHosts: names),
+      ) {
     workspacePersistence = WorkspacePersistence(
       settingsController: settingsController,
       readFromSettings: (settings) => settings.dockerWorkspace,
@@ -28,16 +36,17 @@ class DockerWorkspaceController {
   }
 
   final AppSettingsController settingsController;
+  final RemoteEndpointCache endpointCache;
   late final WorkspacePersistence<DockerWorkspaceState> workspacePersistence;
 
   /// Result of rebuilding tabs from persisted workspace.
   RestoredDockerTabs buildTabsFromState({
     required DockerWorkspaceState workspace,
     required List<SshHost> hosts,
-    required EngineTab? Function(DockerTabState state) buildTab,
+    required EngineTab? Function(TabState state) buildTab,
   }) {
     final tabs = <EngineTab>[];
-    final states = <String, DockerTabState>{};
+    final states = <String, TabState>{};
     final usedIds = <String>{};
 
     for (final state in workspace.tabs) {
@@ -59,46 +68,50 @@ class DockerWorkspaceController {
   }
 
   EngineTab? tabFromState({
-    required DockerTabState state,
+    required TabState state,
     required List<SshHost> hosts,
     required TabBuilders builders,
   }) {
-    switch (state.kind) {
+    final dockerState = _dockerStateFromTab(state);
+    if (dockerState == null) return null;
+
+    switch (dockerState.kind) {
       case DockerTabKind.placeholder:
-        return builders.buildPlaceholder(id: state.id);
+        return builders.buildPlaceholder(id: dockerState.id);
       case DockerTabKind.picker:
-        return builders.buildPicker(id: state.id);
+        return builders.buildPicker(id: dockerState.id);
       case DockerTabKind.contextOverview:
-        if (state.contextName == null) return null;
-        final title = state.title ?? state.contextName!;
+        if (dockerState.contextName == null) return null;
+        final title = dockerState.title ?? dockerState.contextName!;
         return builders.buildOverview(
-          id: state.id,
+          id: dockerState.id,
           title: title,
           label: title,
           icon: builders.cloudIcon,
-          contextName: state.contextName,
+          contextName: dockerState.contextName,
         );
       case DockerTabKind.contextResources:
-        if (state.contextName == null) return null;
-        final title = state.title ?? state.contextName!;
+        if (dockerState.contextName == null) return null;
+        final title = dockerState.title ?? dockerState.contextName!;
         return builders.buildResources(
-          id: state.id,
+          id: dockerState.id,
           title: title,
           label: title,
           icon: builders.cloudIcon,
-          contextName: state.contextName,
+          contextName: dockerState.contextName,
         );
       case DockerTabKind.hostOverview:
       case DockerTabKind.hostResources:
-        if (state.hostName == null) return null;
-        final host = _hostByName(hosts, state.hostName);
+        if (dockerState.hostName == null) return null;
+        final host = _hostByName(hosts, dockerState.hostName);
         if (host == null || host.name.isEmpty) return null;
         final shell = builders.shellForHost(host);
-        final title = state.title ?? host.name;
-        final builder =
-            state.kind == DockerTabKind.hostResources ? builders.buildResources : builders.buildOverview;
+        final title = dockerState.title ?? host.name;
+        final builder = dockerState.kind == DockerTabKind.hostResources
+            ? builders.buildResources
+            : builders.buildOverview;
         return builder(
-          id: state.id,
+          id: dockerState.id,
           title: title,
           label: title,
           icon: builders.cloudOutlineIcon,
@@ -106,66 +119,73 @@ class DockerWorkspaceController {
           shellService: shell,
         );
       case DockerTabKind.command:
-        if (state.command == null || state.title == null) return null;
-        final host = _hostByName(hosts, state.hostName);
+        if (dockerState.command == null || dockerState.title == null) {
+          return null;
+        }
+        final host = _hostByName(hosts, dockerState.hostName);
         final shell = host != null ? builders.shellForHost(host) : null;
-        final command = _sanitizeExec(state.command!);
+        final command = _sanitizeExec(dockerState.command!);
         return builders.buildCommand(
-          id: state.id,
-          title: state.title!,
-          label: state.title!,
+          id: dockerState.id,
+          title: dockerState.title!,
+          label: dockerState.title!,
           command: command,
           icon: builders.commandIcon,
           host: host,
           shellService: shell,
-          onExit: () => builders.closeTab(state.id),
+          onExit: () => builders.closeTab(dockerState.id),
           kind: DockerTabKind.command,
         );
       case DockerTabKind.containerShell:
       case DockerTabKind.containerLogs:
-        if (state.command == null || state.title == null) return null;
-        final host = _hostByName(hosts, state.hostName);
+        if (dockerState.command == null || dockerState.title == null) {
+          return null;
+        }
+        final host = _hostByName(hosts, dockerState.hostName);
         final shell = host != null ? builders.shellForHost(host) : null;
-        final command = _sanitizeExec(state.command!);
+        final command = _sanitizeExec(dockerState.command!);
         return builders.buildCommand(
-          id: state.id,
-          title: state.title!,
-          label: state.title!,
+          id: dockerState.id,
+          title: dockerState.title!,
+          label: dockerState.title!,
           command: command,
           icon: builders.commandIcon,
           host: host,
           shellService: shell,
-          onExit: () => builders.closeTab(state.id),
-          kind: state.kind,
+          onExit: () => builders.closeTab(dockerState.id),
+          kind: dockerState.kind,
         );
       case DockerTabKind.composeLogs:
-        if (state.project == null) return null;
-        final host = _hostByName(hosts, state.hostName);
+        if (dockerState.project == null) return null;
+        final host = _hostByName(hosts, dockerState.hostName);
         final shell = host != null ? builders.shellForHost(host) : null;
-        final composeBase = state.command ?? 'docker compose -p "${state.project}"';
-        final title = state.title ?? 'Compose logs: ${state.project}';
+        final composeBase =
+            dockerState.command ?? 'docker compose -p "${dockerState.project}"';
+        final title =
+            dockerState.title ?? 'Compose logs: ${dockerState.project}';
         return builders.buildComposeLogs(
-          id: state.id,
+          id: dockerState.id,
           title: title,
           label: title,
           icon: builders.composeIcon,
           composeBase: composeBase,
-          project: state.project!,
-          services: state.services,
+          project: dockerState.project!,
+          services: dockerState.services,
           host: host,
           shellService: shell,
-          contextName: state.contextName,
-          onExit: () => builders.closeTab(state.id),
+          contextName: dockerState.contextName,
+          onExit: () => builders.closeTab(dockerState.id),
         );
       case DockerTabKind.containerExplorer:
-        final host = _hostByName(hosts, state.hostName);
+        final host = _hostByName(hosts, dockerState.hostName);
         final shell = builders.containerShell(
           host,
-          state.containerId,
-          contextName: state.contextName,
+          dockerState.containerId,
+          contextName: dockerState.contextName,
         );
         if (shell == null) return null;
-        final explorerHost = host ??
+        final explorerHost =
+            host ??
             const SshHost(
               name: 'local',
               hostname: 'localhost',
@@ -175,39 +195,43 @@ class DockerWorkspaceController {
               identityFiles: <String>[],
               source: 'local',
             );
-        final containerId = state.containerId ?? '';
+        final containerId = dockerState.containerId ?? '';
         final explorerContext = ExplorerContext.dockerContainer(
           host: explorerHost,
           containerId: containerId,
-          containerName: state.containerName,
+          containerName: dockerState.containerName,
           dockerContextName: builders.dockerContextNameFor(
             explorerHost,
-            state.contextName,
+            dockerState.contextName,
           ),
         );
         return builders.buildExplorer(
-          id: state.id,
-          title: 'Explore ${state.containerName ?? state.containerId ?? explorerHost.name}',
+          id: dockerState.id,
+          title:
+              'Explore ${dockerState.containerName ?? dockerState.containerId ?? explorerHost.name}',
           label: 'Explorer',
           icon: builders.explorerIcon,
           host: explorerHost,
           shellService: shell,
           explorerContext: explorerContext,
           containerId: containerId,
-          containerName: state.containerName,
-          dockerContextName: state.contextName,
+          containerName: dockerState.containerName,
+          dockerContextName: dockerState.contextName,
           onOpenTab: builders.onOpenTab,
         );
       case DockerTabKind.containerEditor:
-        if (state.path == null || state.containerId == null) return null;
-        final host = _hostByName(hosts, state.hostName);
+        if (dockerState.path == null || dockerState.containerId == null) {
+          return null;
+        }
+        final host = _hostByName(hosts, dockerState.hostName);
         final shell = builders.containerShell(
           host,
-          state.containerId,
-          contextName: state.contextName,
+          dockerState.containerId,
+          contextName: dockerState.contextName,
         );
         if (shell == null) return null;
-        final editorHost = host ??
+        final editorHost =
+            host ??
             const SshHost(
               name: 'local',
               hostname: 'localhost',
@@ -218,18 +242,68 @@ class DockerWorkspaceController {
               source: 'local',
             );
         return builders.buildEditor(
-          id: state.id,
-          title: 'Edit ${state.path}',
-          label: state.path ?? 'Editor',
+          id: dockerState.id,
+          title: 'Edit ${dockerState.path}',
+          label: dockerState.path ?? 'Editor',
           icon: builders.editorIcon,
           host: editorHost,
           shellService: shell,
-          path: state.path!,
-          containerId: state.containerId,
-          containerName: state.containerName,
-          contextName: state.contextName,
+          path: dockerState.path!,
+          containerId: dockerState.containerId,
+          containerName: dockerState.containerName,
+          contextName: dockerState.contextName,
         );
     }
+  }
+
+  Future<List<RemoteDockerStatus>> loadCachedReady(
+    Future<List<SshHost>> hostsFuture,
+  ) async {
+    final readyNames = endpointCache.read().toSet();
+    if (readyNames.isEmpty) return const [];
+    List<SshHost> hosts = const [];
+    try {
+      hosts = await hostsFuture;
+    } catch (_) {
+      // ignore; fall back to placeholders below
+    }
+    final resolved = endpointCache.applyToHosts(readyNames.toList(), hosts);
+    return resolved
+        .map(
+          (host) => RemoteDockerStatus(
+            host: host,
+            available: true,
+            detail: 'Cached ready',
+          ),
+        )
+        .toList();
+  }
+
+  Future<List<RemoteDockerStatus>> discoverRemoteStatuses({
+    required Future<List<SshHost>> hostsFuture,
+    required Future<RemoteDockerStatus> Function(SshHost host) probeHost,
+    bool manual = false,
+    bool cancelled = false,
+  }) async {
+    List<SshHost> hosts;
+    try {
+      hosts = await hostsFuture;
+    } catch (error) {
+      throw Exception('Failed to load SSH hosts: $error');
+    }
+    if (hosts.isEmpty) {
+      return const [];
+    }
+    final results = await Future.wait(
+      hosts.map((host) => probeHost(host)),
+      eagerError: false,
+    );
+    final statuses = results.whereType<RemoteDockerStatus>().toList();
+    final ready = statuses.where((s) => s.available).toList();
+    if (manual && !cancelled && ready.isNotEmpty) {
+      await endpointCache.persist(ready.map((s) => s.host.name).toList());
+    }
+    return statuses;
   }
 
   SshHost? _hostByName(List<SshHost> hosts, String? name) {
@@ -249,81 +323,114 @@ class DockerWorkspaceController {
     return command;
   }
 
+  DockerTabState? _dockerStateFromTab(TabState state) {
+    final kind = _dockerKindFromString(state.kind);
+    if (kind == null) return null;
+    return DockerTabState(
+      id: state.id,
+      kind: kind,
+      contextName: state.contextName,
+      hostName: state.hostName,
+      containerId: state.stringExtra('containerId'),
+      containerName: state.stringExtra('containerName'),
+      command: state.command,
+      title: state.title ?? state.label,
+      path: state.path,
+      project: state.project,
+      services: state.services,
+    );
+  }
 
-  /// Derives a [DockerTabState] from a tab body or its existing workspaceState
+  DockerTabKind? _dockerKindFromString(String raw) {
+    for (final value in DockerTabKind.values) {
+      if (value.name == raw) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  /// Derives a [TabState] from a tab body or its existing workspaceState
   /// (if provided).
-  DockerTabState? tabStateFromBody(
+  TabState? tabStateFromBody(
     String id,
     Widget body, {
-    DockerTabState? workspaceState,
+    TabState? workspaceState,
   }) {
     if (workspaceState != null) {
       return workspaceState;
     }
     if (body is EnginePicker) {
-      return DockerTabState(id: id, kind: DockerTabKind.picker);
+      return TabState(id: id, kind: DockerTabKind.picker.name);
     }
     if (body is DockerOverview) {
       if (body.remoteHost != null) {
-        return DockerTabState(
+        return TabState(
           id: id,
-          kind: DockerTabKind.hostOverview,
+          kind: DockerTabKind.hostOverview.name,
           hostName: body.remoteHost!.name,
         );
       }
-      return DockerTabState(
+      return TabState(
         id: id,
-        kind: DockerTabKind.contextOverview,
+        kind: DockerTabKind.contextOverview.name,
         contextName: body.contextName,
       );
     }
     if (body is DockerResources) {
       if (body.remoteHost != null) {
-        return DockerTabState(
+        return TabState(
           id: id,
-          kind: DockerTabKind.hostResources,
+          kind: DockerTabKind.hostResources.name,
           hostName: body.remoteHost!.name,
         );
       }
-      return DockerTabState(
+      return TabState(
         id: id,
-        kind: DockerTabKind.contextResources,
+        kind: DockerTabKind.contextResources.name,
         contextName: body.contextName,
       );
     }
     if (body is DockerCommandTerminal) {
-      return DockerTabState(
+      return TabState(
         id: id,
-        kind: DockerTabKind.command,
+        kind: DockerTabKind.command.name,
         hostName: body.host?.name,
         command: body.command,
         title: body.title,
+        label: body.title,
       );
     }
     if (body is ComposeLogsTerminal) {
-      return DockerTabState(
+      final base = workspaceState?.command ?? body.composeBase;
+      final title = workspaceState?.title ?? 'Compose logs: ${body.project}';
+      return TabState(
         id: id,
-        kind: DockerTabKind.composeLogs,
+        kind: DockerTabKind.composeLogs.name,
         hostName: body.host?.name,
         contextName: workspaceState?.contextName,
-        command: workspaceState?.command ?? body.composeBase,
+        command: base,
         project: body.project,
         services: body.services,
+        title: title,
+        label: workspaceState?.label ?? title,
       );
     }
     if (body is FileExplorerTab) {
-      return DockerTabState(
+      return TabState(
         id: id,
-        kind: DockerTabKind.containerExplorer,
+        kind: DockerTabKind.containerExplorer.name,
         hostName: body.host.name,
+        extra: workspaceState?.extra,
       );
     }
     if (body is RemoteFileEditorLoader) {
-      return DockerTabState(
+      return TabState(
         id: id,
-        kind: DockerTabKind.containerEditor,
+        kind: DockerTabKind.containerEditor.name,
         hostName: body.host.name,
         path: body.path,
+        extra: workspaceState?.extra,
       );
     }
     return null;
@@ -332,17 +439,22 @@ class DockerWorkspaceController {
   DockerWorkspaceState currentWorkspaceState({
     required List<EngineTab> tabs,
     required int selectedIndex,
-    required Map<String, DockerTabState> explicitStates,
+    required Map<String, TabState> explicitStates,
   }) {
-    final persisted = <DockerTabState>[];
+    final persisted = <TabState>[];
     var selectedPersistedIndex = 0;
     for (var i = 0; i < tabs.length; i++) {
       final tab = tabs[i];
-      final workspaceState = tab.workspaceState is DockerTabState
-          ? tab.workspaceState as DockerTabState
-          : null;
+      TabState? workspaceState;
+      if (tab.workspaceState is TabState) {
+        workspaceState = tab.workspaceState as TabState;
+      }
       var state = explicitStates[tab.id] ?? workspaceState;
-      state ??= tabStateFromBody(tab.id, tab.body, workspaceState: workspaceState);
+      state ??= tabStateFromBody(
+        tab.id,
+        tab.body,
+        workspaceState: workspaceState,
+      );
       if (state != null) {
         if (i == selectedIndex) {
           selectedPersistedIndex = persisted.length;
@@ -359,23 +471,16 @@ class DockerWorkspaceController {
     );
   }
 
-  DockerTabState copyStateWithId(DockerTabState state, String id) {
+  TabState copyStateWithId(TabState state, String id) {
     return _copyStateWithId(state, id);
   }
 
-  DockerTabState _copyStateWithId(DockerTabState state, String id) {
-    return DockerTabState(
+  TabState _copyStateWithId(TabState state, String id) {
+    return state.copyWith(
       id: id,
-      kind: state.kind,
-      contextName: state.contextName,
-      hostName: state.hostName,
-      containerId: state.containerId,
-      containerName: state.containerName,
-      command: state.command,
-      title: state.title,
-      path: state.path,
-      project: state.project,
-      services: state.services,
+      extra: state.extra == null
+          ? null
+          : Map<String, dynamic>.from(state.extra!),
     );
   }
 }
@@ -405,12 +510,83 @@ class TabBuilders {
 
   final EngineTab Function({required String id}) buildPlaceholder;
   final EngineTab Function({required String id}) buildPicker;
-  final EngineTab Function({required String id, required String title, required String label, required IconData icon, String? contextName, SshHost? remoteHost, RemoteShellService? shellService}) buildOverview;
-  final EngineTab Function({required String id, required String title, required String label, required IconData icon, String? contextName, SshHost? remoteHost, RemoteShellService? shellService}) buildResources;
-  final EngineTab Function({required String id, required String title, required String label, required String command, required IconData icon, required SshHost? host, required RemoteShellService? shellService, VoidCallback? onExit, DockerTabKind kind, String? containerId, String? containerName, String? contextName}) buildCommand;
-  final EngineTab Function({required String id, required String title, required String label, required IconData icon, required String composeBase, required String project, required List<String> services, required SshHost? host, required RemoteShellService? shellService, String? contextName, VoidCallback? onExit}) buildComposeLogs;
-  final EngineTab Function({required String id, required String title, required String label, required IconData icon, required SshHost host, required RemoteShellService shellService, required ExplorerContext explorerContext, required String containerId, String? containerName, String? dockerContextName, required void Function(EngineTab tab) onOpenTab}) buildExplorer;
-  final EngineTab Function({required String id, required String title, required String label, required IconData icon, required SshHost host, required RemoteShellService shellService, required String path, String? initialContent, String? containerId, String? containerName, String? contextName}) buildEditor;
+  final EngineTab Function({
+    required String id,
+    required String title,
+    required String label,
+    required IconData icon,
+    String? contextName,
+    SshHost? remoteHost,
+    RemoteShellService? shellService,
+  })
+  buildOverview;
+  final EngineTab Function({
+    required String id,
+    required String title,
+    required String label,
+    required IconData icon,
+    String? contextName,
+    SshHost? remoteHost,
+    RemoteShellService? shellService,
+  })
+  buildResources;
+  final EngineTab Function({
+    required String id,
+    required String title,
+    required String label,
+    required String command,
+    required IconData icon,
+    required SshHost? host,
+    required RemoteShellService? shellService,
+    VoidCallback? onExit,
+    DockerTabKind kind,
+    String? containerId,
+    String? containerName,
+    String? contextName,
+  })
+  buildCommand;
+  final EngineTab Function({
+    required String id,
+    required String title,
+    required String label,
+    required IconData icon,
+    required String composeBase,
+    required String project,
+    required List<String> services,
+    required SshHost? host,
+    required RemoteShellService? shellService,
+    String? contextName,
+    VoidCallback? onExit,
+  })
+  buildComposeLogs;
+  final EngineTab Function({
+    required String id,
+    required String title,
+    required String label,
+    required IconData icon,
+    required SshHost host,
+    required RemoteShellService shellService,
+    required ExplorerContext explorerContext,
+    required String containerId,
+    String? containerName,
+    String? dockerContextName,
+    required void Function(EngineTab tab) onOpenTab,
+  })
+  buildExplorer;
+  final EngineTab Function({
+    required String id,
+    required String title,
+    required String label,
+    required IconData icon,
+    required SshHost host,
+    required RemoteShellService shellService,
+    required String path,
+    String? initialContent,
+    String? containerId,
+    String? containerName,
+    String? contextName,
+  })
+  buildEditor;
   final IconData cloudIcon;
   final IconData cloudOutlineIcon;
   final IconData commandIcon;
@@ -418,7 +594,12 @@ class TabBuilders {
   final IconData explorerIcon;
   final IconData editorIcon;
   final RemoteShellService? Function(SshHost host) shellForHost;
-  final RemoteShellService? Function(SshHost? host, String? containerId, {String? contextName}) containerShell;
+  final RemoteShellService? Function(
+    SshHost? host,
+    String? containerId, {
+    String? contextName,
+  })
+  containerShell;
   final String Function(SshHost host, String? contextName) dockerContextNameFor;
   final void Function(String id) closeTab;
   final void Function(EngineTab tab) onOpenTab;
@@ -428,5 +609,5 @@ class RestoredDockerTabs {
   const RestoredDockerTabs({required this.tabs, required this.states});
 
   final List<EngineTab> tabs;
-  final Map<String, DockerTabState> states;
+  final Map<String, TabState> states;
 }

@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:cwatch/core/tabs/tab_host.dart';
-import 'package:cwatch/core/tabs/tab_host_view.dart';
 import 'package:cwatch/models/custom_ssh_host.dart';
 import 'package:cwatch/models/explorer_context.dart';
 import 'package:cwatch/models/server_action.dart';
@@ -25,6 +24,9 @@ import 'package:cwatch/shared/views/shared/tabs/editor/remote_file_editor_loader
 import 'package:cwatch/services/ssh/remote_editor_cache.dart';
 import 'server_tab_factory.dart';
 import 'server_workspace_controller.dart';
+import 'package:cwatch/core/tabs/tab_view_registry.dart';
+import 'package:cwatch/core/widgets/keep_alive.dart';
+import 'package:cwatch/core/tabs/tabbed_workspace_shell.dart';
 
 class ServersList extends StatefulWidget {
   const ServersList({
@@ -51,7 +53,7 @@ class _ServersListState extends State<ServersList> {
   final ExplorerTrashManager _trashManager = ExplorerTrashManager();
   late final VoidCallback _settingsListener;
   late final VoidCallback _tabsListener;
-  final Map<String, Widget> _tabBodies = {};
+  late final TabViewRegistry<ServerTab> _tabRegistry;
   final Map<String, ServerTab> _tabCache = {};
   static int _placeholderSequence = 0;
   late final ServerWorkspaceController _workspaceController;
@@ -87,9 +89,14 @@ class _ServersListState extends State<ServersList> {
       baseTabBuilder: _createPlaceholderTab,
       tabId: (tab) => tab.id,
     );
+    _tabRegistry = TabViewRegistry<ServerTab>(
+      tabId: (tab) => tab.id,
+      keepAliveBuilder: (child, key) => KeepAliveWrapper(key: key, child: child),
+      viewKeyPrefix: 'server-tab',
+    );
     final base = _tabController.tabs.first;
     _tabCache[base.id] = base;
-    _tabBodies[base.id] = _buildTabWidget(base);
+    _tabRegistry.widgetFor(base, () => _buildTabWidget(base));
     _tabsListener = _handleTabsChanged;
     _tabController.addListener(_tabsListener);
     _settingsListener = _handleSettingsChanged;
@@ -196,8 +203,9 @@ class _ServersListState extends State<ServersList> {
         Expanded(
           child: Material(
             color: appTheme.section.toolbarBackground,
-            child: TabHostView<ServerTab>(
+            child: TabbedWorkspaceShell<ServerTab>(
               controller: _tabController,
+              registry: _tabRegistry,
               tabBarHeight: 36,
               leading: widget.leading != null
                   ? Padding(
@@ -236,10 +244,7 @@ class _ServersListState extends State<ServersList> {
                   },
                 );
               },
-              buildBody: (tab) => KeyedSubtree(
-                key: ValueKey('server-tab-${tab.id}'),
-                child: _tabWidgetFor(tab),
-              ),
+              buildBody: _buildTabWidget,
             ),
           ),
         ),
@@ -281,11 +286,11 @@ class _ServersListState extends State<ServersList> {
     for (final id in removedIds.toList()) {
       _tabCache[id]?.optionsController.dispose();
       _tabCache.remove(id);
-      _tabBodies.remove(id);
+      _tabRegistry.remove(_placeholderTab(id));
     }
     for (final tab in currentTabs) {
       _tabCache[tab.id] = tab;
-      _tabBodies.putIfAbsent(tab.id, () => _buildTabWidget(tab));
+      _tabRegistry.widgetFor(tab, () => _buildTabWidget(tab));
     }
     setState(() {});
     unawaited(_persistWorkspace());
@@ -310,7 +315,7 @@ class _ServersListState extends State<ServersList> {
     }
     _workspaceController.workspacePersistence.markRestored(workspace);
     _disposeTabControllers(_tabs);
-    _tabBodies.clear();
+    _tabRegistry.reset(restoredTabs);
     _tabCache.clear();
     _tabController.replaceAll(
       restoredTabs,
@@ -346,7 +351,7 @@ class _ServersListState extends State<ServersList> {
     if (_replacePlaceholderWithSelectedTab(tab)) {
       return;
     }
-    _tabBodies[tab.id] = _buildTabWidget(tab);
+    _tabRegistry.widgetFor(tab, () => _buildTabWidget(tab));
     _tabController.addTab(tab);
   }
 
@@ -360,9 +365,9 @@ class _ServersListState extends State<ServersList> {
       return false;
     }
     current.optionsController.dispose();
-    _tabBodies.remove(current.id);
+    _tabRegistry.remove(current);
     _tabCache.remove(current.id);
-    _tabBodies[tab.id] = _buildTabWidget(tab);
+    _tabRegistry.widgetFor(tab, () => _buildTabWidget(tab));
     _tabController.replaceTab(current.id, tab);
     return true;
   }
@@ -371,7 +376,7 @@ class _ServersListState extends State<ServersList> {
 
   void _addEmptyTabPlaceholder() {
     final placeholder = _tabFactory.emptyTab(id: _newPlaceholderId());
-    _tabBodies[placeholder.id] = _buildTabWidget(placeholder);
+    _tabRegistry.widgetFor(placeholder, () => _buildTabWidget(placeholder));
     _tabController.addTab(placeholder);
   }
 
@@ -431,15 +436,18 @@ class _ServersListState extends State<ServersList> {
     }
   }
 
-  Widget _tabWidgetFor(ServerTab tab) {
-    return _tabBodies[tab.id] ??= _buildTabWidget(tab);
-  }
-
   void _disposeTabControllers(Iterable<ServerTab> tabs) {
     for (final tab in tabs) {
       tab.optionsController.dispose();
     }
   }
+
+  ServerTab _placeholderTab(String id) => ServerTab(
+    id: id,
+    host: const PlaceholderHost(),
+    action: ServerAction.empty,
+    bodyKey: GlobalKey(),
+  );
 
   Widget _buildTabWidget(ServerTab tab) {
     if (tab.action == ServerAction.empty) {
@@ -504,7 +512,7 @@ class _ServersListState extends State<ServersList> {
     }
     final removedTab = _tabs[index];
     removedTab.optionsController.dispose();
-    _tabBodies.remove(removedTab.id);
+    _tabRegistry.remove(removedTab);
     _tabCache.remove(removedTab.id);
     _tabController.closeTab(index);
   }
@@ -540,8 +548,8 @@ class _ServersListState extends State<ServersList> {
     );
     final oldTab = _tabs[index];
     oldTab.optionsController.dispose();
-    _tabBodies.remove(oldTab.id);
-    _tabBodies[tab.id] = _buildTabWidget(tab);
+    _tabRegistry.remove(oldTab);
+    _tabRegistry.widgetFor(tab, () => _buildTabWidget(tab));
     _tabController.replaceTab(oldTab.id, tab);
     _selectTab(index);
   }
@@ -588,8 +596,8 @@ class _ServersListState extends State<ServersList> {
       customName: trimmedInput.isEmpty ? null : trimmedInput,
       setCustomName: true,
     );
-    _tabBodies.remove(tab.id);
-    _tabBodies[updated.id] = _buildTabWidget(updated);
+    _tabRegistry.remove(tab);
+    _tabRegistry.widgetFor(updated, () => _buildTabWidget(updated));
     _tabCache.remove(tab.id);
     _tabCache[updated.id] = updated;
     _tabController.replaceTab(tab.id, updated);
@@ -602,7 +610,7 @@ class _ServersListState extends State<ServersList> {
       host: host,
       explorerContext: context,
     );
-    _tabBodies[tab.id] = _buildTabWidget(tab);
+    _tabRegistry.widgetFor(tab, () => _buildTabWidget(tab));
     _tabController.addTab(tab);
   }
 
@@ -629,7 +637,7 @@ class _ServersListState extends State<ServersList> {
       path: path,
       initialContent: initialContent,
     );
-    _tabBodies[tab.id] = _buildTabWidget(tab);
+    _tabRegistry.widgetFor(tab, () => _buildTabWidget(tab));
     _tabController.addTab(tab);
   }
 
@@ -657,7 +665,7 @@ class _ServersListState extends State<ServersList> {
       host: host,
       initialDirectory: normalizedDirectory,
     );
-    _tabBodies[tab.id] = _buildTabWidget(tab);
+    _tabRegistry.widgetFor(tab, () => _buildTabWidget(tab));
     _tabController.addTab(tab);
   }
 

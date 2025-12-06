@@ -37,11 +37,13 @@ class ServerTabFactory {
     required SshHost host,
     GlobalKey? bodyKey,
     ExplorerContext? explorerContext,
+    String? customName,
   }) {
     return ServerTab(
       id: id,
       host: host,
       action: ServerAction.fileExplorer,
+      customName: customName,
       bodyKey: bodyKey ?? GlobalKey(debugLabel: 'server-tab-$id'),
       explorerContext: explorerContext ?? ExplorerContext.server(host),
       optionsController: TabOptionsController(),
@@ -86,11 +88,13 @@ class ServerTabFactory {
     required String id,
     required SshHost host,
     GlobalKey? bodyKey,
+    String? customName,
   }) {
     return ServerTab(
       id: id,
       host: host,
       action: ServerAction.resources,
+      customName: customName,
       bodyKey: bodyKey ?? GlobalKey(debugLabel: 'server-tab-$id'),
       optionsController: TabOptionsController(),
     );
@@ -100,11 +104,13 @@ class ServerTabFactory {
     required String id,
     required SshHost host,
     GlobalKey? bodyKey,
+    String? customName,
   }) {
     return ServerTab(
       id: id,
       host: host,
       action: ServerAction.connectivity,
+      customName: customName,
       bodyKey: bodyKey ?? GlobalKey(debugLabel: 'server-tab-$id'),
       optionsController: TabOptionsController(),
     );
@@ -115,12 +121,13 @@ class ServerTabFactory {
     required SshHost host,
     ExplorerContext? explorerContext,
     GlobalKey? bodyKey,
+    String? customName,
   }) {
     return ServerTab(
       id: id,
       host: host,
       action: ServerAction.trash,
-      customName: 'Trash • ${host.name}',
+      customName: customName ?? 'Trash • ${host.name}',
       explorerContext: explorerContext ?? ExplorerContext.server(host),
       bodyKey: bodyKey ?? GlobalKey(debugLabel: 'server-tab-$id'),
       optionsController: TabOptionsController(),
@@ -141,7 +148,7 @@ class ServerTabFactory {
     ServerTab tab, {
     required Future<void> Function(String path, String content) onOpenEditorTab,
     required Future<void> Function(SshHost host, {String? initialDirectory})
-        onOpenTerminalTab,
+    onOpenTerminalTab,
     required void Function(ExplorerContext context) onOpenTrash,
     required void Function(String tabId) onCloseTab,
   }) {
@@ -149,7 +156,8 @@ class ServerTabFactory {
       case ServerAction.empty:
         return const SizedBox.shrink();
       case ServerAction.fileExplorer:
-        final explorerContext = tab.explorerContext ?? ExplorerContext.server(tab.host);
+        final explorerContext =
+            tab.explorerContext ?? ExplorerContext.server(tab.host);
         return FileExplorerTab(
           key: tab.bodyKey,
           host: tab.host,
@@ -159,10 +167,8 @@ class ServerTabFactory {
           trashManager: trashManager,
           onOpenTrash: onOpenTrash,
           onOpenEditorTab: onOpenEditorTab,
-          onOpenTerminalTab: (path) => onOpenTerminalTab(
-            tab.host,
-            initialDirectory: path,
-          ),
+          onOpenTerminalTab: (path) =>
+              onOpenTerminalTab(tab.host, initialDirectory: path),
           optionsController: tab.optionsController,
         );
       case ServerAction.editor:

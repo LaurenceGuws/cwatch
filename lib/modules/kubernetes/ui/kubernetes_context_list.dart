@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 
+import 'package:cwatch/core/models/tab_state.dart';
 import 'package:cwatch/core/tabs/tab_host.dart';
 import 'package:cwatch/core/tabs/tab_host_view.dart';
 import 'package:cwatch/core/workspace/workspace_persistence.dart';
@@ -245,26 +246,10 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   ) {
     final restored = <_KubeTab>[];
     for (final tabState in workspace.tabs) {
-      if (_isPlaceholderState(tabState)) {
-        restored.add(_createPlaceholderTab(id: tabState.id));
-        continue;
+      final tab = _tabFromState(tabState, contexts);
+      if (tab != null) {
+        restored.add(tab);
       }
-      final context = _findContext(
-        contexts,
-        tabState.contextName,
-        tabState.configPath,
-      );
-      if (context == null) {
-        continue;
-      }
-      restored.add(
-        _createContextTab(
-          id: tabState.id,
-          context: context,
-          customName: tabState.customName,
-          kind: tabState.kind,
-        ),
-      );
     }
     if (restored.isEmpty) {
       final placeholder = _createPlaceholderTab();
@@ -273,31 +258,13 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     return restored;
   }
 
-  bool _isPlaceholderState(KubernetesTabState state) {
+  bool _isPlaceholderState(TabState state) {
     return state.contextName == _placeholderName &&
-        state.configPath == _placeholderConfig;
+        (state.path ?? '') == _placeholderConfig;
   }
 
   KubernetesWorkspaceState _currentWorkspaceState() {
-    final tabs = _tabs.map((tab) {
-      final context = tab.context;
-      if (context == null) {
-        return KubernetesTabState(
-          id: tab.id,
-          contextName: _placeholderName,
-          configPath: _placeholderConfig,
-          customName: tab.customName,
-          kind: tab.kind,
-        );
-      }
-      return KubernetesTabState(
-        id: tab.id,
-        contextName: context.name,
-        configPath: context.configPath,
-        customName: tab.customName,
-        kind: tab.kind,
-      );
-    }).toList();
+    final tabs = _tabs.map(_tabStateFromTab).toList();
     final clampedIndex = _tabs.isEmpty
         ? 0
         : _tabController.selectedIndex.clamp(0, _tabs.length - 1);
@@ -383,6 +350,48 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     } else {
       tab.options.update(options);
     }
+  }
+
+  _KubeTab? _tabFromState(TabState state, List<KubeconfigContext> contexts) {
+    if (_isPlaceholderState(state)) {
+      return _createPlaceholderTab(id: state.id);
+    }
+    final kind = _kindFromString(state.kind);
+    final contextName = state.contextName;
+    final configPath = state.path;
+    if (contextName == null || configPath == null) {
+      return null;
+    }
+    final context = _findContext(contexts, contextName, configPath);
+    if (context == null) {
+      return null;
+    }
+    return _createContextTab(
+      id: state.id,
+      context: context,
+      customName: state.title ?? state.label,
+      kind: kind,
+    );
+  }
+
+  TabState _tabStateFromTab(_KubeTab tab) {
+    final context = tab.context;
+    final isPlaceholder = context == null;
+    return TabState(
+      id: tab.id,
+      kind: isPlaceholder ? 'placeholder' : tab.kind.name,
+      contextName: context?.name ?? _placeholderName,
+      path: context?.configPath ?? _placeholderConfig,
+      title: tab.customName ?? tab.title,
+      label: tab.customName ?? tab.label,
+    );
+  }
+
+  KubernetesTabKind _kindFromString(String raw) {
+    return KubernetesTabKind.values.firstWhere(
+      (value) => value.name == raw,
+      orElse: () => KubernetesTabKind.details,
+    );
   }
 
   bool _contextEquals(KubeconfigContext a, KubeconfigContext b) {

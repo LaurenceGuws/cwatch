@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:cwatch/core/models/tab_state.dart';
 import 'package:cwatch/models/docker_workspace_state.dart';
 import 'package:cwatch/models/explorer_context.dart';
 import 'package:cwatch/models/ssh_host.dart';
@@ -63,13 +64,15 @@ class DockerTabFactory {
       body: body,
       canDrag: true,
       canRename: true,
-      workspaceState: DockerTabState(
+      workspaceState: TabState(
         id: id,
         kind: contextName != null
-            ? DockerTabKind.contextOverview
-            : DockerTabKind.hostOverview,
+            ? DockerTabKind.contextOverview.name
+            : DockerTabKind.hostOverview.name,
         contextName: contextName,
         hostName: remoteHost?.name,
+        title: title,
+        label: label,
       ),
       optionsController: controller,
     );
@@ -105,13 +108,15 @@ class DockerTabFactory {
       body: body,
       canDrag: true,
       canRename: true,
-      workspaceState: DockerTabState(
+      workspaceState: TabState(
         id: id,
         kind: contextName != null
-            ? DockerTabKind.contextResources
-            : DockerTabKind.hostResources,
+            ? DockerTabKind.contextResources.name
+            : DockerTabKind.hostResources.name,
         contextName: contextName,
         hostName: remoteHost?.name,
+        title: title,
+        label: label,
       ),
       optionsController: controller,
     );
@@ -173,13 +178,18 @@ class DockerTabFactory {
         onOpenTerminalTab: null,
         optionsController: controller,
       ),
-      workspaceState: DockerTabState(
+      workspaceState: TabState(
         id: id,
-        kind: DockerTabKind.containerExplorer,
+        kind: DockerTabKind.containerExplorer.name,
         hostName: host.name,
-        containerId: containerId,
-        containerName: containerName,
         contextName: dockerContextName,
+        title: title,
+        label: label,
+        extra: {
+          if (containerId.isNotEmpty) 'containerId': containerId,
+          if (containerName != null && containerName.isNotEmpty)
+            'containerName': containerName,
+        },
       ),
       optionsController: controller,
     );
@@ -214,14 +224,20 @@ class DockerTabFactory {
         optionsController: controller,
         initialContent: initialContent,
       ),
-      workspaceState: DockerTabState(
+      workspaceState: TabState(
         id: id,
-        kind: DockerTabKind.containerEditor,
+        kind: DockerTabKind.containerEditor.name,
         hostName: host.name,
-        containerId: containerId,
-        containerName: containerName,
         contextName: contextName,
         path: path,
+        title: title,
+        label: label,
+        extra: {
+          if (containerId != null && containerId.isNotEmpty)
+            'containerId': containerId,
+          if (containerName != null && containerName.isNotEmpty)
+            'containerName': containerName,
+        },
       ),
       optionsController: controller,
     );
@@ -258,15 +274,20 @@ class DockerTabFactory {
         onExit: onExit,
         optionsController: controller,
       ),
-      workspaceState: DockerTabState(
+      workspaceState: TabState(
         id: id,
-        kind: kind,
+        kind: kind.name,
         hostName: host?.name,
         command: command,
         title: title,
-        containerId: containerId,
-        containerName: containerName,
+        label: label,
         contextName: contextName,
+        extra: {
+          if (containerId != null && containerId.isNotEmpty)
+            'containerId': containerId,
+          if (containerName != null && containerName.isNotEmpty)
+            'containerName': containerName,
+        },
       ),
       optionsController: controller,
     );
@@ -302,15 +323,16 @@ class DockerTabFactory {
         onExit: onExit,
         optionsController: controller,
       ),
-      workspaceState: DockerTabState(
+      workspaceState: TabState(
         id: id,
-        kind: DockerTabKind.composeLogs,
+        kind: DockerTabKind.composeLogs.name,
         hostName: host?.name,
         contextName: contextName,
         project: project,
         services: services,
         title: title,
         command: composeBase,
+        label: label,
       ),
       optionsController: controller,
     );

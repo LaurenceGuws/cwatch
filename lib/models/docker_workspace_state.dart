@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:cwatch/core/models/tab_state.dart';
+
 enum DockerTabKind {
   picker,
   placeholder,
@@ -87,18 +89,15 @@ class DockerTabState {
       project: json['project'] as String?,
       services:
           (json['services'] as List<dynamic>?)?.whereType<String>().toList() ??
-              const [],
+          const [],
     );
   }
 }
 
 class DockerWorkspaceState {
-  const DockerWorkspaceState({
-    required this.tabs,
-    this.selectedIndex = 0,
-  });
+  const DockerWorkspaceState({required this.tabs, this.selectedIndex = 0});
 
-  final List<DockerTabState> tabs;
+  final List<TabState> tabs;
   final int selectedIndex;
 
   Map<String, dynamic> toJson() {
@@ -110,20 +109,17 @@ class DockerWorkspaceState {
 
   factory DockerWorkspaceState.fromJson(Map<String, dynamic> json) {
     final rawTabs = json['tabs'] as List<dynamic>? ?? const [];
-    final tabs = <DockerTabState>[];
+    final tabs = <TabState>[];
     for (final entry in rawTabs) {
       if (entry is! Map<String, dynamic>) continue;
       try {
-        tabs.add(DockerTabState.fromJson(entry));
+        tabs.add(TabState.fromJson(entry));
       } catch (_) {
         // Skip malformed tabs.
       }
     }
     final selected = (json['selectedIndex'] as num?)?.toInt() ?? 0;
-    return DockerWorkspaceState(
-      tabs: tabs,
-      selectedIndex: selected,
-    );
+    return DockerWorkspaceState(tabs: tabs, selectedIndex: selected);
   }
 
   String get signature => jsonEncode(toJson());
