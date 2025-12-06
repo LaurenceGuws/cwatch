@@ -7,10 +7,7 @@ import 'package:path/path.dart' as path;
 
 import 'package:cwatch/core/models/tab_state.dart';
 import 'package:cwatch/core/tabs/tab_host.dart';
-import 'package:cwatch/core/tabs/tab_host_view.dart';
-import 'package:cwatch/core/workspace/workspace_persistence.dart';
 import 'package:cwatch/models/kubernetes_workspace_state.dart';
-import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/services/kubernetes/kubeconfig_service.dart';
 import 'package:cwatch/services/kubernetes/kubectl_service.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
@@ -20,7 +17,13 @@ import 'package:cwatch/shared/widgets/lists/section_list.dart';
 import 'package:cwatch/shared/widgets/lists/section_list_item.dart';
 import 'package:cwatch/shared/views/shared/tabs/file_explorer/external_app_launcher.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
+import 'package:cwatch/core/tabs/tabbed_workspace_shell.dart';
+import 'package:cwatch/core/tabs/tab_view_registry.dart';
+import 'package:cwatch/core/widgets/keep_alive.dart';
 import 'widgets/kubernetes_resources.dart';
+import 'kubernetes_tab.dart';
+import 'kubernetes_tab_factory.dart';
+import 'kubernetes_workspace_controller.dart';
 
 class KubernetesContextList extends StatefulWidget {
   const KubernetesContextList({
@@ -42,43 +45,62 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
 
   final KubeconfigService _kubeconfig = const KubeconfigService();
   final KubectlService _kubectl = const KubectlService();
-  late final TabHostController<_KubeTab> _tabController;
-  late final WorkspacePersistence<KubernetesWorkspaceState>
-  _workspacePersistence;
-  final Map<String, Widget> _tabBodies = {};
+  late final TabHostController<KubernetesTab> _tabController;
+  late final TabViewRegistry<KubernetesTab> _tabRegistry;
+  late final KubernetesWorkspaceController _workspaceController;
+  late final KubernetesTabFactory _tabFactory;
+  final ValueNotifier<List<TabChipOption>> _emptyOptions =
+      ValueNotifier<List<TabChipOption>>(const []);
   Future<List<KubeconfigContext>>? _contextsFuture;
   List<KubeconfigContext> _cachedContexts = const [];
   late final VoidCallback _settingsListener;
+  late final VoidCallback _tabsListener;
   String? _selectedContextKey;
 
-  List<_KubeTab> get _tabs => _tabController.tabs;
+  List<KubernetesTab> get _tabs => _tabController.tabs;
 
   @override
   void initState() {
     super.initState();
     _contextsFuture = _loadContexts();
-    _tabController = TabHostController<_KubeTab>(
+    _workspaceController = KubernetesWorkspaceController(
+      settingsController: widget.settingsController,
+      placeholderName: _placeholderName,
+      placeholderConfig: _placeholderConfig,
+    );
+    _tabFactory = KubernetesTabFactory(
+      placeholderName: _placeholderName,
+      placeholderConfig: _placeholderConfig,
+      buildPlaceholder: _buildContextSelection,
+      buildDetails: _buildContextDetails,
+      buildResources: _buildResources,
+      detailsIcon: NerdIcon.kubernetes.data,
+      resourcesIcon: NerdIcon.database.data,
+    );
+    _tabController = TabHostController<KubernetesTab>(
       baseTabBuilder: _createPlaceholderTab,
       tabId: (tab) => tab.id,
     );
-    final placeholder = _createPlaceholderTab();
-    _tabBodies[placeholder.id] = placeholder.body;
-    _workspacePersistence = WorkspacePersistence(
-      settingsController: widget.settingsController,
-      readFromSettings: (settings) => settings.kubernetesWorkspace,
-      writeToSettings: (current, workspace) =>
-          current.copyWith(kubernetesWorkspace: workspace),
-      signatureOf: (workspace) => workspace.signature,
+    _tabRegistry = TabViewRegistry<KubernetesTab>(
+      tabId: (tab) => tab.id,
+      keepAliveBuilder: (child, key) => KeepAliveWrapper(key: key, child: child),
+      viewKeyPrefix: 'k8s-tab',
     );
     _settingsListener = _handleSettingsChanged;
+    _tabsListener = _handleTabsChanged;
     widget.settingsController.addListener(_settingsListener);
+    final placeholder = _createPlaceholderTab();
+    _tabRegistry.widgetFor(placeholder, () => placeholder.body);
+    _tabController.addListener(_tabsListener);
     _restoreWorkspace();
   }
 
   @override
   void dispose() {
     widget.settingsController.removeListener(_settingsListener);
+    _tabController.removeListener(_tabsListener);
     _disposeTabControllers(_tabs);
+    _emptyOptions.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -93,8 +115,10 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
           Expanded(
             child: Material(
               color: appTheme.section.toolbarBackground,
-              child: TabHostView<_KubeTab>(
+              child: TabbedWorkspaceShell<KubernetesTab>(
                 controller: _tabController,
+                registry: _tabRegistry,
+                tabBarHeight: 36,
                 leading: widget.leading != null
                     ? Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -109,7 +133,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                 buildChip: (context, index, tab) {
                   return ValueListenableBuilder<List<TabChipOption>>(
                     key: ValueKey(tab.id),
-                    valueListenable: tab.options,
+                    valueListenable: tab.optionsController ?? _emptyOptions,
                     builder: (context, options, _) {
                       return TabChip(
                         host: tab.host,
@@ -119,6 +143,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                         selected: index == _tabController.selectedIndex,
                         onSelect: () {
                           _tabController.select(index);
+                          _selectedContextKey = _tabContextKey(tab);
                           _persistWorkspace();
                         },
                         onClose: () => _closeTab(index),
@@ -132,10 +157,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                     },
                   );
                 },
-                buildBody: (tab) => KeyedSubtree(
-                  key: ValueKey('k8s-body-${tab.id}'),
-                  child: _tabBodies[tab.id] ?? const SizedBox.shrink(),
-                ),
+                buildBody: (tab) => tab.body,
               ),
             ),
           ),
@@ -181,21 +203,29 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
       return;
     }
     _refreshContexts();
-    _workspacePersistence.persistIfPending(_persistWorkspace);
+    _workspaceController.workspacePersistence.persistIfPending(_persistWorkspace);
+  }
+
+  void _handleTabsChanged() {
+    _tabRegistry.reset(_tabs);
+    setState(() {});
+    unawaited(_persistWorkspace());
   }
 
   void _refreshContexts() {
     _contextsFuture = _loadContexts();
-    final updatedTabs = <_KubeTab>[];
+    final updatedTabs = <KubernetesTab>[];
     for (final tab in _tabs) {
       if (tab.context == null) {
         final updated = tab.copyWith(body: _buildContextSelection());
         updatedTabs.add(updated);
-        _tabBodies[updated.id] = updated.body;
+        _tabRegistry.remove(tab);
+        _tabRegistry.widgetFor(updated, () => updated.body);
       } else {
         updatedTabs.add(tab);
       }
     }
+    _tabRegistry.reset(updatedTabs);
     _tabController.replaceAll(
       updatedTabs,
       selectedIndex: _tabController.selectedIndex,
@@ -207,7 +237,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     if (workspace == null || workspace.tabs.isEmpty) {
       return;
     }
-    if (!_workspacePersistence.shouldRestore(workspace)) {
+    if (!_workspaceController.workspacePersistence.shouldRestore(workspace)) {
       return;
     }
     List<KubeconfigContext> contexts;
@@ -223,11 +253,9 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     if (restoredTabs.isEmpty) {
       return;
     }
-    _workspacePersistence.markRestored(workspace);
+    _workspaceController.workspacePersistence.markRestored(workspace);
     _disposeTabControllers(_tabs);
-    _tabBodies
-      ..clear()
-      ..addEntries(restoredTabs.map((tab) => MapEntry(tab.id, tab.body)));
+    _tabRegistry.reset(restoredTabs);
     _tabController.replaceAll(
       restoredTabs,
       selectedIndex: workspace.selectedIndex,
@@ -240,40 +268,31 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
         : null;
   }
 
-  List<_KubeTab> _buildTabsFromState(
+  List<KubernetesTab> _buildTabsFromState(
     KubernetesWorkspaceState workspace,
     List<KubeconfigContext> contexts,
   ) {
-    final restored = <_KubeTab>[];
-    for (final tabState in workspace.tabs) {
-      final tab = _tabFromState(tabState, contexts);
-      if (tab != null) {
-        restored.add(tab);
-      }
-    }
+    final restored = _workspaceController.buildTabsFromState(
+      workspace: workspace,
+      contexts: contexts,
+      buildTab: (state) => _tabFromState(state, contexts),
+    );
     if (restored.isEmpty) {
-      final placeholder = _createPlaceholderTab();
-      restored.add(placeholder);
+      restored.add(_createPlaceholderTab());
     }
     return restored;
   }
 
-  bool _isPlaceholderState(TabState state) {
-    return state.contextName == _placeholderName &&
-        (state.path ?? '') == _placeholderConfig;
-  }
-
   KubernetesWorkspaceState _currentWorkspaceState() {
-    final tabs = _tabs.map(_tabStateFromTab).toList();
-    final clampedIndex = _tabs.isEmpty
-        ? 0
-        : _tabController.selectedIndex.clamp(0, _tabs.length - 1);
-    return KubernetesWorkspaceState(tabs: tabs, selectedIndex: clampedIndex);
+    return _workspaceController.currentWorkspaceState(
+      _tabs,
+      _tabController.selectedIndex,
+    );
   }
 
   Future<void> _persistWorkspace() async {
     final workspace = _currentWorkspaceState();
-    await _workspacePersistence.persist(workspace);
+    await _workspaceController.workspacePersistence.persist(workspace);
   }
 
   void _refreshTabContexts(List<KubeconfigContext> contexts) {
@@ -284,15 +303,16 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
       if (context == null) {
         continue;
       }
-      final fresh = _findContext(contexts, context.name, context.configPath);
-      if (fresh != null && !_contextEquals(context, fresh)) {
-        final updatedBody = tab.kind == KubernetesTabKind.resources
-            ? _buildResources(fresh, tab.options)
-            : _buildContextDetails(fresh);
-        final updated = tab.copyWith(context: fresh, body: updatedBody);
-        _tabs[i] = updated;
-        _syncTabOptions(updated);
-        _tabBodies[tab.id] = updated.body;
+        final fresh = _findContext(contexts, context.name, context.configPath);
+        if (fresh != null && !_contextEquals(context, fresh)) {
+          final updatedBody = tab.kind == KubernetesTabKind.resources
+              ? _buildResources(fresh, tab.optionsController!)
+              : _buildContextDetails(fresh);
+          final updated = tab.copyWith(context: fresh, body: updatedBody);
+          _tabs[i] = updated;
+          _syncTabOptions(updated);
+          _tabRegistry.remove(tab);
+          _tabRegistry.widgetFor(updated, () => updated.body);
         changed = true;
       }
     }
@@ -301,7 +321,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     }
   }
 
-  void _syncTabOptions(_KubeTab tab) {
+  void _syncTabOptions(KubernetesTab tab) {
     final options = <TabChipOption>[];
     final context = tab.context;
     if (context != null) {
@@ -345,52 +365,22 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
         );
       }
     }
-    if (tab.options is CompositeTabOptionsController) {
-      (tab.options as CompositeTabOptionsController).updateBase(options);
-    } else {
-      tab.options.update(options);
+    final controller = tab.optionsController;
+    if (controller is CompositeTabOptionsController) {
+      controller.updateBase(options);
+    } else if (controller != null) {
+      controller.update(options);
     }
   }
 
-  _KubeTab? _tabFromState(TabState state, List<KubeconfigContext> contexts) {
-    if (_isPlaceholderState(state)) {
-      return _createPlaceholderTab(id: state.id);
-    }
-    final kind = _kindFromString(state.kind);
-    final contextName = state.contextName;
-    final configPath = state.path;
-    if (contextName == null || configPath == null) {
-      return null;
-    }
-    final context = _findContext(contexts, contextName, configPath);
-    if (context == null) {
-      return null;
-    }
-    return _createContextTab(
-      id: state.id,
-      context: context,
-      customName: state.title ?? state.label,
-      kind: kind,
-    );
-  }
-
-  TabState _tabStateFromTab(_KubeTab tab) {
-    final context = tab.context;
-    final isPlaceholder = context == null;
-    return TabState(
-      id: tab.id,
-      kind: isPlaceholder ? 'placeholder' : tab.kind.name,
-      contextName: context?.name ?? _placeholderName,
-      path: context?.configPath ?? _placeholderConfig,
-      title: tab.customName ?? tab.title,
-      label: tab.customName ?? tab.label,
-    );
-  }
-
-  KubernetesTabKind _kindFromString(String raw) {
-    return KubernetesTabKind.values.firstWhere(
-      (value) => value.name == raw,
-      orElse: () => KubernetesTabKind.details,
+  KubernetesTab? _tabFromState(
+    TabState state,
+    List<KubeconfigContext> contexts,
+  ) {
+    return _workspaceController.tabFromState(
+      state: state,
+      contexts: contexts,
+      factory: _tabFactory,
     );
   }
 
@@ -419,64 +409,28 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
 
   String _uniqueId() => DateTime.now().microsecondsSinceEpoch.toString();
 
-  _KubeTab _createPlaceholderTab({String? id}) {
-    final tab = _createTab(
-      id: id ?? 'k8s-placeholder-${_uniqueId()}',
-      context: null,
-      kind: KubernetesTabKind.details,
-      closable: true,
-      canDrag: false,
-      body: _buildContextSelection(),
-    );
+  KubernetesTab _createPlaceholderTab({String? id}) {
+    final tab = _tabFactory.placeholder(id: id);
     _syncTabOptions(tab);
     return tab;
   }
 
-  _KubeTab _createContextTab({
+  KubernetesTab _createContextTab({
     required KubeconfigContext context,
     String? id,
     String? customName,
     KubernetesTabKind kind = KubernetesTabKind.details,
+    TabOptionsController? optionsController,
   }) {
-    final optionsController = kind == KubernetesTabKind.resources
-        ? CompositeTabOptionsController()
-        : TabOptionsController();
-    final tab = _createTab(
+    final tab = _tabFactory.contextTab(
       id: id ?? 'k8s-${_uniqueId()}',
       context: context,
       customName: customName,
-      closable: true,
-      canDrag: true,
       kind: kind,
-      body: kind == KubernetesTabKind.resources
-          ? _buildResources(context, optionsController)
-          : _buildContextDetails(context),
-      options: optionsController,
+      optionsController: optionsController,
     );
     _syncTabOptions(tab);
     return tab;
-  }
-
-  _KubeTab _createTab({
-    required String id,
-    required KubeconfigContext? context,
-    String? customName,
-    required KubernetesTabKind kind,
-    required bool closable,
-    required bool canDrag,
-    required Widget body,
-    TabOptionsController? options,
-  }) {
-    return _KubeTab(
-      id: id,
-      context: context,
-      kind: kind,
-      customName: customName,
-      closable: closable,
-      canDrag: canDrag,
-      body: body,
-      options: options,
-    );
   }
 
   Widget _buildContextSelection() {
@@ -688,7 +642,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   String _contextKey(KubeconfigContext context) =>
       '${context.name}|${context.configPath}';
 
-  String _tabContextKey(_KubeTab tab) {
+  String _tabContextKey(KubernetesTab tab) {
     final context = tab.context;
     if (context == null) return '';
     return _contextKey(context);
@@ -969,22 +923,20 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
       _persistWorkspace();
       return;
     }
-    _tabBodies[tab.id] = tab.body;
+    _tabRegistry.widgetFor(tab, () => tab.body);
     _tabController.addTab(tab);
     _persistWorkspace();
   }
 
-  void _replaceTab(String tabId, _KubeTab tab) {
+  void _replaceTab(String tabId, KubernetesTab tab) {
     final index = _tabs.indexWhere((existing) => existing.id == tabId);
     if (index == -1) {
       return;
     }
     final old = _tabs[index];
-    if (old.id != tab.id) {
-      _tabBodies.remove(old.id);
-    }
-    old.options.dispose();
-    _tabBodies[tab.id] = tab.body;
+    old.optionsController?.dispose();
+    _tabRegistry.remove(old);
+    _tabRegistry.widgetFor(tab, () => tab.body);
     _tabController.replaceTab(old.id, tab);
     _tabController.select(index);
   }
@@ -999,13 +951,16 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     if (context == null || tab.kind != KubernetesTabKind.resources) {
       return;
     }
-    final updated = tab.copyWith(body: _buildResources(context, tab.options));
+    final controller = tab.optionsController;
+    if (controller == null) return;
+    final updated = tab.copyWith(body: _buildResources(context, controller));
     _tabs[index] = updated;
-    _tabBodies[tab.id] = updated.body;
+    _tabRegistry.remove(tab);
+    _tabRegistry.widgetFor(updated, () => updated.body);
     setState(() {});
   }
 
-  bool _replacePlaceholderWithSelected(_KubeTab tab) {
+  bool _replacePlaceholderWithSelected(KubernetesTab tab) {
     if (_tabs.isEmpty) {
       return false;
     }
@@ -1014,9 +969,9 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     if (current.context != null) {
       return false;
     }
-    current.options.dispose();
-    _tabBodies.remove(current.id);
-    _tabBodies[tab.id] = tab.body;
+    current.optionsController?.dispose();
+    _tabRegistry.remove(current);
+    _tabRegistry.widgetFor(tab, () => tab.body);
     _tabController.replaceTab(current.id, tab);
     _tabController.select(index);
     return true;
@@ -1024,7 +979,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
 
   void _startEmptyTab() {
     final placeholder = _createPlaceholderTab();
-    _tabBodies[placeholder.id] = placeholder.body;
+    _tabRegistry.widgetFor(placeholder, () => placeholder.body);
     _tabController.addTab(placeholder);
     _persistWorkspace();
   }
@@ -1035,20 +990,20 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     }
     if (_tabs.length == 1) {
       final oldTab = _tabs[0];
-      oldTab.options.dispose();
+      oldTab.optionsController?.dispose();
       final placeholder = _createPlaceholderTab(id: oldTab.id);
-      _tabBodies
+      _tabRegistry
         ..clear()
-        ..[placeholder.id] = placeholder.body;
+        ..widgetFor(placeholder, () => placeholder.body);
       _tabController.replaceTab(oldTab.id, placeholder);
       _tabController.select(0);
     } else {
       final removed = _tabs[index];
-      removed.options.dispose();
-      _tabBodies.remove(removed.id);
+      removed.optionsController?.dispose();
+      _tabRegistry.remove(removed);
       _tabController.closeTab(index, baseReplacement: _createPlaceholderTab());
       final base = _tabController.tabs.first;
-      _tabBodies.putIfAbsent(base.id, () => base.body);
+      _tabRegistry.widgetFor(base, () => base.body);
     }
     _persistWorkspace();
   }
@@ -1103,7 +1058,8 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
       customName: trimmed.isEmpty ? null : trimmed,
       setCustomName: true,
     );
-    _tabBodies[updated.id] = updated.body;
+    _tabRegistry.remove(tab);
+    _tabRegistry.widgetFor(updated, () => updated.body);
     _tabController.replaceTab(tab.id, updated);
     _persistWorkspace();
   }
@@ -1114,77 +1070,9 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     });
   }
 
-  void _disposeTabControllers(Iterable<_KubeTab> tabs) {
+  void _disposeTabControllers(Iterable<KubernetesTab> tabs) {
     for (final tab in tabs) {
-      tab.options.dispose();
+      tab.optionsController?.dispose();
     }
-  }
-}
-
-class _KubeTab {
-  _KubeTab({
-    required this.id,
-    required this.context,
-    required this.kind,
-    required this.closable,
-    required this.canDrag,
-    required this.body,
-    this.customName,
-    TabOptionsController? options,
-  }) : options = options ?? TabOptionsController();
-
-  final String id;
-  final KubeconfigContext? context;
-  final KubernetesTabKind kind;
-  final bool closable;
-  final bool canDrag;
-  final Widget body;
-  final String? customName;
-  final TabOptionsController options;
-
-  String get title {
-    if (customName != null && customName!.trim().isNotEmpty) {
-      return customName!.trim();
-    }
-    if (context != null) {
-      return context!.name;
-    }
-    return 'Kubernetes';
-  }
-
-  String get label => title;
-
-  IconData get icon {
-    if (kind == KubernetesTabKind.resources) {
-      return NerdIcon.database.data;
-    }
-    return NerdIcon.kubernetes.data;
-  }
-
-  bool get canRename => context != null;
-
-  SshHost get host => SshHost(
-    name: label,
-    hostname: context?.server ?? '',
-    port: 0,
-    available: true,
-  );
-
-  _KubeTab copyWith({
-    KubeconfigContext? context,
-    String? customName,
-    bool setCustomName = false,
-    Widget? body,
-  }) {
-    return _KubeTab(
-      id: id,
-      context: context ?? this.context,
-      kind: kind,
-      closable: closable,
-      canDrag: canDrag,
-      body: body ?? this.body,
-      customName: setCustomName ? customName : this.customName,
-      options: options,
-    );
   }
 }
