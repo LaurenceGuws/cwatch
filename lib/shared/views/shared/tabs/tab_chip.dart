@@ -23,8 +23,20 @@ class TabChipOption {
 class TabOptionsController extends ValueNotifier<List<TabChipOption>> {
   TabOptionsController([super.value = const []]);
 
+  bool get isDisposed => _disposed;
+  bool _disposed = false;
+
   void update(List<TabChipOption> options) {
+    if (_disposed) {
+      return;
+    }
     value = options;
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }
 
@@ -49,6 +61,9 @@ class CompositeTabOptionsController extends TabOptionsController {
   }
 
   void _refresh() {
+    if (isDisposed) {
+      return;
+    }
     value = List.unmodifiable([..._baseOptions, ..._overlayOptions]);
   }
 }

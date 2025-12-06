@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
-
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,8 +8,6 @@ import 'package:cwatch/models/docker_container.dart';
 import 'package:cwatch/models/docker_image.dart';
 import 'package:cwatch/models/docker_network.dart';
 import 'package:cwatch/models/docker_volume.dart';
-import 'package:cwatch/models/docker_workspace_state.dart';
-import 'package:cwatch/models/explorer_context.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/modules/docker/services/docker_client_service.dart';
 import 'package:cwatch/modules/docker/services/docker_engine_service.dart';
@@ -23,10 +19,11 @@ import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import '../engine_tab.dart';
 import '../docker_tab_factory.dart';
-import '../../services/docker_container_shell_service.dart';
 import 'docker_lists.dart';
 import 'docker_shared.dart';
 import 'section_card.dart';
+import 'docker_overview_controller.dart';
+import 'docker_overview_actions.dart';
 
 typedef OpenTab = void Function(EngineTab tab);
 
@@ -63,18 +60,11 @@ class DockerOverview extends StatefulWidget {
 }
 
 class _DockerOverviewState extends State<DockerOverview> {
-  late final DockerEngineService _engineService;
-  Future<EngineSnapshot>? _snapshot;
-  final Set<String> _selectedContainerIds = {};
-  final Set<String> _selectedImageKeys = {};
-  final Set<String> _selectedNetworkKeys = {};
-  final Set<String> _selectedVolumeKeys = {};
-  int? _focusedContainerIndex;
-  int? _containerAnchorIndex;
+  late DockerOverviewController _controller;
+  late final VoidCallback _controllerListener;
+  late DockerOverviewActions _actions;
+  late DockerOverviewMenus _menus;
   final FocusNode _containerFocus = FocusNode(debugLabel: 'docker-containers');
-  final Map<String, String> _containerActionInProgress = {};
-  bool _containersHydrated = false;
-  List<DockerContainer> _cachedContainers = const [];
   AppIcons get _icons => context.appTheme.icons;
   AppDockerTokens get _dockerTheme => context.appTheme.docker;
   bool _tabOptionsRegistered = false;
@@ -82,8 +72,28 @@ class _DockerOverviewState extends State<DockerOverview> {
   @override
   void initState() {
     super.initState();
-    _engineService = DockerEngineService(docker: widget.docker);
-    _snapshot = _load();
+    _controller = DockerOverviewController(
+      docker: widget.docker,
+      contextName: widget.contextName,
+      remoteHost: widget.remoteHost,
+      shellService: widget.shellService,
+    );
+    _controllerListener = () {
+      if (mounted) setState(() {});
+    };
+    _controller.addListener(_controllerListener);
+    _controller.initialize();
+    _actions = DockerOverviewActions(
+      controller: _controller,
+      docker: widget.docker,
+      contextName: widget.contextName,
+      remoteHost: widget.remoteHost,
+      shellService: widget.shellService,
+      tabFactory: widget.tabFactory,
+      onOpenTab: widget.onOpenTab,
+      onCloseTab: widget.onCloseTab,
+    );
+    _menus = DockerOverviewMenus(icons: _icons);
   }
 
   @override
@@ -122,38 +132,44 @@ class _DockerOverviewState extends State<DockerOverview> {
 
   @override
   void dispose() {
+    _controller
+      ..removeListener(_controllerListener)
+      ..dispose();
     _containerFocus.dispose();
     super.dispose();
   }
 
-  Future<EngineSnapshot> _load() async {
-    return _runWithRetry(
-      () => _engineService.fetch(
-        contextName: widget.contextName,
-        remoteHost: widget.remoteHost,
-        shell: widget.shellService,
-      ),
-      retry: widget.remoteHost != null && widget.shellService != null,
-    );
-  }
-
   void _refresh() {
-    setState(() {
-      _containersHydrated = false;
-      _snapshot = _load();
-    });
+    _controller.refresh();
   }
 
-  Future<T> _runWithRetry<T>(
-    Future<T> Function() operation, {
-    bool retry = false,
-  }) async {
+  Future<void> _runPrune({required bool includeVolumes}) async {
     try {
-      return await operation();
+      if (widget.remoteHost != null && widget.shellService != null) {
+        final cmd = includeVolumes
+            ? 'docker system prune -f --volumes'
+            : 'docker system prune -f';
+        await widget.shellService!.runCommand(
+          widget.remoteHost!,
+          cmd,
+          timeout: const Duration(seconds: 20),
+        );
+      } else {
+        await widget.docker.systemPrune(
+          context: widget.contextName,
+          includeVolumes: includeVolumes,
+        );
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Prune completed.')));
+      _refresh();
     } catch (error) {
-      if (!retry) rethrow;
-      await Future.delayed(const Duration(milliseconds: 350));
-      return operation();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Prune failed: $error')));
     }
   }
 
@@ -162,12 +178,12 @@ class _DockerOverviewState extends State<DockerOverview> {
     final dockerTheme = _dockerTheme;
     return Padding(
       padding: const EdgeInsets.all(8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: FutureBuilder<EngineSnapshot>(
-              future: _snapshot,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: FutureBuilder<EngineSnapshot>(
+              future: _controller.snapshot,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -182,11 +198,7 @@ class _DockerOverviewState extends State<DockerOverview> {
                 if (data == null) {
                   return const Center(child: Text('No data.'));
                 }
-                if (!_containersHydrated) {
-                  _cachedContainers = data.containers;
-                  _containersHydrated = true;
-                }
-                final containers = _cachedContainers;
+                final containers = _controller.ensureHydrated(data);
                 final images = data.images;
                 final networks = data.networks;
                 final volumes = data.volumes;
@@ -248,9 +260,10 @@ class _DockerOverviewState extends State<DockerOverview> {
                         child: ContainerPeek(
                           containers: containers,
                           onTapDown: _handleContainerTapDown,
-                          selectedIds: _selectedContainerIds,
-                          busyIds: _containerActionInProgress.keys.toSet(),
-                          actionLabels: _containerActionInProgress,
+                          selectedIds: _controller.selectedContainerIds,
+                          busyIds:
+                              _controller.containerActionInProgress.keys.toSet(),
+                          actionLabels: _controller.containerActionInProgress,
                           onComposeAction: _handleComposeAction,
                         ),
                       ),
@@ -261,7 +274,7 @@ class _DockerOverviewState extends State<DockerOverview> {
                       child: ImagePeek(
                         images: images,
                         onTapDown: _handleImageTapDown,
-                        selectedIds: _selectedImageKeys,
+                        selectedIds: _controller.selectedImageKeys,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -270,7 +283,7 @@ class _DockerOverviewState extends State<DockerOverview> {
                       child: NetworkList(
                         networks: networks,
                         onTapDown: _handleNetworkTapDown,
-                        selectedIds: _selectedNetworkKeys,
+                        selectedIds: _controller.selectedNetworkKeys,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -279,7 +292,7 @@ class _DockerOverviewState extends State<DockerOverview> {
                       child: VolumeList(
                         volumes: volumes,
                         onTapDown: _handleVolumeTapDown,
-                        selectedIds: _selectedVolumeKeys,
+                        selectedIds: _controller.selectedVolumeKeys,
                       ),
                     ),
                   ],
@@ -292,40 +305,27 @@ class _DockerOverviewState extends State<DockerOverview> {
     );
   }
 
-  PopupMenuItem<String> _menuItem(
-    String value,
-    String label,
-    IconData icon, {
-    Color? color,
-  }) {
-    final scheme = Theme.of(context).colorScheme;
-    final resolved = color ?? scheme.primary;
-    return PopupMenuItem(
-      value: value,
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: resolved),
-          const SizedBox(width: 8),
-          Text(label, style: color != null ? TextStyle(color: color) : null),
-        ],
-      ),
-    );
-  }
-
   void _openContainerMenu(DockerContainer container, TapDownDetails details) {
     final scheme = Theme.of(context).colorScheme;
     final extraActions = <PopupMenuEntry<String>>[
-      _menuItem('logs', 'Tail logs', Icons.list_alt_outlined),
-      _menuItem('shell', 'Open shell tab', NerdIcon.terminal.data),
-      _menuItem('copyExec', 'Copy exec command', _icons.copy),
-      _menuItem('explore', 'Open explorer', _icons.folderOpen),
-      _menuItem('start', 'Start', Icons.play_arrow_rounded),
-      _menuItem('stop', 'Stop', Icons.stop_rounded),
-      _menuItem('restart', 'Restart', _icons.refresh),
+      _menus.menuItem(context, 'logs', 'Tail logs', Icons.list_alt_outlined),
+      _menus.menuItem(context, 'shell', 'Open shell tab', NerdIcon.terminal.data),
+      _menus.menuItem(context, 'copyExec', 'Copy exec command', _icons.copy),
+      _menus.menuItem(context, 'explore', 'Open explorer', _icons.folderOpen),
+      _menus.menuItem(context, 'start', 'Start', Icons.play_arrow_rounded),
+      _menus.menuItem(context, 'stop', 'Stop', Icons.stop_rounded),
+      _menus.menuItem(context, 'restart', 'Restart', _icons.refresh),
       const PopupMenuDivider(),
-      _menuItem('remove', 'Remove', Icons.delete_outline, color: scheme.error),
+      _menus.menuItem(
+        context,
+        'remove',
+        'Remove',
+        Icons.delete_outline,
+        color: scheme.error,
+      ),
     ];
-    _showItemMenu(
+    _menus.showItemMenu(
+      context: context,
       globalPosition: details.globalPosition,
       title: container.name.isNotEmpty ? container.name : container.id,
       details: {
@@ -337,22 +337,51 @@ class _DockerOverviewState extends State<DockerOverview> {
       copyLabel: 'Container ID',
       extraActions: extraActions,
       onAction: (action) async {
-        if (action == 'logs') {
-          await _openLogsTab(container);
-        } else if (action == 'shell') {
-          await _openExecTerminal(container);
-        } else if (action == 'copyExec') {
-          await _copyExecCommand(container.id);
-        } else if (action == 'explore') {
-          await _openContainerExplorer(container);
-        } else if (action == 'start') {
-          await _runContainerAction(container, 'start');
-        } else if (action == 'stop') {
-          await _runContainerAction(container, 'stop');
-        } else if (action == 'restart') {
-          await _runContainerAction(container, 'restart');
-        } else if (action == 'remove') {
-          await _runContainerAction(container, 'remove');
+        switch (action) {
+          case 'logs':
+            await _actions.openLogsTab(container, context: context);
+            break;
+          case 'shell':
+            await _actions.openExecTerminal(context, container);
+            break;
+          case 'copyExec':
+            await _actions.copyExecCommand(context, container.id);
+            break;
+          case 'explore':
+            await _actions.openContainerExplorer(
+              context,
+              container,
+              dockerContextName: _dockerContextName(
+                widget.remoteHost ??
+                const SshHost(
+                  name: 'local',
+                  hostname: 'localhost',
+                  port: 22,
+                  available: true,
+                  user: null,
+                  identityFiles: <String>[],
+                  source: 'local',
+                ),
+              ),
+            );
+            break;
+          case 'start':
+          case 'stop':
+          case 'restart':
+          case 'remove':
+            await _actions.runContainerAction(
+              context,
+              container: container,
+              action: action,
+              onRestarted: () => _updateContainerAfterRestart(container),
+              onStarted: () => _updateContainerAfterStart(container),
+              onStopped: () => _markContainerStopped(container.id),
+              onRefresh: _refresh,
+              loadStartTime: () => _loadStartTime(container),
+            );
+            break;
+          default:
+            break;
         }
       },
     );
@@ -361,74 +390,36 @@ class _DockerOverviewState extends State<DockerOverview> {
   Future<void> _handleComposeAction(String project, String action) async {
     switch (action) {
       case 'logs':
-        await _openComposeLogsTab(project);
+        await _actions.openComposeLogsTab(
+          context,
+          project: project,
+        );
         break;
       case 'restart':
-        await _runComposeCommand(project, 'restart');
+        await _actions.runComposeCommand(
+          context,
+          project: project,
+          action: 'restart',
+          onSynced: () => _syncProjectContainers(project),
+        );
         break;
       case 'up':
-        await _runComposeCommand(project, 'up');
+        await _actions.runComposeCommand(
+          context,
+          project: project,
+          action: 'up',
+          onSynced: () => _syncProjectContainers(project),
+        );
         break;
       case 'down':
-        await _runComposeCommand(project, 'down');
+        await _actions.runComposeCommand(
+          context,
+          project: project,
+          action: 'down',
+          onSynced: () => _syncProjectContainers(project),
+        );
         break;
     }
-  }
-
-  Future<void> _runComposeCommand(String project, String action) async {
-    _markProjectBusy(project, action);
-    final args = <String>[];
-    switch (action) {
-      case 'up':
-        args.addAll(['up', '-d']);
-        break;
-      case 'down':
-        args.add('down');
-        break;
-      case 'restart':
-        args.add('restart');
-        break;
-      default:
-        return;
-    }
-    if (widget.remoteHost != null && widget.shellService != null) {
-      final cmd = '${_composeBaseCommand(project)} ${args.join(' ')}';
-      await widget.shellService!.runCommand(
-        widget.remoteHost!,
-        cmd,
-        timeout: const Duration(seconds: 20),
-      );
-    } else {
-      await widget.docker.processRunner(
-        'bash',
-        ['-lc', '${_composeBaseCommand(project)} ${args.join(' ')}'],
-        stdoutEncoding: utf8,
-        stderrEncoding: utf8,
-        runInShell: false,
-      );
-    }
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Compose $action executed for $project.')),
-    );
-    await _syncProjectContainers(project);
-    if (mounted) {
-      setState(() {
-        for (final id in _projectContainerIds(project)) {
-          _containerActionInProgress.remove(id);
-        }
-      });
-    }
-  }
-
-  void _markProjectBusy(String project, String action) {
-    setState(() {
-      for (final c in _cachedContainers) {
-        if (c.composeProject == project) {
-          _containerActionInProgress[c.id] = 'compose $action';
-        }
-      }
-    });
   }
 
   void _openImageMenu(DockerImage image, TapDownDetails details) {
@@ -436,7 +427,8 @@ class _DockerOverviewState extends State<DockerOverview> {
       image.repository.isNotEmpty ? image.repository : '<none>',
       image.tag.isNotEmpty ? image.tag : '<none>',
     ].join(':');
-    _showItemMenu(
+    _menus.showItemMenu(
+      context: context,
       globalPosition: details.globalPosition,
       title: ref,
       details: {'ID': image.id, 'Size': image.size},
@@ -446,7 +438,8 @@ class _DockerOverviewState extends State<DockerOverview> {
   }
 
   void _openNetworkMenu(DockerNetwork network, TapDownDetails details) {
-    _showItemMenu(
+    _menus.showItemMenu(
+      context: context,
       globalPosition: details.globalPosition,
       title: network.name,
       details: {'Driver': network.driver, 'Scope': network.scope},
@@ -456,7 +449,8 @@ class _DockerOverviewState extends State<DockerOverview> {
   }
 
   void _openVolumeMenu(DockerVolume volume, TapDownDetails details) {
-    _showItemMenu(
+    _menus.showItemMenu(
+      context: context,
       globalPosition: details.globalPosition,
       title: volume.name,
       details: {
@@ -469,378 +463,63 @@ class _DockerOverviewState extends State<DockerOverview> {
     );
   }
 
-  Future<void> _showItemMenu({
-    required Offset globalPosition,
-    required String title,
-    required Map<String, String> details,
-    required String copyValue,
-    required String copyLabel,
-    List<PopupMenuEntry<String>> extraActions = const [],
-    Future<void> Function(String action)? onAction,
-  }) async {
-    if (!mounted) return;
-    final selected = await showMenu<String>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-        globalPosition.dx,
-        globalPosition.dy,
-        globalPosition.dx,
-        globalPosition.dy,
-      ),
-      items: [
-        _menuItem('copy', 'Copy $copyLabel', _icons.copy),
-        _menuItem('details', 'Details', Icons.info_outline),
-        ...extraActions,
-      ],
-    );
-
-    if (selected == 'copy') {
-      await _copyToClipboard(copyValue, copyLabel);
-    } else if (selected == 'details') {
-      await _showDetailsDialog(title: title, details: details);
-    } else if (selected != null && onAction != null) {
-      await onAction(selected);
-    }
-  }
-
-  Future<void> _showDetailsDialog({
-    required String title,
-    required Map<String, String> details,
-  }) async {
-    if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(title),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: details.entries
-                .map(
-                  (entry) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      children: [
-                        SizedBox(
-                          width: 100,
-                          child: Text(
-                            entry.key,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ),
-                        Expanded(child: Text(entry.value)),
-                      ],
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _copyToClipboard(String value, String label) async {
-    await Clipboard.setData(ClipboardData(text: value));
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$label copied to clipboard.')));
-  }
-
-  Future<void> _openLogsTab(DockerContainer container) async {
-    final name = container.name.isNotEmpty ? container.name : container.id;
-    final baseCommand = _logsBaseCommand(container.id);
-    final tailCommand = _autoCloseCommand(_followLogsCommand(container.id));
-
-    if (widget.onOpenTab != null) {
-      final tabId =
-          'logs-${container.id}-${DateTime.now().microsecondsSinceEpoch}';
-      final tab = widget.tabFactory.commandTerminal(
-        id: tabId,
-        title: 'Logs • $name',
-        label: 'Logs: $name',
-        command: tailCommand,
-        icon: NerdIcon.terminal.data,
-        host: widget.remoteHost,
-        shellService: widget.shellService,
-        kind: DockerTabKind.containerLogs,
-        containerId: container.id,
-        containerName: name,
-        contextName: widget.contextName,
-        onExit: () => widget.onCloseTab?.call(tabId),
+  Future<void> _updateContainerAfterRestart(DockerContainer container) async {
+    final startedAt = await _loadStartTime(container);
+    _controller.mapCachedContainers((c) {
+      if (c.id != container.id) return c;
+      return DockerContainer(
+        id: c.id,
+        name: c.name,
+        image: c.image,
+        state: 'running',
+        status: 'running',
+        ports: c.ports,
+        command: c.command,
+        createdAt: c.createdAt,
+        composeProject: c.composeProject,
+        composeService: c.composeService,
+        startedAt: startedAt ?? DateTime.now().toUtc(),
       );
-      widget.onOpenTab!(tab);
-      return;
-    }
-
-    // Fallback to simple dialog if tabs cannot be opened.
-    await _showLogsDialog(container, baseCommand);
+    });
   }
 
-  Future<void> _openComposeLogsTab(String project) async {
-    final base = _composeBaseCommand(project);
-    final services = _composeServices(project);
-    if (widget.onOpenTab != null) {
-      final tabId = 'clogs-$project-${DateTime.now().microsecondsSinceEpoch}';
-      final tab = widget.tabFactory.composeLogs(
-        id: tabId,
-        title: 'Compose logs: $project',
-        label: 'Compose logs: $project',
-        icon: NerdIcon.terminal.data,
-        composeBase: base,
-        project: project,
-        services: services,
-        host: widget.remoteHost,
-        shellService: widget.shellService,
-        contextName: widget.contextName,
-        onExit: () => widget.onCloseTab?.call(tabId),
+  Future<void> _updateContainerAfterStart(DockerContainer container) async {
+    final startedAt = await _loadStartTime(container);
+    _controller.mapCachedContainers((c) {
+      if (c.id != container.id) return c;
+      return DockerContainer(
+        id: c.id,
+        name: c.name,
+        image: c.image,
+        state: 'running',
+        status: 'running',
+        ports: c.ports,
+        command: c.command,
+        createdAt: c.createdAt,
+        composeProject: c.composeProject,
+        composeService: c.composeService,
+        startedAt: startedAt ?? DateTime.now().toUtc(),
       );
-      widget.onOpenTab!(tab);
-      return;
-    }
-    await _showLogsDialog(
-      DockerContainer(
-        id: project,
-        name: 'Compose $project',
-        image: '',
-        state: '',
-        status: '',
-        ports: '',
-      ),
-      '$base logs --tail 200',
-    );
+    });
   }
 
-  String _logsBaseCommand(String containerId) {
-    final contextFlag =
-        widget.contextName != null && widget.contextName!.isNotEmpty
-        ? '--context ${widget.contextName!} '
-        : '';
-    return 'docker ${contextFlag}logs $containerId';
-  }
-
-  String _composeBaseCommand(String project) {
-    final contextFlag =
-        widget.contextName != null && widget.contextName!.isNotEmpty
-        ? '--context ${widget.contextName!} '
-        : '';
-    return 'docker ${contextFlag}compose -p "$project"';
-  }
-
-  String _followLogsCommand(String containerId) {
-    final contextFlag =
-        widget.contextName != null && widget.contextName!.isNotEmpty
-        ? '--context ${widget.contextName!} '
-        : '';
-    // Reattach after restarts; only the first attach pulls the last 200 lines.
-    return '''
-bash -lc '
-trap "exit 130" INT
-tail_arg="--tail 200"
-since=""
-while true; do
-  docker ${contextFlag}logs --follow \$tail_arg \$since "$containerId"
-  exit_code=\$?
-  if [ \$exit_code -eq 130 ]; then
-    exit 130
-  fi
-  tail_arg="--tail 0"
-  since="--since=\$(date -Iseconds)"
-  echo "[logs] stream ended; waiting to reattach..."
-  sleep 1
-done'
-''';
-  }
-
-  String _autoCloseCommand(String command) {
-    final trimmed = command.trimRight();
-    if (trimmed.endsWith('exit') || trimmed.endsWith('exit;')) {
-      return command;
-    }
-    return '$trimmed; exit';
-  }
-
-  Future<void> _showLogsDialog(
-    DockerContainer container,
-    String command,
-  ) async {
-    if (!mounted) return;
-    try {
-      final logs = await _loadLogsSnapshot(command);
-      if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: Text(
-              'Logs: ${container.name.isNotEmpty ? container.name : container.id}',
-            ),
-            content: SizedBox(
-              width: 600,
-              child: SingleChildScrollView(
-                child: SelectableText(
-                  logs.isNotEmpty ? logs : 'No logs available.',
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Close'),
-              ),
-            ],
-          );
-        },
+  void _markContainerStopped(String containerId) {
+    _controller.mapCachedContainers((c) {
+      if (c.id != containerId) return c;
+      return DockerContainer(
+        id: c.id,
+        name: c.name,
+        image: c.image,
+        state: 'exited',
+        status: 'stopped',
+        ports: c.ports,
+        command: c.command,
+        createdAt: c.createdAt,
+        composeProject: c.composeProject,
+        composeService: c.composeService,
+        startedAt: null,
       );
-    } catch (error) {
-      if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Failed to load logs'),
-          content: Text(error.toString()),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
-            ),
-          ],
-        ),
-      );
-    }
-  }
-
-  Future<String> _loadLogsSnapshot(String command) async {
-    if (widget.remoteHost != null && widget.shellService != null) {
-      return widget.shellService!.runCommand(
-        widget.remoteHost!,
-        '$command --tail 200',
-        timeout: const Duration(seconds: 8),
-      );
-    }
-
-    final result = await widget.docker.processRunner(
-      'bash',
-      ['-lc', '$command --tail 200'],
-      stdoutEncoding: utf8,
-      stderrEncoding: utf8,
-      runInShell: false,
-    );
-    if (result.exitCode != 0) {
-      final stderr = (result.stderr as String?)?.trim();
-      throw Exception(
-        stderr?.isNotEmpty == true
-            ? stderr
-            : 'docker logs failed with exit code ${result.exitCode}',
-      );
-    }
-    return (result.stdout as String?) ?? '';
-  }
-
-  Future<void> _copyExecCommand(String containerId) async {
-    final contextFlag =
-        widget.contextName != null && widget.contextName!.isNotEmpty
-        ? '--context ${widget.contextName!} '
-        : '';
-    final command =
-        'docker ${contextFlag}exec -it $containerId /bin/sh # change to /bin/bash if needed';
-    await _copyToClipboard(command, 'Exec command');
-  }
-
-  Future<void> _openExecTerminal(DockerContainer container) async {
-    final name = container.name.isNotEmpty ? container.name : container.id;
-    // Keep the container shell session alive; user will exit manually.
-    final contextFlag =
-        widget.contextName != null && widget.contextName!.isNotEmpty
-        ? '--context ${widget.contextName!} '
-        : '';
-    final command = _autoCloseCommand(
-      'docker ${contextFlag}exec -it ${container.id} /bin/sh',
-    );
-    if (widget.onOpenTab == null) {
-      await _copyExecCommand(container.id);
-      return;
-    }
-    final tabId =
-        'exec-${container.id}-${DateTime.now().microsecondsSinceEpoch}';
-    final tab = widget.tabFactory.commandTerminal(
-      id: tabId,
-      title: 'Shell: $name',
-      label: 'Shell: $name',
-      command: command,
-      icon: NerdIcon.terminal.data,
-      host: widget.remoteHost,
-      shellService: widget.shellService,
-      onExit: () => widget.onCloseTab?.call(tabId),
-      kind: DockerTabKind.containerShell,
-      containerId: container.id,
-      containerName: name,
-      contextName: widget.contextName,
-    );
-    widget.onOpenTab!(tab);
-  }
-
-  Future<void> _openContainerExplorer(DockerContainer container) async {
-    if (widget.onOpenTab == null) return;
-    final isRemote = widget.remoteHost != null && widget.shellService != null;
-    final shell = isRemote
-        ? DockerContainerShellService(
-            host: widget.remoteHost!,
-            containerId: container.id,
-            baseShell: widget.shellService!,
-          )
-        : LocalDockerContainerShellService(
-            containerId: container.id,
-            contextName: widget.contextName,
-          );
-    final host =
-        widget.remoteHost ??
-        const SshHost(
-          name: 'local',
-          hostname: 'localhost',
-          port: 22,
-          available: true,
-          user: null,
-          identityFiles: <String>[],
-          source: 'local',
-        );
-    final explorerContext = ExplorerContext.dockerContainer(
-      host: host,
-      containerId: container.id,
-      containerName: container.name,
-      dockerContextName: _dockerContextName(host),
-    );
-    final tab = widget.tabFactory.explorer(
-      id: 'explore-${container.id}-${DateTime.now().microsecondsSinceEpoch}',
-      title:
-          'Explore ${container.name.isNotEmpty ? container.name : container.id}',
-      label: 'Explorer',
-      icon: _icons.folderOpen,
-      host: host,
-      shellService: shell,
-      explorerContext: explorerContext,
-      containerId: container.id,
-      containerName: container.name,
-      dockerContextName: _dockerContextName(host),
-      onOpenTab: widget.onOpenTab!,
-    );
-    widget.onOpenTab!(tab);
-  }
-
-  String _dockerContextName(SshHost host) {
-    final trimmedContext = widget.contextName?.trim();
-    if (trimmedContext?.isNotEmpty == true) {
-      return trimmedContext!;
-    }
-    return '${host.name}-docker';
+    });
   }
 
   void _handleContainerTapDown(
@@ -850,17 +529,11 @@ done'
     int? flatIndex,
   }) {
     final key = container.id;
-    _updateSelection(
-      _selectedContainerIds,
+    _controller.updateContainerSelection(
       key,
       isTouch: details.kind == PointerDeviceKind.touch,
       index: flatIndex,
-      total: _currentContainers.length,
     );
-    if (flatIndex != null) {
-      _focusedContainerIndex = flatIndex;
-      _containerAnchorIndex ??= flatIndex;
-    }
     if (secondary) {
       _openContainerMenu(container, details);
     }
@@ -873,8 +546,8 @@ done'
     int? flatIndex,
   }) {
     final key = _imageKey(image);
-    _updateSelection(
-      _selectedImageKeys,
+    _controller.updateSimpleSelection(
+      _controller.selectedImageKeys,
       key,
       isTouch: details.kind == PointerDeviceKind.touch,
     );
@@ -890,8 +563,8 @@ done'
     int? flatIndex,
   }) {
     final key = network.id.isNotEmpty ? network.id : network.name;
-    _updateSelection(
-      _selectedNetworkKeys,
+    _controller.updateSimpleSelection(
+      _controller.selectedNetworkKeys,
       key,
       isTouch: details.kind == PointerDeviceKind.touch,
     );
@@ -907,178 +580,13 @@ done'
     int? flatIndex,
   }) {
     final key = volume.name;
-    _updateSelection(
-      _selectedVolumeKeys,
+    _controller.updateSimpleSelection(
+      _controller.selectedVolumeKeys,
       key,
       isTouch: details.kind == PointerDeviceKind.touch,
     );
     if (secondary) {
       _openVolumeMenu(volume, details);
-    }
-  }
-
-  void _updateSelection(
-    Set<String> set,
-    String key, {
-    required bool isTouch,
-    int? index,
-    int? total,
-  }) {
-    final hardware = HardwareKeyboard.instance;
-    final multi = hardware.isControlPressed || hardware.isMetaPressed;
-    final additiveTouch = isTouch && set.isNotEmpty;
-    final additive = multi || additiveTouch;
-    setState(() {
-      if (additive) {
-        if (set.contains(key)) {
-          set.remove(key);
-        } else {
-          set.add(key);
-        }
-      } else if (hardware.isShiftPressed &&
-          index != null &&
-          total != null &&
-          total > 0 &&
-          _containerAnchorIndex != null) {
-        set.clear();
-        final anchor = _containerAnchorIndex!.clamp(0, total - 1);
-        final target = index.clamp(0, total - 1);
-        final start = anchor < target ? anchor : target;
-        final end = anchor > target ? anchor : target;
-        for (var i = start; i <= end; i++) {
-          set.add(_currentContainers[i].id);
-        }
-      } else {
-        set
-          ..clear()
-          ..add(key);
-        if (index != null) {
-          _containerAnchorIndex = index;
-        }
-      }
-    });
-  }
-
-  String _imageKey(DockerImage image) {
-    final repo = image.repository.isNotEmpty ? image.repository : '<none>';
-    final tag = image.tag.isNotEmpty ? image.tag : '<none>';
-    return '$repo:$tag:${image.id}';
-  }
-
-  Future<void> _runContainerAction(
-    DockerContainer container,
-    String action,
-  ) async {
-    final Duration timeout = action == 'restart'
-        ? const Duration(seconds: 30)
-        : const Duration(seconds: 15);
-    setState(() {
-      _containerActionInProgress[container.id] = action;
-    });
-    try {
-      await _runWithRetry(
-        () async {
-          if (widget.remoteHost != null && widget.shellService != null) {
-            final cmd = 'docker $action ${container.id}';
-            await widget.shellService!.runCommand(
-              widget.remoteHost!,
-              cmd,
-              timeout: timeout,
-            );
-            return;
-          }
-          switch (action) {
-            case 'start':
-              await widget.docker.startContainer(
-                id: container.id,
-                context: widget.contextName,
-                timeout: timeout,
-              );
-              break;
-            case 'stop':
-              await widget.docker.stopContainer(
-                id: container.id,
-                context: widget.contextName,
-                timeout: timeout,
-              );
-              break;
-            case 'restart':
-              await widget.docker.restartContainer(
-                id: container.id,
-                context: widget.contextName,
-                timeout: timeout,
-              );
-              break;
-            case 'remove':
-              await widget.docker.removeContainer(
-                id: container.id,
-                context: widget.contextName,
-                timeout: timeout,
-              );
-              break;
-          }
-        },
-        retry: widget.remoteHost != null && widget.shellService != null,
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Container ${action}ed successfully.')),
-      );
-      switch (action) {
-        case 'restart':
-          await _updateContainerAfterRestart(container);
-          break;
-        case 'start':
-          await _updateContainerAfterStart(container);
-          break;
-        case 'stop':
-          _markContainerStopped(container.id);
-          break;
-        default:
-          _refresh();
-          break;
-      }
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to $action: $error')));
-    } finally {
-      if (mounted) {
-        setState(() {
-          _containerActionInProgress.remove(container.id);
-        });
-      }
-    }
-  }
-
-  Future<void> _runPrune({required bool includeVolumes}) async {
-    try {
-      if (widget.remoteHost != null && widget.shellService != null) {
-        final cmd = includeVolumes
-            ? 'docker system prune -f --volumes'
-            : 'docker system prune -f';
-        await widget.shellService!.runCommand(
-          widget.remoteHost!,
-          cmd,
-          timeout: const Duration(seconds: 20),
-        );
-      } else {
-        await widget.docker.systemPrune(
-          context: widget.contextName,
-          includeVolumes: includeVolumes,
-        );
-      }
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Prune completed.')));
-      _refresh();
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Prune failed: $error')));
     }
   }
 
@@ -1089,22 +597,16 @@ done'
     final hardware = HardwareKeyboard.instance;
     final multi = hardware.isControlPressed || hardware.isMetaPressed;
     final maxIndex = _currentContainers.length - 1;
-    var current = _focusedContainerIndex ?? 0;
+    var current = _controller.focusedContainerIndex ?? 0;
 
     void apply(int target) {
       target = target.clamp(0, maxIndex);
       final key = _currentContainers[target].id;
-      _updateSelection(
-        _selectedContainerIds,
+      _controller.updateContainerSelection(
         key,
         isTouch: false,
         index: target,
-        total: _currentContainers.length,
       );
-      setState(() {
-        _focusedContainerIndex = target;
-        _containerAnchorIndex ??= target;
-      });
     }
 
     switch (event.logicalKey) {
@@ -1122,13 +624,7 @@ done'
         return KeyEventResult.handled;
       case LogicalKeyboardKey.keyA:
         if (multi) {
-          setState(() {
-            _selectedContainerIds
-              ..clear()
-              ..addAll(_currentContainers.map((c) => c.id));
-            _focusedContainerIndex = maxIndex;
-            _containerAnchorIndex = 0;
-          });
+          _controller.selectAllContainers();
           return KeyEventResult.handled;
         }
         break;
@@ -1138,69 +634,19 @@ done'
     return KeyEventResult.ignored;
   }
 
-  Future<void> _updateContainerAfterRestart(DockerContainer container) async {
-    final startedAt = await _loadStartTime(container);
-    setState(() {
-      _cachedContainers = _cachedContainers.map((c) {
-        if (c.id != container.id) return c;
-        return DockerContainer(
-          id: c.id,
-          name: c.name,
-          image: c.image,
-          state: 'running',
-          status: 'running',
-          ports: c.ports,
-          command: c.command,
-          createdAt: c.createdAt,
-          composeProject: c.composeProject,
-          composeService: c.composeService,
-          startedAt: startedAt ?? DateTime.now().toUtc(),
-        );
-      }).toList();
-    });
+
+  String _dockerContextName(SshHost host) {
+    final trimmedContext = widget.contextName?.trim();
+    if (trimmedContext?.isNotEmpty == true) {
+      return trimmedContext!;
+    }
+    return '${host.name}-docker';
   }
 
-  Future<void> _updateContainerAfterStart(DockerContainer container) async {
-    final startedAt = await _loadStartTime(container);
-    setState(() {
-      _cachedContainers = _cachedContainers.map((c) {
-        if (c.id != container.id) return c;
-        return DockerContainer(
-          id: c.id,
-          name: c.name,
-          image: c.image,
-          state: 'running',
-          status: 'running',
-          ports: c.ports,
-          command: c.command,
-          createdAt: c.createdAt,
-          composeProject: c.composeProject,
-          composeService: c.composeService,
-          startedAt: startedAt ?? DateTime.now().toUtc(),
-        );
-      }).toList();
-    });
-  }
-
-  void _markContainerStopped(String containerId) {
-    setState(() {
-      _cachedContainers = _cachedContainers.map((c) {
-        if (c.id != containerId) return c;
-        return DockerContainer(
-          id: c.id,
-          name: c.name,
-          image: c.image,
-          state: 'exited',
-          status: 'stopped',
-          ports: c.ports,
-          command: c.command,
-          createdAt: c.createdAt,
-          composeProject: c.composeProject,
-          composeService: c.composeService,
-          startedAt: null,
-        );
-      }).toList();
-    });
+  String _imageKey(DockerImage image) {
+    final repo = image.repository.isNotEmpty ? image.repository : '<none>';
+    final tag = image.tag.isNotEmpty ? image.tag : '<none>';
+    return '$repo:$tag:${image.id}';
   }
 
   Future<DateTime?> _loadStartTime(DockerContainer container) async {
@@ -1223,31 +669,18 @@ done'
     }
   }
 
-  List<DockerContainer> get _currentContainers => _cachedContainers;
-
-  Set<String> _projectContainerIds(String project) {
-    return _cachedContainers
-        .where((c) => c.composeProject == project)
-        .map((c) => c.id)
-        .toSet();
-  }
+  List<DockerContainer> get _currentContainers => _controller.cachedContainers;
 
   Future<void> _syncProjectContainers(String project) async {
     try {
-      final allContainers = await _engineService.fetchContainers(
-        contextName: widget.contextName,
-        remoteHost: widget.remoteHost,
-        shell: widget.shellService,
-      );
+      final allContainers = await _controller.fetchContainers();
       final updatedProject = allContainers
           .where((c) => c.composeProject == project)
           .toList();
-      setState(() {
-        final others = _cachedContainers
-            .where((c) => c.composeProject != project)
-            .toList();
-        _cachedContainers = [...others, ...updatedProject];
-      });
+      final others = _controller.cachedContainers
+          .where((c) => c.composeProject != project)
+          .toList();
+      _controller.updateCachedContainers([...others, ...updatedProject]);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -1256,17 +689,4 @@ done'
     }
   }
 
-  List<String> _composeServices(String project) {
-    final services =
-        _cachedContainers
-            .where(
-              (c) => c.composeProject == project && c.composeService != null,
-            )
-            .map((c) => c.composeService!)
-            .where((s) => s.isNotEmpty)
-            .toSet()
-            .toList()
-          ..sort();
-    return services;
-  }
 }

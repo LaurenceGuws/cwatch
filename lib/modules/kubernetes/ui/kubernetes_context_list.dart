@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,8 +7,8 @@ import 'package:path/path.dart' as path;
 import 'package:cwatch/core/models/tab_state.dart';
 import 'package:cwatch/core/tabs/tab_host.dart';
 import 'package:cwatch/models/kubernetes_workspace_state.dart';
-import 'package:cwatch/services/kubernetes/kubeconfig_service.dart';
 import 'package:cwatch/services/kubernetes/kubectl_service.dart';
+import 'package:cwatch/services/kubernetes/kubeconfig_service.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
@@ -24,6 +23,7 @@ import 'widgets/kubernetes_resources.dart';
 import 'kubernetes_tab.dart';
 import 'kubernetes_tab_factory.dart';
 import 'kubernetes_workspace_controller.dart';
+import 'kubernetes_context_controller.dart';
 
 class KubernetesContextList extends StatefulWidget {
   const KubernetesContextList({
@@ -43,7 +43,8 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   static const String _placeholderName = '__k8s_placeholder__';
   static const String _placeholderConfig = '__k8s_placeholder__';
 
-  final KubeconfigService _kubeconfig = const KubeconfigService();
+  final KubernetesContextController _contextController =
+      KubernetesContextController();
   final KubectlService _kubectl = const KubectlService();
   late final TabHostController<KubernetesTab> _tabController;
   late final TabViewRegistry<KubernetesTab> _tabRegistry;
@@ -171,31 +172,14 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   }
 
   Future<List<KubeconfigContext>> _loadContexts() async {
-    final contexts = await _kubeconfig.listContexts(_resolveConfigPaths());
+    final contexts = await _contextController.loadContexts(
+      _contextController.resolveConfigPaths(
+        widget.settingsController.settings,
+      ),
+    );
     _cachedContexts = contexts;
     _refreshTabContexts(contexts);
     return contexts;
-  }
-
-  List<String> _resolveConfigPaths() {
-    final settings = widget.settingsController.settings;
-    if (settings.kubernetesConfigPaths.isNotEmpty) {
-      return settings.kubernetesConfigPaths;
-    }
-    final env = Platform.environment['KUBECONFIG']?.trim();
-    if (env != null && env.isNotEmpty) {
-      final separator = Platform.isWindows ? ';' : ':';
-      return env
-          .split(separator)
-          .map((entry) => entry.trim())
-          .where((entry) => entry.isNotEmpty)
-          .toList();
-    }
-    final home = Platform.environment['HOME'];
-    if (home != null && home.isNotEmpty) {
-      return [path.join(home, '.kube', 'config')];
-    }
-    return const [];
   }
 
   void _handleSettingsChanged() {
@@ -303,8 +287,12 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
       if (context == null) {
         continue;
       }
-        final fresh = _findContext(contexts, context.name, context.configPath);
-        if (fresh != null && !_contextEquals(context, fresh)) {
+        final fresh = _contextController.findContext(
+          contexts,
+          context.name,
+          context.configPath,
+        );
+        if (fresh != null && !_contextController.contextEquals(context, fresh)) {
           final updatedBody = tab.kind == KubernetesTabKind.resources
               ? _buildResources(fresh, tab.optionsController!)
               : _buildContextDetails(fresh);
@@ -384,29 +372,6 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     );
   }
 
-  bool _contextEquals(KubeconfigContext a, KubeconfigContext b) {
-    return a.name == b.name &&
-        a.cluster == b.cluster &&
-        a.user == b.user &&
-        a.namespace == b.namespace &&
-        a.server == b.server &&
-        a.configPath == b.configPath &&
-        a.isCurrent == b.isCurrent;
-  }
-
-  KubeconfigContext? _findContext(
-    List<KubeconfigContext> contexts,
-    String name,
-    String configPath,
-  ) {
-    for (final context in contexts) {
-      if (context.name == name && context.configPath == configPath) {
-        return context;
-      }
-    }
-    return null;
-  }
-
   String _uniqueId() => DateTime.now().microsecondsSinceEpoch.toString();
 
   KubernetesTab _createPlaceholderTab({String? id}) {
@@ -474,7 +439,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
             ),
           );
         }
-        final grouped = _groupByConfigPath(contexts);
+        final grouped = _contextController.groupByConfigPath(contexts);
         final configPaths = grouped.keys.toList()..sort();
         final spacing = context.appTheme.spacing;
         final refreshButton = Padding(
@@ -557,16 +522,6 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
         );
       },
     );
-  }
-
-  Map<String, List<KubeconfigContext>> _groupByConfigPath(
-    List<KubeconfigContext> contexts,
-  ) {
-    final grouped = <String, List<KubeconfigContext>>{};
-    for (final context in contexts) {
-      grouped.putIfAbsent(context.configPath, () => []).add(context);
-    }
-    return grouped;
   }
 
   Widget _buildContextTile(KubeconfigContext context) {
