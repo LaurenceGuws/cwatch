@@ -187,9 +187,12 @@ class _FileEntryTileState extends State<FileEntryTile> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final highlightColor = widget.selected
-        ? colorScheme.primary.withValues(alpha: 0.08)
-        : Colors.transparent;
+    final iconColor = widget.selected
+        ? colorScheme.primary
+        : FileIconResolver.colorFor(widget.entry, colorScheme);
+    final listTokens = context.appTheme.list;
+    final highlightColor =
+        widget.selected ? listTokens.selectedBackground : Colors.transparent;
     final titleStyle = widget.selected
         ? Theme.of(
             context,
@@ -254,8 +257,8 @@ class _FileEntryTileState extends State<FileEntryTile> {
             onSecondaryTapDown: (details) =>
                 widget.onContextMenu(details.globalPosition),
             splashFactory: NoSplash.splashFactory,
-            hoverColor: Colors.transparent,
-            highlightColor: Colors.transparent,
+            hoverColor: listTokens.hoverBackground,
+            highlightColor: listTokens.hoverBackground,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 110),
               curve: Curves.easeOutCubic,
@@ -268,7 +271,7 @@ class _FileEntryTileState extends State<FileEntryTile> {
                 ),
                 leading: Icon(
                   FileIconResolver.iconFor(widget.entry),
-                  color: widget.selected ? colorScheme.primary : null,
+                  color: iconColor,
                 ),
                 title: Text(widget.entry.name, style: titleStyle),
                 subtitle: Text(

@@ -115,11 +115,16 @@ class TabChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appTheme = context.appTheme;
+    final colorScheme = Theme.of(context).colorScheme;
     final chipStyle = appTheme.tabChip.style(
       selected: selected,
       spacing: appTheme.spacing,
     );
     final foreground = chipStyle.foreground;
+    final primaryActionColor = colorScheme.primary;
+    final primaryActionHover = primaryActionColor.withValues(alpha: 0.12);
+    final closeColor = colorScheme.error;
+    final closeHover = closeColor.withValues(alpha: 0.12);
     final spacing = appTheme.spacing;
     final menuOptions = _buildMenuOptions();
     return Container(
@@ -143,12 +148,13 @@ class TabChip extends StatelessWidget {
           Tooltip(
             message: dragIndex != null ? 'Drag to reorder' : 'Drag handle',
             child: _TabChipAction(
-              hoverColor: foreground.withValues(alpha: 0.12),
+              hoverColor: primaryActionHover,
               padding: const EdgeInsets.all(2),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
               child: _DragHandle(
                 dragIndex: dragIndex,
-                foreground: foreground,
+                color: primaryActionColor,
+                inactiveColor: primaryActionColor.withValues(alpha: 0.55),
               ),
             ),
           ),
@@ -184,17 +190,18 @@ class TabChip extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildOptionsButton(foreground, menuOptions),
+              _buildOptionsButton(primaryActionColor, primaryActionHover, menuOptions),
               SizedBox(width: spacing.xs),
               _TabChipAction(
-                hoverColor: foreground.withValues(alpha: 0.12),
+                hoverColor: closeHover,
                 child: IconButton(
-                  icon: Icon(NerdIcon.close.data, size: 16),
+                  icon: Icon(NerdIcon.close.data, size: 16, color: closeColor),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   tooltip: closable ? 'Close tab' : 'Cannot close tab',
                   visualDensity: VisualDensity.compact,
                   splashRadius: 16,
+                  disabledColor: closeColor.withValues(alpha: 0.4),
                   onPressed: closable ? () => _handleClose(context) : null,
                 ),
               ),
@@ -218,11 +225,12 @@ class TabChip extends StatelessWidget {
   }
 
   Widget _buildOptionsButton(
-    Color foreground,
+    Color iconColor,
+    Color hoverColor,
     List<TabChipOption> menuOptions,
   ) {
     return _TabChipAction(
-      hoverColor: foreground.withValues(alpha: 0.12),
+      hoverColor: hoverColor,
       child: PopupMenuButton<int>(
         padding: EdgeInsets.zero,
         constraints: const BoxConstraints(minWidth: 0, minHeight: 0),
@@ -231,7 +239,7 @@ class TabChip extends StatelessWidget {
           width: 24,
           height: 24,
           child: Center(
-            child: Icon(Icons.more_vert, size: 16, color: foreground),
+            child: Icon(Icons.more_vert, size: 16, color: iconColor),
           ),
         ),
         onSelected: (value) => menuOptions[value].onSelected(),
@@ -347,11 +355,13 @@ class _TabChipActionState extends State<_TabChipAction> {
 class _DragHandle extends StatefulWidget {
   const _DragHandle({
     required this.dragIndex,
-    required this.foreground,
+    required this.color,
+    required this.inactiveColor,
   });
 
   final int? dragIndex;
-  final Color foreground;
+  final Color color;
+  final Color inactiveColor;
 
   @override
   State<_DragHandle> createState() => _DragHandleState();
@@ -372,9 +382,7 @@ class _DragHandleState extends State<_DragHandle> {
             valueListenable: _dragActive,
             builder: (context, active, child) {
               final icon = active ? NerdIcon.dragSelect.data : NerdIcon.drag.data;
-              final color = active
-                  ? widget.foreground
-                  : widget.foreground.withValues(alpha: 0.4);
+              final color = active ? widget.color : widget.inactiveColor;
               return Icon(icon, size: 16, color: color);
             },
           ),

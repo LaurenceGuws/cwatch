@@ -7,6 +7,7 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
   const AppThemeTokens({
     required this.spacing,
     required this.tabChip,
+    required this.list,
     required this.section,
     required this.typography,
     required this.icons,
@@ -15,6 +16,7 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
 
   final AppSpacing spacing;
   final AppTabChipTokens tabChip;
+  final AppListTokens list;
   final AppSectionTokens section;
   final AppTypographyTokens typography;
   final AppIcons icons;
@@ -29,6 +31,7 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
     return AppThemeTokens(
       spacing: const AppSpacing(),
       tabChip: AppTabChipTokens.fromScheme(scheme),
+      list: AppListTokens.fromScheme(scheme),
       section: AppSectionTokens.fromScheme(scheme),
       typography: AppTypographyTokens.fromTextTheme(baseTheme.textTheme),
       icons: AppIcons.nerd(),
@@ -45,6 +48,7 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
     return AppThemeTokens(
       spacing: const AppSpacing(),
       tabChip: AppTabChipTokens.fromScheme(scheme),
+      list: AppListTokens.fromScheme(scheme),
       section: AppSectionTokens.fromScheme(scheme),
       typography: AppTypographyTokens.fromTextTheme(baseTheme.textTheme),
       icons: AppIcons.nerd(),
@@ -56,6 +60,7 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
   ThemeExtension<AppThemeTokens> copyWith({
     AppSpacing? spacing,
     AppTabChipTokens? tabChip,
+    AppListTokens? list,
     AppSectionTokens? section,
     AppTypographyTokens? typography,
     AppIcons? icons,
@@ -64,6 +69,7 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
     return AppThemeTokens(
       spacing: spacing ?? this.spacing,
       tabChip: tabChip ?? this.tabChip,
+      list: list ?? this.list,
       section: section ?? this.section,
       typography: typography ?? this.typography,
       icons: icons ?? this.icons,
@@ -82,6 +88,7 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
     return AppThemeTokens(
       spacing: spacing,
       tabChip: AppTabChipTokens.lerp(tabChip, other.tabChip, t),
+      list: AppListTokens.lerp(list, other.list, t),
       section: AppSectionTokens.lerp(section, other.section, t),
       typography: AppTypographyTokens.lerp(typography, other.typography, t),
       icons: icons,
@@ -109,6 +116,51 @@ class AppSpacing {
   }
 
   EdgeInsets all(double factor) => EdgeInsets.all(base * factor);
+}
+
+class AppListTokens {
+  const AppListTokens({
+    required this.hoverBackground,
+    required this.focusOutline,
+    required this.selectedBackground,
+    required this.selectedForeground,
+    required this.unselectedForeground,
+  });
+
+  final Color hoverBackground;
+  final Color focusOutline;
+  final Color selectedBackground;
+  final Color selectedForeground;
+  final Color unselectedForeground;
+
+  factory AppListTokens.fromScheme(ColorScheme scheme) {
+    return AppListTokens(
+      hoverBackground: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+      focusOutline: scheme.primary,
+      selectedBackground: scheme.primary.withValues(alpha: 0.08),
+      selectedForeground: scheme.primary,
+      unselectedForeground: scheme.onSurface,
+    );
+  }
+
+  static AppListTokens lerp(AppListTokens a, AppListTokens b, double t) {
+    return AppListTokens(
+      hoverBackground:
+          Color.lerp(a.hoverBackground, b.hoverBackground, t) ??
+          a.hoverBackground,
+      focusOutline: Color.lerp(a.focusOutline, b.focusOutline, t) ??
+          a.focusOutline,
+      selectedBackground:
+          Color.lerp(a.selectedBackground, b.selectedBackground, t) ??
+          a.selectedBackground,
+      selectedForeground:
+          Color.lerp(a.selectedForeground, b.selectedForeground, t) ??
+          a.selectedForeground,
+      unselectedForeground:
+          Color.lerp(a.unselectedForeground, b.unselectedForeground, t) ??
+          a.unselectedForeground,
+    );
+  }
 }
 
 class AppIcons {

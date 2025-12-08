@@ -5,8 +5,9 @@ import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
+import 'package:cwatch/shared/widgets/lists/selectable_list_controller.dart';
+import 'package:cwatch/shared/widgets/lists/selectable_list_item.dart';
 import 'package:cwatch/shared/widgets/lists/section_list.dart';
-import 'package:cwatch/shared/widgets/lists/section_list_item.dart';
 import 'package:cwatch/shared/views/shared/tabs/file_explorer/external_app_launcher.dart';
 
 /// Host list widget that displays SSH hosts grouped by source
@@ -41,7 +42,9 @@ class HostList extends StatefulWidget {
 }
 
 class _HostListState extends State<HostList> {
-  SshHost? _selected;
+  final SelectableListController _listController = SelectableListController();
+  final FocusNode _listFocusNode = FocusNode(debugLabel: 'HostList');
+  Offset? _lastPointerPosition;
 
   Map<String, List<SshHost>> _groupHostsBySource() {
     final grouped = <String, List<SshHost>>{};
@@ -50,6 +53,13 @@ class _HostListState extends State<HostList> {
       grouped.putIfAbsent(source, () => []).add(host);
     }
     return grouped;
+  }
+
+  @override
+  void dispose() {
+    _listController.dispose();
+    _listFocusNode.dispose();
+    super.dispose();
   }
 
   String _getSourceDisplayName(String source) {
@@ -105,58 +115,63 @@ class _HostListState extends State<HostList> {
       ),
     );
 
-    // Single source
-    if (sources.length == 1) {
-      return Column(
-        children: [
-          addButton,
-          Expanded(
-            child: SectionList(
-              children: widget.hosts.map(_buildHostTile).toList(),
-            ),
-          ),
-        ],
-      );
-    }
-
-    // Multiple sources
-    return Column(
-      children: [
-        addButton,
-        Expanded(
-          child: ListView.builder(
-            padding: EdgeInsets.zero,
-            itemCount: sources.length,
-            itemBuilder: (context, index) {
-              final source = sources[index];
-              final hosts = grouped[source]!;
-              return Padding(
-                padding: EdgeInsets.only(bottom: spacing.base * 1.5),
-                child: SectionList(
-                  title: _getSourceDisplayName(source),
-                  trailing: source == 'custom'
-                      ? null
-                      : IconButton(
-                          icon: const Icon(Icons.edit, size: 18),
-                          tooltip: 'Edit config file',
-                          onPressed: () => ExternalAppLauncher.openConfigFile(
-                            source,
-                            context,
-                          ),
-                        ),
-                  children: hosts.map(_buildHostTile).toList(),
-                ),
+    return AnimatedBuilder(
+      animation: _listController,
+      builder: (context, _) {
+        final list = sources.length == 1
+            ? SectionList(children: widget.hosts.map(_buildHostTile).toList())
+            : ListView.builder(
+                padding: EdgeInsets.zero,
+                itemCount: sources.length,
+                itemBuilder: (context, index) {
+                  final source = sources[index];
+                  final hosts = grouped[source]!;
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: spacing.base * 1.5),
+                    child: SectionList(
+                      title: _getSourceDisplayName(source),
+                      trailing: source == 'custom'
+                          ? null
+                          : IconButton(
+                              icon: const Icon(Icons.edit, size: 18),
+                              tooltip: 'Edit config file',
+                              onPressed: () =>
+                                  ExternalAppLauncher.openConfigFile(
+                                source,
+                                context,
+                              ),
+                            ),
+                      children: hosts.map(_buildHostTile).toList(),
+                    ),
+                  );
+                },
               );
-            },
-          ),
-        ),
-      ],
+        return Column(
+          children: [
+            addButton,
+            Expanded(
+              child: SelectableListKeyboardHandler(
+                controller: _listController,
+                itemCount: widget.hosts.length,
+                focusNode: _listFocusNode,
+                onActivate: (index) {
+                  final host = widget.hosts[index];
+                  widget.onActivate?.call(host);
+                },
+                child: list,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildHostTile(SshHost host) {
     final availability = host.available ? 'Online' : 'Offline';
-    final selected = _selected?.name == host.name;
+    final index = widget.hosts.indexOf(host);
+    final selected = _listController.selectedIndices.contains(index);
+    final focused = _listController.focusedIndex == index;
     final scheme = Theme.of(context).colorScheme;
     final statusColor = host.available ? scheme.primary : scheme.error;
 
@@ -175,8 +190,9 @@ class _HostListState extends State<HostList> {
       ),
     );
 
-    return SectionListItem(
+    return SelectableListItem(
       selected: selected,
+      focused: focused,
       title: host.name,
       subtitle:
           '${host.hostname}:${host.port}'
@@ -187,24 +203,33 @@ class _HostListState extends State<HostList> {
         color: selected ? scheme.primary : scheme.onSurfaceVariant,
       ),
       badge: badge,
-      onTap: () {
-        setState(() {
-          _selected = host;
-        });
-        widget.onSelect?.call(host);
+      onTapDown: (details) {
+        _lastPointerPosition = details.globalPosition;
+        _handleSelect(index, host, focusOnly: false);
       },
+      onTap: () => _handleSelect(index, host, focusOnly: false),
       onDoubleTap: () {
-        _showContextMenu(host, scheme);
+        _handleSelect(index, host, focusOnly: false);
+        _showContextMenu(host, scheme, _lastPointerPosition);
       },
       onLongPress: () {
-        widget.onSelect?.call(host);
-        _showContextMenu(host, scheme);
+        _handleSelect(index, host, focusOnly: false);
+        _showContextMenu(host, scheme, _lastPointerPosition);
       },
       onSecondaryTapDown: (details) {
-        widget.onSelect?.call(host);
+        _lastPointerPosition = details.globalPosition;
+        _handleSelect(index, host, focusOnly: true);
         _showContextMenu(host, scheme, details.globalPosition);
       },
     );
+  }
+
+  void _handleSelect(int index, SshHost host, {required bool focusOnly}) {
+    _listController.focus(index);
+    if (!focusOnly) {
+      _listController.selectSingle(index);
+    }
+    widget.onSelect?.call(host);
   }
 
   List<String> _displayNames() => widget.hosts.map((h) => h.name).toList();
