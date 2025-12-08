@@ -2,33 +2,41 @@
 
 Cross‑platform Flutter app for managing servers, Docker resources, and remote files with built‑in SSH tooling.
 
-## Features
-- Docker dashboards: contexts, resource stats, logs, exec terminals.
-- Server workspace: SSH connectivity, resource monitors, logs, trash, file explorer with remote editing/local cache.
-- Settings: agents, SSH vault/keys, containers, security, debug logs.
-- Shared UI scaffolding: tabbed engine/workspace layout, Nerd Fonts theming.
+## Highlights
+- Docker: engine picker, context dashboards, resource stats, container exec, compose logs.
+- Servers: SSH connectivity, resource monitors, process tree, logs, trash, remote file explorer with editing/cache.
+- Terminals: PTY sessions (local or SSH), patched terminal library for stable selection.
+- Settings: agents, SSH vault/keys, container defaults, security, debug logs.
+- UI shell: tabbed workspace layout, Nerd Fonts theming, shared widgets and dialogs.
 
-## Structure (lib/)
-- `main.dart` – app entry.
-- `models/` – settings, SSH hosts, Docker entities, workspace state.
-- `services/` – Docker client, filesystem trash, logging, settings, SSH (remote shell, key store/vault, config, command logging, editor cache).
-- `ui/`
-  - `theme/` – app theme, Nerd Fonts.
-  - `views/` – feature screens:
-    - `docker/` – view + widgets (dashboards, engine picker, terminals, resources).
-    - `servers/` – server lists, add dialogs, resource panels, trash.
-    - `settings/` – settings tabs (agents, SSH, containers, security, debug, general).
-    - `shared/` – workspace tabs (file explorer, remote editor, terminal, merge conflicts, icons, etc.).
-  - `widgets/` – shared components (actions, lists, nav, progress dialogs).
+## Code Map (lib/)
+- `models/` – settings, workspace state, Docker/SSH entities.
+- `services/`
+  - SSH: `remote_shell_base.dart`, process client, built‑in client/vault, config parsing, command logging, editor cache.
+  - Docker: client, engine services, container shells.
+  - Other: logging, settings, filesystem trash.
+- `modules/`
+  - `docker/` – view + widgets (dashboards, lists, terminals, resource panes).
+  - `servers/` – server lists, dialogs, resource panels.
+  - `settings/` – settings tabs and sections.
+  - `kubernetes/` – kube context helpers.
+- `shared/` – tabbed workspace UI (file explorer, editor, terminal, dialogs, theme).
+- `core/` – navigation, workspace persistence/tracking, app bootstrap.
+- `packages/terminal_library_patched/` – vendored terminal lib with scrolling/selection fixes (via `dependency_overrides`).
 
-## Terminal library patch
-- Uses a vendored `terminal_library` with fixed selection‑while‑scrolling behavior: `packages/terminal_library_patched` (wired via `dependency_overrides` in `pubspec.yaml`).
-- Patched files: `xterm_library/core/ui/render.dart`, `xterm_library/core/ui/gesture/gesture_handler.dart`; non‑bundled features (zmodem, paragraph cache) are removed.
+## SSH Implementations
+- **ProcessRemoteShellService**: wraps system `ssh/scp`; good for environments with native SSH.
+- **BuiltInRemoteShellService**: pure Dart SSH (dartssh2) with vault-backed keys; supports SFTP upload/download and terminal sessions. Key unlock prompts can be wired via the built‑in key service.
 
 ## Development
-1) Install Flutter SDK and dependencies.
+1) Install Flutter SDK and deps.
 2) `flutter pub get`
 3) `flutter run -d <device>`
-4) `flutter analyze` (clean with vendored package excluded from lint noise)
+4) `flutter analyze`
+5) `flutter test` (use `--coverage` to mirror CI expectations)
 
-Optional: `tools/terminal_selection_demo` hosts a minimal repro for terminal selection behavior.
+Formatting: Flutter defaults (2 spaces, trailing commas). Keep imports ordered (SDK → third‑party → project). 
+
+## Notes
+- Terminal patches live in `packages/terminal_library_patched` (`xterm_library/core/ui/render.dart`, `xterm_library/core/ui/gesture/gesture_handler.dart`); optional repro in `tools/terminal_selection_demo`.
+- Workspace/tab state is persisted; see `core/workspace/` for persistence behavior.

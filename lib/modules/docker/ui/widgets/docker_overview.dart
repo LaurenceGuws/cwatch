@@ -93,12 +93,12 @@ class _DockerOverviewState extends State<DockerOverview> {
       onOpenTab: widget.onOpenTab,
       onCloseTab: widget.onCloseTab,
     );
-    _menus = DockerOverviewMenus(icons: _icons);
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _menus = DockerOverviewMenus(icons: _icons);
     _registerTabOptions();
   }
 

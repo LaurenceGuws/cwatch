@@ -86,6 +86,7 @@ class _DockerViewState extends State<DockerView> {
     if (_tabController.tabs.isEmpty) {
       _tabController.addTab(tab);
     } else {
+      _tabRegistry.remove(_tabController.tabs.first);
       _tabController.replaceBaseTab(tab);
     }
     _tabRegistry.widgetFor(tab, () => tab.body);
@@ -174,6 +175,7 @@ class _DockerViewState extends State<DockerView> {
     final currentId = _tabs.first.id;
     final picker = _enginePickerTab(id: currentId);
     _disposeTabOptions(_tabs[0]);
+    _tabRegistry.remove(_tabs[0]);
     _replaceBaseTab(picker);
     _registerTabState(picker.workspaceState as TabState);
     _persistWorkspace();
@@ -467,6 +469,7 @@ class _DockerViewState extends State<DockerView> {
     }
     _disposeTabOptions(_tabs[currentIndex]);
     _tabStates.remove(tabId);
+    _tabRegistry.remove(_tabs[currentIndex]);
     if (tab.workspaceState is TabState) {
       _registerTabState(tab.workspaceState as TabState);
     }
