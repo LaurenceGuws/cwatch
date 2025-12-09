@@ -26,6 +26,7 @@ import '../services/docker_container_shell_service.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 import 'docker_tab_factory.dart';
 import 'docker_workspace_controller.dart';
+import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
 
 class DockerView extends StatefulWidget {
   const DockerView({
@@ -50,11 +51,13 @@ class DockerView extends StatefulWidget {
 class _DockerViewState extends State<DockerView> {
   final DockerClientService _docker = const DockerClientService();
   final ExplorerTrashManager _trashManager = ExplorerTrashManager();
+  final PortForwardService _portForwardService = PortForwardService();
   DockerTabFactory get _tabFactory => DockerTabFactory(
     docker: _docker,
     settingsController: widget.settingsController,
     trashManager: _trashManager,
     keyService: widget.keyService,
+    portForwardService: _portForwardService,
   );
   late final TabHostController<EngineTab> _tabController;
   final Map<String, TabState> _tabStates = {};
@@ -130,6 +133,7 @@ class _DockerViewState extends State<DockerView> {
   void dispose() {
     _tabController.removeListener(_tabsListener);
     widget.settingsController.removeListener(_settingsListener);
+    _portForwardService.dispose();
     super.dispose();
   }
 

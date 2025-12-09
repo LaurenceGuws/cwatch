@@ -8,6 +8,7 @@ import 'package:cwatch/models/docker_volume.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/widgets/lists/section_list.dart';
 import 'package:cwatch/shared/widgets/lists/section_list_item.dart';
+import 'package:cwatch/shared/widgets/lists/selectable_list_item.dart';
 
 typedef ItemTapDown<T> =
     void Function(
@@ -102,6 +103,8 @@ class ContainerPeek extends StatefulWidget {
     required this.busyIds,
     required this.actionLabels,
     this.onComposeAction,
+    this.onComposeForward,
+    this.onComposeStopForward,
   });
 
   final List<DockerContainer> containers;
@@ -111,6 +114,8 @@ class ContainerPeek extends StatefulWidget {
   final Set<String> busyIds;
   final Map<String, String> actionLabels;
   final void Function(String project, String action)? onComposeAction;
+  final void Function(String project)? onComposeForward;
+  final void Function(String project)? onComposeStopForward;
 
   @override
   State<ContainerPeek> createState() => _ContainerPeekState();
@@ -149,7 +154,15 @@ class _ContainerPeekState extends State<ContainerPeek> {
                   onSelected: (action) {
                     final name = projectName;
                     if (name != null) {
-                      widget.onComposeAction!(name, action);
+                      if (action == 'forward' &&
+                          widget.onComposeForward != null) {
+                        widget.onComposeForward!(name);
+                      } else if (action == 'stopForward' &&
+                          widget.onComposeStopForward != null) {
+                        widget.onComposeStopForward!(name);
+                      } else {
+                        widget.onComposeAction!(name, action);
+                      }
                     }
                   },
                   itemBuilder: (context) {
@@ -180,6 +193,20 @@ class _ContainerPeekState extends State<ContainerPeek> {
                         icon: Icons.stop_rounded,
                         color: scheme.error,
                       ),
+                      if (widget.onComposeForward != null)
+                        _actionMenuItem(
+                          context,
+                          value: 'forward',
+                          label: 'Port forward…',
+                          icon: Icons.link_outlined,
+                        ),
+                      if (widget.onComposeForward != null)
+                        _actionMenuItem(
+                          context,
+                          value: 'stopForward',
+                          label: 'Stop port forwards',
+                          icon: Icons.link_off_outlined,
+                        ),
                     ];
                   },
                 ),
@@ -227,7 +254,7 @@ class _ContainerPeekState extends State<ContainerPeek> {
             return 'Running';
           }
 
-          return SectionListItem(
+          return SelectableListItem(
             selected: widget.selectedIds.contains(container.id),
             title: container.name.isNotEmpty ? container.name : container.id,
             subtitle:
@@ -279,31 +306,40 @@ class _ContainerPeekState extends State<ContainerPeek> {
                 ],
               );
             }(),
-            onTap: widget.onTap == null ? null : () => widget.onTap!(container),
+            onTapDown: widget.onTapDown == null
+                ? null
+                : (details) => widget.onTapDown!(
+                      container,
+                      details,
+                      secondary: false,
+                      flatIndex: flatIndex,
+                    ),
+            onTap:
+                widget.onTap == null ? null : () => widget.onTap!(container),
             onLongPress: widget.onTapDown == null
                 ? null
                 : () => widget.onTapDown!(
-                    container,
-                    TapDownDetails(kind: PointerDeviceKind.touch),
-                    secondary: true,
-                    flatIndex: flatIndex,
-                  ),
+                      container,
+                      TapDownDetails(kind: PointerDeviceKind.touch),
+                      secondary: true,
+                      flatIndex: flatIndex,
+                    ),
             onDoubleTap: widget.onTapDown == null
                 ? null
                 : () => widget.onTapDown!(
-                    container,
-                    TapDownDetails(kind: PointerDeviceKind.touch),
-                    secondary: true,
-                    flatIndex: flatIndex,
-                  ),
+                      container,
+                      TapDownDetails(kind: PointerDeviceKind.touch),
+                      secondary: true,
+                      flatIndex: flatIndex,
+                    ),
             onSecondaryTapDown: widget.onTapDown == null
                 ? null
                 : (details) => widget.onTapDown!(
-                    container,
-                    details,
-                    secondary: true,
-                    flatIndex: flatIndex,
-                  ),
+                      container,
+                      details,
+                      secondary: true,
+                      flatIndex: flatIndex,
+                    ),
           );
         }).toList();
 
@@ -433,7 +469,7 @@ class ContainerList extends StatelessWidget {
           final statusColor = container.isRunning
               ? context.appTheme.docker.running
               : context.appTheme.docker.stopped;
-          return SectionListItem(
+          return SelectableListItem(
             selected: selectedIds.contains(container.id),
             title: container.name.isNotEmpty ? container.name : container.id,
             subtitle: 'Image: ${container.image} • $runningLabel',
@@ -445,14 +481,21 @@ class ContainerList extends StatelessWidget {
                     style: Theme.of(context).textTheme.labelSmall,
                   )
                 : null,
+            onTapDown: onTapDown == null
+                ? null
+                : (details) => onTapDown!(
+                      container,
+                      details,
+                      secondary: false,
+                    ),
             onTap: onTap == null ? null : () => onTap!(container),
             onLongPress: onTapDown == null
                 ? null
                 : () => onTapDown!(
-                    container,
-                    TapDownDetails(kind: PointerDeviceKind.mouse),
-                    secondary: false,
-                  ),
+                      container,
+                      TapDownDetails(kind: PointerDeviceKind.mouse),
+                      secondary: false,
+                    ),
             onSecondaryTapDown: onTapDown == null
                 ? null
                 : (details) => onTapDown!(container, details, secondary: true),
@@ -548,7 +591,7 @@ class ImagePeek extends StatelessWidget {
             image.tag.isNotEmpty ? image.tag : '<none>',
           ].join(':');
           final isSelected = selectedIds.contains(_imageKey(image));
-          return SectionListItem(
+          return SelectableListItem(
             selected: isSelected,
             title: name,
             subtitle: 'Size: ${image.size}',
@@ -557,14 +600,21 @@ class ImagePeek extends StatelessWidget {
               size: 18,
               color: Theme.of(context).iconTheme.color,
             ),
+            onTapDown: onTapDown == null
+                ? null
+                : (details) => onTapDown!(
+                      image,
+                      details,
+                      secondary: false,
+                    ),
             onTap: onTap == null ? null : () => onTap!(image),
             onLongPress: onTapDown == null
                 ? null
                 : () => onTapDown!(
-                    image,
-                    TapDownDetails(kind: PointerDeviceKind.mouse),
-                    secondary: false,
-                  ),
+                      image,
+                      TapDownDetails(kind: PointerDeviceKind.mouse),
+                      secondary: false,
+                    ),
             trailing: onTapDown == null
                 ? null
                 : IconButton(
@@ -632,73 +682,41 @@ class ImageList extends StatelessWidget {
           image.tag.isNotEmpty ? image.tag : '<none>',
         ].join(':');
         final isSelected = selectedIds.contains(_imageKey(image));
-        return GestureDetector(
-          onTapDown: onTapDown == null
-              ? null
-              : (d) => onTapDown!(image, d, secondary: false),
-          onSecondaryTapDown: onTapDown == null
-              ? null
-              : (d) => onTapDown!(image, d, secondary: true),
-          child: InkWell(
-            onTap: onTap == null ? null : () => onTap!(image),
-            borderRadius: BorderRadius.circular(8),
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Container(
-                decoration: isSelected
-                    ? BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.primary.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(8),
-                      )
-                    : null,
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          icons.image,
-                          size: 18,
-                          color: Theme.of(context).iconTheme.color,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            name,
-                            style: Theme.of(context).textTheme.titleSmall,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (onTapDown != null) ...[
-                          IconButton(
-                            splashRadius: 16,
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(
-                              minWidth: 32,
-                              minHeight: 32,
-                            ),
-                            icon: Icon(Icons.more_vert, size: 20),
-                            tooltip: 'Actions',
-                            onPressed: () => onTapDown!(
-                              image,
-                              TapDownDetails(kind: PointerDeviceKind.touch),
-                              secondary: true,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    Text(
-                      'Size: ${image.size}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: SelectableListItem(
+            selected: isSelected,
+            title: name,
+            subtitle: 'Size: ${image.size}',
+            leading: Icon(
+              icons.image,
+              size: 18,
+              color: Theme.of(context).iconTheme.color,
             ),
+            onTapDown: onTapDown == null
+                ? null
+                : (d) => onTapDown!(image, d, secondary: false),
+            onTap: onTap == null ? null : () => onTap!(image),
+            onSecondaryTapDown: onTapDown == null
+                ? null
+                : (d) => onTapDown!(image, d, secondary: true),
+            trailing: onTapDown == null
+                ? null
+                : IconButton(
+                    splashRadius: 16,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                    icon: Icon(Icons.more_vert, size: 20),
+                    tooltip: 'Actions',
+                    onPressed: () => onTapDown!(
+                      image,
+                      TapDownDetails(kind: PointerDeviceKind.touch),
+                      secondary: true,
+                    ),
+                  ),
           ),
         );
       }).toList(),
@@ -740,7 +758,7 @@ class NetworkList extends StatelessWidget {
           final isSelected = selectedIds.contains(
             network.id.isNotEmpty ? network.id : network.name,
           );
-          return SectionListItem(
+          return SelectableListItem(
             selected: isSelected,
             title: network.name,
             subtitle: network.driver,
@@ -749,14 +767,21 @@ class NetworkList extends StatelessWidget {
               size: 18,
               color: Theme.of(context).iconTheme.color,
             ),
+            onTapDown: onTapDown == null
+                ? null
+                : (details) => onTapDown!(
+                      network,
+                      details,
+                      secondary: false,
+                    ),
             onTap: onTap == null ? null : () => onTap!(network),
             onLongPress: onTapDown == null
                 ? null
                 : () => onTapDown!(
-                    network,
-                    TapDownDetails(kind: PointerDeviceKind.mouse),
-                    secondary: false,
-                  ),
+                      network,
+                      TapDownDetails(kind: PointerDeviceKind.mouse),
+                      secondary: false,
+                    ),
             trailing: onTapDown == null
                 ? null
                 : IconButton(
@@ -834,7 +859,7 @@ class VolumeList extends StatelessWidget {
             if (volume.size != null && volume.size!.trim().isNotEmpty)
               volume.size!,
           ].join(' • ');
-          return SectionListItem(
+          return SelectableListItem(
             selected: isSelected,
             title: volume.name,
             subtitle: subtitle,
@@ -843,14 +868,21 @@ class VolumeList extends StatelessWidget {
               size: 18,
               color: Theme.of(context).iconTheme.color,
             ),
+            onTapDown: onTapDown == null
+                ? null
+                : (details) => onTapDown!(
+                      volume,
+                      details,
+                      secondary: false,
+                    ),
             onTap: onTap == null ? null : () => onTap!(volume),
             onLongPress: onTapDown == null
                 ? null
                 : () => onTapDown!(
-                    volume,
-                    TapDownDetails(kind: PointerDeviceKind.mouse),
-                    secondary: false,
-                  ),
+                      volume,
+                      TapDownDetails(kind: PointerDeviceKind.mouse),
+                      secondary: false,
+                    ),
             trailing: onTapDown == null
                 ? null
                 : IconButton(

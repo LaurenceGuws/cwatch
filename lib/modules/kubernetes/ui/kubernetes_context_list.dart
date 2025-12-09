@@ -12,8 +12,8 @@ import 'package:cwatch/services/kubernetes/kubeconfig_service.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
+import 'package:cwatch/shared/widgets/lists/selectable_list_item.dart';
 import 'package:cwatch/shared/widgets/lists/section_list.dart';
-import 'package:cwatch/shared/widgets/lists/section_list_item.dart';
 import 'package:cwatch/shared/views/shared/tabs/file_explorer/external_app_launcher.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 import 'package:cwatch/core/tabs/tabbed_workspace_shell.dart';
@@ -547,7 +547,8 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
           ),
       ],
     );
-    return SectionListItem(
+    Offset? lastPointer;
+    return SelectableListItem(
       selected: selected,
       title: context.name,
       subtitle: _contextSubtitle(context),
@@ -565,13 +566,15 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
         visualDensity: VisualDensity.compact,
         onPressed: () => _showContextMenu(context),
       ),
+      onTapDown: (details) => lastPointer = details.globalPosition,
+      onDoubleTapDown: (details) => lastPointer = details.globalPosition,
       onTap: () {
         setState(() {
           _selectedContextKey = _contextKey(context);
         });
       },
       onDoubleTap: () => _openContextTab(context),
-      onLongPress: () => _showContextMenu(context),
+      onLongPress: () => _showContextMenu(context, lastPointer),
       onSecondaryTapDown: (details) =>
           _showContextMenu(context, details.globalPosition),
     );

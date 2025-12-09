@@ -47,6 +47,8 @@ class ServerTab {
         return NerdIcon.database.data;
       case ServerAction.terminal:
         return NerdIcon.terminal.data;
+      case ServerAction.portForward:
+        return Icons.link;
       case ServerAction.trash:
         return Icons.delete_outline;
       case ServerAction.editor:

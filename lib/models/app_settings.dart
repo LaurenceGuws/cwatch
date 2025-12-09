@@ -36,6 +36,7 @@ class AppSettings {
     this.dockerRemoteHosts = const [],
     this.dockerSelectedContext,
     this.dockerWorkspace,
+    this.dockerLogsTail = 200,
     this.terminalFontFamily,
     this.terminalFontSize = 14,
     this.terminalLineHeight = 1.15,
@@ -71,11 +72,14 @@ class AppSettings {
   final List<String> dockerRemoteHosts;
   final String? dockerSelectedContext;
   final DockerWorkspaceState? dockerWorkspace;
+  final int dockerLogsTail;
   final String? terminalFontFamily;
   final double terminalFontSize;
   final double terminalLineHeight;
   final String terminalThemeDark;
   final String terminalThemeLight;
+
+  int get dockerLogsTailClamped => _sanitizeTailLines(dockerLogsTail);
 
   AppSettings copyWith({
     ThemeMode? themeMode,
@@ -106,6 +110,7 @@ class AppSettings {
     List<String>? dockerRemoteHosts,
     String? dockerSelectedContext,
     DockerWorkspaceState? dockerWorkspace,
+    int? dockerLogsTail,
     String? terminalFontFamily,
     double? terminalFontSize,
     double? terminalLineHeight,
@@ -147,6 +152,8 @@ class AppSettings {
       dockerRemoteHosts: dockerRemoteHosts ?? this.dockerRemoteHosts,
       dockerSelectedContext: dockerSelectedContext ?? this.dockerSelectedContext,
       dockerWorkspace: dockerWorkspace ?? this.dockerWorkspace,
+      dockerLogsTail:
+          _sanitizeTailLines(dockerLogsTail ?? this.dockerLogsTail),
       terminalFontFamily: terminalFontFamily ?? this.terminalFontFamily,
       terminalFontSize: terminalFontSize ?? this.terminalFontSize,
       terminalLineHeight: terminalLineHeight ?? this.terminalLineHeight,
@@ -258,7 +265,7 @@ class AppSettings {
           } catch (_) {
             return null;
           }
-        }
+          }
         return null;
       }(),
       terminalFontFamily: json['terminalFontFamily'] as String?,
@@ -268,6 +275,9 @@ class AppSettings {
       terminalThemeDark: json['terminalThemeDark'] as String? ?? 'dracula',
       terminalThemeLight:
           json['terminalThemeLight'] as String? ?? 'solarized-light',
+      dockerLogsTail: _sanitizeTailLines(
+        (json['dockerLogsTail'] as num?)?.toInt() ?? 200,
+      ),
     );
   }
 
@@ -303,11 +313,18 @@ class AppSettings {
       if (dockerSelectedContext != null)
         'dockerSelectedContext': dockerSelectedContext,
       if (dockerWorkspace != null) 'dockerWorkspace': dockerWorkspace!.toJson(),
+      'dockerLogsTail': dockerLogsTailClamped,
       if (terminalFontFamily != null) 'terminalFontFamily': terminalFontFamily,
       'terminalFontSize': terminalFontSize,
       'terminalLineHeight': terminalLineHeight,
       'terminalThemeDark': terminalThemeDark,
       'terminalThemeLight': terminalThemeLight,
     };
+  }
+
+  static int _sanitizeTailLines(int value) {
+    if (value < 0) return 0;
+    if (value > 5000) return 5000;
+    return value;
   }
 }

@@ -301,6 +301,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
           scrollController: _scrollController,
           autofocus: widget.autofocus,
           alwaysShowCursor: true,
+          padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
           textStyle: _textStyle(settings),
           theme: _terminalTheme(context, settings),
         ),
@@ -429,6 +430,7 @@ class ComposeLogsTerminal extends StatefulWidget {
     this.shellService,
     this.onExit,
     this.optionsController,
+    required this.tailLines,
   });
 
   final String composeBase;
@@ -438,6 +440,7 @@ class ComposeLogsTerminal extends StatefulWidget {
   final RemoteShellService? shellService;
   final VoidCallback? onExit;
   final TabOptionsController? optionsController;
+  final int tailLines;
 
   @override
   State<ComposeLogsTerminal> createState() => _ComposeLogsTerminalState();
@@ -447,11 +450,17 @@ class _ComposeLogsTerminalState extends State<ComposeLogsTerminal> {
   bool _excludeSelection = false;
   final Set<String> _selected = {};
   int _restartToken = 0;
+  int get _tailLines {
+    final value = widget.tailLines;
+    if (value < 0) return 0;
+    if (value > 5000) return 5000;
+    return value;
+  }
 
   @override
   void initState() {
     super.initState();
-    _updateTabOptions();
+    _queueTabOptionsUpdate();
   }
 
   @override
@@ -461,7 +470,7 @@ class _ComposeLogsTerminalState extends State<ComposeLogsTerminal> {
         oldWidget.project != widget.project ||
         oldWidget.composeBase != widget.composeBase ||
         oldWidget.services != widget.services) {
-      _updateTabOptions();
+      _queueTabOptionsUpdate();
     }
   }
 
@@ -473,13 +482,6 @@ class _ComposeLogsTerminalState extends State<ComposeLogsTerminal> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-          child: Text(
-            'Services • ${_serviceSummary(serviceItems)}',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ),
         Expanded(
           child: DockerCommandTerminal(
             key: ValueKey('$command-$_restartToken'),
@@ -498,41 +500,23 @@ class _ComposeLogsTerminalState extends State<ComposeLogsTerminal> {
   }
 
   String _buildCommand() {
+    final tailArg = '--tail $_tailLines';
     if (widget.services.isEmpty || _selected.isEmpty) {
-      return '${widget.composeBase} logs -f --tail 200; exit';
+      return '${widget.composeBase} logs -f $tailArg; exit';
     }
     final includeList = _excludeSelection
         ? widget.services.where((s) => !_selected.contains(s)).toList()
         : _selected.toList();
     if (includeList.isEmpty) {
-      return '${widget.composeBase} logs -f --tail 200; exit';
+      return '${widget.composeBase} logs -f $tailArg; exit';
     }
     final servicesArg = includeList.map((s) => '"$s"').join(' ');
-    return '${widget.composeBase} logs -f --tail 200 $servicesArg; exit';
+    return '${widget.composeBase} logs -f $tailArg $servicesArg; exit';
   }
 
   void _restartLogs() {
     setState(() => _restartToken += 1);
     _updateTabOptions();
-  }
-
-  String _serviceSummary(List<String> items) {
-    if (items.isEmpty) {
-      return 'none detected';
-    }
-    if (_selected.isEmpty && !_excludeSelection) {
-      return 'all (${items.length})';
-    }
-    final active = _excludeSelection
-        ? items.where((service) => !_selected.contains(service)).toList()
-        : _selected.toList();
-    if (active.isEmpty) {
-      return 'none selected';
-    }
-    if (active.length > 3) {
-      return '${active.take(3).join(', ')}…';
-    }
-    return active.join(', ');
   }
 
   Future<void> _showServiceDialog() async {
@@ -657,5 +641,12 @@ class _ComposeLogsTerminalState extends State<ComposeLogsTerminal> {
       return;
     }
     controller.update(overlay);
+  }
+
+  void _queueTabOptionsUpdate() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _updateTabOptions();
+    });
   }
 }

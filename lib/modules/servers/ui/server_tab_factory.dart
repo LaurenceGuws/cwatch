@@ -191,6 +191,8 @@ class ServerTabFactory {
           onExit: () => onCloseTab(tab.id),
           optionsController: tab.optionsController,
         );
+      case ServerAction.portForward:
+        return const SizedBox.shrink();
       case ServerAction.trash:
         final explorerContext =
             tab.explorerContext ?? ExplorerContext.server(tab.host);

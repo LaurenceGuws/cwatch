@@ -14,6 +14,8 @@ import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/services/ssh/remote_command_logging.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
+import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
+import 'package:cwatch/shared/widgets/port_forward_dialog.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'servers/add_server_dialog.dart';
 import 'servers/host_list.dart';
@@ -51,6 +53,7 @@ class ServersList extends StatefulWidget {
 class _ServersListState extends State<ServersList> {
   late final TabHostController<ServerTab> _tabController;
   final ExplorerTrashManager _trashManager = ExplorerTrashManager();
+  final PortForwardService _portForwardService = PortForwardService();
   late final VoidCallback _settingsListener;
   late final VoidCallback _tabsListener;
   late final TabViewRegistry<ServerTab> _tabRegistry;
@@ -117,6 +120,7 @@ class _ServersListState extends State<ServersList> {
     _tabController.removeListener(_tabsListener);
     _tabController.dispose();
     widget.settingsController.removeListener(_settingsListener);
+    _portForwardService.dispose();
     super.dispose();
   }
 
@@ -156,6 +160,7 @@ class _ServersListState extends State<ServersList> {
           onOpenResources: (host) => _addTab(host, ServerAction.resources),
           onOpenTerminal: (host) => _addTab(host, ServerAction.terminal),
           onOpenExplorer: (host) => _addTab(host, ServerAction.fileExplorer),
+          onOpenPortForward: _openPortForwardDialog,
           onHostsChanged: () {
             // Trigger rebuild when hosts change
             setState(() {});
@@ -337,9 +342,12 @@ class _ServersListState extends State<ServersList> {
 
   Future<void> _startActionFlowForHost(SshHost host) async {
     final action = await ActionPickerDialog.show(context, host);
-    if (action != null) {
-      _addTab(host, action);
+    if (action == null) return;
+    if (action == ServerAction.portForward) {
+      await _openPortForwardDialog(host);
+      return;
     }
+    _addTab(host, action);
   }
 
   void _addTab(SshHost host, ServerAction action) {
@@ -384,6 +392,54 @@ class _ServersListState extends State<ServersList> {
     _addEmptyTabPlaceholder();
   }
 
+  Future<void> _openPortForwardDialog(SshHost host) async {
+    final active = _portForwardService.forwardsForHost(host).toList();
+    final useBuiltIn =
+        widget.settingsController.settings.sshClientBackend ==
+            SshClientBackend.builtin;
+    final hostKeyBindings =
+        widget.settingsController.settings.builtinSshHostKeyBindings;
+    final initial = active.isNotEmpty
+        ? active.expand((f) => f.requests.map((r) => r.copy())).toList()
+        : [
+            PortForwardRequest(
+              remoteHost: '127.0.0.1',
+              remotePort: 0,
+              localPort: 0,
+              label: 'Mapping 1',
+            ),
+          ];
+    final result = await showPortForwardDialog(
+      context: context,
+      title: 'Port forwarding (${host.name})',
+      requests: initial,
+      portValidator: _portForwardService.isPortAvailable,
+      active: active,
+    );
+    if (!mounted || result == null || result.isEmpty) return;
+    try {
+      await _portForwardService.startForward(
+        host: host,
+        requests: result,
+        useBuiltInBackend: useBuiltIn,
+        builtInKeyService: useBuiltIn ? widget.keyService : null,
+        hostKeyBindings: hostKeyBindings,
+        promptUnlock: useBuiltIn ? _promptUnlockKey : null,
+      );
+      if (!mounted) return;
+      final summary =
+          result.map((r) => '${r.localPort}->${r.remotePort}').join(', ');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Forwarding $summary for ${host.name}.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Port forward failed: $error')),
+      );
+    }
+  }
+
   ServerTab _createTab({
     required String id,
     required SshHost host,
@@ -424,6 +480,8 @@ class _ServersListState extends State<ServersList> {
           host: host,
           bodyKey: bodyKey,
         );
+      case ServerAction.portForward:
+        return _tabFactory.emptyTab(id: id);
       case ServerAction.trash:
         return _tabFactory.trashTab(
           id: id,

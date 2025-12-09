@@ -168,14 +168,19 @@ List<BufferLine> reflow(
   final result = <BufferLine>[];
 
   for (var i = 0; i < lines.length; i++) {
-    final line = lines[i];
+    final line = lines.maybeAt(i);
+    if (line == null) continue;
 
     final reflow = _LineReflow(oldWidth, newWidth);
 
     reflow.add(line);
 
     for (var offset = i + 1; offset < lines.length; offset++) {
-      final nextLine = lines[offset];
+      final nextLine = lines.maybeAt(offset);
+      if (nextLine == null) {
+        i = offset;
+        break;
+      }
 
       if (!nextLine.isWrapped) {
         break;

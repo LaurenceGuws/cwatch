@@ -120,6 +120,8 @@ class ServerWorkspaceController {
           host: host,
           customName: _customName(state),
         );
+      case ServerAction.portForward:
+        return null;
       case ServerAction.trash:
         return tabFactory.trashTab(
           id: state.id,
@@ -148,6 +150,7 @@ class ServerWorkspaceController {
       case ServerAction.terminal:
       case ServerAction.resources:
       case ServerAction.editor:
+      case ServerAction.portForward:
         if (hostName == null) return null;
         return _findHostByName(hosts, hostName);
     }
@@ -159,6 +162,13 @@ class ServerWorkspaceController {
         action == ServerAction.editor || action == ServerAction.terminal
         ? tab.customName
         : null;
+    if (action == ServerAction.portForward) {
+      return TabState(
+        id: tab.id,
+        kind: ServerAction.empty.name,
+        hostName: tab.host.name,
+      );
+    }
     return TabState(
       id: tab.id,
       kind: action.name,

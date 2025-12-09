@@ -62,6 +62,12 @@ class ActionPickerDialog {
           value: ServerAction.terminal,
           icon: NerdIcon.terminal.data,
         ),
+        ActionOption(
+          title: 'Port forwarding',
+          subtitle: 'Forward remote ports over SSH',
+          value: ServerAction.portForward,
+          icon: Icons.link,
+        ),
       ],
     );
   }

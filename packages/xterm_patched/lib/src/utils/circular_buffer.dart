@@ -265,6 +265,12 @@ class IndexAwareCircularBuffer<T extends IndexedItem> {
   /// trimmed.
   bool get isFull => length == maxLength;
 
+  /// Safe access that returns null instead of throwing if the slot is empty.
+  T? maybeAt(int index) {
+    if (index < 0 || index >= _length) return null;
+    return _getChild(index);
+  }
+
   /// Returns a list containing all elements in the list.
   List<T> toList() {
     return List<T>.generate(length, (index) => this[index]);

@@ -3,6 +3,7 @@ enum ServerAction {
   connectivity,
   resources,
   terminal,
+  portForward,
   empty,
   trash,
   editor

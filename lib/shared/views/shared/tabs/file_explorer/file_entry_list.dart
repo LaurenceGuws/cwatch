@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../models/remote_file_entry.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../theme/nerd_fonts.dart';
+import '../../../../widgets/lists/selectable_list_item.dart';
 import 'file_icon_resolver.dart';
 
 /// Local file session model
@@ -190,33 +191,65 @@ class _FileEntryTileState extends State<FileEntryTile> {
     final iconColor = widget.selected
         ? colorScheme.primary
         : FileIconResolver.colorFor(widget.entry, colorScheme);
-    final listTokens = context.appTheme.list;
-    final highlightColor =
-        widget.selected ? listTokens.selectedBackground : Colors.transparent;
-    final titleStyle = widget.selected
-        ? Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: colorScheme.primary)
-        : null;
+
+    final trailing = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (!widget.entry.isDirectory && widget.session != null) ...[
+          IconButton(
+            tooltip: 'Push local changes to server',
+            icon: widget.syncing
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  )
+                : Icon(NerdIcon.cloudUpload.data),
+            onPressed: widget.syncing ? null : widget.onSyncLocalEdit,
+          ),
+          IconButton(
+            tooltip: 'Refresh cache from server',
+            icon: widget.refreshing
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  )
+                : Icon(NerdIcon.refresh.data),
+            onPressed: widget.refreshing ? null : widget.onRefreshCacheFromServer,
+          ),
+          IconButton(
+            tooltip: 'Clear cached copy',
+            icon: Icon(NerdIcon.delete.data),
+            onPressed: widget.onClearCachedCopy,
+          ),
+        ],
+        Text(
+          widget.entry.modified.toLocal().toString(),
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
+    );
+
     return MouseRegion(
       onEnter: widget.onDragHover,
       child: Listener(
         behavior: HitTestBehavior.opaque,
         onPointerDown: (event) {
-          // Handle mouse pointer events immediately for drag selection
-          if (event.kind == PointerDeviceKind.mouse) {
-            widget.onPointerDown(event);
-          } else if (event.kind == PointerDeviceKind.touch) {
-            // Track touch down for tap detection
+          widget.onPointerDown(event);
+          // Track touch down for tap detection
+          if (event.kind == PointerDeviceKind.touch) {
             _tapDownPosition = event.position;
             _tapDownTime = DateTime.now();
             _hasMoved = false;
           }
         },
         onPointerMove: (event) {
-          // If pointer moves significantly, it's a scroll, not a tap
-          if (event.kind == PointerDeviceKind.touch &&
-              _tapDownPosition != null) {
+          if (event.kind == PointerDeviceKind.touch && _tapDownPosition != null) {
             final delta = (event.position - _tapDownPosition!).distance;
             if (delta > 10) {
               _hasMoved = true;
@@ -225,7 +258,6 @@ class _FileEntryTileState extends State<FileEntryTile> {
         },
         onPointerUp: (event) {
           widget.onStopDragSelection();
-          // If it was a touch tap without movement, handle it
           if (event.kind == PointerDeviceKind.touch &&
               !_hasMoved &&
               _tapDownTime != null &&
@@ -248,87 +280,22 @@ class _FileEntryTileState extends State<FileEntryTile> {
           _tapDownTime = null;
           _hasMoved = false;
         },
-        child: GestureDetector(
-          onLongPress: _handleLongPress,
-          onDoubleTap: widget.onDoubleTap,
-          behavior: HitTestBehavior.translucent,
-          child: InkWell(
-            onDoubleTap: widget.onDoubleTap,
-            onSecondaryTapDown: (details) =>
-                widget.onContextMenu(details.globalPosition),
-            splashFactory: NoSplash.splashFactory,
-            hoverColor: listTokens.hoverBackground,
-            highlightColor: listTokens.hoverBackground,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 110),
-              curve: Curves.easeOutCubic,
-              color: highlightColor,
-              child: ListTile(
-                dense: true,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                leading: Icon(
-                  FileIconResolver.iconFor(widget.entry),
-                  color: iconColor,
-                ),
-                title: Text(widget.entry.name, style: titleStyle),
-                subtitle: Text(
-                  widget.entry.isDirectory
-                      ? 'Directory'
-                      : '${(widget.entry.sizeBytes / 1024).toStringAsFixed(1)} KB',
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (!widget.entry.isDirectory &&
-                        widget.session != null) ...[
-                      IconButton(
-                        tooltip: 'Push local changes to server',
-                        icon: widget.syncing
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : Icon(NerdIcon.cloudUpload.data),
-                        onPressed: widget.syncing
-                            ? null
-                            : widget.onSyncLocalEdit,
-                      ),
-                      IconButton(
-                        tooltip: 'Refresh cache from server',
-                        icon: widget.refreshing
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : Icon(NerdIcon.refresh.data),
-                        onPressed: widget.refreshing
-                            ? null
-                            : widget.onRefreshCacheFromServer,
-                      ),
-                      IconButton(
-                        tooltip: 'Clear cached copy',
-                        icon: Icon(NerdIcon.delete.data),
-                        onPressed: widget.onClearCachedCopy,
-                      ),
-                    ],
-                    Text(
-                      widget.entry.modified.toLocal().toString(),
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-            ),
+        child: SelectableListItem(
+          title: widget.entry.name,
+          subtitle: widget.entry.isDirectory
+              ? 'Directory'
+              : '${(widget.entry.sizeBytes / 1024).toStringAsFixed(1)} KB',
+          leading: Icon(
+            FileIconResolver.iconFor(widget.entry),
+            color: iconColor,
           ),
+          trailing: trailing,
+          selected: widget.selected,
+          onTap: null,
+          onDoubleTap: widget.onDoubleTap,
+          onLongPress: _handleLongPress,
+          onSecondaryTapDown: (details) =>
+              widget.onContextMenu(details.globalPosition),
         ),
       ),
     );

@@ -16,6 +16,7 @@ class SelectableListItem extends StatefulWidget {
     this.busy = false,
     this.onTap,
     this.onTapDown,
+    this.onDoubleTapDown,
     this.onDoubleTap,
     this.onLongPress,
     this.onSecondaryTapDown,
@@ -31,6 +32,7 @@ class SelectableListItem extends StatefulWidget {
   final bool busy;
   final VoidCallback? onTap;
   final void Function(TapDownDetails details)? onTapDown;
+  final void Function(TapDownDetails details)? onDoubleTapDown;
   final VoidCallback? onDoubleTap;
   final VoidCallback? onLongPress;
   final void Function(TapDownDetails details)? onSecondaryTapDown;
@@ -62,83 +64,91 @@ class _SelectableListItemState extends State<SelectableListItem> {
     return Material(
       color: background,
       borderRadius: BorderRadius.circular(8),
-      child: InkWell(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTapDown: widget.onTapDown,
-        onTap: widget.onTap,
-        onDoubleTap: widget.onDoubleTap,
-        onLongPress: widget.onLongPress,
+        onDoubleTapDown: widget.onDoubleTapDown,
         onSecondaryTapDown: widget.onSecondaryTapDown,
-        borderRadius: BorderRadius.circular(8),
-        overlayColor: overlay,
-        child: Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: spacing.base * 2,
-            vertical: spacing.base * 1.2,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              if (widget.leading != null) ...[
-                widget.leading!,
-                SizedBox(width: spacing.base * 1.5),
-              ],
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
+        child: InkWell(
+          onTap: widget.onTap,
+          onDoubleTap: widget.onDoubleTap,
+          onLongPress: widget.onLongPress,
+          borderRadius: BorderRadius.circular(8),
+          overlayColor: overlay,
+          enableFeedback: false,
+          splashFactory: NoSplash.splashFactory,
+          highlightColor: Colors.transparent,
+          hoverColor: Colors.transparent,
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: spacing.base * 2,
+              vertical: spacing.base * 1.2,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                if (widget.leading != null) ...[
+                  widget.leading!,
+                  SizedBox(width: spacing.base * 1.5),
+                ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              widget.title,
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: foreground,
+                                    fontWeight: widget.selected
+                                        ? FontWeight.w700
+                                        : FontWeight.w600,
+                                  ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (widget.badge != null) ...[
+                            SizedBox(width: spacing.sm),
+                            widget.badge!,
+                          ],
+                        ],
+                      ),
+                      if (widget.subtitle != null && widget.subtitle!.isNotEmpty)
+                        Padding(
+                          padding: EdgeInsets.only(top: spacing.xs),
                           child: Text(
-                            widget.title,
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: foreground,
-                                  fontWeight: widget.selected
-                                      ? FontWeight.w700
-                                      : FontWeight.w600,
+                            widget.subtitle!,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: scheme.onSurfaceVariant,
                                 ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (widget.badge != null) ...[
-                          SizedBox(width: spacing.sm),
-                          widget.badge!,
-                        ],
-                      ],
-                    ),
-                    if (widget.subtitle != null && widget.subtitle!.isNotEmpty)
-                      Padding(
-                        padding: EdgeInsets.only(top: spacing.xs),
-                        child: Text(
-                          widget.subtitle!,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                              ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              if (widget.busy) ...[
-                SizedBox(width: spacing.base),
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation(scheme.primary),
+                    ],
                   ),
                 ),
+                if (widget.busy) ...[
+                  SizedBox(width: spacing.base),
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation(scheme.primary),
+                    ),
+                  ),
+                ],
+                if (widget.trailing != null) ...[
+                  SizedBox(width: spacing.base),
+                  widget.trailing!,
+                ],
               ],
-              if (widget.trailing != null) ...[
-                SizedBox(width: spacing.base),
-                widget.trailing!,
-              ],
-            ],
+            ),
           ),
         ),
       ),

@@ -175,6 +175,7 @@ class DockerWorkspaceController {
           shellService: shell,
           contextName: dockerState.contextName,
           onExit: () => builders.closeTab(dockerState.id),
+          tailLines: settingsController.settings.dockerLogsTailClamped,
         );
       case DockerTabKind.containerExplorer:
         final host = _hostByName(hosts, dockerState.hostName);
@@ -557,6 +558,7 @@ class TabBuilders {
     required RemoteShellService? shellService,
     String? contextName,
     VoidCallback? onExit,
+    required int tailLines,
   })
   buildComposeLogs;
   final EngineTab Function({

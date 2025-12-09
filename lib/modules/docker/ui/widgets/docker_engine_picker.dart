@@ -5,7 +5,7 @@ import 'package:cwatch/models/docker_context.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/widgets/lists/section_list.dart';
-import 'package:cwatch/shared/widgets/lists/section_list_item.dart';
+import 'package:cwatch/shared/widgets/lists/selectable_list_item.dart';
 import 'docker_shared.dart';
 
 class RemoteDockerStatus {
@@ -20,7 +20,7 @@ class RemoteDockerStatus {
   final String detail;
 }
 
-class EnginePicker extends StatelessWidget {
+class EnginePicker extends StatefulWidget {
   const EnginePicker({
     super.key,
     required this.tabId,
@@ -45,11 +45,19 @@ class EnginePicker extends StatelessWidget {
   final void Function(SshHost host, Offset? anchor) onOpenHost;
 
   @override
+  State<EnginePicker> createState() => _EnginePickerState();
+}
+
+class _EnginePickerState extends State<EnginePicker> {
+  String? _selectedContext;
+  String? _selectedRemoteHost;
+
+  @override
   Widget build(BuildContext context) {
     return ListView(
       children: [
         FutureBuilder<List<DockerContext>>(
-          future: contextsFuture,
+          future: widget.contextsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Padding(
@@ -60,42 +68,71 @@ class EnginePicker extends StatelessWidget {
             if (snapshot.hasError) {
               return ErrorCard(
                 message: snapshot.error.toString(),
-                onRetry: onRefreshContexts,
+                onRetry: widget.onRefreshContexts,
               );
             }
             final contexts = snapshot.data ?? const <DockerContext>[];
             if (contexts.isEmpty) {
-              return EmptyState(onRefresh: onRefreshContexts);
+              return EmptyState(onRefresh: widget.onRefreshContexts);
             }
             return SectionList(
               title: 'Local contexts',
-              children: contexts
-                  .map(
-                    (ctx) => SectionListItem(
-                      title: ctx.name,
-                      leading: Icon(
-                        NerdIcon.docker.data,
-                        size: 18,
-                        color: Theme.of(context).iconTheme.color,
-                      ),
-                      onTap: () => onOpenContext(ctx.name, null),
-                      onDoubleTap: () => onOpenContext(ctx.name, null),
-                      onLongPress: () => onOpenContext(ctx.name, null),
-                      onSecondaryTapDown: (details) =>
-                          onOpenContext(ctx.name, details.globalPosition),
-                    ),
-                  )
-                  .toList(),
+              children: contexts.map((ctx) {
+                Offset? lastPointer;
+                final isSelected = _selectedContext == ctx.name;
+                void select() {
+                  setState(() {
+                    _selectedContext = ctx.name;
+                    _selectedRemoteHost = null;
+                  });
+                }
+
+                void open([Offset? anchor]) {
+                  select();
+                  widget.onOpenContext(ctx.name, anchor);
+                }
+
+                return SelectableListItem(
+                  selected: isSelected,
+                  title: ctx.name,
+                  leading: Icon(
+                    NerdIcon.docker.data,
+                    size: 18,
+                    color: Theme.of(context).iconTheme.color,
+                  ),
+                  onTapDown: (details) => lastPointer = details.globalPosition,
+                  onTap: () => select(),
+                  onDoubleTap: () => open(lastPointer),
+                  onLongPress: () => open(lastPointer),
+                  onSecondaryTapDown: (details) => open(details.globalPosition),
+                );
+              }).toList(),
             );
           },
         ),
         const SizedBox(height: 12),
         RemoteSection(
-          remoteStatusFuture: remoteStatusFuture,
-          scanRequested: remoteScanRequested,
-          cachedReady: cachedReady,
-          onScan: onScanRemotes,
-          onOpenHost: onOpenHost,
+          remoteStatusFuture: widget.remoteStatusFuture,
+          scanRequested: widget.remoteScanRequested,
+          cachedReady: widget.cachedReady,
+          onScan: widget.onScanRemotes,
+          onOpenHost: (host, anchor) {
+            setState(() {
+              _selectedRemoteHost = host.name;
+              _selectedContext = null;
+            });
+            widget.onOpenHost(host, anchor);
+          },
+          selectedHostName: _selectedRemoteHost,
+          onSelectHost: (host, anchor) {
+            setState(() {
+              _selectedRemoteHost = host.name;
+              _selectedContext = null;
+            });
+            if (anchor != null) {
+              widget.onOpenHost(host, anchor);
+            }
+          },
         ),
       ],
     );
@@ -110,6 +147,8 @@ class RemoteSection extends StatelessWidget {
     required this.cachedReady,
     required this.onScan,
     required this.onOpenHost,
+    required this.selectedHostName,
+    required this.onSelectHost,
   });
 
   final Future<List<RemoteDockerStatus>>? remoteStatusFuture;
@@ -117,6 +156,8 @@ class RemoteSection extends StatelessWidget {
   final List<RemoteDockerStatus> cachedReady;
   final VoidCallback onScan;
   final void Function(SshHost host, Offset? anchor) onOpenHost;
+  final String? selectedHostName;
+  final void Function(SshHost host, Offset? anchor) onSelectHost;
 
   @override
   Widget build(BuildContext context) {
@@ -145,7 +186,12 @@ class RemoteSection extends StatelessWidget {
                 ? const Text(
                     'Scan to check which servers have Docker available.',
                   )
-                : RemoteHostList(hosts: cachedReady, onOpenHost: onOpenHost),
+                : RemoteHostList(
+                    hosts: cachedReady,
+                    onOpenHost: onOpenHost,
+                    selectedHostName: selectedHostName,
+                    onSelectHost: onSelectHost,
+                  ),
           )
         else
           FutureBuilder<List<RemoteDockerStatus>>(
@@ -171,7 +217,12 @@ class RemoteSection extends StatelessWidget {
                   child: Text('No Docker-ready remote hosts found.'),
                 );
               }
-              return RemoteHostList(hosts: available, onOpenHost: onOpenHost);
+              return RemoteHostList(
+                hosts: available,
+                onOpenHost: onOpenHost,
+                selectedHostName: selectedHostName,
+                onSelectHost: onSelectHost,
+              );
             },
           ),
       ],
@@ -184,10 +235,14 @@ class RemoteHostList extends StatelessWidget {
     super.key,
     required this.hosts,
     required this.onOpenHost,
+    required this.selectedHostName,
+    required this.onSelectHost,
   });
 
   final List<RemoteDockerStatus> hosts;
   final void Function(SshHost host, Offset? anchor) onOpenHost;
+  final String? selectedHostName;
+  final void Function(SshHost host, Offset? anchor) onSelectHost;
 
   @override
   Widget build(BuildContext context) {
@@ -195,6 +250,8 @@ class RemoteHostList extends StatelessWidget {
     return SectionList(
       children: hosts.map((status) {
         final statusColor = status.available ? scheme.primary : scheme.error;
+        final isSelected = selectedHostName == status.host.name;
+        Offset? lastPointer;
         final badge = Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
@@ -209,11 +266,15 @@ class RemoteHostList extends StatelessWidget {
             ),
           ),
         );
-        return SectionListItem(
+        return SelectableListItem(
+          selected: isSelected,
           title: status.host.name,
           subtitle: status.detail,
           badge: badge,
-          onTap: () => onOpenHost(status.host, null),
+          onTapDown: (details) => lastPointer = details.globalPosition,
+          onTap: () => onSelectHost(status.host, null),
+          onDoubleTap: () => onOpenHost(status.host, lastPointer),
+          onLongPress: () => onOpenHost(status.host, lastPointer),
           onSecondaryTapDown: (details) =>
               onOpenHost(status.host, details.globalPosition),
           leading: Icon(

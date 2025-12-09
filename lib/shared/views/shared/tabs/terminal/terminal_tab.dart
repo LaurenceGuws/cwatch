@@ -367,7 +367,7 @@ class _TerminalTabState extends State<TerminalTab> {
                 controller: _controller,
                 autofocus: true,
                 backgroundOpacity: 1,
-                padding: EdgeInsets.zero,
+                padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
                 alwaysShowCursor: true,
                 deleteDetection:
                     defaultTargetPlatform == TargetPlatform.android ||

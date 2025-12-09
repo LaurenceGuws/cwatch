@@ -7,13 +7,19 @@ import 'package:cwatch/models/docker_container.dart';
 import 'package:cwatch/models/explorer_context.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/models/docker_workspace_state.dart';
+import 'package:cwatch/models/ssh_client_backend.dart';
 import 'package:cwatch/modules/docker/services/docker_container_shell_service.dart';
 import 'package:cwatch/modules/docker/services/docker_client_service.dart';
 import 'package:cwatch/modules/docker/ui/docker_tab_factory.dart';
 import 'package:cwatch/modules/docker/ui/engine_tab.dart';
+import 'package:cwatch/shared/widgets/port_forward_dialog.dart';
+import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
+import 'package:cwatch/services/settings/app_settings_controller.dart';
+import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
+import 'package:cwatch/services/logging/app_logger.dart';
 import 'docker_overview_controller.dart';
 
 class DockerOverviewActions {
@@ -26,6 +32,9 @@ class DockerOverviewActions {
     required this.tabFactory,
     required this.onOpenTab,
     required this.onCloseTab,
+    required this.settingsController,
+    required this.portForwardService,
+    required this.keyService,
   });
 
   final DockerOverviewController controller;
@@ -36,9 +45,15 @@ class DockerOverviewActions {
   final DockerTabFactory tabFactory;
   final void Function(EngineTab tab)? onOpenTab;
   final void Function(String tabId)? onCloseTab;
+  final AppSettingsController settingsController;
+  final PortForwardService portForwardService;
+  final BuiltInSshKeyService keyService;
 
   bool get _canOpenTabs => onOpenTab != null;
   bool get _isRemote => controller.isRemote;
+  int get _tailLines => settingsController.settings.dockerLogsTailClamped;
+  bool get _supportsForwarding =>
+      _isRemote && remoteHost != null && shellService != null;
 
   String logsBaseCommand(String containerId) {
     final contextFlag =
@@ -61,10 +76,11 @@ class DockerOverviewActions {
         contextName != null && contextName!.isNotEmpty
             ? '--context ${contextName!} '
             : '';
+    final tailArg = '--tail $_tailLines';
     return '''
 bash -lc '
 trap "exit 130" INT
-tail_arg="--tail 200"
+tail_arg="$tailArg"
 since=""
 while true; do
   docker ${contextFlag}logs --follow \$tail_arg \$since "$containerId"
@@ -86,6 +102,43 @@ done'
       return command;
     }
     return '$trimmed; exit';
+  }
+
+  List<int> _extractPorts(String raw) {
+    final parts = raw.split(',').map((p) => p.trim()).where((p) => p.isNotEmpty);
+    final ports = <int>{};
+    for (final part in parts) {
+      final arrowIndex = part.indexOf('->');
+      if (arrowIndex != -1) {
+        final hostSide = part.substring(0, arrowIndex);
+        final segments = hostSide.split(':');
+        final candidate = segments.isNotEmpty ? segments.last : hostSide;
+        final parsed =
+            int.tryParse(RegExp(r'([0-9]+)').stringMatch(candidate) ?? '');
+        if (parsed != null) {
+          ports.add(parsed);
+          continue;
+        }
+      }
+      final startMatch = RegExp(r'^([0-9]+)').firstMatch(part);
+      if (startMatch != null) {
+        ports.add(int.parse(startMatch.group(1)!));
+      }
+    }
+    final list = ports.toList()..sort();
+    return list;
+  }
+
+  Future<int> _pickLocalPort(Set<int> reserved, int preferred) async {
+    var candidate = preferred;
+    while (candidate < 65535) {
+      if (!reserved.contains(candidate) &&
+          await portForwardService.isPortAvailable(candidate)) {
+        return candidate;
+      }
+      candidate += 1;
+    }
+    throw Exception('No free local ports available for $preferred');
   }
 
   Future<void> runContainerAction(
@@ -218,12 +271,226 @@ done'
     }
   }
 
+  Future<void> forwardContainerPorts(
+    BuildContext context, {
+    required DockerContainer container,
+  }) async {
+    final useBuiltIn =
+        settingsController.settings.sshClientBackend == SshClientBackend.builtin;
+    final hostKeyBindings =
+        settingsController.settings.builtinSshHostKeyBindings;
+    if (!_supportsForwarding) {
+      return;
+    }
+    final detected = _extractPorts(container.ports);
+    final activeForwards = remoteHost != null
+        ? portForwardService.forwardsForHost(remoteHost!).toList()
+        : const <ActivePortForward>[];
+    if (detected.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No published ports detected.')),
+        );
+      }
+      return;
+    }
+    final requests = <PortForwardRequest>[];
+    for (final port in detected) {
+      final existing = activeForwards
+          .expand((f) => f.requests)
+          .firstWhere(
+            (r) => r.remotePort == port,
+            orElse: () => PortForwardRequest(
+              remoteHost: '127.0.0.1',
+              remotePort: 0,
+              localPort: 0,
+            ),
+          );
+      final local = existing.remotePort == port && existing.localPort > 0
+          ? existing.localPort
+          : await portForwardService.suggestLocalPort(port);
+      AppLogger.d(
+        'Forward default for ${container.id}: remote=$port local=$local '
+        '(existingMatch=${existing.remotePort == port && existing.localPort > 0})',
+        tag: 'PortForward',
+      );
+      requests.add(
+        PortForwardRequest(
+          remoteHost: '127.0.0.1',
+          remotePort: port,
+          localPort: local,
+          label: container.name.isNotEmpty ? container.name : container.id,
+        ),
+      );
+    }
+    if (!context.mounted) return;
+    final result = await showPortForwardDialog(
+      context: context,
+      title: 'Forward ports (${container.name.isNotEmpty ? container.name : container.id})',
+      requests: requests,
+      portValidator: portForwardService.isPortAvailable,
+      active: activeForwards,
+    );
+    if (!context.mounted || result == null || result.isEmpty) return;
+    try {
+      await portForwardService.startForward(
+        host: remoteHost!,
+        requests: result,
+        useBuiltInBackend: useBuiltIn,
+        builtInKeyService: useBuiltIn ? keyService : null,
+        hostKeyBindings: hostKeyBindings,
+      );
+      final summary =
+          result.map((r) => '${r.localPort}->${r.remotePort}').join(', ');
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Forwarding $summary via SSH.')),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Port forward failed: $error')),
+      );
+    }
+  }
+
+  Future<void> stopForwardsForHost(BuildContext context) async {
+    if (!_supportsForwarding || remoteHost == null) return;
+    final forwards = portForwardService.forwardsForHost(remoteHost!).toList();
+    if (forwards.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No active forwards.')),
+        );
+      }
+      return;
+    }
+    for (final forward in forwards) {
+      await portForwardService.stopForward(forward.id);
+    }
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Stopped active port forwards.')),
+      );
+    }
+  }
+
+  Future<void> forwardComposePorts(
+    BuildContext context, {
+    required String project,
+  }) async {
+    final useBuiltIn =
+        settingsController.settings.sshClientBackend == SshClientBackend.builtin;
+    final hostKeyBindings =
+        settingsController.settings.builtinSshHostKeyBindings;
+    if (!_supportsForwarding) return;
+    final ports = <int>{};
+    for (final container in controller.cachedContainers) {
+      if (container.composeProject == project) {
+        ports.addAll(_extractPorts(container.ports));
+      }
+    }
+    final sorted = ports.toList()..sort();
+    if (sorted.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No published ports detected.')),
+        );
+      }
+      return;
+    }
+    final portServices = <int, Set<String>>{};
+    for (final container in controller.cachedContainers) {
+      if (container.composeProject != project) continue;
+      final serviceName =
+          (container.composeService?.isNotEmpty ?? false)
+              ? container.composeService!
+              : (container.name.isNotEmpty ? container.name : project);
+      final containerPorts = _extractPorts(container.ports);
+      for (final p in containerPorts) {
+        portServices.putIfAbsent(p, () => <String>{}).add(serviceName);
+      }
+    }
+
+    final activeForwards = remoteHost != null
+        ? portForwardService.forwardsForHost(remoteHost!).toList()
+        : const <ActivePortForward>[];
+    final requests = <PortForwardRequest>[];
+    final reservedLocals = activeForwards
+        .expand((f) => f.requests.map((r) => r.localPort))
+        .where((p) => p > 0)
+        .toSet();
+    for (final port in sorted) {
+      final existing = activeForwards
+          .expand((f) => f.requests)
+          .firstWhere(
+            (r) => r.remotePort == port,
+            orElse: () => PortForwardRequest(
+              remoteHost: '127.0.0.1',
+              remotePort: 0,
+              localPort: 0,
+            ),
+          );
+      final local = existing.remotePort == port && existing.localPort > 0
+          ? existing.localPort
+          : await _pickLocalPort(reservedLocals, port);
+      reservedLocals.add(local);
+      AppLogger.d(
+        'Compose $project forward default: remote=$port local=$local '
+        '(existingMatch=${existing.remotePort == port && existing.localPort > 0})',
+        tag: 'PortForward',
+      );
+      final services = portServices[port];
+      final label = (services != null && services.isNotEmpty)
+          ? services.join(', ')
+          : project;
+      requests.add(
+        PortForwardRequest(
+          remoteHost: '127.0.0.1',
+          remotePort: port,
+          localPort: local,
+          label: label,
+        ),
+      );
+    }
+    if (!context.mounted) return;
+    final result = await showPortForwardDialog(
+      context: context,
+      title: 'Forward ports (Compose $project)',
+      requests: requests,
+      portValidator: portForwardService.isPortAvailable,
+      active: activeForwards,
+    );
+    if (!context.mounted || result == null || result.isEmpty) return;
+    try {
+      await portForwardService.startForward(
+        host: remoteHost!,
+        requests: result,
+        useBuiltInBackend: useBuiltIn,
+        builtInKeyService: useBuiltIn ? keyService : null,
+        hostKeyBindings: hostKeyBindings,
+      );
+      final summary =
+          result.map((r) => '${r.localPort}->${r.remotePort}').join(', ');
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Forwarding $summary for $project.')),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Port forward failed: $error')),
+      );
+    }
+  }
+
   Future<void> openLogsTab(
     DockerContainer container, {
     required BuildContext context,
   }) async {
     final name = container.name.isNotEmpty ? container.name : container.id;
     final baseCommand = logsBaseCommand(container.id);
+    final tailLines = _tailLines;
     final tailCommand = autoCloseCommand(followLogsCommand(container.id));
 
     if (_canOpenTabs) {
@@ -246,7 +513,7 @@ done'
       onOpenTab!(tab);
       return;
     }
-    await _showLogsDialog(context, container, baseCommand);
+    await _showLogsDialog(context, container, baseCommand, tailLines);
   }
 
   Future<void> openComposeLogsTab(
@@ -254,6 +521,7 @@ done'
     required String project,
   }) async {
     final base = composeBaseCommand(project);
+    final tailLines = _tailLines;
     final services = controller.composeServices(project);
     if (_canOpenTabs) {
       final tabId = 'clogs-$project-${DateTime.now().microsecondsSinceEpoch}';
@@ -269,6 +537,7 @@ done'
         shellService: shellService,
         contextName: contextName,
         onExit: () => onCloseTab?.call(tabId),
+        tailLines: tailLines,
       );
       onOpenTab!(tab);
       return;
@@ -283,7 +552,8 @@ done'
         status: '',
         ports: '',
       ),
-      '$base logs --tail 200',
+      '$base logs',
+      tailLines,
     );
   }
 
@@ -390,18 +660,21 @@ done'
     ).showSnackBar(const SnackBar(content: Text('Exec command copied.')));
   }
 
-  Future<String> loadLogsSnapshot(String command) async {
+  Future<String> loadLogsSnapshot(
+    String command, {
+    required int tailLines,
+  }) async {
     if (_isRemote && shellService != null && remoteHost != null) {
       return shellService!.runCommand(
         remoteHost!,
-        '$command --tail 200',
+        '$command --tail $tailLines',
         timeout: const Duration(seconds: 8),
       );
     }
 
     final result = await docker.processRunner(
       'bash',
-      ['-lc', '$command --tail 200'],
+      ['-lc', '$command --tail $tailLines'],
       stdoutEncoding: utf8,
       stderrEncoding: utf8,
       runInShell: false,
@@ -421,9 +694,10 @@ done'
     BuildContext context,
     DockerContainer container,
     String command,
+    int tailLines,
   ) async {
     try {
-      final logs = await loadLogsSnapshot(command);
+      final logs = await loadLogsSnapshot(command, tailLines: tailLines);
       if (!context.mounted) return;
       await showDialog<void>(
         context: context,

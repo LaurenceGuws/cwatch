@@ -193,7 +193,14 @@ class _SettingsViewState extends State<SettingsView>
                           hostsFuture: widget.hostsFuture,
                           keyService: widget.keyService,
                         ),
-                        DockerSettingsTab(),
+                        DockerSettingsTab(
+                          logsTail: settings.dockerLogsTailClamped,
+                          onLogsTailChanged: (value) =>
+                              widget.controller.update(
+                            (current) =>
+                                current.copyWith(dockerLogsTail: value),
+                          ),
+                        ),
                         KubernetesSettingsTab(),
                         DebugLogsTab(
                           logController: widget.commandLog,

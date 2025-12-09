@@ -15,6 +15,7 @@ import 'package:cwatch/services/filesystem/explorer_trash_manager.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
+import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import '../engine_tab.dart';
@@ -41,6 +42,7 @@ class DockerOverview extends StatefulWidget {
     this.onCloseTab,
     this.optionsController,
     required this.tabFactory,
+    required this.portForwardService,
   });
 
   final DockerClientService docker;
@@ -54,6 +56,7 @@ class DockerOverview extends StatefulWidget {
   final void Function(String tabId)? onCloseTab;
   final TabOptionsController? optionsController;
   final DockerTabFactory tabFactory;
+  final PortForwardService portForwardService;
 
   @override
   State<DockerOverview> createState() => _DockerOverviewState();
@@ -92,6 +95,9 @@ class _DockerOverviewState extends State<DockerOverview> {
       tabFactory: widget.tabFactory,
       onOpenTab: widget.onOpenTab,
       onCloseTab: widget.onCloseTab,
+      settingsController: widget.settingsController,
+      portForwardService: widget.portForwardService,
+      keyService: widget.keyService,
     );
   }
 
@@ -258,14 +264,23 @@ class _DockerOverviewState extends State<DockerOverview> {
                       child: SectionCard(
                         title: 'Containers',
                         child: ContainerPeek(
-                          containers: containers,
-                          onTapDown: _handleContainerTapDown,
-                          selectedIds: _controller.selectedContainerIds,
-                          busyIds:
-                              _controller.containerActionInProgress.keys.toSet(),
-                          actionLabels: _controller.containerActionInProgress,
-                          onComposeAction: _handleComposeAction,
-                        ),
+                        containers: containers,
+                        onTapDown: _handleContainerTapDown,
+                        selectedIds: _controller.selectedContainerIds,
+                        busyIds:
+                            _controller.containerActionInProgress.keys.toSet(),
+                        actionLabels: _controller.containerActionInProgress,
+                        onComposeAction: _handleComposeAction,
+                        onComposeForward: widget.remoteHost != null
+                            ? (project) => _actions.forwardComposePorts(
+                                  context,
+                                  project: project,
+                                )
+                            : null,
+                        onComposeStopForward: widget.remoteHost != null
+                            ? (_) => _actions.stopForwardsForHost(context)
+                            : null,
+                      ),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -311,6 +326,20 @@ class _DockerOverviewState extends State<DockerOverview> {
       _menus.menuItem(context, 'logs', 'Tail logs', Icons.list_alt_outlined),
       _menus.menuItem(context, 'shell', 'Open shell tab', NerdIcon.terminal.data),
       _menus.menuItem(context, 'copyExec', 'Copy exec command', _icons.copy),
+      if (widget.remoteHost != null)
+        _menus.menuItem(
+          context,
+          'forward',
+          'Port forward…',
+          Icons.link_outlined,
+        ),
+      if (widget.remoteHost != null)
+        _menus.menuItem(
+          context,
+          'stopForward',
+          'Stop port forwards',
+          Icons.link_off_outlined,
+        ),
       _menus.menuItem(context, 'explore', 'Open explorer', _icons.folderOpen),
       _menus.menuItem(context, 'start', 'Start', Icons.play_arrow_rounded),
       _menus.menuItem(context, 'stop', 'Stop', Icons.stop_rounded),
@@ -346,6 +375,15 @@ class _DockerOverviewState extends State<DockerOverview> {
             break;
           case 'copyExec':
             await _actions.copyExecCommand(context, container.id);
+            break;
+          case 'stopForward':
+            await _actions.stopForwardsForHost(context);
+            break;
+          case 'forward':
+            await _actions.forwardContainerPorts(
+              context,
+              container: container,
+            );
             break;
           case 'explore':
             await _actions.openContainerExplorer(

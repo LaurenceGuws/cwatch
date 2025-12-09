@@ -1,0 +1,21 @@
+Gdk-Message: 15:15:34.152: Unable to load  from the cursor theme
+Gdk-Message: 15:15:40.160: Unable to load  from the cursor theme
+Gdk-Message: 15:16:26.794: Unable to load  from the cursor theme
+Null check operator used on a null value
+#0      IndexAwareCircularBuffer.[] (package:xterm/src/utils/circular_buffer.dart:105)
+#1      RenderTerminal._paint (package:xterm/src/ui/render.dart:420)
+#2      RenderTerminal.paint (package:xterm/src/ui/render.dart:397)
+#3      RenderObject._paintWithContext (package:flutter/src/rendering/object.dart:3436)
+#4      PaintingContext._repaintCompositedChild (package:flutter/src/rendering/object.dart:176)
+#5      PaintingContext.repaintCompositedChild (package:flutter/src/rendering/object.dart:121)
+#6      PipelineOwner.flushPaint (package:flutter/src/rendering/object.dart:1322)
+#7      PipelineOwner.flushPaint (package:flutter/src/rendering/object.dart:1332)
+#8      RendererBinding.drawFrame (package:flutter/src/rendering/binding.dart:631)
+#9      WidgetsBinding.drawFrame (package:flutter/src/widgets/binding.dart:1264)
+#10     RendererBinding._handlePersistentFrameCallback (package:flutter/src/rendering/binding.dart:495)
+#11     SchedulerBinding._invokeFrameCallback (package:flutter/src/scheduler/binding.dart:1434)
+#12     SchedulerBinding.handleDrawFrame (package:flutter/src/scheduler/binding.dart:1347)
+#13     SchedulerBinding._handleDrawFrame (package:flutter/src/scheduler/binding.dart:1200)
+#14     _invoke (dart:ui/hooks.dart:356)
+#15     PlatformDispatcher._drawFrame (dart:ui/platform_dispatcher.dart:444)
+#16     _drawFrame (dart:ui/hooks.dart:328)

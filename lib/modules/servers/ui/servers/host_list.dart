@@ -24,6 +24,7 @@ class HostList extends StatefulWidget {
     this.onOpenResources,
     this.onOpenTerminal,
     this.onOpenExplorer,
+    this.onOpenPortForward,
   });
 
   final List<SshHost> hosts;
@@ -36,6 +37,7 @@ class HostList extends StatefulWidget {
   final ValueChanged<SshHost>? onOpenResources;
   final ValueChanged<SshHost>? onOpenTerminal;
   final ValueChanged<SshHost>? onOpenExplorer;
+  final ValueChanged<SshHost>? onOpenPortForward;
 
   @override
   State<HostList> createState() => _HostListState();
@@ -258,6 +260,16 @@ class _HostListState extends State<HostList> {
         ),
       ),
       PopupMenuItem(
+        value: 'portForward',
+        child: Row(
+          children: [
+            Icon(Icons.link, color: scheme.primary, size: 18),
+            const SizedBox(width: 8),
+            const Text('Port forwarding'),
+          ],
+        ),
+      ),
+      PopupMenuItem(
         value: 'connectivity',
         child: Row(
           children: [
@@ -313,6 +325,9 @@ class _HostListState extends State<HostList> {
         break;
       case 'resources':
         widget.onOpenResources?.call(host);
+        break;
+      case 'portForward':
+        widget.onOpenPortForward?.call(host);
         break;
       case 'remove':
         final isCustom = host is CustomSshHost || host.source == 'custom';

@@ -64,9 +64,23 @@ class ProcessSshRunner {
     );
   }
 
+  /// Returns the host portion for an SSH connection, including the username
+  /// when provided for custom hosts.
+  String connectionTarget(SshHost host) {
+    if (host.source == 'custom') {
+      final user = host.user?.trim();
+      final hostname = host.hostname;
+      if (user?.isNotEmpty == true) {
+        return '$user@$hostname';
+      }
+      return hostname;
+    }
+    return host.name;
+  }
+
   List<String> buildSshArgumentsForTerminal(SshHost host) {
     final args = buildBaseSshOptions(host);
-    args.add(_connectionTarget(host));
+    args.add(connectionTarget(host));
     return args;
   }
 
@@ -74,7 +88,7 @@ class ProcessSshRunner {
     return [
       'ssh',
       ...buildBaseSshOptions(host),
-      _connectionTarget(host),
+      connectionTarget(host),
       command,
     ];
   }
@@ -111,18 +125,6 @@ class ProcessSshRunner {
       timeout: timeout,
       onSshError: onSshError,
     );
-  }
-
-  String _connectionTarget(SshHost host) {
-    if (host.source == 'custom') {
-      final user = host.user?.trim();
-      final hostname = host.hostname;
-      if (user?.isNotEmpty ?? false) {
-        return '$user@$hostname';
-      }
-      return hostname;
-    }
-    return host.name;
   }
 }
 

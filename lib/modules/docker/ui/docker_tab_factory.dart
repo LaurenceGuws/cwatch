@@ -6,6 +6,7 @@ import 'package:cwatch/models/explorer_context.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/modules/docker/services/docker_client_service.dart';
 import 'package:cwatch/services/filesystem/explorer_trash_manager.dart';
+import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
@@ -24,12 +25,14 @@ class DockerTabFactory {
     required this.settingsController,
     required this.trashManager,
     required this.keyService,
+    required this.portForwardService,
   });
 
   final DockerClientService docker;
   final AppSettingsController settingsController;
   final ExplorerTrashManager trashManager;
   final BuiltInSshKeyService keyService;
+  final PortForwardService portForwardService;
 
   EngineTab overview({
     required String id,
@@ -55,6 +58,7 @@ class DockerTabFactory {
       onCloseTab: onCloseTab,
       optionsController: controller,
       tabFactory: this,
+      portForwardService: portForwardService,
     );
     return EngineTab(
       id: id,
@@ -305,6 +309,7 @@ class DockerTabFactory {
     required RemoteShellService? shellService,
     String? contextName,
     VoidCallback? onExit,
+    required int tailLines,
   }) {
     final controller = CompositeTabOptionsController();
     return EngineTab(
@@ -322,6 +327,7 @@ class DockerTabFactory {
         shellService: shellService,
         onExit: onExit,
         optionsController: controller,
+        tailLines: tailLines,
       ),
       workspaceState: TabState(
         id: id,
