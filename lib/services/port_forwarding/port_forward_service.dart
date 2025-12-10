@@ -6,8 +6,11 @@ import 'package:flutter/foundation.dart';
 
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_client_manager.dart';
+import 'package:cwatch/models/ssh_client_backend.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/services/ssh/process_ssh_runner.dart';
+import 'package:cwatch/services/settings/app_settings_controller.dart';
+import 'package:cwatch/services/ssh/ssh_auth_coordinator.dart';
 import 'package:dartssh2/dartssh2.dart';
 
 class PortForwardRequest {
@@ -116,13 +119,20 @@ class ActivePortForward {
 /// Tracks SSH port forward processes and provides helpers for reserving
 /// available local ports.
 class PortForwardService extends ChangeNotifier {
-  PortForwardService() {
+  PortForwardService({SshAuthCoordinator? authCoordinator})
+      : _authCoordinator = authCoordinator {
     _installSignalHandlers();
   }
 
   final Map<String, ActivePortForward> _forwards = {};
   final ProcessSshRunner _runner = const ProcessSshRunner();
   final List<StreamSubscription<ProcessSignal>> _signalSubscriptions = [];
+  AppSettingsController? _settingsController;
+  SshAuthCoordinator? _authCoordinator;
+
+  void setAuthCoordinator(SshAuthCoordinator coordinator) {
+    _authCoordinator = coordinator;
+  }
 
   List<ActivePortForward> get activeForwards =>
       List.unmodifiable(_forwards.values);
@@ -187,23 +197,32 @@ class PortForwardService extends ChangeNotifier {
   Future<ActivePortForward> startForward({
     required SshHost host,
     required List<PortForwardRequest> requests,
-    bool useBuiltInBackend = false,
+    AppSettingsController? settingsController,
     BuiltInSshKeyService? builtInKeyService,
     Map<String, String> hostKeyBindings = const {},
     Future<bool> Function(String keyId, String hostName, String? keyLabel)?
         promptUnlock,
     Duration builtInConnectTimeout = const Duration(seconds: 10),
+    SshAuthCoordinator? authCoordinator,
   }) async {
+    _settingsController ??= settingsController;
+    final usingBuiltIn = _settingsController != null &&
+        _settingsController!.settings.sshClientBackend == SshClientBackend.builtin &&
+        builtInKeyService != null;
     if (requests.isEmpty) {
       throw Exception('No ports to forward');
     }
     final id = 'pf-${DateTime.now().microsecondsSinceEpoch}';
-    if (useBuiltInBackend && builtInKeyService != null) {
+    if (usingBuiltIn) {
       final manager = BuiltInSshClientManager(
         vault: builtInKeyService.vault,
         hostKeyBindings: hostKeyBindings,
         connectTimeout: builtInConnectTimeout,
-        promptUnlock: promptUnlock,
+        authCoordinator: authCoordinator ??
+            _authCoordinator ??
+            (promptUnlock != null
+                ? SshAuthCoordinator().withUnlockFallback(promptUnlock)
+                : const SshAuthCoordinator()),
       );
       final client = await manager.openPersistentClient(host);
       final channels = <SSHForwardChannel>[];

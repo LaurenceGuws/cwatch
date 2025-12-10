@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/services/ssh/remote_command_logging.dart';
+import 'package:cwatch/services/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/widgets/section_nav_bar.dart';
@@ -17,6 +18,7 @@ class SettingsView extends StatefulWidget {
     required this.hostsFuture,
     required this.keyService,
     required this.commandLog,
+    required this.shellFactory,
     this.leading,
     super.key,
   });
@@ -25,6 +27,7 @@ class SettingsView extends StatefulWidget {
   final Future<List<SshHost>> hostsFuture;
   final BuiltInSshKeyService keyService;
   final RemoteCommandLogController commandLog;
+  final SshShellFactory shellFactory;
   final Widget? leading;
 
   @override

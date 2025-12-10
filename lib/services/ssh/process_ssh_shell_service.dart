@@ -38,6 +38,7 @@ class ProcessRemoteShellService extends RemoteShellService {
     SshHost host,
     String path, {
     Duration timeout = const Duration(seconds: 10),
+    RunTimeoutHandler? onTimeout,
   }) async {
     final sanitizedPath = sanitizePath(path);
     final lsCommand =
@@ -47,6 +48,7 @@ class ProcessRemoteShellService extends RemoteShellService {
       lsCommand,
       timeout: timeout,
       onSshError: _handleSshError,
+      onTimeout: onTimeout,
     );
 
     return parseLsOutput(run.stdout);
@@ -56,6 +58,7 @@ class ProcessRemoteShellService extends RemoteShellService {
   Future<String> homeDirectory(
     SshHost host, {
     Duration timeout = const Duration(seconds: 5),
+    RunTimeoutHandler? onTimeout,
   }) async {
     try {
       final run = await _runner.runSsh(
@@ -63,6 +66,7 @@ class ProcessRemoteShellService extends RemoteShellService {
         'echo \$HOME',
         timeout: timeout,
         onSshError: _handleSshError,
+        onTimeout: onTimeout,
       );
       final output = run.stdout.trim();
       return output.isEmpty ? '/' : output;
@@ -76,6 +80,7 @@ class ProcessRemoteShellService extends RemoteShellService {
     SshHost host,
     String path, {
     Duration timeout = const Duration(seconds: 15),
+    RunTimeoutHandler? onTimeout,
   }) async {
     final normalized = sanitizePath(path);
     final run = await _runner.runProcess(
@@ -86,6 +91,7 @@ class ProcessRemoteShellService extends RemoteShellService {
       timeout: timeout,
       hostForErrors: host,
       onSshError: _handleSshError,
+      onTimeout: onTimeout,
     );
     return run.stdout;
   }
@@ -96,6 +102,7 @@ class ProcessRemoteShellService extends RemoteShellService {
     String path,
     String contents, {
     Duration timeout = const Duration(seconds: 15),
+    RunTimeoutHandler? onTimeout,
   }) async {
     final normalized = sanitizePath(path);
     final delimiter = randomDelimiter();
@@ -108,12 +115,14 @@ class ProcessRemoteShellService extends RemoteShellService {
       timeout: timeout,
       hostForErrors: host,
       onSshError: _handleSshError,
+      onTimeout: onTimeout,
     );
     final verification = await _verifyPathExists(
       host,
       normalized,
       shouldExist: true,
       timeout: timeout,
+      onTimeout: onTimeout,
     );
     emitDebugEvent(
       host: host,
@@ -130,27 +139,35 @@ class ProcessRemoteShellService extends RemoteShellService {
     String source,
     String destination, {
     Duration timeout = const Duration(seconds: 15),
+    RunTimeoutHandler? onTimeout,
   }) async {
     final normalizedSource = sanitizePath(source);
     final normalizedDest = sanitizePath(destination);
-    await _ensureRemoteDirectory(host, dirnameFromPath(normalizedDest));
+    await _ensureRemoteDirectory(
+      host,
+      dirnameFromPath(normalizedDest),
+      onTimeout: onTimeout,
+    );
     final run = await _runner.runHostCommand(
       host,
       "mv '${escapeSingleQuotes(normalizedSource)}' '${escapeSingleQuotes(normalizedDest)}'",
       timeout: timeout,
       onSshError: _handleSshError,
+      onTimeout: onTimeout,
     );
     final verification = await _verifyPathExists(
       host,
       normalizedDest,
       shouldExist: true,
       timeout: timeout,
+      onTimeout: onTimeout,
     );
     final sourceGone = await _verifyPathExists(
       host,
       normalizedSource,
       shouldExist: false,
       timeout: timeout,
+      onTimeout: onTimeout,
     );
     final combinedVerification =
         verification?.combine(sourceGone) ?? sourceGone;
@@ -170,22 +187,29 @@ class ProcessRemoteShellService extends RemoteShellService {
     String destination, {
     bool recursive = false,
     Duration timeout = const Duration(seconds: 20),
+    RunTimeoutHandler? onTimeout,
   }) async {
     final normalizedSource = sanitizePath(source);
     final normalizedDest = sanitizePath(destination);
-    await _ensureRemoteDirectory(host, dirnameFromPath(normalizedDest));
+    await _ensureRemoteDirectory(
+      host,
+      dirnameFromPath(normalizedDest),
+      onTimeout: onTimeout,
+    );
     final flag = recursive ? '-R ' : '';
     final run = await _runner.runHostCommand(
       host,
       "cp $flag'${escapeSingleQuotes(normalizedSource)}' '${escapeSingleQuotes(normalizedDest)}'",
       timeout: timeout,
       onSshError: _handleSshError,
+      onTimeout: onTimeout,
     );
     final verification = await _verifyPathExists(
       host,
       normalizedDest,
       shouldExist: true,
       timeout: timeout,
+      onTimeout: onTimeout,
     );
     emitDebugEvent(
       host: host,
@@ -201,6 +225,7 @@ class ProcessRemoteShellService extends RemoteShellService {
     SshHost host,
     String path, {
     Duration timeout = const Duration(seconds: 15),
+    RunTimeoutHandler? onTimeout,
   }) async {
     final normalized = sanitizePath(path);
     final run = await _runner.runHostCommand(
@@ -208,12 +233,14 @@ class ProcessRemoteShellService extends RemoteShellService {
       "rm -rf '${escapeSingleQuotes(normalized)}'",
       timeout: timeout,
       onSshError: _handleSshError,
+      onTimeout: onTimeout,
     );
     final verification = await _verifyPathExists(
       host,
       normalized,
       shouldExist: false,
       timeout: timeout,
+      onTimeout: onTimeout,
     );
     emitDebugEvent(
       host: host,
@@ -232,28 +259,41 @@ class ProcessRemoteShellService extends RemoteShellService {
     required String destinationPath,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    RunTimeoutHandler? onTimeout,
   }) async {
     final normalizedSource = sanitizePath(sourcePath);
     final normalizedDest = sanitizePath(destinationPath);
-    await _ensureRemoteDirectory(destinationHost, dirnameFromPath(normalizedDest));
-    final recursiveFlag = recursive ? '-r ' : '';
-    final escapedSource =
-        "${sourceHost.name}:${singleQuoteForShell(normalizedSource)}";
-    final escapedDestination =
-        "${destinationHost.name}:${singleQuoteForShell(normalizedDest)}";
-    final command =
-        "scp -o BatchMode=yes -o StrictHostKeyChecking=no $recursiveFlag$escapedSource $escapedDestination";
+    await _ensureRemoteDirectory(
+      destinationHost,
+      dirnameFromPath(normalizedDest),
+      onTimeout: onTimeout,
+    );
+    final sharedPort =
+        sourceHost.port == destinationHost.port ? sourceHost.port : null;
+    final args = _buildScpArgs(
+      identityFiles: {
+        ...sourceHost.identityFiles,
+        ...destinationHost.identityFiles,
+      },
+      recursive: recursive,
+      remotePort: sharedPort,
+      extraFlags: const ['-3'],
+    )
+      ..add(_formatRemoteSpec(sourceHost, normalizedSource))
+      ..add(_formatRemoteSpec(destinationHost, normalizedDest));
     final run = await _runner.runProcess(
-      ['bash', '-lc', command],
+      args,
       timeout: timeout,
       hostForErrors: sourceHost,
       onSshError: _handleSshError,
+      onTimeout: onTimeout,
     );
     final verification = await _verifyPathExists(
       destinationHost,
       normalizedDest,
       shouldExist: true,
       timeout: timeout,
+      onTimeout: onTimeout,
     );
     emitDebugEvent(
       host: destinationHost,
@@ -271,21 +311,24 @@ class ProcessRemoteShellService extends RemoteShellService {
     required String localDestination,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    RunTimeoutHandler? onTimeout,
   }) async {
     final normalizedSource = sanitizePath(remotePath);
     final destinationDir = Directory(localDestination);
     await destinationDir.create(recursive: true);
-    final recursiveFlag = recursive ? '-r ' : '';
-    final escapedSource =
-        "${host.name}:${singleQuoteForShell(normalizedSource)}";
-    final escapedDestination = singleQuoteForShell(localDestination);
-    final command =
-        "scp -o BatchMode=yes -o StrictHostKeyChecking=no $recursiveFlag$escapedSource $escapedDestination";
+    final args = _buildScpArgs(
+      identityFiles: host.identityFiles.toSet(),
+      remotePort: host.port,
+      recursive: recursive,
+    )
+      ..add(_formatRemoteSpec(host, normalizedSource))
+      ..add(localDestination);
     await _runner.runProcess(
-      ['bash', '-lc', command],
+      args,
       timeout: timeout,
       hostForErrors: host,
       onSshError: _handleSshError,
+      onTimeout: onTimeout,
     );
   }
 
@@ -296,30 +339,35 @@ class ProcessRemoteShellService extends RemoteShellService {
     required String remoteDestination,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    RunTimeoutHandler? onTimeout,
   }) async {
     final normalizedDest = sanitizePath(remoteDestination);
-    final source =
-        FileSystemEntity.typeSync(localPath) == FileSystemEntityType.directory
-        ? localPath
-        : localPath;
-    await _ensureRemoteDirectory(host, dirnameFromPath(normalizedDest));
-    final recursiveFlag = recursive ? '-r ' : '';
-    final escapedSource = singleQuoteForShell(source);
-    final escapedDestination =
-        "${host.name}:${singleQuoteForShell(normalizedDest)}";
-    final command =
-        "scp -o BatchMode=yes -o StrictHostKeyChecking=no $recursiveFlag$escapedSource $escapedDestination";
+    final source = localPath;
+    await _ensureRemoteDirectory(
+      host,
+      dirnameFromPath(normalizedDest),
+      onTimeout: onTimeout,
+    );
+    final args = _buildScpArgs(
+      identityFiles: host.identityFiles.toSet(),
+      remotePort: host.port,
+      recursive: recursive,
+    )
+      ..add(source)
+      ..add(_formatRemoteSpec(host, normalizedDest));
     final run = await _runner.runProcess(
-      ['bash', '-lc', command],
+      args,
       timeout: timeout,
       hostForErrors: host,
       onSshError: _handleSshError,
+      onTimeout: onTimeout,
     );
     final verification = await _verifyPathExists(
       host,
       normalizedDest,
       shouldExist: true,
       timeout: timeout,
+      onTimeout: onTimeout,
     );
     emitDebugEvent(
       host: host,
@@ -335,6 +383,7 @@ class ProcessRemoteShellService extends RemoteShellService {
     SshHost host,
     String command, {
     Duration timeout = const Duration(seconds: 10),
+    RunTimeoutHandler? onTimeout,
   }) async {
     _logProcess('Running command on ${host.name}: $command');
     final run = await _runner.runSsh(
@@ -342,6 +391,7 @@ class ProcessRemoteShellService extends RemoteShellService {
       command,
       timeout: timeout,
       onSshError: _handleSshError,
+      onTimeout: onTimeout,
     );
     _logProcess(
       'Command on ${host.name} completed. Output length=${run.stdout.length}',
@@ -364,7 +414,45 @@ class ProcessRemoteShellService extends RemoteShellService {
     );
   }
 
-  Future<void> _ensureRemoteDirectory(SshHost host, String directory) async {
+  List<String> _buildScpArgs({
+    required Set<String> identityFiles,
+    int? remotePort,
+    bool recursive = false,
+    List<String> extraFlags = const [],
+  }) {
+    final args = <String>[
+      'scp',
+      '-o',
+      'BatchMode=yes',
+      '-o',
+      'StrictHostKeyChecking=accept-new',
+      ...extraFlags,
+    ];
+    if (remotePort != null) {
+      args.addAll(['-P', remotePort.toString()]);
+    }
+    if (recursive) {
+      args.add('-r');
+    }
+    for (final identity in identityFiles) {
+      final trimmed = identity.trim();
+      if (trimmed.isNotEmpty) {
+        args.addAll(['-i', trimmed]);
+      }
+    }
+    return args;
+  }
+
+  String _formatRemoteSpec(SshHost host, String path) {
+    final normalized = sanitizePath(path);
+    return '${_runner.connectionTarget(host)}:${singleQuoteForShell(normalized)}';
+  }
+
+  Future<void> _ensureRemoteDirectory(
+    SshHost host,
+    String directory, {
+    RunTimeoutHandler? onTimeout,
+  }) async {
     if (directory.isEmpty) {
       return;
     }
@@ -372,6 +460,7 @@ class ProcessRemoteShellService extends RemoteShellService {
       host,
       "mkdir -p '${escapeSingleQuotes(directory)}'",
       onSshError: _handleSshError,
+      onTimeout: onTimeout,
     );
   }
 
@@ -380,6 +469,7 @@ class ProcessRemoteShellService extends RemoteShellService {
     String path, {
     required bool shouldExist,
     Duration timeout = const Duration(seconds: 5),
+    RunTimeoutHandler? onTimeout,
   }) async {
     if (!debugMode) {
       return null;
@@ -391,6 +481,7 @@ class ProcessRemoteShellService extends RemoteShellService {
       command,
       timeout: timeout,
       onSshError: _handleSshError,
+      onTimeout: onTimeout,
     );
     final exists = run.stdout.trim() == 'EXISTS';
     return VerificationResult(

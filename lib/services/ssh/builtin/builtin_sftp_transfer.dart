@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import '../../../models/ssh_host.dart';
 import '../remote_path_utils.dart';
+import '../remote_shell_base.dart';
 import 'builtin_ssh_client_manager.dart';
 import 'builtin_ssh_logging.dart';
 
@@ -20,22 +21,28 @@ class BuiltInSftpTransfer with RemotePathUtils {
     required String localDestination,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    RunTimeoutHandler? onTimeout,
   }) async {
     final sanitized = sanitizePath(remotePath);
     final destinationDir = Directory(localDestination);
     await destinationDir.create(recursive: true);
-    await _clientManager.withSftp(host, (sftp) async {
-      final attrs = await _stat(sftp, sanitized);
-      if (attrs.isDirectory) {
-        if (!recursive) {
-          throw Exception('Remote path is a directory; enable recursion.');
+    await _clientManager.withSftp(
+      host,
+      (sftp) async {
+        final attrs = await _stat(sftp, sanitized);
+        if (attrs.isDirectory) {
+          if (!recursive) {
+            throw Exception('Remote path is a directory; enable recursion.');
+          }
+          await _downloadDirectory(sftp, sanitized, destinationDir.path);
+          return;
         }
-        await _downloadDirectory(sftp, sanitized, destinationDir.path);
-        return;
-      }
-      final localTarget = p.join(destinationDir.path, p.basename(sanitized));
-      await _downloadFile(sftp, sanitized, localTarget);
-    }).timeout(timeout);
+        final localTarget = p.join(destinationDir.path, p.basename(sanitized));
+        await _downloadFile(sftp, sanitized, localTarget);
+      },
+      timeout: timeout,
+      onTimeout: onTimeout,
+    );
   }
 
   Future<void> uploadPath({
@@ -45,6 +52,7 @@ class BuiltInSftpTransfer with RemotePathUtils {
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
     void Function(int bytesTransferred)? onBytes,
+    RunTimeoutHandler? onTimeout,
   }) async {
     final normalizedDest = sanitizePath(remoteDestination);
     final entryType = FileSystemEntity.typeSync(localPath);
@@ -61,29 +69,34 @@ class BuiltInSftpTransfer with RemotePathUtils {
         'Local path "$localPath" is not found or not a regular file/directory.',
       );
     }
-    await _clientManager.withSftp(host, (sftp) async {
-      if (entryType == FileSystemEntityType.directory) {
-        if (!recursive) {
-          throw Exception('Uploading directories requires recursive flag.');
+    await _clientManager.withSftp(
+      host,
+      (sftp) async {
+        if (entryType == FileSystemEntityType.directory) {
+          if (!recursive) {
+            throw Exception('Uploading directories requires recursive flag.');
+          }
+          final remoteDir = _joinPath(normalizedDest, p.basename(localPath));
+          await _ensureRemoteDirectory(sftp, dirnameFromPath(remoteDir));
+          await _uploadDirectory(
+            sftp,
+            Directory(localPath),
+            remoteDir,
+            onBytes: onBytes,
+          );
+          return;
         }
-        final remoteDir = _joinPath(normalizedDest, p.basename(localPath));
-        await _ensureRemoteDirectory(sftp, dirnameFromPath(remoteDir));
-        await _uploadDirectory(
+        await _ensureRemoteDirectory(sftp, dirnameFromPath(normalizedDest));
+        await _uploadFile(
           sftp,
-          Directory(localPath),
-          remoteDir,
+          File(localPath),
+          normalizedDest,
           onBytes: onBytes,
         );
-        return;
-      }
-      await _ensureRemoteDirectory(sftp, dirnameFromPath(normalizedDest));
-      await _uploadFile(
-        sftp,
-        File(localPath),
-        normalizedDest,
-        onBytes: onBytes,
-      );
-    }).timeout(timeout);
+      },
+      timeout: timeout,
+      onTimeout: onTimeout,
+    );
   }
 
   Future<void> uploadBytes({
@@ -91,12 +104,18 @@ class BuiltInSftpTransfer with RemotePathUtils {
     required List<int> bytes,
     required String remoteDestination,
     Duration timeout = const Duration(minutes: 2),
+    RunTimeoutHandler? onTimeout,
   }) async {
     final normalizedDest = sanitizePath(remoteDestination);
-    await _clientManager.withSftp(host, (sftp) async {
-      await _ensureRemoteDirectory(sftp, dirnameFromPath(normalizedDest));
-      await _uploadBytes(sftp, bytes, normalizedDest);
-    }).timeout(timeout);
+    await _clientManager.withSftp(
+      host,
+      (sftp) async {
+        await _ensureRemoteDirectory(sftp, dirnameFromPath(normalizedDest));
+        await _uploadBytes(sftp, bytes, normalizedDest);
+      },
+      timeout: timeout,
+      onTimeout: onTimeout,
+    );
   }
 
   Future<void> _downloadFile(

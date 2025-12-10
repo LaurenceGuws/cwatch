@@ -6,7 +6,6 @@ import '../../../../../models/explorer_context.dart';
 import '../../../../../models/remote_file_entry.dart';
 import '../../../../../models/ssh_host.dart';
 import '../../../../../services/filesystem/explorer_trash_manager.dart';
-import '../../../../../services/ssh/builtin/builtin_ssh_key_service.dart';
 import '../../../../../services/ssh/remote_editor_cache.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 import 'clipboard_operations_handler.dart';
@@ -29,7 +28,6 @@ class FileExplorerController extends ChangeNotifier {
     required this.shellService,
     required this.trashManager,
     required this.promptMergeDialog,
-    this.keyService,
     this.onOpenEditorTab,
   });
 
@@ -37,7 +35,6 @@ class FileExplorerController extends ChangeNotifier {
   final ExplorerContext explorerContext;
   final RemoteShellService shellService;
   final ExplorerTrashManager trashManager;
-  final BuiltInSshKeyService? keyService;
   final Future<String?> Function({
     required String remotePath,
     required String local,
@@ -74,7 +71,6 @@ class FileExplorerController extends ChangeNotifier {
   Future<void> initialize(BuildContext context) async {
     _sshAuthHandler = SshAuthHandler(
       shellService: shellService,
-      keyService: keyService,
       context: context,
       host: host,
     );

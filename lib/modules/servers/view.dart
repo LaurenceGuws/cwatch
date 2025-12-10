@@ -4,6 +4,7 @@ import '../../core/navigation/shell_module.dart';
 import 'package:cwatch/services/ssh/remote_command_logging.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/models/ssh_host.dart';
+import 'package:cwatch/services/ssh/ssh_shell_factory.dart';
 import 'ui/servers_list.dart';
 import '../../shared/theme/nerd_fonts.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
@@ -14,12 +15,14 @@ class ServersModule extends ShellModuleView {
     required this.settingsController,
     required this.keyService,
     required this.commandLog,
+    required this.shellFactory,
   });
 
   final Future<List<SshHost>> hostsFuture;
   final AppSettingsController settingsController;
   final BuiltInSshKeyService keyService;
   final RemoteCommandLogController commandLog;
+  final SshShellFactory shellFactory;
 
   @override
   String get id => 'servers';
@@ -37,6 +40,7 @@ class ServersModule extends ShellModuleView {
       settingsController: settingsController,
       keyService: keyService,
       commandLog: commandLog,
+      shellFactory: shellFactory,
       leading: leading,
     );
   }

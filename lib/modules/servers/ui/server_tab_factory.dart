@@ -163,7 +163,6 @@ class ServerTabFactory {
           host: tab.host,
           explorerContext: explorerContext,
           shellService: shellServiceForHost(tab.host),
-          keyService: keyService,
           trashManager: trashManager,
           onOpenTrash: onOpenTrash,
           onOpenEditorTab: onOpenEditorTab,

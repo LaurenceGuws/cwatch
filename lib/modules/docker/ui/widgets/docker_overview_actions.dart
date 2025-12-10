@@ -7,7 +7,6 @@ import 'package:cwatch/models/docker_container.dart';
 import 'package:cwatch/models/explorer_context.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/models/docker_workspace_state.dart';
-import 'package:cwatch/models/ssh_client_backend.dart';
 import 'package:cwatch/modules/docker/services/docker_container_shell_service.dart';
 import 'package:cwatch/modules/docker/services/docker_client_service.dart';
 import 'package:cwatch/modules/docker/ui/docker_tab_factory.dart';
@@ -16,6 +15,7 @@ import 'package:cwatch/shared/widgets/port_forward_dialog.dart';
 import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
+import 'package:cwatch/services/ssh/ssh_auth_prompter.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
@@ -97,11 +97,17 @@ done'
   }
 
   String autoCloseCommand(String command) {
+    const historyPrefix =
+        'HISTFILE=/dev/null HISTSIZE=0 HISTFILESIZE=0 HISTCONTROL=ignorespace';
     final trimmed = command.trimRight();
-    if (trimmed.endsWith('exit') || trimmed.endsWith('exit;')) {
-      return command;
+    final suffixed =
+        (trimmed.endsWith('exit') || trimmed.endsWith('exit;'))
+            ? trimmed
+            : '$trimmed; exit';
+    if (suffixed.startsWith(historyPrefix)) {
+      return suffixed;
     }
-    return '$trimmed; exit';
+    return '$historyPrefix; clear; $suffixed';
   }
 
   List<int> _extractPorts(String raw) {
@@ -231,6 +237,7 @@ done'
     required Future<void> Function() onSynced,
   }) async {
     controller.markProjectBusy(project, action);
+    final affectedIds = controller.projectContainerIds(project);
     final args = <String>[];
     switch (action) {
       case 'up':
@@ -245,29 +252,37 @@ done'
       default:
         return;
     }
-    if (_isRemote && shellService != null && remoteHost != null) {
-      final cmd = '${composeBaseCommand(project)} ${args.join(' ')}';
-      await shellService!.runCommand(
-        remoteHost!,
-        cmd,
-        timeout: const Duration(seconds: 20),
+    try {
+      if (_isRemote && shellService != null && remoteHost != null) {
+        final cmd = '${composeBaseCommand(project)} ${args.join(' ')}';
+        await shellService!.runCommand(
+          remoteHost!,
+          cmd,
+          timeout: const Duration(minutes: 5),
+        );
+      } else {
+        await docker.processRunner(
+          'bash',
+          ['-lc', '${composeBaseCommand(project)} ${args.join(' ')}'],
+          stdoutEncoding: utf8,
+          stderrEncoding: utf8,
+          runInShell: false,
+        );
+      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Compose $action executed for $project.')),
       );
-    } else {
-      await docker.processRunner(
-        'bash',
-        ['-lc', '${composeBaseCommand(project)} ${args.join(' ')}'],
-        stdoutEncoding: utf8,
-        stderrEncoding: utf8,
-        runInShell: false,
+      await onSynced();
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Compose $action failed: $error')),
       );
-    }
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Compose $action executed for $project.')),
-    );
-    await onSynced();
-    for (final id in controller.projectContainerIds(project)) {
-      controller.clearContainerAction(id);
+    } finally {
+      for (final id in affectedIds) {
+        controller.clearContainerAction(id);
+      }
     }
   }
 
@@ -275,8 +290,6 @@ done'
     BuildContext context, {
     required DockerContainer container,
   }) async {
-    final useBuiltIn =
-        settingsController.settings.sshClientBackend == SshClientBackend.builtin;
     final hostKeyBindings =
         settingsController.settings.builtinSshHostKeyBindings;
     if (!_supportsForwarding) {
@@ -336,9 +349,13 @@ done'
       await portForwardService.startForward(
         host: remoteHost!,
         requests: result,
-        useBuiltInBackend: useBuiltIn,
-        builtInKeyService: useBuiltIn ? keyService : null,
+        settingsController: settingsController,
+        builtInKeyService: keyService,
         hostKeyBindings: hostKeyBindings,
+        authCoordinator: SshAuthPrompter.forContext(
+          context: context,
+          keyService: keyService,
+        ),
       );
       final summary =
           result.map((r) => '${r.localPort}->${r.remotePort}').join(', ');
@@ -379,8 +396,6 @@ done'
     BuildContext context, {
     required String project,
   }) async {
-    final useBuiltIn =
-        settingsController.settings.sshClientBackend == SshClientBackend.builtin;
     final hostKeyBindings =
         settingsController.settings.builtinSshHostKeyBindings;
     if (!_supportsForwarding) return;
@@ -466,9 +481,13 @@ done'
       await portForwardService.startForward(
         host: remoteHost!,
         requests: result,
-        useBuiltInBackend: useBuiltIn,
-        builtInKeyService: useBuiltIn ? keyService : null,
+        settingsController: settingsController,
+        builtInKeyService: keyService,
         hostKeyBindings: hostKeyBindings,
+        authCoordinator: SshAuthPrompter.forContext(
+          context: context,
+          keyService: keyService,
+        ),
       );
       final summary =
           result.map((r) => '${r.localPort}->${r.remotePort}').join(', ');

@@ -13,6 +13,7 @@ import '../../services/ssh/builtin/builtin_ssh_key_store.dart';
 import '../../services/ssh/builtin/builtin_ssh_key_service.dart';
 import '../../services/ssh/builtin/builtin_ssh_vault.dart';
 import '../../services/ssh/remote_command_logging.dart';
+import '../../services/ssh/ssh_shell_factory.dart';
 import '../../services/ssh/ssh_config_service.dart';
 import '../../shared/theme/nerd_fonts.dart';
 import 'module_registry.dart';
@@ -37,6 +38,7 @@ class _HomeShellState extends State<HomeShell> {
   late final BuiltInSshVault _builtInVault;
   late final BuiltInSshKeyService _builtInKeyService;
   late final RemoteCommandLogController _commandLog;
+  late final SshShellFactory _shellFactory;
   String? _hostsSettingsSignature;
   _SidebarPlacement _sidebarPlacement = _SidebarPlacement.dynamic;
   final Map<String, Widget> _pageCache = {};
@@ -51,6 +53,10 @@ class _HomeShellState extends State<HomeShell> {
     _builtInKeyService = BuiltInSshKeyService(
       keyStore: _builtInKeyStore,
       vault: _builtInVault,
+    );
+    _shellFactory = SshShellFactory(
+      settingsController: widget.settingsController,
+      keyService: _builtInKeyService,
     );
     _refreshHosts();
     _moduleRegistry = ModuleRegistry(_buildModules());
@@ -321,12 +327,14 @@ class _HomeShellState extends State<HomeShell> {
         settingsController: widget.settingsController,
         keyService: _builtInKeyService,
         commandLog: _commandLog,
+        shellFactory: _shellFactory,
       ),
       DockerModule(
         hostsFuture: _hostsFuture,
         settingsController: widget.settingsController,
         keyService: _builtInKeyService,
         commandLog: _commandLog,
+        shellFactory: _shellFactory,
       ),
       KubernetesModule(settingsController: widget.settingsController),
       SettingsModule(
@@ -334,6 +342,7 @@ class _HomeShellState extends State<HomeShell> {
         hostsFuture: _hostsFuture,
         keyService: _builtInKeyService,
         commandLog: _commandLog,
+        shellFactory: _shellFactory,
       ),
     ];
   }

@@ -44,21 +44,6 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
     _keysFuture = widget.keyService.listKeys();
     _vaultListener = () => setState(() {});
     widget.keyService.vault.addListener(_vaultListener);
-    _autoUnlockPlaintextKeys();
-  }
-
-  Future<void> _autoUnlockPlaintextKeys() async {
-    // Automatically unlock plaintext keys (they don't need a password)
-    final keys = await _keysFuture;
-    for (final entry in keys) {
-      if (!entry.isEncrypted && !widget.keyService.isUnlocked(entry.id)) {
-        try {
-          await widget.keyService.unlock(entry.id, password: null);
-        } catch (_) {
-          // Ignore errors - key might be invalid
-        }
-      }
-    }
   }
 
   @override
@@ -74,7 +59,6 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
     setState(() {
       _keysFuture = widget.keyService.listKeys();
     });
-    _autoUnlockPlaintextKeys();
   }
 
   Future<void> _handleAddKey() async {

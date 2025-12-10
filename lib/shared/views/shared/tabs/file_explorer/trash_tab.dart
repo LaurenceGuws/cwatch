@@ -15,7 +15,7 @@ class TrashTab extends StatefulWidget {
   const TrashTab({
     super.key,
     required this.manager,
-    this.shellService = const ProcessRemoteShellService(),
+    required this.shellService,
     this.keyService,
     this.context,
   });

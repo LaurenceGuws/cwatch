@@ -152,7 +152,6 @@ class DockerTabFactory {
         explorerContext: explorerContext,
         shellService: shellService,
         trashManager: trashManager,
-        keyService: keyService,
         onOpenTrash: (ctx) => onOpenTab(
           trash(
             id: 'trash-${ctx.host.name}-${DateTime.now().microsecondsSinceEpoch}',

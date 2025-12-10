@@ -63,17 +63,20 @@ abstract class RemoteShellService with RemotePathUtils {
     SshHost host,
     String path, {
     Duration timeout = const Duration(seconds: 10),
+    RunTimeoutHandler? onTimeout,
   });
 
   Future<String> homeDirectory(
     SshHost host, {
     Duration timeout = const Duration(seconds: 5),
+    RunTimeoutHandler? onTimeout,
   });
 
   Future<String> readFile(
     SshHost host,
     String path, {
     Duration timeout = const Duration(seconds: 15),
+    RunTimeoutHandler? onTimeout,
   });
 
   Future<void> writeFile(
@@ -81,6 +84,7 @@ abstract class RemoteShellService with RemotePathUtils {
     String path,
     String contents, {
     Duration timeout = const Duration(seconds: 15),
+    RunTimeoutHandler? onTimeout,
   });
 
   Future<void> movePath(
@@ -88,6 +92,7 @@ abstract class RemoteShellService with RemotePathUtils {
     String source,
     String destination, {
     Duration timeout = const Duration(seconds: 15),
+    RunTimeoutHandler? onTimeout,
   });
 
   Future<void> copyPath(
@@ -96,12 +101,14 @@ abstract class RemoteShellService with RemotePathUtils {
     String destination, {
     bool recursive = false,
     Duration timeout = const Duration(seconds: 20),
+    RunTimeoutHandler? onTimeout,
   });
 
   Future<void> deletePath(
     SshHost host,
     String path, {
     Duration timeout = const Duration(seconds: 15),
+    RunTimeoutHandler? onTimeout,
   });
 
   Future<void> copyBetweenHosts({
@@ -111,6 +118,7 @@ abstract class RemoteShellService with RemotePathUtils {
     required String destinationPath,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    RunTimeoutHandler? onTimeout,
   });
 
   Future<void> downloadPath({
@@ -119,6 +127,7 @@ abstract class RemoteShellService with RemotePathUtils {
     required String localDestination,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    RunTimeoutHandler? onTimeout,
   });
 
   Future<void> uploadPath({
@@ -127,12 +136,14 @@ abstract class RemoteShellService with RemotePathUtils {
     required String remoteDestination,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    RunTimeoutHandler? onTimeout,
   });
 
   Future<String> runCommand(
     SshHost host,
     String command, {
     Duration timeout = const Duration(seconds: 10),
+    RunTimeoutHandler? onTimeout,
   });
 
   Future<TerminalSession> createTerminalSession(
@@ -194,6 +205,36 @@ class RunResult {
   final String stdout;
   final String stderr;
 }
+
+/// Describes how a long-running command should behave when it hits a timeout
+/// boundary. `wait` allows the caller to extend the wait window, while `kill`
+/// should terminate the underlying process or connection.
+class TimeoutResolution {
+  const TimeoutResolution._(this.shouldKill, this.extendBy);
+
+  const TimeoutResolution.kill() : this._(true, null);
+  const TimeoutResolution.wait([Duration? extendBy])
+      : this._(false, extendBy);
+
+  final bool shouldKill;
+  final Duration? extendBy;
+}
+
+class TimeoutContext {
+  TimeoutContext({
+    required this.host,
+    required this.commandDescription,
+    required this.elapsed,
+  });
+
+  final SshHost? host;
+  final String commandDescription;
+  final Duration elapsed;
+}
+
+typedef RunTimeoutHandler = Future<TimeoutResolution> Function(
+  TimeoutContext context,
+);
 
 class VerificationResult {
   const VerificationResult({

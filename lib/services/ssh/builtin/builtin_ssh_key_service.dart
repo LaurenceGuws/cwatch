@@ -7,6 +7,8 @@ import 'builtin_ssh_key_store.dart';
 import 'builtin_ssh_vault.dart';
 import 'builtin_remote_shell_service.dart';
 import '../remote_command_logging.dart';
+import '../known_hosts_store.dart';
+import '../ssh_auth_coordinator.dart';
 
 /// High-level built-in SSH key manager. Keeps validation and vault status
 /// handling inside the built-in service so UI layers don't need to know
@@ -35,6 +37,7 @@ class BuiltInSshKeyService {
     required String keyPem,
     String? storagePassword,
     String? keyPassphrase,
+    bool allowPlaintext = false,
   }) async {
     final validation = _validatePem(
       keyPem,
@@ -55,17 +58,24 @@ class BuiltInSshKeyService {
         break;
     }
 
+    final effectivePassword =
+        storagePassword != null && storagePassword.isNotEmpty
+            ? storagePassword
+            : null;
+    if (effectivePassword == null && !allowPlaintext) {
+      return const BuiltInSshKeyAddResult(
+        status: BuiltInSshKeyAddStatus.invalid,
+        message:
+            'Set a storage password to encrypt this key or explicitly allow plaintext storage.',
+      );
+    }
+
     try {
       final entry = await _keyStore.addEntry(
         label: label,
         keyData: utf8.encode(keyPem),
-        password: storagePassword?.isEmpty ?? true ? null : storagePassword,
+        password: effectivePassword,
       );
-
-      // Auto-unlock plaintext keys so the vault is ready for use.
-      if (!entry.isEncrypted) {
-        await _vault.unlock(entry.id, null).catchError((_) {});
-      }
 
       return BuiltInSshKeyAddResult(
         status: BuiltInSshKeyAddStatus.success,
@@ -130,6 +140,8 @@ class BuiltInSshKeyService {
     RemoteCommandObserver? observer,
     Future<bool> Function(String keyId, String hostName, String? keyLabel)?
         promptUnlock,
+    KnownHostsStore? knownHostsStore,
+    SshAuthCoordinator? authCoordinator,
   }) {
     return BuiltInRemoteShellService(
       vault: _vault,
@@ -137,6 +149,8 @@ class BuiltInSshKeyService {
       debugMode: debugMode,
       observer: observer,
       promptUnlock: promptUnlock,
+      knownHostsStore: knownHostsStore,
+      authCoordinator: authCoordinator,
     );
   }
 

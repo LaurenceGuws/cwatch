@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:cwatch/models/docker_context.dart';
-import 'package:cwatch/models/ssh_client_backend.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/modules/docker/services/docker_client_service.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/services/ssh/remote_command_logging.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
+import 'package:cwatch/services/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/filesystem/explorer_trash_manager.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
@@ -27,6 +27,7 @@ import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 import 'docker_tab_factory.dart';
 import 'docker_workspace_controller.dart';
 import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
+import 'package:cwatch/services/ssh/ssh_auth_prompter.dart';
 
 class DockerView extends StatefulWidget {
   const DockerView({
@@ -36,6 +37,7 @@ class DockerView extends StatefulWidget {
     required this.settingsController,
     required this.keyService,
     required this.commandLog,
+    required this.shellFactory,
   });
 
   final Widget? leading;
@@ -43,6 +45,7 @@ class DockerView extends StatefulWidget {
   final AppSettingsController settingsController;
   final BuiltInSshKeyService keyService;
   final RemoteCommandLogController commandLog;
+  final SshShellFactory shellFactory;
 
   @override
   State<DockerView> createState() => _DockerViewState();
@@ -53,12 +56,12 @@ class _DockerViewState extends State<DockerView> {
   final ExplorerTrashManager _trashManager = ExplorerTrashManager();
   final PortForwardService _portForwardService = PortForwardService();
   DockerTabFactory get _tabFactory => DockerTabFactory(
-    docker: _docker,
-    settingsController: widget.settingsController,
-    trashManager: _trashManager,
-    keyService: widget.keyService,
-    portForwardService: _portForwardService,
-  );
+        docker: _docker,
+        settingsController: widget.settingsController,
+        trashManager: _trashManager,
+        keyService: widget.keyService,
+        portForwardService: _portForwardService,
+      );
   late final TabHostController<EngineTab> _tabController;
   final Map<String, TabState> _tabStates = {};
   late final TabViewRegistry<EngineTab> _tabRegistry;
@@ -125,6 +128,7 @@ class _DockerViewState extends State<DockerView> {
     _workspaceController = DockerWorkspaceController(
       settingsController: widget.settingsController,
     );
+    _portForwardService.setAuthCoordinator(widget.shellFactory.authCoordinator);
     widget.settingsController.addListener(_settingsListener);
     _restoreWorkspace();
   }
@@ -641,141 +645,14 @@ class _DockerViewState extends State<DockerView> {
   RemoteShellService _shellServiceForHost(SshHost host) {
     final settings = widget.settingsController.settings;
     final observer = settings.debugMode ? widget.commandLog.add : null;
-    if (settings.sshClientBackend == SshClientBackend.builtin) {
-      return widget.keyService.buildShellService(
-        hostKeyBindings: settings.builtinSshHostKeyBindings,
-        debugMode: settings.debugMode,
-        observer: observer,
-        promptUnlock: (keyId, hostName, keyLabel) =>
-            _promptUnlockKey(keyId, hostName, keyLabel),
-      );
-    }
-    return ProcessRemoteShellService(
-      debugMode: settings.debugMode,
+    return widget.shellFactory.forHost(
+      host,
       observer: observer,
+      coordinator: SshAuthPrompter.forContext(
+        context: context,
+        keyService: widget.keyService,
+      ),
     );
-  }
-
-  Future<bool> _promptUnlockKey(
-    String keyId,
-    String hostName,
-    String? keyLabel,
-  ) async {
-    final initialResult = await widget.keyService.unlock(keyId, password: null);
-    if (initialResult.status == BuiltInSshKeyUnlockStatus.unlocked) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unlocked key for this session.')),
-        );
-      }
-      return true;
-    }
-    if (!mounted) return false;
-
-    final controller = TextEditingController();
-    String? errorText;
-    bool loading = false;
-    final success = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            Future<void> attemptUnlock() async {
-              if (loading) return;
-              final password = controller.text.trim();
-              if (password.isEmpty) {
-                setState(() => errorText = 'Password is required');
-                return;
-              }
-              setState(() {
-                loading = true;
-                errorText = null;
-              });
-              try {
-                final result = await widget.keyService.unlock(
-                  keyId,
-                  password: password,
-                );
-                if (result.status == BuiltInSshKeyUnlockStatus.unlocked) {
-                  if (!mounted || !dialogContext.mounted) return;
-                  Navigator.of(dialogContext).pop(true);
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(
-                      content: Text('Key unlocked for this session.'),
-                    ),
-                  );
-                } else if (result.status ==
-                    BuiltInSshKeyUnlockStatus.incorrectPassword) {
-                  setState(() {
-                    errorText = 'Incorrect password. Please try again.';
-                    loading = false;
-                  });
-                } else {
-                  setState(() {
-                    errorText = result.message ?? 'Failed to unlock.';
-                    loading = false;
-                  });
-                }
-              } catch (e) {
-                setState(() {
-                  errorText = 'Failed to unlock: $e';
-                  loading = false;
-                });
-              }
-            }
-
-            return AlertDialog(
-              title: Text('Unlock ${keyLabel ?? 'key'}'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Host: $hostName'),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: controller,
-                    obscureText: true,
-                    decoration: const InputDecoration(labelText: 'Password'),
-                    enabled: !loading,
-                  ),
-                  if (errorText != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      errorText!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: loading
-                      ? null
-                      : () {
-                          Navigator.of(dialogContext).pop(false);
-                        },
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: loading ? null : attemptUnlock,
-                  child: loading
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Unlock'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-    WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
-    return success == true;
   }
 
   void _openChildTab(EngineTab tab) {

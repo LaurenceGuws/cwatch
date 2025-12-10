@@ -7,7 +7,6 @@ import '../../../../../models/explorer_context.dart';
 import '../../../../../models/remote_file_entry.dart';
 import '../../../../../models/ssh_host.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
-import '../../../../../services/ssh/builtin/builtin_ssh_key_service.dart';
 import '../../../../../services/filesystem/explorer_trash_manager.dart';
 import 'context_menu_builder.dart';
 import 'dialog_builders.dart';
@@ -25,9 +24,8 @@ class FileExplorerTab extends StatefulWidget {
     super.key,
     required this.host,
     required this.explorerContext,
-    this.shellService = const ProcessRemoteShellService(),
+    required this.shellService,
     required this.trashManager,
-    this.keyService,
     required this.onOpenTrash,
     this.onOpenEditorTab,
     this.onOpenTerminalTab,
@@ -38,10 +36,9 @@ class FileExplorerTab extends StatefulWidget {
   final ExplorerContext explorerContext;
   final RemoteShellService shellService;
   final ExplorerTrashManager trashManager;
-  final BuiltInSshKeyService? keyService;
   final ValueChanged<ExplorerContext> onOpenTrash;
   final Future<void> Function(String path, String initialContent)?
-  onOpenEditorTab;
+      onOpenEditorTab;
   final ValueChanged<String>? onOpenTerminalTab;
   final TabOptionsController? optionsController;
 
@@ -65,7 +62,6 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       explorerContext: widget.explorerContext,
       shellService: widget.shellService,
       trashManager: widget.trashManager,
-      keyService: widget.keyService,
       onOpenEditorTab: widget.onOpenEditorTab,
       promptMergeDialog: _promptMergeDialog,
     );
@@ -92,7 +88,6 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         explorerContext: widget.explorerContext,
         shellService: widget.shellService,
         trashManager: widget.trashManager,
-        keyService: widget.keyService,
         onOpenEditorTab: widget.onOpenEditorTab,
         promptMergeDialog: _promptMergeDialog,
       );

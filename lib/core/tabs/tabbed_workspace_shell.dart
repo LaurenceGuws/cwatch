@@ -37,6 +37,7 @@ class TabbedWorkspaceShell<T> extends StatelessWidget {
       onReorder: onReorder,
       buildChip: buildChip,
       buildBody: (tab) => registry.widgetFor(tab, () => buildBody(tab)),
+      tabId: registry.tabId,
     );
   }
 }

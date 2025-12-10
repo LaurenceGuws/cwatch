@@ -24,11 +24,13 @@ class DockerContainerShellService extends RemoteShellService {
     SshHost host,
     String path, {
     Duration timeout = const Duration(seconds: 10),
+    RunTimeoutHandler? onTimeout,
   }) async {
     final output = await runCommand(
       host,
       'ls -la --time-style=+%Y-%m-%dT%H:%M:%S ${_escape(path)}',
       timeout: timeout,
+      onTimeout: onTimeout,
     );
     return parseLsOutput(output);
   }
@@ -37,11 +39,13 @@ class DockerContainerShellService extends RemoteShellService {
   Future<String> homeDirectory(
     SshHost host, {
     Duration timeout = const Duration(seconds: 5),
+    RunTimeoutHandler? onTimeout,
   }) async {
     final output = await runCommand(
       host,
       r'printf %s "$HOME"',
       timeout: timeout,
+      onTimeout: onTimeout,
     );
     return output.trim().isEmpty ? '/' : output.trim();
   }
@@ -51,8 +55,14 @@ class DockerContainerShellService extends RemoteShellService {
     SshHost host,
     String path, {
     Duration timeout = const Duration(seconds: 15),
+    RunTimeoutHandler? onTimeout,
   }) {
-    return runCommand(host, 'cat ${_escape(path)}', timeout: timeout);
+    return runCommand(
+      host,
+      'cat ${_escape(path)}',
+      timeout: timeout,
+      onTimeout: onTimeout,
+    );
   }
 
   @override
@@ -61,6 +71,7 @@ class DockerContainerShellService extends RemoteShellService {
     String path,
     String contents, {
     Duration timeout = const Duration(seconds: 15),
+    RunTimeoutHandler? onTimeout,
   }) async {
     final tempDir = await _makeTempDir(timeout: timeout);
     try {
@@ -70,11 +81,13 @@ class DockerContainerShellService extends RemoteShellService {
         tempFile,
         contents,
         timeout: timeout,
+        onTimeout: onTimeout,
       );
       await baseShell.runCommand(
         this.host,
         'docker cp ${_escapeLocal(tempFile)} $containerId:${_escape(path)}',
         timeout: timeout,
+        onTimeout: onTimeout,
       );
     } finally {
       await _cleanupTemp(tempDir);
@@ -87,11 +100,13 @@ class DockerContainerShellService extends RemoteShellService {
     String source,
     String destination, {
     Duration timeout = const Duration(seconds: 15),
+    RunTimeoutHandler? onTimeout,
   }) {
     return runCommand(
       host,
       'mv ${_escape(source)} ${_escape(destination)}',
       timeout: timeout,
+      onTimeout: onTimeout,
     );
   }
 
@@ -102,12 +117,14 @@ class DockerContainerShellService extends RemoteShellService {
     String destination, {
     bool recursive = false,
     Duration timeout = const Duration(seconds: 20),
+    RunTimeoutHandler? onTimeout,
   }) {
     final flag = recursive ? '-r' : '';
     return runCommand(
       host,
       'cp $flag ${_escape(source)} ${_escape(destination)}',
       timeout: timeout,
+      onTimeout: onTimeout,
     );
   }
 
@@ -116,8 +133,14 @@ class DockerContainerShellService extends RemoteShellService {
     SshHost host,
     String path, {
     Duration timeout = const Duration(seconds: 15),
+    RunTimeoutHandler? onTimeout,
   }) {
-    return runCommand(host, 'rm -rf ${_escape(path)}', timeout: timeout);
+    return runCommand(
+      host,
+      'rm -rf ${_escape(path)}',
+      timeout: timeout,
+      onTimeout: onTimeout,
+    );
   }
 
   @override
@@ -128,6 +151,7 @@ class DockerContainerShellService extends RemoteShellService {
     required String destinationPath,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    RunTimeoutHandler? onTimeout,
   }) {
     return Future.error(
       Exception('Cross-host copy is not supported for container sessions'),
@@ -141,6 +165,7 @@ class DockerContainerShellService extends RemoteShellService {
     required String localDestination,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    RunTimeoutHandler? onTimeout,
   }) async {
     final tempDir = await _makeTempDir(timeout: timeout);
     try {
@@ -148,6 +173,7 @@ class DockerContainerShellService extends RemoteShellService {
         this.host,
         'docker cp $containerId:${_escape(remotePath)} ${_escapeLocal(tempDir)}',
         timeout: timeout,
+        onTimeout: onTimeout,
       );
       final payload = p.join(tempDir, p.basename(remotePath));
       await baseShell.downloadPath(
@@ -156,6 +182,7 @@ class DockerContainerShellService extends RemoteShellService {
         localDestination: localDestination,
         recursive: recursive,
         timeout: timeout,
+        onTimeout: onTimeout,
       );
     } finally {
       await _cleanupTemp(tempDir);
@@ -169,6 +196,7 @@ class DockerContainerShellService extends RemoteShellService {
     required String remoteDestination,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    RunTimeoutHandler? onTimeout,
   }) async {
     final tempDir = await _makeTempDir(timeout: timeout);
     try {
@@ -179,11 +207,13 @@ class DockerContainerShellService extends RemoteShellService {
         remoteDestination: tempDest,
         recursive: recursive,
         timeout: timeout,
+        onTimeout: onTimeout,
       );
       await baseShell.runCommand(
         this.host,
         'docker cp ${_escapeLocal(tempDest)} $containerId:${_escape(remoteDestination)}',
         timeout: timeout,
+        onTimeout: onTimeout,
       );
     } finally {
       await _cleanupTemp(tempDir);
@@ -195,10 +225,16 @@ class DockerContainerShellService extends RemoteShellService {
     SshHost host,
     String command, {
     Duration timeout = const Duration(seconds: 10),
+    RunTimeoutHandler? onTimeout,
   }) async {
     final wrapped =
         'docker exec $containerId sh -lc ${_escapeSingleCommand(command)}';
-    return baseShell.runCommand(this.host, wrapped, timeout: timeout);
+    return baseShell.runCommand(
+      this.host,
+      wrapped,
+      timeout: timeout,
+      onTimeout: onTimeout,
+    );
   }
 
   @override
@@ -253,6 +289,7 @@ class LocalDockerContainerShellService extends RemoteShellService {
     SshHost host,
     String path, {
     Duration timeout = const Duration(seconds: 10),
+    RunTimeoutHandler? onTimeout,
   }) async {
     final output = await runCommand(
       host,
@@ -266,6 +303,7 @@ class LocalDockerContainerShellService extends RemoteShellService {
   Future<String> homeDirectory(
     SshHost host, {
     Duration timeout = const Duration(seconds: 5),
+    RunTimeoutHandler? onTimeout,
   }) async {
     final output = await runCommand(
       host,
@@ -280,6 +318,7 @@ class LocalDockerContainerShellService extends RemoteShellService {
     SshHost host,
     String path, {
     Duration timeout = const Duration(seconds: 15),
+    RunTimeoutHandler? onTimeout,
   }) {
     return runCommand(host, 'cat ${_escape(path)}', timeout: timeout);
   }
@@ -290,6 +329,7 @@ class LocalDockerContainerShellService extends RemoteShellService {
     String path,
     String contents, {
     Duration timeout = const Duration(seconds: 15),
+    RunTimeoutHandler? onTimeout,
   }) async {
     final tempDir = await Directory.systemTemp.createTemp('cwatch-dctr');
     try {
@@ -311,6 +351,7 @@ class LocalDockerContainerShellService extends RemoteShellService {
     String source,
     String destination, {
     Duration timeout = const Duration(seconds: 15),
+    RunTimeoutHandler? onTimeout,
   }) {
     return runCommand(
       host,
@@ -326,6 +367,7 @@ class LocalDockerContainerShellService extends RemoteShellService {
     String destination, {
     bool recursive = false,
     Duration timeout = const Duration(seconds: 20),
+    RunTimeoutHandler? onTimeout,
   }) {
     final flag = recursive ? '-r' : '';
     return runCommand(
@@ -340,6 +382,7 @@ class LocalDockerContainerShellService extends RemoteShellService {
     SshHost host,
     String path, {
     Duration timeout = const Duration(seconds: 15),
+    RunTimeoutHandler? onTimeout,
   }) {
     return runCommand(host, 'rm -rf ${_escape(path)}', timeout: timeout);
   }
@@ -352,6 +395,7 @@ class LocalDockerContainerShellService extends RemoteShellService {
     required String destinationPath,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    RunTimeoutHandler? onTimeout,
   }) {
     return Future.error(
       Exception('Cross-host copy is not supported for container sessions'),
@@ -365,6 +409,7 @@ class LocalDockerContainerShellService extends RemoteShellService {
     required String localDestination,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    RunTimeoutHandler? onTimeout,
   }) async {
     await _runDocker([
       'cp',
@@ -380,6 +425,7 @@ class LocalDockerContainerShellService extends RemoteShellService {
     required String remoteDestination,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    RunTimeoutHandler? onTimeout,
   }) {
     return _runDocker([
       'cp',
@@ -393,6 +439,7 @@ class LocalDockerContainerShellService extends RemoteShellService {
     SshHost host,
     String command, {
     Duration timeout = const Duration(seconds: 10),
+    RunTimeoutHandler? onTimeout,
   }) async {
     final result = await _runDocker([
       'exec',
