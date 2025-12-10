@@ -28,6 +28,7 @@ class AppSettings {
     this.serverWorkspace,
     this.kubernetesWorkspace,
     this.settingsTabIndex = 0,
+    this.shortcutBindings = const {},
     this.editorThemeLight,
     this.editorThemeDark,
     this.editorFontFamily,
@@ -64,6 +65,7 @@ class AppSettings {
   final ServerWorkspaceState? serverWorkspace;
   final KubernetesWorkspaceState? kubernetesWorkspace;
   final int settingsTabIndex;
+  final Map<String, String> shortcutBindings;
   final String? editorThemeLight;
   final String? editorThemeDark;
   final String? editorFontFamily;
@@ -102,6 +104,7 @@ class AppSettings {
     ServerWorkspaceState? serverWorkspace,
     KubernetesWorkspaceState? kubernetesWorkspace,
     int? settingsTabIndex,
+    Map<String, String>? shortcutBindings,
     String? editorThemeLight,
     String? editorThemeDark,
     String? editorFontFamily,
@@ -144,6 +147,7 @@ class AppSettings {
       serverWorkspace: serverWorkspace ?? this.serverWorkspace,
       kubernetesWorkspace: kubernetesWorkspace ?? this.kubernetesWorkspace,
       settingsTabIndex: settingsTabIndex ?? this.settingsTabIndex,
+      shortcutBindings: shortcutBindings ?? this.shortcutBindings,
       editorThemeLight: editorThemeLight ?? this.editorThemeLight,
       editorThemeDark: editorThemeDark ?? this.editorThemeDark,
       editorFontFamily: editorFontFamily ?? this.editorFontFamily,
@@ -245,6 +249,11 @@ class AppSettings {
         return null;
       }(),
       settingsTabIndex: (json['settingsTabIndex'] as num?)?.toInt() ?? 0,
+      shortcutBindings:
+          (json['shortcutBindings'] as Map<String, dynamic>?)?.map(
+                (key, value) => MapEntry(key, value.toString()),
+              ) ??
+              const {},
       editorThemeLight: json['editorThemeLight'] as String?,
       editorThemeDark: json['editorThemeDark'] as String?,
       editorFontFamily: json['editorFontFamily'] as String?,
@@ -304,6 +313,7 @@ class AppSettings {
       if (kubernetesWorkspace != null)
         'kubernetesWorkspace': kubernetesWorkspace!.toJson(),
       'settingsTabIndex': settingsTabIndex,
+      'shortcutBindings': shortcutBindings,
       if (editorThemeLight != null) 'editorThemeLight': editorThemeLight,
       if (editorThemeDark != null) 'editorThemeDark': editorThemeDark,
       if (editorFontFamily != null) 'editorFontFamily': editorFontFamily,

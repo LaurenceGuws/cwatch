@@ -9,6 +9,8 @@ import 'package:cwatch/models/app_settings.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
+import 'package:cwatch/shared/shortcuts/shortcut_actions.dart';
+import 'package:cwatch/shared/shortcuts/shortcut_resolver.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 import 'package:cwatch/shared/views/shared/tabs/terminal/terminal_theme_presets.dart';
@@ -224,89 +226,214 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     if (_connecting) {
       return const Center(child: CircularProgressIndicator());
     }
-    return Shortcuts(
-      shortcuts: {
-        LogicalKeySet(
-          LogicalKeyboardKey.control,
-          LogicalKeyboardKey.shift,
-          LogicalKeyboardKey.arrowUp,
-        ): const _ScrollByIntent(
-          -160,
+    final resolvedSettings = settings ?? widget.settingsController?.settings;
+    return Actions(
+      actions: {
+        CopySelectionTextIntent: CallbackAction<CopySelectionTextIntent>(
+          onInvoke: (intent) {
+            _copyOutput();
+            return null;
+          },
         ),
-        LogicalKeySet(
-          LogicalKeyboardKey.control,
-          LogicalKeyboardKey.shift,
-          LogicalKeyboardKey.arrowDown,
-        ): const _ScrollByIntent(
-          160,
+        PasteTextIntent: CallbackAction<PasteTextIntent>(
+          onInvoke: (intent) {
+            _pasteFromClipboard();
+            return null;
+          },
         ),
-        LogicalKeySet(
-          LogicalKeyboardKey.control,
-          LogicalKeyboardKey.shift,
-          LogicalKeyboardKey.pageUp,
-        ): const _ScrollByIntent(
-          -480,
+        SelectAllTextIntent: CallbackAction<SelectAllTextIntent>(
+          onInvoke: (intent) {
+            _selectAll();
+            return null;
+          },
         ),
-        LogicalKeySet(
-          LogicalKeyboardKey.control,
-          LogicalKeyboardKey.shift,
-          LogicalKeyboardKey.pageDown,
-        ): const _ScrollByIntent(
-          480,
+        _ScrollByIntent: CallbackAction<_ScrollByIntent>(
+          onInvoke: (intent) {
+            _scrollBy(intent.offset);
+            return null;
+          },
         ),
-        LogicalKeySet(
-          LogicalKeyboardKey.control,
-          LogicalKeyboardKey.shift,
-          LogicalKeyboardKey.home,
-        ): const _ScrollToExtentIntent(
-          up: true,
+        _ScrollToExtentIntent: CallbackAction<_ScrollToExtentIntent>(
+          onInvoke: (intent) {
+            _scrollToExtent(intent.up);
+            return null;
+          },
         ),
-        LogicalKeySet(
-          LogicalKeyboardKey.control,
-          LogicalKeyboardKey.shift,
-          LogicalKeyboardKey.end,
-        ): const _ScrollToExtentIntent(
-          up: false,
+        _CopyTerminalIntent: CallbackAction<_CopyTerminalIntent>(
+          onInvoke: (intent) {
+            _copyOutput();
+            return null;
+          },
         ),
-        LogicalKeySet(
-          LogicalKeyboardKey.control,
-          LogicalKeyboardKey.shift,
-          LogicalKeyboardKey.keyC,
-        ): const _CopyTerminalIntent(),
       },
-      child: Actions(
-        actions: {
-          _ScrollByIntent: CallbackAction<_ScrollByIntent>(
-            onInvoke: (intent) {
-              _scrollBy(intent.offset);
-              return null;
-            },
-          ),
-          _ScrollToExtentIntent: CallbackAction<_ScrollToExtentIntent>(
-            onInvoke: (intent) {
-              _scrollToExtent(intent.up);
-              return null;
-            },
-          ),
-          _CopyTerminalIntent: CallbackAction<_CopyTerminalIntent>(
-            onInvoke: (intent) {
-              _copyOutput();
-              return null;
-            },
-          ),
-        },
-        child: TerminalView(
-          _terminal,
-          controller: _controller,
-          scrollController: _scrollController,
-          autofocus: widget.autofocus,
-          alwaysShowCursor: true,
-          padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
-          textStyle: _textStyle(settings),
-          theme: _terminalTheme(context, settings),
-        ),
+      child: TerminalView(
+        _terminal,
+        controller: _controller,
+        scrollController: _scrollController,
+        shortcuts: _shortcutBindings(resolvedSettings),
+        autofocus: widget.autofocus,
+        alwaysShowCursor: true,
+        padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
+        textStyle: _textStyle(resolvedSettings),
+        theme: _terminalTheme(context, resolvedSettings),
+        onSecondaryTapDown: (details, _) =>
+            _showContextMenu(details.globalPosition),
       ),
     );
+  }
+
+  Map<ShortcutActivator, Intent> _shortcutBindings(AppSettings? settings) {
+    final resolver = ShortcutResolver(settings);
+    final map = <ShortcutActivator, Intent>{};
+
+    void add(String actionId, Intent intent) {
+      final binding = resolver.bindingFor(actionId);
+      if (binding == null) return;
+      map[binding.toActivator()] = intent;
+    }
+
+    add(ShortcutActions.terminalCopy, const _CopyTerminalIntent());
+    add(
+      ShortcutActions.terminalPaste,
+      const PasteTextIntent(SelectionChangedCause.keyboard),
+    );
+    add(
+      ShortcutActions.terminalSelectAll,
+      const SelectAllTextIntent(SelectionChangedCause.keyboard),
+    );
+    add(
+      ShortcutActions.terminalScrollLineUp,
+      const _ScrollByIntent(-160),
+    );
+    add(
+      ShortcutActions.terminalScrollLineDown,
+      const _ScrollByIntent(160),
+    );
+    add(
+      ShortcutActions.terminalScrollPageUp,
+      const _ScrollByIntent(-480),
+    );
+    add(
+      ShortcutActions.terminalScrollPageDown,
+      const _ScrollByIntent(480),
+    );
+    add(
+      ShortcutActions.terminalScrollToTop,
+      const _ScrollToExtentIntent(up: true),
+    );
+    add(
+      ShortcutActions.terminalScrollToBottom,
+      const _ScrollToExtentIntent(up: false),
+    );
+
+    return map;
+  }
+
+  Future<void> _showContextMenu(Offset globalPosition) async {
+    final overlay = Overlay.of(context);
+    final renderBox = overlay.context.findRenderObject() as RenderBox?;
+    if (renderBox == null) {
+      return;
+    }
+    final selection = _controller.selection;
+    final hasSelection =
+        selection != null && _safeSelectionText(selection).isNotEmpty;
+    final action = await showMenu<_TerminalMenuAction>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(globalPosition.dx, globalPosition.dy, 0, 0),
+        Offset.zero & renderBox.size,
+      ),
+      items: [
+        PopupMenuItem(
+          value: _TerminalMenuAction.copySelection,
+          enabled: hasSelection,
+          child: const Text('Copy selection'),
+        ),
+        PopupMenuItem(
+          value: _TerminalMenuAction.copyAll,
+          enabled: _outputBuffer.isNotEmpty,
+          child: const Text('Copy all output'),
+        ),
+        const PopupMenuItem(
+          value: _TerminalMenuAction.paste,
+          child: Text('Paste'),
+        ),
+        const PopupMenuItem(
+          value: _TerminalMenuAction.selectAll,
+          child: Text('Select all'),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem(
+          value: _TerminalMenuAction.clear,
+          child: Text('Clear screen'),
+        ),
+      ],
+    );
+
+    switch (action) {
+      case _TerminalMenuAction.copySelection:
+        await _copySelectionOnly();
+        break;
+      case _TerminalMenuAction.copyAll:
+        await _copyAllOutput();
+        break;
+      case _TerminalMenuAction.paste:
+        await _pasteFromClipboard();
+        break;
+      case _TerminalMenuAction.selectAll:
+        _selectAll();
+        break;
+      case _TerminalMenuAction.clear:
+        _sendClearCommand();
+        break;
+      case null:
+        break;
+    }
+  }
+
+  Future<void> _copySelectionOnly() async {
+    final selection = _controller.selection;
+    if (selection == null) return;
+    final text = _safeSelectionText(selection);
+    final cleaned = _stripAnsi(text);
+    if (cleaned.trim().isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: cleaned));
+  }
+
+  Future<void> _copyAllOutput() async {
+    if (_outputBuffer.isEmpty) return;
+    final plain = _stripAnsi(_outputBuffer.toString());
+    if (plain.trim().isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: plain));
+  }
+
+  Future<void> _pasteFromClipboard() async {
+    final data = await Clipboard.getData('text/plain');
+    final text = data?.text;
+    if (text == null || text.isEmpty) {
+      return;
+    }
+    _terminal.textInput(text);
+  }
+
+  void _selectAll() {
+    final buffer = _terminal.buffer;
+    final lineCount = buffer.lines.length;
+    if (lineCount == 0) {
+      return;
+    }
+    final endLine = lineCount - 1;
+    final endCol = buffer.viewWidth > 0 ? buffer.viewWidth - 1 : 0;
+    final base = buffer.createAnchor(0, 0);
+    final extent = buffer.createAnchor(endCol, endLine);
+    _controller.setSelection(base, extent);
+  }
+
+  void _sendClearCommand() {
+    _controller.clearSelection();
+    _terminal.textInput('clear');
+    _terminal.keyInput(TerminalKey.enter);
   }
 
   void _scrollBy(double offset) {
@@ -420,6 +547,14 @@ class _CopyTerminalIntent extends Intent {
   const _CopyTerminalIntent();
 }
 
+enum _TerminalMenuAction {
+  copySelection,
+  copyAll,
+  paste,
+  selectAll,
+  clear,
+}
+
 class ComposeLogsTerminal extends StatefulWidget {
   const ComposeLogsTerminal({
     super.key,
@@ -431,6 +566,7 @@ class ComposeLogsTerminal extends StatefulWidget {
     this.onExit,
     this.optionsController,
     required this.tailLines,
+    this.settingsController,
   });
 
   final String composeBase;
@@ -441,6 +577,7 @@ class ComposeLogsTerminal extends StatefulWidget {
   final VoidCallback? onExit;
   final TabOptionsController? optionsController;
   final int tailLines;
+  final AppSettingsController? settingsController;
 
   @override
   State<ComposeLogsTerminal> createState() => _ComposeLogsTerminalState();
@@ -493,6 +630,7 @@ class _ComposeLogsTerminalState extends State<ComposeLogsTerminal> {
             autofocus: false,
             onExit: widget.onExit,
             optionsController: widget.optionsController,
+            settingsController: widget.settingsController,
           ),
         ),
       ],

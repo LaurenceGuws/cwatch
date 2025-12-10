@@ -11,6 +11,8 @@ import '../../../../../models/ssh_host.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
 import '../../../../../services/settings/app_settings_controller.dart';
+import '../../../../../shared/shortcuts/shortcut_actions.dart';
+import '../../../../../shared/shortcuts/shortcut_resolver.dart';
 import '../../../../theme/nerd_fonts.dart';
 import '../tab_chip.dart';
 import 'terminal_theme_presets.dart';
@@ -374,6 +376,7 @@ class _TerminalTabState extends State<TerminalTab> {
                     defaultTargetPlatform == TargetPlatform.iOS,
                 textStyle: _textStyle(settings),
                 theme: _terminalTheme(context, settings),
+                shortcuts: _terminalShortcuts(settings),
                 onSecondaryTapDown: (details, _) =>
                     _showContextMenu(details.globalPosition),
               ),
@@ -398,6 +401,29 @@ class _TerminalTabState extends State<TerminalTab> {
         ? settings.terminalThemeDark
         : settings.terminalThemeLight;
     return terminalThemeForKey(key);
+  }
+
+  Map<ShortcutActivator, Intent> _terminalShortcuts(AppSettings settings) {
+    final resolver = ShortcutResolver(settings);
+    final map = <ShortcutActivator, Intent>{};
+
+    void add(String id, Intent intent) {
+      final binding = resolver.bindingFor(id);
+      if (binding == null) return;
+      map[binding.toActivator()] = intent;
+    }
+
+    add(ShortcutActions.terminalCopy, CopySelectionTextIntent.copy);
+    add(
+      ShortcutActions.terminalPaste,
+      const PasteTextIntent(SelectionChangedCause.keyboard),
+    );
+    add(
+      ShortcutActions.terminalSelectAll,
+      const SelectAllTextIntent(SelectionChangedCause.keyboard),
+    );
+
+    return map;
   }
 }
 

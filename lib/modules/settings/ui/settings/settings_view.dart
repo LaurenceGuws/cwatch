@@ -7,6 +7,7 @@ import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/widgets/section_nav_bar.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
+import 'shortcuts_settings_tab.dart';
 import 'container_settings_tabs.dart';
 import 'debug_logs_tab.dart';
 import 'general_settings_tab.dart';
@@ -45,6 +46,7 @@ class _SettingsViewState extends State<SettingsView>
     Tab(text: 'Docker'),
     Tab(text: 'Kubernetes'),
     Tab(text: 'Debug Logs'),
+    Tab(text: 'Shortcuts'),
   ];
 
   static final _tabIcons = [
@@ -53,6 +55,7 @@ class _SettingsViewState extends State<SettingsView>
     NerdIcon.docker.data, // Docker
     NerdIcon.kubernetes.data, // Kubernetes
     Icons.bug_report_outlined, // Debug Logs
+    Icons.keyboard_alt_outlined, // Shortcuts
   ];
 
   @override
@@ -208,6 +211,10 @@ class _SettingsViewState extends State<SettingsView>
                         DebugLogsTab(
                           logController: widget.commandLog,
                           debugEnabled: settings.debugMode,
+                        ),
+                        ShortcutsSettingsTab(
+                          controller: widget.controller,
+                          settings: settings,
                         ),
                       ],
                     )

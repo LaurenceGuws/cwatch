@@ -228,6 +228,8 @@ Map<String, TerminalTheme> terminalThemes = {
   ),
 };
 
+const double _selectionOpacity = 0.40;
+
 TerminalTheme _theme({
   required int cursor,
   required int selection,
@@ -251,9 +253,12 @@ TerminalTheme _theme({
   required int brightWhite,
 }) {
   Color c(int hex) => Color(hex);
+  final selectionAlpha = _selectionOpacity.clamp(0.0, 1.0).toDouble();
+  Color selectionColor(int hex) =>
+      Color(hex).withValues(alpha: selectionAlpha);
   return TerminalTheme(
     cursor: c(cursor),
-    selection: c(selection),
+    selection: selectionColor(selection),
     foreground: c(foreground),
     background: c(background),
     black: c(black),

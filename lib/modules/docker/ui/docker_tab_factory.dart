@@ -327,6 +327,7 @@ class DockerTabFactory {
         onExit: onExit,
         optionsController: controller,
         tailLines: tailLines,
+        settingsController: settingsController,
       ),
       workspaceState: TabState(
         id: id,
