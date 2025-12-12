@@ -179,6 +179,15 @@ class TerminalPainter {
         continue;
       }
 
+       // Box drawing and block elements need strict per-cell positioning to keep
+       // continuous lines; avoid batching these into paragraph runs.
+      if (_shouldPaintPerCell(charCode)) {
+        flushRun();
+        paintCellForeground(canvas, cellOffset, cellData);
+        i += 1;
+        continue;
+      }
+
       final style = _cellStyle(cellData);
       final char = _characterForCell(charCode, style.underline);
 
@@ -279,6 +288,15 @@ class TerminalPainter {
     final paragraph = builder.build();
     paragraph.layout(ParagraphConstraints(width: double.infinity));
     return paragraph;
+  }
+
+  bool _shouldPaintPerCell(int charCode) {
+    // Box drawing (U+2500–U+257F) and block elements (U+2580–U+259F) should
+    // stay aligned to the grid; render them individually.
+    if (charCode >= 0x2500 && charCode <= 0x259F) {
+      return true;
+    }
+    return false;
   }
 
   /// Paints the character in the cell represented by [cellData] to [canvas] at
