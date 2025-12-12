@@ -306,7 +306,9 @@ class TerminalPainter {
     final charCode = cellData.content & CellContent.codepointMask;
     if (charCode == 0) return;
 
-    final cacheKey = cellData.getHash() ^ _textScaler.hashCode;
+    final isBoxDrawing = _shouldPaintPerCell(charCode);
+    final cacheKey =
+        (cellData.getHash() ^ _textScaler.hashCode) ^ (isBoxDrawing ? 0xBD : 0);
     var paragraph = _paragraphCache.getLayoutFromCache(cacheKey);
 
     if (paragraph == null) {
@@ -320,12 +322,17 @@ class TerminalPainter {
         color = color.withOpacity(0.5);
       }
 
-      final style = _textStyle.toTextStyle(
+      var style = _textStyle.toTextStyle(
         color: color,
         bold: cellFlags & CellFlags.bold != 0,
         italic: cellFlags & CellFlags.italic != 0,
         underline: cellFlags & CellFlags.underline != 0,
       );
+
+      // Nudge box drawing/block elements together to eliminate visible seams.
+      if (isBoxDrawing) {
+        style = style.copyWith(letterSpacing: -0.5);
+      }
 
       // Flutter does not draw an underline below a space which is not between
       // other regular characters. As only single characters are drawn, this
