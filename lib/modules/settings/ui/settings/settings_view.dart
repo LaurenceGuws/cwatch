@@ -129,6 +129,8 @@ class _SettingsViewState extends State<SettingsView>
                           terminalFontFamily: settings.terminalFontFamily,
                           terminalFontSize: settings.terminalFontSize,
                           terminalLineHeight: settings.terminalLineHeight,
+                          terminalPaddingX: settings.terminalPaddingX,
+                          terminalPaddingY: settings.terminalPaddingY,
                           terminalThemeDark: settings.terminalThemeDark,
                           terminalThemeLight: settings.terminalThemeLight,
                           onTerminalFontFamilyChanged: (value) =>
@@ -148,6 +150,16 @@ class _SettingsViewState extends State<SettingsView>
                               widget.controller.update(
                                 (current) =>
                                     current.copyWith(terminalLineHeight: value),
+                              ),
+                          onTerminalPaddingXChanged: (value) =>
+                              widget.controller.update(
+                                (current) =>
+                                    current.copyWith(terminalPaddingX: value),
+                              ),
+                          onTerminalPaddingYChanged: (value) =>
+                              widget.controller.update(
+                                (current) =>
+                                    current.copyWith(terminalPaddingY: value),
                               ),
                           onTerminalThemeDarkChanged: (value) =>
                               widget.controller.update(

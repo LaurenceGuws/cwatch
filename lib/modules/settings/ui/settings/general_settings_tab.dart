@@ -17,11 +17,15 @@ class GeneralSettingsTab extends StatelessWidget {
     required this.terminalFontFamily,
     required this.terminalFontSize,
     required this.terminalLineHeight,
+    required this.terminalPaddingX,
+    required this.terminalPaddingY,
     required this.terminalThemeDark,
     required this.terminalThemeLight,
     required this.onTerminalFontFamilyChanged,
     required this.onTerminalFontSizeChanged,
     required this.onTerminalLineHeightChanged,
+    required this.onTerminalPaddingXChanged,
+    required this.onTerminalPaddingYChanged,
     required this.onTerminalThemeDarkChanged,
     required this.onTerminalThemeLightChanged,
     required this.editorFontFamily,
@@ -46,6 +50,8 @@ class GeneralSettingsTab extends StatelessWidget {
   final String? terminalFontFamily;
   final double terminalFontSize;
   final double terminalLineHeight;
+  final double terminalPaddingX;
+  final double terminalPaddingY;
   final String terminalThemeDark;
   final String terminalThemeLight;
   final ValueChanged<ThemeMode> onThemeChanged;
@@ -54,6 +60,8 @@ class GeneralSettingsTab extends StatelessWidget {
   final ValueChanged<String> onTerminalFontFamilyChanged;
   final ValueChanged<double> onTerminalFontSizeChanged;
   final ValueChanged<double> onTerminalLineHeightChanged;
+  final ValueChanged<double> onTerminalPaddingXChanged;
+  final ValueChanged<double> onTerminalPaddingYChanged;
   final ValueChanged<String> onTerminalThemeDarkChanged;
   final ValueChanged<String> onTerminalThemeLightChanged;
   final String? editorFontFamily;
@@ -178,11 +186,15 @@ class GeneralSettingsTab extends StatelessWidget {
           fontFamily: terminalFontFamily,
           fontSize: terminalFontSize,
           lineHeight: terminalLineHeight,
+          paddingX: terminalPaddingX,
+          paddingY: terminalPaddingY,
           darkTheme: terminalThemeDark,
           lightTheme: terminalThemeLight,
           onFontFamilyChanged: onTerminalFontFamilyChanged,
           onFontSizeChanged: onTerminalFontSizeChanged,
           onLineHeightChanged: onTerminalLineHeightChanged,
+          onPaddingXChanged: onTerminalPaddingXChanged,
+          onPaddingYChanged: onTerminalPaddingYChanged,
           onDarkThemeChanged: onTerminalThemeDarkChanged,
           onLightThemeChanged: onTerminalThemeLightChanged,
         ),

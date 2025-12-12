@@ -379,7 +379,11 @@ class _TerminalTabState extends State<TerminalTab> {
                 focusNode: _focusNode,
                 autofocus: true,
                 backgroundOpacity: 1,
-                padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
+                padding: EdgeInsets.symmetric(
+                  horizontal:
+                      settings.terminalPaddingX.clamp(0, 48).toDouble(),
+                  vertical: settings.terminalPaddingY.clamp(0, 48).toDouble(),
+                ),
                 alwaysShowCursor: true,
                 deleteDetection:
                     defaultTargetPlatform == TargetPlatform.android ||

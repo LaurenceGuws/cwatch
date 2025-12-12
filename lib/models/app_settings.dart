@@ -41,6 +41,8 @@ class AppSettings {
     this.terminalFontFamily,
     this.terminalFontSize = 14,
     this.terminalLineHeight = 1.15,
+    this.terminalPaddingX = 8,
+    this.terminalPaddingY = 10,
     this.terminalThemeDark = 'dracula',
     this.terminalThemeLight = 'solarized-light',
   });
@@ -78,6 +80,8 @@ class AppSettings {
   final String? terminalFontFamily;
   final double terminalFontSize;
   final double terminalLineHeight;
+  final double terminalPaddingX;
+  final double terminalPaddingY;
   final String terminalThemeDark;
   final String terminalThemeLight;
 
@@ -117,6 +121,8 @@ class AppSettings {
     String? terminalFontFamily,
     double? terminalFontSize,
     double? terminalLineHeight,
+    double? terminalPaddingX,
+    double? terminalPaddingY,
     String? terminalThemeDark,
     String? terminalThemeLight,
   }) {
@@ -161,6 +167,8 @@ class AppSettings {
       terminalFontFamily: terminalFontFamily ?? this.terminalFontFamily,
       terminalFontSize: terminalFontSize ?? this.terminalFontSize,
       terminalLineHeight: terminalLineHeight ?? this.terminalLineHeight,
+      terminalPaddingX: terminalPaddingX ?? this.terminalPaddingX,
+      terminalPaddingY: terminalPaddingY ?? this.terminalPaddingY,
       terminalThemeDark: terminalThemeDark ?? this.terminalThemeDark,
       terminalThemeLight: terminalThemeLight ?? this.terminalThemeLight,
     );
@@ -281,6 +289,10 @@ class AppSettings {
       terminalFontSize: (json['terminalFontSize'] as num?)?.toDouble() ?? 14,
       terminalLineHeight:
           (json['terminalLineHeight'] as num?)?.toDouble() ?? 1.15,
+      terminalPaddingX:
+          (json['terminalPaddingX'] as num?)?.toDouble() ?? 8,
+      terminalPaddingY:
+          (json['terminalPaddingY'] as num?)?.toDouble() ?? 10,
       terminalThemeDark: json['terminalThemeDark'] as String? ?? 'dracula',
       terminalThemeLight:
           json['terminalThemeLight'] as String? ?? 'solarized-light',
@@ -327,6 +339,8 @@ class AppSettings {
       if (terminalFontFamily != null) 'terminalFontFamily': terminalFontFamily,
       'terminalFontSize': terminalFontSize,
       'terminalLineHeight': terminalLineHeight,
+      'terminalPaddingX': terminalPaddingX,
+      'terminalPaddingY': terminalPaddingY,
       'terminalThemeDark': terminalThemeDark,
       'terminalThemeLight': terminalThemeLight,
     };

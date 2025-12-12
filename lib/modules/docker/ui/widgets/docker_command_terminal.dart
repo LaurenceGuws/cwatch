@@ -267,7 +267,12 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
         shortcuts: _shortcutBindings(resolvedSettings),
         autofocus: widget.autofocus,
         alwaysShowCursor: true,
-        padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
+        padding: EdgeInsets.symmetric(
+          horizontal:
+              (resolvedSettings?.terminalPaddingX ?? 8).clamp(0, 48).toDouble(),
+          vertical:
+              (resolvedSettings?.terminalPaddingY ?? 10).clamp(0, 48).toDouble(),
+        ),
         textStyle: _textStyle(resolvedSettings),
         theme: _terminalTheme(context, resolvedSettings),
         onSecondaryTapDown: (details, _) =>

@@ -9,11 +9,15 @@ class TerminalSettingsSection extends StatefulWidget {
     required this.fontFamily,
     required this.fontSize,
     required this.lineHeight,
+    required this.paddingX,
+    required this.paddingY,
     required this.darkTheme,
     required this.lightTheme,
     required this.onFontFamilyChanged,
     required this.onFontSizeChanged,
     required this.onLineHeightChanged,
+    required this.onPaddingXChanged,
+    required this.onPaddingYChanged,
     required this.onDarkThemeChanged,
     required this.onLightThemeChanged,
   });
@@ -21,11 +25,15 @@ class TerminalSettingsSection extends StatefulWidget {
   final String? fontFamily;
   final double fontSize;
   final double lineHeight;
+  final double paddingX;
+  final double paddingY;
   final String darkTheme;
   final String lightTheme;
   final ValueChanged<String> onFontFamilyChanged;
   final ValueChanged<double> onFontSizeChanged;
   final ValueChanged<double> onLineHeightChanged;
+  final ValueChanged<double> onPaddingXChanged;
+  final ValueChanged<double> onPaddingYChanged;
   final ValueChanged<String> onDarkThemeChanged;
   final ValueChanged<String> onLightThemeChanged;
 
@@ -63,7 +71,7 @@ class _TerminalSettingsSectionState extends State<TerminalSettingsSection> {
     return SettingsSection(
       title: 'Terminal',
       description:
-          'Choose the mono Nerd Font, sizing, and color theme used by the in-app terminal.',
+          'Choose the mono Nerd Font, sizing, spacing, and color theme used by the in-app terminal.',
       child: Column(
         children: [
           TextFormField(
@@ -97,6 +105,31 @@ class _TerminalSettingsSectionState extends State<TerminalSettingsSection> {
               divisions: 14,
               label: widget.lineHeight.toStringAsFixed(2),
               onChanged: widget.onLineHeightChanged,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _SliderRow(
+            label: 'Horizontal padding',
+            valueLabel: '${widget.paddingX.toStringAsFixed(0)} px',
+            child: Slider(
+              value: widget.paddingX.clamp(0, 48),
+              min: 0,
+              max: 48,
+              divisions: 24,
+              label: '${widget.paddingX.toStringAsFixed(0)} px',
+              onChanged: widget.onPaddingXChanged,
+            ),
+          ),
+          _SliderRow(
+            label: 'Vertical padding',
+            valueLabel: '${widget.paddingY.toStringAsFixed(0)} px',
+            child: Slider(
+              value: widget.paddingY.clamp(0, 48),
+              min: 0,
+              max: 48,
+              divisions: 24,
+              label: '${widget.paddingY.toStringAsFixed(0)} px',
+              onChanged: widget.onPaddingYChanged,
             ),
           ),
           const SizedBox(height: 12),
