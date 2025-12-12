@@ -401,6 +401,9 @@ class RenderTerminal extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
   void _paint(PaintingContext context, Offset offset) {
     final canvas = context.canvas;
 
+    canvas.save();
+    canvas.clipRect(offset & size);
+
     final lines = _terminal.buffer.lines;
     final charHeight = _painter.cellSize.height;
 
@@ -452,6 +455,8 @@ class RenderTerminal extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
         effectLastLine,
       );
     }
+
+    canvas.restore();
   }
 
   /// Paints the text that is currently being composed in IME to [canvas] at
