@@ -340,7 +340,7 @@ class TerminalPainter {
 
       // Nudge box drawing/block elements together to eliminate visible seams.
       if (isBoxDrawing) {
-        style = style.copyWith(letterSpacing: -0.5);
+        style = style.copyWith(letterSpacing: -1.0);
       }
 
       // Flutter does not draw an underline below a space which is not between
