@@ -500,7 +500,10 @@ class UnicodeV11 {
   final version = '11';
 
   int wcwidth(int codePoint) {
-    if (_isNerdFontWide(codePoint)) return 2;
+    // Treat Nerd Font private-use code points as single-width. Many glyphs are
+    // designed for terminal prompts and render correctly in one cell; forcing
+    // them wide leaves visible gaps after icons.
+    if (_isNerdFont(codePoint)) return 1;
     if (codePoint < 32) return 0;
     if (codePoint < 127) return 1;
     if (codePoint < 65536) return table[codePoint];
@@ -509,8 +512,8 @@ class UnicodeV11 {
     return 1;
   }
 
-  // WezTerm-style overrides for Nerd Font private-use areas.
-  bool _isNerdFontWide(int codePoint) {
+  // Private-use areas used by Nerd Fonts; keep them single-width for prompts.
+  bool _isNerdFont(int codePoint) {
     if (codePoint >= 0xE000 && codePoint <= 0xF8FF) return true;
     if (codePoint >= 0xF0000 && codePoint <= 0xF1FFF) return true;
     return false;
