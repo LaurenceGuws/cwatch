@@ -498,10 +498,6 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
       fontFamilyFallback: NerdFonts.terminalFallbackFamilies,
       fontSize: fontSize,
       height: lineHeight,
-      fontFeatures: const [
-        FontFeature.disable('liga'),
-        FontFeature.disable('calt'),
-      ],
     );
   }
 

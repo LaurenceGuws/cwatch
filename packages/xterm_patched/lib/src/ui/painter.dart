@@ -146,20 +146,139 @@ class TerminalPainter {
   ) {
     final cellData = CellData.empty();
     final cellWidth = _cellSize.width;
+    final runs = <_TextRun>[];
+    _TextRun? currentRun;
 
-    for (var i = 0; i < line.length; i++) {
+    void flushRun() {
+      if (currentRun == null) return;
+      runs.add(currentRun!);
+      currentRun = null;
+    }
+
+    var i = 0;
+    while (i < line.length) {
       line.getCellData(i, cellData);
 
       final charWidth = cellData.content >> CellContent.widthShift;
       final cellOffset = offset.translate(i * cellWidth, 0);
 
       paintCellBackground(canvas, cellOffset, cellData);
-      paintCellForeground(canvas, cellOffset, cellData);
 
+      // Keep existing rendering path for wide glyphs.
       if (charWidth == 2) {
-        i++;
+        flushRun();
+        paintCellForeground(canvas, cellOffset, cellData);
+        i += 2;
+        continue;
       }
+
+      final charCode = cellData.content & CellContent.codepointMask;
+      if (charCode == 0) {
+        flushRun();
+        i += 1;
+        continue;
+      }
+
+      final style = _cellStyle(cellData);
+      final char = _characterForCell(charCode, style.underline);
+
+      if (currentRun != null && currentRun!.canAppend(style)) {
+        currentRun!.buffer.write(char);
+      } else {
+        flushRun();
+        currentRun = _TextRun(
+          start: i,
+          style: style,
+          buffer: StringBuffer(char),
+        );
+      }
+
+      i += 1;
     }
+
+    flushRun();
+
+    for (final run in runs) {
+      final paragraph = _buildParagraph(run.text, run.style);
+      final runOffset = offset.translate(run.start * cellWidth, 0);
+      canvas.drawParagraph(paragraph, runOffset);
+      paragraph.dispose();
+    }
+  }
+
+  _CellStyle _cellStyle(CellData cellData) {
+    final cellFlags = cellData.flags;
+
+    var color = cellFlags & CellFlags.inverse == 0
+        ? _resolveForeground(cellData.foreground)
+        : _resolveBackground(cellData.background);
+
+    if (cellData.flags & CellFlags.faint != 0) {
+      color = color.withOpacity(0.5);
+    }
+
+    return _CellStyle(
+      color: color,
+      bold: cellFlags & CellFlags.bold != 0,
+      italic: cellFlags & CellFlags.italic != 0,
+      underline: cellFlags & CellFlags.underline != 0,
+    );
+  }
+
+  Color _resolveForeground(int cellColor) {
+    final colorType = cellColor & CellColor.typeMask;
+    final colorValue = cellColor & CellColor.valueMask;
+
+    switch (colorType) {
+      case CellColor.normal:
+        return _theme.foreground;
+      case CellColor.named:
+      case CellColor.palette:
+        return _colorPalette[colorValue];
+      case CellColor.rgb:
+      default:
+        return Color(colorValue | 0xFF000000);
+    }
+  }
+
+  Color _resolveBackground(int cellColor) {
+    final colorType = cellColor & CellColor.typeMask;
+    final colorValue = cellColor & CellColor.valueMask;
+
+    switch (colorType) {
+      case CellColor.normal:
+        return _theme.background;
+      case CellColor.named:
+      case CellColor.palette:
+        return _colorPalette[colorValue];
+      case CellColor.rgb:
+      default:
+        return Color(colorValue | 0xFF000000);
+    }
+  }
+
+  String _characterForCell(int charCode, bool underline) {
+    // Ensure underlined spaces draw correctly.
+    if (underline && charCode == 0x20) {
+      return String.fromCharCode(0xA0);
+    }
+    return String.fromCharCode(charCode);
+  }
+
+  Paragraph _buildParagraph(String text, _CellStyle style) {
+    final textStyle = _textStyle.toTextStyle(
+      color: style.color,
+      bold: style.bold,
+      italic: style.italic,
+      underline: style.underline,
+    );
+    final builder = ParagraphBuilder(textStyle.getParagraphStyle());
+    builder.pushStyle(textStyle.getTextStyle(textScaler: _textScaler));
+    builder.addText(text);
+
+    final paragraph = builder.build();
+    paragraph.layout(ParagraphConstraints(width: double.infinity));
+    return paragraph;
   }
 
   /// Paints the character in the cell represented by [cellData] to [canvas] at
@@ -273,4 +392,45 @@ class TerminalPainter {
     }
   }
 
+
+class _TextRun {
+  _TextRun({
+    required this.start,
+    required this.style,
+    required this.buffer,
+  });
+
+  final int start;
+  final _CellStyle style;
+  final StringBuffer buffer;
+
+  String get text => buffer.toString();
+
+  bool canAppend(_CellStyle other) => style == other;
+}
+
+class _CellStyle {
+  const _CellStyle({
+    required this.color,
+    required this.bold,
+    required this.italic,
+    required this.underline,
+  });
+
+  final Color color;
+  final bool bold;
+  final bool italic;
+  final bool underline;
+
+  @override
+  int get hashCode => Object.hash(color.value, bold, italic, underline);
+
+  @override
+  bool operator ==(Object other) {
+    return other is _CellStyle &&
+        other.color.value == color.value &&
+        other.bold == bold &&
+        other.italic == italic &&
+        other.underline == underline;
+  }
 }

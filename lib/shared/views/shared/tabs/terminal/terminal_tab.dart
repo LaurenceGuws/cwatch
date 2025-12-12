@@ -404,10 +404,6 @@ class _TerminalTabState extends State<TerminalTab> {
       fontFamilyFallback: NerdFonts.terminalFallbackFamilies,
       fontSize: settings.terminalFontSize.clamp(8, 32),
       height: settings.terminalLineHeight.clamp(0.8, 2.0),
-      fontFeatures: const [
-        FontFeature.disable('liga'),
-        FontFeature.disable('calt'),
-      ],
     );
   }
 
