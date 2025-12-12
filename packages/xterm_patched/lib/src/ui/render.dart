@@ -383,7 +383,7 @@ class RenderTerminal extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
   /// The offset of the cursor from the top left corner of this render object.
   Offset get cursorOffset {
     return Offset(
-      _terminal.buffer.cursorX * _painter.cellSize.width,
+      _padding.left + _terminal.buffer.cursorX * _painter.cellSize.width,
       _terminal.buffer.absoluteCursorY * _painter.cellSize.height + _lineOffset,
     );
   }
@@ -419,7 +419,10 @@ class RenderTerminal extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
     for (var i = effectFirstLine; i <= effectLastLine; i++) {
       _painter.paintLine(
         canvas,
-        offset.translate(0, (i * charHeight + _lineOffset).truncateToDouble()),
+        offset.translate(
+          _padding.left,
+          (i * charHeight + _lineOffset).truncateToDouble(),
+        ),
         lines[i],
       );
     }
@@ -548,7 +551,7 @@ class RenderTerminal extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
     final end = segment.end ?? _terminal.viewWidth;
 
     final startOffset = Offset(
-      start * _painter.cellSize.width,
+      _padding.left + start * _painter.cellSize.width,
       segment.line * _painter.cellSize.height + _lineOffset,
     );
 
