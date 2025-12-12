@@ -25,13 +25,16 @@ class ParagraphCache {
     TextStyle style,
     TextScaler textScaler,
     int key,
+    {double? maxWidth},
   ) {
     final builder = ParagraphBuilder(style.getParagraphStyle());
     builder.pushStyle(style.getTextStyle(textScaler: textScaler));
     builder.addText(text);
 
     final paragraph = builder.build();
-    paragraph.layout(ParagraphConstraints(width: double.infinity));
+    paragraph.layout(
+      ParagraphConstraints(width: maxWidth ?? double.infinity),
+    );
 
     _cache[key] = paragraph;
     return paragraph;

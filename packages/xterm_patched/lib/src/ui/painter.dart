@@ -338,11 +338,6 @@ class TerminalPainter {
         underline: cellFlags & CellFlags.underline != 0,
       );
 
-      // Nudge box drawing/block elements together to eliminate visible seams.
-      if (isBoxDrawing) {
-        style = style.copyWith(letterSpacing: -1.0);
-      }
-
       // Flutter does not draw an underline below a space which is not between
       // other regular characters. As only single characters are drawn, this
       // will never produce an underline below a space in the terminal. As a
@@ -359,6 +354,7 @@ class TerminalPainter {
         style,
         _textScaler,
         cacheKey,
+        maxWidth: isBoxDrawing ? _cellSize.width : null,
       );
     }
 
