@@ -162,7 +162,16 @@ class TerminalPainter {
       final charWidth = cellData.content >> CellContent.widthShift;
       final cellOffset = offset.translate(i * cellWidth, 0);
 
-      paintCellBackground(canvas, cellOffset, cellData);
+      final bool isGridChar =
+          _shouldPaintPerCell(cellData.content & CellContent.codepointMask);
+      final Offset drawOffset = isGridChar
+          ? Offset(
+              cellOffset.dx.floorToDouble(),
+              cellOffset.dy.floorToDouble(),
+            )
+          : cellOffset;
+
+      paintCellBackground(canvas, drawOffset, cellData);
 
       // Keep existing rendering path for wide glyphs.
       if (charWidth == 2) {
@@ -181,9 +190,9 @@ class TerminalPainter {
 
        // Box drawing and block elements need strict per-cell positioning to keep
        // continuous lines; avoid batching these into paragraph runs.
-      if (_shouldPaintPerCell(charCode)) {
+      if (isGridChar) {
         flushRun();
-        paintCellForeground(canvas, cellOffset, cellData);
+        paintCellForeground(canvas, drawOffset, cellData);
         i += 1;
         continue;
       }
