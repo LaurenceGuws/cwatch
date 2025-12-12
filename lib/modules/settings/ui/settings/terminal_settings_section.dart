@@ -74,6 +74,14 @@ class _TerminalSettingsSectionState extends State<TerminalSettingsSection> {
           'Choose the mono Nerd Font, sizing, spacing, and color theme used by the in-app terminal.',
       child: Column(
         children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Terminal text styles and padding apply across all sessions.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          const SizedBox(height: 12),
           TextFormField(
             controller: _fontController,
             decoration: const InputDecoration(
@@ -138,7 +146,7 @@ class _TerminalSettingsSectionState extends State<TerminalSettingsSection> {
             value: widget.lightTheme,
             onChanged: widget.onLightThemeChanged,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           _ThemePickerRow(
             label: 'Dark theme',
             value: widget.darkTheme,

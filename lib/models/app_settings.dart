@@ -38,7 +38,7 @@ class AppSettings {
     this.dockerSelectedContext,
     this.dockerWorkspace,
     this.dockerLogsTail = 200,
-    this.terminalFontFamily,
+    this.terminalFontFamily = 'JetBrainsMono Nerd Font',
     this.terminalFontSize = 14,
     this.terminalLineHeight = 1.15,
     this.terminalPaddingX = 8,
@@ -144,8 +144,7 @@ class AppSettings {
       builtinSshHostKeyBindings:
           builtinSshHostKeyBindings ?? this.builtinSshHostKeyBindings,
       customSshHosts: customSshHosts ?? this.customSshHosts,
-      customSshConfigPaths:
-          customSshConfigPaths ?? this.customSshConfigPaths,
+      customSshConfigPaths: customSshConfigPaths ?? this.customSshConfigPaths,
       disabledSshConfigPaths:
           disabledSshConfigPaths ?? this.disabledSshConfigPaths,
       kubernetesConfigPaths:
@@ -160,10 +159,10 @@ class AppSettings {
       editorFontSize: editorFontSize ?? this.editorFontSize,
       editorLineHeight: editorLineHeight ?? this.editorLineHeight,
       dockerRemoteHosts: dockerRemoteHosts ?? this.dockerRemoteHosts,
-      dockerSelectedContext: dockerSelectedContext ?? this.dockerSelectedContext,
+      dockerSelectedContext:
+          dockerSelectedContext ?? this.dockerSelectedContext,
       dockerWorkspace: dockerWorkspace ?? this.dockerWorkspace,
-      dockerLogsTail:
-          _sanitizeTailLines(dockerLogsTail ?? this.dockerLogsTail),
+      dockerLogsTail: _sanitizeTailLines(dockerLogsTail ?? this.dockerLogsTail),
       terminalFontFamily: terminalFontFamily ?? this.terminalFontFamily,
       terminalFontSize: terminalFontSize ?? this.terminalFontSize,
       terminalLineHeight: terminalLineHeight ?? this.terminalLineHeight,
@@ -210,7 +209,8 @@ class AppSettings {
       shellSidebarWidth: (json['shellSidebarWidth'] as num?)?.toDouble(),
       shellDestination: json['shellDestination'] as String?,
       shellSidebarCollapsed: json['shellSidebarCollapsed'] as bool? ?? false,
-      shellSidebarPlacement: json['shellSidebarPlacement'] as String? ?? 'dynamic',
+      shellSidebarPlacement:
+          json['shellSidebarPlacement'] as String? ?? 'dynamic',
       appFontFamily: json['appFontFamily'] as String?,
       appThemeKey: json['appThemeKey'] as String? ?? 'blue-grey',
       sshClientBackend: SshClientBackendParsing.fromJson(
@@ -219,25 +219,26 @@ class AppSettings {
       builtinSshHostKeyBindings: parseBindings(
         json['builtinSshHostKeyBindings'] as Map<String, dynamic>?,
       ),
-      customSshHosts: (json['customSshHosts'] as List<dynamic>?)
+      customSshHosts:
+          (json['customSshHosts'] as List<dynamic>?)
               ?.map((e) => CustomSshHost.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
       customSshConfigPaths:
           (json['customSshConfigPaths'] as List<dynamic>?)
-                  ?.whereType<String>()
-                  .toList() ??
-              const [],
+              ?.whereType<String>()
+              .toList() ??
+          const [],
       disabledSshConfigPaths:
           (json['disabledSshConfigPaths'] as List<dynamic>?)
-                  ?.whereType<String>()
-                  .toList() ??
-              const [],
+              ?.whereType<String>()
+              .toList() ??
+          const [],
       kubernetesConfigPaths:
           (json['kubernetesConfigPaths'] as List<dynamic>?)
-                  ?.whereType<String>()
-                  .toList() ??
-              const [],
+              ?.whereType<String>()
+              .toList() ??
+          const [],
       serverWorkspace: () {
         final raw = json['serverWorkspace'];
         if (raw is Map<String, dynamic>) {
@@ -259,20 +260,19 @@ class AppSettings {
       settingsTabIndex: (json['settingsTabIndex'] as num?)?.toInt() ?? 0,
       shortcutBindings:
           (json['shortcutBindings'] as Map<String, dynamic>?)?.map(
-                (key, value) => MapEntry(key, value.toString()),
-              ) ??
-              const {},
+            (key, value) => MapEntry(key, value.toString()),
+          ) ??
+          const {},
       editorThemeLight: json['editorThemeLight'] as String?,
       editorThemeDark: json['editorThemeDark'] as String?,
       editorFontFamily: json['editorFontFamily'] as String?,
       editorFontSize: (json['editorFontSize'] as num?)?.toDouble() ?? 14,
-      editorLineHeight:
-          (json['editorLineHeight'] as num?)?.toDouble() ?? 1.35,
+      editorLineHeight: (json['editorLineHeight'] as num?)?.toDouble() ?? 1.35,
       dockerRemoteHosts:
           (json['dockerRemoteHosts'] as List<dynamic>?)
-                  ?.whereType<String>()
-                  .toList() ??
-              const [],
+              ?.whereType<String>()
+              .toList() ??
+          const [],
       dockerSelectedContext: json['dockerSelectedContext'] as String?,
       dockerWorkspace: () {
         final raw = json['dockerWorkspace'];
@@ -282,17 +282,16 @@ class AppSettings {
           } catch (_) {
             return null;
           }
-          }
+        }
         return null;
       }(),
-      terminalFontFamily: json['terminalFontFamily'] as String?,
+      terminalFontFamily:
+          json['terminalFontFamily'] as String? ?? 'JetBrainsMono Nerd Font',
       terminalFontSize: (json['terminalFontSize'] as num?)?.toDouble() ?? 14,
       terminalLineHeight:
           (json['terminalLineHeight'] as num?)?.toDouble() ?? 1.15,
-      terminalPaddingX:
-          (json['terminalPaddingX'] as num?)?.toDouble() ?? 8,
-      terminalPaddingY:
-          (json['terminalPaddingY'] as num?)?.toDouble() ?? 10,
+      terminalPaddingX: (json['terminalPaddingX'] as num?)?.toDouble() ?? 8,
+      terminalPaddingY: (json['terminalPaddingY'] as num?)?.toDouble() ?? 10,
       terminalThemeDark: json['terminalThemeDark'] as String? ?? 'dracula',
       terminalThemeLight:
           json['terminalThemeLight'] as String? ?? 'solarized-light',

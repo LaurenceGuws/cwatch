@@ -5,6 +5,7 @@ import 'package:cwatch/models/app_settings.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_binding.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_definition.dart';
+import 'settings_section.dart';
 
 class ShortcutsSettingsTab extends StatelessWidget {
   const ShortcutsSettingsTab({
@@ -19,18 +20,8 @@ class ShortcutsSettingsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       children: [
-        Text(
-          'Keyboard shortcuts',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Configure key bindings for common actions. Leave a field empty to use the default.',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        const SizedBox(height: 16),
         ...ShortcutCategory.values.map(
           (category) => _ShortcutGroupCard(
             category: category,
@@ -38,7 +29,6 @@ class ShortcutsSettingsTab extends StatelessWidget {
             settings: settings,
           ),
         ),
-        const SizedBox(height: 24),
       ],
     );
   }
@@ -88,35 +78,31 @@ class _ShortcutGroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final definitions = ShortcutCatalog.byCategory(category).toList();
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_title, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 4),
+    return SettingsSection(
+      title: _title,
+      description: _description,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Configure key bindings. Leave a field empty to use the default.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 12),
+          if (definitions.isEmpty)
             Text(
-              _description,
+              'No shortcuts available for this section yet.',
               style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 12),
-            if (definitions.isEmpty)
-              Text(
-                'No shortcuts available for this section yet.',
-                style: Theme.of(context).textTheme.bodySmall,
-              )
-            else
-              ...definitions.map(
-                (definition) => _ShortcutRow(
-                  definition: definition,
-                  controller: controller,
-                  settings: settings,
-                ),
+            )
+          else
+            ...definitions.map(
+              (definition) => _ShortcutRow(
+                definition: definition,
+                controller: controller,
+                settings: settings,
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
@@ -224,8 +210,7 @@ class _ShortcutRowState extends State<_ShortcutRow> {
     if (_textController.text != normalized) {
       _textController.value = TextEditingValue(
         text: normalized,
-        selection:
-            TextSelection.collapsed(offset: normalized.length),
+        selection: TextSelection.collapsed(offset: normalized.length),
       );
     }
     _setError(null);

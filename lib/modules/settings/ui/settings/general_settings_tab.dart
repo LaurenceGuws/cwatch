@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'editor_settings_section.dart';
 import 'settings_section.dart';
-import 'terminal_settings_section.dart';
 
 /// General settings tab widget
 class GeneralSettingsTab extends StatelessWidget {
@@ -14,30 +12,6 @@ class GeneralSettingsTab extends StatelessWidget {
     required this.onThemeChanged,
     required this.onDebugModeChanged,
     required this.onZoomChanged,
-    required this.terminalFontFamily,
-    required this.terminalFontSize,
-    required this.terminalLineHeight,
-    required this.terminalPaddingX,
-    required this.terminalPaddingY,
-    required this.terminalThemeDark,
-    required this.terminalThemeLight,
-    required this.onTerminalFontFamilyChanged,
-    required this.onTerminalFontSizeChanged,
-    required this.onTerminalLineHeightChanged,
-    required this.onTerminalPaddingXChanged,
-    required this.onTerminalPaddingYChanged,
-    required this.onTerminalThemeDarkChanged,
-    required this.onTerminalThemeLightChanged,
-    required this.editorFontFamily,
-    required this.editorFontSize,
-    required this.editorLineHeight,
-    required this.onEditorFontFamilyChanged,
-    required this.onEditorFontSizeChanged,
-    required this.onEditorLineHeightChanged,
-    required this.editorThemeLight,
-    required this.editorThemeDark,
-    required this.onEditorThemeLightChanged,
-    required this.onEditorThemeDarkChanged,
     required this.appFontFamily,
     required this.onAppFontFamilyChanged,
     required this.appThemeKey,
@@ -47,33 +21,9 @@ class GeneralSettingsTab extends StatelessWidget {
   final ThemeMode selectedTheme;
   final bool debugMode;
   final double zoomFactor;
-  final String? terminalFontFamily;
-  final double terminalFontSize;
-  final double terminalLineHeight;
-  final double terminalPaddingX;
-  final double terminalPaddingY;
-  final String terminalThemeDark;
-  final String terminalThemeLight;
   final ValueChanged<ThemeMode> onThemeChanged;
   final ValueChanged<bool> onDebugModeChanged;
   final ValueChanged<double> onZoomChanged;
-  final ValueChanged<String> onTerminalFontFamilyChanged;
-  final ValueChanged<double> onTerminalFontSizeChanged;
-  final ValueChanged<double> onTerminalLineHeightChanged;
-  final ValueChanged<double> onTerminalPaddingXChanged;
-  final ValueChanged<double> onTerminalPaddingYChanged;
-  final ValueChanged<String> onTerminalThemeDarkChanged;
-  final ValueChanged<String> onTerminalThemeLightChanged;
-  final String? editorFontFamily;
-  final double editorFontSize;
-  final double editorLineHeight;
-  final ValueChanged<String> onEditorFontFamilyChanged;
-  final ValueChanged<double> onEditorFontSizeChanged;
-  final ValueChanged<double> onEditorLineHeightChanged;
-  final String? editorThemeLight;
-  final String? editorThemeDark;
-  final ValueChanged<String> onEditorThemeLightChanged;
-  final ValueChanged<String> onEditorThemeDarkChanged;
   final String? appFontFamily;
   final ValueChanged<String> onAppFontFamilyChanged;
   final String appThemeKey;
@@ -181,34 +131,6 @@ class GeneralSettingsTab extends StatelessWidget {
             value: debugMode,
             onChanged: onDebugModeChanged,
           ),
-        ),
-        TerminalSettingsSection(
-          fontFamily: terminalFontFamily,
-          fontSize: terminalFontSize,
-          lineHeight: terminalLineHeight,
-          paddingX: terminalPaddingX,
-          paddingY: terminalPaddingY,
-          darkTheme: terminalThemeDark,
-          lightTheme: terminalThemeLight,
-          onFontFamilyChanged: onTerminalFontFamilyChanged,
-          onFontSizeChanged: onTerminalFontSizeChanged,
-          onLineHeightChanged: onTerminalLineHeightChanged,
-          onPaddingXChanged: onTerminalPaddingXChanged,
-          onPaddingYChanged: onTerminalPaddingYChanged,
-          onDarkThemeChanged: onTerminalThemeDarkChanged,
-          onLightThemeChanged: onTerminalThemeLightChanged,
-        ),
-        EditorSettingsSection(
-          fontFamily: editorFontFamily,
-          fontSize: editorFontSize,
-          lineHeight: editorLineHeight,
-          onFontFamilyChanged: onEditorFontFamilyChanged,
-          onFontSizeChanged: onEditorFontSizeChanged,
-          onLineHeightChanged: onEditorLineHeightChanged,
-          lightTheme: editorThemeLight,
-          darkTheme: editorThemeDark,
-          onLightThemeChanged: onEditorThemeLightChanged,
-          onDarkThemeChanged: onEditorThemeDarkChanged,
         ),
       ],
     );

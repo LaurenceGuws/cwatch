@@ -12,6 +12,8 @@ import 'container_settings_tabs.dart';
 import 'debug_logs_tab.dart';
 import 'general_settings_tab.dart';
 import 'servers_settings_tab.dart';
+import 'editor_settings_tab.dart';
+import 'terminal_settings_tab.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({
@@ -47,6 +49,8 @@ class _SettingsViewState extends State<SettingsView>
     Tab(text: 'Kubernetes'),
     Tab(text: 'Debug Logs'),
     Tab(text: 'Shortcuts'),
+    Tab(text: 'Terminal'),
+    Tab(text: 'Editor'),
   ];
 
   static final _tabIcons = [
@@ -56,6 +60,8 @@ class _SettingsViewState extends State<SettingsView>
     NerdIcon.kubernetes.data, // Kubernetes
     Icons.bug_report_outlined, // Debug Logs
     Icons.keyboard_alt_outlined, // Shortcuts
+    Icons.terminal, // Terminal
+    Icons.code, // Editor
   ];
 
   @override
@@ -126,84 +132,6 @@ class _SettingsViewState extends State<SettingsView>
                                 (current) =>
                                     current.copyWith(appThemeKey: value),
                               ),
-                          terminalFontFamily: settings.terminalFontFamily,
-                          terminalFontSize: settings.terminalFontSize,
-                          terminalLineHeight: settings.terminalLineHeight,
-                          terminalPaddingX: settings.terminalPaddingX,
-                          terminalPaddingY: settings.terminalPaddingY,
-                          terminalThemeDark: settings.terminalThemeDark,
-                          terminalThemeLight: settings.terminalThemeLight,
-                          onTerminalFontFamilyChanged: (value) =>
-                              widget.controller.update(
-                                (current) => current.copyWith(
-                                  terminalFontFamily: value.trim().isEmpty
-                                      ? null
-                                      : value.trim(),
-                                ),
-                              ),
-                          onTerminalFontSizeChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(terminalFontSize: value),
-                              ),
-                          onTerminalLineHeightChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(terminalLineHeight: value),
-                              ),
-                          onTerminalPaddingXChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(terminalPaddingX: value),
-                              ),
-                          onTerminalPaddingYChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(terminalPaddingY: value),
-                              ),
-                          onTerminalThemeDarkChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(terminalThemeDark: value),
-                              ),
-                          onTerminalThemeLightChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(terminalThemeLight: value),
-                              ),
-                          editorThemeLight: settings.editorThemeLight,
-                          editorThemeDark: settings.editorThemeDark,
-                          onEditorThemeLightChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(editorThemeLight: value),
-                              ),
-                          onEditorThemeDarkChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(editorThemeDark: value),
-                              ),
-                          editorFontFamily: settings.editorFontFamily,
-                          editorFontSize: settings.editorFontSize,
-                          editorLineHeight: settings.editorLineHeight,
-                          onEditorFontFamilyChanged: (value) =>
-                              widget.controller.update(
-                                (current) => current.copyWith(
-                                  editorFontFamily: value.trim().isEmpty
-                                      ? null
-                                      : value.trim(),
-                                ),
-                              ),
-                          onEditorFontSizeChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(editorFontSize: value),
-                              ),
-                          onEditorLineHeightChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(editorLineHeight: value),
-                              ),
                         ),
                         ServersSettingsTab(
                           key: const ValueKey('servers_settings_tab'),
@@ -215,9 +143,9 @@ class _SettingsViewState extends State<SettingsView>
                           logsTail: settings.dockerLogsTailClamped,
                           onLogsTailChanged: (value) =>
                               widget.controller.update(
-                            (current) =>
-                                current.copyWith(dockerLogsTail: value),
-                          ),
+                                (current) =>
+                                    current.copyWith(dockerLogsTail: value),
+                              ),
                         ),
                         KubernetesSettingsTab(),
                         DebugLogsTab(
@@ -227,6 +155,88 @@ class _SettingsViewState extends State<SettingsView>
                         ShortcutsSettingsTab(
                           controller: widget.controller,
                           settings: settings,
+                        ),
+                        TerminalSettingsTab(
+                          fontFamily: settings.terminalFontFamily,
+                          fontSize: settings.terminalFontSize,
+                          lineHeight: settings.terminalLineHeight,
+                          paddingX: settings.terminalPaddingX,
+                          paddingY: settings.terminalPaddingY,
+                          darkTheme: settings.terminalThemeDark,
+                          lightTheme: settings.terminalThemeLight,
+                          onFontFamilyChanged: (value) =>
+                              widget.controller.update(
+                                (current) => current.copyWith(
+                                  terminalFontFamily: value.trim().isEmpty
+                                      ? null
+                                      : value.trim(),
+                                ),
+                              ),
+                          onFontSizeChanged: (value) =>
+                              widget.controller.update(
+                                (current) =>
+                                    current.copyWith(terminalFontSize: value),
+                              ),
+                          onLineHeightChanged: (value) =>
+                              widget.controller.update(
+                                (current) =>
+                                    current.copyWith(terminalLineHeight: value),
+                              ),
+                          onPaddingXChanged: (value) =>
+                              widget.controller.update(
+                                (current) =>
+                                    current.copyWith(terminalPaddingX: value),
+                              ),
+                          onPaddingYChanged: (value) =>
+                              widget.controller.update(
+                                (current) =>
+                                    current.copyWith(terminalPaddingY: value),
+                              ),
+                          onDarkThemeChanged: (value) =>
+                              widget.controller.update(
+                                (current) =>
+                                    current.copyWith(terminalThemeDark: value),
+                              ),
+                          onLightThemeChanged: (value) =>
+                              widget.controller.update(
+                                (current) =>
+                                    current.copyWith(terminalThemeLight: value),
+                              ),
+                        ),
+                        EditorSettingsTab(
+                          fontFamily: settings.editorFontFamily,
+                          fontSize: settings.editorFontSize,
+                          lineHeight: settings.editorLineHeight,
+                          onFontFamilyChanged: (value) =>
+                              widget.controller.update(
+                                (current) => current.copyWith(
+                                  editorFontFamily: value.trim().isEmpty
+                                      ? null
+                                      : value.trim(),
+                                ),
+                              ),
+                          onFontSizeChanged: (value) =>
+                              widget.controller.update(
+                                (current) =>
+                                    current.copyWith(editorFontSize: value),
+                              ),
+                          onLineHeightChanged: (value) =>
+                              widget.controller.update(
+                                (current) =>
+                                    current.copyWith(editorLineHeight: value),
+                              ),
+                          lightTheme: settings.editorThemeLight,
+                          darkTheme: settings.editorThemeDark,
+                          onLightThemeChanged: (value) =>
+                              widget.controller.update(
+                                (current) =>
+                                    current.copyWith(editorThemeLight: value),
+                              ),
+                          onDarkThemeChanged: (value) =>
+                              widget.controller.update(
+                                (current) =>
+                                    current.copyWith(editorThemeDark: value),
+                              ),
                         ),
                       ],
                     )

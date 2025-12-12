@@ -14,7 +14,8 @@ Size calcCharSize(TerminalStyle style, TextScaler textScaler) {
   final paragraph = builder.build();
   paragraph.layout(ParagraphConstraints(width: double.infinity));
 
-  final width = (paragraph.maxIntrinsicWidth / test.length).ceilToDouble();
-  final height = paragraph.height.ceilToDouble();
+  // Keep fractional metrics to avoid adding spacing between per-cell glyphs.
+  final width = paragraph.maxIntrinsicWidth / test.length;
+  final height = paragraph.height;
   return Size(width, height);
 }

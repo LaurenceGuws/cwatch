@@ -20,6 +20,7 @@ class TerminalPainter {
 
   /// Size of each character in the terminal.
   late var _cellSize = _measureCharSize();
+  Size? _snappedCellSize;
 
   /// The cached for cells in the terminal. Should be cleared when the same
   /// cell no longer produces the same visual output. For example, when
@@ -32,6 +33,7 @@ class TerminalPainter {
     if (value == _textStyle) return;
     _textStyle = value;
     _cellSize = _measureCharSize();
+    _snappedCellSize = null;
     _paragraphCache.clear();
   }
 
@@ -41,6 +43,7 @@ class TerminalPainter {
     if (value == _textScaler) return;
     _textScaler = value;
     _cellSize = _measureCharSize();
+    _snappedCellSize = null;
     _paragraphCache.clear();
   }
 
@@ -66,9 +69,10 @@ class TerminalPainter {
     final paragraph = builder.build();
     paragraph.layout(ParagraphConstraints(width: double.infinity));
 
-    // Round up to whole pixels so cell extents never undershoot glyph bounds.
-    final width = (paragraph.maxIntrinsicWidth / test.length).ceilToDouble();
-    final height = paragraph.height.ceilToDouble();
+    // Preserve fractional metrics so glyphs (especially box drawing) stay
+    // flush when positioned per-cell. Rounding up introduced tiny gaps.
+    final width = paragraph.maxIntrinsicWidth / test.length;
+    final height = paragraph.height;
     final result = Size(width, height);
 
     paragraph.dispose();
@@ -76,12 +80,14 @@ class TerminalPainter {
   }
 
   /// The size of each character in the terminal.
-  Size get cellSize => _cellSize;
+  Size get cellSize =>
+      _snappedCellSize ??= Size(_cellWidthSnap, _cellHeightSnap);
 
   /// When the set of font available to the system changes, call this method to
   /// clear cached state related to font rendering.
   void clearFontCache() {
     _cellSize = _measureCharSize();
+    _snappedCellSize = null;
     _paragraphCache.clear();
   }
 
@@ -92,31 +98,32 @@ class TerminalPainter {
     required TerminalCursorType cursorType,
     bool hasFocus = true,
   }) {
+    final size = cellSize;
     final paint = Paint()
       ..color = _theme.cursor
       ..strokeWidth = 1;
 
     if (!hasFocus) {
       paint.style = PaintingStyle.stroke;
-      canvas.drawRect(offset & _cellSize, paint);
+      canvas.drawRect(offset & size, paint);
       return;
     }
 
     switch (cursorType) {
       case TerminalCursorType.block:
         paint.style = PaintingStyle.fill;
-        canvas.drawRect(offset & _cellSize, paint);
+        canvas.drawRect(offset & size, paint);
         return;
       case TerminalCursorType.underline:
         return canvas.drawLine(
-          Offset(offset.dx, _cellSize.height - 1),
-          Offset(offset.dx + _cellSize.width, _cellSize.height - 1),
+          Offset(offset.dx, size.height - 1),
+          Offset(offset.dx + size.width, size.height - 1),
           paint,
         );
       case TerminalCursorType.verticalBar:
         return canvas.drawLine(
           Offset(offset.dx, 0),
-          Offset(offset.dx, _cellSize.height),
+          Offset(offset.dx, size.height),
           paint,
         );
     }
@@ -125,7 +132,7 @@ class TerminalPainter {
   @pragma('vm:prefer-inline')
   void paintHighlight(Canvas canvas, Offset offset, int length, Color color) {
     final endOffset =
-        offset.translate(length * _cellSize.width, _cellSize.height);
+        offset.translate(length * _cellWidthSnap, _cellHeightSnap);
 
     final paint = Paint()
       ..color = color
@@ -145,7 +152,7 @@ class TerminalPainter {
     BufferLine line,
   ) {
     final cellData = CellData.empty();
-    final cellWidth = _cellSize.width;
+    final cellWidth = _cellWidthSnap;
     final runs = <_TextRun>[];
     _TextRun? currentRun;
 
@@ -157,18 +164,15 @@ class TerminalPainter {
 
     var i = 0;
     while (i < line.length) {
+      final cellDx = _snapToPixel(offset.dx + i * cellWidth);
+      final cellOffset = Offset(cellDx, offset.dy);
       line.getCellData(i, cellData);
 
       final charWidth = cellData.content >> CellContent.widthShift;
-      final cellOffset = offset.translate(i * cellWidth, 0);
-
       final bool isGridChar =
           _shouldPaintPerCell(cellData.content & CellContent.codepointMask);
       final Offset drawOffset = isGridChar
-          ? Offset(
-              cellOffset.dx.floorToDouble(),
-              cellOffset.dy.floorToDouble(),
-            )
+          ? cellOffset
           : cellOffset;
 
       paintCellBackground(canvas, drawOffset, cellData);
@@ -218,10 +222,32 @@ class TerminalPainter {
 
     for (final run in runs) {
       final paragraph = _buildParagraph(run.text, run.style);
-      final runOffset = offset.translate(run.start * cellWidth, 0);
+      final runOffset = Offset(
+        _snapToPixel(offset.dx + run.start * cellWidth),
+        offset.dy,
+      );
       canvas.drawParagraph(paragraph, runOffset);
       paragraph.dispose();
     }
+  }
+
+  double _snapToPixel(double value) {
+    final dpr = _devicePixelRatio;
+    return (value * dpr).roundToDouble() / dpr;
+  }
+
+  double get _cellWidthSnap => _snapToPixel(_cellSize.width);
+
+  double get _cellHeightSnap => _snapToPixel(_cellSize.height);
+
+  double get _devicePixelRatio {
+    final dispatcher = PlatformDispatcher.instance;
+    final implicitView = dispatcher.implicitView;
+    if (implicitView != null) return implicitView.devicePixelRatio;
+    if (dispatcher.views.isNotEmpty) {
+      return dispatcher.views.first.devicePixelRatio;
+    }
+    return 1.0;
   }
 
   _CellStyle _cellStyle(CellData cellData) {
@@ -354,7 +380,7 @@ class TerminalPainter {
         style,
         _textScaler,
         cacheKey,
-        maxWidth: isBoxDrawing ? _cellSize.width : null,
+        maxWidth: isBoxDrawing ? _cellWidthSnap : null,
       );
     }
 
@@ -380,7 +406,8 @@ class TerminalPainter {
     final doubleWidth = cellData.content >> CellContent.widthShift == 2;
     final widthScale = doubleWidth ? 2 : 1;
     // Slightly overdraw height to avoid visible seams between adjacent rows.
-    final size = Size(_cellSize.width * widthScale + 1, _cellSize.height + 1);
+    final size =
+        Size(_cellWidthSnap * widthScale + 1, _cellHeightSnap + 1);
     canvas.drawRect(offset & size, paint);
   }
 

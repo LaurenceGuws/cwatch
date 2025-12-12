@@ -64,6 +64,14 @@ class _EditorSettingsSectionState extends State<EditorSettingsSection> {
           'Configure the mono font and spacing used in the remote file editor.',
       child: Column(
         children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Applies to the built-in code editor and diff viewers.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          const SizedBox(height: 12),
           TextFormField(
             controller: _fontController,
             decoration: const InputDecoration(
@@ -103,7 +111,7 @@ class _EditorSettingsSectionState extends State<EditorSettingsSection> {
             value: widget.lightTheme ?? 'atom-one-light',
             onChanged: widget.onLightThemeChanged,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           _ThemePickerRow(
             label: 'Dark theme',
             value: widget.darkTheme ?? 'atom-one-dark',
