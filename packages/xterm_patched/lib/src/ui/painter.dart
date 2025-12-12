@@ -392,6 +392,7 @@ class TerminalPainter {
     }
   }
 
+}
 
 class _TextRun {
   _TextRun({
