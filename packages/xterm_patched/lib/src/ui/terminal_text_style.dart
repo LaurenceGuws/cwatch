@@ -29,6 +29,7 @@ class TerminalStyle {
     this.height = _kDefaultHeight,
     this.fontFamily = _kDefaultFontFamily,
     this.fontFamilyFallback = _kDefaultFontFamilyFallback,
+    this.fontFeatures = const [],
   });
 
   factory TerminalStyle.fromTextStyle(TextStyle textStyle) {
@@ -40,6 +41,7 @@ class TerminalStyle {
           _kDefaultFontFamily,
       fontFamilyFallback:
           textStyle.fontFamilyFallback ?? _kDefaultFontFamilyFallback,
+      fontFeatures: textStyle.fontFeatures ?? const [],
     );
   }
 
@@ -50,6 +52,8 @@ class TerminalStyle {
   final String fontFamily;
 
   final List<String> fontFamilyFallback;
+
+  final List<FontFeature> fontFeatures;
 
   TextStyle toTextStyle({
     Color? color,
@@ -63,6 +67,7 @@ class TerminalStyle {
       height: height,
       fontFamily: fontFamily,
       fontFamilyFallback: fontFamilyFallback,
+      fontFeatures: fontFeatures,
       color: color,
       backgroundColor: backgroundColor,
       fontWeight: bold ? FontWeight.bold : FontWeight.normal,
@@ -76,12 +81,14 @@ class TerminalStyle {
     double? height,
     String? fontFamily,
     List<String>? fontFamilyFallback,
+    List<FontFeature>? fontFeatures,
   }) {
     return TerminalStyle(
       fontSize: fontSize ?? this.fontSize,
       height: height ?? this.height,
       fontFamily: fontFamily ?? this.fontFamily,
       fontFamilyFallback: fontFamilyFallback ?? this.fontFamilyFallback,
+      fontFeatures: fontFeatures ?? this.fontFeatures,
     );
   }
 }

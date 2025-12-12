@@ -1,22 +1,41 @@
 import 'package:flutter/widgets.dart';
 
 class NerdFonts {
-  // Match the family name from pubspec to keep terminal cell metrics stable.
-  static const String family = 'JetBrainsMonoNF';
+  // Match the family names from pubspec to keep icon and terminal metrics stable.
+  static const String family = 'IosevkaTermNF';
+  // Dedicated mono family for terminal text metrics.
+  static const String terminalFamily = 'IosevkaTermNFM';
 
   // Keep Nerd Font glyphs available even when users pick another font.
   static const List<String> terminalFallbackFamilies = [
+    terminalFamily,
     family,
+    'IosevkaTerm Nerd Font Mono',
+    'Iosevka Term Nerd Font Mono',
+    'IosevkaTerm Nerd Font',
+    'Iosevka Term Nerd Font',
+    'IosevkaTermNFM',
+    'IosevkaTermNF',
     'JetBrainsMono Nerd Font Mono',
-    'JetBrainsMono NFM',
     'JetBrainsMono Nerd Font',
+    'JetBrainsMono NFM',
     'JetBrainsMono NF',
     'JetBrainsMonoNF',
+    'Symbols Nerd Font Mono',
+    'Symbols Nerd Font',
     'Noto Color Emoji',
     'Noto Sans Symbols',
     'monospace',
     'sans-serif',
   ];
+
+  static String effectiveTerminalFamily(String? override) {
+    final value = override?.trim();
+    if (value == null || value.isEmpty) {
+      return terminalFamily;
+    }
+    return value;
+  }
 
   static String effectiveFamily(String? override) {
     final value = override?.trim();

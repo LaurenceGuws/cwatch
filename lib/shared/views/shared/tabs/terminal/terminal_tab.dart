@@ -399,10 +399,15 @@ class _TerminalTabState extends State<TerminalTab> {
 
   TerminalStyle _textStyle(AppSettings settings) {
     return TerminalStyle(
-      fontFamily: NerdFonts.effectiveFamily(settings.terminalFontFamily),
+      fontFamily:
+          NerdFonts.effectiveTerminalFamily(settings.terminalFontFamily),
       fontFamilyFallback: NerdFonts.terminalFallbackFamilies,
       fontSize: settings.terminalFontSize.clamp(8, 32),
       height: settings.terminalLineHeight.clamp(0.8, 2.0),
+      fontFeatures: const [
+        FontFeature.disable('liga'),
+        FontFeature.disable('calt'),
+      ],
     );
   }
 
@@ -450,9 +455,6 @@ class _TerminalTabState extends State<TerminalTab> {
       handlers: {
         ShortcutActions.terminalZoomIn: () => _changeTerminalFont(1),
         ShortcutActions.terminalZoomOut: () => _changeTerminalFont(-1),
-        ShortcutActions.terminalCopy: _copySelectionToClipboard,
-        ShortcutActions.terminalPaste: _pasteFromClipboard,
-        ShortcutActions.terminalSelectAll: _selectAll,
       },
       focusNode: _focusNode,
       priority: 5,

@@ -14,8 +14,7 @@ Size calcCharSize(TerminalStyle style, TextScaler textScaler) {
   final paragraph = builder.build();
   paragraph.layout(ParagraphConstraints(width: double.infinity));
 
-  return Size(
-    paragraph.maxIntrinsicWidth / test.length,
-    paragraph.height,
-  );
+  final width = (paragraph.maxIntrinsicWidth / test.length).ceilToDouble();
+  final height = paragraph.height.ceilToDouble();
+  return Size(width, height);
 }

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
@@ -332,9 +331,6 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
       handlers: {
         ShortcutActions.terminalZoomIn: () => _changeTerminalFont(1),
         ShortcutActions.terminalZoomOut: () => _changeTerminalFont(-1),
-        ShortcutActions.terminalCopy: _copyOutput,
-        ShortcutActions.terminalPaste: _pasteFromClipboard,
-        ShortcutActions.terminalSelectAll: _selectAll,
       },
       focusNode: _focusNode,
       priority: 5,
@@ -497,10 +493,15 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
         .clamp(0.8, 2.0)
         .toDouble();
     return TerminalStyle(
-      fontFamily: NerdFonts.effectiveFamily(settings?.terminalFontFamily),
+      fontFamily:
+          NerdFonts.effectiveTerminalFamily(settings?.terminalFontFamily),
       fontFamilyFallback: NerdFonts.terminalFallbackFamilies,
       fontSize: fontSize,
       height: lineHeight,
+      fontFeatures: const [
+        FontFeature.disable('liga'),
+        FontFeature.disable('calt'),
+      ],
     );
   }
 

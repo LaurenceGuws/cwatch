@@ -66,10 +66,10 @@ class TerminalPainter {
     final paragraph = builder.build();
     paragraph.layout(ParagraphConstraints(width: double.infinity));
 
-    final result = Size(
-      paragraph.maxIntrinsicWidth / test.length,
-      paragraph.height + 0.5,
-    );
+    // Round up to whole pixels so cell extents never undershoot glyph bounds.
+    final width = (paragraph.maxIntrinsicWidth / test.length).ceilToDouble();
+    final height = paragraph.height.ceilToDouble();
+    final result = Size(width, height);
 
     paragraph.dispose();
     return result;
@@ -230,7 +230,8 @@ class TerminalPainter {
     final paint = Paint()..color = color;
     final doubleWidth = cellData.content >> CellContent.widthShift == 2;
     final widthScale = doubleWidth ? 2 : 1;
-    final size = Size(_cellSize.width * widthScale + 1, _cellSize.height);
+    // Slightly overdraw height to avoid visible seams between adjacent rows.
+    final size = Size(_cellSize.width * widthScale + 1, _cellSize.height + 1);
     canvas.drawRect(offset & size, paint);
   }
 
