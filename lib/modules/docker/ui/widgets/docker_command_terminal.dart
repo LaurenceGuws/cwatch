@@ -127,10 +127,9 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
       }
       _pty = session;
       _outputSub?.cancel();
-      _outputSub =
-          const Utf8Decoder(allowMalformed: true).bind(session.output).listen(
-                _handlePtyText,
-              );
+      _outputSub = const Utf8Decoder(
+        allowMalformed: true,
+      ).bind(session.output).listen(_handlePtyText);
       unawaited(
         session.exitCode.then((_) {
           if (!mounted || token != _sessionToken) return;
@@ -238,46 +237,26 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
       return const Center(child: CircularProgressIndicator());
     }
     final resolvedSettings = settings ?? widget.settingsController?.settings;
-    return Actions(
-      actions: {
-        _ScrollByIntent: CallbackAction<_ScrollByIntent>(
-          onInvoke: (intent) {
-            _scrollBy(intent.offset);
-            return null;
-          },
-        ),
-        _ScrollToExtentIntent: CallbackAction<_ScrollToExtentIntent>(
-          onInvoke: (intent) {
-            _scrollToExtent(intent.up);
-            return null;
-          },
-        ),
-        _CopyTerminalIntent: CallbackAction<_CopyTerminalIntent>(
-          onInvoke: (intent) {
-            _copyOutput();
-            return null;
-          },
-        ),
-      },
-      child: TerminalView(
-        _terminal,
-        controller: _controller,
-        scrollController: _scrollController,
-        focusNode: _focusNode,
-        shortcuts: _shortcutBindings(resolvedSettings),
-        autofocus: widget.autofocus,
-        alwaysShowCursor: true,
-        padding: EdgeInsets.symmetric(
-          horizontal:
-              (resolvedSettings?.terminalPaddingX ?? 8).clamp(0, 48).toDouble(),
-          vertical:
-              (resolvedSettings?.terminalPaddingY ?? 10).clamp(0, 48).toDouble(),
-        ),
-        textStyle: _textStyle(resolvedSettings),
-        theme: _terminalTheme(context, resolvedSettings),
-        onSecondaryTapDown: (details, _) =>
-            _showContextMenu(details.globalPosition),
+    return TerminalView(
+      _terminal,
+      controller: _controller,
+      scrollController: _scrollController,
+      focusNode: _focusNode,
+      shortcuts: _shortcutBindings(resolvedSettings),
+      autofocus: widget.autofocus,
+      alwaysShowCursor: true,
+      padding: EdgeInsets.symmetric(
+        horizontal: (resolvedSettings?.terminalPaddingX ?? 8)
+            .clamp(0, 48)
+            .toDouble(),
+        vertical: (resolvedSettings?.terminalPaddingY ?? 10)
+            .clamp(0, 48)
+            .toDouble(),
       ),
+      textStyle: _textStyle(resolvedSettings),
+      theme: _terminalTheme(context, resolvedSettings),
+      onSecondaryTapDown: (details, _) =>
+          _showContextMenu(details.globalPosition),
     );
   }
 
@@ -291,29 +270,14 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
       map[binding.toActivator()] = intent;
     }
 
+    add(ShortcutActions.terminalCopy, CopySelectionTextIntent.copy);
     add(
-      ShortcutActions.terminalScrollLineUp,
-      const _ScrollByIntent(-160),
+      ShortcutActions.terminalPaste,
+      const PasteTextIntent(SelectionChangedCause.keyboard),
     );
     add(
-      ShortcutActions.terminalScrollLineDown,
-      const _ScrollByIntent(160),
-    );
-    add(
-      ShortcutActions.terminalScrollPageUp,
-      const _ScrollByIntent(-480),
-    );
-    add(
-      ShortcutActions.terminalScrollPageDown,
-      const _ScrollByIntent(480),
-    );
-    add(
-      ShortcutActions.terminalScrollToTop,
-      const _ScrollToExtentIntent(up: true),
-    );
-    add(
-      ShortcutActions.terminalScrollToBottom,
-      const _ScrollToExtentIntent(up: false),
+      ShortcutActions.terminalSelectAll,
+      const SelectAllTextIntent(SelectionChangedCause.keyboard),
     );
 
     return map;
@@ -450,22 +414,6 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     _terminal.keyInput(TerminalKey.enter);
   }
 
-  void _scrollBy(double offset) {
-    if (!_scrollController.hasClients) return;
-    final position = _scrollController.position;
-    final target = (position.pixels + offset).clamp(
-      position.minScrollExtent,
-      position.maxScrollExtent,
-    );
-    position.jumpTo(target);
-  }
-
-  void _scrollToExtent(bool up) {
-    if (!_scrollController.hasClients) return;
-    final position = _scrollController.position;
-    position.jumpTo(up ? position.minScrollExtent : position.maxScrollExtent);
-  }
-
   void _logScrollChange() {
     if (!_scrollController.hasClients) return;
     final current = _scrollController.position.pixels;
@@ -498,8 +446,9 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
         .clamp(0.8, 2.0)
         .toDouble();
     return TerminalStyle(
-      fontFamily:
-          NerdFonts.effectiveTerminalFamily(settings?.terminalFontFamily),
+      fontFamily: NerdFonts.effectiveTerminalFamily(
+        settings?.terminalFontFamily,
+      ),
       fontFamilyFallback: NerdFonts.terminalFallbackFamilies,
       fontSize: fontSize,
       height: lineHeight,
@@ -549,27 +498,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   }
 }
 
-class _ScrollByIntent extends Intent {
-  const _ScrollByIntent(this.offset);
-  final double offset;
-}
-
-class _ScrollToExtentIntent extends Intent {
-  const _ScrollToExtentIntent({required this.up});
-  final bool up;
-}
-
-class _CopyTerminalIntent extends Intent {
-  const _CopyTerminalIntent();
-}
-
-enum _TerminalMenuAction {
-  copySelection,
-  copyAll,
-  paste,
-  selectAll,
-  clear,
-}
+enum _TerminalMenuAction { copySelection, copyAll, paste, selectAll, clear }
 
 class ComposeLogsTerminal extends StatefulWidget {
   const ComposeLogsTerminal({
