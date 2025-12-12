@@ -24,9 +24,9 @@ class ParagraphCache {
     String text,
     TextStyle style,
     TextScaler textScaler,
-    int key,
-    {double? maxWidth},
-  ) {
+    int key, {
+    double? maxWidth,
+  }) {
     final builder = ParagraphBuilder(style.getParagraphStyle());
     builder.pushStyle(style.getTextStyle(textScaler: textScaler));
     builder.addText(text);
