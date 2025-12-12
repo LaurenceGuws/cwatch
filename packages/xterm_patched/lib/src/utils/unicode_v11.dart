@@ -500,10 +500,8 @@ class UnicodeV11 {
   final version = '11';
 
   int wcwidth(int codePoint) {
-    // Treat Nerd Font private-use glyphs as single-width by default, but allow
-    // a narrow set of powerline-style separators to stay double-width to avoid
-    // prompt gaps.
-    if (_isNerdFontDoubleWidth(codePoint)) return 2;
+    // Treat Nerd Font private-use glyphs as single-width; forcing them wide
+    // leaves visible gaps after prompt icons and separators.
     if (_isNerdFont(codePoint)) return 1;
     if (codePoint < 32) return 0;
     if (codePoint < 127) return 1;
@@ -518,19 +516,6 @@ class UnicodeV11 {
     if (codePoint >= 0xE000 && codePoint <= 0xF8FF) return true;
     if (codePoint >= 0xF0000 && codePoint <= 0xF1FFF) return true;
     return false;
-  }
-
-  bool _isNerdFontDoubleWidth(int codePoint) {
-    // Powerline separators and a few related shapes that are drawn wider.
-    const doubles = {
-      0xE0B0, 0xE0B1, 0xE0B2, 0xE0B3, //
-      0xE0B4, 0xE0B5, 0xE0B6, 0xE0B7, //
-      0xE0BA, 0xE0BB, 0xE0BC, 0xE0BD, //
-      0xE0BE, 0xE0BF, 0xE0C0, 0xE0C1, //
-      0xE0C2, 0xE0C3, 0xE0C4, 0xE0C5, //
-      0xE0C6, 0xE0C7, 0xE0C8, 0xE0CA,
-    };
-    return doubles.contains(codePoint);
   }
 }
 
