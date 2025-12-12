@@ -12,6 +12,17 @@ class ShortcutResolver {
     return ShortcutBinding.tryParse(source);
   }
 
+  Map<String, ShortcutBinding> bindingsForIds(Iterable<String> actionIds) {
+    final map = <String, ShortcutBinding>{};
+    for (final id in actionIds) {
+      final binding = bindingFor(id);
+      if (binding != null) {
+        map[id] = binding;
+      }
+    }
+    return map;
+  }
+
   String? _bindingStringFor(String actionId) {
     final override = settings?.shortcutBindings[actionId]?.trim();
     if (override != null && override.isNotEmpty) {

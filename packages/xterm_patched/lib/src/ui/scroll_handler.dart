@@ -42,9 +42,10 @@ class _TerminalScrollGestureHandlerState
   /// widget does nothing.
   var isAltBuffer = false;
 
-  /// The variable that tracks the line offset in last scroll event. Used to
-  /// determine how many the scroll events should be sent to the terminal.
-  var lastLineOffset = 0;
+  /// Track scroll position deltas so we can convert pointer scrolls into
+  /// discrete line events.
+  double? _lastScrollOffset;
+  double _pendingScrollDelta = 0;
 
   /// This variable tracks the last offset where the scroll gesture started.
   /// Used to calculate the cell offset of the terminal mouse event.
@@ -70,6 +71,11 @@ class _TerminalScrollGestureHandlerState
       widget.terminal.addListener(_onTerminalUpdated);
       isAltBuffer = widget.terminal.isUsingAltBuffer;
     }
+    // Reset scroll tracking so changes in font metrics or layout don't keep
+    // stale offsets that can suppress future scroll events (e.g. after zoom).
+    _lastScrollOffset = null;
+    _pendingScrollDelta = 0;
+    lastPointerPosition = Offset.zero;
     super.didUpdateWidget(oldWidget);
   }
 
@@ -100,20 +106,39 @@ class _TerminalScrollGestureHandlerState
   }
 
   void _onScroll(double offset) {
-    final currentLineOffset = offset ~/ widget.getLineHeight();
+    _lastScrollOffset ??= offset;
+    final deltaPixels = offset - _lastScrollOffset!;
+    if (deltaPixels == 0) {
+      return;
+    }
+    _lastScrollOffset = offset;
 
-    final delta = currentLineOffset - lastLineOffset;
-
-    for (var i = 0; i < delta.abs(); i++) {
-      _sendScrollEvent(delta < 0);
+    _pendingScrollDelta += deltaPixels;
+    final lineHeight = widget.getLineHeight();
+    if (lineHeight <= 0) {
+      return;
     }
 
-    lastLineOffset = currentLineOffset;
+    final deltaLines = (_pendingScrollDelta / lineHeight).truncate();
+    if (deltaLines == 0) {
+      return;
+    }
+
+    for (var i = 0; i < deltaLines.abs(); i++) {
+      _sendScrollEvent(deltaLines < 0);
+    }
+
+    _pendingScrollDelta -= deltaLines * lineHeight;
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!isAltBuffer) {
+    final isAlt = widget.terminal.isUsingAltBuffer;
+    // Forward wheel events when the app requests mouse input or when in
+    // alternate buffer (e.g. editors like vim/tmux panes).
+    final forwardScroll =
+        isAlt || widget.terminal.mouseMode != MouseMode.none;
+    if (!forwardScroll) {
       return widget.child;
     }
 

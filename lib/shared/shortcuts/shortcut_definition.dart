@@ -83,6 +83,48 @@ class ShortcutCatalog {
       category: ShortcutCategory.terminal,
       defaultBinding: 'ctrl+shift+end',
     ),
+    ShortcutDefinition(
+      id: ShortcutActions.terminalZoomIn,
+      label: 'Zoom in',
+      description: 'Increase terminal font size.',
+      category: ShortcutCategory.terminal,
+      defaultBinding: 'ctrl+shift+=',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.terminalZoomOut,
+      label: 'Zoom out',
+      description: 'Decrease terminal font size.',
+      category: ShortcutCategory.terminal,
+      defaultBinding: 'ctrl+shift+_',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.editorZoomIn,
+      label: 'Zoom in',
+      description: 'Increase editor font size.',
+      category: ShortcutCategory.editor,
+      defaultBinding: 'ctrl+shift+=',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.editorZoomOut,
+      label: 'Zoom out',
+      description: 'Decrease editor font size.',
+      category: ShortcutCategory.editor,
+      defaultBinding: 'ctrl+shift+_',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.globalZoomIn,
+      label: 'Zoom in',
+      description: 'Increase interface zoom.',
+      category: ShortcutCategory.global,
+      defaultBinding: 'ctrl+shift+=',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.globalZoomOut,
+      label: 'Zoom out',
+      description: 'Decrease interface zoom.',
+      category: ShortcutCategory.global,
+      defaultBinding: 'ctrl+shift+_',
+    ),
   ];
 
   static Iterable<ShortcutDefinition> byCategory(ShortcutCategory category) =>

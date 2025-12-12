@@ -68,7 +68,7 @@ class TerminalPainter {
 
     final result = Size(
       paragraph.maxIntrinsicWidth / test.length,
-      paragraph.height,
+      paragraph.height + 0.5,
     );
 
     paragraph.dispose();
@@ -153,18 +153,13 @@ class TerminalPainter {
       final charWidth = cellData.content >> CellContent.widthShift;
       final cellOffset = offset.translate(i * cellWidth, 0);
 
-      paintCell(canvas, cellOffset, cellData);
+      paintCellBackground(canvas, cellOffset, cellData);
+      paintCellForeground(canvas, cellOffset, cellData);
 
       if (charWidth == 2) {
         i++;
       }
     }
-  }
-
-  @pragma('vm:prefer-inline')
-  void paintCell(Canvas canvas, Offset offset, CellData cellData) {
-    paintCellBackground(canvas, offset, cellData);
-    paintCellForeground(canvas, offset, cellData);
   }
 
   /// Paints the character in the cell represented by [cellData] to [canvas] at
@@ -276,4 +271,5 @@ class TerminalPainter {
         return Color(colorValue | 0xFF000000);
     }
   }
+
 }

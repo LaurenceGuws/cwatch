@@ -13,6 +13,7 @@ import '../../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
 import '../../../../../services/settings/app_settings_controller.dart';
 import '../../../../../shared/shortcuts/shortcut_actions.dart';
 import '../../../../../shared/shortcuts/shortcut_resolver.dart';
+import '../../../../../shared/shortcuts/shortcut_service.dart';
 import '../../../../theme/nerd_fonts.dart';
 import '../tab_chip.dart';
 import 'terminal_theme_presets.dart';
@@ -43,17 +44,24 @@ class TerminalTab extends StatefulWidget {
 class _TerminalTabState extends State<TerminalTab> {
   final TerminalController _controller = TerminalController();
   final Terminal _terminal = Terminal(maxLines: 1000);
+  final FocusNode _focusNode = FocusNode();
   TerminalSession? _pty;
+  StreamSubscription<String>? _outputSub;
   bool _connecting = true;
   String? _error;
   bool _closing = false;
   int _sessionToken = 0;
+  ShortcutSubscription? _shortcutSub;
 
   @override
   void initState() {
     super.initState();
     _attachTerminalHandlers();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _startSession());
+    _registerShortcuts();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+      _startSession();
+    });
   }
 
   @override
@@ -61,6 +69,8 @@ class _TerminalTabState extends State<TerminalTab> {
     _closing = true;
     _resetSession();
     _controller.dispose();
+    _focusNode.dispose();
+    _shortcutSub?.dispose();
     super.dispose();
   }
 
@@ -94,7 +104,11 @@ class _TerminalTabState extends State<TerminalTab> {
       );
       _pty = session;
       _applyTerminalSizeToSession();
-      session.output.listen(_handlePtyData);
+      _outputSub?.cancel();
+      _outputSub =
+          const Utf8Decoder(allowMalformed: true).bind(session.output).listen(
+                _handlePtyText,
+              );
       unawaited(
         session.exitCode.then((_) {
           if (!mounted || _closing || token != _sessionToken) return;
@@ -177,23 +191,18 @@ class _TerminalTabState extends State<TerminalTab> {
     _terminal.onResize = _onTerminalResize;
   }
 
-  void _handlePtyData(Uint8List data) {
-    if (data.isEmpty) {
+  void _handlePtyText(String text) {
+    if (text.isEmpty) {
       return;
     }
-    try {
-      final text = utf8.decode(data, allowMalformed: true);
-      if (text.isNotEmpty) {
-        _terminal.write(text);
-      }
-    } catch (_) {
-      // Ignore decode errors
-    }
+    _terminal.write(text);
   }
 
   void _resetSession() {
     _pty?.kill();
     _pty = null;
+    _outputSub?.cancel();
+    _outputSub = null;
   }
 
   void _updateTabOptions() {
@@ -367,6 +376,7 @@ class _TerminalTabState extends State<TerminalTab> {
               child: TerminalView(
                 _terminal,
                 controller: _controller,
+                focusNode: _focusNode,
                 autofocus: true,
                 backgroundOpacity: 1,
                 padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
@@ -390,6 +400,7 @@ class _TerminalTabState extends State<TerminalTab> {
   TerminalStyle _textStyle(AppSettings settings) {
     return TerminalStyle(
       fontFamily: NerdFonts.effectiveFamily(settings.terminalFontFamily),
+      fontFamilyFallback: NerdFonts.terminalFallbackFamilies,
       fontSize: settings.terminalFontSize.clamp(8, 32),
       height: settings.terminalLineHeight.clamp(0.8, 2.0),
     );
@@ -424,6 +435,29 @@ class _TerminalTabState extends State<TerminalTab> {
     );
 
     return map;
+  }
+
+  Future<void> _changeTerminalFont(double delta) async {
+    await widget.settingsController.update((current) {
+      final next = (current.terminalFontSize + delta).clamp(8, 32).toDouble();
+      return current.copyWith(terminalFontSize: next);
+    });
+  }
+
+  void _registerShortcuts() {
+    _shortcutSub = ShortcutService.instance.registerScope(
+      id: 'terminal',
+      handlers: {
+        ShortcutActions.terminalZoomIn: () => _changeTerminalFont(1),
+        ShortcutActions.terminalZoomOut: () => _changeTerminalFont(-1),
+        ShortcutActions.terminalCopy: _copySelectionToClipboard,
+        ShortcutActions.terminalPaste: _pasteFromClipboard,
+        ShortcutActions.terminalSelectAll: _selectAll,
+      },
+      focusNode: _focusNode,
+      priority: 5,
+      consumeOnHandle: true,
+    );
   }
 }
 

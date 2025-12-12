@@ -67,7 +67,7 @@ class ShortcutBinding {
   }
 
   static ShortcutBinding? fromKeyEvent(KeyEvent event) {
-    final key = event.logicalKey;
+    final key = _normalizeKey(event.logicalKey);
     if (key == LogicalKeyboardKey.shift ||
         key == LogicalKeyboardKey.control ||
         key == LogicalKeyboardKey.alt ||
@@ -94,13 +94,28 @@ class ShortcutBinding {
     );
   }
 
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is ShortcutBinding &&
+        other.key == key &&
+        other.control == control &&
+        other.alt == alt &&
+        other.shift == shift &&
+        other.meta == meta;
+  }
+
+  @override
+  int get hashCode =>
+      key.hashCode ^ control.hashCode ^ alt.hashCode ^ shift.hashCode ^ meta.hashCode;
+
   String toConfigString() {
     final parts = <String>[];
     if (control) parts.add('ctrl');
     if (shift) parts.add('shift');
     if (alt) parts.add('alt');
     if (meta) parts.add('meta');
-    parts.add(_formatKey(key));
+    parts.add(_formatKey(key, shifted: shift));
     return parts.join('+');
   }
 
@@ -113,9 +128,20 @@ class ShortcutBinding {
       if (rune >= 0x30 && rune <= 0x39) {
         return _digitKey(rune - 0x30);
       }
+      if (token == '=' || token == '+') return LogicalKeyboardKey.equal;
+      if (token == '-' || token == '_') return LogicalKeyboardKey.minus;
     }
 
     switch (token) {
+      case 'plus':
+      case 'add':
+        return LogicalKeyboardKey.equal;
+      case 'minus':
+      case 'subtract':
+      case 'underscore':
+      case 'dash':
+      case 'hyphen':
+        return LogicalKeyboardKey.minus;
       case 'enter':
       case 'return':
         return LogicalKeyboardKey.enter;
@@ -251,7 +277,13 @@ class ShortcutBinding {
     }
   }
 
-  static String _formatKey(LogicalKeyboardKey key) {
+  static String _formatKey(LogicalKeyboardKey key, {bool shifted = false}) {
+    if (key == LogicalKeyboardKey.equal) {
+      return shifted ? '+' : '=';
+    }
+    if (key == LogicalKeyboardKey.minus) {
+      return shifted ? '_' : '-';
+    }
     final label = key.keyLabel;
     if (label.isNotEmpty && label.length == 1) {
       return label.toLowerCase();
@@ -283,5 +315,18 @@ class ShortcutBinding {
       return null;
     }
     return ((key.keyId - f1Id) ~/ 0x000200000) + 1;
+  }
+
+  static LogicalKeyboardKey _normalizeKey(LogicalKeyboardKey key) {
+    // Normalize shifted punctuation keys to their unshifted logical keys
+    if (key.keyId == 0x0000002b) {
+      // '+' keyId
+      return LogicalKeyboardKey.equal;
+    }
+    if (key.keyId == 0x0000005f) {
+      // '_' keyId
+      return LogicalKeyboardKey.minus;
+    }
+    return key;
   }
 }

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../../../models/ssh_host.dart';
 import '../../../../../services/settings/app_settings_controller.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
+import '../../../../../shared/shortcuts/shortcut_actions.dart';
+import '../../../../../shared/shortcuts/shortcut_service.dart';
 import '../../../../theme/nerd_fonts.dart';
 import '../../../../widgets/inline_search_bar.dart';
 import '../tab_chip.dart';
@@ -44,6 +46,8 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
   late final EditorState _state;
   final GlobalKey<PlainPagerViewState> _plainViewerKey =
       GlobalKey<PlainPagerViewState>();
+  ShortcutSubscription? _shortcutSub;
+  ShortcutSubscription? _pagerShortcutSub;
 
   List<TabChipOption>? _pendingTabOptions;
   bool _optionsScheduled = false;
@@ -62,11 +66,14 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
          await viewer.scrollToLine(line);
        }
      });
+    _registerShortcuts();
     _updateTabOptions();
   }
 
   @override
   void dispose() {
+    _shortcutSub?.dispose();
+    _pagerShortcutSub?.dispose();
     _state.removeListener(_handleStateChanged);
     _state.unregisterPagerScroller();
     _state.dispose();
@@ -202,7 +209,6 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
     );
     final matchColor = colorScheme.primaryContainer.withValues(alpha: 0.28);
     final activeMatchColor = colorScheme.primary.withValues(alpha: 0.45);
-
     return Padding(
       padding: const EdgeInsets.all(8),
       child: Column(
@@ -248,6 +254,34 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _changeEditorFont(double delta) async {
+    await widget.settingsController.update((current) {
+      final next = (current.editorFontSize + delta).clamp(8, 32).toDouble();
+      return current.copyWith(editorFontSize: next);
+    });
+  }
+
+  void _registerShortcuts() {
+    final handlers = {
+      ShortcutActions.editorZoomIn: () => _changeEditorFont(1),
+      ShortcutActions.editorZoomOut: () => _changeEditorFont(-1),
+    };
+    _shortcutSub = ShortcutService.instance.registerScope(
+      id: 'editor',
+      handlers: handlers,
+      focusNode: _state.editorFocusNode,
+      priority: 5,
+      consumeOnHandle: false,
+    );
+    _pagerShortcutSub = ShortcutService.instance.registerScope(
+      id: 'editor_pager',
+      handlers: handlers,
+      focusNode: _state.plainViewerFocusNode,
+      priority: 5,
+      consumeOnHandle: false,
     );
   }
 }

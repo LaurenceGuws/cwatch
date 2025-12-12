@@ -4,6 +4,20 @@ class NerdFonts {
   // Match the family name from pubspec to keep terminal cell metrics stable.
   static const String family = 'JetBrainsMonoNF';
 
+  // Keep Nerd Font glyphs available even when users pick another font.
+  static const List<String> terminalFallbackFamilies = [
+    family,
+    'JetBrainsMono Nerd Font Mono',
+    'JetBrainsMono NFM',
+    'JetBrainsMono Nerd Font',
+    'JetBrainsMono NF',
+    'JetBrainsMonoNF',
+    'Noto Color Emoji',
+    'Noto Sans Symbols',
+    'monospace',
+    'sans-serif',
+  ];
+
   static String effectiveFamily(String? override) {
     final value = override?.trim();
     if (value == null || value.isEmpty) {

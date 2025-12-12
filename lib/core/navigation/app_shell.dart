@@ -15,6 +15,8 @@ import '../../services/ssh/builtin/builtin_ssh_vault.dart';
 import '../../services/ssh/remote_command_logging.dart';
 import '../../services/ssh/ssh_shell_factory.dart';
 import '../../services/ssh/ssh_config_service.dart';
+import '../../shared/shortcuts/shortcut_actions.dart';
+import '../../shared/shortcuts/shortcut_service.dart';
 import '../../shared/theme/nerd_fonts.dart';
 import 'module_registry.dart';
 import 'shell_module.dart';
@@ -68,7 +70,19 @@ class _HomeShellState extends State<HomeShell> {
     _shellStateRestored = widget.settingsController.isLoaded;
     _settingsListener = _handleSettingsChanged;
     widget.settingsController.addListener(_settingsListener);
+    ShortcutService.instance.updateSettings(widget.settingsController.settings);
+    _globalShortcutSub = ShortcutService.instance.registerScope(
+      id: 'global',
+      priority: -10,
+      handlers: {
+        ShortcutActions.globalZoomIn: () => _changeAppZoom(0.05),
+        ShortcutActions.globalZoomOut: () => _changeAppZoom(-0.05),
+      },
+      focusNode: null,
+    );
   }
+
+  ShortcutSubscription? _globalShortcutSub;
 
   void _refreshHosts() {
     final customHosts = widget.settingsController.settings.customSshHosts;
@@ -88,6 +102,7 @@ class _HomeShellState extends State<HomeShell> {
     _commandLog.dispose();
     _moduleRegistry.removeListener(_handleModulesChanged);
     widget.settingsController.removeListener(_settingsListener);
+    _globalShortcutSub?.dispose();
     super.dispose();
   }
 
@@ -122,6 +137,7 @@ class _HomeShellState extends State<HomeShell> {
         _shellStateRestored = true;
       });
     }
+    ShortcutService.instance.updateSettings(widget.settingsController.settings);
     if (_moduleRegistry.modules.isEmpty) {
       return;
     }
@@ -141,6 +157,13 @@ class _HomeShellState extends State<HomeShell> {
         _destinationFromName(settings.shellDestination) ?? _selectedDestination;
     _sidebarCollapsed = settings.shellSidebarCollapsed;
     _sidebarPlacement = _placementFromString(settings.shellSidebarPlacement);
+  }
+
+  Future<void> _changeAppZoom(double delta) async {
+    await widget.settingsController.update((current) {
+      final next = (current.zoomFactor + delta).clamp(0.8, 1.5).toDouble();
+      return current.copyWith(zoomFactor: next);
+    });
   }
 
   String _hostSettingsSignature(AppSettings settings) {
@@ -449,14 +472,18 @@ class _HomeShellState extends State<HomeShell> {
                 .toList(),
           ),
         );
-        return Scaffold(
-          body: SafeArea(
-            child: Stack(
-              children: [
-                Positioned.fill(child: content),
-                if (navigationBar != null)
-                  Align(alignment: navigationAlignment, child: navigationBar),
-              ],
+        return Focus(
+          autofocus: true,
+          canRequestFocus: true,
+          child: Scaffold(
+            body: SafeArea(
+              child: Stack(
+                children: [
+                  Positioned.fill(child: content),
+                  if (navigationBar != null)
+                    Align(alignment: navigationAlignment, child: navigationBar),
+                ],
+              ),
             ),
           ),
         );

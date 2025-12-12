@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
@@ -11,6 +12,7 @@ import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_actions.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_resolver.dart';
+import 'package:cwatch/shared/shortcuts/shortcut_service.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 import 'package:cwatch/shared/views/shared/tabs/terminal/terminal_theme_presets.dart';
@@ -48,8 +50,10 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   final TerminalController _controller = TerminalController();
   final Terminal _terminal = Terminal(maxLines: 1000);
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _focusNode = FocusNode();
+  ShortcutSubscription? _shortcutSub;
   TerminalSession? _pty;
-  StreamSubscription<Uint8List>? _outputSub;
+  StreamSubscription<String>? _outputSub;
   bool _connecting = true;
   String? _error;
   final StringBuffer _outputBuffer = StringBuffer();
@@ -62,7 +66,11 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     super.initState();
     _controller.addListener(_logSelectionChange);
     _scrollController.addListener(_logScrollChange);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _start());
+    _registerShortcuts();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+      _start();
+    });
   }
 
   @override
@@ -73,6 +81,8 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     _scrollController.removeListener(_logScrollChange);
     _scrollController.dispose();
     _controller.dispose();
+    _shortcutSub?.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -118,7 +128,10 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
       }
       _pty = session;
       _outputSub?.cancel();
-      _outputSub = session.output.listen(_handlePtyData);
+      _outputSub =
+          const Utf8Decoder(allowMalformed: true).bind(session.output).listen(
+                _handlePtyText,
+              );
       unawaited(
         session.exitCode.then((_) {
           if (!mounted || token != _sessionToken) return;
@@ -149,9 +162,8 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     return TerminalSessionOptions(columns: columns, rows: rows);
   }
 
-  void _handlePtyData(Uint8List data) {
-    if (data.isEmpty) return;
-    final text = utf8.decode(data, allowMalformed: true);
+  void _handlePtyText(String text) {
+    if (text.isEmpty) return;
     _terminal.write(text);
     _outputBuffer.write(text);
     _logSelectionChange();
@@ -229,24 +241,6 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     final resolvedSettings = settings ?? widget.settingsController?.settings;
     return Actions(
       actions: {
-        CopySelectionTextIntent: CallbackAction<CopySelectionTextIntent>(
-          onInvoke: (intent) {
-            _copyOutput();
-            return null;
-          },
-        ),
-        PasteTextIntent: CallbackAction<PasteTextIntent>(
-          onInvoke: (intent) {
-            _pasteFromClipboard();
-            return null;
-          },
-        ),
-        SelectAllTextIntent: CallbackAction<SelectAllTextIntent>(
-          onInvoke: (intent) {
-            _selectAll();
-            return null;
-          },
-        ),
         _ScrollByIntent: CallbackAction<_ScrollByIntent>(
           onInvoke: (intent) {
             _scrollBy(intent.offset);
@@ -270,6 +264,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
         _terminal,
         controller: _controller,
         scrollController: _scrollController,
+        focusNode: _focusNode,
         shortcuts: _shortcutBindings(resolvedSettings),
         autofocus: widget.autofocus,
         alwaysShowCursor: true,
@@ -292,15 +287,6 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
       map[binding.toActivator()] = intent;
     }
 
-    add(ShortcutActions.terminalCopy, const _CopyTerminalIntent());
-    add(
-      ShortcutActions.terminalPaste,
-      const PasteTextIntent(SelectionChangedCause.keyboard),
-    );
-    add(
-      ShortcutActions.terminalSelectAll,
-      const SelectAllTextIntent(SelectionChangedCause.keyboard),
-    );
     add(
       ShortcutActions.terminalScrollLineUp,
       const _ScrollByIntent(-160),
@@ -327,6 +313,33 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     );
 
     return map;
+  }
+
+  Future<void> _changeTerminalFont(double delta) async {
+    final controller = widget.settingsController;
+    if (controller == null) {
+      return;
+    }
+    await controller.update((current) {
+      final next = (current.terminalFontSize + delta).clamp(8, 32).toDouble();
+      return current.copyWith(terminalFontSize: next);
+    });
+  }
+
+  void _registerShortcuts() {
+    _shortcutSub = ShortcutService.instance.registerScope(
+      id: 'docker_terminal',
+      handlers: {
+        ShortcutActions.terminalZoomIn: () => _changeTerminalFont(1),
+        ShortcutActions.terminalZoomOut: () => _changeTerminalFont(-1),
+        ShortcutActions.terminalCopy: _copyOutput,
+        ShortcutActions.terminalPaste: _pasteFromClipboard,
+        ShortcutActions.terminalSelectAll: _selectAll,
+      },
+      focusNode: _focusNode,
+      priority: 5,
+      consumeOnHandle: true,
+    );
   }
 
   Future<void> _showContextMenu(Offset globalPosition) async {
@@ -485,6 +498,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
         .toDouble();
     return TerminalStyle(
       fontFamily: NerdFonts.effectiveFamily(settings?.terminalFontFamily),
+      fontFamilyFallback: NerdFonts.terminalFallbackFamilies,
       fontSize: fontSize,
       height: lineHeight,
     );

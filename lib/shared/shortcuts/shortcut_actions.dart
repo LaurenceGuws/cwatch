@@ -9,4 +9,10 @@ class ShortcutActions {
   static const terminalScrollPageDown = 'terminal.scrollPageDown';
   static const terminalScrollToTop = 'terminal.scrollToTop';
   static const terminalScrollToBottom = 'terminal.scrollToBottom';
+  static const terminalZoomIn = 'terminal.zoomIn';
+  static const terminalZoomOut = 'terminal.zoomOut';
+  static const editorZoomIn = 'editor.zoomIn';
+  static const editorZoomOut = 'editor.zoomOut';
+  static const globalZoomIn = 'global.zoomIn';
+  static const globalZoomOut = 'global.zoomOut';
 }
