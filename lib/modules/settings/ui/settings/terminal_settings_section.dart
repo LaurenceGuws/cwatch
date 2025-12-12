@@ -69,7 +69,7 @@ class _TerminalSettingsSectionState extends State<TerminalSettingsSection> {
   @override
   Widget build(BuildContext context) {
     return SettingsSection(
-      title: 'Terminal',
+      title: 'Appearance',
       description:
           'Choose the mono Nerd Font, sizing, spacing, and color theme used by the in-app terminal.',
       child: Column(
@@ -82,6 +82,7 @@ class _TerminalSettingsSectionState extends State<TerminalSettingsSection> {
             ),
           ),
           const SizedBox(height: 12),
+          const _GroupLabel('Typography'),
           TextFormField(
             controller: _fontController,
             decoration: const InputDecoration(
@@ -116,6 +117,7 @@ class _TerminalSettingsSectionState extends State<TerminalSettingsSection> {
             ),
           ),
           const SizedBox(height: 12),
+          const _GroupLabel('Padding'),
           _SliderRow(
             label: 'Horizontal padding',
             valueLabel: '${widget.paddingX.toStringAsFixed(0)} px',
@@ -141,6 +143,7 @@ class _TerminalSettingsSectionState extends State<TerminalSettingsSection> {
             ),
           ),
           const SizedBox(height: 12),
+          const _GroupLabel('Color themes'),
           _ThemePickerRow(
             label: 'Light theme',
             value: widget.lightTheme,
@@ -246,6 +249,28 @@ class _SliderRow extends StatelessWidget {
         ),
         child,
       ],
+    );
+  }
+}
+
+class _GroupLabel extends StatelessWidget {
+  const _GroupLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text(
+          text,
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+        ),
+      ),
     );
   }
 }

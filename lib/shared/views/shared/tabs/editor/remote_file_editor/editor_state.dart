@@ -69,7 +69,8 @@ class EditorState extends ChangeNotifier {
   int get searchLineCount => _searchLineCount;
   List<SearchMatch> get searchMatches => _searchMatches;
   int get activeMatch => _activeMatch;
-  int? get activeMatchLine => _activeMatch >= 0 && _activeMatch < _searchMatches.length
+  int? get activeMatchLine =>
+      _activeMatch >= 0 && _activeMatch < _searchMatches.length
       ? _searchMatches[_activeMatch].lineNumber
       : null;
   bool get usePagerView => _pagerMode && !_highlightEnabled;
@@ -106,6 +107,14 @@ class EditorState extends ChangeNotifier {
   void toggleHighlighting() {
     _highlightEnabled = !_highlightEnabled;
     controller.language = _highlightEnabled ? _language : null;
+    notifyListeners();
+  }
+
+  void setLanguageByKey(String? languageId) {
+    _language = languageForKey(languageId);
+    if (_highlightEnabled) {
+      controller.language = _language;
+    }
     notifyListeners();
   }
 
@@ -176,9 +185,12 @@ class EditorState extends ChangeNotifier {
     }
     _lastSearchQuery = trimmed;
     _updateSearchMatches(trimmed);
-    final currentSelectionStart =
-        controller.selection.isValid ? controller.selection.start : -1;
-    final startIndex = _lastSearchIndex >= 0 ? _lastSearchIndex : currentSelectionStart;
+    final currentSelectionStart = controller.selection.isValid
+        ? controller.selection.start
+        : -1;
+    final startIndex = _lastSearchIndex >= 0
+        ? _lastSearchIndex
+        : currentSelectionStart;
     final matchIndex = forward
         ? _findNext(text, trimmed, startIndex)
         : _findPrevious(text, trimmed, startIndex);
@@ -188,8 +200,9 @@ class EditorState extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    final activeMatchIndex =
-        _searchMatches.indexWhere((match) => match.start == matchIndex);
+    final activeMatchIndex = _searchMatches.indexWhere(
+      (match) => match.start == matchIndex,
+    );
     _lastSearchIndex = matchIndex;
     _activeMatch = activeMatchIndex;
     notifyListeners();
@@ -245,8 +258,9 @@ class EditorState extends ChangeNotifier {
     final trimmed = query.trim();
     final text = controller.fullText;
     final lineStarts = _collectLineStarts(text);
-    final lineCount =
-        lineStarts.isEmpty ? 0 : lineStarts.length + (text.endsWith('\n') ? 1 : 0);
+    final lineCount = lineStarts.isEmpty
+        ? 0
+        : lineStarts.length + (text.endsWith('\n') ? 1 : 0);
     if (trimmed.isEmpty || text.isEmpty) {
       _searchMatchLines = const [];
       _searchMatches = const [];

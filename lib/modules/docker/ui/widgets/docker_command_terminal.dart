@@ -29,6 +29,7 @@ class DockerCommandTerminal extends StatefulWidget {
     this.autofocus = true,
     this.onExit,
     this.optionsController,
+    this.onOpenEditorTab,
   });
 
   final SshHost? host;
@@ -40,6 +41,7 @@ class DockerCommandTerminal extends StatefulWidget {
   final bool autofocus;
   final VoidCallback? onExit;
   final TabOptionsController? optionsController;
+  final Future<void> Function(String path, String content)? onOpenEditorTab;
 
   @override
   State<DockerCommandTerminal> createState() => _DockerCommandTerminalState();
@@ -237,26 +239,36 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
       return const Center(child: CircularProgressIndicator());
     }
     final resolvedSettings = settings ?? widget.settingsController?.settings;
-    return TerminalView(
-      _terminal,
-      controller: _controller,
-      scrollController: _scrollController,
-      focusNode: _focusNode,
-      shortcuts: _shortcutBindings(resolvedSettings),
-      autofocus: widget.autofocus,
-      alwaysShowCursor: true,
-      padding: EdgeInsets.symmetric(
-        horizontal: (resolvedSettings?.terminalPaddingX ?? 8)
-            .clamp(0, 48)
-            .toDouble(),
-        vertical: (resolvedSettings?.terminalPaddingY ?? 10)
-            .clamp(0, 48)
-            .toDouble(),
+    return Actions(
+      actions: {
+        _OpenScrollbackIntent: CallbackAction<_OpenScrollbackIntent>(
+          onInvoke: (intent) async {
+            await _openScrollbackInEditor();
+            return null;
+          },
+        ),
+      },
+      child: TerminalView(
+        _terminal,
+        controller: _controller,
+        scrollController: _scrollController,
+        focusNode: _focusNode,
+        shortcuts: _shortcutBindings(resolvedSettings),
+        autofocus: widget.autofocus,
+        alwaysShowCursor: true,
+        padding: EdgeInsets.symmetric(
+          horizontal: (resolvedSettings?.terminalPaddingX ?? 8)
+              .clamp(0, 48)
+              .toDouble(),
+          vertical: (resolvedSettings?.terminalPaddingY ?? 10)
+              .clamp(0, 48)
+              .toDouble(),
+        ),
+        textStyle: _textStyle(resolvedSettings),
+        theme: _terminalTheme(context, resolvedSettings),
+        onSecondaryTapDown: (details, _) =>
+            _showContextMenu(details.globalPosition),
       ),
-      textStyle: _textStyle(resolvedSettings),
-      theme: _terminalTheme(context, resolvedSettings),
-      onSecondaryTapDown: (details, _) =>
-          _showContextMenu(details.globalPosition),
     );
   }
 
@@ -279,6 +291,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
       ShortcutActions.terminalSelectAll,
       const SelectAllTextIntent(SelectionChangedCause.keyboard),
     );
+    add(ShortcutActions.terminalOpenScrollback, const _OpenScrollbackIntent());
 
     return map;
   }
@@ -342,6 +355,13 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
           child: Text('Select all'),
         ),
         const PopupMenuDivider(),
+        PopupMenuItem(
+          value: _TerminalMenuAction.openScrollback,
+          enabled:
+              widget.onOpenEditorTab != null &&
+              _terminal.buffer.lines.length > 0,
+          child: const Text('Open scrollback in editor'),
+        ),
         const PopupMenuItem(
           value: _TerminalMenuAction.clear,
           child: Text('Clear screen'),
@@ -361,6 +381,9 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
         break;
       case _TerminalMenuAction.selectAll:
         _selectAll();
+        break;
+      case _TerminalMenuAction.openScrollback:
+        await _openScrollbackInEditor();
         break;
       case _TerminalMenuAction.clear:
         _sendClearCommand();
@@ -412,6 +435,17 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     _controller.clearSelection();
     _terminal.textInput('clear');
     _terminal.keyInput(TerminalKey.enter);
+  }
+
+  Future<void> _openScrollbackInEditor() async {
+    final openEditor = widget.onOpenEditorTab;
+    if (openEditor == null) return;
+    final content = _stripAnsi(_terminal.buffer.getText());
+    if (content.trim().isEmpty) return;
+    final name = widget.host?.name ?? 'docker';
+    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+    final path = '/tmp/$name-scrollback-$timestamp.log';
+    await openEditor(path, content);
   }
 
   void _logScrollChange() {
@@ -498,7 +532,18 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   }
 }
 
-enum _TerminalMenuAction { copySelection, copyAll, paste, selectAll, clear }
+class _OpenScrollbackIntent extends Intent {
+  const _OpenScrollbackIntent();
+}
+
+enum _TerminalMenuAction {
+  copySelection,
+  copyAll,
+  paste,
+  selectAll,
+  openScrollback,
+  clear,
+}
 
 class ComposeLogsTerminal extends StatefulWidget {
   const ComposeLogsTerminal({
@@ -512,6 +557,7 @@ class ComposeLogsTerminal extends StatefulWidget {
     this.optionsController,
     required this.tailLines,
     this.settingsController,
+    this.onOpenEditorTab,
   });
 
   final String composeBase;
@@ -523,6 +569,7 @@ class ComposeLogsTerminal extends StatefulWidget {
   final TabOptionsController? optionsController;
   final int tailLines;
   final AppSettingsController? settingsController;
+  final Future<void> Function(String path, String content)? onOpenEditorTab;
 
   @override
   State<ComposeLogsTerminal> createState() => _ComposeLogsTerminalState();
@@ -576,6 +623,7 @@ class _ComposeLogsTerminalState extends State<ComposeLogsTerminal> {
             onExit: widget.onExit,
             optionsController: widget.optionsController,
             settingsController: widget.settingsController,
+            onOpenEditorTab: widget.onOpenEditorTab,
           ),
         ),
       ],

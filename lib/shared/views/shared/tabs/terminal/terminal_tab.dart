@@ -26,6 +26,7 @@ class TerminalTab extends StatefulWidget {
     this.initialDirectory,
     required this.shellService,
     required this.settingsController,
+    this.onOpenEditorTab,
     this.onExit,
     this.optionsController,
   });
@@ -34,6 +35,7 @@ class TerminalTab extends StatefulWidget {
   final String? initialDirectory;
   final RemoteShellService shellService;
   final AppSettingsController settingsController;
+  final Future<void> Function(String path, String content)? onOpenEditorTab;
   final VoidCallback? onExit;
   final TabOptionsController? optionsController;
 
@@ -105,10 +107,9 @@ class _TerminalTabState extends State<TerminalTab> {
       _pty = session;
       _applyTerminalSizeToSession();
       _outputSub?.cancel();
-      _outputSub =
-          const Utf8Decoder(allowMalformed: true).bind(session.output).listen(
-                _handlePtyText,
-              );
+      _outputSub = const Utf8Decoder(
+        allowMalformed: true,
+      ).bind(session.output).listen(_handlePtyText);
       unawaited(
         session.exitCode.then((_) {
           if (!mounted || _closing || token != _sessionToken) return;
@@ -258,6 +259,11 @@ class _TerminalTabState extends State<TerminalTab> {
           child: Text('Select all'),
         ),
         const PopupMenuDivider(),
+        PopupMenuItem(
+          value: _TerminalMenuAction.openScrollback,
+          enabled: _terminal.buffer.lines.length > 0,
+          child: const Text('Open scrollback in editor'),
+        ),
         const PopupMenuItem(
           value: _TerminalMenuAction.clear,
           child: Text('Clear screen'),
@@ -274,6 +280,9 @@ class _TerminalTabState extends State<TerminalTab> {
         break;
       case _TerminalMenuAction.selectAll:
         _selectAll();
+        break;
+      case _TerminalMenuAction.openScrollback:
+        await _openScrollbackInEditor();
         break;
       case _TerminalMenuAction.clear:
         _sendClearCommand();
@@ -321,6 +330,21 @@ class _TerminalTabState extends State<TerminalTab> {
     _controller.clearSelection();
     _terminal.textInput('clear');
     _terminal.keyInput(TerminalKey.enter);
+  }
+
+  Future<void> _openScrollbackInEditor() async {
+    final openEditor = widget.onOpenEditorTab;
+    if (openEditor == null) {
+      return;
+    }
+    final content = _terminal.buffer.getText();
+    if (content.trim().isEmpty) {
+      return;
+    }
+    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+    final label =
+        '/tmp/${widget.host.name}-scrollback-$timestamp.log'; // display label
+    await openEditor(label, content);
   }
 
   Widget _buildError(BuildContext context) {
@@ -373,26 +397,37 @@ class _TerminalTabState extends State<TerminalTab> {
             }
             return SizedBox(
               width: double.infinity,
-              child: TerminalView(
-                _terminal,
-                controller: _controller,
-                focusNode: _focusNode,
-                autofocus: true,
-                backgroundOpacity: 1,
-                padding: EdgeInsets.symmetric(
-                  horizontal:
-                      settings.terminalPaddingX.clamp(0, 48).toDouble(),
-                  vertical: settings.terminalPaddingY.clamp(0, 48).toDouble(),
+              child: Actions(
+                actions: {
+                  _OpenScrollbackIntent: CallbackAction<_OpenScrollbackIntent>(
+                    onInvoke: (intent) {
+                      _openScrollbackInEditor();
+                      return null;
+                    },
+                  ),
+                },
+                child: TerminalView(
+                  _terminal,
+                  controller: _controller,
+                  focusNode: _focusNode,
+                  autofocus: true,
+                  backgroundOpacity: 1,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: settings.terminalPaddingX
+                        .clamp(0, 48)
+                        .toDouble(),
+                    vertical: settings.terminalPaddingY.clamp(0, 48).toDouble(),
+                  ),
+                  alwaysShowCursor: true,
+                  deleteDetection:
+                      defaultTargetPlatform == TargetPlatform.android ||
+                      defaultTargetPlatform == TargetPlatform.iOS,
+                  textStyle: _textStyle(settings),
+                  theme: _terminalTheme(context, settings),
+                  shortcuts: _terminalShortcuts(settings),
+                  onSecondaryTapDown: (details, _) =>
+                      _showContextMenu(details.globalPosition),
                 ),
-                alwaysShowCursor: true,
-                deleteDetection:
-                    defaultTargetPlatform == TargetPlatform.android ||
-                    defaultTargetPlatform == TargetPlatform.iOS,
-                textStyle: _textStyle(settings),
-                theme: _terminalTheme(context, settings),
-                shortcuts: _terminalShortcuts(settings),
-                onSecondaryTapDown: (details, _) =>
-                    _showContextMenu(details.globalPosition),
               ),
             );
           },
@@ -403,8 +438,9 @@ class _TerminalTabState extends State<TerminalTab> {
 
   TerminalStyle _textStyle(AppSettings settings) {
     return TerminalStyle(
-      fontFamily:
-          NerdFonts.effectiveTerminalFamily(settings.terminalFontFamily),
+      fontFamily: NerdFonts.effectiveTerminalFamily(
+        settings.terminalFontFamily,
+      ),
       fontFamilyFallback: NerdFonts.terminalFallbackFamilies,
       fontSize: settings.terminalFontSize.clamp(8, 32),
       height: settings.terminalLineHeight.clamp(0.8, 2.0),
@@ -438,6 +474,8 @@ class _TerminalTabState extends State<TerminalTab> {
       ShortcutActions.terminalSelectAll,
       const SelectAllTextIntent(SelectionChangedCause.keyboard),
     );
+    add(ShortcutActions.terminalOpenScrollback, const _OpenScrollbackIntent());
+    add(ShortcutActions.terminalOpenScrollback, const _OpenScrollbackIntent());
 
     return map;
   }
@@ -463,9 +501,8 @@ class _TerminalTabState extends State<TerminalTab> {
   }
 }
 
-enum _TerminalMenuAction {
-  copy,
-  paste,
-  selectAll,
-  clear,
+class _OpenScrollbackIntent extends Intent {
+  const _OpenScrollbackIntent();
 }
+
+enum _TerminalMenuAction { copy, paste, selectAll, openScrollback, clear }

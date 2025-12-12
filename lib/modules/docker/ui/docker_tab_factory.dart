@@ -259,6 +259,7 @@ class DockerTabFactory {
     String? containerId,
     String? containerName,
     String? contextName,
+    Future<void> Function(String path, String content)? onOpenEditorTab,
   }) {
     final controller = CompositeTabOptionsController();
     return EngineTab(
@@ -276,6 +277,7 @@ class DockerTabFactory {
         settingsController: settingsController,
         onExit: onExit,
         optionsController: controller,
+        onOpenEditorTab: onOpenEditorTab,
       ),
       workspaceState: TabState(
         id: id,
@@ -309,6 +311,7 @@ class DockerTabFactory {
     String? contextName,
     VoidCallback? onExit,
     required int tailLines,
+    Future<void> Function(String path, String content)? onOpenEditorTab,
   }) {
     final controller = CompositeTabOptionsController();
     return EngineTab(
@@ -328,6 +331,7 @@ class DockerTabFactory {
         optionsController: controller,
         tailLines: tailLines,
         settingsController: settingsController,
+        onOpenEditorTab: onOpenEditorTab,
       ),
       workspaceState: TabState(
         id: id,

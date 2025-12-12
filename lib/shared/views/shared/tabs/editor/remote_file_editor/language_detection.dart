@@ -143,3 +143,9 @@ String? languageFromPath(String path) {
       return null;
   }
 }
+
+List<String> availableLanguageKeys() {
+  final keys = all_langs.allLanguages.keys.toList();
+  keys.sort();
+  return keys;
+}

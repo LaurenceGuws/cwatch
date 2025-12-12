@@ -42,6 +42,20 @@ class ShortcutCatalog {
       defaultBinding: 'ctrl+shift+a',
     ),
     ShortcutDefinition(
+      id: ShortcutActions.terminalOpenScrollback,
+      label: 'Open scrollback in editor',
+      description: 'Open the current terminal buffer in an editor tab.',
+      category: ShortcutCategory.terminal,
+      defaultBinding: 'ctrl+shift+e',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.terminalOpenScrollback,
+      label: 'Open scrollback in editor',
+      description: 'Open current terminal scrollback in an editor tab.',
+      category: ShortcutCategory.terminal,
+      defaultBinding: 'ctrl+shift+e',
+    ),
+    ShortcutDefinition(
       id: ShortcutActions.terminalScrollLineUp,
       label: 'Scroll up (line)',
       description: 'Scroll up by a small step.',

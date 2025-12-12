@@ -55,17 +55,19 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
   @override
   void initState() {
     super.initState();
-    _state = EditorState(
-      path: widget.path,
-      initialContent: widget.initialContent,
-      settingsController: widget.settingsController,
-    )..addListener(_handleStateChanged)
-     ..registerPagerScroller((line) async {
-       final viewer = _plainViewerKey.currentState;
-       if (viewer != null) {
-         await viewer.scrollToLine(line);
-       }
-     });
+    _state =
+        EditorState(
+            path: widget.path,
+            initialContent: widget.initialContent,
+            settingsController: widget.settingsController,
+          )
+          ..addListener(_handleStateChanged)
+          ..registerPagerScroller((line) async {
+            final viewer = _plainViewerKey.currentState;
+            if (viewer != null) {
+              await viewer.scrollToLine(line);
+            }
+          });
     _registerShortcuts();
     _updateTabOptions();
   }
@@ -90,15 +92,16 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
     final saved = await _state.save(widget.onSave);
     _updateTabOptions();
     if (!mounted || !saved) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Saved ${widget.path}')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Saved ${widget.path}')));
   }
 
   Map<String, TextStyle> _getThemeForColorScheme(ColorScheme scheme) {
     final savedTheme = _state.savedThemeForBrightness(scheme.brightness);
     final themeKey =
-        savedTheme ?? (scheme.brightness == Brightness.dark ? 'dracula' : 'color-brewer');
+        savedTheme ??
+        (scheme.brightness == Brightness.dark ? 'dracula' : 'color-brewer');
     return editorThemeStyles(themeKey);
   }
 
@@ -127,6 +130,51 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
     );
   }
 
+  Future<void> _showLanguageDialog(BuildContext context) async {
+    final languages = availableLanguageKeys();
+    final currentKey = languageFromPath(widget.path);
+    String? selected = currentKey;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Select language'),
+          content: SizedBox(
+            width: 360,
+            child: DropdownButtonFormField<String>(
+              initialValue: selected,
+              isExpanded: true,
+              hint: const Text('Auto-detect'),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('Auto-detect')),
+                ...languages.map(
+                  (key) => DropdownMenuItem(value: key, child: Text(key)),
+                ),
+              ],
+              onChanged: (value) {
+                selected = value;
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                _state.setLanguageByKey(selected);
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Apply'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _updateTabOptions() {
     final options = [
       TabChipOption(
@@ -148,19 +196,26 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
       ),
       if (_state.pagerMode)
         TabChipOption(
-          label:
-              _state.showPagerControls ? 'Hide pager controls' : 'Show pager controls',
+          label: _state.showPagerControls
+              ? 'Hide pager controls'
+              : 'Show pager controls',
           icon: Icons.view_headline,
           onSelected: _state.togglePagerControls,
         ),
       TabChipOption(
-        label: _state.highlightEnabled ? 'Disable highlighting' : 'Enable highlighting',
+        label: _state.highlightEnabled
+            ? 'Disable highlighting'
+            : 'Enable highlighting',
         icon: Icons.speed,
-        color: _state.pagerMode && _state.highlightEnabled ? Colors.amber : null,
+        color: _state.pagerMode && _state.highlightEnabled
+            ? Colors.amber
+            : null,
         onSelected: _state.toggleHighlighting,
       ),
       TabChipOption(
-        label: _state.showLineNumbers ? 'Hide line numbers' : 'Show line numbers',
+        label: _state.showLineNumbers
+            ? 'Hide line numbers'
+            : 'Show line numbers',
         icon: Icons.format_list_numbered,
         onSelected: _state.toggleLineNumbers,
       ),
@@ -173,6 +228,11 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
         label: 'Theme',
         icon: Icons.palette,
         onSelected: () => _showThemeDialog(context),
+      ),
+      TabChipOption(
+        label: 'Language',
+        icon: Icons.code,
+        onSelected: () => _showLanguageDialog(context),
       ),
     ];
 
@@ -218,8 +278,14 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
             InlineSearchBar(
               controller: _state.searchController,
               onSubmit: (value) => _state.performSearch(value, forward: true),
-              onPrev: () => _state.performSearch(_state.searchController.text, forward: false),
-              onNext: () => _state.performSearch(_state.searchController.text, forward: true),
+              onPrev: () => _state.performSearch(
+                _state.searchController.text,
+                forward: false,
+              ),
+              onNext: () => _state.performSearch(
+                _state.searchController.text,
+                forward: true,
+              ),
               onClose: _state.toggleSearchBar,
             ),
           Expanded(

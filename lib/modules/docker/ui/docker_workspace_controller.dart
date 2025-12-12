@@ -125,6 +125,27 @@ class DockerWorkspaceController {
         final host = _hostByName(hosts, dockerState.hostName);
         final shell = host != null ? builders.shellForHost(host) : null;
         final command = _sanitizeExec(dockerState.command!);
+        final containerId = dockerState.containerId;
+        final containerName = dockerState.containerName;
+        Future<void> Function(String path, String content)? openEditorTab;
+        if (host != null && shell != null) {
+          openEditorTab = (path, content) async {
+            final tab = builders.buildEditor(
+              id: 'editor-${DateTime.now().microsecondsSinceEpoch}',
+              title: path,
+              label: path,
+              icon: builders.editorIcon,
+              host: host,
+              shellService: shell,
+              path: path,
+              initialContent: content,
+              containerId: containerId,
+              containerName: containerName,
+              contextName: dockerState.contextName,
+            );
+            builders.onOpenTab(tab);
+          };
+        }
         return builders.buildCommand(
           id: dockerState.id,
           title: dockerState.title!,
@@ -135,6 +156,10 @@ class DockerWorkspaceController {
           shellService: shell,
           onExit: () => builders.closeTab(dockerState.id),
           kind: DockerTabKind.command,
+          containerId: containerId,
+          containerName: containerName,
+          contextName: dockerState.contextName,
+          onOpenEditorTab: openEditorTab,
         );
       case DockerTabKind.containerShell:
       case DockerTabKind.containerLogs:
@@ -144,6 +169,27 @@ class DockerWorkspaceController {
         final host = _hostByName(hosts, dockerState.hostName);
         final shell = host != null ? builders.shellForHost(host) : null;
         final command = _sanitizeExec(dockerState.command!);
+        final containerId = dockerState.containerId;
+        final containerName = dockerState.containerName;
+        Future<void> Function(String path, String content)? openEditorTab;
+        if (host != null && shell != null) {
+          openEditorTab = (path, content) async {
+            final tab = builders.buildEditor(
+              id: 'editor-${DateTime.now().microsecondsSinceEpoch}',
+              title: path,
+              label: path,
+              icon: builders.editorIcon,
+              host: host,
+              shellService: shell,
+              path: path,
+              initialContent: content,
+              containerId: containerId,
+              containerName: containerName,
+              contextName: dockerState.contextName,
+            );
+            builders.onOpenTab(tab);
+          };
+        }
         return builders.buildCommand(
           id: dockerState.id,
           title: dockerState.title!,
@@ -154,6 +200,10 @@ class DockerWorkspaceController {
           shellService: shell,
           onExit: () => builders.closeTab(dockerState.id),
           kind: dockerState.kind,
+          containerId: containerId,
+          containerName: containerName,
+          contextName: dockerState.contextName,
+          onOpenEditorTab: openEditorTab,
         );
       case DockerTabKind.composeLogs:
         if (dockerState.project == null) return null;
@@ -163,6 +213,23 @@ class DockerWorkspaceController {
             dockerState.command ?? 'docker compose -p "${dockerState.project}"';
         final title =
             dockerState.title ?? 'Compose logs: ${dockerState.project}';
+        Future<void> Function(String path, String content)? openEditorTab;
+        if (host != null && shell != null) {
+          openEditorTab = (path, content) async {
+            final tab = builders.buildEditor(
+              id: 'editor-${DateTime.now().microsecondsSinceEpoch}',
+              title: path,
+              label: path,
+              icon: builders.editorIcon,
+              host: host,
+              shellService: shell,
+              path: path,
+              initialContent: content,
+              contextName: dockerState.contextName,
+            );
+            builders.onOpenTab(tab);
+          };
+        }
         return builders.buildComposeLogs(
           id: dockerState.id,
           title: title,
@@ -176,6 +243,7 @@ class DockerWorkspaceController {
           contextName: dockerState.contextName,
           onExit: () => builders.closeTab(dockerState.id),
           tailLines: settingsController.settings.dockerLogsTailClamped,
+          onOpenEditorTab: openEditorTab,
         );
       case DockerTabKind.containerExplorer:
         final host = _hostByName(hosts, dockerState.hostName);
@@ -544,6 +612,7 @@ class TabBuilders {
     String? containerId,
     String? containerName,
     String? contextName,
+    Future<void> Function(String path, String content)? onOpenEditorTab,
   })
   buildCommand;
   final EngineTab Function({
@@ -559,6 +628,7 @@ class TabBuilders {
     String? contextName,
     VoidCallback? onExit,
     required int tailLines,
+    Future<void> Function(String path, String content)? onOpenEditorTab,
   })
   buildComposeLogs;
   final EngineTab Function({

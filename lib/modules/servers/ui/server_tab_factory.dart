@@ -187,6 +187,7 @@ class ServerTabFactory {
           initialDirectory: tab.customName,
           shellService: shellServiceForHost(tab.host),
           settingsController: settingsController,
+          onOpenEditorTab: (path, content) => onOpenEditorTab(path, content),
           onExit: () => onCloseTab(tab.id),
           optionsController: tab.optionsController,
         );

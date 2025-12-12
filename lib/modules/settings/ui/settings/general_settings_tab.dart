@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 
+import 'package:cwatch/models/app_settings.dart';
+import 'package:cwatch/services/settings/app_settings_controller.dart';
+import 'package:cwatch/shared/shortcuts/shortcut_definition.dart';
 import 'settings_section.dart';
+import 'shortcuts_settings_tab.dart';
 
 /// General settings tab widget
 class GeneralSettingsTab extends StatelessWidget {
   const GeneralSettingsTab({
     super.key,
+    required this.settings,
+    required this.settingsController,
     required this.selectedTheme,
     required this.debugMode,
     required this.zoomFactor,
@@ -18,6 +24,8 @@ class GeneralSettingsTab extends StatelessWidget {
     required this.onAppThemeChanged,
   });
 
+  final AppSettings settings;
+  final AppSettingsController settingsController;
   final ThemeMode selectedTheme;
   final bool debugMode;
   final double zoomFactor;
@@ -131,6 +139,14 @@ class GeneralSettingsTab extends StatelessWidget {
             value: debugMode,
             onChanged: onDebugModeChanged,
           ),
+        ),
+        ShortcutCategorySection(
+          category: ShortcutCategory.global,
+          controller: settingsController,
+          settings: settings,
+          titleOverride: 'Shortcuts',
+          descriptionOverride:
+              'App-wide shortcuts for zoom and common actions.',
         ),
       ],
     );

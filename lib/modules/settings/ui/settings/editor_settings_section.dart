@@ -59,11 +59,12 @@ class _EditorSettingsSectionState extends State<EditorSettingsSection> {
   @override
   Widget build(BuildContext context) {
     return SettingsSection(
-      title: 'Text Editor',
+      title: 'Appearance',
       description:
-          'Configure the mono font and spacing used in the remote file editor.',
+          'Configure mono font, spacing, and themes used in the remote file editor and diffs.',
       child: Column(
         children: [
+          const _GroupLabel('Typography'),
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
@@ -106,6 +107,7 @@ class _EditorSettingsSectionState extends State<EditorSettingsSection> {
             ),
           ),
           const SizedBox(height: 12),
+          const _GroupLabel('Highlighting'),
           _ThemePickerRow(
             label: 'Light theme',
             value: widget.lightTheme ?? 'atom-one-light',
@@ -242,6 +244,28 @@ class _SliderRow extends StatelessWidget {
         ),
         child,
       ],
+    );
+  }
+}
+
+class _GroupLabel extends StatelessWidget {
+  const _GroupLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text(
+          text,
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+        ),
+      ),
     );
   }
 }

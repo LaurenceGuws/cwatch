@@ -23,7 +23,7 @@ class ShortcutsSettingsTab extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       children: [
         ...ShortcutCategory.values.map(
-          (category) => _ShortcutGroupCard(
+          (category) => ShortcutCategorySection(
             category: category,
             controller: controller,
             settings: settings,
@@ -34,18 +34,26 @@ class ShortcutsSettingsTab extends StatelessWidget {
   }
 }
 
-class _ShortcutGroupCard extends StatelessWidget {
-  const _ShortcutGroupCard({
+class ShortcutCategorySection extends StatelessWidget {
+  const ShortcutCategorySection({
     required this.category,
     required this.controller,
     required this.settings,
+    this.titleOverride,
+    this.descriptionOverride,
+    super.key,
   });
 
   final ShortcutCategory category;
   final AppSettingsController controller;
   final AppSettings settings;
+  final String? titleOverride;
+  final String? descriptionOverride;
 
   String get _title {
+    if (titleOverride != null && titleOverride!.isNotEmpty) {
+      return titleOverride!;
+    }
     switch (category) {
       case ShortcutCategory.global:
         return 'Global';
@@ -61,6 +69,9 @@ class _ShortcutGroupCard extends StatelessWidget {
   }
 
   String get _description {
+    if (descriptionOverride != null && descriptionOverride!.isNotEmpty) {
+      return descriptionOverride!;
+    }
     switch (category) {
       case ShortcutCategory.global:
         return 'App-wide shortcuts.';

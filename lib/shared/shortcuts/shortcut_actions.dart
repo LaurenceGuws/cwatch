@@ -3,6 +3,7 @@ class ShortcutActions {
   static const terminalCopy = 'terminal.copy';
   static const terminalPaste = 'terminal.paste';
   static const terminalSelectAll = 'terminal.selectAll';
+  static const terminalOpenScrollback = 'terminal.openScrollback';
   static const terminalScrollLineUp = 'terminal.scrollLineUp';
   static const terminalScrollLineDown = 'terminal.scrollLineDown';
   static const terminalScrollPageUp = 'terminal.scrollPageUp';
