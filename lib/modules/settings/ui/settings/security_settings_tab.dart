@@ -70,4 +70,3 @@ class SecuritySettingsTab extends StatelessWidget {
     );
   }
 }
-

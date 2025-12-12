@@ -56,26 +56,23 @@ class DockerOverviewActions {
       _isRemote && remoteHost != null && shellService != null;
 
   String logsBaseCommand(String containerId) {
-    final contextFlag =
-        contextName != null && contextName!.isNotEmpty
-            ? '--context ${contextName!} '
-            : '';
+    final contextFlag = contextName != null && contextName!.isNotEmpty
+        ? '--context ${contextName!} '
+        : '';
     return 'docker ${contextFlag}logs $containerId';
   }
 
   String composeBaseCommand(String project) {
-    final contextFlag =
-        contextName != null && contextName!.isNotEmpty
-            ? '--context ${contextName!} '
-            : '';
+    final contextFlag = contextName != null && contextName!.isNotEmpty
+        ? '--context ${contextName!} '
+        : '';
     return 'docker ${contextFlag}compose -p "$project"';
   }
 
   String followLogsCommand(String containerId) {
-    final contextFlag =
-        contextName != null && contextName!.isNotEmpty
-            ? '--context ${contextName!} '
-            : '';
+    final contextFlag = contextName != null && contextName!.isNotEmpty
+        ? '--context ${contextName!} '
+        : '';
     final tailArg = '--tail $_tailLines';
     return '''
 bash -lc '
@@ -100,10 +97,9 @@ done'
     const historyPrefix =
         'HISTFILE=/dev/null HISTSIZE=0 HISTFILESIZE=0 HISTCONTROL=ignorespace';
     final trimmed = command.trimRight();
-    final suffixed =
-        (trimmed.endsWith('exit') || trimmed.endsWith('exit;'))
-            ? trimmed
-            : '$trimmed; exit';
+    final suffixed = (trimmed.endsWith('exit') || trimmed.endsWith('exit;'))
+        ? trimmed
+        : '$trimmed; exit';
     if (suffixed.startsWith(historyPrefix)) {
       return suffixed;
     }
@@ -111,7 +107,10 @@ done'
   }
 
   List<int> _extractPorts(String raw) {
-    final parts = raw.split(',').map((p) => p.trim()).where((p) => p.isNotEmpty);
+    final parts = raw
+        .split(',')
+        .map((p) => p.trim())
+        .where((p) => p.isNotEmpty);
     final ports = <int>{};
     for (final part in parts) {
       final arrowIndex = part.indexOf('->');
@@ -119,8 +118,9 @@ done'
         final hostSide = part.substring(0, arrowIndex);
         final segments = hostSide.split(':');
         final candidate = segments.isNotEmpty ? segments.last : hostSide;
-        final parsed =
-            int.tryParse(RegExp(r'([0-9]+)').stringMatch(candidate) ?? '');
+        final parsed = int.tryParse(
+          RegExp(r'([0-9]+)').stringMatch(candidate) ?? '',
+        );
         if (parsed != null) {
           ports.add(parsed);
           continue;
@@ -162,50 +162,43 @@ done'
         : const Duration(seconds: 15);
     controller.markContainerAction(container.id, action);
     try {
-      await controller.runWithRetry(
-        () async {
-          if (_isRemote && shellService != null && remoteHost != null) {
-            final cmd = 'docker $action ${container.id}';
-            await shellService!.runCommand(
-              remoteHost!,
-              cmd,
+      await controller.runWithRetry(() async {
+        if (_isRemote && shellService != null && remoteHost != null) {
+          final cmd = 'docker $action ${container.id}';
+          await shellService!.runCommand(remoteHost!, cmd, timeout: timeout);
+          return;
+        }
+        switch (action) {
+          case 'start':
+            await docker.startContainer(
+              id: container.id,
+              context: contextName,
               timeout: timeout,
             );
-            return;
-          }
-          switch (action) {
-            case 'start':
-              await docker.startContainer(
-                id: container.id,
-                context: contextName,
-                timeout: timeout,
-              );
-              break;
-            case 'stop':
-              await docker.stopContainer(
-                id: container.id,
-                context: contextName,
-                timeout: timeout,
-              );
-              break;
-            case 'restart':
-              await docker.restartContainer(
-                id: container.id,
-                context: contextName,
-                timeout: timeout,
-              );
-              break;
-            case 'remove':
-              await docker.removeContainer(
-                id: container.id,
-                context: contextName,
-                timeout: timeout,
-              );
-              break;
-          }
-        },
-        retry: _isRemote,
-      );
+            break;
+          case 'stop':
+            await docker.stopContainer(
+              id: container.id,
+              context: contextName,
+              timeout: timeout,
+            );
+            break;
+          case 'restart':
+            await docker.restartContainer(
+              id: container.id,
+              context: contextName,
+              timeout: timeout,
+            );
+            break;
+          case 'remove':
+            await docker.removeContainer(
+              id: container.id,
+              context: contextName,
+              timeout: timeout,
+            );
+            break;
+        }
+      }, retry: _isRemote);
       if (action == 'restart') {
         await onRestarted();
       } else if (action == 'start') {
@@ -276,9 +269,9 @@ done'
       await onSynced();
     } catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Compose $action failed: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Compose $action failed: $error')));
     } finally {
       for (final id in affectedIds) {
         controller.clearContainerAction(id);
@@ -339,7 +332,8 @@ done'
     if (!context.mounted) return;
     final result = await showPortForwardDialog(
       context: context,
-      title: 'Forward ports (${container.name.isNotEmpty ? container.name : container.id})',
+      title:
+          'Forward ports (${container.name.isNotEmpty ? container.name : container.id})',
       requests: requests,
       portValidator: portForwardService.isPortAvailable,
       active: activeForwards,
@@ -357,17 +351,18 @@ done'
           keyService: keyService,
         ),
       );
-      final summary =
-          result.map((r) => '${r.localPort}->${r.remotePort}').join(', ');
+      final summary = result
+          .map((r) => '${r.localPort}->${r.remotePort}')
+          .join(', ');
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Forwarding $summary via SSH.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Forwarding $summary via SSH.')));
     } catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Port forward failed: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Port forward failed: $error')));
     }
   }
 
@@ -376,9 +371,9 @@ done'
     final forwards = portForwardService.forwardsForHost(remoteHost!).toList();
     if (forwards.isEmpty) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No active forwards.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('No active forwards.')));
       }
       return;
     }
@@ -417,10 +412,9 @@ done'
     final portServices = <int, Set<String>>{};
     for (final container in controller.cachedContainers) {
       if (container.composeProject != project) continue;
-      final serviceName =
-          (container.composeService?.isNotEmpty ?? false)
-              ? container.composeService!
-              : (container.name.isNotEmpty ? container.name : project);
+      final serviceName = (container.composeService?.isNotEmpty ?? false)
+          ? container.composeService!
+          : (container.name.isNotEmpty ? container.name : project);
       final containerPorts = _extractPorts(container.ports);
       for (final p in containerPorts) {
         portServices.putIfAbsent(p, () => <String>{}).add(serviceName);
@@ -489,17 +483,18 @@ done'
           keyService: keyService,
         ),
       );
-      final summary =
-          result.map((r) => '${r.localPort}->${r.remotePort}').join(', ');
+      final summary = result
+          .map((r) => '${r.localPort}->${r.remotePort}')
+          .join(', ');
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Forwarding $summary for $project.')),
       );
     } catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Port forward failed: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Port forward failed: $error')));
     }
   }
 
@@ -581,10 +576,9 @@ done'
     DockerContainer container,
   ) async {
     final name = container.name.isNotEmpty ? container.name : container.id;
-    final contextFlag =
-        contextName != null && contextName!.isNotEmpty
-            ? '--context ${contextName!} '
-            : '';
+    final contextFlag = contextName != null && contextName!.isNotEmpty
+        ? '--context ${contextName!} '
+        : '';
     final command = autoCloseCommand(
       'docker ${contextFlag}exec -it ${container.id} /bin/sh',
     );
@@ -662,14 +656,10 @@ done'
     onOpenTab!(tab);
   }
 
-  Future<void> copyExecCommand(
-    BuildContext context,
-    String containerId,
-  ) async {
-    final contextFlag =
-        contextName != null && contextName!.isNotEmpty
-            ? '--context ${contextName!} '
-            : '';
+  Future<void> copyExecCommand(BuildContext context, String containerId) async {
+    final contextFlag = contextName != null && contextName!.isNotEmpty
+        ? '--context ${contextName!} '
+        : '';
     final command =
         'docker ${contextFlag}exec -it $containerId /bin/sh # change to /bin/bash if needed';
     await Clipboard.setData(ClipboardData(text: command));
@@ -817,9 +807,7 @@ class DockerOverviewMenus {
     if (selected == 'copy') {
       await Clipboard.setData(ClipboardData(text: copyValue));
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('$copyLabel copied to clipboard.')),
         );
       }

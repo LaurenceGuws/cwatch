@@ -56,7 +56,9 @@ class DebugLogsTab extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    debugEnabled ? 'Debug logging is ON' : 'Debug logging is OFF',
+                    debugEnabled
+                        ? 'Debug logging is ON'
+                        : 'Debug logging is OFF',
                     style: Theme.of(context).textTheme.labelMedium,
                   ),
                   const Spacer(),
@@ -97,7 +99,9 @@ class _LogEntryCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final verificationStatus = event.verificationPassed == null
         ? 'No verification run'
-        : (event.verificationPassed! ? 'Verification passed' : 'Verification failed');
+        : (event.verificationPassed!
+              ? 'Verification passed'
+              : 'Verification failed');
     final verificationColor = event.verificationPassed == null
         ? scheme.onSurfaceVariant
         : (event.verificationPassed! ? scheme.primary : scheme.error);
@@ -150,10 +154,9 @@ class _LogEntryCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               verificationStatus,
-              style: Theme.of(context)
-                  .textTheme
-                  .labelMedium
-                  ?.copyWith(color: verificationColor),
+              style: Theme.of(
+                context,
+              ).textTheme.labelMedium?.copyWith(color: verificationColor),
             ),
           ],
         ),

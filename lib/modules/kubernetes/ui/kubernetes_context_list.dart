@@ -19,6 +19,7 @@ import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 import 'package:cwatch/core/tabs/tabbed_workspace_shell.dart';
 import 'package:cwatch/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/core/widgets/keep_alive.dart';
+import 'package:cwatch/core/navigation/tab_navigation_registry.dart';
 import 'widgets/kubernetes_resources.dart';
 import 'kubernetes_tab.dart';
 import 'kubernetes_tab_factory.dart';
@@ -28,10 +29,12 @@ import 'kubernetes_context_controller.dart';
 class KubernetesContextList extends StatefulWidget {
   const KubernetesContextList({
     super.key,
+    required this.moduleId,
     required this.settingsController,
     this.leading,
   });
 
+  final String moduleId;
   final AppSettingsController settingsController;
   final Widget? leading;
 
@@ -56,6 +59,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   List<KubeconfigContext> _cachedContexts = const [];
   late final VoidCallback _settingsListener;
   late final VoidCallback _tabsListener;
+  late final TabNavigationHandle _tabNavigator;
   String? _selectedContextKey;
 
   List<KubernetesTab> get _tabs => _tabController.tabs;
@@ -84,9 +88,27 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     );
     _tabRegistry = TabViewRegistry<KubernetesTab>(
       tabId: (tab) => tab.id,
-      keepAliveBuilder: (child, key) => KeepAliveWrapper(key: key, child: child),
+      keepAliveBuilder: (child, key) =>
+          KeepAliveWrapper(key: key, child: child),
       viewKeyPrefix: 'k8s-tab',
     );
+    _tabNavigator = TabNavigationHandle(
+      next: () {
+        final length = _tabs.length;
+        if (length <= 1) return false;
+        final next = (_tabController.selectedIndex + 1) % length;
+        _tabController.select(next);
+        return true;
+      },
+      previous: () {
+        final length = _tabs.length;
+        if (length <= 1) return false;
+        final prev = (_tabController.selectedIndex - 1 + length) % length;
+        _tabController.select(prev);
+        return true;
+      },
+    );
+    TabNavigationRegistry.instance.register(widget.moduleId, _tabNavigator);
     _settingsListener = _handleSettingsChanged;
     _tabsListener = _handleTabsChanged;
     widget.settingsController.addListener(_settingsListener);
@@ -100,6 +122,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   void dispose() {
     widget.settingsController.removeListener(_settingsListener);
     _tabController.removeListener(_tabsListener);
+    TabNavigationRegistry.instance.unregister(widget.moduleId, _tabNavigator);
     _disposeTabControllers(_tabs);
     _emptyOptions.dispose();
     _tabController.dispose();
@@ -173,9 +196,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
 
   Future<List<KubeconfigContext>> _loadContexts() async {
     final contexts = await _contextController.loadContexts(
-      _contextController.resolveConfigPaths(
-        widget.settingsController.settings,
-      ),
+      _contextController.resolveConfigPaths(widget.settingsController.settings),
     );
     _cachedContexts = contexts;
     _refreshTabContexts(contexts);
@@ -187,7 +208,9 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
       return;
     }
     _refreshContexts();
-    _workspaceController.workspacePersistence.persistIfPending(_persistWorkspace);
+    _workspaceController.workspacePersistence.persistIfPending(
+      _persistWorkspace,
+    );
   }
 
   void _handleTabsChanged() {
@@ -287,20 +310,20 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
       if (context == null) {
         continue;
       }
-        final fresh = _contextController.findContext(
-          contexts,
-          context.name,
-          context.configPath,
-        );
-        if (fresh != null && !_contextController.contextEquals(context, fresh)) {
-          final updatedBody = tab.kind == KubernetesTabKind.resources
-              ? _buildResources(fresh, tab.optionsController!)
-              : _buildContextDetails(fresh);
-          final updated = tab.copyWith(context: fresh, body: updatedBody);
-          _tabs[i] = updated;
-          _syncTabOptions(updated);
-          _tabRegistry.remove(tab);
-          _tabRegistry.widgetFor(updated, () => updated.body);
+      final fresh = _contextController.findContext(
+        contexts,
+        context.name,
+        context.configPath,
+      );
+      if (fresh != null && !_contextController.contextEquals(context, fresh)) {
+        final updatedBody = tab.kind == KubernetesTabKind.resources
+            ? _buildResources(fresh, tab.optionsController!)
+            : _buildContextDetails(fresh);
+        final updated = tab.copyWith(context: fresh, body: updatedBody);
+        _tabs[i] = updated;
+        _syncTabOptions(updated);
+        _tabRegistry.remove(tab);
+        _tabRegistry.widgetFor(updated, () => updated.body);
         changed = true;
       }
     }

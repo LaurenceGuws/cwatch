@@ -139,6 +139,34 @@ class ShortcutCatalog {
       category: ShortcutCategory.global,
       defaultBinding: 'ctrl+shift+_',
     ),
+    ShortcutDefinition(
+      id: ShortcutActions.tabsPrevious,
+      label: 'Previous tab',
+      description: 'Switch to the tab on the left.',
+      category: ShortcutCategory.tabs,
+      defaultBinding: 'alt+arrowleft',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.tabsNext,
+      label: 'Next tab',
+      description: 'Switch to the tab on the right.',
+      category: ShortcutCategory.tabs,
+      defaultBinding: 'alt+arrowright',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.viewsFocusUp,
+      label: 'Focus previous view',
+      description: 'Move focus to the previous view/pane.',
+      category: ShortcutCategory.tabs,
+      defaultBinding: 'alt+arrowup',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.viewsFocusDown,
+      label: 'Focus next view',
+      description: 'Move focus to the next view/pane.',
+      category: ShortcutCategory.tabs,
+      defaultBinding: 'alt+arrowdown',
+    ),
   ];
 
   static Iterable<ShortcutDefinition> byCategory(ShortcutCategory category) =>

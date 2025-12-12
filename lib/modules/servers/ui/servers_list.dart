@@ -18,6 +18,7 @@ import 'package:cwatch/services/ssh/ssh_auth_prompter.dart';
 import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/shared/widgets/port_forward_dialog.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
+import 'package:cwatch/core/navigation/tab_navigation_registry.dart';
 import 'servers/add_server_dialog.dart';
 import 'servers/host_list.dart';
 import 'servers/server_models.dart';
@@ -34,6 +35,7 @@ import 'package:cwatch/core/tabs/tabbed_workspace_shell.dart';
 class ServersList extends StatefulWidget {
   const ServersList({
     super.key,
+    required this.moduleId,
     required this.hostsFuture,
     required this.settingsController,
     required this.keyService,
@@ -42,6 +44,7 @@ class ServersList extends StatefulWidget {
     this.leading,
   });
 
+  final String moduleId;
   final Future<List<SshHost>> hostsFuture;
   final AppSettingsController settingsController;
   final BuiltInSshKeyService keyService;
@@ -64,6 +67,7 @@ class _ServersListState extends State<ServersList> {
   final Map<String, ServerTab> _tabCache = {};
   static int _placeholderSequence = 0;
   late final ServerWorkspaceController _workspaceController;
+  late final TabNavigationHandle _tabNavigator;
   ServerTabFactory get _tabFactory => _workspaceController.tabFactory;
 
   List<ServerTab> get _tabs => _tabController.tabs;
@@ -103,9 +107,27 @@ class _ServersListState extends State<ServersList> {
     );
     _tabRegistry = TabViewRegistry<ServerTab>(
       tabId: (tab) => tab.id,
-      keepAliveBuilder: (child, key) => KeepAliveWrapper(key: key, child: child),
+      keepAliveBuilder: (child, key) =>
+          KeepAliveWrapper(key: key, child: child),
       viewKeyPrefix: 'server-tab',
     );
+    _tabNavigator = TabNavigationHandle(
+      next: () {
+        final length = _tabs.length;
+        if (length <= 1) return false;
+        final next = (_selectedTabIndex + 1) % length;
+        _selectTab(next);
+        return true;
+      },
+      previous: () {
+        final length = _tabs.length;
+        if (length <= 1) return false;
+        final prev = (_selectedTabIndex - 1 + length) % length;
+        _selectTab(prev);
+        return true;
+      },
+    );
+    TabNavigationRegistry.instance.register(widget.moduleId, _tabNavigator);
     final base = _tabController.tabs.first;
     _tabCache[base.id] = base;
     _tabRegistry.widgetFor(base, () => _buildTabWidget(base));
@@ -130,6 +152,7 @@ class _ServersListState extends State<ServersList> {
     _tabController.dispose();
     widget.settingsController.removeListener(_settingsListener);
     _portForwardService.dispose();
+    TabNavigationRegistry.instance.unregister(widget.moduleId, _tabNavigator);
     super.dispose();
   }
 
@@ -322,8 +345,10 @@ class _ServersListState extends State<ServersList> {
     if (!_workspaceController.workspacePersistence.shouldRestore(workspace)) {
       return;
     }
-    final restoredTabs =
-        _workspaceController.buildTabsFromState(workspace, hosts);
+    final restoredTabs = _workspaceController.buildTabsFromState(
+      workspace,
+      hosts,
+    );
     if (restoredTabs.isEmpty) {
       return;
     }
@@ -338,10 +363,7 @@ class _ServersListState extends State<ServersList> {
   }
 
   ServerWorkspaceState _currentWorkspaceState() {
-    return _workspaceController.currentWorkspaceState(
-      _tabs,
-      _selectedTabIndex,
-    );
+    return _workspaceController.currentWorkspaceState(_tabs, _selectedTabIndex);
   }
 
   Future<void> _persistWorkspace() async {
@@ -436,16 +458,17 @@ class _ServersListState extends State<ServersList> {
         ),
       );
       if (!mounted) return;
-      final summary =
-          result.map((r) => '${r.localPort}->${r.remotePort}').join(', ');
+      final summary = result
+          .map((r) => '${r.localPort}->${r.remotePort}')
+          .join(', ');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Forwarding $summary for ${host.name}.')),
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Port forward failed: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Port forward failed: $error')));
     }
   }
 
@@ -729,7 +752,6 @@ class _ServersListState extends State<ServersList> {
     _tabRegistry.widgetFor(tab, () => _buildTabWidget(tab));
     _tabController.addTab(tab);
   }
-
 }
 
 class _EditorTabLoader extends StatelessWidget {

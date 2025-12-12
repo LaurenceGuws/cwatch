@@ -100,7 +100,8 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
         );
         if (retry.status != BuiltInSshKeyAddStatus.success) {
           if (!mounted) return;
-          final message = retry.message ??
+          final message =
+              retry.message ??
               'Unable to import key. Please check the passphrase or format.';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -113,7 +114,8 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
         }
       } else if (addResult.status != BuiltInSshKeyAddStatus.success) {
         if (!mounted) return;
-        final message = addResult.message ??
+        final message =
+            addResult.message ??
             'Key cannot be parsed. It may be encrypted, unsupported, or malformed.';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -228,9 +230,9 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
         break;
       default:
         final message = result.message ?? 'Failed to unlock key.';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
         break;
     }
   }
@@ -388,10 +390,10 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
                     widget.keyService
                         .unlock(entry.id, password: null)
                         .catchError(
-                      (_) => const BuiltInSshKeyUnlockResult(
-                        status: BuiltInSshKeyUnlockStatus.failed,
-                      ),
-                    );
+                          (_) => const BuiltInSshKeyUnlockResult(
+                            status: BuiltInSshKeyUnlockStatus.failed,
+                          ),
+                        );
                   }
                 }
               });

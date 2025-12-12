@@ -50,9 +50,7 @@ class DockerSettingsTab extends StatelessWidget {
 
 /// Kubernetes settings tab widget
 class KubernetesSettingsTab extends StatelessWidget {
-  const KubernetesSettingsTab({
-    super.key,
-  });
+  const KubernetesSettingsTab({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -64,9 +62,7 @@ class KubernetesSettingsTab extends StatelessWidget {
           description: 'Kubernetes discovery runs automatically.',
           child: const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              'No Kubernetes settings to configure yet.',
-            ),
+            child: Text('No Kubernetes settings to configure yet.'),
           ),
         ),
       ],

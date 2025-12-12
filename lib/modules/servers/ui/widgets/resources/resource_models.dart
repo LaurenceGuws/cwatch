@@ -120,12 +120,8 @@ class DiskIoRate {
 
 /// Disk stat sample
 class DiskStatSample {
-  const DiskStatSample({
-    required this.readSectors,
-    required this.writeSectors,
-  });
+  const DiskStatSample({required this.readSectors, required this.writeSectors});
 
   final int readSectors;
   final int writeSectors;
 }
-

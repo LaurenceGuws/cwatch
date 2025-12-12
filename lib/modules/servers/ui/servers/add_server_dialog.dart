@@ -53,17 +53,20 @@ class _AddServerDialogState extends State<AddServerDialog> {
     // Set initial key selection if editing
     if (widget.initialHost?.identityFile != null) {
       // Try to find matching key by ID
-      _keysFuture!.then((keys) {
-        final matchingKey = keys.firstWhere(
-          (key) => key.id == widget.initialHost!.identityFile,
-          orElse: () => keys.isNotEmpty ? keys.first : throw StateError('No keys'),
-        );
-        if (mounted && keys.isNotEmpty) {
-          setState(() => _selectedKeyId = matchingKey.id);
-        }
-      }).catchError((_) {
-        // Ignore if no matching key found
-      });
+      _keysFuture!
+          .then((keys) {
+            final matchingKey = keys.firstWhere(
+              (key) => key.id == widget.initialHost!.identityFile,
+              orElse: () =>
+                  keys.isNotEmpty ? keys.first : throw StateError('No keys'),
+            );
+            if (mounted && keys.isNotEmpty) {
+              setState(() => _selectedKeyId = matchingKey.id);
+            }
+          })
+          .catchError((_) {
+            // Ignore if no matching key found
+          });
     }
   }
 
@@ -171,10 +174,12 @@ class _AddServerDialogState extends State<AddServerDialog> {
                           value: null,
                           child: Text('None (use default)'),
                         ),
-                        ...keys.map((key) => DropdownMenuItem(
-                              value: key.id,
-                              child: Text(key.label),
-                            )),
+                        ...keys.map(
+                          (key) => DropdownMenuItem(
+                            value: key.id,
+                            child: Text(key.label),
+                          ),
+                        ),
                         const DropdownMenuItem(
                           value: '__add_key__',
                           child: Row(
@@ -199,9 +204,8 @@ class _AddServerDialogState extends State<AddServerDialog> {
                             // Show add key dialog
                             final newKey = await showDialog<BuiltInSshKeyEntry>(
                               context: context,
-                              builder: (context) => AddKeyDialog(
-                                keyService: widget.keyService,
-                              ),
+                              builder: (context) =>
+                                  AddKeyDialog(keyService: widget.keyService),
                             );
                             if (newKey != null && mounted) {
                               setState(() {

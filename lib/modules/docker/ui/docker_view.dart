@@ -17,6 +17,7 @@ import 'package:cwatch/core/models/tab_state.dart';
 import 'package:cwatch/core/tabs/tab_host.dart';
 import 'package:cwatch/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/core/tabs/tabbed_workspace_shell.dart';
+import 'package:cwatch/core/navigation/tab_navigation_registry.dart';
 import 'package:cwatch/models/docker_workspace_state.dart';
 import 'package:cwatch/core/widgets/keep_alive.dart';
 import 'engine_tab.dart';
@@ -32,6 +33,7 @@ import 'package:cwatch/services/ssh/ssh_auth_prompter.dart';
 class DockerView extends StatefulWidget {
   const DockerView({
     super.key,
+    required this.moduleId,
     this.leading,
     required this.hostsFuture,
     required this.settingsController,
@@ -40,6 +42,7 @@ class DockerView extends StatefulWidget {
     required this.shellFactory,
   });
 
+  final String moduleId;
   final Widget? leading;
   final Future<List<SshHost>> hostsFuture;
   final AppSettingsController settingsController;
@@ -56,12 +59,12 @@ class _DockerViewState extends State<DockerView> {
   final ExplorerTrashManager _trashManager = ExplorerTrashManager();
   final PortForwardService _portForwardService = PortForwardService();
   DockerTabFactory get _tabFactory => DockerTabFactory(
-        docker: _docker,
-        settingsController: widget.settingsController,
-        trashManager: _trashManager,
-        keyService: widget.keyService,
-        portForwardService: _portForwardService,
-      );
+    docker: _docker,
+    settingsController: widget.settingsController,
+    trashManager: _trashManager,
+    keyService: widget.keyService,
+    portForwardService: _portForwardService,
+  );
   late final TabHostController<EngineTab> _tabController;
   final Map<String, TabState> _tabStates = {};
   late final TabViewRegistry<EngineTab> _tabRegistry;
@@ -69,6 +72,7 @@ class _DockerViewState extends State<DockerView> {
   late final DockerWorkspaceController _workspaceController;
   late final VoidCallback _settingsListener;
   late final VoidCallback _tabsListener;
+  late final TabNavigationHandle _tabNavigator;
 
   Future<List<DockerContext>>? _contextsFuture;
   Future<List<RemoteDockerStatus>>? _remoteStatusFuture;
@@ -118,6 +122,23 @@ class _DockerViewState extends State<DockerView> {
           KeepAliveWrapper(key: key, child: child),
       viewKeyPrefix: 'engine-tab',
     );
+    _tabNavigator = TabNavigationHandle(
+      next: () {
+        final length = _tabs.length;
+        if (length <= 1) return false;
+        final next = (_selectedIndex + 1) % length;
+        _tabController.select(next);
+        return true;
+      },
+      previous: () {
+        final length = _tabs.length;
+        if (length <= 1) return false;
+        final prev = (_selectedIndex - 1 + length) % length;
+        _tabController.select(prev);
+        return true;
+      },
+    );
+    TabNavigationRegistry.instance.register(widget.moduleId, _tabNavigator);
     final picker = _tabController.tabs.first;
     _tabRegistry.widgetFor(picker, () => picker.body);
     _registerTabState(picker.workspaceState as TabState);
@@ -138,6 +159,7 @@ class _DockerViewState extends State<DockerView> {
     _tabController.removeListener(_tabsListener);
     widget.settingsController.removeListener(_settingsListener);
     _portForwardService.dispose();
+    TabNavigationRegistry.instance.unregister(widget.moduleId, _tabNavigator);
     super.dispose();
   }
 

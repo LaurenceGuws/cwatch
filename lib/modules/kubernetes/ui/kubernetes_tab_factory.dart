@@ -23,7 +23,7 @@ class KubernetesTabFactory {
   final Widget Function() buildPlaceholder;
   final Widget Function(KubeconfigContext context) buildDetails;
   final Widget Function(KubeconfigContext context, TabOptionsController options)
-      buildResources;
+  buildResources;
   final IconData detailsIcon;
   final IconData resourcesIcon;
 
@@ -54,7 +54,8 @@ class KubernetesTabFactory {
     String? customName,
     TabOptionsController? optionsController,
   }) {
-    final controller = optionsController ??
+    final controller =
+        optionsController ??
         (kind == KubernetesTabKind.resources
             ? CompositeTabOptionsController()
             : TabOptionsController());

@@ -11,7 +11,8 @@ class NetworkRateCalculator {
     double inbound = 0;
     double outbound = 0;
     if (_lastNetTotals != null) {
-      final elapsed = totals.timestamp
+      final elapsed =
+          totals.timestamp
               .difference(_lastNetTotals!.timestamp)
               .inMilliseconds /
           1000;
@@ -50,9 +51,12 @@ class HistoryManager {
 
   void appendCpu(double value) => _appendHistory(_cpuHistory, value);
   void appendMemory(double value) => _appendHistory(_memoryHistory, value);
-  void appendDiskIo(double value) => _appendHistory(_diskIoHistory, value, clampTo100: false);
-  void appendNetIn(double value) => _appendHistory(_netInHistory, value, clampTo100: false);
-  void appendNetOut(double value) => _appendHistory(_netOutHistory, value, clampTo100: false);
+  void appendDiskIo(double value) =>
+      _appendHistory(_diskIoHistory, value, clampTo100: false);
+  void appendNetIn(double value) =>
+      _appendHistory(_netInHistory, value, clampTo100: false);
+  void appendNetOut(double value) =>
+      _appendHistory(_netOutHistory, value, clampTo100: false);
 
   void _appendHistory(
     List<double> history,
@@ -65,4 +69,3 @@ class HistoryManager {
     }
   }
 }
-

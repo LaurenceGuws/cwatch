@@ -6,9 +6,8 @@ import 'package:cwatch/models/app_settings.dart';
 import 'package:cwatch/services/kubernetes/kubeconfig_service.dart';
 
 class KubernetesContextController {
-  KubernetesContextController({
-    KubeconfigService? kubeconfig,
-  }) : _kubeconfig = kubeconfig ?? const KubeconfigService();
+  KubernetesContextController({KubeconfigService? kubeconfig})
+    : _kubeconfig = kubeconfig ?? const KubeconfigService();
 
   final KubeconfigService _kubeconfig;
 

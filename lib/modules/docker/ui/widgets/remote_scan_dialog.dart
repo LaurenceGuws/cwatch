@@ -62,21 +62,21 @@ class RemoteScanDialog extends StatelessWidget {
                             final state = status == null
                                 ? 'Pending'
                                 : status.available
-                                    ? 'Ready'
-                                    : 'Not ready';
+                                ? 'Ready'
+                                : 'Not ready';
                             final color = status == null
                                 ? Theme.of(context).colorScheme.outline
                                 : status.available
-                                    ? Theme.of(context).colorScheme.primary
-                                    : Theme.of(context).colorScheme.error;
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.error;
                             return ListTile(
                               dense: true,
                               leading: Icon(
                                 status == null
                                     ? Icons.hourglass_bottom
                                     : status.available
-                                        ? Icons.check_circle_outline
-                                        : Icons.error_outline,
+                                    ? Icons.check_circle_outline
+                                    : Icons.error_outline,
                                 color: color,
                                 size: 18,
                               ),
@@ -98,12 +98,7 @@ class RemoteScanDialog extends StatelessWidget {
           );
         },
       ),
-      actions: [
-        TextButton(
-          onPressed: onCancel,
-          child: const Text('Cancel'),
-        ),
-      ],
+      actions: [TextButton(onPressed: onCancel, child: const Text('Cancel'))],
     );
   }
 }

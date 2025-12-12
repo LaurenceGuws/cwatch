@@ -16,4 +16,10 @@ class ShortcutActions {
   static const editorZoomOut = 'editor.zoomOut';
   static const globalZoomIn = 'global.zoomIn';
   static const globalZoomOut = 'global.zoomOut';
+  static const tabsNext = 'tabs.next';
+  static const tabsPrevious = 'tabs.previous';
+  static const tabsFocusLeft = 'tabs.focusLeft';
+  static const tabsFocusRight = 'tabs.focusRight';
+  static const viewsFocusUp = 'views.focusUp';
+  static const viewsFocusDown = 'views.focusDown';
 }

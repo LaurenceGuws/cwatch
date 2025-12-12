@@ -36,6 +36,7 @@ class DockerModule extends ShellModuleView {
   @override
   Widget build(BuildContext context, Widget leading) {
     return DockerView(
+      moduleId: id,
       leading: leading,
       hostsFuture: hostsFuture,
       settingsController: settingsController,

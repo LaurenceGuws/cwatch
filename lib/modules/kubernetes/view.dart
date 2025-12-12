@@ -22,6 +22,7 @@ class KubernetesModule extends ShellModuleView {
   @override
   Widget build(BuildContext context, Widget leading) {
     return KubernetesContextList(
+      moduleId: id,
       leading: leading,
       settingsController: settingsController,
     );

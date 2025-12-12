@@ -7,6 +7,7 @@ import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/widgets/section_nav_bar.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
+import 'package:cwatch/core/navigation/tab_navigation_registry.dart';
 import 'container_settings_tabs.dart';
 import 'debug_logs_tab.dart';
 import 'general_settings_tab.dart';
@@ -40,6 +41,7 @@ class _SettingsViewState extends State<SettingsView>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   late final VoidCallback _settingsListener;
+  late final TabNavigationHandle _tabNavigator;
 
   static const _tabs = [
     Tab(text: 'General'),
@@ -65,6 +67,23 @@ class _SettingsViewState extends State<SettingsView>
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabNavigator = TabNavigationHandle(
+      next: () {
+        if (_tabController.length <= 1) return false;
+        final next = (_tabController.index + 1) % _tabController.length;
+        _tabController.index = next;
+        return true;
+      },
+      previous: () {
+        if (_tabController.length <= 1) return false;
+        final prev =
+            (_tabController.index - 1 + _tabController.length) %
+            _tabController.length;
+        _tabController.index = prev;
+        return true;
+      },
+    );
+    TabNavigationRegistry.instance.register('settings', _tabNavigator);
     _tabController.addListener(_handleTabChanged);
     _settingsListener = _syncTabFromSettings;
     widget.controller.addListener(_settingsListener);
@@ -73,6 +92,7 @@ class _SettingsViewState extends State<SettingsView>
 
   @override
   void dispose() {
+    TabNavigationRegistry.instance.unregister('settings', _tabNavigator);
     widget.controller.removeListener(_settingsListener);
     _tabController.removeListener(_handleTabChanged);
     _tabController.dispose();

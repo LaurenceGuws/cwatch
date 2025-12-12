@@ -309,37 +309,36 @@ class _ContainerPeekState extends State<ContainerPeek> {
             onTapDown: widget.onTapDown == null
                 ? null
                 : (details) => widget.onTapDown!(
-                      container,
-                      details,
-                      secondary: false,
-                      flatIndex: flatIndex,
-                    ),
-            onTap:
-                widget.onTap == null ? null : () => widget.onTap!(container),
+                    container,
+                    details,
+                    secondary: false,
+                    flatIndex: flatIndex,
+                  ),
+            onTap: widget.onTap == null ? null : () => widget.onTap!(container),
             onLongPress: widget.onTapDown == null
                 ? null
                 : () => widget.onTapDown!(
-                      container,
-                      TapDownDetails(kind: PointerDeviceKind.touch),
-                      secondary: true,
-                      flatIndex: flatIndex,
-                    ),
+                    container,
+                    TapDownDetails(kind: PointerDeviceKind.touch),
+                    secondary: true,
+                    flatIndex: flatIndex,
+                  ),
             onDoubleTap: widget.onTapDown == null
                 ? null
                 : () => widget.onTapDown!(
-                      container,
-                      TapDownDetails(kind: PointerDeviceKind.touch),
-                      secondary: true,
-                      flatIndex: flatIndex,
-                    ),
+                    container,
+                    TapDownDetails(kind: PointerDeviceKind.touch),
+                    secondary: true,
+                    flatIndex: flatIndex,
+                  ),
             onSecondaryTapDown: widget.onTapDown == null
                 ? null
                 : (details) => widget.onTapDown!(
-                      container,
-                      details,
-                      secondary: true,
-                      flatIndex: flatIndex,
-                    ),
+                    container,
+                    details,
+                    secondary: true,
+                    flatIndex: flatIndex,
+                  ),
           );
         }).toList();
 
@@ -483,19 +482,15 @@ class ContainerList extends StatelessWidget {
                 : null,
             onTapDown: onTapDown == null
                 ? null
-                : (details) => onTapDown!(
-                      container,
-                      details,
-                      secondary: false,
-                    ),
+                : (details) => onTapDown!(container, details, secondary: false),
             onTap: onTap == null ? null : () => onTap!(container),
             onLongPress: onTapDown == null
                 ? null
                 : () => onTapDown!(
-                      container,
-                      TapDownDetails(kind: PointerDeviceKind.mouse),
-                      secondary: false,
-                    ),
+                    container,
+                    TapDownDetails(kind: PointerDeviceKind.mouse),
+                    secondary: false,
+                  ),
             onSecondaryTapDown: onTapDown == null
                 ? null
                 : (details) => onTapDown!(container, details, secondary: true),
@@ -602,19 +597,15 @@ class ImagePeek extends StatelessWidget {
             ),
             onTapDown: onTapDown == null
                 ? null
-                : (details) => onTapDown!(
-                      image,
-                      details,
-                      secondary: false,
-                    ),
+                : (details) => onTapDown!(image, details, secondary: false),
             onTap: onTap == null ? null : () => onTap!(image),
             onLongPress: onTapDown == null
                 ? null
                 : () => onTapDown!(
-                      image,
-                      TapDownDetails(kind: PointerDeviceKind.mouse),
-                      secondary: false,
-                    ),
+                    image,
+                    TapDownDetails(kind: PointerDeviceKind.mouse),
+                    secondary: false,
+                  ),
             trailing: onTapDown == null
                 ? null
                 : IconButton(
@@ -769,19 +760,15 @@ class NetworkList extends StatelessWidget {
             ),
             onTapDown: onTapDown == null
                 ? null
-                : (details) => onTapDown!(
-                      network,
-                      details,
-                      secondary: false,
-                    ),
+                : (details) => onTapDown!(network, details, secondary: false),
             onTap: onTap == null ? null : () => onTap!(network),
             onLongPress: onTapDown == null
                 ? null
                 : () => onTapDown!(
-                      network,
-                      TapDownDetails(kind: PointerDeviceKind.mouse),
-                      secondary: false,
-                    ),
+                    network,
+                    TapDownDetails(kind: PointerDeviceKind.mouse),
+                    secondary: false,
+                  ),
             trailing: onTapDown == null
                 ? null
                 : IconButton(
@@ -870,19 +857,15 @@ class VolumeList extends StatelessWidget {
             ),
             onTapDown: onTapDown == null
                 ? null
-                : (details) => onTapDown!(
-                      volume,
-                      details,
-                      secondary: false,
-                    ),
+                : (details) => onTapDown!(volume, details, secondary: false),
             onTap: onTap == null ? null : () => onTap!(volume),
             onLongPress: onTapDown == null
                 ? null
                 : () => onTapDown!(
-                      volume,
-                      TapDownDetails(kind: PointerDeviceKind.mouse),
-                      secondary: false,
-                    ),
+                    volume,
+                    TapDownDetails(kind: PointerDeviceKind.mouse),
+                    secondary: false,
+                  ),
             trailing: onTapDown == null
                 ? null
                 : IconButton(

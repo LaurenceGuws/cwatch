@@ -184,11 +184,11 @@ class _DockerOverviewState extends State<DockerOverview> {
     final dockerTheme = _dockerTheme;
     return Padding(
       padding: const EdgeInsets.all(8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: FutureBuilder<EngineSnapshot>(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: FutureBuilder<EngineSnapshot>(
               future: _controller.snapshot,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -264,23 +264,23 @@ class _DockerOverviewState extends State<DockerOverview> {
                       child: SectionCard(
                         title: 'Containers',
                         child: ContainerPeek(
-                        containers: containers,
-                        onTapDown: _handleContainerTapDown,
-                        selectedIds: _controller.selectedContainerIds,
-                        busyIds:
-                            _controller.containerActionInProgress.keys.toSet(),
-                        actionLabels: _controller.containerActionInProgress,
-                        onComposeAction: _handleComposeAction,
-                        onComposeForward: widget.remoteHost != null
-                            ? (project) => _actions.forwardComposePorts(
+                          containers: containers,
+                          onTapDown: _handleContainerTapDown,
+                          selectedIds: _controller.selectedContainerIds,
+                          busyIds: _controller.containerActionInProgress.keys
+                              .toSet(),
+                          actionLabels: _controller.containerActionInProgress,
+                          onComposeAction: _handleComposeAction,
+                          onComposeForward: widget.remoteHost != null
+                              ? (project) => _actions.forwardComposePorts(
                                   context,
                                   project: project,
                                 )
-                            : null,
-                        onComposeStopForward: widget.remoteHost != null
-                            ? (_) => _actions.stopForwardsForHost(context)
-                            : null,
-                      ),
+                              : null,
+                          onComposeStopForward: widget.remoteHost != null
+                              ? (_) => _actions.stopForwardsForHost(context)
+                              : null,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -324,7 +324,12 @@ class _DockerOverviewState extends State<DockerOverview> {
     final scheme = Theme.of(context).colorScheme;
     final extraActions = <PopupMenuEntry<String>>[
       _menus.menuItem(context, 'logs', 'Tail logs', Icons.list_alt_outlined),
-      _menus.menuItem(context, 'shell', 'Open shell tab', NerdIcon.terminal.data),
+      _menus.menuItem(
+        context,
+        'shell',
+        'Open shell tab',
+        NerdIcon.terminal.data,
+      ),
       _menus.menuItem(context, 'copyExec', 'Copy exec command', _icons.copy),
       if (widget.remoteHost != null)
         _menus.menuItem(
@@ -380,10 +385,7 @@ class _DockerOverviewState extends State<DockerOverview> {
             await _actions.stopForwardsForHost(context);
             break;
           case 'forward':
-            await _actions.forwardContainerPorts(
-              context,
-              container: container,
-            );
+            await _actions.forwardContainerPorts(context, container: container);
             break;
           case 'explore':
             await _actions.openContainerExplorer(
@@ -391,15 +393,15 @@ class _DockerOverviewState extends State<DockerOverview> {
               container,
               dockerContextName: _dockerContextName(
                 widget.remoteHost ??
-                const SshHost(
-                  name: 'local',
-                  hostname: 'localhost',
-                  port: 22,
-                  available: true,
-                  user: null,
-                  identityFiles: <String>[],
-                  source: 'local',
-                ),
+                    const SshHost(
+                      name: 'local',
+                      hostname: 'localhost',
+                      port: 22,
+                      available: true,
+                      user: null,
+                      identityFiles: <String>[],
+                      source: 'local',
+                    ),
               ),
             );
             break;
@@ -428,10 +430,7 @@ class _DockerOverviewState extends State<DockerOverview> {
   Future<void> _handleComposeAction(String project, String action) async {
     switch (action) {
       case 'logs':
-        await _actions.openComposeLogsTab(
-          context,
-          project: project,
-        );
+        await _actions.openComposeLogsTab(context, project: project);
         break;
       case 'restart':
         await _actions.runComposeCommand(
@@ -640,11 +639,7 @@ class _DockerOverviewState extends State<DockerOverview> {
     void apply(int target) {
       target = target.clamp(0, maxIndex);
       final key = _currentContainers[target].id;
-      _controller.updateContainerSelection(
-        key,
-        isTouch: false,
-        index: target,
-      );
+      _controller.updateContainerSelection(key, isTouch: false, index: target);
     }
 
     switch (event.logicalKey) {
@@ -671,7 +666,6 @@ class _DockerOverviewState extends State<DockerOverview> {
     }
     return KeyEventResult.ignored;
   }
-
 
   String _dockerContextName(SshHost host) {
     final trimmedContext = widget.contextName?.trim();
@@ -726,5 +720,4 @@ class _DockerOverviewState extends State<DockerOverview> {
       ).showSnackBar(SnackBar(content: Text('Compose sync failed: $error')));
     }
   }
-
 }

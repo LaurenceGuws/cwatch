@@ -26,7 +26,7 @@ class KubernetesWorkspaceController {
   final String placeholderName;
   final String placeholderConfig;
   late final WorkspacePersistence<KubernetesWorkspaceState>
-      workspacePersistence;
+  workspacePersistence;
 
   KubernetesWorkspaceState currentWorkspaceState(
     List<KubernetesTab> tabs,

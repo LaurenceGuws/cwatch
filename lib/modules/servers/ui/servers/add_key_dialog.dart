@@ -6,10 +6,7 @@ import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 
 /// Dialog for adding an SSH key
 class AddKeyDialog extends StatefulWidget {
-  const AddKeyDialog({
-    super.key,
-    required this.keyService,
-  });
+  const AddKeyDialog({super.key, required this.keyService});
 
   final BuiltInSshKeyService keyService;
 
@@ -95,7 +92,8 @@ class _AddKeyDialogState extends State<AddKeyDialog> {
         );
         if (retry.status != BuiltInSshKeyAddStatus.success) {
           if (!mounted) return;
-          final message = retry.message ??
+          final message =
+              retry.message ??
               'Unable to import key. Please check the passphrase or format.';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -111,7 +109,8 @@ class _AddKeyDialogState extends State<AddKeyDialog> {
         return;
       } else if (addResult.status != BuiltInSshKeyAddStatus.success) {
         if (!mounted) return;
-        final message = addResult.message ??
+        final message =
+            addResult.message ??
             'Key cannot be parsed. It may be encrypted, unsupported, or malformed.';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -127,9 +126,9 @@ class _AddKeyDialogState extends State<AddKeyDialog> {
       Navigator.of(context).pop(entry);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to add key: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to add key: $error')));
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -162,9 +161,7 @@ class _AddKeyDialogState extends State<AddKeyDialog> {
                 children: [
                   TextFormField(
                     controller: _labelController,
-                    decoration: const InputDecoration(
-                      labelText: 'Key label',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Key label'),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Label is required';
@@ -231,10 +228,7 @@ class _AddKeyDialogState extends State<AddKeyDialog> {
     );
   }
 
-  Future<String?> _promptPassphrase({
-    required String title,
-    String? helper,
-  }) {
+  Future<String?> _promptPassphrase({required String title, String? helper}) {
     return showDialog<String>(
       context: context,
       builder: (context) {

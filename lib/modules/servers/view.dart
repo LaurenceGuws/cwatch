@@ -36,6 +36,7 @@ class ServersModule extends ShellModuleView {
   @override
   Widget build(BuildContext context, Widget leading) {
     return ServersList(
+      moduleId: id,
       hostsFuture: hostsFuture,
       settingsController: settingsController,
       keyService: keyService,

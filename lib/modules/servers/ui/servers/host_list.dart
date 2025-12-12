@@ -139,9 +139,9 @@ class _HostListState extends State<HostList> {
                               tooltip: 'Edit config file',
                               onPressed: () =>
                                   ExternalAppLauncher.openConfigFile(
-                                source,
-                                context,
-                              ),
+                                    source,
+                                    context,
+                                  ),
                             ),
                       children: hosts.map(_buildHostTile).toList(),
                     ),

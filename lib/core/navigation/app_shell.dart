@@ -18,6 +18,7 @@ import '../../services/ssh/ssh_config_service.dart';
 import '../../shared/shortcuts/shortcut_actions.dart';
 import '../../shared/shortcuts/shortcut_service.dart';
 import '../../shared/theme/nerd_fonts.dart';
+import 'tab_navigation_registry.dart';
 import 'module_registry.dart';
 import 'shell_module.dart';
 
@@ -77,6 +78,10 @@ class _HomeShellState extends State<HomeShell> {
       handlers: {
         ShortcutActions.globalZoomIn: () => _changeAppZoom(0.05),
         ShortcutActions.globalZoomOut: () => _changeAppZoom(-0.05),
+        ShortcutActions.tabsNext: _focusNextTab,
+        ShortcutActions.tabsPrevious: _focusPreviousTab,
+        ShortcutActions.viewsFocusUp: _focusPreviousDestination,
+        ShortcutActions.viewsFocusDown: _focusNextDestination,
       },
       focusNode: null,
     );
@@ -190,6 +195,42 @@ class _HomeShellState extends State<HomeShell> {
     }
     setState(() => _selectedDestination = destination);
     _persistShellState(destination: destination);
+  }
+
+  void _focusNextDestination() {
+    final modules = _moduleRegistry.modules;
+    if (modules.isEmpty) return;
+    final currentIndex = modules.indexWhere(
+      (m) => m.id == _selectedDestination,
+    );
+    final nextIndex = (currentIndex + 1) % modules.length;
+    _handleDestinationSelected(modules[nextIndex].id);
+  }
+
+  void _focusPreviousDestination() {
+    final modules = _moduleRegistry.modules;
+    if (modules.isEmpty) return;
+    final currentIndex = modules.indexWhere(
+      (m) => m.id == _selectedDestination,
+    );
+    final prevIndex = (currentIndex - 1 + modules.length) % modules.length;
+    _handleDestinationSelected(modules[prevIndex].id);
+  }
+
+  void _focusNextTab() {
+    final navigator = TabNavigationRegistry.instance.forModule(
+      _selectedDestination,
+    );
+    final handled = navigator?.next() ?? false;
+    if (handled) return;
+  }
+
+  void _focusPreviousTab() {
+    final navigator = TabNavigationRegistry.instance.forModule(
+      _selectedDestination,
+    );
+    final handled = navigator?.previous() ?? false;
+    if (handled) return;
   }
 
   void _ensurePageCached(String destination, BuildContext context) {

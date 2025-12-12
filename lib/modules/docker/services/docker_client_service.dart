@@ -477,7 +477,10 @@ class DockerClientService {
     );
   }
 
-  Future<void> systemPrune({String? context, bool includeVolumes = false}) async {
+  Future<void> systemPrune({
+    String? context,
+    bool includeVolumes = false,
+  }) async {
     final args = ['system', 'prune', '-f'];
     if (includeVolumes) args.add('--volumes');
     await _runDockerCommand(args, context: context, op: 'prune');
@@ -616,7 +619,9 @@ class DockerClientService {
             final type = (decoded['Type'] as String?)?.trim();
             if (type != null && type.toLowerCase() == 'volume') {
               final name = (decoded['Name'] as String?)?.trim();
-              final size = _volumeSizeOrNull((decoded['Size'] as String?)?.trim());
+              final size = _volumeSizeOrNull(
+                (decoded['Size'] as String?)?.trim(),
+              );
               if (name != null && name.isNotEmpty && size != null) {
                 map[name] = size;
               }
