@@ -132,9 +132,7 @@ class TabChip extends StatelessWidget {
         horizontal: spacing.xs * 0.2,
         vertical: spacing.xs * 0.15,
       ),
-      constraints: BoxConstraints(
-        maxHeight: spacing.base * 2.5,
-      ),
+      constraints: BoxConstraints(maxHeight: spacing.base * 2.5),
       padding: chipStyle.padding,
       decoration: BoxDecoration(
         color: chipStyle.background,
@@ -150,7 +148,9 @@ class TabChip extends StatelessWidget {
             child: _TabChipAction(
               hoverColor: primaryActionHover,
               padding: const EdgeInsets.all(2),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
               child: _DragHandle(
                 dragIndex: dragIndex,
                 color: primaryActionColor,
@@ -168,7 +168,9 @@ class TabChip extends StatelessWidget {
                   Icon(icon, size: 18, color: foreground),
                   Text(
                     ' ',
-                    style: appTheme.typography.tabLabel.copyWith(color: Colors.transparent),
+                    style: appTheme.typography.tabLabel.copyWith(
+                      color: Colors.transparent,
+                    ),
                   ),
                   Flexible(
                     child: Text(
@@ -190,7 +192,11 @@ class TabChip extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildOptionsButton(primaryActionColor, primaryActionHover, menuOptions),
+              _buildOptionsButton(
+                primaryActionColor,
+                primaryActionHover,
+                menuOptions,
+              ),
               SizedBox(width: spacing.xs),
               _TabChipAction(
                 hoverColor: closeHover,
@@ -246,8 +252,9 @@ class TabChip extends StatelessWidget {
         itemBuilder: (context) {
           return List.generate(menuOptions.length, (index) {
             final option = menuOptions[index];
-            final textStyle =
-                option.color != null ? TextStyle(color: option.color) : null;
+            final textStyle = option.color != null
+                ? TextStyle(color: option.color)
+                : null;
             return PopupMenuItem<int>(
               value: index,
               enabled: option.enabled,
@@ -257,10 +264,7 @@ class TabChip extends StatelessWidget {
                     Icon(option.icon, size: 18, color: option.color),
                     const SizedBox(width: 8),
                   ],
-                  Text(
-                    option.label,
-                    style: textStyle,
-                  ),
+                  Text(option.label, style: textStyle),
                 ],
               ),
             );
@@ -302,7 +306,6 @@ class TabChip extends StatelessWidget {
     );
     return result == true;
   }
-
 }
 
 class _TabChipAction extends StatefulWidget {
@@ -336,7 +339,9 @@ class _TabChipActionState extends State<_TabChipAction> {
         padding: widget.padding,
         decoration: BoxDecoration(
           color: _hovering ? widget.hoverColor : Colors.transparent,
-          shape: widget.shape is CircleBorder ? BoxShape.circle : BoxShape.rectangle,
+          shape: widget.shape is CircleBorder
+              ? BoxShape.circle
+              : BoxShape.rectangle,
           borderRadius: widget.shape is RoundedRectangleBorder
               ? (widget.shape as RoundedRectangleBorder).borderRadius
               : null,
@@ -375,19 +380,19 @@ class _DragHandleState extends State<_DragHandle> {
   }
 
   Widget get _handle => SizedBox(
-        width: 20,
-        height: 20,
-        child: Center(
-          child: ValueListenableBuilder<bool>(
-            valueListenable: _dragActive,
-            builder: (context, active, child) {
-              final icon = active ? NerdIcon.dragSelect.data : NerdIcon.drag.data;
-              final color = active ? widget.color : widget.inactiveColor;
-              return Icon(icon, size: 16, color: color);
-            },
-          ),
-        ),
-      );
+    width: 20,
+    height: 20,
+    child: Center(
+      child: ValueListenableBuilder<bool>(
+        valueListenable: _dragActive,
+        builder: (context, active, child) {
+          final icon = active ? NerdIcon.dragSelect.data : NerdIcon.drag.data;
+          final color = active ? widget.color : widget.inactiveColor;
+          return Icon(icon, size: 16, color: color);
+        },
+      ),
+    ),
+  );
 
   @override
   void dispose() {

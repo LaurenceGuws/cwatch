@@ -23,13 +23,13 @@ class LocalPtySession implements TerminalSession {
     Map<String, String>? environment,
     String? workingDirectory,
   }) : _pty = Pty.start(
-          executable,
-          arguments: arguments,
-          columns: cols,
-          rows: rows,
-          environment: environment,
-          workingDirectory: workingDirectory,
-        ) {
+         executable,
+         arguments: arguments,
+         columns: cols,
+         rows: rows,
+         environment: environment,
+         workingDirectory: workingDirectory,
+       ) {
     _exitCode = _pty.exitCode;
     _registry.register(_pty.pid);
     _exitCode.then((_) => _registry.unregister(_pty.pid));

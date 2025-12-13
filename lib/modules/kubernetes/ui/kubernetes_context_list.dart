@@ -20,6 +20,8 @@ import 'package:cwatch/core/tabs/tabbed_workspace_shell.dart';
 import 'package:cwatch/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/core/widgets/keep_alive.dart';
 import 'package:cwatch/core/navigation/tab_navigation_registry.dart';
+import 'package:cwatch/core/navigation/command_palette_registry.dart';
+import 'package:cwatch/core/tabs/tab_bar_visibility.dart';
 import 'widgets/kubernetes_resources.dart';
 import 'kubernetes_tab.dart';
 import 'kubernetes_tab_factory.dart';
@@ -60,6 +62,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   late final VoidCallback _settingsListener;
   late final VoidCallback _tabsListener;
   late final TabNavigationHandle _tabNavigator;
+  late final CommandPaletteHandle _commandPaletteHandle;
   String? _selectedContextKey;
 
   List<KubernetesTab> get _tabs => _tabController.tabs;
@@ -109,6 +112,13 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
       },
     );
     TabNavigationRegistry.instance.register(widget.moduleId, _tabNavigator);
+    _commandPaletteHandle = CommandPaletteHandle(
+      loader: () => _buildCommandPaletteEntries(),
+    );
+    CommandPaletteRegistry.instance.register(
+      widget.moduleId,
+      _commandPaletteHandle,
+    );
     _settingsListener = _handleSettingsChanged;
     _tabsListener = _handleTabsChanged;
     widget.settingsController.addListener(_settingsListener);
@@ -123,6 +133,10 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     widget.settingsController.removeListener(_settingsListener);
     _tabController.removeListener(_tabsListener);
     TabNavigationRegistry.instance.unregister(widget.moduleId, _tabNavigator);
+    CommandPaletteRegistry.instance.unregister(
+      widget.moduleId,
+      _commandPaletteHandle,
+    );
     _disposeTabControllers(_tabs);
     _emptyOptions.dispose();
     _tabController.dispose();
@@ -143,6 +157,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                 controller: _tabController,
                 registry: _tabRegistry,
                 tabBarHeight: 36,
+                showTabBar: TabBarVisibilityController.instance,
                 leading: widget.leading != null
                     ? Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -963,6 +978,50 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     _tabRegistry.widgetFor(placeholder, () => placeholder.body);
     _tabController.addTab(placeholder);
     _persistWorkspace();
+  }
+
+  List<CommandPaletteEntry> _buildCommandPaletteEntries() {
+    final entries = <CommandPaletteEntry>[];
+    if (_tabs.isNotEmpty) {
+      final tab = _tabs[_tabController.selectedIndex];
+      final options = tab.optionsController?.value ?? const <TabChipOption>[];
+      entries.addAll(
+        options.map(
+          (option) => CommandPaletteEntry(
+            id: '${widget.moduleId}:tabOption:${option.label}',
+            label: option.label,
+            category: 'Tab options',
+            onSelected: option.onSelected,
+            icon: option.icon,
+          ),
+        ),
+      );
+      entries.add(
+        CommandPaletteEntry(
+          id: '${widget.moduleId}:renameTab',
+          label: 'Rename tab',
+          category: 'Tabs',
+          onSelected: () => _renameTab(_tabController.selectedIndex),
+        ),
+      );
+      entries.add(
+        CommandPaletteEntry(
+          id: '${widget.moduleId}:closeTab',
+          label: 'Close tab',
+          category: 'Tabs',
+          onSelected: () => _closeTab(_tabController.selectedIndex),
+        ),
+      );
+    }
+    entries.add(
+      CommandPaletteEntry(
+        id: '${widget.moduleId}:newTab',
+        label: 'New tab',
+        category: 'Tabs',
+        onSelected: _startEmptyTab,
+      ),
+    );
+    return entries;
   }
 
   void _closeTab(int index) {

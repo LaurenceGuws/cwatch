@@ -213,8 +213,7 @@ class TimeoutResolution {
   const TimeoutResolution._(this.shouldKill, this.extendBy);
 
   const TimeoutResolution.kill() : this._(true, null);
-  const TimeoutResolution.wait([Duration? extendBy])
-      : this._(false, extendBy);
+  const TimeoutResolution.wait([Duration? extendBy]) : this._(false, extendBy);
 
   final bool shouldKill;
   final Duration? extendBy;
@@ -232,9 +231,8 @@ class TimeoutContext {
   final Duration elapsed;
 }
 
-typedef RunTimeoutHandler = Future<TimeoutResolution> Function(
-  TimeoutContext context,
-);
+typedef RunTimeoutHandler =
+    Future<TimeoutResolution> Function(TimeoutContext context);
 
 class VerificationResult {
   const VerificationResult({

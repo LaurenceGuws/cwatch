@@ -31,7 +31,7 @@ class PlainPagerView extends StatefulWidget {
   final Color matchColor;
   final Color activeMatchColor;
   final void Function(Future<void> Function(int lineNumber) scrollToLine)?
-      onRegisterScrollToLine;
+  onRegisterScrollToLine;
 
   @override
   State<PlainPagerView> createState() => PlainPagerViewState();
@@ -131,13 +131,14 @@ class PlainPagerViewState extends State<PlainPagerView> {
   @override
   Widget build(BuildContext context) {
     final percent = (_progress * 100).clamp(0, 100);
-    final gutterWidth =
-        widget.showLineNumbers ? (_lines.length.toString().length * 9.0) : 0.0;
+    final gutterWidth = widget.showLineNumbers
+        ? (_lines.length.toString().length * 9.0)
+        : 0.0;
     final activeLine =
         widget.activeMatchIndex >= 0 &&
-                widget.activeMatchIndex < widget.matches.length
-            ? widget.matches[widget.activeMatchIndex].lineNumber
-            : null;
+            widget.activeMatchIndex < widget.matches.length
+        ? widget.matches[widget.activeMatchIndex].lineNumber
+        : null;
     final textOffsetX = widget.showLineNumbers ? gutterWidth + 12 : 0.0;
     return FocusableActionDetector(
       autofocus: true,
@@ -336,9 +337,7 @@ class _InlineMatchPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (matches.isEmpty || lines.isEmpty) return;
-    final effectiveStyle = textStyle.copyWith(
-      height: textStyle.height ?? 1.2,
-    );
+    final effectiveStyle = textStyle.copyWith(height: textStyle.height ?? 1.2);
     const direction = TextDirection.ltr;
     final matchPaint = Paint()..color = matchColor;
     final activePaint = Paint()..color = activeMatchColor;
@@ -348,17 +347,15 @@ class _InlineMatchPainter extends CustomPainter {
       final lineIndex = match.lineNumber - 1;
       if (lineIndex < 0 || lineIndex >= lines.length) continue;
       final lineText = lines[lineIndex];
-      final endColumn =
-          match.endColumn > lineText.length ? lineText.length : match.endColumn;
+      final endColumn = match.endColumn > lineText.length
+          ? lineText.length
+          : match.endColumn;
       final painter = TextPainter(
         text: TextSpan(text: lineText, style: effectiveStyle),
         textDirection: direction,
       )..layout();
       final boxes = painter.getBoxesForSelection(
-        TextSelection(
-          baseOffset: match.startColumn,
-          extentOffset: endColumn,
-        ),
+        TextSelection(baseOffset: match.startColumn, extentOffset: endColumn),
       );
       final paint = i == activeMatchIndex ? activePaint : matchPaint;
       for (final box in boxes) {

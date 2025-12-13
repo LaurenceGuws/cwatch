@@ -47,8 +47,9 @@ class _SelectableListItemState extends State<SelectableListItem> {
     final scheme = Theme.of(context).colorScheme;
     final spacing = context.appTheme.spacing;
     final listTokens = context.appTheme.list;
-    final background =
-        widget.selected ? listTokens.selectedBackground : Colors.transparent;
+    final background = widget.selected
+        ? listTokens.selectedBackground
+        : Colors.transparent;
     final foreground = widget.selected
         ? listTokens.selectedForeground
         : listTokens.unselectedForeground;
@@ -84,9 +85,7 @@ class _SelectableListItemState extends State<SelectableListItem> {
               horizontal: spacing.base * 2,
               vertical: spacing.base * 1.2,
             ),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -103,7 +102,8 @@ class _SelectableListItemState extends State<SelectableListItem> {
                           Expanded(
                             child: Text(
                               widget.title,
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(
                                     color: foreground,
                                     fontWeight: widget.selected
                                         ? FontWeight.w700
@@ -118,14 +118,14 @@ class _SelectableListItemState extends State<SelectableListItem> {
                           ],
                         ],
                       ),
-                      if (widget.subtitle != null && widget.subtitle!.isNotEmpty)
+                      if (widget.subtitle != null &&
+                          widget.subtitle!.isNotEmpty)
                         Padding(
                           padding: EdgeInsets.only(top: spacing.xs),
                           child: Text(
                             widget.subtitle!,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: scheme.onSurfaceVariant),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),

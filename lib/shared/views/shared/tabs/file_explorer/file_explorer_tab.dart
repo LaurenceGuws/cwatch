@@ -38,7 +38,7 @@ class FileExplorerTab extends StatefulWidget {
   final ExplorerTrashManager trashManager;
   final ValueChanged<ExplorerContext> onOpenTrash;
   final Future<void> Function(String path, String initialContent)?
-      onOpenEditorTab;
+  onOpenEditorTab;
   final ValueChanged<String>? onOpenTerminalTab;
   final TabOptionsController? optionsController;
 
@@ -188,10 +188,8 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
           entries,
           _controller.markNeedsBuild,
           () {
-            final selectedEntries =
-                _controller.selectionController.getSelectedEntries(
-              entries,
-            );
+            final selectedEntries = _controller.selectionController
+                .getSelectedEntries(entries);
             if (selectedEntries.isNotEmpty) {
               if (selectedEntries.length > 1) {
                 unawaited(_handleMultiCopy(selectedEntries));
@@ -204,10 +202,8 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
             }
           },
           () {
-            final selectedEntries =
-                _controller.selectionController.getSelectedEntries(
-              entries,
-            );
+            final selectedEntries = _controller.selectionController
+                .getSelectedEntries(entries);
             if (selectedEntries.isNotEmpty) {
               if (selectedEntries.length > 1) {
                 unawaited(_handleMultiCut(selectedEntries));
@@ -221,10 +217,8 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
           },
           () => _handlePaste(targetDirectory: _controller.currentPath),
           () {
-            final selectedEntries =
-                _controller.selectionController.getSelectedEntries(
-              entries,
-            );
+            final selectedEntries = _controller.selectionController
+                .getSelectedEntries(entries);
             if (selectedEntries.isNotEmpty) {
               if (selectedEntries.length > 1) {
                 unawaited(
@@ -244,8 +238,9 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
             }
           },
           () {
-            final entry =
-                _controller.selectionController.primarySelectedEntry(entries);
+            final entry = _controller.selectionController.primarySelectedEntry(
+              entries,
+            );
             if (entry != null) {
               unawaited(_promptRename(entry));
             }
@@ -290,9 +285,8 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       currentPath: _controller.currentPath,
       selectedEntries: selectedEntries,
       clipboardAvailable: ExplorerClipboard.hasEntries,
-      onOpen: (e) => _loadPath(
-        PathUtils.joinPath(_controller.currentPath, e.name),
-      ),
+      onOpen: (e) =>
+          _loadPath(PathUtils.joinPath(_controller.currentPath, e.name)),
       onCopyPath: (e) async {
         final path = PathUtils.joinPath(_controller.currentPath, e.name);
         await Clipboard.setData(ClipboardData(text: path));
@@ -319,9 +313,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
           _handleClipboardSet(entries.first, ExplorerClipboardOperation.cut);
         }
       },
-      onPaste: () => _handlePaste(
-        targetDirectory: _controller.currentPath,
-      ),
+      onPaste: () => _handlePaste(targetDirectory: _controller.currentPath),
       onPasteInto: (e) => _handlePaste(
         targetDirectory: PathUtils.joinPath(_controller.currentPath, e.name),
       ),
@@ -395,15 +387,11 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
 
   Future<void> _syncLocalEdit(LocalFileSession session) async {
     _controller.markSyncing(session.remotePath, syncing: true);
-    await _controller.fileEditingService.syncLocalEdit(
-      context,
-      session,
-      (s) {
-        if (mounted) {
-          _controller.updateLocalEdit(s);
-        }
-      },
-    );
+    await _controller.fileEditingService.syncLocalEdit(context, session, (s) {
+      if (mounted) {
+        _controller.updateLocalEdit(s);
+      }
+    });
     if (mounted) {
       _controller.markSyncing(session.remotePath, syncing: false);
     }
@@ -444,8 +432,10 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       return;
     }
     final sourcePath = PathUtils.joinPath(_controller.currentPath, entry.name);
-    final destinationPath =
-        PathUtils.joinPath(_controller.currentPath, trimmed);
+    final destinationPath = PathUtils.joinPath(
+      _controller.currentPath,
+      trimmed,
+    );
     try {
       await _controller.runShell(
         () => widget.shellService.movePath(
@@ -481,8 +471,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       target,
       currentPath: _controller.currentPath,
     );
-    if (normalized ==
-        PathUtils.joinPath(_controller.currentPath, entry.name)) {
+    if (normalized == PathUtils.joinPath(_controller.currentPath, entry.name)) {
       return;
     }
     try {
@@ -707,8 +696,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         TabChipOption(
           label: 'Open terminal here',
           icon: Icons.terminal,
-          onSelected: () =>
-              widget.onOpenTerminalTab!(_controller.currentPath),
+          onSelected: () => widget.onOpenTerminalTab!(_controller.currentPath),
         ),
       );
     }

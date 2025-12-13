@@ -19,6 +19,8 @@ import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/shared/widgets/port_forward_dialog.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/core/navigation/tab_navigation_registry.dart';
+import 'package:cwatch/core/navigation/command_palette_registry.dart';
+import 'package:cwatch/core/tabs/tab_bar_visibility.dart';
 import 'servers/add_server_dialog.dart';
 import 'servers/host_list.dart';
 import 'servers/server_models.dart';
@@ -68,6 +70,7 @@ class _ServersListState extends State<ServersList> {
   static int _placeholderSequence = 0;
   late final ServerWorkspaceController _workspaceController;
   late final TabNavigationHandle _tabNavigator;
+  late final CommandPaletteHandle _commandPaletteHandle;
   ServerTabFactory get _tabFactory => _workspaceController.tabFactory;
 
   List<ServerTab> get _tabs => _tabController.tabs;
@@ -128,6 +131,13 @@ class _ServersListState extends State<ServersList> {
       },
     );
     TabNavigationRegistry.instance.register(widget.moduleId, _tabNavigator);
+    _commandPaletteHandle = CommandPaletteHandle(
+      loader: () => _buildCommandPaletteEntries(),
+    );
+    CommandPaletteRegistry.instance.register(
+      widget.moduleId,
+      _commandPaletteHandle,
+    );
     final base = _tabController.tabs.first;
     _tabCache[base.id] = base;
     _tabRegistry.widgetFor(base, () => _buildTabWidget(base));
@@ -153,6 +163,10 @@ class _ServersListState extends State<ServersList> {
     widget.settingsController.removeListener(_settingsListener);
     _portForwardService.dispose();
     TabNavigationRegistry.instance.unregister(widget.moduleId, _tabNavigator);
+    CommandPaletteRegistry.instance.unregister(
+      widget.moduleId,
+      _commandPaletteHandle,
+    );
     super.dispose();
   }
 
@@ -244,6 +258,7 @@ class _ServersListState extends State<ServersList> {
               controller: _tabController,
               registry: _tabRegistry,
               tabBarHeight: 36,
+              showTabBar: TabBarVisibilityController.instance,
               leading: widget.leading != null
                   ? Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -304,6 +319,49 @@ class _ServersListState extends State<ServersList> {
       );
     }
     return null;
+  }
+
+  List<CommandPaletteEntry> _buildCommandPaletteEntries() {
+    final entries = <CommandPaletteEntry>[];
+    if (_tabs.isNotEmpty) {
+      final tab = _tabs[_selectedTabIndex];
+      entries.addAll(
+        tab.optionsController.value.map(
+          (option) => CommandPaletteEntry(
+            id: '${widget.moduleId}:tabOption:${option.label}',
+            label: option.label,
+            category: 'Tab options',
+            onSelected: option.onSelected,
+            icon: option.icon,
+          ),
+        ),
+      );
+      entries.add(
+        CommandPaletteEntry(
+          id: '${widget.moduleId}:renameTab',
+          label: 'Rename tab',
+          category: 'Tabs',
+          onSelected: () => _renameTab(_selectedTabIndex),
+        ),
+      );
+      entries.add(
+        CommandPaletteEntry(
+          id: '${widget.moduleId}:closeTab',
+          label: 'Close tab',
+          category: 'Tabs',
+          onSelected: () => _closeTab(_selectedTabIndex),
+        ),
+      );
+    }
+    entries.add(
+      CommandPaletteEntry(
+        id: '${widget.moduleId}:newTab',
+        label: 'New tab',
+        category: 'Tabs',
+        onSelected: _startEmptyTab,
+      ),
+    );
+    return entries;
   }
 
   void _handleSettingsChanged() {

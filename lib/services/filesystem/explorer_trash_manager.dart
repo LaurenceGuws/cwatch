@@ -20,7 +20,8 @@ class ExplorerTrashManager {
     final env = Platform.environment;
     String basePath;
     if (Platform.isWindows) {
-      basePath = env['APPDATA'] ?? env['LOCALAPPDATA'] ?? Directory.systemTemp.path;
+      basePath =
+          env['APPDATA'] ?? env['LOCALAPPDATA'] ?? Directory.systemTemp.path;
     } else {
       basePath = env['HOME'] ?? Directory.systemTemp.path;
       basePath = p.join(basePath, '.cache');
@@ -80,9 +81,7 @@ class ExplorerTrashManager {
     return entry;
   }
 
-  Future<List<TrashedEntry>> loadEntries({
-    String? contextId,
-  }) async {
+  Future<List<TrashedEntry>> loadEntries({String? contextId}) async {
     if (!await _baseDir.exists()) {
       return [];
     }
@@ -99,8 +98,10 @@ class ExplorerTrashManager {
         final contents = await metaFile.readAsString();
         final jsonMap = jsonDecode(contents);
         if (jsonMap is Map<String, dynamic>) {
-          final entry =
-              TrashedEntry.fromJson(jsonMap, storagePath: entity.path);
+          final entry = TrashedEntry.fromJson(
+            jsonMap,
+            storagePath: entity.path,
+          );
           if (contextId == null || entry.contextId == contextId) {
             entries.add(entry);
           }
@@ -159,7 +160,10 @@ class ExplorerTrashManager {
       case FileSystemEntityType.directory:
         final dir = Directory(path);
         int total = 0;
-        await for (final entity in dir.list(recursive: true, followLinks: false)) {
+        await for (final entity in dir.list(
+          recursive: true,
+          followLinks: false,
+        )) {
           if (entity is File) {
             final stat = await entity.stat();
             total += stat.size;
@@ -268,7 +272,8 @@ class TrashedEntry {
             available: hostJson['available'] as bool? ?? true,
             source: hostJson['source'] as String?,
             user: hostJson['user'] as String?,
-            identityFiles: (hostJson['identityFiles'] as List<dynamic>?)
+            identityFiles:
+                (hostJson['identityFiles'] as List<dynamic>?)
                     ?.cast<String>()
                     .toList() ??
                 const [],
@@ -286,7 +291,8 @@ class TrashedEntry {
       remotePath: json['remotePath'] as String? ?? '/',
       displayName: json['displayName'] as String? ?? 'Unknown',
       isDirectory: json['isDirectory'] as bool? ?? false,
-      trashedAt: DateTime.tryParse(json['trashedAt'] as String? ?? '') ??
+      trashedAt:
+          DateTime.tryParse(json['trashedAt'] as String? ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0),
       localPath: json['localPath'] as String? ?? storagePath,
       sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? 0,

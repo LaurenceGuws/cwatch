@@ -61,8 +61,7 @@ class _PathNavigatorState extends State<PathNavigator> {
         ? _BreadcrumbsView(
             currentPath: widget.currentPath,
             onPathChanged: widget.onPathChanged,
-            onNavigateToSubdirectory:
-                widget.onNavigateToSubdirectory ?? () {},
+            onNavigateToSubdirectory: widget.onNavigateToSubdirectory ?? () {},
           )
         : _PathFieldView(
             currentPath: widget.currentPath,

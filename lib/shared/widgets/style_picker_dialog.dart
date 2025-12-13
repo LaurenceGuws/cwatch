@@ -28,9 +28,11 @@ Future<String?> showStylePickerDialog({
         if (query.trim().isEmpty) return sorted;
         final lower = query.toLowerCase();
         return sorted
-            .where((opt) =>
-                opt.label.toLowerCase().contains(lower) ||
-                opt.key.toLowerCase().contains(lower))
+            .where(
+              (opt) =>
+                  opt.label.toLowerCase().contains(lower) ||
+                  opt.key.toLowerCase().contains(lower),
+            )
             .toList();
       }
 
@@ -73,9 +75,7 @@ Future<String?> showStylePickerDialog({
                           title: Text(option.label),
                           subtitle: Text(
                             option.key,
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
+                            style: Theme.of(context).textTheme.labelSmall
                                 ?.copyWith(color: Theme.of(context).hintColor),
                           ),
                           onTap: () {

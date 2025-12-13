@@ -8,6 +8,7 @@ import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/widgets/section_nav_bar.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/core/navigation/tab_navigation_registry.dart';
+import 'package:cwatch/core/navigation/command_palette_registry.dart';
 import 'container_settings_tabs.dart';
 import 'debug_logs_tab.dart';
 import 'general_settings_tab.dart';
@@ -42,6 +43,7 @@ class _SettingsViewState extends State<SettingsView>
   late final TabController _tabController;
   late final VoidCallback _settingsListener;
   late final TabNavigationHandle _tabNavigator;
+  late final CommandPaletteHandle _commandPaletteHandle;
 
   static const _tabs = [
     Tab(text: 'General'),
@@ -84,6 +86,10 @@ class _SettingsViewState extends State<SettingsView>
       },
     );
     TabNavigationRegistry.instance.register('settings', _tabNavigator);
+    _commandPaletteHandle = CommandPaletteHandle(
+      loader: () => _buildCommandPaletteEntries(),
+    );
+    CommandPaletteRegistry.instance.register('settings', _commandPaletteHandle);
     _tabController.addListener(_handleTabChanged);
     _settingsListener = _syncTabFromSettings;
     widget.controller.addListener(_settingsListener);
@@ -93,10 +99,31 @@ class _SettingsViewState extends State<SettingsView>
   @override
   void dispose() {
     TabNavigationRegistry.instance.unregister('settings', _tabNavigator);
+    CommandPaletteRegistry.instance.unregister(
+      'settings',
+      _commandPaletteHandle,
+    );
     widget.controller.removeListener(_settingsListener);
     _tabController.removeListener(_handleTabChanged);
     _tabController.dispose();
     super.dispose();
+  }
+
+  List<CommandPaletteEntry> _buildCommandPaletteEntries() {
+    final entries = <CommandPaletteEntry>[];
+    for (var i = 0; i < _tabs.length; i++) {
+      final label = _tabs[i].text ?? 'Tab ${i + 1}';
+      entries.add(
+        CommandPaletteEntry(
+          id: 'settings:tab:$i',
+          label: 'Open $label settings',
+          category: 'Settings',
+          onSelected: () => _tabController.index = i,
+          icon: _tabIcons[i],
+        ),
+      );
+    }
+    return entries;
   }
 
   @override

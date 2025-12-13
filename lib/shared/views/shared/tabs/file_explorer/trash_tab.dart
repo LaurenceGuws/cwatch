@@ -205,9 +205,9 @@ class _TrashTabState extends State<TrashTab> {
       }
       final message = result.message ?? 'Incorrect password for that key.';
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
       }
       AppLogger.w('Unlock failed for key $keyId: $message', tag: 'Trash');
       return false;

@@ -48,9 +48,7 @@ class ShortcutService {
       consumeOnHandle: consumeOnHandle,
     );
     _scopes.add(scope);
-    _scopes.sort(
-      (a, b) => b.priority.compareTo(a.priority),
-    );
+    _scopes.sort((a, b) => b.priority.compareTo(a.priority));
     AppLogger.d(
       'registered scope="$id" priority=$priority bindings=${scope.bindingLabels.join(', ')}',
       tag: 'Shortcuts',
@@ -124,8 +122,8 @@ class _ShortcutScope {
     required this.consumeOnHandle,
     required ShortcutResolver resolver,
     FocusNode? focusNode,
-  })  : focusNode = focusNode ?? FocusNode(skipTraversal: true),
-        _ownsFocusNode = focusNode == null {
+  }) : focusNode = focusNode ?? FocusNode(skipTraversal: true),
+       _ownsFocusNode = focusNode == null {
     _usesFocus = !_ownsFocusNode;
     _focusListener = () {
       _active = _usesFocus ? this.focusNode.hasFocus : true;

@@ -140,6 +140,13 @@ class ShortcutCatalog {
       defaultBinding: 'ctrl+shift+_',
     ),
     ShortcutDefinition(
+      id: ShortcutActions.globalCommandPalette,
+      label: 'Command palette',
+      description: 'Open the global command palette.',
+      category: ShortcutCategory.global,
+      defaultBinding: 'f1',
+    ),
+    ShortcutDefinition(
       id: ShortcutActions.tabsPrevious,
       label: 'Previous tab',
       description: 'Switch to the tab on the left.',

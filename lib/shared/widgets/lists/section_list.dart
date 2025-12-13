@@ -50,10 +50,7 @@ class SectionList extends StatelessWidget {
               ),
             ),
           if (title != null || trailing != null)
-            Divider(
-              height: 1,
-              color: scheme.outlineVariant,
-            ),
+            Divider(height: 1, color: scheme.outlineVariant),
           ..._withDividers(context, children),
         ],
       ),

@@ -20,8 +20,10 @@ class ShortcutBinding {
     final value = input?.trim().toLowerCase();
     if (value == null || value.isEmpty) return null;
 
-    final parts =
-        value.split('+').map((p) => p.trim()).where((p) => p.isNotEmpty);
+    final parts = value
+        .split('+')
+        .map((p) => p.trim())
+        .where((p) => p.isNotEmpty);
 
     var control = false;
     var alt = false;
@@ -107,7 +109,11 @@ class ShortcutBinding {
 
   @override
   int get hashCode =>
-      key.hashCode ^ control.hashCode ^ alt.hashCode ^ shift.hashCode ^ meta.hashCode;
+      key.hashCode ^
+      control.hashCode ^
+      alt.hashCode ^
+      shift.hashCode ^
+      meta.hashCode;
 
   String toConfigString() {
     final parts = <String>[];
@@ -183,8 +189,9 @@ class ShortcutBinding {
         if (token.startsWith('f')) {
           final maybeNumber = int.tryParse(token.substring(1));
           if (maybeNumber != null && maybeNumber >= 1 && maybeNumber <= 24) {
-            return LogicalKeyboardKey(LogicalKeyboardKey.f1.keyId +
-                (maybeNumber - 1) * 0x000200000);
+            return LogicalKeyboardKey(
+              LogicalKeyboardKey.f1.keyId + (maybeNumber - 1) * 0x000200000,
+            );
           }
         }
     }

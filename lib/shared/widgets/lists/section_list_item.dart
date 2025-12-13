@@ -67,10 +67,8 @@ class SectionListItem extends StatelessWidget {
                         Expanded(
                           child: Text(
                             title,
-                            style:
-                                Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      color: foreground,
-                                    ),
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(color: foreground),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -85,9 +83,8 @@ class SectionListItem extends StatelessWidget {
                         padding: EdgeInsets.only(top: spacing.xs),
                         child: Text(
                           subtitle!,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                              ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: scheme.onSurfaceVariant),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),

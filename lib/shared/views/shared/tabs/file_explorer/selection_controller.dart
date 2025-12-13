@@ -6,10 +6,7 @@ import '../../../../../models/remote_file_entry.dart';
 
 /// Controller for managing file selection state and interactions
 class SelectionController {
-  SelectionController({
-    required this.currentPath,
-    required this.joinPath,
-  });
+  SelectionController({required this.currentPath, required this.joinPath});
 
   String currentPath;
   final String Function(String, String) joinPath;
@@ -50,7 +47,13 @@ class SelectionController {
       return;
     }
 
-    applySelection(entries, index, shift: shift, multi: multi, setState: setState);
+    applySelection(
+      entries,
+      index,
+      shift: shift,
+      multi: multi,
+      setState: setState,
+    );
 
     if (isMouse && (event.buttons & kPrimaryMouseButton) != 0) {
       dragSelecting = true;
@@ -139,17 +142,35 @@ class SelectionController {
         if (next == currentIndex) {
           return KeyEventResult.handled;
         }
-        handleKeyboardNavigation(entries, next, shift: shift, multi: multi, setState: setState);
+        handleKeyboardNavigation(
+          entries,
+          next,
+          shift: shift,
+          multi: multi,
+          setState: setState,
+        );
         return KeyEventResult.handled;
       case LogicalKeyboardKey.arrowUp:
         final next = (currentIndex - 1).clamp(0, entries.length - 1);
         if (next == currentIndex) {
           return KeyEventResult.handled;
         }
-        handleKeyboardNavigation(entries, next, shift: shift, multi: multi, setState: setState);
+        handleKeyboardNavigation(
+          entries,
+          next,
+          shift: shift,
+          multi: multi,
+          setState: setState,
+        );
         return KeyEventResult.handled;
       case LogicalKeyboardKey.home:
-        handleKeyboardNavigation(entries, 0, shift: shift, multi: multi, setState: setState);
+        handleKeyboardNavigation(
+          entries,
+          0,
+          shift: shift,
+          multi: multi,
+          setState: setState,
+        );
         return KeyEventResult.handled;
       case LogicalKeyboardKey.end:
         handleKeyboardNavigation(
@@ -162,7 +183,12 @@ class SelectionController {
         return KeyEventResult.handled;
       case LogicalKeyboardKey.space:
         if (shift) {
-          selectRange(entries, currentIndex, additive: true, setState: setState);
+          selectRange(
+            entries,
+            currentIndex,
+            additive: true,
+            setState: setState,
+          );
         } else {
           toggleSelection(entries, currentIndex, setState: setState);
         }
@@ -309,8 +335,9 @@ class SelectionController {
 
   List<RemoteFileEntry> getSelectedEntries(List<RemoteFileEntry> entries) {
     return entries
-        .where((entry) =>
-            selectedPaths.contains(joinPath(currentPath, entry.name)))
+        .where(
+          (entry) => selectedPaths.contains(joinPath(currentPath, entry.name)),
+        )
         .toList();
   }
 

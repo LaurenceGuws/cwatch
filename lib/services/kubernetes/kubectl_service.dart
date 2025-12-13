@@ -52,18 +52,20 @@ class KubectlService {
     required String contextName,
     required String configPath,
   }) async {
-    final argsBase = [
-      '--context',
-      contextName,
-      '--kubeconfig',
-      configPath,
-    ];
-    final nodesOutput = await _runKubectl(
-      [...argsBase, 'top', 'nodes', '--no-headers'],
-    );
-    final podsOutput = await _runKubectl(
-      [...argsBase, 'top', 'pods', '--all-namespaces', '--no-headers'],
-    );
+    final argsBase = ['--context', contextName, '--kubeconfig', configPath];
+    final nodesOutput = await _runKubectl([
+      ...argsBase,
+      'top',
+      'nodes',
+      '--no-headers',
+    ]);
+    final podsOutput = await _runKubectl([
+      ...argsBase,
+      'top',
+      'pods',
+      '--all-namespaces',
+      '--no-headers',
+    ]);
     final nodes = _parseNodeStats(nodesOutput);
     final pods = _parsePodStats(podsOutput);
     return KubeResourceSnapshot(
@@ -79,9 +81,10 @@ class KubectlService {
     final display = 'kubectl ${args.join(' ')}';
     AppLogger.d('Running $display', tag: tag);
     try {
-      final result = await Process.run('kubectl', args).timeout(
-        const Duration(seconds: 8),
-      );
+      final result = await Process.run(
+        'kubectl',
+        args,
+      ).timeout(const Duration(seconds: 8));
       stopwatch.stop();
       if (result.exitCode != 0) {
         final stderr = result.stderr?.toString().trim();
@@ -120,7 +123,9 @@ class KubectlService {
   }
 
   List<KubeNodeStat> _parseNodeStats(String output) {
-    final lines = output.split(RegExp(r'\r?\n')).where((l) => l.trim().isNotEmpty);
+    final lines = output
+        .split(RegExp(r'\r?\n'))
+        .where((l) => l.trim().isNotEmpty);
     final nodes = <KubeNodeStat>[];
     for (final line in lines) {
       final parts = _splitColumns(line);
@@ -146,7 +151,9 @@ class KubectlService {
   }
 
   List<KubePodStat> _parsePodStats(String output) {
-    final lines = output.split(RegExp(r'\r?\n')).where((l) => l.trim().isNotEmpty);
+    final lines = output
+        .split(RegExp(r'\r?\n'))
+        .where((l) => l.trim().isNotEmpty);
     final pods = <KubePodStat>[];
     for (final line in lines) {
       final parts = _splitColumns(line);

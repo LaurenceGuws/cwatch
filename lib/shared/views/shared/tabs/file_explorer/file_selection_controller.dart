@@ -25,7 +25,12 @@ class FileSelectionController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void selectRange(List<String> paths, int startIndex, int endIndex, {bool additive = false}) {
+  void selectRange(
+    List<String> paths,
+    int startIndex,
+    int endIndex, {
+    bool additive = false,
+  }) {
     final start = startIndex < endIndex ? startIndex : endIndex;
     final end = startIndex < endIndex ? endIndex : startIndex;
     final nextSelection = additive ? {..._selectedPaths} : <String>{};
@@ -92,7 +97,10 @@ class FileSelectionController extends ChangeNotifier {
     return _selectionAnchorIndex ?? _lastSelectedIndex ?? fallback;
   }
 
-  int resolveFocusedIndex(List<String> allPaths, String Function(int) pathForIndex) {
+  int resolveFocusedIndex(
+    List<String> allPaths,
+    String Function(int) pathForIndex,
+  ) {
     final last = _lastSelectedIndex;
     if (last != null && last >= 0 && last < allPaths.length) {
       return last;
@@ -106,4 +114,3 @@ class FileSelectionController extends ChangeNotifier {
     return 0;
   }
 }
-

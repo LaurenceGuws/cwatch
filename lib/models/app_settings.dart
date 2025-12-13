@@ -17,6 +17,7 @@ class AppSettings {
     this.shellDestination,
     this.shellSidebarCollapsed = false,
     this.shellSidebarPlacement = 'dynamic',
+    this.windowUseSystemDecorations = true,
     this.appFontFamily,
     this.appThemeKey = 'blue-grey',
     this.sshClientBackend = SshClientBackend.platform,
@@ -56,6 +57,7 @@ class AppSettings {
   final String? shellDestination;
   final bool shellSidebarCollapsed;
   final String? shellSidebarPlacement;
+  final bool windowUseSystemDecorations;
   final String? appFontFamily;
   final String appThemeKey;
   final SshClientBackend sshClientBackend;
@@ -97,6 +99,7 @@ class AppSettings {
     String? shellDestination,
     bool? shellSidebarCollapsed,
     String? shellSidebarPlacement,
+    bool? windowUseSystemDecorations,
     String? appFontFamily,
     String? appThemeKey,
     SshClientBackend? sshClientBackend,
@@ -138,6 +141,8 @@ class AppSettings {
           shellSidebarCollapsed ?? this.shellSidebarCollapsed,
       shellSidebarPlacement:
           shellSidebarPlacement ?? this.shellSidebarPlacement,
+      windowUseSystemDecorations:
+          windowUseSystemDecorations ?? this.windowUseSystemDecorations,
       appFontFamily: appFontFamily ?? this.appFontFamily,
       appThemeKey: appThemeKey ?? this.appThemeKey,
       sshClientBackend: sshClientBackend ?? this.sshClientBackend,
@@ -211,6 +216,8 @@ class AppSettings {
       shellSidebarCollapsed: json['shellSidebarCollapsed'] as bool? ?? false,
       shellSidebarPlacement:
           json['shellSidebarPlacement'] as String? ?? 'dynamic',
+      windowUseSystemDecorations:
+          json['windowUseSystemDecorations'] as bool? ?? true,
       appFontFamily: json['appFontFamily'] as String?,
       appThemeKey: json['appThemeKey'] as String? ?? 'blue-grey',
       sshClientBackend: SshClientBackendParsing.fromJson(
@@ -312,6 +319,7 @@ class AppSettings {
       'shellDestination': shellDestination,
       'shellSidebarCollapsed': shellSidebarCollapsed,
       'shellSidebarPlacement': shellSidebarPlacement,
+      'windowUseSystemDecorations': windowUseSystemDecorations,
       if (appFontFamily != null) 'appFontFamily': appFontFamily,
       'appThemeKey': appThemeKey,
       'sshClientBackend': sshClientBackend.name,

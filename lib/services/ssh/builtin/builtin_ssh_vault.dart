@@ -16,8 +16,7 @@ class BuiltInSshVault extends ChangeNotifier {
   bool isUnlocked(String keyId) => _unlocked.containsKey(keyId);
 
   Uint8List? getUnlockedKey(String keyId) => _unlocked[keyId];
-  BuiltInSshKeyEntry? getUnlockedEntry(String keyId) =>
-      _unlockedEntries[keyId];
+  BuiltInSshKeyEntry? getUnlockedEntry(String keyId) => _unlockedEntries[keyId];
 
   /// Checks if a key requires a password to unlock (i.e., if storage is encrypted).
   Future<bool> needsPassword(String keyId) async {
@@ -98,4 +97,3 @@ class BuiltInSshVault extends ChangeNotifier {
     }
   }
 }
-

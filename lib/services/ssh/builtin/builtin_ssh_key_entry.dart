@@ -14,20 +14,20 @@ class BuiltInSshKeyEntry {
     this.mac,
     this.plaintext,
   }) : assert(
-          isEncrypted
-              ? (salt != null &&
-                  nonce != null &&
-                  ciphertext != null &&
-                  mac != null &&
-                  plaintext == null)
-              : (plaintext != null &&
-                  salt == null &&
-                  nonce == null &&
-                  ciphertext == null &&
-                  mac == null),
-          'Encrypted keys must have salt/nonce/ciphertext/mac, '
-          'unencrypted keys must have plaintext',
-        );
+         isEncrypted
+             ? (salt != null &&
+                   nonce != null &&
+                   ciphertext != null &&
+                   mac != null &&
+                   plaintext == null)
+             : (plaintext != null &&
+                   salt == null &&
+                   nonce == null &&
+                   ciphertext == null &&
+                   mac == null),
+         'Encrypted keys must have salt/nonce/ciphertext/mac, '
+         'unencrypted keys must have plaintext',
+       );
 
   final String id;
   final String label;
@@ -72,7 +72,8 @@ class BuiltInSshKeyEntry {
 
   factory BuiltInSshKeyEntry.fromJson(Map<String, dynamic> json) {
     final version = json['version'] as int? ?? 1;
-    final isEncrypted = json['isEncrypted'] as bool? ??
+    final isEncrypted =
+        json['isEncrypted'] as bool? ??
         (version == 1); // Legacy entries are always encrypted
     final keyHasPassphrase = json['keyHasPassphrase'] as bool? ?? false;
 
@@ -81,7 +82,8 @@ class BuiltInSshKeyEntry {
         id: json['id'] as String,
         label: json['label'] as String? ?? 'Unnamed key',
         fingerprint: json['fingerprint'] as String? ?? '',
-        createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+        createdAt:
+            DateTime.tryParse(json['createdAt'] as String? ?? '') ??
             DateTime.fromMillisecondsSinceEpoch(0),
         isEncrypted: true,
         keyHasPassphrase: keyHasPassphrase,
@@ -95,7 +97,8 @@ class BuiltInSshKeyEntry {
         id: json['id'] as String,
         label: json['label'] as String? ?? 'Unnamed key',
         fingerprint: json['fingerprint'] as String? ?? '',
-        createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+        createdAt:
+            DateTime.tryParse(json['createdAt'] as String? ?? '') ??
             DateTime.fromMillisecondsSinceEpoch(0),
         isEncrypted: false,
         keyHasPassphrase: keyHasPassphrase,

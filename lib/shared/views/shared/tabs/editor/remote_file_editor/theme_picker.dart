@@ -11,10 +11,13 @@ Future<void> showEditorThemeDialog({
   required void Function(String themeKey) onPreview,
 }) async {
   final themes = editorThemeOptions();
-  final defaultTheme = brightness == Brightness.dark ? 'dracula' : 'color-brewer';
+  final defaultTheme = brightness == Brightness.dark
+      ? 'dracula'
+      : 'color-brewer';
   final initialKey = savedTheme ?? defaultTheme;
-  final options =
-      themes.entries.map((e) => StyleOption(key: e.key, label: e.value)).toList();
+  final options = themes.entries
+      .map((e) => StyleOption(key: e.key, label: e.value))
+      .toList();
 
   final chosen = await showStylePickerDialog(
     context: context,

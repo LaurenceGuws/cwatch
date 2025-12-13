@@ -32,7 +32,7 @@ class KnownHostVerificationResult {
 /// only surfaces fingerprints rather than full host key material.
 class KnownHostsStore {
   const KnownHostsStore({SettingsPathProvider? pathProvider})
-      : _pathProvider = pathProvider ?? const SettingsPathProvider();
+    : _pathProvider = pathProvider ?? const SettingsPathProvider();
 
   final SettingsPathProvider _pathProvider;
   static const _fileName = 'known_hosts_fingerprints';
@@ -55,16 +55,14 @@ class KnownHostsStore {
     }
     final lines = const LineSplitter()
         .convert(await file.readAsString())
-        .where((line) => line.trim().isNotEmpty && !line.trim().startsWith('#'));
+        .where(
+          (line) => line.trim().isNotEmpty && !line.trim().startsWith('#'),
+        );
     for (final line in lines) {
       final parts = line.trim().split(RegExp(r'\\s+'));
       if (parts.length < 3) continue;
       entries.add(
-        KnownHostEntry(
-          host: parts[0],
-          type: parts[1],
-          fingerprint: parts[2],
-        ),
+        KnownHostEntry(host: parts[0], type: parts[1], fingerprint: parts[2]),
       );
     }
     return entries;
@@ -77,8 +75,9 @@ class KnownHostsStore {
     bool acceptNew = true,
   }) async {
     final entries = await loadEntries();
-    final existingIndex =
-        entries.indexWhere((entry) => _hostsEqual(entry.host, host));
+    final existingIndex = entries.indexWhere(
+      (entry) => _hostsEqual(entry.host, host),
+    );
     if (existingIndex != -1) {
       final existing = entries[existingIndex];
       if (existing.fingerprint == fingerprint && existing.type == type) {

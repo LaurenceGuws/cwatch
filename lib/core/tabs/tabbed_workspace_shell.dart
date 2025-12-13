@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import 'package:cwatch/core/tabs/tab_host.dart';
 import 'package:cwatch/core/tabs/tab_host_view.dart';
@@ -16,6 +17,7 @@ class TabbedWorkspaceShell<T> extends StatelessWidget {
     this.leading,
     this.onAddTab,
     this.onReorder,
+    this.showTabBar,
   });
 
   final TabHostController<T> controller;
@@ -24,6 +26,7 @@ class TabbedWorkspaceShell<T> extends StatelessWidget {
   final Widget? leading;
   final void Function()? onAddTab;
   final void Function(int oldIndex, int newIndex)? onReorder;
+  final ValueListenable<bool>? showTabBar;
   final Widget Function(BuildContext context, int index, T tab) buildChip;
   final Widget Function(T tab) buildBody;
 
@@ -35,6 +38,7 @@ class TabbedWorkspaceShell<T> extends StatelessWidget {
       leading: leading,
       onAddTab: onAddTab,
       onReorder: onReorder,
+      showTabBar: showTabBar,
       buildChip: buildChip,
       buildBody: (tab) => registry.widgetFor(tab, () => buildBody(tab)),
       tabId: registry.tabId,

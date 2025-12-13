@@ -20,12 +20,12 @@ class BuiltInSshClientManager {
     this.connectTimeout = const Duration(seconds: 10),
     SshAuthCoordinator? authCoordinator,
     KnownHostsStore? knownHostsStore,
-  })  : _identityManager = BuiltInSshIdentityManager(
-          vault: vault,
-          hostKeyBindings: hostKeyBindings,
-        ),
-        authCoordinator = authCoordinator ?? const SshAuthCoordinator(),
-        knownHostsStore = knownHostsStore ?? const KnownHostsStore();
+  }) : _identityManager = BuiltInSshIdentityManager(
+         vault: vault,
+         hostKeyBindings: hostKeyBindings,
+       ),
+       authCoordinator = authCoordinator ?? const SshAuthCoordinator(),
+       knownHostsStore = knownHostsStore ?? const KnownHostsStore();
 
   final BuiltInSshVault vault;
   final Duration connectTimeout;
@@ -63,7 +63,9 @@ class BuiltInSshClientManager {
     if (exitCodeMatch != null) {
       final exitCode = int.tryParse(exitCodeMatch.group(1) ?? '') ?? -1;
       if (exitCode != 0) {
-        logBuiltInSsh('Command failed on ${host.name} with exit code: $exitCode');
+        logBuiltInSsh(
+          'Command failed on ${host.name} with exit code: $exitCode',
+        );
         throw Exception('Command failed with exit code $exitCode');
       }
       logBuiltInSsh('Command on ${host.name} completed successfully');
@@ -83,24 +85,21 @@ class BuiltInSshClientManager {
   }) async {
     final safeCommand = _prependNoHistory(command);
     logBuiltInSsh('Running command on ${host.name}: $safeCommand');
-    final bytes = await _withClient(
-      host,
-      (client) async {
-        final future = client.run(safeCommand);
-        return _waitWithTimeout(
-          future: future,
-          timeout: timeout,
-          host: host,
-          commandDescription: safeCommand,
-          onTimeout: onTimeout,
-          onKill: () {
-            try {
-              client.close();
-            } catch (_) {}
-          },
-        );
-      },
-    );
+    final bytes = await _withClient(host, (client) async {
+      final future = client.run(safeCommand);
+      return _waitWithTimeout(
+        future: future,
+        timeout: timeout,
+        host: host,
+        commandDescription: safeCommand,
+        onTimeout: onTimeout,
+        onKill: () {
+          try {
+            client.close();
+          } catch (_) {}
+        },
+      );
+    });
     final output = utf8.decode(bytes, allowMalformed: true);
     logBuiltInSsh(
       'Command on ${host.name} completed. Output length=${output.length}',
@@ -166,10 +165,7 @@ class BuiltInSshClientManager {
     });
   }
 
-  Future<T> _wrapSshErrors<T>(
-    SshHost host,
-    Future<T> Function() action,
-  ) async {
+  Future<T> _wrapSshErrors<T>(SshHost host, Future<T> Function() action) async {
     var retries = 0;
     while (true) {
       try {
@@ -296,7 +292,9 @@ class BuiltInSshClientManager {
   }
 
   String _fingerprintHex(List<int> fingerprint) {
-    return fingerprint.map((b) => b.toRadixString(16).padLeft(2, '0')).join(':');
+    return fingerprint
+        .map((b) => b.toRadixString(16).padLeft(2, '0'))
+        .join(':');
   }
 
   String _hostLabel(SshHost host) {

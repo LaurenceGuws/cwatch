@@ -14,8 +14,8 @@ class SshShellFactory {
     required this.keyService,
     SshAuthCoordinator? authCoordinator,
     KnownHostsStore? knownHostsStore,
-  })  : knownHostsStore = knownHostsStore ?? const KnownHostsStore(),
-        authCoordinator = authCoordinator ?? const SshAuthCoordinator();
+  }) : knownHostsStore = knownHostsStore ?? const KnownHostsStore(),
+       authCoordinator = authCoordinator ?? const SshAuthCoordinator();
 
   final AppSettingsController settingsController;
   final BuiltInSshKeyService keyService;
@@ -26,12 +26,13 @@ class SshShellFactory {
     SshHost host, {
     RemoteCommandObserver? observer,
     Future<bool> Function(String keyId, String hostName, String? keyLabel)?
-        promptUnlock,
+    promptUnlock,
     SshAuthCoordinator? coordinator,
   }) {
     final settings = settingsController.settings;
     final usingBuiltIn = settings.sshClientBackend == SshClientBackend.builtin;
-    final effectiveCoordinator = coordinator ??
+    final effectiveCoordinator =
+        coordinator ??
         (promptUnlock != null
             ? authCoordinator.withUnlockFallback(promptUnlock)
             : authCoordinator);

@@ -147,11 +147,12 @@ class DialogBuilders {
     BuildContext context,
     List<RemoteFileEntry> entries,
   ) async {
-    final directories = entries
-        .where((entry) => entry.isDirectory)
-        .map((entry) => entry.name)
-        .toList()
-      ..sort();
+    final directories =
+        entries
+            .where((entry) => entry.isDirectory)
+            .map((entry) => entry.name)
+            .toList()
+          ..sort();
 
     if (directories.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -183,4 +184,3 @@ class DialogBuilders {
     );
   }
 }
-

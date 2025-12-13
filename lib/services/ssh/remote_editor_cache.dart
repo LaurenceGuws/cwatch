@@ -11,7 +11,8 @@ class RemoteEditorCache {
     final env = Platform.environment;
     String basePath;
     if (Platform.isWindows) {
-      basePath = env['APPDATA'] ?? env['LOCALAPPDATA'] ?? Directory.systemTemp.path;
+      basePath =
+          env['APPDATA'] ?? env['LOCALAPPDATA'] ?? Directory.systemTemp.path;
     } else {
       basePath = env['HOME'] ?? Directory.systemTemp.path;
       basePath = p.join(basePath, '.cache');
@@ -45,7 +46,10 @@ class RemoteEditorCache {
     final working = File(p.join(dir.path, fileName));
     await snapshot.writeAsString(contents);
     await working.writeAsString(contents);
-    return CachedEditorSession(snapshotPath: snapshot.path, workingPath: working.path);
+    return CachedEditorSession(
+      snapshotPath: snapshot.path,
+      workingPath: working.path,
+    );
   }
 
   Future<CachedEditorSession?> loadSession({
@@ -61,7 +65,10 @@ class RemoteEditorCache {
     final snapshot = File(p.join(dir.path, '$fileName.server'));
     final working = File(p.join(dir.path, fileName));
     if (await snapshot.exists() && await working.exists()) {
-      return CachedEditorSession(snapshotPath: snapshot.path, workingPath: working.path);
+      return CachedEditorSession(
+        snapshotPath: snapshot.path,
+        workingPath: working.path,
+      );
     }
     return null;
   }
@@ -93,7 +100,10 @@ class RemoteEditorCache {
 }
 
 class CachedEditorSession {
-  const CachedEditorSession({required this.snapshotPath, required this.workingPath});
+  const CachedEditorSession({
+    required this.snapshotPath,
+    required this.workingPath,
+  });
 
   final String snapshotPath;
   final String workingPath;

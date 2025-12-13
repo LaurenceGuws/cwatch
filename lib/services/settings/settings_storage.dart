@@ -5,9 +5,8 @@ import '../../models/app_settings.dart';
 import 'settings_path_provider.dart';
 
 class SettingsStorage {
-  SettingsStorage({
-    SettingsPathProvider? pathProvider,
-  }) : _pathProvider = pathProvider ?? const SettingsPathProvider();
+  SettingsStorage({SettingsPathProvider? pathProvider})
+    : _pathProvider = pathProvider ?? const SettingsPathProvider();
 
   final SettingsPathProvider _pathProvider;
 

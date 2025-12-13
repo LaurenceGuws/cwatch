@@ -6,11 +6,7 @@ import '../../../../../services/ssh/remote_shell_service.dart';
 /// Pass-through auth handler now that SSH unlock/passphrase flows are handled
 /// by the shared auth coordinator in the SSH services layer.
 class SshAuthHandler {
-  SshAuthHandler({
-    required this.shellService,
-    this.context,
-    this.host,
-  });
+  SshAuthHandler({required this.shellService, this.context, this.host});
 
   final RemoteShellService shellService;
   final BuildContext? context;

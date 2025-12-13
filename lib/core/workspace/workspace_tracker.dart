@@ -12,8 +12,7 @@ class WorkspaceTracker {
     pendingSave = false;
   }
 
-  bool shouldPersist(String signature) =>
-      _lastPersistedSignature != signature;
+  bool shouldPersist(String signature) => _lastPersistedSignature != signature;
 
   void deferSave() => pendingSave = true;
 

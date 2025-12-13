@@ -29,18 +29,17 @@ class ProcessSshRunner {
     final process = await Process.start(
       command.first,
       command.skip(1).toList(),
-      environment: {
-        ...Platform.environment,
-        ..._historySanitizedEnv,
-      },
+      environment: {...Platform.environment, ..._historySanitizedEnv},
       runInShell: false,
     );
     final stdoutBuffer = StringBuffer();
     final stderrBuffer = StringBuffer();
-    final stdoutFuture =
-        process.stdout.transform(utf8.decoder).forEach(stdoutBuffer.write);
-    final stderrFuture =
-        process.stderr.transform(utf8.decoder).forEach(stderrBuffer.write);
+    final stdoutFuture = process.stdout
+        .transform(utf8.decoder)
+        .forEach(stdoutBuffer.write);
+    final stderrFuture = process.stderr
+        .transform(utf8.decoder)
+        .forEach(stderrBuffer.write);
 
     final stopwatch = Stopwatch()..start();
     final exitCode = await _waitForExit(
@@ -54,7 +53,12 @@ class ProcessSshRunner {
     await Future.wait([stdoutFuture, stderrFuture]);
     final stdoutStr = stdoutBuffer.toString();
     final stderrStr = stderrBuffer.toString();
-    final processResult = ProcessResult(process.pid, exitCode, stdoutStr, stderrStr);
+    final processResult = ProcessResult(
+      process.pid,
+      exitCode,
+      stdoutStr,
+      stderrStr,
+    );
     if (exitCode != 0) {
       if (hostForErrors != null &&
           (command.first.contains('ssh') ||
@@ -128,11 +132,7 @@ class ProcessSshRunner {
   }) {
     final sanitizedCommand = _prependNoHistory(command);
     return runProcess(
-      buildSshCommand(
-        host,
-        sanitizedCommand,
-        knownHostsPath: knownHostsPath,
-      ),
+      buildSshCommand(host, sanitizedCommand, knownHostsPath: knownHostsPath),
       timeout: timeout,
       hostForErrors: host,
       onSshError: onSshError,
@@ -158,10 +158,7 @@ class ProcessSshRunner {
     SshHost host, {
     String? knownHostsPath,
   }) {
-    final args = buildBaseSshOptions(
-      host,
-      knownHostsPath: knownHostsPath,
-    );
+    final args = buildBaseSshOptions(host, knownHostsPath: knownHostsPath);
     args.add(connectionTarget(host));
     return args;
   }
@@ -173,19 +170,13 @@ class ProcessSshRunner {
   }) {
     return [
       'ssh',
-      ...buildBaseSshOptions(
-        host,
-        knownHostsPath: knownHostsPath,
-      ),
+      ...buildBaseSshOptions(host, knownHostsPath: knownHostsPath),
       connectionTarget(host),
       command,
     ];
   }
 
-  List<String> buildBaseSshOptions(
-    SshHost host, {
-    String? knownHostsPath,
-  }) {
+  List<String> buildBaseSshOptions(SshHost host, {String? knownHostsPath}) {
     final args = <String>[
       '-o',
       'BatchMode=yes',

@@ -4,43 +4,35 @@ import 'package:flutter/material.dart';
 
 import '../../services/settings/app_settings_controller.dart';
 import '../../services/ssh/terminal_session.dart';
+import '../../services/window/window_chrome_service.dart';
 import '../navigation/app_shell.dart';
 import '../../shared/theme/app_theme.dart';
 
 Future<void> runAppBootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
   await LocalPtySession.cleanupStaleSessions();
-  runApp(const CwatchApp());
+  final settingsController = AppSettingsController();
+  await settingsController.load();
+  await WindowChromeService().ensureInitialized(settingsController.settings);
+  runApp(CwatchApp(settingsController: settingsController));
 }
 
 class CwatchApp extends StatefulWidget {
-  const CwatchApp({super.key});
+  const CwatchApp({required this.settingsController, super.key});
+
+  final AppSettingsController settingsController;
 
   @override
   State<CwatchApp> createState() => _CwatchAppState();
 }
 
 class _CwatchAppState extends State<CwatchApp> {
-  late final AppSettingsController _settingsController;
-
-  @override
-  void initState() {
-    super.initState();
-    _settingsController = AppSettingsController()..load();
-  }
-
-  @override
-  void dispose() {
-    _settingsController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: _settingsController,
+      animation: widget.settingsController,
       builder: (context, _) {
-        final settings = _settingsController.settings;
+        final settings = widget.settingsController.settings;
         final appFontFamily = settings.appFontFamily;
         final seed = _seedForKey(settings.appThemeKey);
         final lightScheme = ColorScheme.fromSeed(
@@ -72,7 +64,7 @@ class _CwatchAppState extends State<CwatchApp> {
               child: child ?? const SizedBox.shrink(),
             );
           },
-          home: HomeShell(settingsController: _settingsController),
+          home: HomeShell(settingsController: widget.settingsController),
         );
       },
     );

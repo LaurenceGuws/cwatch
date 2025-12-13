@@ -56,4 +56,3 @@ class _CommandBarState extends State<CommandBar> {
     );
   }
 }
-

@@ -19,7 +19,7 @@ class BuiltInSshIdentityManager {
   final BuiltInSshVault vault;
   final Map<String, String> _hostKeyBindings;
   final Future<bool> Function(String keyId, String hostName, String? keyLabel)?
-      promptUnlock;
+  promptUnlock;
 
   final Map<String, String> _identityPassphrases = {};
   final Map<String, String> _builtInKeyPassphrases = {};

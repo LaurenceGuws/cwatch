@@ -27,11 +27,11 @@ class PortForwardRequest {
   final String? label;
 
   PortForwardRequest copy() => PortForwardRequest(
-        remoteHost: remoteHost,
-        remotePort: remotePort,
-        localPort: localPort,
-        label: label,
-      );
+    remoteHost: remoteHost,
+    remotePort: remotePort,
+    localPort: localPort,
+    label: label,
+  );
 }
 
 class ActivePortForward {
@@ -79,7 +79,8 @@ class ActivePortForward {
         exitCode = -9;
       }
     } else {
-      for (final sub in acceptSubscriptions ?? const <StreamSubscription<Socket>>[]) {
+      for (final sub
+          in acceptSubscriptions ?? const <StreamSubscription<Socket>>[]) {
         try {
           await sub.cancel();
         } catch (_) {}
@@ -120,7 +121,7 @@ class ActivePortForward {
 /// available local ports.
 class PortForwardService extends ChangeNotifier {
   PortForwardService({SshAuthCoordinator? authCoordinator})
-      : _authCoordinator = authCoordinator {
+    : _authCoordinator = authCoordinator {
     _installSignalHandlers();
   }
 
@@ -157,12 +158,18 @@ class PortForwardService extends ChangeNotifier {
 
   Future<bool> isPortAvailable(int port) async {
     try {
-      final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, port);
+      final socket = await ServerSocket.bind(
+        InternetAddress.loopbackIPv4,
+        port,
+      );
       await socket.close();
       return true;
     } catch (_) {
       try {
-        final socket = await ServerSocket.bind(InternetAddress.loopbackIPv6, port);
+        final socket = await ServerSocket.bind(
+          InternetAddress.loopbackIPv6,
+          port,
+        );
         await socket.close();
         return true;
       } catch (_) {
@@ -201,13 +208,15 @@ class PortForwardService extends ChangeNotifier {
     BuiltInSshKeyService? builtInKeyService,
     Map<String, String> hostKeyBindings = const {},
     Future<bool> Function(String keyId, String hostName, String? keyLabel)?
-        promptUnlock,
+    promptUnlock,
     Duration builtInConnectTimeout = const Duration(seconds: 10),
     SshAuthCoordinator? authCoordinator,
   }) async {
     _settingsController ??= settingsController;
-    final usingBuiltIn = _settingsController != null &&
-        _settingsController!.settings.sshClientBackend == SshClientBackend.builtin &&
+    final usingBuiltIn =
+        _settingsController != null &&
+        _settingsController!.settings.sshClientBackend ==
+            SshClientBackend.builtin &&
         builtInKeyService != null;
     if (requests.isEmpty) {
       throw Exception('No ports to forward');
@@ -218,7 +227,8 @@ class PortForwardService extends ChangeNotifier {
         vault: builtInKeyService.vault,
         hostKeyBindings: hostKeyBindings,
         connectTimeout: builtInConnectTimeout,
-        authCoordinator: authCoordinator ??
+        authCoordinator:
+            authCoordinator ??
             _authCoordinator ??
             (promptUnlock != null
                 ? SshAuthCoordinator().withUnlockFallback(promptUnlock)
@@ -229,8 +239,10 @@ class PortForwardService extends ChangeNotifier {
       final sockets = <ServerSocket>[];
       final acceptSubscriptions = <StreamSubscription<Socket>>[];
       for (final req in requests) {
-        final serverSocket =
-            await _bindLoopback(req.localPort, allowIpv6: true);
+        final serverSocket = await _bindLoopback(
+          req.localPort,
+          allowIpv6: true,
+        );
         sockets.add(serverSocket);
         final sub = serverSocket.listen((localSocket) async {
           try {
@@ -242,18 +254,21 @@ class PortForwardService extends ChangeNotifier {
             );
             channels.add(channel);
             final toLocal = channel.stream.cast<List<int>>().pipe(localSocket);
-            final toRemote =
-                localSocket.cast<List<int>>().pipe(channel.sink);
-            unawaited(toLocal.catchError((_) {}).whenComplete(() {
-              try {
-                localSocket.destroy();
-              } catch (_) {}
-            }));
-            unawaited(toRemote.catchError((_) {}).whenComplete(() async {
-              try {
-                await channel.sink.close();
-              } catch (_) {}
-            }));
+            final toRemote = localSocket.cast<List<int>>().pipe(channel.sink);
+            unawaited(
+              toLocal.catchError((_) {}).whenComplete(() {
+                try {
+                  localSocket.destroy();
+                } catch (_) {}
+              }),
+            );
+            unawaited(
+              toRemote.catchError((_) {}).whenComplete(() async {
+                try {
+                  await channel.sink.close();
+                } catch (_) {}
+              }),
+            );
           } catch (error) {
             try {
               localSocket.destroy();

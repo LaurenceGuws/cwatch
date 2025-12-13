@@ -18,6 +18,11 @@ import '../../services/ssh/ssh_config_service.dart';
 import '../../shared/shortcuts/shortcut_actions.dart';
 import '../../shared/shortcuts/shortcut_service.dart';
 import '../../shared/theme/nerd_fonts.dart';
+import '../../shared/widgets/command_palette.dart';
+import 'command_palette_registry.dart';
+import '../tabs/tab_bar_visibility.dart';
+import '../../services/window/window_chrome_service.dart';
+import 'gesture_detector_factory.dart';
 import 'tab_navigation_registry.dart';
 import 'module_registry.dart';
 import 'shell_module.dart';
@@ -36,6 +41,9 @@ class _HomeShellState extends State<HomeShell> {
   String _selectedDestination = 'servers';
   bool _sidebarCollapsed = false;
   bool _shellStateRestored = false;
+  bool _paletteOpen = false;
+  late final GestureDetectorFactory _gestureDetectorFactory;
+  late final WindowChromeService _windowChrome;
   late final VoidCallback _settingsListener;
   late final BuiltInSshKeyStore _builtInKeyStore;
   late final BuiltInSshVault _builtInVault;
@@ -57,6 +65,7 @@ class _HomeShellState extends State<HomeShell> {
       keyStore: _builtInKeyStore,
       vault: _builtInVault,
     );
+    _windowChrome = WindowChromeService();
     _shellFactory = SshShellFactory(
       settingsController: widget.settingsController,
       keyService: _builtInKeyService,
@@ -72,6 +81,10 @@ class _HomeShellState extends State<HomeShell> {
     _settingsListener = _handleSettingsChanged;
     widget.settingsController.addListener(_settingsListener);
     ShortcutService.instance.updateSettings(widget.settingsController.settings);
+    _gestureDetectorFactory = GestureDetectorFactory(
+      onTripleTap: _openCommandPalette,
+      onTripleSwipeDown: _openCommandPalette,
+    );
     _globalShortcutSub = ShortcutService.instance.registerScope(
       id: 'global',
       priority: -10,
@@ -82,6 +95,7 @@ class _HomeShellState extends State<HomeShell> {
         ShortcutActions.tabsPrevious: _focusPreviousTab,
         ShortcutActions.viewsFocusUp: _focusPreviousDestination,
         ShortcutActions.viewsFocusDown: _focusNextDestination,
+        ShortcutActions.globalCommandPalette: _openCommandPalette,
       },
       focusNode: null,
     );
@@ -108,6 +122,7 @@ class _HomeShellState extends State<HomeShell> {
     _moduleRegistry.removeListener(_handleModulesChanged);
     widget.settingsController.removeListener(_settingsListener);
     _globalShortcutSub?.dispose();
+    _gestureDetectorFactory.dispose();
     super.dispose();
   }
 
@@ -155,6 +170,7 @@ class _HomeShellState extends State<HomeShell> {
         _refreshHosts();
       });
     }
+    unawaited(_windowChrome.apply(widget.settingsController.settings));
   }
 
   void _applyShellSettings(AppSettings settings) {
@@ -162,6 +178,7 @@ class _HomeShellState extends State<HomeShell> {
         _destinationFromName(settings.shellDestination) ?? _selectedDestination;
     _sidebarCollapsed = settings.shellSidebarCollapsed;
     _sidebarPlacement = _placementFromString(settings.shellSidebarPlacement);
+    unawaited(_windowChrome.apply(settings));
   }
 
   Future<void> _changeAppZoom(double delta) async {
@@ -231,6 +248,116 @@ class _HomeShellState extends State<HomeShell> {
     );
     final handled = navigator?.previous() ?? false;
     if (handled) return;
+  }
+
+  void _setSidebarCollapsed(bool collapsed) {
+    if (_sidebarCollapsed == collapsed) return;
+    setState(() {
+      _sidebarCollapsed = collapsed;
+    });
+    _persistShellState(collapsed: collapsed);
+  }
+
+  void _toggleSidebar() => _setSidebarCollapsed(!_sidebarCollapsed);
+
+  Future<void> _openCommandPalette() async {
+    if (_paletteOpen) {
+      Navigator.of(context, rootNavigator: true).maybePop();
+      return;
+    }
+    _paletteOpen = true;
+    final entries = <CommandPaletteEntry>[
+      CommandPaletteEntry(
+        id: 'global:nextTab',
+        label: 'Next tab',
+        category: 'Navigation',
+        onSelected: _focusNextTab,
+        icon: Icons.arrow_forward,
+      ),
+      CommandPaletteEntry(
+        id: 'global:previousTab',
+        label: 'Previous tab',
+        category: 'Navigation',
+        onSelected: _focusPreviousTab,
+        icon: Icons.arrow_back,
+      ),
+      CommandPaletteEntry(
+        id: 'global:focusNextView',
+        label: 'Focus next view',
+        category: 'Navigation',
+        onSelected: _focusNextDestination,
+        icon: Icons.arrow_downward,
+      ),
+      CommandPaletteEntry(
+        id: 'global:focusPreviousView',
+        label: 'Focus previous view',
+        category: 'Navigation',
+        onSelected: _focusPreviousDestination,
+        icon: Icons.arrow_upward,
+      ),
+      CommandPaletteEntry(
+        id: 'global:sidebar:toggle',
+        label: _sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar',
+        category: 'Chrome',
+        onSelected: _toggleSidebar,
+        icon: _sidebarCollapsed ? Icons.chevron_right : Icons.chevron_left,
+      ),
+      CommandPaletteEntry(
+        id: 'global:sidebar:show',
+        label: 'Show sidebar',
+        category: 'Chrome',
+        onSelected: () => _setSidebarCollapsed(false),
+        icon: Icons.chevron_right,
+      ),
+      CommandPaletteEntry(
+        id: 'global:sidebar:hide',
+        label: 'Hide sidebar',
+        category: 'Chrome',
+        onSelected: () => _setSidebarCollapsed(true),
+        icon: Icons.chevron_left,
+      ),
+      CommandPaletteEntry(
+        id: 'global:tabs:toggleBar',
+        label: TabBarVisibilityController.instance.value
+            ? 'Hide tab bar'
+            : 'Show tab bar',
+        category: 'Chrome',
+        onSelected: TabBarVisibilityController.instance.toggle,
+        icon: Icons.tab,
+      ),
+      CommandPaletteEntry(
+        id: 'global:tabs:showBar',
+        label: 'Show tab bar',
+        category: 'Chrome',
+        onSelected: TabBarVisibilityController.instance.show,
+        icon: Icons.visibility,
+      ),
+      CommandPaletteEntry(
+        id: 'global:tabs:hideBar',
+        label: 'Hide tab bar',
+        category: 'Chrome',
+        onSelected: TabBarVisibilityController.instance.hide,
+        icon: Icons.visibility_off,
+      ),
+    ];
+    final handle = CommandPaletteRegistry.instance.forModule(
+      _selectedDestination,
+    );
+    if (handle != null) {
+      final moduleEntries = await Future<List<CommandPaletteEntry>>.value(
+        handle.loader(),
+      );
+      entries.addAll(moduleEntries);
+    }
+    if (!mounted || entries.isEmpty) {
+      _paletteOpen = false;
+      return;
+    }
+    try {
+      await showCommandPalette(context, entries: entries);
+    } finally {
+      _paletteOpen = false;
+    }
   }
 
   void _ensurePageCached(String destination, BuildContext context) {
@@ -518,12 +645,18 @@ class _HomeShellState extends State<HomeShell> {
           canRequestFocus: true,
           child: Scaffold(
             body: SafeArea(
-              child: Stack(
-                children: [
-                  Positioned.fill(child: content),
-                  if (navigationBar != null)
-                    Align(alignment: navigationAlignment, child: navigationBar),
-                ],
+              child: _gestureDetectorFactory.wrap(
+                context,
+                Stack(
+                  children: [
+                    Positioned.fill(child: content),
+                    if (navigationBar != null)
+                      Align(
+                        alignment: navigationAlignment,
+                        child: navigationBar,
+                      ),
+                  ],
+                ),
               ),
             ),
           ),

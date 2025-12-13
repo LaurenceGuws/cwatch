@@ -425,10 +425,7 @@ class FileOperationsService {
           );
           if (!context.mounted) return;
           successCount++;
-          progressController.markCompleted(
-            i,
-            addSize: true,
-          );
+          progressController.markCompleted(i, addSize: true);
         } catch (error) {
           if (!context.mounted) return;
           failCount++;

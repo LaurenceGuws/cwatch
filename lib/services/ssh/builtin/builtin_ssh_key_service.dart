@@ -14,11 +14,10 @@ import '../ssh_auth_coordinator.dart';
 /// handling inside the built-in service so UI layers don't need to know
 /// about dartssh2 parsing or storage details.
 class BuiltInSshKeyService {
-  BuiltInSshKeyService({
-    BuiltInSshKeyStore? keyStore,
-    BuiltInSshVault? vault,
-  })  : _keyStore = keyStore ?? BuiltInSshKeyStore(),
-        _vault = vault ?? BuiltInSshVault(keyStore: keyStore ?? BuiltInSshKeyStore());
+  BuiltInSshKeyService({BuiltInSshKeyStore? keyStore, BuiltInSshVault? vault})
+    : _keyStore = keyStore ?? BuiltInSshKeyStore(),
+      _vault =
+          vault ?? BuiltInSshVault(keyStore: keyStore ?? BuiltInSshKeyStore());
 
   final BuiltInSshKeyStore _keyStore;
   final BuiltInSshVault _vault;
@@ -39,10 +38,7 @@ class BuiltInSshKeyService {
     String? keyPassphrase,
     bool allowPlaintext = false,
   }) async {
-    final validation = _validatePem(
-      keyPem,
-      passphrase: keyPassphrase,
-    );
+    final validation = _validatePem(keyPem, passphrase: keyPassphrase);
     switch (validation.status) {
       case _KeyValidationStatus.needsPassphrase:
         return BuiltInSshKeyAddResult(
@@ -60,8 +56,8 @@ class BuiltInSshKeyService {
 
     final effectivePassword =
         storagePassword != null && storagePassword.isNotEmpty
-            ? storagePassword
-            : null;
+        ? storagePassword
+        : null;
     if (effectivePassword == null && !allowPlaintext) {
       return const BuiltInSshKeyAddResult(
         status: BuiltInSshKeyAddStatus.invalid,
@@ -96,7 +92,10 @@ class BuiltInSshKeyService {
   }
 
   /// Unlocks a key for this session.
-  Future<BuiltInSshKeyUnlockResult> unlock(String keyId, {String? password}) async {
+  Future<BuiltInSshKeyUnlockResult> unlock(
+    String keyId, {
+    String? password,
+  }) async {
     final entry = await _keyStore.loadEntry(keyId);
     if (entry == null) {
       return const BuiltInSshKeyUnlockResult(
@@ -139,7 +138,7 @@ class BuiltInSshKeyService {
     bool debugMode = false,
     RemoteCommandObserver? observer,
     Future<bool> Function(String keyId, String hostName, String? keyLabel)?
-        promptUnlock,
+    promptUnlock,
     KnownHostsStore? knownHostsStore,
     SshAuthCoordinator? authCoordinator,
   }) {
@@ -179,12 +178,10 @@ class BuiltInSshKeyService {
     return newEntry;
   }
 
-  _KeyValidationResult _validatePem(
-    String pem, {
-    String? passphrase,
-  }) {
-    final trimmedPassphrase =
-        passphrase != null && passphrase.isNotEmpty ? passphrase : null;
+  _KeyValidationResult _validatePem(String pem, {String? passphrase}) {
+    final trimmedPassphrase = passphrase != null && passphrase.isNotEmpty
+        ? passphrase
+        : null;
     try {
       SSHKeyPair.fromPem(pem, trimmedPassphrase);
       return const _KeyValidationResult.valid();
@@ -249,10 +246,7 @@ enum BuiltInSshKeyUnlockStatus {
 }
 
 class BuiltInSshKeyUnlockResult {
-  const BuiltInSshKeyUnlockResult({
-    required this.status,
-    this.message,
-  });
+  const BuiltInSshKeyUnlockResult({required this.status, this.message});
 
   final BuiltInSshKeyUnlockStatus status;
   final String? message;
@@ -266,10 +260,10 @@ class _KeyValidationResult {
   const _KeyValidationResult.valid() : this._(_KeyValidationStatus.valid, null);
 
   const _KeyValidationResult.needsPassphrase([String? message])
-      : this._(_KeyValidationStatus.needsPassphrase, message);
+    : this._(_KeyValidationStatus.needsPassphrase, message);
 
   const _KeyValidationResult.invalid([String? message])
-      : this._(_KeyValidationStatus.invalid, message);
+    : this._(_KeyValidationStatus.invalid, message);
 
   final _KeyValidationStatus status;
   final String? message;

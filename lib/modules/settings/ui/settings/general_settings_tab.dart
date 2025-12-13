@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import 'package:cwatch/models/app_settings.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
@@ -39,6 +40,10 @@ class GeneralSettingsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.macOS ||
+            defaultTargetPlatform == TargetPlatform.linux ||
+            defaultTargetPlatform == TargetPlatform.windows);
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       children: [
@@ -140,6 +145,25 @@ class GeneralSettingsTab extends StatelessWidget {
             onChanged: onDebugModeChanged,
           ),
         ),
+        if (isDesktop)
+          SettingsSection(
+            title: 'Desktop window',
+            description:
+                'Control native window decorations (title bar and buttons).',
+            child: SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Use system window decorations'),
+              subtitle: const Text(
+                'Turn off to use a custom/frameless window (where supported). Requires app restart.',
+              ),
+              value: settings.windowUseSystemDecorations,
+              onChanged: (value) => settingsController.update(
+                (current) => current.copyWith(
+                  windowUseSystemDecorations: value,
+                ),
+              ),
+            ),
+          ),
         ShortcutCategorySection(
           category: ShortcutCategory.global,
           controller: settingsController,

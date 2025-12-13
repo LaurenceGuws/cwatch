@@ -12,7 +12,8 @@ class RemoteEndpointCache {
 
   final AppSettingsController settingsController;
   final List<String> Function(AppSettings settings) readNames;
-  final AppSettings Function(AppSettings current, List<String> names) writeNames;
+  final AppSettings Function(AppSettings current, List<String> names)
+  writeNames;
 
   List<String> read() => readNames(settingsController.settings);
 
@@ -23,15 +24,10 @@ class RemoteEndpointCache {
     if (_listEquals(next, currentSorted)) {
       return;
     }
-    await settingsController.update(
-      (settings) => writeNames(settings, next),
-    );
+    await settingsController.update((settings) => writeNames(settings, next));
   }
 
-  List<SshHost> applyToHosts(
-    List<String> names,
-    List<SshHost> knownHosts,
-  ) {
+  List<SshHost> applyToHosts(List<String> names, List<SshHost> knownHosts) {
     return names
         .map((name) => _hostByName(knownHosts, name) ?? _placeholderHost(name))
         .toList();

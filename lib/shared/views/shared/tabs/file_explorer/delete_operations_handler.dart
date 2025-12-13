@@ -41,9 +41,9 @@ class DeleteOperationsHandler {
       );
     } catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to delete: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to delete: $error')));
     }
   }
 
@@ -71,9 +71,9 @@ class DeleteOperationsHandler {
       trashManager.notifyListeners();
       await refreshPath();
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Moved ${entry.name} to trash')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Moved ${entry.name} to trash')));
     } catch (error) {
       if (recorded != null) {
         await trashManager.deleteEntry(recorded, notify: false);
@@ -101,7 +101,11 @@ class DeleteOperationsHandler {
         successCount++;
       } catch (error) {
         failCount++;
-        AppLogger.w('Failed to delete ${entry.name}', tag: 'Explorer', error: error);
+        AppLogger.w(
+          'Failed to delete ${entry.name}',
+          tag: 'Explorer',
+          error: error,
+        );
       }
     }
     await refreshPath();
@@ -145,7 +149,11 @@ class DeleteOperationsHandler {
         successCount++;
       } catch (error) {
         failCount++;
-        AppLogger.w('Failed to move ${entry.name} to trash', tag: 'Explorer', error: error);
+        AppLogger.w(
+          'Failed to move ${entry.name} to trash',
+          tag: 'Explorer',
+          error: error,
+        );
       }
     }
     trashManager.notifyListeners();
@@ -158,7 +166,9 @@ class DeleteOperationsHandler {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Moved $successCount items to trash. $failCount failed.'),
+          content: Text(
+            'Moved $successCount items to trash. $failCount failed.',
+          ),
         ),
       );
     }

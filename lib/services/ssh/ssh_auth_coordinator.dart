@@ -1,19 +1,16 @@
 /// Coordinates SSH authentication prompts so UI code can centralize unlock and
 /// passphrase handling while services retry internally.
 class SshAuthCoordinator {
-  const SshAuthCoordinator({
-    this.onUnlockKey,
-    this.onRequestPassphrase,
-  });
+  const SshAuthCoordinator({this.onUnlockKey, this.onRequestPassphrase});
 
   final Future<SshKeyUnlockResult?> Function(SshKeyUnlockRequest request)?
-      onUnlockKey;
+  onUnlockKey;
   final Future<String?> Function(SshPassphraseRequest request)?
-      onRequestPassphrase;
+  onRequestPassphrase;
 
   SshAuthCoordinator withUnlockFallback(
     Future<bool> Function(String keyId, String hostName, String? keyLabel)
-        promptUnlock,
+    promptUnlock,
   ) {
     if (onUnlockKey != null) {
       return this;
@@ -47,10 +44,7 @@ class SshKeyUnlockRequest {
 }
 
 class SshKeyUnlockResult {
-  const SshKeyUnlockResult({
-    required this.unlocked,
-    this.password,
-  });
+  const SshKeyUnlockResult({required this.unlocked, this.password});
 
   final bool unlocked;
   final String? password;

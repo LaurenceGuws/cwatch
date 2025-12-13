@@ -12,10 +12,8 @@ class SshAuthPrompter {
     required BuiltInSshKeyService keyService,
   }) {
     return SshAuthCoordinator(
-      onUnlockKey: (request) =>
-          _promptUnlock(context, keyService, request),
-      onRequestPassphrase: (request) =>
-          _promptPassphrase(context, request),
+      onUnlockKey: (request) => _promptUnlock(context, keyService, request),
+      onRequestPassphrase: (request) => _promptPassphrase(context, request),
     );
   }
 

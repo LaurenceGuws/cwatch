@@ -2,12 +2,7 @@ import 'package:meta/meta.dart';
 
 import 'ssh_host.dart';
 
-enum ExplorerContextKind {
-  server,
-  dockerContainer,
-  kubernetes,
-  unknown,
-}
+enum ExplorerContextKind { server, dockerContainer, kubernetes, unknown }
 
 @immutable
 class ExplorerContext {

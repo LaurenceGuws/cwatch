@@ -84,10 +84,7 @@ class ProcessRemoteShellService extends RemoteShellService {
   }) async {
     final normalized = sanitizePath(path);
     final run = await _runner.runProcess(
-      _runner.buildSshCommand(
-        host,
-        "cat '${escapeSingleQuotes(normalized)}'",
-      ),
+      _runner.buildSshCommand(host, "cat '${escapeSingleQuotes(normalized)}'"),
       timeout: timeout,
       hostForErrors: host,
       onSshError: _handleSshError,
@@ -268,19 +265,21 @@ class ProcessRemoteShellService extends RemoteShellService {
       dirnameFromPath(normalizedDest),
       onTimeout: onTimeout,
     );
-    final sharedPort =
-        sourceHost.port == destinationHost.port ? sourceHost.port : null;
-    final args = _buildScpArgs(
-      identityFiles: {
-        ...sourceHost.identityFiles,
-        ...destinationHost.identityFiles,
-      },
-      recursive: recursive,
-      remotePort: sharedPort,
-      extraFlags: const ['-3'],
-    )
-      ..add(_formatRemoteSpec(sourceHost, normalizedSource))
-      ..add(_formatRemoteSpec(destinationHost, normalizedDest));
+    final sharedPort = sourceHost.port == destinationHost.port
+        ? sourceHost.port
+        : null;
+    final args =
+        _buildScpArgs(
+            identityFiles: {
+              ...sourceHost.identityFiles,
+              ...destinationHost.identityFiles,
+            },
+            recursive: recursive,
+            remotePort: sharedPort,
+            extraFlags: const ['-3'],
+          )
+          ..add(_formatRemoteSpec(sourceHost, normalizedSource))
+          ..add(_formatRemoteSpec(destinationHost, normalizedDest));
     final run = await _runner.runProcess(
       args,
       timeout: timeout,
@@ -316,13 +315,14 @@ class ProcessRemoteShellService extends RemoteShellService {
     final normalizedSource = sanitizePath(remotePath);
     final destinationDir = Directory(localDestination);
     await destinationDir.create(recursive: true);
-    final args = _buildScpArgs(
-      identityFiles: host.identityFiles.toSet(),
-      remotePort: host.port,
-      recursive: recursive,
-    )
-      ..add(_formatRemoteSpec(host, normalizedSource))
-      ..add(localDestination);
+    final args =
+        _buildScpArgs(
+            identityFiles: host.identityFiles.toSet(),
+            remotePort: host.port,
+            recursive: recursive,
+          )
+          ..add(_formatRemoteSpec(host, normalizedSource))
+          ..add(localDestination);
     await _runner.runProcess(
       args,
       timeout: timeout,
@@ -348,13 +348,14 @@ class ProcessRemoteShellService extends RemoteShellService {
       dirnameFromPath(normalizedDest),
       onTimeout: onTimeout,
     );
-    final args = _buildScpArgs(
-      identityFiles: host.identityFiles.toSet(),
-      remotePort: host.port,
-      recursive: recursive,
-    )
-      ..add(source)
-      ..add(_formatRemoteSpec(host, normalizedDest));
+    final args =
+        _buildScpArgs(
+            identityFiles: host.identityFiles.toSet(),
+            remotePort: host.port,
+            recursive: recursive,
+          )
+          ..add(source)
+          ..add(_formatRemoteSpec(host, normalizedDest));
     final run = await _runner.runProcess(
       args,
       timeout: timeout,

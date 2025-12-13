@@ -27,9 +27,11 @@ class FileEditingService {
     required String remotePath,
     required String local,
     required String remote,
-  }) promptMergeDialog;
+  })
+  promptMergeDialog;
   final Future<void> Function(String path) launchLocalApp;
-  final Future<void> Function(String path, String initialContent)? onOpenEditorTab;
+  final Future<void> Function(String path, String initialContent)?
+  onOpenEditorTab;
 
   /// Open a file in the editor (tab or dialog)
   Future<void> openEditor(
@@ -45,23 +47,25 @@ class FileEditingService {
       if (!context.mounted) {
         return;
       }
-      
+
       if (onOpenEditorTab != null) {
         await onOpenEditorTab!(path, contents);
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Inline editor unavailable. Open via editor tab instead.'),
+          content: Text(
+            'Inline editor unavailable. Open via editor tab instead.',
+          ),
         ),
       );
     } catch (error) {
       if (!context.mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to edit file: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to edit file: $error')));
     }
   }
 
@@ -108,9 +112,9 @@ class FileEditingService {
       if (!context.mounted) {
         return null;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to open locally: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to open locally: $error')));
       return null;
     }
   }
@@ -132,11 +136,7 @@ class FileEditingService {
 
       if (remoteContents == baseContents) {
         await runShellWrapper(
-          () => shellService.writeFile(
-            host,
-            session.remotePath,
-            localContents,
-          ),
+          () => shellService.writeFile(host, session.remotePath, localContents),
         );
         await snapshotFile.writeAsString(localContents);
         session.lastSynced = DateTime.now();
@@ -167,11 +167,7 @@ class FileEditingService {
         );
         if (merged != null) {
           await runShellWrapper(
-            () => shellService.writeFile(
-              host,
-              session.remotePath,
-              merged,
-            ),
+            () => shellService.writeFile(host, session.remotePath, merged),
           );
           await workingFile.writeAsString(merged);
           await snapshotFile.writeAsString(merged);
@@ -188,9 +184,9 @@ class FileEditingService {
       }
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to sync: $error')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to sync: $error')));
       }
     }
   }
@@ -242,10 +238,7 @@ class FileEditingService {
     BuildContext context,
     LocalFileSession session,
   ) async {
-    await cache.clearSession(
-      host: host.name,
-      remotePath: session.remotePath,
-    );
+    await cache.clearSession(host: host.name, remotePath: session.remotePath);
     if (!context.mounted) {
       return;
     }

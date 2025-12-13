@@ -254,8 +254,7 @@ TerminalTheme _theme({
 }) {
   Color c(int hex) => Color(hex);
   final selectionAlpha = _selectionOpacity.clamp(0.0, 1.0).toDouble();
-  Color selectionColor(int hex) =>
-      Color(hex).withValues(alpha: selectionAlpha);
+  Color selectionColor(int hex) => Color(hex).withValues(alpha: selectionAlpha);
   return TerminalTheme(
     cursor: c(cursor),
     selection: selectionColor(selection),

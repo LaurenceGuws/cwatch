@@ -55,7 +55,13 @@ class SettingsPathProvider {
       final home = env['HOME'];
       if (home != null) {
         paths.add(
-          p.join(home, 'Library', 'Application Support', 'CWatch', 'settings.json'),
+          p.join(
+            home,
+            'Library',
+            'Application Support',
+            'CWatch',
+            'settings.json',
+          ),
         );
       }
     } else {

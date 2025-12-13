@@ -28,24 +28,24 @@ class BuiltInRemoteShellService extends RemoteShellService {
     this.promptUnlock,
     KnownHostsStore? knownHostsStore,
     SshAuthCoordinator? authCoordinator,
-  })  : _clientManager = BuiltInSshClientManager(
-          vault: vault,
-          hostKeyBindings: hostKeyBindings ?? const {},
-          connectTimeout: connectTimeout,
-          knownHostsStore: knownHostsStore,
-          authCoordinator: authCoordinator ??
-              (promptUnlock != null
-                  ? SshAuthCoordinator()
-                      .withUnlockFallback(promptUnlock)
-                  : const SshAuthCoordinator()),
-        ) {
+  }) : _clientManager = BuiltInSshClientManager(
+         vault: vault,
+         hostKeyBindings: hostKeyBindings ?? const {},
+         connectTimeout: connectTimeout,
+         knownHostsStore: knownHostsStore,
+         authCoordinator:
+             authCoordinator ??
+             (promptUnlock != null
+                 ? SshAuthCoordinator().withUnlockFallback(promptUnlock)
+                 : const SshAuthCoordinator()),
+       ) {
     _sftpTransfer = BuiltInSftpTransfer(_clientManager);
   }
 
   final BuiltInSshVault vault;
   final Duration connectTimeout;
   final Future<bool> Function(String keyId, String hostName, String? keyLabel)?
-      promptUnlock;
+  promptUnlock;
   final BuiltInSshClientManager _clientManager;
   late final BuiltInSftpTransfer _sftpTransfer;
 

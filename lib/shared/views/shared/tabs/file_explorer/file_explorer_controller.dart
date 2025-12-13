@@ -39,9 +39,10 @@ class FileExplorerController extends ChangeNotifier {
     required String remotePath,
     required String local,
     required String remote,
-  }) promptMergeDialog;
+  })
+  promptMergeDialog;
   final Future<void> Function(String path, String initialContent)?
-      onOpenEditorTab;
+  onOpenEditorTab;
 
   final RemoteEditorCache cache = RemoteEditorCache();
   late final SelectionController selectionController;
@@ -147,10 +148,8 @@ class FileExplorerController extends ChangeNotifier {
   }
 
   Future<void> _initializeExplorer() async {
-    final home =
-        await _runShell(
-          () => shellService.homeDirectory(host),
-        ).catchError((error) {
+    final home = await _runShell(() => shellService.homeDirectory(host))
+        .catchError((error) {
           if (error is CancelledExplorerOperation) {
             loading = false;
             error = 'Unlock cancelled';
@@ -221,10 +220,7 @@ class FileExplorerController extends ChangeNotifier {
   }
 
   Future<void> refreshCurrentPath() async {
-    final result = await _pathLoadingService.refreshPath(
-      currentPath,
-      entries,
-    );
+    final result = await _pathLoadingService.refreshPath(currentPath, entries);
     if (result.skipped || result.entries == null) {
       return;
     }

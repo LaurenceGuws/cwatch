@@ -5,10 +5,8 @@ import 'package:flutter/services.dart';
 
 /// Controller that centralizes focus + selection handling for list views.
 class SelectableListController extends ChangeNotifier {
-  SelectableListController({
-    this.allowMultiSelect = false,
-    int? initialFocus,
-  }) : _focusedIndex = initialFocus;
+  SelectableListController({this.allowMultiSelect = false, int? initialFocus})
+    : _focusedIndex = initialFocus;
 
   final bool allowMultiSelect;
   int _itemCount = 0;
@@ -189,8 +187,9 @@ class _SelectableListKeyboardHandlerState
           const _MoveSelectionIntent(-1),
       const SingleActivator(LogicalKeyboardKey.home):
           const _JumpSelectionIntent(toEnd: false),
-      const SingleActivator(LogicalKeyboardKey.end):
-          const _JumpSelectionIntent(toEnd: true),
+      const SingleActivator(LogicalKeyboardKey.end): const _JumpSelectionIntent(
+        toEnd: true,
+      ),
       const SingleActivator(LogicalKeyboardKey.space):
           const _ToggleSelectionIntent(),
       const SingleActivator(LogicalKeyboardKey.enter):

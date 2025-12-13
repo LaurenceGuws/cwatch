@@ -148,8 +148,8 @@ class AppListTokens {
       hoverBackground:
           Color.lerp(a.hoverBackground, b.hoverBackground, t) ??
           a.hoverBackground,
-      focusOutline: Color.lerp(a.focusOutline, b.focusOutline, t) ??
-          a.focusOutline,
+      focusOutline:
+          Color.lerp(a.focusOutline, b.focusOutline, t) ?? a.focusOutline,
       selectedBackground:
           Color.lerp(a.selectedBackground, b.selectedBackground, t) ??
           a.selectedBackground,

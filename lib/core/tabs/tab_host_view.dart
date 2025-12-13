@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import 'tab_host.dart';
 
@@ -15,6 +16,7 @@ class TabHostView<T> extends StatefulWidget {
     this.onReorder,
     this.onAddTab,
     this.tabBarHeight = 36,
+    this.showTabBar,
   });
 
   final TabHostController<T> controller;
@@ -25,6 +27,7 @@ class TabHostView<T> extends StatefulWidget {
   final void Function(int oldIndex, int newIndex)? onReorder;
   final VoidCallback? onAddTab;
   final double tabBarHeight;
+  final ValueListenable<bool>? showTabBar;
 
   @override
   State<TabHostView<T>> createState() => _TabHostViewState<T>();
@@ -79,56 +82,88 @@ class _TabHostViewState<T> extends State<TabHostView<T>> {
   @override
   Widget build(BuildContext context) {
     final tabs = widget.controller.tabs;
-    final selectedIndex =
-        tabs.isEmpty ? 0 : widget.controller.selectedIndex.clamp(0, tabs.length - 1);
+    final selectedIndex = tabs.isEmpty
+        ? 0
+        : widget.controller.selectedIndex.clamp(0, tabs.length - 1);
+    final tabBar = _TabBarRow<T>(
+      tabs: tabs,
+      tabBarHeight: widget.tabBarHeight,
+      leading: widget.leading,
+      onAddTab: widget.onAddTab,
+      onReorder: widget.onReorder,
+      buildChip: widget.buildChip,
+    );
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
-          children: [
-            if (widget.leading != null) widget.leading!,
-            Expanded(
-              child: SizedBox(
-                height: widget.tabBarHeight,
-                child: ReorderableListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  buildDefaultDragHandles: false,
-                  onReorder: widget.onReorder ?? (oldIndex, newIndex) {},
-                  itemCount: tabs.length,
-                  itemBuilder: (context, index) => widget.buildChip(
-                    context,
-                    index,
-                    tabs[index],
-                  ),
-                ),
-              ),
-            ),
-            if (widget.onAddTab != null)
-              IconButton(
-                tooltip: 'New tab',
-                icon: const Icon(Icons.add),
-                onPressed: widget.onAddTab,
-              ),
-          ],
-        ),
+        if (widget.showTabBar != null)
+          ValueListenableBuilder<bool>(
+            valueListenable: widget.showTabBar!,
+            builder: (context, visible, _) =>
+                visible && tabs.isNotEmpty ? tabBar : const SizedBox.shrink(),
+          )
+        else
+          tabBar,
         Flexible(
           fit: FlexFit.loose,
           child: IndexedStack(
             index: selectedIndex,
-            children: List<Widget>.generate(
-              tabs.length,
-              (index) {
-                final tab = tabs[index];
-                final id = widget.tabId(tab);
-                if (_mountedIds.contains(id)) {
-                  return widget.buildBody(tab);
-                }
-                return const SizedBox.shrink();
-              },
-              growable: false,
+            children: List<Widget>.generate(tabs.length, (index) {
+              final tab = tabs[index];
+              final id = widget.tabId(tab);
+              if (_mountedIds.contains(id)) {
+                return widget.buildBody(tab);
+              }
+              return const SizedBox.shrink();
+            }, growable: false),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TabBarRow<T> extends StatelessWidget {
+  const _TabBarRow({
+    required this.tabs,
+    required this.tabBarHeight,
+    required this.buildChip,
+    this.leading,
+    this.onAddTab,
+    this.onReorder,
+  });
+
+  final List<T> tabs;
+  final double tabBarHeight;
+  final Widget? leading;
+  final VoidCallback? onAddTab;
+  final void Function(int oldIndex, int newIndex)? onReorder;
+  final Widget Function(BuildContext context, int index, T tab) buildChip;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        if (leading != null) leading!,
+        Expanded(
+          child: SizedBox(
+            height: tabBarHeight,
+            child: ReorderableListView.builder(
+              scrollDirection: Axis.horizontal,
+              buildDefaultDragHandles: false,
+              onReorder: onReorder ?? (oldIndex, newIndex) {},
+              itemCount: tabs.length,
+              itemBuilder: (context, index) =>
+                  buildChip(context, index, tabs[index]),
             ),
           ),
         ),
+        if (onAddTab != null)
+          IconButton(
+            tooltip: 'New tab',
+            icon: const Icon(Icons.add),
+            onPressed: onAddTab,
+          ),
       ],
     );
   }

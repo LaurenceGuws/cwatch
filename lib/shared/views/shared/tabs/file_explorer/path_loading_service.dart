@@ -27,12 +27,12 @@ class PathLoadingService {
     bool isLoading = false,
   }) async {
     final target = PathUtils.normalizePath(path, currentPath: currentPath);
-    
+
     // Skip if already at this path and not loading, unless forced
     if (!forceReload && target == currentPath && !isLoading) {
       return PathLoadResult.skipped(target);
     }
-    
+
     // If already loading the same path and not forced, skip
     if (!forceReload && target == currentPath && isLoading) {
       return PathLoadResult.skipped(target);
@@ -42,20 +42,25 @@ class PathLoadingService {
       final entries = await runShellWrapper(
         () => shellService.listDirectory(host, target),
       );
-      
+
       // Filter out "." and ".." entries from parsed output
-      final filteredEntries = entries.where((e) => e.name != '.' && e.name != '..').toList();
-      
+      final filteredEntries = entries
+          .where((e) => e.name != '.' && e.name != '..')
+          .toList();
+
       // Add ".." entry at the beginning if not at root (for navigation)
       if (target != '/') {
-        filteredEntries.insert(0, RemoteFileEntry(
-          name: '..',
-          isDirectory: true,
-          sizeBytes: 0,
-          modified: DateTime.now(),
-        ));
+        filteredEntries.insert(
+          0,
+          RemoteFileEntry(
+            name: '..',
+            isDirectory: true,
+            sizeBytes: 0,
+            modified: DateTime.now(),
+          ),
+        );
       }
-      
+
       return PathLoadResult.success(
         target: target,
         entries: filteredEntries,
@@ -74,25 +79,30 @@ class PathLoadingService {
     if (currentPath.isEmpty) {
       return PathRefreshResult.skipped();
     }
-    
+
     try {
       final entries = await runShellWrapper(
         () => shellService.listDirectory(host, currentPath),
       );
-      
+
       // Filter out "." and ".." entries from parsed output
-      final filteredEntries = entries.where((e) => e.name != '.' && e.name != '..').toList();
-      
+      final filteredEntries = entries
+          .where((e) => e.name != '.' && e.name != '..')
+          .toList();
+
       // Add ".." entry at the beginning if not at root (for navigation)
       if (currentPath != '/') {
-        filteredEntries.insert(0, RemoteFileEntry(
-          name: '..',
-          isDirectory: true,
-          sizeBytes: 0,
-          modified: DateTime.now(),
-        ));
+        filteredEntries.insert(
+          0,
+          RemoteFileEntry(
+            name: '..',
+            isDirectory: true,
+            sizeBytes: 0,
+            modified: DateTime.now(),
+          ),
+        );
       }
-      
+
       return PathRefreshResult.success(
         entries: filteredEntries,
         allEntries: entries,
@@ -134,15 +144,19 @@ class PathLoadResult {
     required this.target,
     required this.entries,
     required this.allEntries,
-  }) : error = null, skipped = false;
+  }) : error = null,
+       skipped = false;
 
-  PathLoadResult.error({
-    required this.target,
-    required this.error,
-  }) : entries = null, allEntries = null, skipped = false;
+  PathLoadResult.error({required this.target, required this.error})
+    : entries = null,
+      allEntries = null,
+      skipped = false;
 
   PathLoadResult.skipped(this.target)
-      : entries = null, allEntries = null, error = null, skipped = true;
+    : entries = null,
+      allEntries = null,
+      error = null,
+      skipped = true;
 
   final String target;
   final List<RemoteFileEntry>? entries;
@@ -152,20 +166,23 @@ class PathLoadResult {
 }
 
 class PathRefreshResult {
-  PathRefreshResult.success({
-    required this.entries,
-    required this.allEntries,
-  }) : error = null, skipped = false;
+  PathRefreshResult.success({required this.entries, required this.allEntries})
+    : error = null,
+      skipped = false;
 
   PathRefreshResult.error({required this.error})
-      : entries = null, allEntries = null, skipped = false;
+    : entries = null,
+      allEntries = null,
+      skipped = false;
 
   PathRefreshResult.skipped()
-      : entries = null, allEntries = null, error = null, skipped = true;
+    : entries = null,
+      allEntries = null,
+      error = null,
+      skipped = true;
 
   final List<RemoteFileEntry>? entries;
   final List<RemoteFileEntry>? allEntries;
   final String? error;
   final bool skipped;
 }
-

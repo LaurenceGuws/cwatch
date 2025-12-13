@@ -11,9 +11,8 @@ import '../../settings/settings_path_provider.dart';
 import 'builtin_ssh_key_entry.dart';
 
 class BuiltInSshKeyStore {
-  BuiltInSshKeyStore({
-    SettingsPathProvider? pathProvider,
-  }) : _pathProvider = pathProvider ?? const SettingsPathProvider();
+  BuiltInSshKeyStore({SettingsPathProvider? pathProvider})
+    : _pathProvider = pathProvider ?? const SettingsPathProvider();
 
   final SettingsPathProvider _pathProvider;
   static const _dirName = 'cwatch_builtin_ssh_keys';
@@ -65,7 +64,7 @@ class BuiltInSshKeyStore {
   }) async {
     final id = _generateId();
     final keyText = utf8.decode(keyData);
-    
+
     // Try to parse the key to determine if it's encrypted
     bool keyIsEncrypted = false;
     try {

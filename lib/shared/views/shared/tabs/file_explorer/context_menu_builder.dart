@@ -143,16 +143,16 @@ class ContextMenuBuilder {
 
     // Multi-select compatible actions
     menuItems.addAll([
-        PopupMenuItem(
-          value: ExplorerContextAction.copy,
+      PopupMenuItem(
+        value: ExplorerContextAction.copy,
         child: Text(
           isMultiSelect
               ? 'Copy (${selectedEntries.length} items) ($_shortcutCopy)'
               : 'Copy ($_shortcutCopy)',
         ),
       ),
-        PopupMenuItem(
-          value: ExplorerContextAction.cut,
+      PopupMenuItem(
+        value: ExplorerContextAction.cut,
         child: Text(
           isMultiSelect
               ? 'Cut (${selectedEntries.length} items) ($_shortcutCut)'
@@ -179,8 +179,8 @@ class ContextMenuBuilder {
 
     // Download action
     menuItems.add(
-        PopupMenuItem(
-          value: ExplorerContextAction.download,
+      PopupMenuItem(
+        value: ExplorerContextAction.download,
         child: Text(
           isMultiSelect
               ? 'Download (${selectedEntries.length} items)'
@@ -205,8 +205,8 @@ class ContextMenuBuilder {
 
     // Delete action
     menuItems.add(
-        PopupMenuItem(
-          value: ExplorerContextAction.delete,
+      PopupMenuItem(
+        value: ExplorerContextAction.delete,
         child: Text(
           isMultiSelect
               ? 'Delete (${selectedEntries.length} items) ($_shortcutDelete)'
@@ -237,7 +237,8 @@ class ContextMenuBuilder {
         }
         break;
       case ExplorerContextAction.openTerminal:
-        final targetPath = (!isMultiSelect && entry != null && entry.isDirectory)
+        final targetPath =
+            (!isMultiSelect && entry != null && entry.isDirectory)
             ? joinPath(currentPath, entry.name)
             : currentPath;
         onOpenTerminal?.call(targetPath);
@@ -252,9 +253,7 @@ class ContextMenuBuilder {
           await Clipboard.setData(ClipboardData(text: paths));
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Copied ${selectedEntries.length} paths'),
-              ),
+              SnackBar(content: Text('Copied ${selectedEntries.length} paths')),
             );
           }
         }

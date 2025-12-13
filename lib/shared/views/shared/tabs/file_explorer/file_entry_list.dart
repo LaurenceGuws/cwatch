@@ -202,9 +202,7 @@ class _FileEntryTileState extends State<FileEntryTile> {
                 ? const SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : Icon(NerdIcon.cloudUpload.data),
             onPressed: widget.syncing ? null : widget.onSyncLocalEdit,
@@ -215,12 +213,12 @@ class _FileEntryTileState extends State<FileEntryTile> {
                 ? const SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : Icon(NerdIcon.refresh.data),
-            onPressed: widget.refreshing ? null : widget.onRefreshCacheFromServer,
+            onPressed: widget.refreshing
+                ? null
+                : widget.onRefreshCacheFromServer,
           ),
           IconButton(
             tooltip: 'Clear cached copy',
@@ -249,7 +247,8 @@ class _FileEntryTileState extends State<FileEntryTile> {
           }
         },
         onPointerMove: (event) {
-          if (event.kind == PointerDeviceKind.touch && _tapDownPosition != null) {
+          if (event.kind == PointerDeviceKind.touch &&
+              _tapDownPosition != null) {
             final delta = (event.position - _tapDownPosition!).distance;
             if (delta > 10) {
               _hasMoved = true;

@@ -6,7 +6,7 @@ enum ServerAction {
   portForward,
   empty,
   trash,
-  editor
+  editor,
 }
 
 ServerAction? serverActionFromName(String? value) {

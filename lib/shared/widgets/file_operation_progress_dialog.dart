@@ -153,14 +153,14 @@ class FileOperationProgressController {
     if (_totalBytes <= 0) return null;
     final avgBps = _speedSamples.isEmpty
         ? (_completedBytes /
-            DateTime.now()
-                .difference(_startTime)
-                .inSeconds
-                .clamp(1, double.maxFinite.toInt()))
+              DateTime.now()
+                  .difference(_startTime)
+                  .inSeconds
+                  .clamp(1, double.maxFinite.toInt()))
         : _speedSamples
-                .map((s) => s.bytesPerSecond)
-                .fold<double>(0, (a, b) => a + b) /
-            _speedSamples.length;
+                  .map((s) => s.bytesPerSecond)
+                  .fold<double>(0, (a, b) => a + b) /
+              _speedSamples.length;
     if (avgBps <= 0) return null;
     final remainingBytes = _totalBytes - _completedBytes;
     final seconds = remainingBytes / avgBps;
@@ -414,14 +414,14 @@ class _SpeedChart extends StatelessWidget {
           border: Border.all(color: Theme.of(context).dividerColor),
         ),
         lineBarsData: [
-            LineChartBarData(
-              spots: spots,
-              isCurved: curved,
-              dotData: const FlDotData(show: false),
-              color: Theme.of(context).colorScheme.primary,
-              barWidth: 3,
-            ),
-          ],
+          LineChartBarData(
+            spots: spots,
+            isCurved: curved,
+            dotData: const FlDotData(show: false),
+            color: Theme.of(context).colorScheme.primary,
+            barWidth: 3,
+          ),
+        ],
       ),
     );
   }

@@ -12,7 +12,10 @@ class ExternalAppLauncher {
   static Future<void> launch(String path) async {
     final preferred = await _resolveEditorCommand();
     if (preferred != null) {
-      AppLogger.d('Launching preferred editor command: $preferred $path', tag: 'ExternalApp');
+      AppLogger.d(
+        'Launching preferred editor command: $preferred $path',
+        tag: 'ExternalApp',
+      );
       await Process.start(preferred.first, [...preferred.sublist(1), path]);
       return;
     }
@@ -30,7 +33,10 @@ class ExternalAppLauncher {
   }
 
   /// Open a config file in an external editor
-  static Future<void> openConfigFile(String sourcePath, BuildContext context) async {
+  static Future<void> openConfigFile(
+    String sourcePath,
+    BuildContext context,
+  ) async {
     try {
       final editor = Platform.environment['EDITOR']?.trim();
       if (editor != null && editor.isNotEmpty) {
@@ -53,10 +59,7 @@ class ExternalAppLauncher {
             }
           }
           if (executable != null) {
-            await Process.start(
-              executable,
-              [...parts.sublist(1), sourcePath],
-            );
+            await Process.start(executable, [...parts.sublist(1), sourcePath]);
             return;
           }
         }
@@ -75,7 +78,11 @@ class ExternalAppLauncher {
             final whichCmd = 'which';
             final result = await Process.run(whichCmd, [editor]);
             if (result.exitCode == 0) {
-              final editorPath = result.stdout.toString().trim().split('\n').first;
+              final editorPath = result.stdout
+                  .toString()
+                  .trim()
+                  .split('\n')
+                  .first;
               await Process.start(editorPath, [sourcePath]);
               return;
             }
@@ -111,7 +118,10 @@ class ExternalAppLauncher {
     }
     final executable = await _findExecutable(parts.first);
     if (executable == null) {
-      AppLogger.d('EDITOR command not found: ${parts.first}', tag: 'ExternalApp');
+      AppLogger.d(
+        'EDITOR command not found: ${parts.first}',
+        tag: 'ExternalApp',
+      );
       return null;
     }
     return [executable, ...parts.sublist(1)];
@@ -125,7 +135,11 @@ class ExternalAppLauncher {
     final whichCmd = Platform.isWindows ? 'where' : 'which';
     final result = await Process.run(whichCmd, [command]);
     if (result.exitCode != 0) {
-      AppLogger.w('$whichCmd $command failed', tag: 'ExternalApp', error: result.stderr);
+      AppLogger.w(
+        '$whichCmd $command failed',
+        tag: 'ExternalApp',
+        error: result.stderr,
+      );
       return null;
     }
     final output = (result.stdout as String?) ?? '';

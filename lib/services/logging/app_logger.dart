@@ -1,19 +1,15 @@
 import 'package:flutter/foundation.dart';
 
-enum LogLevel {
-  debug,
-  info,
-  warning,
-  error,
-}
+enum LogLevel { debug, info, warning, error }
 
 /// Lightweight logger to control console output across app.
 /// Defaults to Debug level in debug builds and Warning in release.
 class AppLogger {
   AppLogger._(this.minLevel);
 
-  static final LogLevel _defaultLevel =
-      kDebugMode ? LogLevel.debug : LogLevel.warning;
+  static final LogLevel _defaultLevel = kDebugMode
+      ? LogLevel.debug
+      : LogLevel.warning;
   static AppLogger _instance = AppLogger._(_defaultLevel);
 
   final LogLevel minLevel;
@@ -33,27 +29,25 @@ class AppLogger {
     String? tag,
     Object? error,
     StackTrace? stackTrace,
-  }) =>
-      _instance.log(
-        LogLevel.warning,
-        message,
-        tag: tag,
-        error: error,
-        stackTrace: stackTrace,
-      );
+  }) => _instance.log(
+    LogLevel.warning,
+    message,
+    tag: tag,
+    error: error,
+    stackTrace: stackTrace,
+  );
   static void e(
     String message, {
     String? tag,
     Object? error,
     StackTrace? stackTrace,
-  }) =>
-      _instance.log(
-        LogLevel.error,
-        message,
-        tag: tag,
-        error: error,
-        stackTrace: stackTrace,
-      );
+  }) => _instance.log(
+    LogLevel.error,
+    message,
+    tag: tag,
+    error: error,
+    stackTrace: stackTrace,
+  );
 
   void log(
     LogLevel level,

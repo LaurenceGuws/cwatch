@@ -47,9 +47,12 @@ class KubeconfigService {
           final clusterName = _string(detail['cluster']);
           final userName = _string(detail['user']);
           final namespace = _string(detail['namespace']);
-          final clusterInfo = clusterName != null ? clusters[clusterName] : null;
-          final server =
-              clusterInfo != null ? _string(clusterInfo['server']) : null;
+          final clusterInfo = clusterName != null
+              ? clusters[clusterName]
+              : null;
+          final server = clusterInfo != null
+              ? _string(clusterInfo['server'])
+              : null;
           contexts.add(
             KubeconfigContext(
               name: name,

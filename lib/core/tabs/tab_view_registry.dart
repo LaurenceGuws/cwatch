@@ -20,10 +20,13 @@ class TabViewRegistry<T> {
     final id = tabId(tab);
     return _tabWidgets[id] ??= KeyedSubtree(
       key: ValueKey('$viewKeyPrefix-$id'),
-      child: keepAliveBuilder(bodyBuilder(), _keepAliveKeys.putIfAbsent(
-        id,
-        () => GlobalKey(debugLabel: '$viewKeyPrefix-keepalive-$id'),
-      )),
+      child: keepAliveBuilder(
+        bodyBuilder(),
+        _keepAliveKeys.putIfAbsent(
+          id,
+          () => GlobalKey(debugLabel: '$viewKeyPrefix-keepalive-$id'),
+        ),
+      ),
     );
   }
 

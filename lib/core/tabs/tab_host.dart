@@ -4,10 +4,8 @@ import 'package:flutter/foundation.dart';
 /// and persistence state. Consumers provide tab IDs and a factory for the base
 /// tab (e.g., picker).
 class TabHostController<T> extends ChangeNotifier {
-  TabHostController({
-    required this.baseTabBuilder,
-    required this.tabId,
-  }) : _tabs = [baseTabBuilder()];
+  TabHostController({required this.baseTabBuilder, required this.tabId})
+    : _tabs = [baseTabBuilder()];
 
   final T Function() baseTabBuilder;
   final String Function(T tab) tabId;
@@ -39,8 +37,9 @@ class TabHostController<T> extends ChangeNotifier {
       if (_selectedIndex == 0) {
         _selectedIndex = 0;
       } else {
-        _selectedIndex =
-            _tabs.indexWhere((candidate) => tabId(candidate) == existingId);
+        _selectedIndex = _tabs.indexWhere(
+          (candidate) => tabId(candidate) == existingId,
+        );
       }
     }
     notifyListeners();

@@ -101,17 +101,17 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
       ),
       content: SizedBox(
         width: dialogWidth,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          minWidth: dialogWidth,
-          maxWidth: maxWidth,
-          maxHeight: maxHeight,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minWidth: dialogWidth,
+            maxWidth: maxWidth,
+            maxHeight: maxHeight,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 _buildHeader(),
                 if (_activeForwards.isNotEmpty) ...[
                   Text(
@@ -140,9 +140,7 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
                     _buildTableHeader(),
                     const Divider(height: 12),
                     ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxHeight: maxHeight * 0.7,
-                      ),
+                      constraints: BoxConstraints(maxHeight: maxHeight * 0.7),
                       child: SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: SizedBox(
@@ -188,8 +186,9 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
   }
 
   Widget _buildTableHeader() {
-    final textStyle =
-        Theme.of(context).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600);
+    final textStyle = Theme.of(
+      context,
+    ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
@@ -341,7 +340,9 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
         IconButton(
           tooltip: _allSelected ? 'Deselect all' : 'Select all',
           icon: Icon(
-            _allSelected ? Icons.indeterminate_check_box : Icons.check_box_outlined,
+            _allSelected
+                ? Icons.indeterminate_check_box
+                : Icons.check_box_outlined,
           ),
           onPressed: _checking ? null : _toggleAll,
         ),
@@ -455,9 +456,11 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
       final newControllers = <int, TextEditingController>{};
       final newRemoteControllers = <int, TextEditingController>{};
       for (var i = 0; i < _requests.length; i++) {
-        newControllers[i] = _controllers[i] ??
+        newControllers[i] =
+            _controllers[i] ??
             TextEditingController(text: _requests[i].localPort.toString());
-        newRemoteControllers[i] = _remoteControllers[i] ??
+        newRemoteControllers[i] =
+            _remoteControllers[i] ??
             TextEditingController(text: _requests[i].remotePort.toString());
       }
       _controllers
@@ -469,13 +472,14 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
       _status
         ..clear()
         ..addEntries(
-          List.generate(_requests.length, (i) => MapEntry(i, _StatusLabel.checking)),
+          List.generate(
+            _requests.length,
+            (i) => MapEntry(i, _StatusLabel.checking),
+          ),
         );
       _statusToken
         ..clear()
-        ..addEntries(
-          List.generate(_requests.length, (i) => MapEntry(i, 0)),
-        );
+        ..addEntries(List.generate(_requests.length, (i) => MapEntry(i, 0)));
       _applySort();
       _refreshAllStatuses();
     });
@@ -661,7 +665,9 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
 }
 
 enum _SortKey { use, remote, local, service, status }
+
 enum _SortDirection { none, asc, desc }
+
 enum _StatusLabel { inactive, active, busy, duplicate, invalid, checking }
 
 class _SortableHeader extends StatelessWidget {
@@ -692,10 +698,7 @@ class _SortableHeader extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(label, style: textStyle),
-        if (icon != null) ...[
-          const SizedBox(width: 4),
-          Icon(icon, size: 14),
-        ],
+        if (icon != null) ...[const SizedBox(width: 4), Icon(icon, size: 14)],
       ],
     );
 
@@ -703,10 +706,7 @@ class _SortableHeader extends StatelessWidget {
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: labelWidget,
-        ),
+        child: Align(alignment: Alignment.centerLeft, child: labelWidget),
       ),
     );
 

@@ -62,12 +62,13 @@ class _RemoteFileEditorLoaderState extends State<RemoteFileEditorLoader> {
           shellService: widget.shellService,
           path: widget.path,
           initialContent: content,
-          onSave: widget.onSave ??
+          onSave:
+              widget.onSave ??
               (value) => widget.shellService.writeFile(
-                    widget.host,
-                    widget.path,
-                    value,
-                  ),
+                widget.host,
+                widget.path,
+                value,
+              ),
           settingsController: widget.settingsController,
           helperText: widget.helperText,
           optionsController: widget.optionsController,

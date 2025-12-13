@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 
 /// Tab data for SectionNavBar
 class SectionTab {
-  const SectionTab({
-    required this.label,
-    this.icon,
-  });
+  const SectionTab({required this.label, this.icon});
 
   final String label;
   final IconData? icon;
@@ -38,7 +35,7 @@ class SectionNavBar extends StatelessWidget {
     final compact = viewportWidth < 640;
     // Only collapse to icons on narrow layouts (mobile-ish) to keep labels visible on desktop.
     final showIconsOnly = compact;
-    
+
     return Material(
       elevation: 1,
       color: Theme.of(context).colorScheme.surface,
@@ -68,7 +65,10 @@ class SectionNavBar extends StatelessWidget {
                         tabAlignment: TabAlignment.start,
                         padding: EdgeInsets.zero,
                         controller: controller,
-                        tabs: showIconsOnly && tabIcons != null && tabIcons!.length == tabs.length
+                        tabs:
+                            showIconsOnly &&
+                                tabIcons != null &&
+                                tabIcons!.length == tabs.length
                             ? _buildIconTabs(context, tabs, tabIcons!)
                             : tabs,
                         labelColor: Theme.of(context).colorScheme.primary,
@@ -81,10 +81,7 @@ class SectionNavBar extends StatelessWidget {
                 )
               else
                 const Spacer(),
-              if (trailing != null) ...[
-                const SizedBox(width: 8),
-                trailing!,
-              ],
+              if (trailing != null) ...[const SizedBox(width: 8), trailing!],
             ],
           ),
         ),
@@ -92,7 +89,11 @@ class SectionNavBar extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildIconTabs(BuildContext context, List<Widget> tabs, List<IconData> icons) {
+  List<Widget> _buildIconTabs(
+    BuildContext context,
+    List<Widget> tabs,
+    List<IconData> icons,
+  ) {
     return List.generate(tabs.length, (index) {
       final tab = tabs[index];
       String? label;
@@ -100,13 +101,10 @@ class SectionNavBar extends StatelessWidget {
       if (tab is Tab && tab.text != null) {
         label = tab.text;
       }
-      
+
       return Tooltip(
         message: label ?? 'Tab ${index + 1}',
-        child: Tab(
-          icon: Icon(icons[index]),
-          height: 42,
-        ),
+        child: Tab(icon: Icon(icons[index]), height: 42),
       );
     });
   }
