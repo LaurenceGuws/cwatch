@@ -4,7 +4,9 @@ import 'package:flutter/gestures.dart';
 import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:xterm/src/core/buffer/cell_offset.dart';
+import 'package:xterm/src/core/buffer/range.dart';
 
 import 'package:xterm/src/core/input/keys.dart';
 import 'package:xterm/src/terminal.dart';
@@ -180,8 +182,18 @@ class TerminalViewState extends State<TerminalView> {
 
   late ScrollController _scrollController;
 
+  static const double _selectionHandleSize = 12;
+  bool _draggingSelectionHandle = false;
+  bool _draggingStartHandle = false;
+  CellOffset? _dragStartBaseCell;
+  CellOffset? _dragStartExtentCell;
+
   RenderTerminal get renderTerminal =>
       _viewportKey.currentContext!.findRenderObject() as RenderTerminal;
+
+  TerminalController get controller => _controller;
+
+  Terminal get terminal => widget.terminal;
 
   double get _minFontSize => widget.minFontSize;
   double get _maxFontSize => widget.maxFontSize;
@@ -209,6 +221,8 @@ class TerminalViewState extends State<TerminalView> {
       shortcuts: widget.shortcuts ?? defaultTerminalShortcuts,
     );
     _fontSize = widget.textStyle.fontSize.clamp(_minFontSize, _maxFontSize);
+    _controller.addListener(_onSelectionChanged);
+    _scrollController.addListener(_onScrollChanged);
     super.initState();
   }
 
@@ -230,16 +244,16 @@ class TerminalViewState extends State<TerminalView> {
       if (oldWidget.scrollController == null) {
         _scrollController.dispose();
       }
-      _scrollController = widget.scrollController ?? ScrollController();
-    }
-    _shortcutManager.shortcuts = widget.shortcuts ?? defaultTerminalShortcuts;
-    if (oldWidget.textStyle.fontSize != widget.textStyle.fontSize) {
-      _fontSize = widget.textStyle.fontSize.clamp(_minFontSize, _maxFontSize);
-    }
-    super.didUpdateWidget(oldWidget);
+    _scrollController = widget.scrollController ?? ScrollController();
   }
+  _shortcutManager.shortcuts = widget.shortcuts ?? defaultTerminalShortcuts;
+  if (oldWidget.textStyle.fontSize != widget.textStyle.fontSize) {
+    _fontSize = widget.textStyle.fontSize.clamp(_minFontSize, _maxFontSize);
+  }
+  super.didUpdateWidget(oldWidget);
+}
 
-  @override
+@override
   void dispose() {
     if (widget.focusNode == null) {
       _focusNode.dispose();
@@ -250,6 +264,8 @@ class TerminalViewState extends State<TerminalView> {
     if (widget.scrollController == null) {
       _scrollController.dispose();
     }
+    _controller.removeListener(_onSelectionChanged);
+    _scrollController.removeListener(_onScrollChanged);
     _shortcutManager.dispose();
     super.dispose();
   }
@@ -365,13 +381,21 @@ class TerminalViewState extends State<TerminalView> {
       );
     }
 
-    child = Container(
+    final handleWidgets = _selectionHandles();
+
+    final container = Container(
       color: widget.theme.background.withOpacity(widget.backgroundOpacity),
       padding: widget.padding,
       child: child,
     );
 
-    return child;
+    return Stack(
+      fit: StackFit.passthrough,
+      children: [
+        container,
+        ...handleWidgets,
+      ],
+    );
   }
 
   void requestKeyboard() {
@@ -653,6 +677,174 @@ class TerminalViewState extends State<TerminalView> {
     if (position != null) {
       position.jumpTo(position.maxScrollExtent);
     }
+  }
+
+  void _onSelectionChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  void _onScrollChanged() {
+    if (!mounted) return;
+    if (_controller.selection != null) {
+      setState(() {});
+    }
+  }
+
+  bool get _isMobilePlatform =>
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
+
+  RenderTerminal? get _maybeRenderTerminal {
+    final renderObject = _viewportKey.currentContext?.findRenderObject();
+    if (renderObject is RenderTerminal) {
+      return renderObject;
+    }
+    return null;
+  }
+
+  List<Widget> _selectionHandles() {
+    if (!_isMobilePlatform) return const [];
+    final selection = _controller.selection;
+    final render = _maybeRenderTerminal;
+    if (selection == null || render == null) {
+      return const [];
+    }
+    final normalized = selection.normalized;
+    final height = render.cellSize.height;
+
+    Widget handle(Offset offset, bool isStart) {
+      return Positioned(
+        left: offset.dx - 16,
+        top: offset.dy + height - 16,
+        child: Listener(
+          onPointerDown: (_) => _suspendScroll(true),
+          onPointerUp: (_) => _suspendScroll(false),
+          onPointerCancel: (_) => _suspendScroll(false),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onPanStart: (details) => _onHandlePanStart(isStart, details),
+            onPanUpdate: _onHandlePanUpdate,
+            onPanEnd: _onHandlePanEnd,
+            child: const SizedBox(
+              width: 32,
+              height: 32,
+              child: Center(
+                child: _SelectionBeacon(size: _selectionHandleSize),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return [
+      handle(render.getOffset(normalized.begin), true),
+      handle(render.getOffset(normalized.end), false),
+    ];
+  }
+
+  void _onHandlePanStart(bool draggingStartHandle, DragStartDetails details) {
+    final selection = _controller.selection;
+    final render = _maybeRenderTerminal;
+    if (selection == null || render == null) return;
+    final normalized = selection.normalized;
+    _draggingSelectionHandle = true;
+    _draggingStartHandle = draggingStartHandle;
+    _dragStartBaseCell = normalized.begin;
+    _dragStartExtentCell = normalized.end;
+  }
+
+  void _onHandlePanUpdate(DragUpdateDetails details) {
+    if (!_draggingSelectionHandle) return;
+    final render = _maybeRenderTerminal;
+    if (render == null) return;
+
+    Offset local = render.globalToLocal(details.globalPosition);
+    final didScroll = _autoScrollIfNeeded(local);
+    if (didScroll) {
+      local = render.globalToLocal(details.globalPosition);
+    }
+    final cell = render.getCellOffset(local);
+
+    final base = _draggingStartHandle ? cell : (_dragStartBaseCell ?? cell);
+    final extent = _draggingStartHandle ? (_dragStartExtentCell ?? cell) : cell;
+
+    _setSelectionFromCells(base, extent);
+  }
+
+  void _onHandlePanEnd(DragEndDetails details) {
+    _draggingSelectionHandle = false;
+    _dragStartBaseCell = null;
+    _dragStartExtentCell = null;
+    _suspendScroll(false);
+  }
+
+  void _suspendScroll(bool suspend) {
+    _controller.setSuspendPointerInput(suspend);
+  }
+
+  void _setSelectionFromCells(CellOffset base, CellOffset extent) {
+    final buffer = widget.terminal.buffer;
+    final baseAnchor = buffer.createAnchorFromOffset(base);
+    final extentAnchor = buffer.createAnchorFromOffset(extent);
+    _controller.setSelection(baseAnchor, extentAnchor);
+  }
+
+  bool _autoScrollIfNeeded(Offset localPosition) {
+    final scrollable = _scrollableKey.currentState?.position;
+    final render = _maybeRenderTerminal;
+    if (scrollable == null || render == null || !scrollable.hasPixels) {
+      return false;
+    }
+
+    const edgeMargin = 40.0;
+    double delta = 0;
+    if (localPosition.dy < edgeMargin &&
+        scrollable.pixels > scrollable.minScrollExtent) {
+      delta = localPosition.dy - edgeMargin;
+    } else if (localPosition.dy > render.size.height - edgeMargin &&
+        scrollable.pixels < scrollable.maxScrollExtent) {
+      delta = localPosition.dy - (render.size.height - edgeMargin);
+    }
+
+    if (delta == 0) {
+      return false;
+    }
+
+    final target = (scrollable.pixels + delta)
+        .clamp(scrollable.minScrollExtent, scrollable.maxScrollExtent);
+    scrollable.jumpTo(target);
+    return true;
+  }
+}
+
+class _SelectionBeacon extends StatelessWidget {
+  const _SelectionBeacon({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        border: Border.all(
+          color: Colors.black.withOpacity(0.7),
+          width: 1.5,
+        ),
+        shape: BoxShape.circle,
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 4,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+    );
   }
 }
 

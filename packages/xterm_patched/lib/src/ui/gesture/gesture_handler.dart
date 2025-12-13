@@ -65,6 +65,7 @@ class _TerminalGestureHandlerState extends State<TerminalGestureHandler> {
   DragStartDetails? _lastDragStartDetails;
 
   LongPressStartDetails? _lastLongPressStartDetails;
+  bool _longPressWithinSelection = false;
 
   @override
   Widget build(BuildContext context) {
@@ -194,17 +195,20 @@ class _TerminalGestureHandlerState extends State<TerminalGestureHandler> {
         selection != null && selection.contains(pressCell);
 
     if (pressedInsideSelection) {
-      // Preserve the existing selection and avoid overriding it.
-      _lastLongPressStartDetails = null;
+      // Preserve the existing selection but still allow long-press end to
+      // trigger the context menu.
+      _longPressWithinSelection = true;
+      _lastLongPressStartDetails = details;
       return;
     }
 
+    _longPressWithinSelection = false;
     _lastLongPressStartDetails = details;
     renderTerminal.selectWord(details.localPosition);
   }
 
   void onLongPressMoveUpdate(LongPressMoveUpdateDetails details) {
-    if (terminalView.suppressLongPress) return;
+    if (terminalView.suppressLongPress || _longPressWithinSelection) return;
     final start = _lastLongPressStartDetails;
     if (start == null) return;
     renderTerminal.selectWord(start.localPosition, details.localPosition);
@@ -230,6 +234,7 @@ class _TerminalGestureHandlerState extends State<TerminalGestureHandler> {
       kind: PointerDeviceKind.touch,
     ));
     _lastLongPressStartDetails = null;
+    _longPressWithinSelection = false;
   }
 
   void onDragStart(DragStartDetails details) {
