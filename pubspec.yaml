@@ -97,3 +97,9 @@ flutter:
     - family: IosevkaTermNFM
       fonts:
         - asset: assets/fonts/IosevkaTermNerdFontMono-Regular.ttf
+    - family: JetBrainsMono Nerd Font
+      fonts:
+        - asset: assets/fonts/JetBrainsMonoNerdFont-Regular.ttf
+    - family: JetBrainsMono Nerd Font Mono
+      fonts:
+        - asset: assets/fonts/JetBrainsMonoNerdFontMono-Regular.ttf

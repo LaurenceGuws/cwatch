@@ -112,6 +112,13 @@ class ShortcutService {
     }
     return false;
   }
+
+  List<ShortcutScopeSnapshot> snapshots({bool includeInactive = true}) {
+    return _scopes
+        .where((scope) => includeInactive || scope.active)
+        .map((scope) => scope.snapshot())
+        .toList();
+  }
 }
 
 class _ShortcutScope {
@@ -190,4 +197,44 @@ class _ShortcutScope {
       focusNode.dispose();
     }
   }
+
+  ShortcutScopeSnapshot snapshot() {
+    return ShortcutScopeSnapshot(
+      id: id,
+      priority: priority,
+      active: active,
+      usesFocus: _usesFocus,
+      consumeOnHandle: consumeOnHandle,
+      bindings: _resolvedIds.entries
+          .map(
+            (entry) =>
+                ShortcutScopeBinding(actionId: entry.value, binding: entry.key),
+          )
+          .toList(),
+    );
+  }
+}
+
+class ShortcutScopeSnapshot {
+  const ShortcutScopeSnapshot({
+    required this.id,
+    required this.priority,
+    required this.active,
+    required this.usesFocus,
+    required this.consumeOnHandle,
+    required this.bindings,
+  });
+
+  final String id;
+  final int priority;
+  final bool active;
+  final bool usesFocus;
+  final bool consumeOnHandle;
+  final List<ShortcutScopeBinding> bindings;
+}
+
+class ShortcutScopeBinding {
+  const ShortcutScopeBinding({required this.actionId, required this.binding});
+  final String actionId;
+  final ShortcutBinding binding;
 }

@@ -211,7 +211,8 @@ class CustomTextEditState extends State<CustomTextEdit> with TextInputClient {
   void updateEditingValue(TextEditingValue value) {
     _currentEditingState = value;
 
-    // Get input after composing is done
+    // While composing, only surface the composing text; avoid committing input
+    // until the IME finishes the composition.
     if (!_currentEditingState.composing.isCollapsed) {
       final text = _currentEditingState.text;
       final composingText = _currentEditingState.composing.textInside(text);
@@ -221,20 +222,24 @@ class CustomTextEditState extends State<CustomTextEdit> with TextInputClient {
 
     widget.onComposing(null);
 
-    if (_currentEditingState.text.length < _initEditingState.text.length) {
-      widget.onDelete();
-    } else {
-      final textDelta = _currentEditingState.text.substring(
-        _initEditingState.text.length,
-      );
+    final nextText = _currentEditingState.text;
+    final baseLength = _initEditingState.text.length;
 
-      widget.onInsert(textDelta);
+    if (nextText.length < baseLength) {
+      final deletes = baseLength - nextText.length;
+      for (var i = 0; i < deletes; i++) {
+        widget.onDelete();
+      }
+    } else if (nextText.length > baseLength) {
+      final textDelta = nextText.substring(baseLength);
+      if (textDelta.isNotEmpty) {
+        widget.onInsert(textDelta);
+      }
     }
 
-    // Reset editing state if composing is done
-    if (_currentEditingState.composing.isCollapsed &&
-        _currentEditingState.text != _initEditingState.text) {
+    if (_currentEditingState.text != _initEditingState.text) {
       _connection!.setEditingState(_initEditingState);
+      _currentEditingState = _initEditingState;
     }
   }
 

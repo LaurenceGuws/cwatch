@@ -10,6 +10,7 @@ import 'package:cwatch/modules/docker/ui/widgets/docker_overview.dart';
 import 'package:cwatch/modules/docker/ui/widgets/docker_resources.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
+import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/shared/views/shared/tabs/editor/remote_file_editor_loader.dart';
 import 'package:cwatch/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart';
 import 'package:cwatch/models/explorer_context.dart';
@@ -354,6 +355,7 @@ class DockerWorkspaceController {
     bool manual = false,
     bool cancelled = false,
   }) async {
+    const maxConcurrent = 3;
     List<SshHost> hosts;
     try {
       hosts = await hostsFuture;
@@ -363,10 +365,36 @@ class DockerWorkspaceController {
     if (hosts.isEmpty) {
       return const [];
     }
-    final results = await Future.wait(
-      hosts.map((host) => probeHost(host)),
-      eagerError: false,
+    final results =
+        List<RemoteDockerStatus?>.filled(hosts.length, null, growable: false);
+    var nextIndex = 0;
+
+    Future<void> runNext() async {
+      if (cancelled) return;
+      final current = nextIndex++;
+      if (current >= hosts.length) return;
+      final host = hosts[current];
+      try {
+        results[current] = await probeHost(host);
+      } catch (error) {
+        AppLogger.w(
+          'Docker scan failed for ${host.name}: $error',
+          tag: 'Docker',
+        );
+        results[current] = RemoteDockerStatus(
+          host: host,
+          available: false,
+          detail: error.toString(),
+        );
+      }
+      await runNext();
+    }
+
+    final workers = List.generate(
+      maxConcurrent < hosts.length ? maxConcurrent : hosts.length,
+      (_) => runNext(),
     );
+    await Future.wait(workers);
     final statuses = results.whereType<RemoteDockerStatus>().toList();
     final ready = statuses.where((s) => s.available).toList();
     if (manual && !cancelled && ready.isNotEmpty) {

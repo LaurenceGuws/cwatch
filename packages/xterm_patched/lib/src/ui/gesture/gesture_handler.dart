@@ -1,4 +1,5 @@
 import 'package:flutter/gestures.dart';
+import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:flutter/widgets.dart';
 import 'package:xterm/src/core/buffer/cell_offset.dart';
 import 'package:xterm/src/core/mouse/button.dart';
@@ -80,7 +81,7 @@ class _TerminalGestureHandlerState extends State<TerminalGestureHandler> {
         onTertiaryTapUp: onSecondaryTapUp,
         onLongPressStart: onLongPressStart,
         onLongPressMoveUpdate: onLongPressMoveUpdate,
-        // onLongPressUp: onLongPressUp,
+        onLongPressUp: onLongPressUp,
         onDragStart: onDragStart,
         onDragUpdate: onDragUpdate,
         onDragEnd: onDragEnd,
@@ -178,18 +179,58 @@ class _TerminalGestureHandlerState extends State<TerminalGestureHandler> {
   }
 
   void onLongPressStart(LongPressStartDetails details) {
+    terminalView.longPressActive = true;
+    if (terminalView.suppressLongPress) {
+      AppLogger.d(
+        'longPressStart suppressed at global=${details.globalPosition} local=${details.localPosition}',
+        tag: 'TerminalGestureHandler',
+      );
+      _lastLongPressStartDetails = null;
+      return;
+    }
+    final selection = widget.terminalController.selection;
+    final pressCell = renderTerminal.getCellOffset(details.localPosition);
+    final pressedInsideSelection =
+        selection != null && selection.contains(pressCell);
+
+    if (pressedInsideSelection) {
+      // Preserve the existing selection and avoid overriding it.
+      _lastLongPressStartDetails = null;
+      return;
+    }
+
     _lastLongPressStartDetails = details;
     renderTerminal.selectWord(details.localPosition);
   }
 
   void onLongPressMoveUpdate(LongPressMoveUpdateDetails details) {
-    renderTerminal.selectWord(
-      _lastLongPressStartDetails!.localPosition,
-      details.localPosition,
-    );
+    if (terminalView.suppressLongPress) return;
+    final start = _lastLongPressStartDetails;
+    if (start == null) return;
+    renderTerminal.selectWord(start.localPosition, details.localPosition);
   }
 
-  // void onLongPressUp() {}
+  void onLongPressUp() {
+    if (terminalView.suppressLongPress) return;
+    final start = _lastLongPressStartDetails;
+    if (start == null) return;
+    final details = LongPressEndDetails(
+      globalPosition: terminalView.renderTerminal.localToGlobal(
+        start.localPosition,
+      ),
+      localPosition: start.localPosition,
+    );
+    widget.onSecondaryTapDown?.call(TapDownDetails(
+      globalPosition: details.globalPosition,
+      localPosition: details.localPosition,
+    ));
+    widget.onSecondaryTapUp?.call(TapUpDetails(
+      globalPosition: details.globalPosition,
+      localPosition: details.localPosition,
+      kind: PointerDeviceKind.touch,
+    ));
+    _lastLongPressStartDetails = null;
+  }
 
   void onDragStart(DragStartDetails details) {
     _dragStartLocal = details.localPosition;

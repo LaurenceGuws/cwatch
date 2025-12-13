@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../models/app_settings.dart';
 import '../../models/ssh_host.dart';
@@ -14,14 +15,21 @@ import '../../services/ssh/builtin/builtin_ssh_key_service.dart';
 import '../../services/ssh/builtin/builtin_ssh_vault.dart';
 import '../../services/ssh/remote_command_logging.dart';
 import '../../services/ssh/ssh_shell_factory.dart';
+import '../../services/ssh/ssh_auth_prompter.dart';
+import '../../services/ssh/ssh_auth_coordinator.dart';
 import '../../services/ssh/ssh_config_service.dart';
 import '../../shared/shortcuts/shortcut_actions.dart';
 import '../../shared/shortcuts/shortcut_service.dart';
 import '../../shared/theme/nerd_fonts.dart';
+import '../../shared/shortcuts/input_mode_resolver.dart';
+import '../../shared/gestures/gesture_activators.dart';
+import '../../shared/gestures/gesture_service.dart';
+import '../../shared/widgets/input_help_dialog.dart';
 import '../../shared/widgets/command_palette.dart';
 import 'command_palette_registry.dart';
 import '../tabs/tab_bar_visibility.dart';
 import '../../services/window/window_chrome_service.dart';
+import '../../services/logging/app_logger.dart';
 import 'gesture_detector_factory.dart';
 import 'tab_navigation_registry.dart';
 import 'module_registry.dart';
@@ -48,12 +56,16 @@ class _HomeShellState extends State<HomeShell> {
   late final BuiltInSshKeyStore _builtInKeyStore;
   late final BuiltInSshVault _builtInVault;
   late final BuiltInSshKeyService _builtInKeyService;
+  late final SshAuthCoordinator _authCoordinator;
   late final RemoteCommandLogController _commandLog;
   late final SshShellFactory _shellFactory;
   String? _hostsSettingsSignature;
   _SidebarPlacement _sidebarPlacement = _SidebarPlacement.dynamic;
   final Map<String, Widget> _pageCache = {};
   late final ModuleRegistry _moduleRegistry;
+  bool _gesturesEnabled = true;
+  GestureSubscription? _globalGestureSub;
+  double? _scaleStartZoom;
 
   @override
   void initState() {
@@ -65,10 +77,16 @@ class _HomeShellState extends State<HomeShell> {
       keyStore: _builtInKeyStore,
       vault: _builtInVault,
     );
+    _authCoordinator = SshAuthPrompter.forContext(
+      context: context,
+      keyService: _builtInKeyService,
+    );
     _windowChrome = WindowChromeService();
     _shellFactory = SshShellFactory(
       settingsController: widget.settingsController,
       keyService: _builtInKeyService,
+      authCoordinator: _authCoordinator,
+      observer: _commandLog.add,
     );
     _refreshHosts();
     _moduleRegistry = ModuleRegistry(_buildModules());
@@ -81,24 +99,8 @@ class _HomeShellState extends State<HomeShell> {
     _settingsListener = _handleSettingsChanged;
     widget.settingsController.addListener(_settingsListener);
     ShortcutService.instance.updateSettings(widget.settingsController.settings);
-    _gestureDetectorFactory = GestureDetectorFactory(
-      onTripleTap: _openCommandPalette,
-      onTripleSwipeDown: _openCommandPalette,
-    );
-    _globalShortcutSub = ShortcutService.instance.registerScope(
-      id: 'global',
-      priority: -10,
-      handlers: {
-        ShortcutActions.globalZoomIn: () => _changeAppZoom(0.05),
-        ShortcutActions.globalZoomOut: () => _changeAppZoom(-0.05),
-        ShortcutActions.tabsNext: _focusNextTab,
-        ShortcutActions.tabsPrevious: _focusPreviousTab,
-        ShortcutActions.viewsFocusUp: _focusPreviousDestination,
-        ShortcutActions.viewsFocusDown: _focusNextDestination,
-        ShortcutActions.globalCommandPalette: _openCommandPalette,
-      },
-      focusNode: null,
-    );
+    _gestureDetectorFactory = GestureDetectorFactory();
+    _configureInputMode(widget.settingsController.settings);
   }
 
   ShortcutSubscription? _globalShortcutSub;
@@ -122,6 +124,7 @@ class _HomeShellState extends State<HomeShell> {
     _moduleRegistry.removeListener(_handleModulesChanged);
     widget.settingsController.removeListener(_settingsListener);
     _globalShortcutSub?.dispose();
+    _globalGestureSub?.dispose();
     _gestureDetectorFactory.dispose();
     super.dispose();
   }
@@ -158,6 +161,8 @@ class _HomeShellState extends State<HomeShell> {
       });
     }
     ShortcutService.instance.updateSettings(widget.settingsController.settings);
+    _shellFactory.handleSettingsChanged(widget.settingsController.settings);
+    _configureInputMode(widget.settingsController.settings);
     if (_moduleRegistry.modules.isEmpty) {
       return;
     }
@@ -179,6 +184,7 @@ class _HomeShellState extends State<HomeShell> {
     _sidebarCollapsed = settings.shellSidebarCollapsed;
     _sidebarPlacement = _placementFromString(settings.shellSidebarPlacement);
     unawaited(_windowChrome.apply(settings));
+    _configureInputMode(settings);
   }
 
   Future<void> _changeAppZoom(double delta) async {
@@ -186,6 +192,64 @@ class _HomeShellState extends State<HomeShell> {
       final next = (current.zoomFactor + delta).clamp(0.8, 1.5).toDouble();
       return current.copyWith(zoomFactor: next);
     });
+  }
+
+  void _configureInputMode(AppSettings settings) {
+    final config = resolveInputMode(
+      settings.inputModePreference,
+      defaultTargetPlatform,
+    );
+    if (mounted && _gesturesEnabled != config.enableGestures) {
+      setState(() {
+        _gesturesEnabled = config.enableGestures;
+      });
+    } else {
+      _gesturesEnabled = config.enableGestures;
+    }
+
+    if (!config.enableShortcuts) {
+      _globalShortcutSub?.dispose();
+      _globalShortcutSub = null;
+    } else {
+      _globalShortcutSub ??= ShortcutService.instance.registerScope(
+        id: 'global',
+        priority: -10,
+        handlers: {
+          ShortcutActions.globalZoomIn: () => _changeAppZoom(0.05),
+          ShortcutActions.globalZoomOut: () => _changeAppZoom(-0.05),
+          ShortcutActions.tabsNext: _focusNextTab,
+          ShortcutActions.tabsPrevious: _focusPreviousTab,
+          ShortcutActions.viewsFocusUp: _focusPreviousDestination,
+          ShortcutActions.viewsFocusDown: _focusNextDestination,
+          ShortcutActions.globalCommandPalette: _openCommandPalette,
+        },
+        focusNode: null,
+      );
+    }
+
+    if (!config.enableGestures) {
+      _globalGestureSub?.dispose();
+      _globalGestureSub = null;
+    } else {
+      _globalGestureSub ??= GestureService.instance.registerScope(
+        id: 'global_gestures',
+        priority: -10,
+        handlers: {
+          Gestures.commandPaletteTripleTap: (_) => _openCommandPalette(),
+          Gestures.commandPaletteTripleSwipeDown: (_) => _openCommandPalette(),
+          Gestures.tabsNextSwipe: (_) => _focusNextTab(),
+          Gestures.tabsPreviousSwipe: (_) => _focusPreviousTab(),
+          Gestures.viewsFocusUpSwipe: (_) => _focusPreviousDestination(),
+          Gestures.globalPinchZoom: (invocation) {
+            final next = invocation.payloadAs<double>();
+            if (next != null) {
+              _handleGlobalPinchZoom(next);
+            }
+          },
+        },
+        focusNode: null,
+      );
+    }
   }
 
   String _hostSettingsSignature(AppSettings settings) {
@@ -338,6 +402,19 @@ class _HomeShellState extends State<HomeShell> {
         category: 'Chrome',
         onSelected: TabBarVisibilityController.instance.hide,
         icon: Icons.visibility_off,
+      ),
+      CommandPaletteEntry(
+        id: 'global:help:input',
+        label: 'Help: input & shortcuts',
+        category: 'Help',
+        description:
+            'Show active shortcuts and gestures for the current context.',
+        onSelected: () => showInputHelpDialog(
+          context,
+          settings: widget.settingsController.settings,
+          moduleId: _selectedDestination,
+        ),
+        icon: Icons.info_outline,
       ),
     ];
     final handle = CommandPaletteRegistry.instance.forModule(
@@ -645,23 +722,65 @@ class _HomeShellState extends State<HomeShell> {
           canRequestFocus: true,
           child: Scaffold(
             body: SafeArea(
-              child: _gestureDetectorFactory.wrap(
-                context,
-                Stack(
-                  children: [
-                    Positioned.fill(child: content),
-                    if (navigationBar != null)
-                      Align(
-                        alignment: navigationAlignment,
-                        child: navigationBar,
-                      ),
-                  ],
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onScaleStart: _gesturesEnabled ? _handleScaleStart : null,
+                onScaleUpdate: _gesturesEnabled ? _handleScaleUpdate : null,
+                onScaleEnd: _gesturesEnabled ? _handleScaleEnd : null,
+                child: _gestureDetectorFactory.wrap(
+                  context,
+                  Stack(
+                    children: [
+                      Positioned.fill(child: content),
+                      if (navigationBar != null)
+                        Align(
+                          alignment: navigationAlignment,
+                          child: navigationBar,
+                        ),
+                    ],
+                  ),
+                  enabled: _gesturesEnabled,
                 ),
               ),
             ),
           ),
         );
       },
+    );
+  }
+
+  void _handleScaleStart(ScaleStartDetails details) {
+    if (details.pointerCount < 2) return;
+    _scaleStartZoom = widget.settingsController.settings.zoomFactor;
+    AppLogger.d(
+      'Pinch zoom start at ${_scaleStartZoom?.toStringAsFixed(2) ?? 'unknown'}',
+      tag: 'Gestures',
+    );
+  }
+
+  void _handleScaleUpdate(ScaleUpdateDetails details) {
+    final start = _scaleStartZoom;
+    if (start == null || details.pointerCount < 2) return;
+    final next = (start * details.scale).clamp(0.8, 1.5).toDouble();
+    GestureService.instance.handle(Gestures.globalPinchZoom, payload: next);
+  }
+
+  void _handleScaleEnd(ScaleEndDetails details) {
+    _scaleStartZoom = null;
+  }
+
+  Future<void> _handleGlobalPinchZoom(double targetZoom) async {
+    final current = widget.settingsController.settings.zoomFactor;
+    if ((current - targetZoom).abs() < 0.005) {
+      return;
+    }
+    AppLogger.d(
+      'Pinch zoom updated app zoom from ${current.toStringAsFixed(2)} '
+      'to ${targetZoom.toStringAsFixed(2)}',
+      tag: 'Gestures',
+    );
+    await widget.settingsController.update(
+      (settings) => settings.copyWith(zoomFactor: targetZoom),
     );
   }
 }

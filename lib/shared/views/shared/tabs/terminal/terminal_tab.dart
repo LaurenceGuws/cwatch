@@ -14,6 +14,9 @@ import '../../../../../services/settings/app_settings_controller.dart';
 import '../../../../../shared/shortcuts/shortcut_actions.dart';
 import '../../../../../shared/shortcuts/shortcut_resolver.dart';
 import '../../../../../shared/shortcuts/shortcut_service.dart';
+import '../../../../../shared/shortcuts/input_mode_resolver.dart';
+import '../../../../../shared/gestures/gesture_activators.dart';
+import '../../../../../shared/gestures/gesture_service.dart';
 import '../../../../theme/nerd_fonts.dart';
 import '../tab_chip.dart';
 import 'terminal_theme_presets.dart';
@@ -47,6 +50,11 @@ class _TerminalTabState extends State<TerminalTab> {
   final TerminalController _controller = TerminalController();
   final Terminal _terminal = Terminal(maxLines: 1000);
   final FocusNode _focusNode = FocusNode();
+  bool get _isMobile =>
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
+  VoidCallback? _focusListener;
+  bool _suppressMobileFocus = false;
   TerminalSession? _pty;
   StreamSubscription<String>? _outputSub;
   bool _connecting = true;
@@ -54,14 +62,26 @@ class _TerminalTabState extends State<TerminalTab> {
   bool _closing = false;
   int _sessionToken = 0;
   ShortcutSubscription? _shortcutSub;
+  GestureSubscription? _gestureSub;
+  late final VoidCallback _settingsListener;
 
   @override
   void initState() {
     super.initState();
     _attachTerminalHandlers();
-    _registerShortcuts();
+    _focusListener = () {
+      if (_isMobile && !_focusNode.hasFocus) {
+        _focusNode.canRequestFocus = false;
+      }
+    };
+    _focusNode.addListener(_focusListener!);
+    _settingsListener = _handleSettingsChanged;
+    widget.settingsController.addListener(_settingsListener);
+    _configureInputMode(widget.settingsController.settings);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _focusNode.requestFocus();
+      if (!_isMobile) {
+        _focusNode.requestFocus();
+      }
       _startSession();
     });
   }
@@ -71,8 +91,11 @@ class _TerminalTabState extends State<TerminalTab> {
     _closing = true;
     _resetSession();
     _controller.dispose();
+    _focusNode.removeListener(_focusListener ?? () {});
     _focusNode.dispose();
     _shortcutSub?.dispose();
+    _gestureSub?.dispose();
+    widget.settingsController.removeListener(_settingsListener);
     super.dispose();
   }
 
@@ -379,6 +402,10 @@ class _TerminalTabState extends State<TerminalTab> {
           return _buildError(context);
         }
         final settings = widget.settingsController.settings;
+        final inputMode = resolveInputMode(
+          settings.inputModePreference,
+          defaultTargetPlatform,
+        );
         return LayoutBuilder(
           builder: (context, constraints) {
             if (constraints.maxHeight < _minTerminalHeight) {
@@ -406,27 +433,44 @@ class _TerminalTabState extends State<TerminalTab> {
                     },
                   ),
                 },
-                child: TerminalView(
-                  _terminal,
-                  controller: _controller,
-                  focusNode: _focusNode,
-                  autofocus: true,
-                  backgroundOpacity: 1,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: settings.terminalPaddingX
-                        .clamp(0, 48)
-                        .toDouble(),
-                    vertical: settings.terminalPaddingY.clamp(0, 48).toDouble(),
+                child: GestureDetector(
+                  onLongPressStart: inputMode.enableGestures
+                      ? (details) => _handleLongPress(details.globalPosition)
+                      : null,
+                  onTap: _isMobile ? _enableMobileFocus : null,
+                  onScaleStart: _isMobile
+                      ? (_) => _beginMobileGestureBlock()
+                      : null,
+                  onScaleEnd:
+                      _isMobile ? (_) => _endMobileGestureBlock() : null,
+                  child: TerminalView(
+                    _terminal,
+                    controller: _controller,
+                    focusNode: _focusNode,
+                    autofocus: !_isMobile,
+                    backgroundOpacity: 1,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: settings.terminalPaddingX
+                          .clamp(0, 48)
+                          .toDouble(),
+                      vertical: settings.terminalPaddingY
+                          .clamp(0, 48)
+                          .toDouble(),
+                    ),
+                    alwaysShowCursor: true,
+                    deleteDetection:
+                        defaultTargetPlatform == TargetPlatform.android ||
+                        defaultTargetPlatform == TargetPlatform.iOS,
+                    textStyle: _textStyle(settings),
+                    theme: _terminalTheme(context, settings),
+                    minFontSize: 8,
+                    maxFontSize: 32,
+                    enablePinchZoom: inputMode.enableGestures,
+                    onFontSizeChange: _handlePinchZoom,
+                    shortcuts: _terminalShortcuts(settings),
+                    onSecondaryTapDown: (details, _) =>
+                        _showContextMenu(details.globalPosition),
                   ),
-                  alwaysShowCursor: true,
-                  deleteDetection:
-                      defaultTargetPlatform == TargetPlatform.android ||
-                      defaultTargetPlatform == TargetPlatform.iOS,
-                  textStyle: _textStyle(settings),
-                  theme: _terminalTheme(context, settings),
-                  shortcuts: _terminalShortcuts(settings),
-                  onSecondaryTapDown: (details, _) =>
-                      _showContextMenu(details.globalPosition),
                 ),
               ),
             );
@@ -456,6 +500,13 @@ class _TerminalTabState extends State<TerminalTab> {
   }
 
   Map<ShortcutActivator, Intent> _terminalShortcuts(AppSettings settings) {
+    final inputMode = resolveInputMode(
+      settings.inputModePreference,
+      defaultTargetPlatform,
+    );
+    if (!inputMode.enableShortcuts) {
+      return const {};
+    }
     final resolver = ShortcutResolver(settings);
     final map = <ShortcutActivator, Intent>{};
 
@@ -475,14 +526,21 @@ class _TerminalTabState extends State<TerminalTab> {
       const SelectAllTextIntent(SelectionChangedCause.keyboard),
     );
     add(ShortcutActions.terminalOpenScrollback, const _OpenScrollbackIntent());
-    add(ShortcutActions.terminalOpenScrollback, const _OpenScrollbackIntent());
 
     return map;
   }
 
   Future<void> _changeTerminalFont(double delta) async {
+    final next = (widget.settingsController.settings.terminalFontSize + delta)
+        .clamp(8, 32)
+        .toDouble();
+    await _setTerminalFontSize(next);
+  }
+
+  Future<void> _setTerminalFontSize(double value) async {
     await widget.settingsController.update((current) {
-      final next = (current.terminalFontSize + delta).clamp(8, 32).toDouble();
+      final next = value.clamp(8, 32).toDouble();
+      if (next == current.terminalFontSize) return current;
       return current.copyWith(terminalFontSize: next);
     });
   }
@@ -498,6 +556,97 @@ class _TerminalTabState extends State<TerminalTab> {
       priority: 5,
       consumeOnHandle: true,
     );
+  }
+
+  void _configureShortcuts(InputModeConfig inputMode) {
+    if (!inputMode.enableShortcuts) {
+      _shortcutSub?.dispose();
+      _shortcutSub = null;
+      return;
+    }
+    if (_shortcutSub != null) return;
+    _registerShortcuts();
+  }
+
+  void _handleSettingsChanged() {
+    _configureInputMode(widget.settingsController.settings);
+  }
+
+  void _configureInputMode(AppSettings settings) {
+    final inputMode = resolveInputMode(
+      settings.inputModePreference,
+      defaultTargetPlatform,
+    );
+    _configureShortcuts(inputMode);
+    _configureGestures(inputMode);
+  }
+
+  void _configureGestures(InputModeConfig inputMode) {
+    if (!inputMode.enableGestures) {
+      _gestureSub?.dispose();
+      _gestureSub = null;
+      return;
+    }
+    if (_gestureSub != null) return;
+    _gestureSub = GestureService.instance.registerScope(
+      id: 'terminal_gestures',
+      handlers: {
+        Gestures.terminalPinchZoom: (invocation) {
+          final next = invocation.payloadAs<double>();
+          if (next != null) {
+            unawaited(_setTerminalFontSize(next));
+          }
+        },
+        Gestures.terminalLongPressMenu: (invocation) {
+          final offset = invocation.payloadAs<Offset>();
+          if (offset != null) {
+            _showContextMenu(offset);
+          }
+        },
+      },
+      focusNode: _focusNode,
+      priority: 5,
+    );
+  }
+
+  void _handlePinchZoom(double value) {
+    final handled = GestureService.instance.handle(
+      Gestures.terminalPinchZoom,
+      payload: value,
+    );
+    if (!handled) {
+      unawaited(_setTerminalFontSize(value));
+    }
+  }
+
+  void _handleLongPress(Offset globalPosition) {
+    // Treat long-press as a context tap (right-click equivalent) without toggling focus.
+    final handled = GestureService.instance.handle(
+      Gestures.terminalLongPressMenu,
+      payload: globalPosition,
+    );
+    if (!handled) {
+      _showContextMenu(globalPosition);
+    }
+  }
+
+  void _enableMobileFocus() {
+    if (!_isMobile || _suppressMobileFocus) return;
+    _focusNode.canRequestFocus = true;
+    _focusNode.requestFocus();
+  }
+
+  void _beginMobileGestureBlock() {
+    if (!_isMobile) return;
+    _suppressMobileFocus = true;
+    _focusNode.unfocus();
+    _focusNode.canRequestFocus = false;
+  }
+
+  void _endMobileGestureBlock() {
+    if (!_isMobile) return;
+    _suppressMobileFocus = false;
+    _focusNode.canRequestFocus = true;
   }
 }
 

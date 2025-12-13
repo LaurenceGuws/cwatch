@@ -32,6 +32,7 @@ class BuiltInSshClientManager {
   final BuiltInSshIdentityManager _identityManager;
   final SshAuthCoordinator authCoordinator;
   final KnownHostsStore knownHostsStore;
+  final Map<String, Future<bool>> _pendingUnlockRequests = {};
 
   String? boundKeyForHost(String hostName) =>
       _identityManager.boundKeyForHost(hostName);
@@ -176,6 +177,9 @@ class BuiltInSshClientManager {
           hostName: host.name,
           message: error.toString(),
         );
+      } on SSHStateError catch (error) {
+        logBuiltInSsh('SSH state error for ${host.name}: $error');
+        throw Exception('SSH connection failed for ${host.name}: $error');
       } catch (e) {
         if (e is BuiltInSshKeyLockedException) {
           if (retries > 2) rethrow;
@@ -309,24 +313,39 @@ class BuiltInSshClientManager {
   }
 
   Future<bool> _handleLockedKey(BuiltInSshKeyLockedException error) async {
-    final request = SshKeyUnlockRequest(
-      keyId: error.keyId,
-      hostName: error.hostName,
-      keyLabel: error.keyLabel,
-      storageEncrypted: await vault.needsPassword(error.keyId),
-    );
-    final result = await authCoordinator.onUnlockKey?.call(request);
-    if (result == null || result.unlocked != true) {
-      return false;
+    if (vault.isUnlocked(error.keyId)) {
+      return true;
     }
-    if (!vault.isUnlocked(error.keyId) && result.password != null) {
-      try {
-        await vault.unlock(error.keyId, result.password);
-      } catch (_) {
+    final pending = _pendingUnlockRequests[error.keyId];
+    if (pending != null) {
+      return pending;
+    }
+    final future = () async {
+      final request = SshKeyUnlockRequest(
+        keyId: error.keyId,
+        hostName: error.hostName,
+        keyLabel: error.keyLabel,
+        storageEncrypted: await vault.needsPassword(error.keyId),
+      );
+      final result = await authCoordinator.onUnlockKey?.call(request);
+      if (result == null || result.unlocked != true) {
         return false;
       }
+      if (!vault.isUnlocked(error.keyId) && result.password != null) {
+        try {
+          await vault.unlock(error.keyId, result.password);
+        } catch (_) {
+          return false;
+        }
+      }
+      return vault.isUnlocked(error.keyId);
+    }();
+    _pendingUnlockRequests[error.keyId] = future;
+    try {
+      return await future;
+    } finally {
+      _pendingUnlockRequests.remove(error.keyId);
     }
-    return vault.isUnlocked(error.keyId);
   }
 
   Future<bool> _handleBuiltInPassphrase(

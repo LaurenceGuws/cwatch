@@ -35,16 +35,22 @@ class BuiltInSshIdentityManager {
     _builtInKeyPassphrases[keyId] = passphrase;
   }
 
+  Future<void> _withPendingUnlock(String keyId, Future<void> Function() action) {
+    final pending = _pendingUnlocks[keyId];
+    if (pending != null) {
+      return pending;
+    }
+    final future = action();
+    _pendingUnlocks[keyId] = future;
+    return future.whenComplete(() => _pendingUnlocks.remove(keyId));
+  }
+
   Future<void> ensureUnlocked(SshHost host) async {
     final keyId = _hostKeyBindings[host.name];
     if (keyId == null) {
       return;
     }
-    final pending = _pendingUnlocks[keyId];
-    if (pending != null) {
-      return pending;
-    }
-    final unlockFuture = () async {
+    return _withPendingUnlock(keyId, () async {
       if (vault.isUnlocked(keyId)) {
         return;
       }
@@ -72,13 +78,7 @@ class BuiltInSshIdentityManager {
         }
       }
       throw BuiltInSshKeyLockedException(host.name, keyId, entry.label);
-    }();
-    _pendingUnlocks[keyId] = unlockFuture;
-    try {
-      await unlockFuture;
-    } finally {
-      _pendingUnlocks.remove(keyId);
-    }
+    });
   }
 
   Future<List<SSHKeyPair>> loadIdentities(SshHost host) async {
@@ -149,8 +149,10 @@ class BuiltInSshIdentityManager {
         return identities;
       }
 
-      var unlockedKey = vault.getUnlockedKey(keyId);
-      if (unlockedKey == null) {
+      await _withPendingUnlock(keyId, () async {
+        if (vault.isUnlocked(keyId)) {
+          return;
+        }
         final needsPassword = await vault.needsPassword(keyId);
         if (!needsPassword) {
           try {
@@ -171,8 +173,9 @@ class BuiltInSshIdentityManager {
           throw BuiltInSshKeyLockedException(host.name, keyId, entry.label);
         }
         logBuiltInSsh('Unlocked built-in key $keyId for host ${host.name}');
-        unlockedKey = vault.getUnlockedKey(keyId);
-      }
+      });
+
+      var unlockedKey = vault.getUnlockedKey(keyId);
 
       if (unlockedKey == null) {
         throw BuiltInSshKeyLockedException(host.name, keyId, entry.label);

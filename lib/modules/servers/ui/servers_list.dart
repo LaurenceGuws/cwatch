@@ -90,9 +90,14 @@ class _ServersListState extends State<ServersList> {
   @override
   void initState() {
     super.initState();
+    final authCoordinator = SshAuthPrompter.forContext(
+      context: context,
+      keyService: widget.keyService,
+    );
     _shellFactory = SshShellFactory(
       settingsController: widget.settingsController,
       keyService: widget.keyService,
+      authCoordinator: authCoordinator,
     );
     _portForwardService.setAuthCoordinator(_shellFactory.authCoordinator);
     _workspaceController = ServerWorkspaceController(
@@ -629,23 +634,7 @@ class _ServersListState extends State<ServersList> {
   }
 
   RemoteShellService _shellServiceForHost(SshHost host) {
-    final observer = _debugObserver();
-    return _shellFactory.forHost(
-      host,
-      observer: observer,
-      coordinator: SshAuthPrompter.forContext(
-        context: context,
-        keyService: widget.keyService,
-      ),
-    );
-  }
-
-  RemoteCommandObserver? _debugObserver() {
-    final settings = widget.settingsController.settings;
-    if (!settings.debugMode) {
-      return null;
-    }
-    return (event) => widget.commandLog.add(event);
+    return _shellFactory.forHost(host);
   }
 
   void _closeTab(int index) {

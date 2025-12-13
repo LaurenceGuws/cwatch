@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import 'package:cwatch/models/ssh_client_backend.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
@@ -197,22 +198,50 @@ class _ServersSettingsTabState extends State<ServersSettingsTab> {
     final result = await FilePicker.platform.pickFiles(
       dialogTitle: 'Select ssh_config file',
       allowMultiple: false,
+      withData: true,
     );
-    final path = (result != null && result.files.isNotEmpty)
-        ? result.files.first.path
+    final file = (result != null && result.files.isNotEmpty)
+        ? result.files.first
         : null;
+    String? path = file?.path;
+    if (path == null && file?.bytes != null) {
+      path = await _persistPickedConfig(file!);
+    }
     if (path == null) {
+      _showSnack('Unable to read selected file');
       return;
     }
+    final normalized = p.normalize(path);
     final current = widget.controller.settings.customSshConfigPaths;
-    if (current.contains(path)) {
+    if (current.contains(normalized)) {
       _showSnack('Config already added');
       return;
     }
     await widget.controller.update(
-      (settings) => settings.copyWith(customSshConfigPaths: [...current, path]),
+      (settings) =>
+          settings.copyWith(customSshConfigPaths: [...current, normalized]),
     );
-    _showSnack('Added SSH config: ${p.basename(path)}');
+    _showSnack('Added SSH config: ${p.basename(normalized)}');
+  }
+
+  Future<String?> _persistPickedConfig(PlatformFile file) async {
+    final bytes = file.bytes;
+    if (bytes == null) {
+      return null;
+    }
+    try {
+      final supportDir = await getApplicationSupportDirectory();
+      final targetDir = Directory(p.join(supportDir.path, 'ssh_configs'));
+      await targetDir.create(recursive: true);
+      final fileName = file.name.isNotEmpty
+          ? file.name
+          : 'ssh_config_${DateTime.now().millisecondsSinceEpoch}';
+      final target = File(p.join(targetDir.path, fileName));
+      await target.writeAsBytes(bytes, flush: true);
+      return target.path;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _removeConfigPath(String path) async {

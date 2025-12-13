@@ -1,5 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:xterm/src/core/buffer/cell_offset.dart';
@@ -43,6 +45,10 @@ class TerminalView extends StatefulWidget {
     this.keyboardAppearance = Brightness.dark,
     this.cursorType = TerminalCursorType.block,
     this.alwaysShowCursor = false,
+    this.minFontSize = 8,
+    this.maxFontSize = 32,
+    this.enablePinchZoom = true,
+    this.onFontSizeChange,
     this.deleteDetection = false,
     this.shortcuts,
     this.onKeyEvent,
@@ -115,6 +121,17 @@ class TerminalView extends StatefulWidget {
   /// [false] by default.
   final bool alwaysShowCursor;
 
+  /// Optional callback when the terminal font size changes (e.g. via pinch).
+  final ValueChanged<double>? onFontSizeChange;
+
+  /// Minimum and maximum terminal font sizes.
+  final double minFontSize;
+
+  final double maxFontSize;
+
+  /// Whether pinch-to-zoom gestures are enabled.
+  final bool enablePinchZoom;
+
   /// Workaround to detect delete key for platforms and IMEs that does not
   /// emit hardware delete event. Prefered on mobile platforms. [false] by
   /// default.
@@ -166,6 +183,23 @@ class TerminalViewState extends State<TerminalView> {
   RenderTerminal get renderTerminal =>
       _viewportKey.currentContext!.findRenderObject() as RenderTerminal;
 
+  double get _minFontSize => widget.minFontSize;
+  double get _maxFontSize => widget.maxFontSize;
+
+  late double _fontSize;
+  double? _scaleStartFontSize;
+  double? _pendingScaledFontSize;
+  bool _longPressActive = false;
+  bool _tapDownInFocusHitbox = false;
+  bool _suppressLongPress = false;
+  bool _suppressPinch = false;
+  bool _pinchInProgress = false;
+  bool _pendingHitboxFocus = false;
+
+  // Exposed for gesture handler to mark when a long-press is in progress.
+  set longPressActive(bool value) => _longPressActive = value;
+  bool get suppressLongPress => _suppressLongPress;
+
   @override
   void initState() {
     _focusNode = widget.focusNode ?? FocusNode();
@@ -174,6 +208,7 @@ class TerminalViewState extends State<TerminalView> {
     _shortcutManager = ShortcutManager(
       shortcuts: widget.shortcuts ?? defaultTerminalShortcuts,
     );
+    _fontSize = widget.textStyle.fontSize.clamp(_minFontSize, _maxFontSize);
     super.initState();
   }
 
@@ -198,6 +233,9 @@ class TerminalViewState extends State<TerminalView> {
       _scrollController = widget.scrollController ?? ScrollController();
     }
     _shortcutManager.shortcuts = widget.shortcuts ?? defaultTerminalShortcuts;
+    if (oldWidget.textStyle.fontSize != widget.textStyle.fontSize) {
+      _fontSize = widget.textStyle.fontSize.clamp(_minFontSize, _maxFontSize);
+    }
     super.didUpdateWidget(oldWidget);
   }
 
@@ -218,6 +256,8 @@ class TerminalViewState extends State<TerminalView> {
 
   @override
   Widget build(BuildContext context) {
+    final textStyle = widget.textStyle.copyWith(fontSize: _fontSize);
+
     Widget child = Scrollable(
       key: _scrollableKey,
       controller: _scrollController,
@@ -229,7 +269,7 @@ class TerminalViewState extends State<TerminalView> {
           offset: offset,
           padding: MediaQuery.of(context).padding,
           autoResize: widget.autoResize,
-          textStyle: widget.textStyle,
+          textStyle: textStyle,
           textScaler: widget.textScaler ?? MediaQuery.textScalerOf(context),
           theme: widget.theme,
           focusNode: _focusNode,
@@ -291,6 +331,7 @@ class TerminalViewState extends State<TerminalView> {
       child: child,
     );
 
+
     child = KeyboardVisibilty(
       onKeyboardShow: _onKeyboardShow,
       child: child,
@@ -313,6 +354,16 @@ class TerminalViewState extends State<TerminalView> {
       cursor: widget.mouseCursor,
       child: child,
     );
+
+    if (widget.enablePinchZoom) {
+      child = GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onScaleStart: _onScaleStart,
+        onScaleUpdate: _onScaleUpdate,
+        onScaleEnd: _onScaleEnd,
+        child: child,
+      );
+    }
 
     child = Container(
       color: widget.theme.background.withOpacity(widget.backgroundOpacity),
@@ -340,20 +391,175 @@ class TerminalViewState extends State<TerminalView> {
         renderTerminal.cellSize;
   }
 
+  void _onScaleStart(ScaleStartDetails details) {
+    if (details.pointerCount < 2) return;
+    _pinchInProgress = true;
+    if (_tapDownInFocusHitbox) {
+      _suppressPinch = true;
+      return;
+    }
+    _suppressPinch = false;
+    _scaleStartFontSize = _fontSize;
+  }
+
+  void _onScaleUpdate(ScaleUpdateDetails details) {
+    if (_suppressPinch) return;
+    if (_scaleStartFontSize == null || details.pointerCount < 2) return;
+    final next = (_scaleStartFontSize! * details.scale)
+        .clamp(_minFontSize, _maxFontSize);
+    if (next != _fontSize) {
+      setState(() {
+        _fontSize = next;
+      });
+      _pendingScaledFontSize = next;
+    }
+  }
+
+  void _onScaleEnd(ScaleEndDetails details) {
+    _pinchInProgress = false;
+    if (_suppressPinch) {
+      _suppressPinch = false;
+      return;
+    }
+    if (_pendingScaledFontSize != null) {
+      widget.onFontSizeChange?.call(_pendingScaledFontSize!);
+    }
+    _scaleStartFontSize = null;
+    _pendingScaledFontSize = null;
+  }
+
   void _onTapUp(TapUpDetails details) {
     final offset = renderTerminal.getCellOffset(details.localPosition);
     widget.onTapUp?.call(details, offset);
+    AppLogger.d(
+      'tapUp: global=${details.globalPosition} local=${details.localPosition} '
+      'kind=${details.kind} cursorOffset=${renderTerminal.cursorOffset}',
+      tag: 'TerminalView',
+    );
+
+    // For touch, request the keyboard on tap-up so long-press doesn't
+    // immediately pull it up. Treat unknown kind as touch to keep mobile
+    // taps focusing the terminal.
+    final kind = details.kind;
+    if (kind == null ||
+        kind == PointerDeviceKind.touch ||
+        kind == PointerDeviceKind.stylus) {
+      // Only focus if the tap was (or ended) in the focus hitbox around the cursor,
+      // and we did not treat it as a long-press or pinch.
+      final upInHitbox = _isWithinFocusHitbox(details.globalPosition);
+      final shouldFocus = (_tapDownInFocusHitbox || upInHitbox) &&
+          !_longPressActive &&
+          !_pinchInProgress;
+      if (shouldFocus) {
+        _requestKeyboard();
+      }
+      _tapDownInFocusHitbox = false;
+      _suppressLongPress = false;
+      _longPressActive = false;
+      _pendingHitboxFocus = false;
+    }
   }
 
-  void _onTapDown(_) {
-    if (_controller.selection != null) {
-      _controller.clearSelection();
-    } else {
-      if (!widget.hardwareKeyboardOnly) {
-        _customTextEditKey.currentState?.requestKeyboard();
-      } else {
-        _focusNode.requestFocus();
+  void _onTapDown(TapDownDetails details) {
+    _longPressActive = false;
+    final kind = details.kind;
+    if (kind == PointerDeviceKind.touch ||
+        kind == PointerDeviceKind.stylus ||
+        kind == null) {
+      _tapDownInFocusHitbox = _isWithinFocusHitbox(details.globalPosition);
+      _suppressLongPress = false;
+      _pendingHitboxFocus = _tapDownInFocusHitbox;
+      if (_tapDownInFocusHitbox) {
+        _requestKeyboard();
       }
+    } else {
+      _tapDownInFocusHitbox = false;
+      _suppressLongPress = false;
+      _pendingHitboxFocus = false;
+    }
+    AppLogger.d(
+      'tapDown: global=${details.globalPosition} local=${details.localPosition} '
+      'kind=$kind cursorOffset=${renderTerminal.cursorOffset} '
+      'tapInHitbox=$_tapDownInFocusHitbox suppressLongPress=$_suppressLongPress',
+      tag: 'TerminalView',
+    );
+
+    final selection = _controller.selection;
+    final tappedCell = renderTerminal.getCellOffset(details.localPosition);
+
+    // Keep an existing selection if the tap occurs inside it; otherwise
+    // clear and focus as usual so taps outside the selection behave the same.
+    final tappedInsideSelection =
+        selection != null && selection.contains(tappedCell);
+
+    if (selection != null && tappedInsideSelection) {
+      return;
+    }
+
+    if (selection != null) {
+      _controller.clearSelection();
+      return;
+    }
+
+    // On touch, defer keyboard focus until we know it's a tap (not long-press).
+    if (kind == PointerDeviceKind.touch ||
+        kind == PointerDeviceKind.stylus ||
+        kind == null) {
+      return;
+    }
+
+    _requestKeyboard();
+  }
+
+  void _onLongPressUp(LongPressEndDetails details) {
+    if (_suppressLongPress) return;
+    final offset = renderTerminal.getCellOffset(details.localPosition);
+    widget.onSecondaryTapDown?.call(
+      TapDownDetails(
+        globalPosition: details.globalPosition,
+        localPosition: details.localPosition,
+      ),
+      offset,
+    );
+    widget.onSecondaryTapUp?.call(
+      TapUpDetails(
+        globalPosition: details.globalPosition,
+        localPosition: details.localPosition,
+        kind: PointerDeviceKind.touch,
+      ),
+      offset,
+    );
+    _longPressActive = false;
+  }
+
+  bool _isWithinFocusHitbox(Offset globalPosition) {
+    final localPosition = renderTerminal.globalToLocal(globalPosition);
+    final cursorRect = renderTerminal.cursorOffset & renderTerminal.cellSize;
+    final cellHeight = renderTerminal.cellSize.height;
+    final top = cursorRect.top - cellHeight < 0
+        ? 0.0
+        : cursorRect.top - cellHeight;
+    final height = cellHeight * 3;
+    final hitbox = Rect.fromLTWH(
+      0,
+      top,
+      renderTerminal.size.width,
+      height,
+    );
+    AppLogger.d(
+      'focus hitbox: cursorRect=$cursorRect hitbox=$hitbox '
+      'localTap=$localPosition globalTap=$globalPosition '
+      'tapDownHitbox=$_tapDownInFocusHitbox suppressLongPress=$_suppressLongPress',
+      tag: 'TerminalView',
+    );
+    return hitbox.contains(localPosition);
+  }
+
+  void _requestKeyboard() {
+    _focusNode.canRequestFocus = true;
+    _focusNode.requestFocus();
+    if (!widget.hardwareKeyboardOnly) {
+      _customTextEditKey.currentState?.requestKeyboard();
     }
   }
 

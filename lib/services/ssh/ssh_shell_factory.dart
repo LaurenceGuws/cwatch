@@ -7,6 +7,7 @@ import 'known_hosts_store.dart';
 import 'remote_command_logging.dart';
 import 'remote_shell_service.dart';
 import 'ssh_auth_coordinator.dart';
+import '../../models/app_settings.dart';
 
 class SshShellFactory {
   SshShellFactory({
@@ -14,41 +15,79 @@ class SshShellFactory {
     required this.keyService,
     SshAuthCoordinator? authCoordinator,
     KnownHostsStore? knownHostsStore,
+    RemoteCommandObserver? observer,
   }) : knownHostsStore = knownHostsStore ?? const KnownHostsStore(),
-       authCoordinator = authCoordinator ?? const SshAuthCoordinator();
+       authCoordinator = authCoordinator ?? const SshAuthCoordinator(),
+       _defaultObserver = observer;
 
   final AppSettingsController settingsController;
   final BuiltInSshKeyService keyService;
   final KnownHostsStore knownHostsStore;
   final SshAuthCoordinator authCoordinator;
+  final RemoteCommandObserver? _defaultObserver;
 
-  RemoteShellService forHost(
-    SshHost host, {
-    RemoteCommandObserver? observer,
-    Future<bool> Function(String keyId, String hostName, String? keyLabel)?
-    promptUnlock,
-    SshAuthCoordinator? coordinator,
-  }) {
+  RemoteShellService? _builtinShell;
+  RemoteShellService? _processShell;
+  String? _shellSignature;
+
+  RemoteShellService forHost(SshHost host) {
     final settings = settingsController.settings;
     final usingBuiltIn = settings.sshClientBackend == SshClientBackend.builtin;
-    final effectiveCoordinator =
-        coordinator ??
-        (promptUnlock != null
-            ? authCoordinator.withUnlockFallback(promptUnlock)
-            : authCoordinator);
     if (usingBuiltIn) {
-      return keyService.buildShellService(
-        hostKeyBindings: settings.builtinSshHostKeyBindings,
-        debugMode: settings.debugMode,
-        observer: observer,
-        promptUnlock: promptUnlock,
-        knownHostsStore: knownHostsStore,
-        authCoordinator: effectiveCoordinator,
-      );
+      return _ensureBuiltinShell(settings);
     }
-    return ProcessRemoteShellService(
+    return _ensureProcessShell(settings);
+  }
+
+  void handleSettingsChanged(AppSettings settings) {
+    final nextSignature = _signatureFor(settings);
+    if (nextSignature != _shellSignature) {
+      _shellSignature = nextSignature;
+      _builtinShell = null;
+      _processShell = null;
+    }
+  }
+
+  RemoteShellService _ensureBuiltinShell(AppSettings settings) {
+    final signature = _signatureFor(settings);
+    if (_builtinShell != null && _shellSignature == signature) {
+      return _builtinShell!;
+    }
+    final observer = settings.debugMode ? _defaultObserver : null;
+    _builtinShell = keyService.buildShellService(
+      hostKeyBindings: settings.builtinSshHostKeyBindings,
+      debugMode: settings.debugMode,
+      observer: observer,
+      knownHostsStore: knownHostsStore,
+      authCoordinator: authCoordinator,
+    );
+    _shellSignature = signature;
+    return _builtinShell!;
+  }
+
+  RemoteShellService _ensureProcessShell(AppSettings settings) {
+    final signature = '${_signatureFor(settings)}|process';
+    if (_processShell != null && _shellSignature == signature) {
+      return _processShell!;
+    }
+    final observer = settings.debugMode ? _defaultObserver : null;
+    _processShell = ProcessRemoteShellService(
       debugMode: settings.debugMode,
       observer: observer,
     );
+    _shellSignature = signature;
+    return _processShell!;
+  }
+
+  String _signatureFor(AppSettings settings) {
+    final bindings = settings.builtinSshHostKeyBindings.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    final bindingsSig =
+        bindings.map((entry) => '${entry.key}:${entry.value}').join(',');
+    return [
+      settings.sshClientBackend.name,
+      settings.debugMode,
+      bindingsSig,
+    ].join('|');
   }
 }

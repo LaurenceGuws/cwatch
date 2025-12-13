@@ -1,27 +1,64 @@
 import 'package:flutter/widgets.dart';
 
+import '../../shared/gestures/gesture_activators.dart';
+import '../../shared/gestures/gesture_service.dart';
+
 /// Lightweight helper to attach multi-touch gestures to the shell.
 class GestureDetectorFactory {
-  GestureDetectorFactory({this.onTripleTap, this.onTripleSwipeDown});
+  GestureDetectorFactory({
+    this.tripleTapActivator = Gestures.commandPaletteTripleTap,
+    this.swipeDownActivators = const [
+      Gestures.viewsFocusDownSwipe,
+      Gestures.commandPaletteTripleSwipeDown,
+    ],
+    this.swipeUpActivators = const [Gestures.viewsFocusUpSwipe],
+    this.swipeLeftActivators = const [Gestures.tabsPreviousSwipe],
+    this.swipeRightActivators = const [Gestures.tabsNextSwipe],
+  });
 
-  final VoidCallback? onTripleTap;
-  final VoidCallback? onTripleSwipeDown;
+  final GestureActivator? tripleTapActivator;
+  final List<GestureActivator> swipeDownActivators;
+  final List<GestureActivator> swipeUpActivators;
+  final List<GestureActivator> swipeLeftActivators;
+  final List<GestureActivator> swipeRightActivators;
 
   final List<VoidCallback> _disposers = [];
 
   /// Wraps the given [child] with gesture detectors when callbacks exist.
-  Widget wrap(BuildContext context, Widget child) {
+  Widget wrap(BuildContext context, Widget child, {bool enabled = true}) {
+    if (!enabled) return child;
     Widget current = child;
-    if (onTripleTap != null) {
-      current = _TripleTapDetector(onTripleTap: onTripleTap!, child: current);
+    if (tripleTapActivator != null) {
+      current = _TripleTapDetector(
+        onTripleTap: () => _dispatch([tripleTapActivator!]),
+        child: current,
+      );
     }
-    if (onTripleSwipeDown != null) {
-      current = _TripleSwipeDownDetector(
-        onSwipe: onTripleSwipeDown!,
+    final swipeActivators = {
+      _SwipeDirection.down: swipeDownActivators,
+      _SwipeDirection.up: swipeUpActivators,
+      _SwipeDirection.left: swipeLeftActivators,
+      _SwipeDirection.right: swipeRightActivators,
+    };
+    final hasSwipeHandlers = swipeActivators.values.any(
+      (activators) => activators.isNotEmpty,
+    );
+    if (hasSwipeHandlers) {
+      current = _TripleSwipeDetector(
+        onSwipe: (direction) => _dispatch(swipeActivators[direction] ?? []),
         child: current,
       );
     }
     return current;
+  }
+
+  void _dispatch(List<GestureActivator> activators) {
+    for (final activator in activators) {
+      final handled = GestureService.instance.handle(activator);
+      if (handled) {
+        return;
+      }
+    }
   }
 
   void dispose() {
@@ -70,18 +107,19 @@ class _TripleTapDetectorState extends State<_TripleTapDetector> {
   }
 }
 
-class _TripleSwipeDownDetector extends StatefulWidget {
-  const _TripleSwipeDownDetector({required this.onSwipe, required this.child});
+enum _SwipeDirection { left, right, up, down }
 
-  final VoidCallback onSwipe;
+class _TripleSwipeDetector extends StatefulWidget {
+  const _TripleSwipeDetector({required this.onSwipe, required this.child});
+
+  final ValueChanged<_SwipeDirection> onSwipe;
   final Widget child;
 
   @override
-  State<_TripleSwipeDownDetector> createState() =>
-      _TripleSwipeDownDetectorState();
+  State<_TripleSwipeDetector> createState() => _TripleSwipeDetectorState();
 }
 
-class _TripleSwipeDownDetectorState extends State<_TripleSwipeDownDetector> {
+class _TripleSwipeDetectorState extends State<_TripleSwipeDetector> {
   int _activePointers = 0;
   bool _triggered = false;
 
@@ -102,9 +140,21 @@ class _TripleSwipeDownDetectorState extends State<_TripleSwipeDownDetector> {
 
   void _onPointerMove(PointerMoveEvent event) {
     if (_triggered || _activePointers < 3) return;
-    if (event.delta.dy > 12) {
+    final dx = event.delta.dx;
+    final dy = event.delta.dy;
+    const threshold = 12;
+    if (dy > threshold) {
       _triggered = true;
-      widget.onSwipe();
+      widget.onSwipe(_SwipeDirection.down);
+    } else if (dy < -threshold) {
+      _triggered = true;
+      widget.onSwipe(_SwipeDirection.up);
+    } else if (dx < -threshold) {
+      _triggered = true;
+      widget.onSwipe(_SwipeDirection.left);
+    } else if (dx > threshold) {
+      _triggered = true;
+      widget.onSwipe(_SwipeDirection.right);
     }
   }
 

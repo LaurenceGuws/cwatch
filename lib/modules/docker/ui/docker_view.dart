@@ -12,6 +12,7 @@ import 'package:cwatch/services/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/filesystem/explorer_trash_manager.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
+import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/core/models/tab_state.dart';
 import 'package:cwatch/core/tabs/tab_host.dart';
@@ -30,7 +31,6 @@ import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 import 'docker_tab_factory.dart';
 import 'docker_workspace_controller.dart';
 import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
-import 'package:cwatch/services/ssh/ssh_auth_prompter.dart';
 
 class DockerView extends StatefulWidget {
   const DockerView({
@@ -687,7 +687,7 @@ class _DockerViewState extends State<DockerView> {
       final output = await shell.runCommand(
         host,
         probeCommand,
-        timeout: const Duration(seconds: 4),
+        timeout: const Duration(seconds: 8),
       );
       final trimmed = output.trim();
       if (trimmed.contains('__DOCKER_OK__')) {
@@ -714,7 +714,12 @@ class _DockerViewState extends State<DockerView> {
             ? 'Unknown response'
             : trimmed.split('\n').first,
       );
-    } catch (error) {
+    } catch (error, stack) {
+      AppLogger.w(
+        'Docker probe failed for ${host.name}: $error',
+        tag: 'Docker',
+        stackTrace: stack,
+      );
       return RemoteDockerStatus(
         host: host,
         available: false,
@@ -724,16 +729,7 @@ class _DockerViewState extends State<DockerView> {
   }
 
   RemoteShellService _shellServiceForHost(SshHost host) {
-    final settings = widget.settingsController.settings;
-    final observer = settings.debugMode ? widget.commandLog.add : null;
-    return widget.shellFactory.forHost(
-      host,
-      observer: observer,
-      coordinator: SshAuthPrompter.forContext(
-        context: context,
-        keyService: widget.keyService,
-      ),
-    );
+    return widget.shellFactory.forHost(host);
   }
 
   void _openChildTab(EngineTab tab) {

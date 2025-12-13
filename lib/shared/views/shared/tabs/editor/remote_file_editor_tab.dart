@@ -1,8 +1,14 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../../models/ssh_host.dart';
 import '../../../../../services/settings/app_settings_controller.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
+import '../../../../../shared/gestures/gesture_activators.dart';
+import '../../../../../shared/gestures/gesture_service.dart';
+import '../../../../../shared/shortcuts/input_mode_resolver.dart';
 import '../../../../../shared/shortcuts/shortcut_actions.dart';
 import '../../../../../shared/shortcuts/shortcut_service.dart';
 import '../../../../theme/nerd_fonts.dart';
@@ -48,6 +54,10 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
       GlobalKey<PlainPagerViewState>();
   ShortcutSubscription? _shortcutSub;
   ShortcutSubscription? _pagerShortcutSub;
+  GestureSubscription? _gestureSub;
+  GestureSubscription? _pagerGestureSub;
+  late final VoidCallback _settingsListener;
+  double? _scaleStartFontSize;
 
   List<TabChipOption>? _pendingTabOptions;
   bool _optionsScheduled = false;
@@ -68,7 +78,9 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
               await viewer.scrollToLine(line);
             }
           });
-    _registerShortcuts();
+    _settingsListener = _configureInputMode;
+    widget.settingsController.addListener(_settingsListener);
+    _configureInputMode();
     _updateTabOptions();
   }
 
@@ -76,6 +88,9 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
   void dispose() {
     _shortcutSub?.dispose();
     _pagerShortcutSub?.dispose();
+    _gestureSub?.dispose();
+    _pagerGestureSub?.dispose();
+    widget.settingsController.removeListener(_settingsListener);
     _state.removeListener(_handleStateChanged);
     _state.unregisterPagerScroller();
     _state.dispose();
@@ -95,6 +110,84 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text('Saved ${widget.path}')));
+  }
+
+  Widget _wrapWithGestures(Widget child, InputModeConfig inputMode) {
+    if (!inputMode.enableGestures) return child;
+    return GestureDetector(
+      onScaleStart: (details) {
+        if (details.pointerCount < 2) return;
+        _scaleStartFontSize = widget.settingsController.settings.editorFontSize;
+      },
+      onScaleUpdate: (details) {
+        if (_scaleStartFontSize == null || details.pointerCount < 2) return;
+        final target = (_scaleStartFontSize! * details.scale)
+            .clamp(8, 32)
+            .toDouble();
+        _dispatchEditorPinch(target);
+      },
+      onScaleEnd: (_) => _scaleStartFontSize = null,
+      child: child,
+    );
+  }
+
+  void _configureInputMode() {
+    final inputMode = resolveInputMode(
+      widget.settingsController.settings.inputModePreference,
+      defaultTargetPlatform,
+    );
+    _configureShortcuts(inputMode);
+    _configureGestures(inputMode);
+  }
+
+  void _configureShortcuts(InputModeConfig inputMode) {
+    if (!inputMode.enableShortcuts) {
+      _shortcutSub?.dispose();
+      _shortcutSub = null;
+      _pagerShortcutSub?.dispose();
+      _pagerShortcutSub = null;
+      return;
+    }
+    if (_shortcutSub != null && _pagerShortcutSub != null) return;
+    _shortcutSub?.dispose();
+    _pagerShortcutSub?.dispose();
+    _registerShortcuts();
+  }
+
+  void _configureGestures(InputModeConfig inputMode) {
+    if (!inputMode.enableGestures) {
+      _gestureSub?.dispose();
+      _gestureSub = null;
+      _pagerGestureSub?.dispose();
+      _pagerGestureSub = null;
+      return;
+    }
+    _gestureSub ??= GestureService.instance.registerScope(
+      id: 'editor_gestures',
+      handlers: {
+        Gestures.editorPinchZoom: (invocation) {
+          final next = invocation.payloadAs<double>();
+          if (next != null) {
+            unawaited(_setEditorFontSize(next));
+          }
+        },
+      },
+      focusNode: _state.editorFocusNode,
+      priority: 5,
+    );
+    _pagerGestureSub ??= GestureService.instance.registerScope(
+      id: 'editor_pager_gestures',
+      handlers: {
+        Gestures.editorPinchZoom: (invocation) {
+          final next = invocation.payloadAs<double>();
+          if (next != null) {
+            unawaited(_setEditorFontSize(next));
+          }
+        },
+      },
+      focusNode: _state.plainViewerFocusNode,
+      priority: 5,
+    );
   }
 
   Map<String, TextStyle> _getThemeForColorScheme(ColorScheme scheme) {
@@ -261,6 +354,10 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
     final colorScheme = Theme.of(context).colorScheme;
     final theme = _getThemeForColorScheme(colorScheme);
     final settings = widget.settingsController.settings;
+    final inputMode = resolveInputMode(
+      settings.inputModePreference,
+      defaultTargetPlatform,
+    );
     final usePlainViewer = _state.usePagerView;
     final baseTextStyle = TextStyle(
       fontFamily: NerdFonts.effectiveFamily(settings.editorFontFamily),
@@ -289,34 +386,37 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
               onClose: _state.toggleSearchBar,
             ),
           Expanded(
-            child: usePlainViewer
-                ? PlainPagerView(
-                    key: _plainViewerKey,
-                    text: _state.controller.fullText,
-                    style: baseTextStyle,
-                    focusNode: _state.plainViewerFocusNode,
-                    showLineNumbers: _state.showLineNumbers,
-                    showControls: _state.showPagerControls,
-                    matchLines: _state.searchMatchLines,
-                    matches: _state.searchMatches,
-                    activeMatchIndex: _state.activeMatch,
-                    matchColor: matchColor,
-                    activeMatchColor: activeMatchColor,
-                    onRegisterScrollToLine: _state.registerPagerScroller,
-                  )
-                : CodeEditorView(
-                    controller: _state.controller,
-                    focusNode: _state.editorFocusNode,
-                    baseTextStyle: baseTextStyle,
-                    themeStyles: theme,
-                    showLineNumbers: _state.showLineNumbers,
-                    highlightEnabled: _state.highlightEnabled,
-                    lineCount: _state.searchLineCount,
-                    matchLines: _state.searchMatchLines,
-                    activeLine: _state.activeMatchLine,
-                    matchColor: matchColor,
-                    activeMatchColor: activeMatchColor,
-                  ),
+            child: _wrapWithGestures(
+              usePlainViewer
+                  ? PlainPagerView(
+                      key: _plainViewerKey,
+                      text: _state.controller.fullText,
+                      style: baseTextStyle,
+                      focusNode: _state.plainViewerFocusNode,
+                      showLineNumbers: _state.showLineNumbers,
+                      showControls: _state.showPagerControls,
+                      matchLines: _state.searchMatchLines,
+                      matches: _state.searchMatches,
+                      activeMatchIndex: _state.activeMatch,
+                      matchColor: matchColor,
+                      activeMatchColor: activeMatchColor,
+                      onRegisterScrollToLine: _state.registerPagerScroller,
+                    )
+                  : CodeEditorView(
+                      controller: _state.controller,
+                      focusNode: _state.editorFocusNode,
+                      baseTextStyle: baseTextStyle,
+                      themeStyles: theme,
+                      showLineNumbers: _state.showLineNumbers,
+                      highlightEnabled: _state.highlightEnabled,
+                      lineCount: _state.searchLineCount,
+                      matchLines: _state.searchMatchLines,
+                      activeLine: _state.activeMatchLine,
+                      matchColor: matchColor,
+                      activeMatchColor: activeMatchColor,
+                    ),
+              inputMode,
+            ),
           ),
         ],
       ),
@@ -328,6 +428,24 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
       final next = (current.editorFontSize + delta).clamp(8, 32).toDouble();
       return current.copyWith(editorFontSize: next);
     });
+  }
+
+  Future<void> _setEditorFontSize(double value) async {
+    await widget.settingsController.update((current) {
+      final next = value.clamp(8, 32).toDouble();
+      if (next == current.editorFontSize) return current;
+      return current.copyWith(editorFontSize: next);
+    });
+  }
+
+  void _dispatchEditorPinch(double value) {
+    final handled = GestureService.instance.handle(
+      Gestures.editorPinchZoom,
+      payload: value,
+    );
+    if (!handled) {
+      unawaited(_setEditorFontSize(value));
+    }
   }
 
   void _registerShortcuts() {

@@ -2,16 +2,21 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:xterm/xterm.dart';
 import 'package:cwatch/services/ssh/terminal_session.dart';
 
 import 'package:cwatch/models/app_settings.dart';
+import 'package:cwatch/models/input_mode_preference.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
+import 'package:cwatch/shared/gestures/gesture_activators.dart';
+import 'package:cwatch/shared/gestures/gesture_service.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_actions.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_resolver.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_service.dart';
+import 'package:cwatch/shared/shortcuts/input_mode_resolver.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 import 'package:cwatch/shared/views/shared/tabs/terminal/terminal_theme_presets.dart';
@@ -52,7 +57,12 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   final Terminal _terminal = Terminal(maxLines: 1000);
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
+  bool get _isMobile =>
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
   ShortcutSubscription? _shortcutSub;
+  GestureSubscription? _gestureSub;
+  VoidCallback? _settingsListener;
   TerminalSession? _pty;
   StreamSubscription<String>? _outputSub;
   bool _connecting = true;
@@ -61,15 +71,29 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   int _sessionToken = 0;
   String? _lastSelectionSignature;
   double? _lastLoggedScroll;
+  VoidCallback? _focusListener;
+  bool _suppressMobileFocus = false;
 
   @override
   void initState() {
     super.initState();
+    _focusListener = () {
+      if (_isMobile && !_focusNode.hasFocus) {
+        _focusNode.canRequestFocus = false;
+      }
+    };
+    _focusNode.addListener(_focusListener!);
     _controller.addListener(_logSelectionChange);
     _scrollController.addListener(_logScrollChange);
-    _registerShortcuts();
+    _configureInputMode();
+    if (widget.settingsController != null) {
+      _settingsListener = () => _configureInputMode();
+      widget.settingsController!.addListener(_settingsListener!);
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _focusNode.requestFocus();
+      if (!_isMobile) {
+        _focusNode.requestFocus();
+      }
       _start();
     });
   }
@@ -78,12 +102,17 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   void dispose() {
     _pty?.kill();
     _outputSub?.cancel();
+    _focusNode.removeListener(_focusListener ?? () {});
     _controller.removeListener(_logSelectionChange);
     _scrollController.removeListener(_logScrollChange);
     _scrollController.dispose();
     _controller.dispose();
     _shortcutSub?.dispose();
+    _gestureSub?.dispose();
     _focusNode.dispose();
+    if (_settingsListener != null && widget.settingsController != null) {
+      widget.settingsController!.removeListener(_settingsListener!);
+    }
     super.dispose();
   }
 
@@ -239,6 +268,10 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
       return const Center(child: CircularProgressIndicator());
     }
     final resolvedSettings = settings ?? widget.settingsController?.settings;
+    final inputMode = resolveInputMode(
+      resolvedSettings?.inputModePreference ?? InputModePreference.auto,
+      defaultTargetPlatform,
+    );
     return Actions(
       actions: {
         _OpenScrollbackIntent: CallbackAction<_OpenScrollbackIntent>(
@@ -248,31 +281,48 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
           },
         ),
       },
-      child: TerminalView(
-        _terminal,
-        controller: _controller,
-        scrollController: _scrollController,
-        focusNode: _focusNode,
-        shortcuts: _shortcutBindings(resolvedSettings),
-        autofocus: widget.autofocus,
-        alwaysShowCursor: true,
-        padding: EdgeInsets.symmetric(
-          horizontal: (resolvedSettings?.terminalPaddingX ?? 8)
-              .clamp(0, 48)
-              .toDouble(),
-          vertical: (resolvedSettings?.terminalPaddingY ?? 10)
-              .clamp(0, 48)
-              .toDouble(),
+      child: GestureDetector(
+        onLongPressStart: inputMode.enableGestures
+            ? (details) => _handleLongPress(details.globalPosition)
+            : null,
+        onTap: _isMobile ? _enableMobileFocus : null,
+        onScaleStart:
+            _isMobile ? (_) => _beginMobileGestureBlock() : null,
+        onScaleEnd: _isMobile ? (_) => _endMobileGestureBlock() : null,
+        child: TerminalView(
+          _terminal,
+          controller: _controller,
+          scrollController: _scrollController,
+          focusNode: _focusNode,
+          shortcuts: _shortcutBindings(resolvedSettings, inputMode),
+          autofocus: widget.autofocus && !_isMobile,
+          alwaysShowCursor: true,
+          enablePinchZoom: inputMode.enableGestures,
+          padding: EdgeInsets.symmetric(
+            horizontal: (resolvedSettings?.terminalPaddingX ?? 8)
+                .clamp(0, 48)
+                .toDouble(),
+            vertical: (resolvedSettings?.terminalPaddingY ?? 10)
+                .clamp(0, 48)
+                .toDouble(),
+          ),
+          textStyle: _textStyle(resolvedSettings),
+          theme: _terminalTheme(context, resolvedSettings),
+          onFontSizeChange: _handlePinchZoom,
+          onSecondaryTapDown: (details, _) =>
+              _showContextMenu(details.globalPosition),
         ),
-        textStyle: _textStyle(resolvedSettings),
-        theme: _terminalTheme(context, resolvedSettings),
-        onSecondaryTapDown: (details, _) =>
-            _showContextMenu(details.globalPosition),
       ),
     );
   }
 
-  Map<ShortcutActivator, Intent> _shortcutBindings(AppSettings? settings) {
+  Map<ShortcutActivator, Intent> _shortcutBindings(
+    AppSettings? settings,
+    InputModeConfig inputMode,
+  ) {
+    if (!inputMode.enableShortcuts) {
+      return const {};
+    }
     final resolver = ShortcutResolver(settings);
     final map = <ShortcutActivator, Intent>{};
 
@@ -307,6 +357,56 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     });
   }
 
+  Future<void> _setTerminalFontSize(double value) async {
+    final controller = widget.settingsController;
+    if (controller == null) return;
+    await controller.update((current) {
+      final next = value.clamp(8, 32).toDouble();
+      if (next == current.terminalFontSize) return current;
+      return current.copyWith(terminalFontSize: next);
+    });
+  }
+
+  void _handlePinchZoom(double value) {
+    final handled = GestureService.instance.handle(
+      Gestures.dockerTerminalPinchZoom,
+      payload: value,
+    );
+    if (!handled) {
+      unawaited(_setTerminalFontSize(value));
+    }
+  }
+
+  void _handleLongPress(Offset globalPosition) {
+    // Treat long-press as context tap (right-click equivalent) without toggling focus.
+    final handled = GestureService.instance.handle(
+      Gestures.dockerTerminalLongPressMenu,
+      payload: globalPosition,
+    );
+    if (!handled) {
+      _showContextMenu(globalPosition);
+    }
+  }
+
+  void _enableMobileFocus() {
+    if (!_isMobile || _suppressMobileFocus) return;
+    _focusNode.canRequestFocus = true;
+    _focusNode.requestFocus();
+  }
+
+  void _beginMobileGestureBlock() {
+    if (!_isMobile) return;
+    _suppressMobileFocus = true;
+    _focusNode.unfocus();
+    _focusNode.canRequestFocus = false;
+  }
+
+  void _endMobileGestureBlock() {
+    if (!_isMobile) return;
+    _suppressMobileFocus = false;
+    _focusNode.canRequestFocus = true;
+  }
+
   void _registerShortcuts() {
     _shortcutSub = ShortcutService.instance.registerScope(
       id: 'docker_terminal',
@@ -318,6 +418,54 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
       priority: 5,
       consumeOnHandle: true,
     );
+  }
+
+  void _configureShortcuts(InputModeConfig inputMode) {
+    if (!inputMode.enableShortcuts) {
+      _shortcutSub?.dispose();
+      _shortcutSub = null;
+      return;
+    }
+    if (_shortcutSub != null) return;
+    _registerShortcuts();
+  }
+
+  void _configureGestures(InputModeConfig inputMode) {
+    if (!inputMode.enableGestures) {
+      _gestureSub?.dispose();
+      _gestureSub = null;
+      return;
+    }
+    if (_gestureSub != null) return;
+    _gestureSub = GestureService.instance.registerScope(
+      id: 'docker_terminal_gestures',
+      handlers: {
+        Gestures.dockerTerminalPinchZoom: (invocation) {
+          final next = invocation.payloadAs<double>();
+          if (next != null) {
+            unawaited(_setTerminalFontSize(next));
+          }
+        },
+        Gestures.dockerTerminalLongPressMenu: (invocation) {
+          final offset = invocation.payloadAs<Offset>();
+          if (offset != null) {
+            _showContextMenu(offset);
+          }
+        },
+      },
+      focusNode: _focusNode,
+      priority: 5,
+    );
+  }
+
+  void _configureInputMode() {
+    final settings = widget.settingsController?.settings;
+    final inputMode = resolveInputMode(
+      settings?.inputModePreference ?? InputModePreference.auto,
+      defaultTargetPlatform,
+    );
+    _configureShortcuts(inputMode);
+    _configureGestures(inputMode);
   }
 
   Future<void> _showContextMenu(Offset globalPosition) async {

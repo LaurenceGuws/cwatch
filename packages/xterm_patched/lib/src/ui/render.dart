@@ -145,6 +145,7 @@ class RenderTerminal extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
     if (value == _composingText) return;
     _composingText = value;
     markNeedsPaint();
+    _notifyEditableRect();
   }
 
   TerminalSize? _viewportSize;
@@ -309,7 +310,9 @@ class RenderTerminal extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
   }
 
   void _notifyEditableRect() {
-    final cursor = localToGlobal(cursorOffset);
+    if (!attached || !hasSize) return;
+
+    final cursor = localToGlobal(_composingCursorOffset);
 
     final rect = Rect.fromLTRB(
       cursor.dx,
@@ -388,6 +391,26 @@ class RenderTerminal extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
     );
   }
 
+  /// Visual caret position that includes any uncommitted composing text so
+  /// mobile IMEs keep the caret in sync with what the user is typing.
+  Offset get _composingCursorOffset {
+    final composingText = _composingText;
+    if (!_isComposingText || composingText == null) {
+      return cursorOffset;
+    }
+
+    final composingLength = composingText.runes.length;
+    final composedColumn = _terminal.buffer.cursorX + composingLength;
+    final wrappedLines = composedColumn ~/ _terminal.viewWidth;
+    final column = composedColumn % _terminal.viewWidth;
+
+    return Offset(
+      _padding.left + column * _painter.cellSize.width,
+      (_terminal.buffer.absoluteCursorY + wrappedLines) * _painter.cellSize.height +
+          _lineOffset,
+    );
+  }
+
   Size get cellSize {
     return _painter.cellSize;
   }
@@ -415,6 +438,7 @@ class RenderTerminal extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
 
     final effectFirstLine = firstLine.clamp(0, lines.length - 1);
     final effectLastLine = lastLine.clamp(0, lines.length - 1);
+    final paintCursorOffset = _composingCursorOffset;
 
     for (var i = effectFirstLine; i <= effectLastLine; i++) {
       _painter.paintLine(
@@ -436,7 +460,7 @@ class RenderTerminal extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
       if (_shouldShowCursor) {
         _painter.paintCursor(
           canvas,
-          offset + cursorOffset,
+          offset + paintCursorOffset,
           cursorType: _cursorType,
           hasFocus: _focusNode.hasFocus,
         );

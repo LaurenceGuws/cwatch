@@ -5,6 +5,7 @@ import 'docker_workspace_state.dart';
 import 'server_workspace_state.dart';
 import 'kubernetes_workspace_state.dart';
 import 'ssh_client_backend.dart';
+import 'input_mode_preference.dart';
 
 class AppSettings {
   const AppSettings({
@@ -20,6 +21,7 @@ class AppSettings {
     this.windowUseSystemDecorations = true,
     this.appFontFamily,
     this.appThemeKey = 'blue-grey',
+    this.inputModePreference = InputModePreference.auto,
     this.sshClientBackend = SshClientBackend.platform,
     this.builtinSshHostKeyBindings = const {},
     this.customSshHosts = const [],
@@ -60,6 +62,7 @@ class AppSettings {
   final bool windowUseSystemDecorations;
   final String? appFontFamily;
   final String appThemeKey;
+  final InputModePreference inputModePreference;
   final SshClientBackend sshClientBackend;
   final Map<String, String> builtinSshHostKeyBindings;
   final List<CustomSshHost> customSshHosts;
@@ -102,6 +105,7 @@ class AppSettings {
     bool? windowUseSystemDecorations,
     String? appFontFamily,
     String? appThemeKey,
+    InputModePreference? inputModePreference,
     SshClientBackend? sshClientBackend,
     Map<String, String>? builtinSshHostKeyBindings,
     List<CustomSshHost>? customSshHosts,
@@ -145,6 +149,7 @@ class AppSettings {
           windowUseSystemDecorations ?? this.windowUseSystemDecorations,
       appFontFamily: appFontFamily ?? this.appFontFamily,
       appThemeKey: appThemeKey ?? this.appThemeKey,
+      inputModePreference: inputModePreference ?? this.inputModePreference,
       sshClientBackend: sshClientBackend ?? this.sshClientBackend,
       builtinSshHostKeyBindings:
           builtinSshHostKeyBindings ?? this.builtinSshHostKeyBindings,
@@ -220,6 +225,9 @@ class AppSettings {
           json['windowUseSystemDecorations'] as bool? ?? true,
       appFontFamily: json['appFontFamily'] as String?,
       appThemeKey: json['appThemeKey'] as String? ?? 'blue-grey',
+      inputModePreference: InputModePreferenceParsing.fromJson(
+        json['inputModePreference'] as String?,
+      ),
       sshClientBackend: SshClientBackendParsing.fromJson(
         json['sshClientBackend'] as String?,
       ),
@@ -322,6 +330,7 @@ class AppSettings {
       'windowUseSystemDecorations': windowUseSystemDecorations,
       if (appFontFamily != null) 'appFontFamily': appFontFamily,
       'appThemeKey': appThemeKey,
+      'inputModePreference': inputModePreference.name,
       'sshClientBackend': sshClientBackend.name,
       'builtinSshHostKeyBindings': builtinSshHostKeyBindings,
       'customSshHosts': customSshHosts.map((h) => h.toJson()).toList(),

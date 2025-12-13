@@ -178,6 +178,13 @@ class _SettingsViewState extends State<SettingsView>
                                 (current) =>
                                     current.copyWith(appThemeKey: value),
                               ),
+                          inputModePreference: settings.inputModePreference,
+                          onInputModePreferenceChanged: (value) =>
+                              widget.controller.update(
+                                (current) => current.copyWith(
+                                  inputModePreference: value,
+                                ),
+                              ),
                         ),
                         ServersSettingsTab(
                           key: const ValueKey('servers_settings_tab'),

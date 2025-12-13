@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:cwatch/models/app_settings.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
+import 'package:cwatch/models/input_mode_preference.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_definition.dart';
 import 'settings_section.dart';
 import 'shortcuts_settings_tab.dart';
@@ -23,6 +24,8 @@ class GeneralSettingsTab extends StatelessWidget {
     required this.onAppFontFamilyChanged,
     required this.appThemeKey,
     required this.onAppThemeChanged,
+    required this.inputModePreference,
+    required this.onInputModePreferenceChanged,
   });
 
   final AppSettings settings;
@@ -37,10 +40,13 @@ class GeneralSettingsTab extends StatelessWidget {
   final ValueChanged<String> onAppFontFamilyChanged;
   final String appThemeKey;
   final ValueChanged<String> onAppThemeChanged;
+  final InputModePreference inputModePreference;
+  final ValueChanged<InputModePreference> onInputModePreferenceChanged;
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = !kIsWeb &&
+    final isDesktop =
+        !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.macOS ||
             defaultTargetPlatform == TargetPlatform.linux ||
             defaultTargetPlatform == TargetPlatform.windows);
@@ -123,6 +129,37 @@ class GeneralSettingsTab extends StatelessWidget {
           ),
         ),
         SettingsSection(
+          title: 'Input mode',
+          description:
+              'Choose whether gestures, keyboard shortcuts, or both are active.',
+          child: DropdownButtonFormField<InputModePreference>(
+            initialValue: inputModePreference,
+            items: const [
+              DropdownMenuItem(
+                value: InputModePreference.auto,
+                child: Text('Automatic (platform default)'),
+              ),
+              DropdownMenuItem(
+                value: InputModePreference.gestures,
+                child: Text('Gestures only'),
+              ),
+              DropdownMenuItem(
+                value: InputModePreference.shortcuts,
+                child: Text('Shortcuts only'),
+              ),
+              DropdownMenuItem(
+                value: InputModePreference.both,
+                child: Text('Gestures and shortcuts'),
+              ),
+            ],
+            onChanged: (value) {
+              if (value != null) {
+                onInputModePreferenceChanged(value);
+              }
+            },
+          ),
+        ),
+        SettingsSection(
           title: 'Debug Mode',
           description:
               'Show command feedback and verification steps in the UI when running SSH operations.',
@@ -158,9 +195,8 @@ class GeneralSettingsTab extends StatelessWidget {
               ),
               value: settings.windowUseSystemDecorations,
               onChanged: (value) => settingsController.update(
-                (current) => current.copyWith(
-                  windowUseSystemDecorations: value,
-                ),
+                (current) =>
+                    current.copyWith(windowUseSystemDecorations: value),
               ),
             ),
           ),
