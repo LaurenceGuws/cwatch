@@ -198,6 +198,7 @@ class _DockerViewState extends State<DockerView> {
         onOpenContext: (contextName, anchor) =>
             _openContextDashboard(tabId, contextName, anchor),
         onOpenHost: (host, anchor) => _openHostDashboard(tabId, host, anchor),
+        settingsController: widget.settingsController,
       ),
     );
     _tabStates[tab.id] = TabState(id: tab.id, kind: DockerTabKind.picker.name);

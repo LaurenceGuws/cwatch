@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 
 import 'package:cwatch/models/docker_context.dart';
 import 'package:cwatch/models/ssh_host.dart';
+import 'package:cwatch/services/settings/app_settings_controller.dart';
+import 'package:cwatch/modules/servers/services/host_distro_key.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
+import 'package:cwatch/shared/theme/distro_icons.dart';
+import 'package:cwatch/shared/widgets/distro_leading_slot.dart';
 import 'package:cwatch/shared/widgets/lists/section_list.dart';
 import 'package:cwatch/shared/widgets/lists/selectable_list_item.dart';
 import 'docker_shared.dart';
@@ -32,6 +36,7 @@ class EnginePicker extends StatefulWidget {
     required this.onScanRemotes,
     required this.onOpenContext,
     required this.onOpenHost,
+    required this.settingsController,
   });
 
   final String tabId;
@@ -43,6 +48,7 @@ class EnginePicker extends StatefulWidget {
   final VoidCallback onScanRemotes;
   final void Function(String contextName, Offset? anchor) onOpenContext;
   final void Function(SshHost host, Offset? anchor) onOpenHost;
+  final AppSettingsController settingsController;
 
   @override
   State<EnginePicker> createState() => _EnginePickerState();
@@ -75,6 +81,7 @@ class _EnginePickerState extends State<EnginePicker> {
             if (contexts.isEmpty) {
               return EmptyState(onRefresh: widget.onRefreshContexts);
             }
+            final iconSize = _leadingIconSize(context);
             return SectionList(
               title: 'Local contexts',
               children: contexts.map((ctx) {
@@ -97,7 +104,7 @@ class _EnginePickerState extends State<EnginePicker> {
                   title: ctx.name,
                   leading: Icon(
                     NerdIcon.docker.data,
-                    size: 18,
+                    size: iconSize,
                     color: Theme.of(context).iconTheme.color,
                   ),
                   onTapDown: (details) => lastPointer = details.globalPosition,
@@ -133,10 +140,16 @@ class _EnginePickerState extends State<EnginePicker> {
               widget.onOpenHost(host, anchor);
             }
           },
+          settingsController: widget.settingsController,
         ),
       ],
     );
   }
+}
+
+double _leadingIconSize(BuildContext context) {
+  final titleSize = Theme.of(context).textTheme.titleMedium?.fontSize ?? 14;
+  return titleSize * 1.9;
 }
 
 class RemoteSection extends StatelessWidget {
@@ -149,6 +162,7 @@ class RemoteSection extends StatelessWidget {
     required this.onOpenHost,
     required this.selectedHostName,
     required this.onSelectHost,
+    required this.settingsController,
   });
 
   final Future<List<RemoteDockerStatus>>? remoteStatusFuture;
@@ -158,6 +172,7 @@ class RemoteSection extends StatelessWidget {
   final void Function(SshHost host, Offset? anchor) onOpenHost;
   final String? selectedHostName;
   final void Function(SshHost host, Offset? anchor) onSelectHost;
+  final AppSettingsController settingsController;
 
   @override
   Widget build(BuildContext context) {
@@ -191,6 +206,7 @@ class RemoteSection extends StatelessWidget {
                     onOpenHost: onOpenHost,
                     selectedHostName: selectedHostName,
                     onSelectHost: onSelectHost,
+                    settingsController: settingsController,
                   ),
           )
         else
@@ -222,6 +238,7 @@ class RemoteSection extends StatelessWidget {
                 onOpenHost: onOpenHost,
                 selectedHostName: selectedHostName,
                 onSelectHost: onSelectHost,
+                settingsController: settingsController,
               );
             },
           ),
@@ -237,50 +254,47 @@ class RemoteHostList extends StatelessWidget {
     required this.onOpenHost,
     required this.selectedHostName,
     required this.onSelectHost,
+    required this.settingsController,
   });
 
   final List<RemoteDockerStatus> hosts;
   final void Function(SshHost host, Offset? anchor) onOpenHost;
   final String? selectedHostName;
   final void Function(SshHost host, Offset? anchor) onSelectHost;
+  final AppSettingsController settingsController;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final iconSize = _leadingIconSize(context);
     return SectionList(
       children: hosts.map((status) {
         final statusColor = status.available ? scheme.primary : scheme.error;
         final isSelected = selectedHostName == status.host.name;
+        final slug = settingsController
+            .settings
+            .serverDistroMap[hostDistroCacheKey(status.host)];
+        final iconColor = colorForDistro(slug, context.appTheme);
         Offset? lastPointer;
-        final badge = Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: statusColor.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            status.available ? 'Ready' : 'Unavailable',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: statusColor,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        );
         return SelectableListItem(
           selected: isSelected,
           title: status.host.name,
           subtitle: status.detail,
-          badge: badge,
           onTapDown: (details) => lastPointer = details.globalPosition,
           onTap: () => onSelectHost(status.host, null),
           onDoubleTap: () => onOpenHost(status.host, lastPointer),
           onLongPress: () => onOpenHost(status.host, lastPointer),
           onSecondaryTapDown: (details) =>
               onOpenHost(status.host, details.globalPosition),
-          leading: Icon(
-            context.appTheme.icons.cloud,
-            size: 20,
-            color: statusColor,
+          leading: Tooltip(
+            message: labelForDistro(slug),
+            child: DistroLeadingSlot(
+              slug: slug,
+              iconSize: iconSize,
+              iconColor: iconColor,
+              statusColor: statusColor,
+              statusDotScale: 10 / iconSize,
+            ),
           ),
         );
       }).toList(),

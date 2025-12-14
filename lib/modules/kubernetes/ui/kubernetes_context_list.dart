@@ -12,6 +12,7 @@ import 'package:cwatch/services/kubernetes/kubeconfig_service.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
+import 'package:cwatch/shared/widgets/distro_leading_slot.dart';
 import 'package:cwatch/shared/widgets/lists/selectable_list_item.dart';
 import 'package:cwatch/shared/widgets/lists/section_list.dart';
 import 'package:cwatch/shared/views/shared/tabs/file_explorer/external_app_launcher.dart';
@@ -565,37 +566,24 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   Widget _buildContextTile(KubeconfigContext context) {
     final selected = _selectedContextKey == _contextKey(context);
     final scheme = Theme.of(this.context).colorScheme;
-    final badge = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (context.isCurrent)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: scheme.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              'Current',
-              style: Theme.of(this.context).textTheme.labelSmall?.copyWith(
-                color: scheme.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-      ],
-    );
+    final statusColor = context.isCurrent
+        ? scheme.primary
+        : scheme.onSurfaceVariant;
+    final iconColor = selected ? scheme.primary : scheme.onSurfaceVariant;
+    final iconSize = _leadingIconSize(this.context);
+    final statusDotScale = 10 / iconSize;
     Offset? lastPointer;
     return SelectableListItem(
       selected: selected,
       title: context.name,
       subtitle: _contextSubtitle(context),
-      leading: Icon(
-        NerdIcon.kubernetes.data,
-        size: 20,
-        color: selected ? scheme.primary : scheme.onSurfaceVariant,
+      leading: DistroLeadingSlot(
+        iconData: NerdIcon.kubernetes.data,
+        iconSize: iconSize,
+        iconColor: iconColor,
+        statusColor: statusColor,
+        statusDotScale: statusDotScale,
       ),
-      badge: badge,
       trailing: IconButton(
         icon: const Icon(Icons.more_vert, size: 18),
         tooltip: 'Context options',
@@ -642,6 +630,11 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     final context = tab.context;
     if (context == null) return '';
     return _contextKey(context);
+  }
+
+  double _leadingIconSize(BuildContext context) {
+    final titleSize = Theme.of(context).textTheme.titleMedium?.fontSize ?? 14;
+    return titleSize * 1.9;
   }
 
   void _showContextMenu(

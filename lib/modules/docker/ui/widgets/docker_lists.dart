@@ -6,9 +6,14 @@ import 'package:cwatch/models/docker_image.dart';
 import 'package:cwatch/models/docker_network.dart';
 import 'package:cwatch/models/docker_volume.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
+import 'package:cwatch/shared/theme/distro_icons.dart';
+import 'package:cwatch/services/settings/app_settings_controller.dart';
+import 'package:cwatch/modules/docker/services/container_distro_key.dart';
+import 'package:cwatch/shared/widgets/distro_leading_slot.dart';
 import 'package:cwatch/shared/widgets/lists/section_list.dart';
 import 'package:cwatch/shared/widgets/lists/section_list_item.dart';
 import 'package:cwatch/shared/widgets/lists/selectable_list_item.dart';
+import 'docker_lists_helpers.dart';
 
 typedef ItemTapDown<T> =
     void Function(
@@ -105,6 +110,7 @@ class ContainerPeek extends StatefulWidget {
     this.onComposeAction,
     this.onComposeForward,
     this.onComposeStopForward,
+    required this.settingsController,
   });
 
   final List<DockerContainer> containers;
@@ -116,6 +122,7 @@ class ContainerPeek extends StatefulWidget {
   final void Function(String project, String action)? onComposeAction;
   final void Function(String project)? onComposeForward;
   final void Function(String project)? onComposeStopForward;
+  final AppSettingsController settingsController;
 
   @override
   State<ContainerPeek> createState() => _ContainerPeekState();
@@ -254,20 +261,31 @@ class _ContainerPeekState extends State<ContainerPeek> {
             return 'Running';
           }
 
+          final slug = _slugForContainer(widget.settingsController, container);
+          final iconColor = colorForDistro(slug, context.appTheme);
+          final iconSize = _distroIconSize(context);
+          final statusColor = container.isRunning
+              ? context.appTheme.docker.running
+              : context.appTheme.docker.stopped;
+          final resolvedIconColor = widget.busyIds.contains(container.id)
+              ? Theme.of(context).colorScheme.primary
+              : iconColor;
+
           return SelectableListItem(
             selected: widget.selectedIds.contains(container.id),
             title: container.name.isNotEmpty ? container.name : container.id,
             subtitle:
                 'Image: ${container.image} • ${container.isRunning ? runningLabel() : container.status}',
-            leading: Icon(
-              icons.container,
-              size: 18,
-              color: widget.busyIds.contains(container.id)
-                  ? Theme.of(context).colorScheme.primary
-                  : (container.isRunning
-                        ? context.appTheme.docker.running
-                        : context.appTheme.docker.stopped),
+            leading: Tooltip(
+              message: labelForDistro(slug),
+              child: DistroLeadingSlot(
+                slug: slug,
+                iconSize: iconSize,
+                iconColor: resolvedIconColor,
+                statusColor: statusColor,
+              ),
             ),
+            horizontalPadding: context.appTheme.spacing.base * 0.3,
             busy: widget.busyIds.contains(container.id),
             trailing: () {
               final actionLabel = widget.actionLabels[container.id];
@@ -390,6 +408,7 @@ class ContainerList extends StatelessWidget {
     required this.busyIds,
     required this.actionLabels,
     this.onComposeAction,
+    required this.settingsController,
   });
 
   final List<DockerContainer> containers;
@@ -399,6 +418,7 @@ class ContainerList extends StatelessWidget {
   final Set<String> busyIds;
   final Map<String, String> actionLabels;
   final void Function(String project, String action)? onComposeAction;
+  final AppSettingsController settingsController;
 
   @override
   Widget build(BuildContext context) {
@@ -468,11 +488,26 @@ class ContainerList extends StatelessWidget {
           final statusColor = container.isRunning
               ? context.appTheme.docker.running
               : context.appTheme.docker.stopped;
+          final slug = _slugForContainer(settingsController, container);
+          final iconColor = colorForDistro(slug, context.appTheme);
+          final iconSize = _distroIconSize(context);
+          final resolvedIconColor = busyIds.contains(container.id)
+              ? Theme.of(context).colorScheme.primary
+              : iconColor;
           return SelectableListItem(
             selected: selectedIds.contains(container.id),
             title: container.name.isNotEmpty ? container.name : container.id,
             subtitle: 'Image: ${container.image} • $runningLabel',
-            leading: Icon(icons.container, size: 18, color: statusColor),
+            leading: Tooltip(
+              message: labelForDistro(slug),
+              child: DistroLeadingSlot(
+                slug: slug,
+                iconSize: iconSize,
+                iconColor: resolvedIconColor,
+                statusColor: statusColor,
+              ),
+            ),
+            horizontalPadding: context.appTheme.spacing.base * 0.3,
             busy: busyIds.contains(container.id),
             trailing: actionLabels[container.id] != null
                 ? Text(
@@ -566,7 +601,6 @@ class ImagePeek extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final icons = context.appTheme.icons;
     if (images.isEmpty) {
       return const EmptyCard(message: 'No images found.');
     }
@@ -586,14 +620,26 @@ class ImagePeek extends StatelessWidget {
             image.tag.isNotEmpty ? image.tag : '<none>',
           ].join(':');
           final isSelected = selectedIds.contains(_imageKey(image));
+          final slug = slugForImage(image.repository, image.tag);
+          final iconSize = _distroIconSize(context);
+          final iconPadding = context.appTheme.spacing.base * 0.5;
+          final iconColor = colorForDistro(slug, context.appTheme);
           return SelectableListItem(
             selected: isSelected,
             title: name,
             subtitle: 'Size: ${image.size}',
-            leading: Icon(
-              icons.image,
-              size: 18,
-              color: Theme.of(context).iconTheme.color,
+            leading: Tooltip(
+              message: labelForDistro(slug),
+              child: SizedBox(
+                width: iconSize + iconPadding,
+                child: Center(
+                  child: Icon(
+                    iconForDistro(slug),
+                    size: iconSize,
+                    color: iconColor,
+                  ),
+                ),
+              ),
             ),
             onTapDown: onTapDown == null
                 ? null
@@ -661,7 +707,6 @@ class ImageList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final icons = context.appTheme.icons;
     if (images.isEmpty) {
       return const EmptyCard(message: 'No images found.');
     }
@@ -673,16 +718,28 @@ class ImageList extends StatelessWidget {
           image.tag.isNotEmpty ? image.tag : '<none>',
         ].join(':');
         final isSelected = selectedIds.contains(_imageKey(image));
+        final slug = slugForImage(image.repository, image.tag);
+        final iconSize = _distroIconSize(context);
+        final iconPadding = context.appTheme.spacing.base * 0.5;
+        final iconColor = colorForDistro(slug, context.appTheme);
         return Padding(
           padding: const EdgeInsets.only(bottom: 6),
           child: SelectableListItem(
             selected: isSelected,
             title: name,
             subtitle: 'Size: ${image.size}',
-            leading: Icon(
-              icons.image,
-              size: 18,
-              color: Theme.of(context).iconTheme.color,
+            leading: Tooltip(
+              message: labelForDistro(slug),
+              child: SizedBox(
+                width: iconSize + iconPadding,
+                child: Center(
+                  child: Icon(
+                    iconForDistro(slug),
+                    size: iconSize,
+                    color: iconColor,
+                  ),
+                ),
+              ),
             ),
             onTapDown: onTapDown == null
                 ? null
@@ -944,4 +1001,19 @@ String _inferComposeGroup(String name) {
     }
   }
   return 'Standalone';
+}
+
+String? _slugForContainer(
+  AppSettingsController settings,
+  DockerContainer container,
+) {
+  return settings.settings.dockerDistroMap[containerDistroCacheKey(
+        container,
+      )] ??
+      slugForContainer(container);
+}
+
+double _distroIconSize(BuildContext context) {
+  final titleSize = Theme.of(context).textTheme.titleMedium?.fontSize ?? 14;
+  return titleSize * 1.9;
 }

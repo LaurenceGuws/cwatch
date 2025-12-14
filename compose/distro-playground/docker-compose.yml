@@ -1,0 +1,57 @@
+services:
+  ubuntu-jammy:
+    image: ubuntu:22.04
+    command: ["sh", "-c", "sleep infinity"]
+
+  ubuntu-focal:
+    image: ubuntu:20.04
+    command: ["sh", "-c", "sleep infinity"]
+
+  debian-bookworm:
+    image: debian:bookworm
+    command: ["sh", "-c", "sleep infinity"]
+
+  debian-bullseye:
+    image: debian:bullseye
+    command: ["sh", "-c", "sleep infinity"]
+
+  archlinux:
+    image: archlinux:latest
+    command: ["sh", "-c", "sleep infinity"]
+
+  fedora-stable:
+    image: fedora:39
+    command: ["sh", "-c", "sleep infinity"]
+
+  centos-stream:
+    image: quay.io/centos/centos:stream9
+    command: ["sh", "-c", "sleep infinity"]
+
+  rockylinux:
+    image: rockylinux:9
+    command: ["sh", "-c", "sleep infinity"]
+
+  almalinux:
+    image: almalinux:9
+    command: ["sh", "-c", "sleep infinity"]
+
+  oraclelinux:
+    image: oraclelinux:9
+    command: ["sh", "-c", "sleep infinity"]
+
+  opensuse-leap:
+    image: opensuse/leap:15.5
+    command: ["sh", "-c", "sleep infinity"]
+
+  opensuse-tumbleweed:
+    image: opensuse/tumbleweed:latest
+    command: ["sh", "-c", "sleep infinity"]
+
+  alpine:
+    image: alpine:3.19
+    command: ["sh", "-c", "sleep infinity"]
+
+  kali-rolling:
+    image: kalilinux/kali-rolling:latest
+    command: ["sh", "-c", "sleep infinity"]
+

@@ -20,6 +20,7 @@ class SelectableListItem extends StatefulWidget {
     this.onDoubleTap,
     this.onLongPress,
     this.onSecondaryTapDown,
+    this.horizontalPadding,
   });
 
   final String title;
@@ -36,6 +37,7 @@ class SelectableListItem extends StatefulWidget {
   final VoidCallback? onDoubleTap;
   final VoidCallback? onLongPress;
   final void Function(TapDownDetails details)? onSecondaryTapDown;
+  final double? horizontalPadding;
 
   @override
   State<SelectableListItem> createState() => _SelectableListItemState();
@@ -82,7 +84,7 @@ class _SelectableListItemState extends State<SelectableListItem> {
           hoverColor: Colors.transparent,
           child: Container(
             padding: EdgeInsets.symmetric(
-              horizontal: spacing.base * 2,
+              horizontal: widget.horizontalPadding ?? spacing.base * 0.75,
               vertical: spacing.base * 1.2,
             ),
             decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
@@ -91,7 +93,7 @@ class _SelectableListItemState extends State<SelectableListItem> {
               children: [
                 if (widget.leading != null) ...[
                   widget.leading!,
-                  SizedBox(width: spacing.base * 1.5),
+                  SizedBox(width: spacing.base * 2.5),
                 ],
                 Expanded(
                   child: Column(

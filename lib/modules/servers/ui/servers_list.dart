@@ -14,6 +14,7 @@ import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/services/ssh/remote_command_logging.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/services/ssh/ssh_shell_factory.dart';
+import 'package:cwatch/modules/servers/services/host_distro_manager.dart';
 import 'package:cwatch/services/ssh/ssh_auth_prompter.dart';
 import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/shared/widgets/port_forward_dialog.dart';
@@ -33,6 +34,7 @@ import 'server_workspace_controller.dart';
 import 'package:cwatch/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/core/widgets/keep_alive.dart';
 import 'package:cwatch/core/tabs/tabbed_workspace_shell.dart';
+import 'package:cwatch/modules/servers/services/host_distro_key.dart';
 
 class ServersList extends StatefulWidget {
   const ServersList({
@@ -63,6 +65,8 @@ class _ServersListState extends State<ServersList> {
   final ExplorerTrashManager _trashManager = ExplorerTrashManager();
   final PortForwardService _portForwardService = PortForwardService();
   late final SshShellFactory _shellFactory;
+  late final HostDistroManager _distroManager;
+  final Map<String, bool> _hostAvailability = {};
   late final VoidCallback _settingsListener;
   late final VoidCallback _tabsListener;
   late final TabViewRegistry<ServerTab> _tabRegistry;
@@ -98,6 +102,10 @@ class _ServersListState extends State<ServersList> {
       settingsController: widget.settingsController,
       keyService: widget.keyService,
       authCoordinator: authCoordinator,
+    );
+    _distroManager = HostDistroManager(
+      settingsController: widget.settingsController,
+      shellFactory: _shellFactory,
     );
     _portForwardService.setAuthCoordinator(_shellFactory.authCoordinator);
     _workspaceController = ServerWorkspaceController(
@@ -201,6 +209,7 @@ class _ServersListState extends State<ServersList> {
           return ErrorState(error: snapshot.error.toString());
         }
         final hosts = snapshot.data ?? <SshHost>[];
+        _trackHostDistroChecks(hosts);
         return HostList(
           hosts: hosts,
           onSelect: onHostSelected,
@@ -221,6 +230,27 @@ class _ServersListState extends State<ServersList> {
         );
       },
     );
+  }
+
+  void _trackHostDistroChecks(List<SshHost> hosts) {
+    for (final host in hosts) {
+      final key = hostDistroCacheKey(host);
+      final wasAvailable = _hostAvailability[key] ?? false;
+      _hostAvailability[key] = host.available;
+      final hasCache = _distroManager.hasCached(key);
+      if (hasCache) {
+        continue; // Skip already-tagged hosts to avoid extra SSH prompts.
+      }
+      final needsProbe = host.available && !hasCache;
+      if (needsProbe) {
+        unawaited(
+          _distroManager.ensureDistroForHost(
+            host,
+            force: !wasAvailable,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _showAddServerDialog(
@@ -445,6 +475,7 @@ class _ServersListState extends State<ServersList> {
   }
 
   void _addTab(SshHost host, ServerAction action) {
+    _ensureDistroOnInteraction(host);
     final tab = _createTab(
       id: '${host.name}-${DateTime.now().microsecondsSinceEpoch}',
       host: host,
@@ -484,6 +515,20 @@ class _ServersListState extends State<ServersList> {
 
   Future<void> _startEmptyTab() async {
     _addEmptyTabPlaceholder();
+  }
+
+  void _ensureDistroOnInteraction(SshHost host) {
+    final key = hostDistroCacheKey(host);
+    if (_distroManager.hasCached(key)) {
+      return;
+    }
+    unawaited(
+      _distroManager.ensureDistroForHost(
+        host,
+        force: true,
+        allowUnavailable: true,
+      ),
+    );
   }
 
   Future<void> _openPortForwardDialog(SshHost host) async {

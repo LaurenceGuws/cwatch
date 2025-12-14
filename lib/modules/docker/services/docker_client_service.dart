@@ -212,6 +212,38 @@ class DockerClientService {
     );
   }
 
+  Future<String> execInContainer(
+    String containerId,
+    String command, {
+    Duration timeout = const Duration(seconds: 6),
+  }) async {
+    final args = ['exec', '-i', containerId, 'sh', '-c', command];
+    try {
+      final result = await processRunner(
+        'docker',
+        args,
+        stdoutEncoding: utf8,
+        stderrEncoding: utf8,
+        runInShell: false,
+      ).timeout(timeout);
+
+      if (result.exitCode != 0) {
+        final stderr = (result.stderr as String?)?.trim();
+        throw Exception(
+          stderr?.isNotEmpty == true
+              ? stderr
+              : 'docker exec failed with exit code ${result.exitCode}',
+        );
+      }
+
+      return (result.stdout as String?) ?? '';
+    } on ProcessException catch (error) {
+      throw Exception('Docker CLI not available: ${error.message}');
+    } on TimeoutException {
+      throw Exception('Timed out while running docker exec.');
+    }
+  }
+
   Future<List<DockerImage>> listImages({
     String? context,
     bool danglingOnly = false,

@@ -4,11 +4,14 @@ import 'package:cwatch/models/custom_ssh_host.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
+import 'package:cwatch/shared/theme/distro_icons.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/widgets/lists/selectable_list_controller.dart';
 import 'package:cwatch/shared/widgets/lists/selectable_list_item.dart';
 import 'package:cwatch/shared/widgets/lists/section_list.dart';
 import 'package:cwatch/shared/views/shared/tabs/file_explorer/external_app_launcher.dart';
+import 'package:cwatch/shared/widgets/distro_leading_slot.dart';
+import 'package:cwatch/modules/servers/services/host_distro_key.dart';
 
 /// Host list widget that displays SSH hosts grouped by source
 class HostList extends StatefulWidget {
@@ -170,27 +173,14 @@ class _HostListState extends State<HostList> {
   }
 
   Widget _buildHostTile(SshHost host) {
-    final availability = host.available ? 'Online' : 'Offline';
     final index = widget.hosts.indexOf(host);
     final selected = _listController.selectedIndices.contains(index);
     final focused = _listController.focusedIndex == index;
     final scheme = Theme.of(context).colorScheme;
     final statusColor = host.available ? scheme.primary : scheme.error;
-
-    final badge = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: statusColor.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        availability,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: statusColor,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
+    final iconSize = _distroIconSize(context);
+    final iconColor = colorForDistro(_slugForHost(host), context.appTheme);
+    final tilePadding = context.appTheme.spacing.base * 0.4;
 
     return SelectableListItem(
       selected: selected,
@@ -199,12 +189,24 @@ class _HostListState extends State<HostList> {
       subtitle:
           '${host.hostname}:${host.port}'
           '${host.user?.isNotEmpty == true ? ' • ${host.user}' : ''}',
-      leading: Icon(
-        NerdIcon.servers.data,
-        size: 20,
-        color: selected ? scheme.primary : scheme.onSurfaceVariant,
+      leading: AnimatedBuilder(
+        animation: widget.settingsController,
+        builder: (context, _) {
+          final slug = widget
+              .settingsController
+              .settings
+              .serverDistroMap[hostDistroCacheKey(host)];
+          return Tooltip(
+            message: labelForDistro(slug),
+            child: DistroLeadingSlot(
+              slug: slug,
+              iconSize: iconSize,
+              iconColor: iconColor,
+              statusColor: statusColor,
+            ),
+          );
+        },
       ),
-      badge: badge,
       onTapDown: (details) {
         _lastPointerPosition = details.globalPosition;
         _handleSelect(index, host, focusOnly: false);
@@ -223,6 +225,7 @@ class _HostListState extends State<HostList> {
         _handleSelect(index, host, focusOnly: true);
         _showContextMenu(host, scheme, details.globalPosition);
       },
+      horizontalPadding: tilePadding,
     );
   }
 
@@ -367,5 +370,16 @@ class _HostListState extends State<HostList> {
       items: _hostActions(scheme, host),
     );
     _handleHostAction(choice, host);
+  }
+
+  double _distroIconSize(BuildContext context) {
+    final titleSize = Theme.of(context).textTheme.titleMedium?.fontSize ?? 14;
+    // Larger than text without overflowing the row.
+    return titleSize * 1.9;
+  }
+
+  String? _slugForHost(SshHost host) {
+    final settings = widget.settingsController.settings;
+    return settings.serverDistroMap[hostDistroCacheKey(host)];
   }
 }

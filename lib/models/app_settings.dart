@@ -27,6 +27,8 @@ class AppSettings {
     this.customSshHosts = const [],
     this.customSshConfigPaths = const [],
     this.disabledSshConfigPaths = const [],
+    this.serverDistroMap = const {},
+    this.dockerDistroMap = const {},
     this.kubernetesConfigPaths = const [],
     this.serverWorkspace,
     this.kubernetesWorkspace,
@@ -68,6 +70,8 @@ class AppSettings {
   final List<CustomSshHost> customSshHosts;
   final List<String> customSshConfigPaths;
   final List<String> disabledSshConfigPaths;
+  final Map<String, String> serverDistroMap;
+  final Map<String, String> dockerDistroMap;
   final List<String> kubernetesConfigPaths;
   final ServerWorkspaceState? serverWorkspace;
   final KubernetesWorkspaceState? kubernetesWorkspace;
@@ -111,6 +115,8 @@ class AppSettings {
     List<CustomSshHost>? customSshHosts,
     List<String>? customSshConfigPaths,
     List<String>? disabledSshConfigPaths,
+    Map<String, String>? serverDistroMap,
+    Map<String, String>? dockerDistroMap,
     List<String>? kubernetesConfigPaths,
     ServerWorkspaceState? serverWorkspace,
     KubernetesWorkspaceState? kubernetesWorkspace,
@@ -157,6 +163,8 @@ class AppSettings {
       customSshConfigPaths: customSshConfigPaths ?? this.customSshConfigPaths,
       disabledSshConfigPaths:
           disabledSshConfigPaths ?? this.disabledSshConfigPaths,
+      serverDistroMap: serverDistroMap ?? this.serverDistroMap,
+      dockerDistroMap: dockerDistroMap ?? this.dockerDistroMap,
       kubernetesConfigPaths:
           kubernetesConfigPaths ?? this.kubernetesConfigPaths,
       serverWorkspace: serverWorkspace ?? this.serverWorkspace,
@@ -249,6 +257,14 @@ class AppSettings {
               ?.whereType<String>()
               .toList() ??
           const [],
+      serverDistroMap:
+          (json['serverDistroMap'] as Map<String, dynamic>?)
+                  ?.map((key, value) => MapEntry(key, value.toString())) ??
+              const {},
+      dockerDistroMap:
+          (json['dockerDistroMap'] as Map<String, dynamic>?)
+                  ?.map((key, value) => MapEntry(key, value.toString())) ??
+              const {},
       kubernetesConfigPaths:
           (json['kubernetesConfigPaths'] as List<dynamic>?)
               ?.whereType<String>()
@@ -336,6 +352,8 @@ class AppSettings {
       'customSshHosts': customSshHosts.map((h) => h.toJson()).toList(),
       'customSshConfigPaths': customSshConfigPaths,
       'disabledSshConfigPaths': disabledSshConfigPaths,
+      'serverDistroMap': serverDistroMap,
+      'dockerDistroMap': dockerDistroMap,
       'kubernetesConfigPaths': kubernetesConfigPaths,
       if (serverWorkspace != null) 'serverWorkspace': serverWorkspace!.toJson(),
       if (kubernetesWorkspace != null)

@@ -25,6 +25,8 @@ import 'docker_shared.dart';
 import 'section_card.dart';
 import 'docker_overview_controller.dart';
 import 'docker_overview_actions.dart';
+import 'package:cwatch/modules/docker/services/container_distro_manager.dart';
+import 'package:cwatch/modules/docker/services/container_distro_key.dart';
 
 typedef OpenTab = void Function(EngineTab tab);
 
@@ -67,7 +69,9 @@ class _DockerOverviewState extends State<DockerOverview> {
   late final VoidCallback _controllerListener;
   late DockerOverviewActions _actions;
   late DockerOverviewMenus _menus;
+  late final ContainerDistroManager _containerDistroManager;
   final FocusNode _containerFocus = FocusNode(debugLabel: 'docker-containers');
+  final Map<String, bool> _containerRunning = {};
   AppIcons get _icons => context.appTheme.icons;
   AppDockerTokens get _dockerTheme => context.appTheme.docker;
   bool _tabOptionsRegistered = false;
@@ -98,6 +102,10 @@ class _DockerOverviewState extends State<DockerOverview> {
       settingsController: widget.settingsController,
       portForwardService: widget.portForwardService,
       keyService: widget.keyService,
+    );
+    _containerDistroManager = ContainerDistroManager(
+      settingsController: widget.settingsController,
+      docker: widget.docker,
     );
   }
 
@@ -147,6 +155,27 @@ class _DockerOverviewState extends State<DockerOverview> {
 
   void _refresh() {
     _controller.refresh();
+  }
+
+  void _trackContainerDistro(List<DockerContainer> containers) {
+    for (final container in containers) {
+      final key = containerDistroCacheKey(container);
+      final wasRunning = _containerRunning[key] ?? false;
+      _containerRunning[key] = container.isRunning;
+      if (!container.isRunning) {
+        continue;
+      }
+      final needsProbe =
+          !_containerDistroManager.hasCached(key) || !wasRunning;
+      if (needsProbe) {
+        unawaited(
+          _containerDistroManager.ensureDistroForContainer(
+            container,
+            force: !wasRunning,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _runPrune({required bool includeVolumes}) async {
@@ -205,6 +234,7 @@ class _DockerOverviewState extends State<DockerOverview> {
                   return const Center(child: Text('No data.'));
                 }
                 final containers = _controller.ensureHydrated(data);
+                _trackContainerDistro(containers);
                 final images = data.images;
                 final networks = data.networks;
                 final volumes = data.volumes;
@@ -273,13 +303,14 @@ class _DockerOverviewState extends State<DockerOverview> {
                           onComposeAction: _handleComposeAction,
                           onComposeForward: widget.remoteHost != null
                               ? (project) => _actions.forwardComposePorts(
-                                  context,
-                                  project: project,
-                                )
+                                    context,
+                                    project: project,
+                                  )
                               : null,
                           onComposeStopForward: widget.remoteHost != null
                               ? (_) => _actions.stopForwardsForHost(context)
                               : null,
+                          settingsController: widget.settingsController,
                         ),
                       ),
                     ),
