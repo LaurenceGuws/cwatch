@@ -1,15 +1,17 @@
 import 'dart:async';
 
-import 'package:flutter/widgets.dart';
 
 import '../../../../../models/explorer_context.dart';
 import '../../../../../models/remote_file_entry.dart';
 import '../../../../../models/ssh_host.dart';
 import '../../../../../services/filesystem/explorer_trash_manager.dart';
+import '../../../../../services/logging/app_logger.dart';
 import '../../../../../services/ssh/remote_editor_cache.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 import 'clipboard_operations_handler.dart';
 import 'delete_operations_handler.dart';
+import 'desktop_drag_source.dart';
+import 'drag_types.dart';
 import 'explorer_clipboard.dart';
 import 'external_app_launcher.dart';
 import 'file_editing_service.dart';
@@ -19,6 +21,9 @@ import 'path_loading_service.dart';
 import 'path_utils.dart';
 import 'selection_controller.dart';
 import 'ssh_auth_handler.dart';
+import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:path/path.dart' as p;
 
 /// ChangeNotifier that centralizes File Explorer state and lifecycle wiring.
 class FileExplorerController extends ChangeNotifier {
@@ -28,6 +33,8 @@ class FileExplorerController extends ChangeNotifier {
     required this.shellService,
     required this.trashManager,
     required this.promptMergeDialog,
+    this.initialPath,
+    this.onPathChanged,
     this.onOpenEditorTab,
   });
 
@@ -35,6 +42,8 @@ class FileExplorerController extends ChangeNotifier {
   final ExplorerContext explorerContext;
   final RemoteShellService shellService;
   final ExplorerTrashManager trashManager;
+  final String? initialPath;
+  final ValueChanged<String>? onPathChanged;
   final Future<String?> Function({
     required String remotePath,
     required String local,
@@ -52,6 +61,7 @@ class FileExplorerController extends ChangeNotifier {
   late final DeleteOperationsHandler deleteHandler;
   late final ClipboardOperationsHandler clipboardHandler;
   late final SshAuthHandler _sshAuthHandler;
+  final DesktopDragSource? dragSource = createDesktopDragSource();
 
   late final VoidCallback _clipboardListener;
   late final VoidCallback _cutEventListener;
@@ -148,6 +158,10 @@ class FileExplorerController extends ChangeNotifier {
   }
 
   Future<void> _initializeExplorer() async {
+    final startingPath = initialPath;
+    final preferredPath = startingPath?.trim().isNotEmpty == true
+        ? PathUtils.normalizePath(startingPath!)
+        : null;
     final home = await _runShell(() => shellService.homeDirectory(host))
         .catchError((error) {
           if (error is CancelledExplorerOperation) {
@@ -158,14 +172,14 @@ class FileExplorerController extends ChangeNotifier {
           }
           throw error;
         });
-    if (home.isEmpty) {
+    if (home.isEmpty && preferredPath == null) {
       return;
     }
-    final initialPath = home.isNotEmpty ? home : '/';
+    final targetPath = preferredPath ?? (home.isNotEmpty ? home : '/');
     pathHistory
       ..clear()
-      ..add(initialPath);
-    await loadPath(initialPath);
+      ..add(targetPath);
+    await loadPath(targetPath);
   }
 
   Future<void> loadPath(String path, {bool forceReload = false}) async {
@@ -205,6 +219,7 @@ class FileExplorerController extends ChangeNotifier {
         pathHistory.add(PathUtils.joinPath(currentPath, entry.name));
       }
     }
+    onPathChanged?.call(currentPath);
     notifyListeners();
 
     if (result.allEntries != null) {
@@ -318,6 +333,80 @@ class FileExplorerController extends ChangeNotifier {
       _sshAuthHandler.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> startOsDrag({
+    required BuildContext context,
+    required Offset globalPosition,
+    required List<RemoteFileEntry> entriesToDrag,
+  }) async {
+    final source = dragSource;
+    if (source == null || !source.isSupported) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Drag-out not supported on this OS')),
+        );
+      }
+      return;
+    }
+    if (entriesToDrag.isEmpty) {
+      return;
+    }
+    final tempDir = await Directory.systemTemp.createTemp('cwatch-drag-');
+    final staged = <DragLocalItem>[];
+    for (final entry in entriesToDrag) {
+      final remotePath = PathUtils.joinPath(currentPath, entry.name);
+      final localTarget = p.join(tempDir.path, entry.name);
+      try {
+        await runShell(
+          () => shellService.downloadPath(
+            host: host,
+            remotePath: remotePath,
+            localDestination: tempDir.path,
+            recursive: entry.isDirectory,
+          ),
+        );
+        staged.add(
+          DragLocalItem(
+            localPath: localTarget,
+            displayName: entry.name,
+            isDirectory: entry.isDirectory,
+            remotePath: remotePath,
+          ),
+        );
+      } catch (error) {
+        AppLogger.w(
+          'Failed to stage $remotePath for drag',
+          tag: 'Explorer',
+          error: error,
+        );
+      }
+    }
+    if (staged.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Nothing to drag')),
+        );
+      }
+      return;
+    }
+    await source.startDrag(
+      context: context,
+      globalPosition: globalPosition,
+      items: staged,
+    );
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Drag started. Drop to copy/move.')),
+    );
+    // Cleanup temp dir later.
+    Future<void>.delayed(const Duration(minutes: 2), () async {
+      try {
+        await tempDir.delete(recursive: true);
+      } catch (_) {}
+    });
   }
 }
 

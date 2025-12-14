@@ -95,6 +95,7 @@ class ServerWorkspaceController {
           id: state.id,
           host: host,
           customName: _customName(state),
+          initialPath: state.path,
         );
       case ServerAction.editor:
         return tabFactory.editorTab(
@@ -175,7 +176,9 @@ class ServerWorkspaceController {
       hostName: tab.host.name,
       title: tab.title,
       label: tab.label,
-      path: path,
+      path: action == ServerAction.fileExplorer
+          ? (tab.explorerPath ?? path)
+          : path,
     );
   }
 

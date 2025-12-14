@@ -655,6 +655,127 @@ class FileOperationsService {
     }
   }
 
+  /// Handle files/folders dropped from the OS into the explorer.
+  Future<void> handleDroppedPaths({
+    required BuildContext context,
+    required List<String> paths,
+    required String targetDirectory,
+    required String Function(String, String) joinPath,
+    required Future<void> Function() refreshCurrentPath,
+  }) async {
+    final toUpload = paths
+        .map((path) => path.trim())
+        .where((path) => path.isNotEmpty)
+        .toList();
+    if (toUpload.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No valid paths to upload')),
+        );
+      }
+      return;
+    }
+
+    final items = await _buildDroppedItems(toUpload);
+    final totalItems = items.isNotEmpty ? items.length : toUpload.length;
+
+    if (!context.mounted) {
+      return;
+    }
+    final progressController = FileOperationProgressDialog.show(
+      context,
+      operation: 'Uploading',
+      totalItems: totalItems,
+      items: items.isEmpty ? null : items,
+    );
+
+    var successCount = 0;
+    var failCount = 0;
+
+    for (var i = 0; i < toUpload.length; i++) {
+      if (!context.mounted) {
+        break;
+      }
+      if (progressController.cancelled) {
+        break;
+      }
+      final localPath = toUpload[i];
+      final entityType = FileSystemEntity.typeSync(localPath);
+      if (entityType == FileSystemEntityType.notFound) {
+        failCount++;
+        progressController.increment();
+        continue;
+      }
+      final name = p.basename(localPath);
+      final remotePath = joinPath(targetDirectory, name).replaceAll('\\', '/');
+      final itemIndex = items.indexWhere((item) {
+        return item.label == name || item.label.startsWith('$name/');
+      });
+      if (itemIndex != -1) {
+        progressController.markInProgress(itemIndex);
+      } else {
+        progressController.updateProgress(currentItem: name);
+      }
+
+      try {
+        final isDirectory = entityType == FileSystemEntityType.directory;
+        await uploadPath(
+          localPath: localPath,
+          remoteDestination: remotePath,
+          recursive: isDirectory,
+        );
+        successCount++;
+        if (itemIndex != -1) {
+          progressController.markCompleted(itemIndex, addSize: true);
+        } else {
+          progressController.increment();
+        }
+      } catch (error) {
+        failCount++;
+        AppLogger.w(
+          'Failed to upload dropped path $localPath',
+          tag: 'Explorer',
+          error: error,
+        );
+        if (itemIndex != -1) {
+          progressController.markFailed(itemIndex);
+        } else {
+          progressController.increment();
+        }
+      }
+    }
+
+    if (context.mounted && Navigator.of(context, rootNavigator: true).canPop()) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+
+    if (successCount > 0) {
+      await refreshCurrentPath();
+    }
+
+    if (!context.mounted) {
+      return;
+    }
+
+    if (failCount == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Uploaded $successCount item${successCount == 1 ? '' : 's'}',
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Uploaded $successCount item${successCount == 1 ? '' : 's'}. $failCount failed.',
+          ),
+        ),
+      );
+    }
+  }
+
   Future<_DirectoryCountResult> _countDirectoryEntries(
     List<String> directories,
   ) async {
@@ -757,6 +878,29 @@ class FileOperationsService {
     }
     if (!hasFiles) {
       items.add(FileOperationItem(label: directoryName, sizeBytes: 0));
+    }
+    return items;
+  }
+
+  Future<List<FileOperationItem>> _buildDroppedItems(
+    List<String> paths,
+  ) async {
+    final items = <FileOperationItem>[];
+    for (final path in paths) {
+      final type = await FileSystemEntity.type(path, followLinks: false);
+      final name = p.basename(path);
+      if (type == FileSystemEntityType.directory) {
+        items.addAll(await _buildDirectoryItems(path, name));
+      } else if (type == FileSystemEntityType.file) {
+        var size = 0;
+        try {
+          final stat = await FileStat.stat(path);
+          size = stat.size;
+        } catch (_) {
+          size = 0;
+        }
+        items.add(FileOperationItem(label: name, sizeBytes: size));
+      }
     }
     return items;
   }

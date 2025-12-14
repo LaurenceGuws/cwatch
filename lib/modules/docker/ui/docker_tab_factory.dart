@@ -138,6 +138,8 @@ class DockerTabFactory {
     String? containerName,
     String? dockerContextName,
     required void Function(EngineTab tab) onOpenTab,
+    String? initialPath,
+    void Function(String path)? onPathChanged,
   }) {
     final controller = CompositeTabOptionsController();
     return EngineTab(
@@ -152,6 +154,8 @@ class DockerTabFactory {
         explorerContext: explorerContext,
         shellService: shellService,
         trashManager: trashManager,
+        initialPath: initialPath,
+        onPathChanged: onPathChanged,
         onOpenTrash: (ctx) => onOpenTab(
           trash(
             id: 'trash-${ctx.host.name}-${DateTime.now().microsecondsSinceEpoch}',
@@ -193,6 +197,7 @@ class DockerTabFactory {
           if (containerName != null && containerName.isNotEmpty)
             'containerName': containerName,
         },
+        path: initialPath,
       ),
       optionsController: controller,
     );

@@ -14,6 +14,7 @@ class ServerTab {
     required this.action,
     required this.bodyKey,
     this.customName,
+    this.explorerPath,
     this.explorerContext,
     this.initialContent,
     TabOptionsController? optionsController,
@@ -24,6 +25,7 @@ class ServerTab {
   final ServerAction action;
   final GlobalKey bodyKey;
   final String? customName;
+  final String? explorerPath;
   final ExplorerContext? explorerContext;
   final String? initialContent;
   final TabOptionsController optionsController;
@@ -66,6 +68,7 @@ class ServerTab {
     ExplorerContext? explorerContext,
     String? initialContent,
     TabOptionsController? optionsController,
+    String? explorerPath,
   }) {
     return ServerTab(
       id: id ?? this.id,
@@ -73,6 +76,7 @@ class ServerTab {
       action: action ?? this.action,
       bodyKey: bodyKey ?? this.bodyKey,
       customName: setCustomName ? customName : this.customName,
+      explorerPath: explorerPath ?? this.explorerPath,
       explorerContext: explorerContext ?? this.explorerContext,
       initialContent: initialContent ?? this.initialContent,
       optionsController: optionsController ?? this.optionsController,

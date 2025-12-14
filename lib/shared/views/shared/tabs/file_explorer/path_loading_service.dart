@@ -33,11 +33,6 @@ class PathLoadingService {
       return PathLoadResult.skipped(target);
     }
 
-    // If already loading the same path and not forced, skip
-    if (!forceReload && target == currentPath && isLoading) {
-      return PathLoadResult.skipped(target);
-    }
-
     try {
       final entries = await runShellWrapper(
         () => shellService.listDirectory(host, target),

@@ -288,6 +288,9 @@ class DockerWorkspaceController {
           containerName: dockerState.containerName,
           dockerContextName: dockerState.contextName,
           onOpenTab: builders.onOpenTab,
+          initialPath: dockerState.path,
+          onPathChanged: (path) =>
+              builders.onExplorerPathChanged?.call(dockerState.id, path),
         );
       case DockerTabKind.containerEditor:
         if (dockerState.path == null || dockerState.containerId == null) {
@@ -518,6 +521,7 @@ class DockerWorkspaceController {
         id: id,
         kind: DockerTabKind.containerExplorer.name,
         hostName: body.host.name,
+        path: workspaceState?.path,
         extra: workspaceState?.extra,
       );
     }
@@ -603,6 +607,7 @@ class TabBuilders {
     required this.dockerContextNameFor,
     required this.closeTab,
     required this.onOpenTab,
+    this.onExplorerPathChanged,
   });
 
   final EngineTab Function({required String id}) buildPlaceholder;
@@ -671,6 +676,8 @@ class TabBuilders {
     String? containerName,
     String? dockerContextName,
     required void Function(EngineTab tab) onOpenTab,
+    String? initialPath,
+    void Function(String path)? onPathChanged,
   })
   buildExplorer;
   final EngineTab Function({
@@ -703,6 +710,7 @@ class TabBuilders {
   final String Function(SshHost host, String? contextName) dockerContextNameFor;
   final void Function(String id) closeTab;
   final void Function(EngineTab tab) onOpenTab;
+  final void Function(String tabId, String path)? onExplorerPathChanged;
 }
 
 class RestoredDockerTabs {

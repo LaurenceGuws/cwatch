@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:desktop_drop/desktop_drop.dart';
 
 import '../../../../../models/explorer_context.dart';
 import '../../../../../models/remote_file_entry.dart';
 import '../../../../../models/ssh_host.dart';
+import '../../../../../services/logging/app_logger.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../../services/filesystem/explorer_trash_manager.dart';
 import 'context_menu_builder.dart';
@@ -30,6 +34,8 @@ class FileExplorerTab extends StatefulWidget {
     this.onOpenEditorTab,
     this.onOpenTerminalTab,
     this.optionsController,
+    this.initialPath,
+    this.onPathChanged,
   }) : assert(explorerContext.host == host);
 
   final SshHost host;
@@ -41,6 +47,8 @@ class FileExplorerTab extends StatefulWidget {
   onOpenEditorTab;
   final ValueChanged<String>? onOpenTerminalTab;
   final TabOptionsController? optionsController;
+  final String? initialPath;
+  final ValueChanged<String>? onPathChanged;
 
   @override
   State<FileExplorerTab> createState() => _FileExplorerTabState();
@@ -53,6 +61,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
   final ScrollController _scrollController = ScrollController();
   List<TabChipOption>? _pendingTabOptions;
   bool _optionsScheduled = false;
+  bool _dropHover = false;
 
   @override
   void initState() {
@@ -63,6 +72,8 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       shellService: widget.shellService,
       trashManager: widget.trashManager,
       onOpenEditorTab: widget.onOpenEditorTab,
+      onPathChanged: widget.onPathChanged,
+      initialPath: widget.initialPath,
       promptMergeDialog: _promptMergeDialog,
     );
     _controllerListener = () {
@@ -89,6 +100,8 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         shellService: widget.shellService,
         trashManager: widget.trashManager,
         onOpenEditorTab: widget.onOpenEditorTab,
+        onPathChanged: widget.onPathChanged,
+        initialPath: widget.initialPath,
         promptMergeDialog: _promptMergeDialog,
       );
       _controller.addListener(_controllerListener);
@@ -114,6 +127,74 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
 
   @override
   Widget build(BuildContext context) {
+    final contentCard = Card(
+      clipBehavior: Clip.antiAlias,
+      child: _controller.loading
+          ? const Center(child: CircularProgressIndicator())
+          : _controller.error != null
+              ? Center(child: Text(_controller.error!))
+              : _buildEntriesList(),
+    );
+
+    final dropWrapped = _supportsDesktopDrop
+        ? DropTarget(
+            enable: true,
+            onDragEntered: (_) {
+              AppLogger.d(
+                'Drop entered ${_controller.currentPath}',
+                tag: 'Explorer',
+              );
+              if (!_dropHover) {
+                setState(() => _dropHover = true);
+              }
+            },
+            onDragUpdated: (details) {
+              if (!_dropHover) {
+                setState(() => _dropHover = true);
+              }
+            },
+            onDragExited: (_) {
+              AppLogger.d(
+                'Drop exited ${_controller.currentPath}',
+                tag: 'Explorer',
+              );
+              if (_dropHover) {
+                setState(() => _dropHover = false);
+              }
+            },
+            onDragDone: (details) async {
+              AppLogger.d(
+                'Drop done ${details.files.length} files at '
+                '${details.localPosition}',
+                tag: 'Explorer',
+              );
+              if (_dropHover) {
+                setState(() => _dropHover = false);
+              }
+              await _handleLocalDrop(details);
+            },
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                contentCard,
+                if (_dropHover)
+                  Container(
+                    color: Colors.blue.withValues(alpha: 0.08),
+                    alignment: Alignment.center,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.upload_file, size: 48),
+                        SizedBox(height: 8),
+                        Text('Drop files or folders to upload'),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          )
+        : contentCard;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -122,16 +203,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
           child: _buildPathNavigator(context),
         ),
         const SizedBox(height: 12),
-        Expanded(
-          child: Card(
-            clipBehavior: Clip.antiAlias,
-            child: _controller.loading
-                ? const Center(child: CircularProgressIndicator())
-                : _controller.error != null
-                ? Center(child: Text(_controller.error!))
-                : _buildEntriesList(),
-          ),
-        ),
+        Expanded(child: dropWrapped),
       ],
     );
   }
@@ -149,7 +221,7 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
 
   Widget _buildEntriesList() {
     final sortedEntries = _controller.currentSortedEntries();
-    return FileEntryList(
+    final list = FileEntryList(
       entries: sortedEntries,
       currentPath: _controller.currentPath,
       selectedPaths: _controller.selectionController.selectedPaths,
@@ -250,12 +322,62 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       onSyncLocalEdit: _syncLocalEdit,
       onRefreshCacheFromServer: _refreshCacheFromServer,
       onClearCachedCopy: _clearCachedCopy,
+      onStartOsDrag: (position) async {
+        final selected = _controller.selectionController
+            .getSelectedEntries(sortedEntries);
+        if (selected.isEmpty) return;
+        await _controller.startOsDrag(
+          context: context,
+          globalPosition: position,
+          entriesToDrag: selected,
+        );
+      },
       joinPath: PathUtils.joinPath,
     );
+    return list;
   }
 
   Future<void> _loadPath(String path, {bool forceReload = false}) async {
     await _controller.loadPath(path, forceReload: forceReload);
+  }
+
+  Future<void> _handleLocalDrop(DropDoneDetails details) async {
+    if (details.files.isEmpty) {
+      AppLogger.d('Drop ignored: no files', tag: 'Explorer');
+      return;
+    }
+    final paths = details.files.map((file) => file.path).where(
+      (path) => path.isNotEmpty,
+    );
+    AppLogger.d(
+      'Handling drop of ${details.files.length} items to '
+      '${_controller.currentPath}: ${paths.join(', ')}',
+      tag: 'Explorer',
+    );
+    await _controller.fileOpsService.handleDroppedPaths(
+      context: context,
+      targetDirectory: _controller.currentPath,
+      paths: paths.toList(),
+      joinPath: PathUtils.joinPath,
+      refreshCurrentPath: _refreshCurrentPath,
+    );
+    if (mounted) {
+      final count = details.files.length;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Uploading $count dropped item${count == 1 ? '' : 's'} to ${_controller.currentPath}',
+          ),
+        ),
+      );
+    }
+  }
+
+  bool get _supportsDesktopDrop {
+    if (kIsWeb) {
+      return false;
+    }
+    return Platform.isWindows || Platform.isLinux || Platform.isMacOS;
   }
 
   Future<void> _refreshCurrentPath() async {

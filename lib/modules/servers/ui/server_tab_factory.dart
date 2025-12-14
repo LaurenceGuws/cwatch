@@ -37,6 +37,7 @@ class ServerTabFactory {
     required SshHost host,
     GlobalKey? bodyKey,
     ExplorerContext? explorerContext,
+    String? initialPath,
     String? customName,
   }) {
     return ServerTab(
@@ -44,6 +45,7 @@ class ServerTabFactory {
       host: host,
       action: ServerAction.fileExplorer,
       customName: customName,
+      explorerPath: initialPath,
       bodyKey: bodyKey ?? GlobalKey(debugLabel: 'server-tab-$id'),
       explorerContext: explorerContext ?? ExplorerContext.server(host),
       optionsController: TabOptionsController(),
@@ -151,6 +153,7 @@ class ServerTabFactory {
     onOpenTerminalTab,
     required void Function(ExplorerContext context) onOpenTrash,
     required void Function(String tabId) onCloseTab,
+    void Function(String path)? onExplorerPathChanged,
   }) {
     switch (tab.action) {
       case ServerAction.empty:
@@ -164,6 +167,8 @@ class ServerTabFactory {
           explorerContext: explorerContext,
           shellService: shellServiceForHost(tab.host),
           trashManager: trashManager,
+          initialPath: tab.explorerPath,
+          onPathChanged: onExplorerPathChanged,
           onOpenTrash: onOpenTrash,
           onOpenEditorTab: onOpenEditorTab,
           onOpenTerminalTab: (path) =>

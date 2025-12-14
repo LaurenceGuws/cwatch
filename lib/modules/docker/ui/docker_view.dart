@@ -850,6 +850,15 @@ class _DockerViewState extends State<DockerView> {
     await _workspaceController.workspacePersistence.persist(workspace);
   }
 
+  void _updateExplorerPath(String tabId, String path) {
+    final existing = _tabStates[tabId];
+    final kind =
+        existing?.kind ?? DockerTabKind.containerExplorer.name;
+    _tabStates[tabId] = (existing ?? TabState(id: tabId, kind: kind))
+        .copyWith(path: path);
+    unawaited(_persistWorkspace());
+  }
+
   void _handleSettingsChanged() {
     if (!mounted) return;
     unawaited(_restoreWorkspace());
@@ -967,6 +976,7 @@ class _DockerViewState extends State<DockerView> {
         dockerContextNameFor: _dockerContextNameFor,
         closeTab: _closeTabById,
         onOpenTab: _openChildTab,
+        onExplorerPathChanged: _updateExplorerPath,
       ),
     );
   }

@@ -446,7 +446,9 @@ class ProcessRemoteShellService extends RemoteShellService {
 
   String _formatRemoteSpec(SshHost host, String path) {
     final normalized = sanitizePath(path);
-    return '${_runner.connectionTarget(host)}:${singleQuoteForShell(normalized)}';
+    // scp remote specs accept raw paths; quoting here can be interpreted
+    // as a literal character by some servers, so keep it unquoted.
+    return '${_runner.connectionTarget(host)}:$normalized';
   }
 
   Future<void> _ensureRemoteDirectory(

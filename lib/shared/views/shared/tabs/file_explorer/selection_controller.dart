@@ -238,6 +238,13 @@ class SelectionController {
     if (entries.isEmpty || index < 0 || index >= entries.length) {
       return;
     }
+    final path = joinPath(currentPath, entries[index].name);
+    if (!shift && !multi && selectedPaths.contains(path)) {
+      selectionAnchorIndex = index;
+      lastSelectedIndex = index;
+      setState();
+      return;
+    }
     if (shift) {
       selectRange(entries, index, additive: multi, setState: setState);
       return;

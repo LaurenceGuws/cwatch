@@ -662,6 +662,7 @@ class _ServersListState extends State<ServersList> {
           _openTerminalTab(host: host, initialDirectory: initialDirectory),
       onOpenTrash: _openTrashTab,
       onCloseTab: _closeTabById,
+      onExplorerPathChanged: (path) => _updateExplorerPath(tab, path),
     );
   }
 
@@ -788,6 +789,17 @@ class _ServersListState extends State<ServersList> {
     );
     _tabRegistry.widgetFor(tab, () => _buildTabWidget(tab));
     _tabController.addTab(tab);
+  }
+
+  void _updateExplorerPath(ServerTab tab, String path) {
+    final updated = tab.copyWith(explorerPath: path);
+    _tabRegistry.remove(tab);
+    _tabRegistry.widgetFor(updated, () => _buildTabWidget(updated));
+    _tabCache
+      ..remove(tab.id)
+      ..[updated.id] = updated;
+    _tabController.replaceTab(tab.id, updated);
+    unawaited(_persistWorkspace());
   }
 
   Future<void> _openEditorTabForHost(
