@@ -5,11 +5,7 @@ import '../services/wsl_distribution.dart';
 import '../services/wsl_service_interface.dart';
 
 class WslHome extends StatefulWidget {
-  const WslHome({
-    super.key,
-    required this.service,
-    this.leading,
-  });
+  const WslHome({super.key, required this.service, this.leading});
 
   final WslService service;
   final Widget? leading;
@@ -97,17 +93,15 @@ class _WslHomeState extends State<WslHome> {
             title: 'Failed to load WSL',
             message: snapshot.error.toString(),
             icon: Icons.error_outline,
-            action: TextButton(
-              onPressed: _refresh,
-              child: const Text('Retry'),
-            ),
+            action: TextButton(onPressed: _refresh, child: const Text('Retry')),
           );
         }
         final distros = snapshot.data ?? const [];
         if (distros.isEmpty) {
           return _InfoCard(
             title: 'No distributions found',
-            message: 'Install a distribution with "wsl --install" or the '
+            message:
+                'Install a distribution with "wsl --install" or the '
                 'Microsoft Store, then refresh.',
             icon: Icons.laptop_mac,
             action: TextButton(
@@ -118,7 +112,7 @@ class _WslHomeState extends State<WslHome> {
         }
         return ListView.separated(
           itemCount: distros.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
+          separatorBuilder: (_, _) => const Divider(height: 1),
           itemBuilder: (context, index) {
             final distro = distros[index];
             return ListTile(
@@ -129,7 +123,9 @@ class _WslHomeState extends State<WslHome> {
                     : theme.colorScheme.onSurfaceVariant,
               ),
               title: Text(distro.name),
-              subtitle: Text('State: ${distro.state} | Version: ${distro.version}'),
+              subtitle: Text(
+                'State: ${distro.state} | Version: ${distro.version}',
+              ),
             );
           },
         );
@@ -168,21 +164,12 @@ class _InfoCard extends StatelessWidget {
                   children: [
                     Icon(icon, size: 20, color: theme.colorScheme.primary),
                     const SizedBox(width: 8),
-                    Text(
-                      title,
-                      style: theme.textTheme.titleMedium,
-                    ),
+                    Text(title, style: theme.textTheme.titleMedium),
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  message,
-                  style: theme.textTheme.bodyMedium,
-                ),
-                if (action != null) ...[
-                  const SizedBox(height: 12),
-                  action!,
-                ],
+                Text(message, style: theme.textTheme.bodyMedium),
+                if (action != null) ...[const SizedBox(height: 12), action!],
               ],
             ),
           ),

@@ -33,10 +33,122 @@ DesktopDragSource createDesktopDragSource() {
   if (Platform.isLinux) {
     return LinuxDragSource();
   }
-  if (Platform.isWindows || Platform.isMacOS) {
+  if (Platform.isWindows) {
+    return WindowsDragSource();
+  }
+  if (Platform.isMacOS) {
     return UnsupportedDragSource();
   }
   return UnsupportedDragSource();
+}
+
+/// Windows implementation using super_drag_and_drop to start a native drag loop.
+class WindowsDragSource implements DesktopDragSource {
+  @override
+  bool get isSupported => true;
+
+  @override
+  Future<DragStartResult> startDrag({
+    required BuildContext context,
+    required Offset globalPosition,
+    required List<DragLocalItem> items,
+  }) async {
+    if (items.isEmpty) {
+      return const DragStartResult(
+        started: false,
+        error: 'No items to drag',
+      );
+    }
+    try {
+      final dragContext = await DragContext.instance();
+      final session = dragContext.newSession();
+      if (!context.mounted) {
+        return const DragStartResult(
+          started: false,
+          error: 'Context unmounted before drag started',
+        );
+      }
+      final view = ui.PlatformDispatcher.instance.views.isNotEmpty
+          ? ui.PlatformDispatcher.instance.views.first
+          : null;
+      final devicePixelRatio = view?.devicePixelRatio ?? ui.PlatformDispatcher.instance.implicitView?.devicePixelRatio ?? 1.0;
+      final configItems = await _buildConfigItems(
+        globalPosition,
+        items,
+        devicePixelRatio,
+      );
+      if (!context.mounted) {
+        return const DragStartResult(
+          started: false,
+          error: 'Context unmounted before drag started',
+        );
+      }
+      final configuration = sdd.DragConfiguration(
+        items: configItems,
+        allowedOperations: [
+          sdd.DropOperation.copy,
+          sdd.DropOperation.move,
+        ],
+      );
+      final rawConfig = await configuration.intoRaw(devicePixelRatio);
+      await dragContext.startDrag(
+        buildContext: context,
+        session: session,
+        configuration: rawConfig,
+        position: globalPosition,
+      );
+      return const DragStartResult(started: true);
+    } catch (error) {
+      return DragStartResult(
+        started: false,
+        error: error.toString(),
+      );
+    }
+  }
+
+  Future<List<sdd.DragConfigurationItem>> _buildConfigItems(
+    Offset globalPosition,
+    List<DragLocalItem> items,
+    double devicePixelRatio,
+  ) async {
+    final image = await _placeholderImage(devicePixelRatio);
+    final snapshot = WidgetSnapshot.image(image);
+    final rect = Rect.fromLTWH(
+      globalPosition.dx,
+      globalPosition.dy,
+      image.pointWidth,
+      image.pointHeight,
+    );
+    final targeted = TargetedWidgetSnapshot(snapshot, rect);
+
+    return items
+        .map(
+          (item) => sdd.DragConfigurationItem(
+            item: sdd.DragItem(suggestedName: item.displayName)
+              ..add(sc.Formats.fileUri(Uri.file(item.localPath))),
+            image: targeted.retain(),
+          ),
+        )
+        .toList();
+  }
+
+  Future<ui.Image> _placeholderImage(double devicePixelRatio) async {
+    final size = (20 * devicePixelRatio).round();
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final paint = Paint()..color = Colors.blue.withValues(alpha: 0.8);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, size.toDouble(), size.toDouble()),
+        const Radius.circular(4),
+      ),
+      paint,
+    );
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(size, size);
+    image.devicePixelRatio = devicePixelRatio;
+    return image;
+  }
 }
 
 /// Linux implementation using super_drag_and_drop to start a native drag loop.

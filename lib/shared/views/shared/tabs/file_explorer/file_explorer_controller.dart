@@ -390,6 +390,9 @@ class FileExplorerController extends ChangeNotifier {
       }
       return;
     }
+    if (!context.mounted) {
+      return;
+    }
     await source.startDrag(
       context: context,
       globalPosition: globalPosition,

@@ -31,6 +31,7 @@ import '../../shared/widgets/command_palette.dart';
 import 'command_palette_registry.dart';
 import '../tabs/tab_bar_visibility.dart';
 import '../../services/window/window_chrome_service.dart';
+import '../../services/window/window_controls_scope.dart';
 import '../../services/logging/app_logger.dart';
 import 'gesture_detector_factory.dart';
 import 'tab_navigation_registry.dart';
@@ -665,7 +666,16 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
         final bool showSidebar = !_sidebarCollapsed;
         final bool useCustomChrome =
             defaultTargetPlatform == TargetPlatform.windows &&
-                !widget.settingsController.settings.windowUseSystemDecorations;
+            !widget.settingsController.settings.windowUseSystemDecorations;
+        final Widget? windowControls = useCustomChrome
+            ? _WindowControls(
+                isMaximized: _isWindowMaximized,
+                onDrag: _startWindowDrag,
+                onToggleMaximize: _toggleWindowMaximize,
+                onMinimize: _minimizeWindow,
+                onClose: _closeWindow,
+              )
+            : null;
         Widget? navigationBar;
         Alignment navigationAlignment = Alignment.centerLeft;
         EdgeInsets contentPadding = EdgeInsets.zero;
@@ -747,38 +757,29 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
         return Focus(
           autofocus: true,
           canRequestFocus: true,
-          child: Scaffold(
-            body: SafeArea(
-              child: GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onScaleStart: _gesturesEnabled ? _handleScaleStart : null,
-                onScaleUpdate: _gesturesEnabled ? _handleScaleUpdate : null,
-                onScaleEnd: _gesturesEnabled ? _handleScaleEnd : null,
-                child: _gestureDetectorFactory.wrap(
-                  context,
-                  Stack(
-                    children: [
-                      Positioned.fill(child: content),
-                      if (navigationBar != null)
-                        Align(
-                          alignment: navigationAlignment,
-                          child: navigationBar,
-                        ),
-                      if (useCustomChrome)
-                        Positioned(
-                          top: 6,
-                          right: 8,
-                          child: _WindowControls(
-                            isMaximized: _isWindowMaximized,
-                            onDrag: _startWindowDrag,
-                            onToggleMaximize: _toggleWindowMaximize,
-                            onMinimize: _minimizeWindow,
-                            onClose: _closeWindow,
+          child: WindowControlsScope(
+            trailing: windowControls,
+            child: Scaffold(
+              body: SafeArea(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onScaleStart: _gesturesEnabled ? _handleScaleStart : null,
+                  onScaleUpdate: _gesturesEnabled ? _handleScaleUpdate : null,
+                  onScaleEnd: _gesturesEnabled ? _handleScaleEnd : null,
+                  child: _gestureDetectorFactory.wrap(
+                    context,
+                    Stack(
+                      children: [
+                        Positioned.fill(child: content),
+                        if (navigationBar != null)
+                          Align(
+                            alignment: navigationAlignment,
+                            child: navigationBar,
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
+                    enabled: _gesturesEnabled,
                   ),
-                  enabled: _gesturesEnabled,
                 ),
               ),
             ),
@@ -883,7 +884,6 @@ class _WindowControls extends StatefulWidget {
 class _WindowControlsState extends State<_WindowControls> {
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onPanStart: (_) => widget.onDrag(),
@@ -897,8 +897,9 @@ class _WindowControlsState extends State<_WindowControls> {
             onPressed: widget.onMinimize,
           ),
           _CaptionButton(
-            icon:
-                widget.isMaximized ? Icons.filter_none : Icons.crop_square_rounded,
+            icon: widget.isMaximized
+                ? Icons.filter_none
+                : Icons.crop_square_rounded,
             tooltip: widget.isMaximized ? 'Restore' : 'Maximize',
             onPressed: widget.onToggleMaximize,
           ),

@@ -20,7 +20,7 @@ Future<void> main() async {
       final codePoint = codePointForDistro(slug);
       final glyph = String.fromCharCode(codePoint);
       stdout.writeln(
-        '[glyph: ${glyph}] ${container.name} (${container.image}) -> '
+        '[glyph: $glyph] ${container.name} (${container.image}) -> '
         '${slug ?? 'unknown'} | $label | icon 0x${codePoint.toRadixString(16)}',
       );
     } catch (error, stack) {
@@ -40,10 +40,11 @@ class _ContainerInfo {
 }
 
 Future<List<_ContainerInfo>> _listContainers() async {
-  final result = await Process.run(
-    'docker',
-    ['ps', '--format', '{{.ID}}|{{.Image}}|{{.Names}}'],
-  );
+  final result = await Process.run('docker', [
+    'ps',
+    '--format',
+    '{{.ID}}|{{.Image}}|{{.Names}}',
+  ]);
   if (result.exitCode != 0) {
     stderr.writeln('docker ps failed: ${result.stderr}');
     return [];
@@ -74,10 +75,7 @@ Future<String?> _detectSlug(String containerId) async {
 }
 
 Future<Map<String, String>?> _readOsRelease(String containerId) async {
-  final result = await _runInContainer(
-    containerId,
-    ['cat', '/etc/os-release'],
-  );
+  final result = await _runInContainer(containerId, ['cat', '/etc/os-release']);
   if (result == null) return null;
   final lines = result.split('\n');
   final map = <String, String>{};
@@ -123,10 +121,7 @@ Future<String?> _runInContainer(
   List<String> args, {
   Duration timeout = const Duration(seconds: 6),
 }) async {
-  final process = Process.run(
-    'docker',
-    ['exec', containerId, ...args],
-  );
+  final process = Process.run('docker', ['exec', containerId, ...args]);
   try {
     final result = await process.timeout(timeout);
     if (result.exitCode != 0) {

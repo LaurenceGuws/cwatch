@@ -4,7 +4,6 @@ import 'dart:io';
 
 import '../../models/remote_file_entry.dart';
 import '../../models/ssh_host.dart';
-import 'package:flutter/foundation.dart';
 import '../logging/app_logger.dart';
 import 'remote_shell_base.dart';
 import 'terminal_session.dart';
