@@ -9,6 +9,7 @@ import '../../modules/docker/view.dart';
 import '../../modules/kubernetes/view.dart';
 import '../../modules/servers/view.dart';
 import '../../modules/settings/view.dart';
+import '../../modules/wsl/view.dart';
 import '../../services/settings/app_settings_controller.dart';
 import '../../services/ssh/builtin/builtin_ssh_key_store.dart';
 import '../../services/ssh/builtin/builtin_ssh_key_service.dart';
@@ -589,7 +590,7 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   List<ShellModuleView> _buildModules() {
-    return [
+    final modules = <ShellModuleView>[
       ServersModule(
         hostsFuture: _hostsFuture,
         settingsController: widget.settingsController,
@@ -597,6 +598,11 @@ class _HomeShellState extends State<HomeShell> {
         commandLog: _commandLog,
         shellFactory: _shellFactory,
       ),
+    ];
+    if (defaultTargetPlatform == TargetPlatform.windows) {
+      modules.add(const WslModule());
+    }
+    modules.addAll([
       DockerModule(
         hostsFuture: _hostsFuture,
         settingsController: widget.settingsController,
@@ -612,7 +618,8 @@ class _HomeShellState extends State<HomeShell> {
         commandLog: _commandLog,
         shellFactory: _shellFactory,
       ),
-    ];
+    ]);
+    return modules;
   }
 
   @override

@@ -18,6 +18,8 @@ class ShellAction {
 
 /// Describes a pluggable shell section (e.g., servers, docker, k8s, settings).
 abstract class ShellModuleView {
+  const ShellModuleView();
+
   String get id;
   String get label;
   NerdIcon get icon;

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -100,6 +101,11 @@ done'
     final suffixed = (trimmed.endsWith('exit') || trimmed.endsWith('exit;'))
         ? trimmed
         : '$trimmed; exit';
+    if (Platform.isWindows) {
+      // PowerShell doesn't understand the bash-specific history mangling; just
+      // send the command with a trailing exit.
+      return suffixed;
+    }
     if (suffixed.startsWith(historyPrefix)) {
       return suffixed;
     }

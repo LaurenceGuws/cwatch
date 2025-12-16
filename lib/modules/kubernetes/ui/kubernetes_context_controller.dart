@@ -34,7 +34,8 @@ class KubernetesContextController {
           .where((entry) => entry.isNotEmpty)
           .toList();
     }
-    final home = Platform.environment['HOME'];
+    final home = Platform.environment['HOME'] ??
+        Platform.environment['USERPROFILE'];
     if (home != null && home.isNotEmpty) {
       return [path.join(home, '.kube', 'config')];
     }
