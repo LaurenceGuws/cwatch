@@ -1,7 +1,8 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:window_manager/window_manager.dart';
 
 import '../../models/app_settings.dart';
 import '../../models/ssh_host.dart';
@@ -45,7 +46,7 @@ class HomeShell extends StatefulWidget {
   State<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> {
+class _HomeShellState extends State<HomeShell> with WindowListener {
   late Future<List<SshHost>> _hostsFuture;
   String _selectedDestination = 'servers';
   bool _sidebarCollapsed = false;
@@ -67,6 +68,7 @@ class _HomeShellState extends State<HomeShell> {
   bool _gesturesEnabled = true;
   GestureSubscription? _globalGestureSub;
   double? _scaleStartZoom;
+  bool _isWindowMaximized = false;
 
   @override
   void initState() {
@@ -102,6 +104,7 @@ class _HomeShellState extends State<HomeShell> {
     ShortcutService.instance.updateSettings(widget.settingsController.settings);
     _gestureDetectorFactory = GestureDetectorFactory();
     _configureInputMode(widget.settingsController.settings);
+    _syncWindowState();
   }
 
   ShortcutSubscription? _globalShortcutSub;
@@ -121,6 +124,7 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   void dispose() {
+    windowManager.removeListener(this);
     _commandLog.dispose();
     _moduleRegistry.removeListener(_handleModulesChanged);
     widget.settingsController.removeListener(_settingsListener);
@@ -622,6 +626,19 @@ class _HomeShellState extends State<HomeShell> {
     return modules;
   }
 
+  void _syncWindowState() {
+    if (defaultTargetPlatform != TargetPlatform.windows) {
+      return;
+    }
+    windowManager.addListener(this);
+    unawaited(() async {
+      final maximized = await windowManager.isMaximized();
+      if (mounted) {
+        setState(() => _isWindowMaximized = maximized);
+      }
+    }());
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -646,6 +663,9 @@ class _HomeShellState extends State<HomeShell> {
           (modules.length - 1).clamp(0, 9999),
         );
         final bool showSidebar = !_sidebarCollapsed;
+        final bool useCustomChrome =
+            defaultTargetPlatform == TargetPlatform.windows &&
+                !widget.settingsController.settings.windowUseSystemDecorations;
         Widget? navigationBar;
         Alignment navigationAlignment = Alignment.centerLeft;
         EdgeInsets contentPadding = EdgeInsets.zero;
@@ -744,6 +764,18 @@ class _HomeShellState extends State<HomeShell> {
                           alignment: navigationAlignment,
                           child: navigationBar,
                         ),
+                      if (useCustomChrome)
+                        Positioned(
+                          top: 6,
+                          right: 8,
+                          child: _WindowControls(
+                            isMaximized: _isWindowMaximized,
+                            onDrag: _startWindowDrag,
+                            onToggleMaximize: _toggleWindowMaximize,
+                            onMinimize: _minimizeWindow,
+                            onClose: _closeWindow,
+                          ),
+                        ),
                     ],
                   ),
                   enabled: _gesturesEnabled,
@@ -788,6 +820,151 @@ class _HomeShellState extends State<HomeShell> {
     );
     await widget.settingsController.update(
       (settings) => settings.copyWith(zoomFactor: targetZoom),
+    );
+  }
+
+  Future<void> _startWindowDrag() async {
+    if (defaultTargetPlatform != TargetPlatform.windows) return;
+    await windowManager.startDragging();
+  }
+
+  Future<void> _toggleWindowMaximize() async {
+    if (defaultTargetPlatform != TargetPlatform.windows) return;
+    final isMaximized = await windowManager.isMaximized();
+    if (isMaximized) {
+      await windowManager.unmaximize();
+      if (mounted) setState(() => _isWindowMaximized = false);
+    } else {
+      await windowManager.maximize();
+      if (mounted) setState(() => _isWindowMaximized = true);
+    }
+  }
+
+  Future<void> _minimizeWindow() async {
+    if (defaultTargetPlatform != TargetPlatform.windows) return;
+    await windowManager.minimize();
+  }
+
+  Future<void> _closeWindow() async {
+    if (defaultTargetPlatform != TargetPlatform.windows) return;
+    await windowManager.close();
+  }
+
+  @override
+  void onWindowMaximize() {
+    if (mounted) setState(() => _isWindowMaximized = true);
+  }
+
+  @override
+  void onWindowUnmaximize() {
+    if (mounted) setState(() => _isWindowMaximized = false);
+  }
+}
+
+class _WindowControls extends StatefulWidget {
+  const _WindowControls({
+    required this.isMaximized,
+    required this.onDrag,
+    required this.onToggleMaximize,
+    required this.onMinimize,
+    required this.onClose,
+  });
+
+  final bool isMaximized;
+  final VoidCallback onDrag;
+  final VoidCallback onToggleMaximize;
+  final VoidCallback onMinimize;
+  final VoidCallback onClose;
+
+  @override
+  State<_WindowControls> createState() => _WindowControlsState();
+}
+
+class _WindowControlsState extends State<_WindowControls> {
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onPanStart: (_) => widget.onDrag(),
+      onDoubleTap: widget.onToggleMaximize,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _CaptionButton(
+            icon: Icons.minimize,
+            tooltip: 'Minimize',
+            onPressed: widget.onMinimize,
+          ),
+          _CaptionButton(
+            icon:
+                widget.isMaximized ? Icons.filter_none : Icons.crop_square_rounded,
+            tooltip: widget.isMaximized ? 'Restore' : 'Maximize',
+            onPressed: widget.onToggleMaximize,
+          ),
+          _CaptionButton(
+            icon: Icons.close,
+            tooltip: 'Close',
+            onPressed: widget.onClose,
+            destructive: true,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CaptionButton extends StatefulWidget {
+  const _CaptionButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.destructive = false,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+  final bool destructive;
+
+  @override
+  State<_CaptionButton> createState() => _CaptionButtonState();
+}
+
+class _CaptionButtonState extends State<_CaptionButton> {
+  bool _hovering = false;
+
+  void _setHover(bool hovering) {
+    if (_hovering == hovering) return;
+    setState(() => _hovering = hovering);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final hoverColor = widget.destructive
+        ? Colors.red.withValues(alpha: 0.8)
+        : scheme.surfaceContainerHighest.withValues(alpha: 0.35);
+    final iconColor = widget.destructive
+        ? (_hovering ? Colors.white : scheme.onSurface)
+        : scheme.onSurface;
+    return Tooltip(
+      message: widget.tooltip,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => _setHover(true),
+        onExit: (_) => _setHover(false),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onPressed,
+          child: Container(
+            width: 46,
+            height: 32,
+            color: _hovering ? hoverColor : Colors.transparent,
+            child: Icon(widget.icon, size: 18, color: iconColor),
+          ),
+        ),
+      ),
     );
   }
 }
