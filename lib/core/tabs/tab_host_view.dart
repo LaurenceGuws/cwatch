@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
 import 'tab_host.dart';
-import 'package:cwatch/services/window/window_controls_scope.dart';
 
 /// Simple wrapper that renders a tab bar and content stack using a
 /// TabHostController. Modules supply a tab list, chip builder, and body builder.
@@ -143,7 +142,7 @@ class _TabBarRow<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final trailing = WindowControlsScope.maybeOf(context)?.trailing;
+    final hasAddTab = onAddTab != null;
     return Row(
       children: [
         if (leading != null) leading!,
@@ -157,16 +156,22 @@ class _TabBarRow<T> extends StatelessWidget {
               itemCount: tabs.length,
               itemBuilder: (context, index) =>
                   buildChip(context, index, tabs[index]),
+              footer: hasAddTab
+                  ? KeyedSubtree(
+                      key: const ValueKey('tab-bar-add'),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: IconButton(
+                          tooltip: 'New tab',
+                          icon: const Icon(Icons.add),
+                          onPressed: onAddTab,
+                        ),
+                      ),
+                    )
+                  : null,
             ),
           ),
         ),
-        if (onAddTab != null)
-          IconButton(
-            tooltip: 'New tab',
-            icon: const Icon(Icons.add),
-            onPressed: onAddTab,
-          ),
-        if (trailing != null) ...[const SizedBox(width: 8), trailing],
       ],
     );
   }

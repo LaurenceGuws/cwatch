@@ -31,7 +31,6 @@ import '../../shared/widgets/command_palette.dart';
 import 'command_palette_registry.dart';
 import '../tabs/tab_bar_visibility.dart';
 import '../../services/window/window_chrome_service.dart';
-import '../../services/window/window_controls_scope.dart';
 import '../../services/logging/app_logger.dart';
 import 'gesture_detector_factory.dart';
 import 'tab_navigation_registry.dart';
@@ -70,6 +69,12 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
   GestureSubscription? _globalGestureSub;
   double? _scaleStartZoom;
   bool _isWindowMaximized = false;
+
+  bool get _supportsCustomChrome =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.linux);
 
   @override
   void initState() {
@@ -628,7 +633,7 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
   }
 
   void _syncWindowState() {
-    if (defaultTargetPlatform != TargetPlatform.windows) {
+    if (!_supportsCustomChrome) {
       return;
     }
     windowManager.addListener(this);
@@ -664,8 +669,7 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
           (modules.length - 1).clamp(0, 9999),
         );
         final bool showSidebar = !_sidebarCollapsed;
-        final bool useCustomChrome =
-            defaultTargetPlatform == TargetPlatform.windows &&
+        final bool useCustomChrome = _supportsCustomChrome &&
             !widget.settingsController.settings.windowUseSystemDecorations;
         final Widget? windowControls = useCustomChrome
             ? _WindowControls(
@@ -757,31 +761,38 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
         return Focus(
           autofocus: true,
           canRequestFocus: true,
-          child: WindowControlsScope(
-            trailing: windowControls,
-            child: Scaffold(
-              body: SafeArea(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onScaleStart: _gesturesEnabled ? _handleScaleStart : null,
-                  onScaleUpdate: _gesturesEnabled ? _handleScaleUpdate : null,
-                  onScaleEnd: _gesturesEnabled ? _handleScaleEnd : null,
-                  child: _gestureDetectorFactory.wrap(
-                    context,
-                    Stack(
-                      children: [
-                        Positioned.fill(child: content),
-                        if (navigationBar != null)
-                          Align(
-                            alignment: navigationAlignment,
-                            child: navigationBar,
-                          ),
-                      ],
+          child: Scaffold(
+            body: Stack(
+              children: [
+                SafeArea(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onScaleStart: _gesturesEnabled ? _handleScaleStart : null,
+                    onScaleUpdate: _gesturesEnabled ? _handleScaleUpdate : null,
+                    onScaleEnd: _gesturesEnabled ? _handleScaleEnd : null,
+                    child: _gestureDetectorFactory.wrap(
+                      context,
+                      Stack(
+                        children: [
+                          Positioned.fill(child: content),
+                          if (navigationBar != null)
+                            Align(
+                              alignment: navigationAlignment,
+                              child: navigationBar,
+                            ),
+                        ],
+                      ),
+                      enabled: _gesturesEnabled,
                     ),
-                    enabled: _gesturesEnabled,
                   ),
                 ),
-              ),
+                if (windowControls != null)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: windowControls,
+                  ),
+              ],
             ),
           ),
         );
@@ -825,12 +836,12 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
   }
 
   Future<void> _startWindowDrag() async {
-    if (defaultTargetPlatform != TargetPlatform.windows) return;
+    if (!_supportsCustomChrome) return;
     await windowManager.startDragging();
   }
 
   Future<void> _toggleWindowMaximize() async {
-    if (defaultTargetPlatform != TargetPlatform.windows) return;
+    if (!_supportsCustomChrome) return;
     final isMaximized = await windowManager.isMaximized();
     if (isMaximized) {
       await windowManager.unmaximize();
@@ -842,12 +853,12 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
   }
 
   Future<void> _minimizeWindow() async {
-    if (defaultTargetPlatform != TargetPlatform.windows) return;
+    if (!_supportsCustomChrome) return;
     await windowManager.minimize();
   }
 
   Future<void> _closeWindow() async {
-    if (defaultTargetPlatform != TargetPlatform.windows) return;
+    if (!_supportsCustomChrome) return;
     await windowManager.close();
   }
 
@@ -892,19 +903,19 @@ class _WindowControlsState extends State<_WindowControls> {
         mainAxisSize: MainAxisSize.min,
         children: [
           _CaptionButton(
-            icon: Icons.minimize,
+            icon: Icons.remove_rounded,
             tooltip: 'Minimize',
             onPressed: widget.onMinimize,
           ),
           _CaptionButton(
             icon: widget.isMaximized
-                ? Icons.filter_none
-                : Icons.crop_square_rounded,
+                ? Icons.filter_none_rounded
+                : Icons.check_box_outline_blank_rounded,
             tooltip: widget.isMaximized ? 'Restore' : 'Maximize',
             onPressed: widget.onToggleMaximize,
           ),
           _CaptionButton(
-            icon: Icons.close,
+            icon: Icons.close_rounded,
             tooltip: 'Close',
             onPressed: widget.onClose,
             destructive: true,
