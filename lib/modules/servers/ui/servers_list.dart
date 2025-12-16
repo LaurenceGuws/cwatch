@@ -209,9 +209,11 @@ class _ServersListState extends State<ServersList> {
           return ErrorState(error: snapshot.error.toString());
         }
         final hosts = snapshot.data ?? <SshHost>[];
-        _trackHostDistroChecks(hosts);
+        final shellCapableHosts =
+            hosts.where((host) => !_isNoShellHost(host)).toList();
+        _trackHostDistroChecks(shellCapableHosts);
         return HostList(
-          hosts: hosts,
+          hosts: shellCapableHosts,
           onSelect: onHostSelected,
           onActivate: onHostActivate ?? _startActionFlowForHost,
           settingsController: widget.settingsController,
@@ -230,6 +232,11 @@ class _ServersListState extends State<ServersList> {
         );
       },
     );
+  }
+
+  bool _isNoShellHost(SshHost host) {
+    final hostname = host.hostname.trim().toLowerCase();
+    return hostname == 'github.com' || hostname == 'bitbucket.org';
   }
 
   void _trackHostDistroChecks(List<SshHost> hosts) {

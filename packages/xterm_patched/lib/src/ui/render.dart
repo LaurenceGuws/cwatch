@@ -441,13 +441,17 @@ class RenderTerminal extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
     final paintCursorOffset = _composingCursorOffset;
 
     for (var i = effectFirstLine; i <= effectLastLine; i++) {
+      final line = lines.maybeAt(i);
+      if (line == null) {
+        continue;
+      }
       _painter.paintLine(
         canvas,
         offset.translate(
           _padding.left,
           (i * charHeight + _lineOffset).truncateToDouble(),
         ),
-        lines[i],
+        line,
       );
     }
 

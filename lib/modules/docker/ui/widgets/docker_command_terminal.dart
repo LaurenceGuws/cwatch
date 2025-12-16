@@ -13,6 +13,7 @@ import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/gestures/gesture_activators.dart';
 import 'package:cwatch/shared/gestures/gesture_service.dart';
+import 'package:cwatch/shared/shell/local_shell.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_actions.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_resolver.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_service.dart';
@@ -73,6 +74,10 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   double? _lastLoggedScroll;
   VoidCallback? _focusListener;
   bool _suppressMobileFocus = false;
+  static const _shellResolver = LocalShellResolver();
+
+  LocalShellDefinition get _localShell =>
+      _shellResolver.forPlatform(defaultTargetPlatform);
 
   @override
   void initState() {
@@ -140,16 +145,17 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     _terminal.onResize = _onResize;
     _terminal.buffer.clear();
     try {
+      final options = _sessionOptions();
       final session = widget.host != null && widget.shellService != null
           ? await widget.shellService!.createTerminalSession(
               widget.host!,
-              options: _sessionOptions(),
+              options: options,
             )
           : LocalPtySession(
-              executable: 'bash',
-              arguments: const ['-l'],
-              cols: _sessionOptions().columns,
-              rows: _sessionOptions().rows,
+              executable: _localShell.executable,
+              arguments: _localShell.arguments,
+              cols: options.columns,
+              rows: options.rows,
             );
 
       if (token != _sessionToken) {
@@ -296,6 +302,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
           focusNode: _focusNode,
           shortcuts: _shortcutBindings(resolvedSettings, inputMode),
           autofocus: widget.autofocus && !_isMobile,
+          hardwareKeyboardOnly: !kIsWeb && !_isMobile,
           alwaysShowCursor: true,
           enablePinchZoom: inputMode.enableGestures,
           padding: EdgeInsets.symmetric(

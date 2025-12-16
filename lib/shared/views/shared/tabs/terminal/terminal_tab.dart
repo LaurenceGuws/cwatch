@@ -134,8 +134,14 @@ class _TerminalTabState extends State<TerminalTab> {
         allowMalformed: true,
       ).bind(session.output).listen(_handlePtyText);
       unawaited(
-        session.exitCode.then((_) {
+        session.exitCode.then((code) {
           if (!mounted || _closing || token != _sessionToken) return;
+          if (code != 0) {
+            _terminal.write(
+              '\r\nProcess exited with code $code\r\n',
+            );
+            return;
+          }
           _closing = true;
           widget.onExit?.call();
         }),
@@ -448,6 +454,7 @@ class _TerminalTabState extends State<TerminalTab> {
                     controller: _controller,
                     focusNode: _focusNode,
                     autofocus: !_isMobile,
+                    hardwareKeyboardOnly: !kIsWeb && !_isMobile,
                     backgroundOpacity: 1,
                     padding: EdgeInsets.symmetric(
                       horizontal: settings.terminalPaddingX

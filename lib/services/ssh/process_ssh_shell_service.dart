@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import '../../models/remote_file_entry.dart';
 import '../../models/ssh_host.dart';
+import 'package:flutter/foundation.dart';
 import '../logging/app_logger.dart';
 import 'remote_shell_base.dart';
 import 'terminal_session.dart';
@@ -407,12 +409,64 @@ class ProcessRemoteShellService extends RemoteShellService {
   }) async {
     final columns = options.columns > 0 ? options.columns : 80;
     final rows = options.rows > 0 ? options.rows : 25;
-    return LocalPtySession(
-      executable: 'ssh',
-      arguments: _runner.buildSshArgumentsForTerminal(host),
-      cols: columns,
-      rows: rows,
-    );
+    try {
+      final env = _sessionEnvironment();
+      LocalPtySession session;
+      if (Platform.isWindows) {
+        final sshArgs = _runner.buildSshArgumentsForTerminal(host).join(' ');
+        final commandLine = 'ssh $sshArgs';
+        AppLogger.d(
+          'Starting system SSH via cmd.exe /c "$commandLine"',
+          tag: 'ProcessSSH',
+        );
+        session = LocalPtySession(
+          executable: 'cmd.exe',
+          arguments: ['/c', commandLine],
+          environment: env,
+          cols: columns,
+          rows: rows,
+        );
+      } else {
+        final args = _runner.buildSshArgumentsForTerminal(host);
+        AppLogger.d(
+          'Starting system SSH via ssh ${args.join(' ')}',
+          tag: 'ProcessSSH',
+        );
+        session = LocalPtySession(
+          executable: 'ssh',
+          arguments: args,
+          environment: env,
+          cols: columns,
+          rows: rows,
+        );
+      }
+      unawaited(
+        session.exitCode.then(
+          (code) => AppLogger.d(
+            'System SSH session for ${host.name} exited with code $code',
+            tag: 'ProcessSSH',
+          ),
+        ),
+      );
+      return session;
+    } catch (error, stack) {
+      AppLogger.w(
+        'Failed to start system SSH session for ${host.name}: $error',
+        tag: 'ProcessSSH',
+        error: error,
+        stackTrace: stack,
+      );
+      rethrow;
+    }
+  }
+
+  Map<String, String> _sessionEnvironment() {
+    final env = Map<String, String>.from(Platform.environment);
+    env.putIfAbsent('TERM', () => 'xterm-256color');
+    if (Platform.isWindows) {
+      env.putIfAbsent('SSH_AUTH_SOCK', () => r'\\.\pipe\openssh-ssh-agent');
+    }
+    return env;
   }
 
   List<String> _buildScpArgs({

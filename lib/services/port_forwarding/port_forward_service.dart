@@ -405,6 +405,9 @@ class PortForwardService extends ChangeNotifier {
   }
 
   void _installSignalHandlers() {
+    if (Platform.isWindows) {
+      return;
+    }
     for (final signal in [
       ProcessSignal.sigint,
       ProcessSignal.sigterm,
