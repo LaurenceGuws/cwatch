@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -683,6 +684,13 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
         Widget? navigationBar;
         Alignment navigationAlignment = Alignment.centerLeft;
         EdgeInsets contentPadding = EdgeInsets.zero;
+        if (useCustomChrome) {
+          contentPadding = contentPadding +
+              const EdgeInsets.only(
+                right: _WindowControls.totalWidth + 6,
+                top: _WindowControls.height + 6,
+              );
+        }
         if (showSidebar) {
           switch (_sidebarPlacement) {
             case _SidebarPlacement.dynamic:
@@ -765,6 +773,12 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
             body: Stack(
               children: [
                 SafeArea(
+                  minimum: useCustomChrome
+                      ? EdgeInsets.only(
+                          right: math.max(_WindowControls.totalWidth - 12, 0),
+                          top: 0,
+                        )
+                      : EdgeInsets.zero,
                   child: GestureDetector(
                     behavior: HitTestBehavior.translucent,
                     onScaleStart: _gesturesEnabled ? _handleScaleStart : null,
@@ -881,6 +895,10 @@ class _WindowControls extends StatefulWidget {
     required this.onMinimize,
     required this.onClose,
   });
+
+  static const double height = 32;
+  static const double buttonWidth = 46;
+  static const double totalWidth = buttonWidth * 3;
 
   final bool isMaximized;
   final VoidCallback onDrag;

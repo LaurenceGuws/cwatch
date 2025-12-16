@@ -82,7 +82,7 @@ class TabCloseWarning {
   final String cancelLabel;
 }
 
-class TabChip extends StatelessWidget {
+class TabChip extends StatefulWidget {
   const TabChip({
     super.key,
     required this.host,
@@ -113,107 +113,210 @@ class TabChip extends StatelessWidget {
   final int? dragIndex;
 
   @override
+  State<TabChip> createState() => _TabChipState();
+}
+
+class _TabChipState extends State<TabChip> {
+  bool _hovering = false;
+
+  void _setHovering(bool value) {
+    if (_hovering == value) return;
+    setState(() => _hovering = value);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final appTheme = context.appTheme;
     final colorScheme = Theme.of(context).colorScheme;
+    final spacing = appTheme.spacing;
     final chipStyle = appTheme.tabChip.style(
-      selected: selected,
-      spacing: appTheme.spacing,
+      selected: widget.selected,
+      spacing: spacing,
     );
-    final foreground = chipStyle.foreground;
+    final bleed = spacing.xs * 0.1;
+    final foreground = widget.selected
+        ? colorScheme.onSurface
+        : colorScheme.onSurfaceVariant.withValues(alpha: 0.85);
     final primaryActionColor = colorScheme.primary;
-    final primaryActionHover = primaryActionColor.withValues(alpha: 0.12);
+    final primaryActionHover = colorScheme.onSurface.withValues(alpha: 0.08);
     final closeColor = colorScheme.error;
     final closeHover = closeColor.withValues(alpha: 0.12);
-    final spacing = appTheme.spacing;
+    final barColor =
+        colorScheme.surfaceContainerHighest.withValues(alpha: 0.38);
+    final hoverColor =
+        colorScheme.surfaceContainerHighest.withValues(alpha: 0.55);
+    final contentBackground = appTheme.section.toolbarBackground;
+    final background = widget.selected
+        ? contentBackground
+        : (_hovering ? hoverColor : Colors.transparent);
+    final borderColor = widget.selected
+        ? colorScheme.outlineVariant.withValues(alpha: 0.5)
+        : Colors.transparent;
+    final radius = BorderRadius.zero;
+    final boxShadow = widget.selected
+        ? [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.14),
+              blurRadius: 10,
+              spreadRadius: 0.15,
+              offset: const Offset(0, 2),
+            ),
+          ]
+        : const <BoxShadow>[];
     final menuOptions = _buildMenuOptions();
-    return Container(
-      margin: EdgeInsets.symmetric(
-        horizontal: spacing.xs * 0.2,
-        vertical: spacing.xs * 0.15,
-      ),
-      constraints: BoxConstraints(maxHeight: spacing.base * 2.5),
-      padding: chipStyle.padding,
-      decoration: BoxDecoration(
-        color: chipStyle.background,
-        borderRadius: chipStyle.borderRadius,
-        border: Border.all(color: chipStyle.borderColor),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Tooltip(
-            message: dragIndex != null ? 'Drag to reorder' : 'Drag handle',
-            child: _TabChipAction(
-              hoverColor: primaryActionHover,
-              padding: const EdgeInsets.all(2),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: _DragHandle(
-                dragIndex: dragIndex,
-                color: primaryActionColor,
-                inactiveColor: primaryActionColor.withValues(alpha: 0.55),
-              ),
-            ),
+    final padding = EdgeInsets.only(
+      left: chipStyle.padding.left + spacing.xs * 0.6,
+      right: chipStyle.padding.right + spacing.xs * 0.6,
+      top: chipStyle.padding.top + spacing.xs * 0.1,
+      bottom: 0,
+    );
+
+    return MouseRegion(
+      onEnter: (_) => _setHovering(true),
+      onExit: (_) => _setHovering(false),
+      child: Transform.translate(
+        offset: Offset(0, widget.selected ? -bleed : 0),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          margin: EdgeInsets.fromLTRB(
+            spacing.xs * 0.45,
+            spacing.xs * 0.4,
+            spacing.xs * 0.45,
+            0,
           ),
-          SizedBox(width: spacing.xs),
-          Flexible(
-            child: InkWell(
-              onTap: onSelect,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, size: 18, color: foreground),
-                  Text(
-                    ' ',
-                    style: appTheme.typography.tabLabel.copyWith(
-                      color: Colors.transparent,
-                    ),
-                  ),
-                  Flexible(
-                    child: Text(
-                      title,
-                      style: appTheme.typography.tabLabel.copyWith(
-                        color: foreground,
-                        fontWeight: selected
-                            ? FontWeight.w700
-                            : FontWeight.w500,
+          padding: EdgeInsets.zero,
+          child: CustomPaint(
+            painter: _TabLipPainter(
+              background: background,
+              borderColor: borderColor,
+              boxShadow: boxShadow,
+              radius: radius,
+              lipDepth: spacing.base * 1.2,
+            ),
+            child: Stack(
+              children: [
+                Padding(
+                  padding: padding,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Tooltip(
+                        message: widget.dragIndex != null
+                            ? 'Drag to reorder'
+                            : 'Drag handle',
+                        child: _TabChipAction(
+                          hoverColor: primaryActionHover,
+                          padding: const EdgeInsets.all(2),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: _DragHandle(
+                            dragIndex: widget.dragIndex,
+                            color: primaryActionColor,
+                            inactiveColor:
+                                primaryActionColor.withValues(alpha: 0.55),
+                          ),
+                        ),
                       ),
-                      overflow: TextOverflow.ellipsis,
+                      SizedBox(width: spacing.xs),
+                      Flexible(
+                        child: InkWell(
+                          onTap: widget.onSelect,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(widget.icon, size: 18, color: foreground),
+                              Text(
+                                ' ',
+                                style: appTheme.typography.tabLabel.copyWith(
+                                  color: Colors.transparent,
+                                ),
+                              ),
+                              Flexible(
+                                child: Text(
+                                  widget.title,
+                                  style: appTheme.typography.tabLabel.copyWith(
+                                    color: foreground,
+                                    fontWeight: widget.selected
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: spacing.xs),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildOptionsButton(
+                            primaryActionColor,
+                            primaryActionHover,
+                            menuOptions,
+                          ),
+                          SizedBox(width: spacing.xs),
+                          _TabChipAction(
+                            hoverColor: closeHover,
+                            child: IconButton(
+                              icon: Icon(
+                                NerdIcon.close.data,
+                                size: 16,
+                                color: closeColor,
+                              ),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              tooltip: widget.closable
+                                  ? 'Close tab'
+                                  : 'Cannot close tab',
+                              visualDensity: VisualDensity.compact,
+                              splashRadius: 16,
+                              disabledColor:
+                                  closeColor.withValues(alpha: 0.4),
+                              onPressed: widget.closable
+                                  ? () => _handleClose(context)
+                                  : null,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                if (widget.selected)
+                  Positioned(
+                    left: spacing.xs,
+                    right: spacing.xs,
+                    bottom: 0,
+                    child: Container(
+                      height: 2,
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
                     ),
                   ),
-                ],
-              ),
+                Positioned(
+                  top: 4,
+                  bottom: 4,
+                  right: 0,
+                  child: Container(
+                    width: 1,
+                    color: colorScheme.outlineVariant.withValues(
+                      alpha: widget.selected
+                          ? 0.2
+                          : (_hovering ? 0.35 : 0.0),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          SizedBox(width: spacing.xs),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildOptionsButton(
-                primaryActionColor,
-                primaryActionHover,
-                menuOptions,
-              ),
-              SizedBox(width: spacing.xs),
-              _TabChipAction(
-                hoverColor: closeHover,
-                child: IconButton(
-                  icon: Icon(NerdIcon.close.data, size: 16, color: closeColor),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  tooltip: closable ? 'Close tab' : 'Cannot close tab',
-                  visualDensity: VisualDensity.compact,
-                  splashRadius: 16,
-                  disabledColor: closeColor.withValues(alpha: 0.4),
-                  onPressed: closable ? () => _handleClose(context) : null,
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -223,10 +326,10 @@ class TabChip extends StatelessWidget {
       TabChipOption(
         label: 'Rename tab',
         icon: NerdIcon.pencil.data,
-        enabled: onRename != null,
-        onSelected: onRename ?? () {},
+        enabled: widget.onRename != null,
+        onSelected: widget.onRename ?? () {},
       ),
-      ...options,
+      ...widget.options,
     ];
   }
 
@@ -276,15 +379,15 @@ class TabChip extends StatelessWidget {
 
   Future<void> _handleClose(BuildContext context) async {
     final shouldClose =
-        closeWarning == null || await _showCloseWarning(context);
+        widget.closeWarning == null || await _showCloseWarning(context);
     if (!shouldClose) {
       return;
     }
-    onClose();
+    widget.onClose();
   }
 
   Future<bool> _showCloseWarning(BuildContext context) async {
-    final warning = closeWarning!;
+    final warning = widget.closeWarning!;
     final result = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -415,5 +518,102 @@ class _DragHandleState extends State<_DragHandle> {
         child: _handle,
       ),
     );
+  }
+}
+
+class _TabLipPainter extends CustomPainter {
+  _TabLipPainter({
+    required this.background,
+    required this.borderColor,
+    required this.boxShadow,
+    required this.radius,
+    required this.lipDepth,
+  });
+
+  final Color background;
+  final Color borderColor;
+  final List<BoxShadow> boxShadow;
+  final BorderRadius radius;
+  final double lipDepth;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rTopLeft = radius.topLeft.x;
+    final rTopRight = radius.topRight.x;
+    final rBottomLeft = radius.bottomLeft.x;
+    final rBottomRight = radius.bottomRight.x;
+    final lip = lipDepth;
+    final height = size.height;
+    final bottomY = height - lip;
+
+    Path buildPath() {
+      final path = Path();
+      path.moveTo(rTopLeft, 0);
+      path.lineTo(size.width - rTopRight, 0);
+      path.quadraticBezierTo(size.width, 0, size.width, rTopRight);
+      path.lineTo(size.width, bottomY - rBottomRight);
+      // Right corner flares outward/down.
+      path.quadraticBezierTo(
+        size.width + rBottomRight * 0.4,
+        bottomY + lip * 0.65,
+        size.width - rBottomRight * 0.2,
+        bottomY + lip * 0.9,
+      );
+      // Center bow.
+      path.quadraticBezierTo(
+        size.width * 0.55,
+        bottomY + lip,
+        size.width * 0.5,
+        bottomY + lip,
+      );
+      path.quadraticBezierTo(
+        size.width * 0.45,
+        bottomY + lip,
+        rBottomLeft * 0.2,
+        bottomY + lip * 0.9,
+      );
+      // Left corner flares outward/down.
+      path.quadraticBezierTo(
+        -rBottomLeft * 0.4,
+        bottomY + lip * 0.65,
+        0,
+        bottomY - rBottomLeft,
+      );
+      path.lineTo(0, rTopLeft);
+      path.quadraticBezierTo(0, 0, rTopLeft, 0);
+      path.close();
+      return path;
+    }
+
+    final path = buildPath();
+
+    for (final shadow in boxShadow) {
+      final shadowPaint = Paint()
+        ..color = shadow.color
+        ..maskFilter = MaskFilter.blur(
+          BlurStyle.normal,
+          shadow.blurRadius,
+        );
+      final shadowPath = path.shift(shadow.offset);
+      canvas.drawPath(shadowPath, shadowPaint);
+    }
+
+    final paintFill = Paint()..color = background;
+    final paintBorder = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1;
+
+    canvas.drawPath(path, paintFill);
+    canvas.drawPath(path, paintBorder);
+  }
+
+  @override
+  bool shouldRepaint(covariant _TabLipPainter oldDelegate) {
+    return background != oldDelegate.background ||
+        borderColor != oldDelegate.borderColor ||
+        radius != oldDelegate.radius ||
+        lipDepth != oldDelegate.lipDepth ||
+        boxShadow != oldDelegate.boxShadow;
   }
 }

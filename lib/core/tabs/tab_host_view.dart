@@ -143,36 +143,49 @@ class _TabBarRow<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasAddTab = onAddTab != null;
-    return Row(
-      children: [
-        if (leading != null) leading!,
-        Expanded(
-          child: SizedBox(
-            height: tabBarHeight,
-            child: ReorderableListView.builder(
-              scrollDirection: Axis.horizontal,
-              buildDefaultDragHandles: false,
-              onReorder: onReorder ?? (oldIndex, newIndex) {},
-              itemCount: tabs.length,
-              itemBuilder: (context, index) =>
-                  buildChip(context, index, tabs[index]),
-              footer: hasAddTab
-                  ? KeyedSubtree(
-                      key: const ValueKey('tab-bar-add'),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
+    final colorScheme = Theme.of(context).colorScheme;
+    final toolbarColor =
+        colorScheme.surfaceContainerHighest.withValues(alpha: 0.38);
+    return Container(
+      height: tabBarHeight + 2,
+      padding: EdgeInsets.zero,
+      decoration: BoxDecoration(
+        color: toolbarColor,
+        border: Border(
+          bottom: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.25),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          if (leading != null) leading!,
+          Expanded(
+            child: SizedBox(
+              height: tabBarHeight,
+              child: ReorderableListView.builder(
+                scrollDirection: Axis.horizontal,
+                buildDefaultDragHandles: false,
+                padding: EdgeInsets.zero,
+                onReorder: onReorder ?? (oldIndex, newIndex) {},
+                itemCount: tabs.length,
+                itemBuilder: (context, index) =>
+                    buildChip(context, index, tabs[index]),
+                footer: hasAddTab
+                    ? KeyedSubtree(
+                        key: const ValueKey('tab-bar-add'),
                         child: IconButton(
                           tooltip: 'New tab',
                           icon: const Icon(Icons.add),
                           onPressed: onAddTab,
                         ),
-                      ),
-                    )
-                  : null,
+                      )
+                    : null,
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
