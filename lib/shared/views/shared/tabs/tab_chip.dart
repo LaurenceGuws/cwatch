@@ -141,8 +141,7 @@ class _TabChipState extends State<TabChip> {
     final primaryActionHover = colorScheme.onSurface.withValues(alpha: 0.08);
     final closeColor = colorScheme.error;
     final closeHover = closeColor.withValues(alpha: 0.12);
-    final barColor =
-        colorScheme.surfaceContainerHighest.withValues(alpha: 0.38);
+    colorScheme.surfaceContainerHighest.withValues(alpha: 0.38);
     final hoverColor =
         colorScheme.surfaceContainerHighest.withValues(alpha: 0.55);
     final contentBackground = appTheme.section.toolbarBackground;
@@ -291,7 +290,7 @@ class _TabChipState extends State<TabChip> {
                   Positioned(
                     left: spacing.xs,
                     right: spacing.xs,
-                    bottom: 0,
+                    top: 0,
                     child: Container(
                       height: 2,
                       decoration: BoxDecoration(

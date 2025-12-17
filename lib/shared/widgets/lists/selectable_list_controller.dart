@@ -47,6 +47,23 @@ class SelectableListController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Clear selection and anchor; keeps focus unless it goes out of range.
+  void clearSelection({bool clearFocus = false}) {
+    if (_selectedIndices.isEmpty && _anchorIndex == null) {
+      if (clearFocus && _focusedIndex != null) {
+        _focusedIndex = null;
+        notifyListeners();
+      }
+      return;
+    }
+    _selectedIndices.clear();
+    _anchorIndex = null;
+    if (clearFocus) {
+      _focusedIndex = null;
+    }
+    notifyListeners();
+  }
+
   /// Toggle selection for [index]; replaces selection when multi-select is off.
   void toggle(int index) {
     final clamped = _clampIndex(index);

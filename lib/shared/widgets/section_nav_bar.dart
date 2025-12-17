@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
+import '../../core/navigation/window_controls_constants.dart';
 
 /// Tab data for SectionNavBar
 class SectionTab {
@@ -36,15 +39,30 @@ class SectionNavBar extends StatelessWidget {
     // Only collapse to icons on narrow layouts (mobile-ish) to keep labels visible on desktop.
     final showIconsOnly = compact;
 
+    // Add right padding and match height to window controls when custom chrome is enabled
+    final bool useCustomChrome = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.windows ||
+            defaultTargetPlatform == TargetPlatform.macOS ||
+            defaultTargetPlatform == TargetPlatform.linux);
+    final rightPadding = useCustomChrome ? WindowControlsConstants.totalWidth : 0.0;
+    // Match window controls height (32px) when custom chrome is enabled to eliminate dead space
+    final tabBarHeight = useCustomChrome 
+        ? WindowControlsConstants.height 
+        : 42.0;
+    // Reduce vertical padding when custom chrome is enabled to match button height
+    final verticalPadding = useCustomChrome ? 0.0 : (compact ? 6.0 : 8.0);
+
     return Material(
-      elevation: 1,
+      elevation: useCustomChrome ? 0 : 1,
       color: Theme.of(context).colorScheme.surface,
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: compact ? 8 : 16,
-            vertical: compact ? 6 : 8,
+          padding: EdgeInsets.only(
+            left: compact ? 8 : 16,
+            right: (compact ? 8 : 16) + rightPadding,
+            top: verticalPadding,
+            bottom: verticalPadding,
           ),
           child: Row(
             children: [
@@ -59,7 +77,7 @@ class SectionNavBar extends StatelessWidget {
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: SizedBox(
-                      height: 42,
+                      height: tabBarHeight,
                       child: TabBar(
                         isScrollable: true,
                         tabAlignment: TabAlignment.start,
@@ -94,6 +112,15 @@ class SectionNavBar extends StatelessWidget {
     List<Widget> tabs,
     List<IconData> icons,
   ) {
+    // Match window controls height when custom chrome is enabled
+    final bool useCustomChrome = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.windows ||
+            defaultTargetPlatform == TargetPlatform.macOS ||
+            defaultTargetPlatform == TargetPlatform.linux);
+    final tabHeight = useCustomChrome 
+        ? WindowControlsConstants.height 
+        : 42.0;
+    
     return List.generate(tabs.length, (index) {
       final tab = tabs[index];
       String? label;
@@ -104,7 +131,7 @@ class SectionNavBar extends StatelessWidget {
 
       return Tooltip(
         message: label ?? 'Tab ${index + 1}',
-        child: Tab(icon: Icon(icons[index]), height: 42),
+        child: Tab(icon: Icon(icons[index]), height: tabHeight),
       );
     });
   }

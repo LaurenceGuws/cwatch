@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +12,7 @@ import '../../modules/kubernetes/view.dart';
 import '../../modules/servers/view.dart';
 import '../../modules/settings/view.dart';
 import '../../modules/wsl/view.dart';
+import '../../modules/table_sandbox/view.dart';
 import '../../services/settings/app_settings_controller.dart';
 import '../../services/ssh/builtin/builtin_ssh_key_store.dart';
 import '../../services/ssh/builtin/builtin_ssh_key_service.dart';
@@ -37,6 +38,7 @@ import 'gesture_detector_factory.dart';
 import 'tab_navigation_registry.dart';
 import 'module_registry.dart';
 import 'shell_module.dart';
+import 'window_controls_constants.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({required this.settingsController, super.key});
@@ -622,6 +624,7 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
         shellFactory: _shellFactory,
       ),
       KubernetesModule(settingsController: widget.settingsController),
+      const TableSandboxModule(),
       SettingsModule(
         controller: widget.settingsController,
         hostsFuture: _hostsFuture,
@@ -687,7 +690,6 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
         if (useCustomChrome) {
           contentPadding = contentPadding +
               const EdgeInsets.only(
-                right: _WindowControls.totalWidth + 6,
                 top: _WindowControls.height + 6,
               );
         }
@@ -773,12 +775,7 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
             body: Stack(
               children: [
                 SafeArea(
-                  minimum: useCustomChrome
-                      ? EdgeInsets.only(
-                          right: math.max(_WindowControls.totalWidth - 12, 0),
-                          top: 0,
-                        )
-                      : EdgeInsets.zero,
+                  minimum: EdgeInsets.zero,
                   child: GestureDetector(
                     behavior: HitTestBehavior.translucent,
                     onScaleStart: _gesturesEnabled ? _handleScaleStart : null,
@@ -786,15 +783,31 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
                     onScaleEnd: _gesturesEnabled ? _handleScaleEnd : null,
                     child: _gestureDetectorFactory.wrap(
                       context,
-                      Stack(
-                        children: [
-                          Positioned.fill(child: content),
-                          if (navigationBar != null)
-                            Align(
-                              alignment: navigationAlignment,
-                              child: navigationBar,
-                            ),
-                        ],
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          return Stack(
+                            children: [
+                              // Content with path clipper to exclude button area
+                              if (useCustomChrome && windowControls != null)
+                                Positioned.fill(
+                                  child: ClipPath(
+                                    clipper: _WindowControlsPathClipper(
+                                      buttonWidth: _WindowControls.totalWidth,
+                                      buttonHeight: _WindowControls.height,
+                                    ),
+                                    child: content,
+                                  ),
+                                )
+                              else
+                                Positioned.fill(child: content),
+                              if (navigationBar != null)
+                                Align(
+                                  alignment: navigationAlignment,
+                                  child: navigationBar,
+                                ),
+                            ],
+                          );
+                        },
                       ),
                       enabled: _gesturesEnabled,
                     ),
@@ -896,9 +909,8 @@ class _WindowControls extends StatefulWidget {
     required this.onClose,
   });
 
-  static const double height = 32;
-  static const double buttonWidth = 46;
-  static const double totalWidth = buttonWidth * 3;
+  static const double height = WindowControlsConstants.height;
+  static const double totalWidth = WindowControlsConstants.totalWidth;
 
   final bool isMaximized;
   final VoidCallback onDrag;
@@ -913,32 +925,40 @@ class _WindowControls extends StatefulWidget {
 class _WindowControlsState extends State<_WindowControls> {
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onPanStart: (_) => widget.onDrag(),
-      onDoubleTap: widget.onToggleMaximize,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _CaptionButton(
-            icon: Icons.remove_rounded,
-            tooltip: 'Minimize',
-            onPressed: widget.onMinimize,
-          ),
-          _CaptionButton(
-            icon: widget.isMaximized
-                ? Icons.filter_none_rounded
-                : Icons.check_box_outline_blank_rounded,
-            tooltip: widget.isMaximized ? 'Restore' : 'Maximize',
-            onPressed: widget.onToggleMaximize,
-          ),
-          _CaptionButton(
-            icon: Icons.close_rounded,
-            tooltip: 'Close',
-            onPressed: widget.onClose,
-            destructive: true,
-          ),
-        ],
+    final colorScheme = Theme.of(context).colorScheme;
+    // Match the tab bar background color to prevent lines showing through
+    final toolbarColor =
+        colorScheme.surfaceContainerHighest.withValues(alpha: 0.38);
+    
+    return Container(
+      color: toolbarColor,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onPanStart: (_) => widget.onDrag(),
+        onDoubleTap: widget.onToggleMaximize,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _CaptionButton(
+              icon: Icons.remove_rounded,
+              tooltip: 'Minimize',
+              onPressed: widget.onMinimize,
+            ),
+            _CaptionButton(
+              icon: widget.isMaximized
+                  ? Icons.filter_none_rounded
+                  : Icons.check_box_outline_blank_rounded,
+              tooltip: widget.isMaximized ? 'Restore' : 'Maximize',
+              onPressed: widget.onToggleMaximize,
+            ),
+            _CaptionButton(
+              icon: Icons.close_rounded,
+              tooltip: 'Close',
+              onPressed: widget.onClose,
+              destructive: true,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1000,7 +1020,7 @@ class _CaptionButtonState extends State<_CaptionButton> {
 }
 
 class _Sidebar extends StatelessWidget {
-  static const double width = 56;
+  static const double width = 48;
 
   const _Sidebar({
     required this.primaryModules,
@@ -1242,6 +1262,7 @@ class _SidebarMenuButton extends StatefulWidget {
 
 class _SidebarMenuButtonState extends State<_SidebarMenuButton> {
   Offset? _tapPosition;
+  bool _hovering = false;
 
   void _onTapDown(TapDownDetails details) {
     _tapPosition = details.globalPosition;
@@ -1252,22 +1273,89 @@ class _SidebarMenuButtonState extends State<_SidebarMenuButton> {
     widget.onShowOptions(position);
   }
 
+  void _setHovering(bool value) {
+    if (_hovering == value) return;
+    setState(() => _hovering = value);
+  }
+
   @override
   Widget build(BuildContext context) {
     final tooltip = widget.collapsed ? 'Show navigation' : 'Sidebar options';
-    return GestureDetector(
-      onTapDown: _onTapDown,
-      onTap: _onTap,
-      behavior: HitTestBehavior.translucent,
-      child: Tooltip(
-        message: tooltip,
-        child: SizedBox(
-          width: 48,
-          height: 48,
-          child: Icon(widget.collapsed ? Icons.menu : Icons.menu_open),
+    // Match the tab bar height when custom chrome is enabled
+    final bool useCustomChrome = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.windows ||
+            defaultTargetPlatform == TargetPlatform.macOS ||
+            defaultTargetPlatform == TargetPlatform.linux);
+    final buttonSize = useCustomChrome 
+        ? WindowControlsConstants.height 
+        : 48.0;
+    
+    final colorScheme = Theme.of(context).colorScheme;
+    // Use the same hover color as tab chips
+    final hoverColor =
+        colorScheme.surfaceContainerHighest.withValues(alpha: 0.55);
+    
+    return MouseRegion(
+      onEnter: (_) => _setHovering(true),
+      onExit: (_) => _setHovering(false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTapDown: _onTapDown,
+        onTap: _onTap,
+        behavior: HitTestBehavior.translucent,
+        child: Tooltip(
+          message: tooltip,
+          child: Container(
+            width: buttonSize,
+            height: buttonSize,
+            color: _hovering ? hoverColor : Colors.transparent,
+            child: Icon(widget.collapsed ? Icons.menu : Icons.menu_open),
+          ),
         ),
       ),
     );
+  }
+}
+
+/// Custom path clipper that excludes only the window controls button area
+/// from the top-right corner, allowing content to use space to the left
+/// and below the buttons.
+class _WindowControlsPathClipper extends CustomClipper<ui.Path> {
+  const _WindowControlsPathClipper({
+    required this.buttonWidth,
+    required this.buttonHeight,
+  });
+
+  final double buttonWidth;
+  final double buttonHeight;
+
+  @override
+  ui.Path getClip(Size size) {
+    final path = ui.Path();
+    // Create a path that covers the entire screen except the button area
+    // Button area is at: top-right corner, width=buttonWidth, height=buttonHeight
+    
+    // Start from top-left
+    path.moveTo(0, 0);
+    // Go to top-right, but stop before the button area
+    path.lineTo(size.width - buttonWidth, 0);
+    // Go down to button area bottom
+    path.lineTo(size.width - buttonWidth, buttonHeight);
+    // Go to bottom-right (skipping the button area)
+    path.lineTo(size.width, buttonHeight);
+    // Go to bottom-right corner
+    path.lineTo(size.width, size.height);
+    // Go to bottom-left
+    path.lineTo(0, size.height);
+    // Close the path
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(_WindowControlsPathClipper oldClipper) {
+    return oldClipper.buttonWidth != buttonWidth ||
+        oldClipper.buttonHeight != buttonHeight;
   }
 }
 
