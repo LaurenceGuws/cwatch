@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 
 class StatusDot extends StatelessWidget {
-  const StatusDot({
-    super.key,
-    required this.color,
-    this.size = 8,
-  });
+  const StatusDot({super.key, required this.color, this.size = 8});
 
   final Color color;
   final double size;
@@ -15,10 +11,7 @@ class StatusDot extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-      ),
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 }

@@ -23,4 +23,16 @@ class ShortcutActions {
   static const tabsFocusRight = 'tabs.focusRight';
   static const viewsFocusUp = 'views.focusUp';
   static const viewsFocusDown = 'views.focusDown';
+  static const gridMoveLeft = 'grid.moveLeft';
+  static const gridMoveRight = 'grid.moveRight';
+  static const gridMoveUp = 'grid.moveUp';
+  static const gridMoveDown = 'grid.moveDown';
+  static const gridExtendLeft = 'grid.extendLeft';
+  static const gridExtendRight = 'grid.extendRight';
+  static const gridExtendUp = 'grid.extendUp';
+  static const gridExtendDown = 'grid.extendDown';
+  static const gridEditToggle = 'grid.editToggle';
+  static const gridSelectRow = 'grid.selectRow';
+  static const gridSelectColumn = 'grid.selectColumn';
+  static const gridSelectAll = 'grid.selectAll';
 }

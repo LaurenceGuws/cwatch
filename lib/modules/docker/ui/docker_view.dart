@@ -852,10 +852,10 @@ class _DockerViewState extends State<DockerView> {
 
   void _updateExplorerPath(String tabId, String path) {
     final existing = _tabStates[tabId];
-    final kind =
-        existing?.kind ?? DockerTabKind.containerExplorer.name;
-    _tabStates[tabId] = (existing ?? TabState(id: tabId, kind: kind))
-        .copyWith(path: path);
+    final kind = existing?.kind ?? DockerTabKind.containerExplorer.name;
+    _tabStates[tabId] = (existing ?? TabState(id: tabId, kind: kind)).copyWith(
+      path: path,
+    );
     unawaited(_persistWorkspace());
   }
 

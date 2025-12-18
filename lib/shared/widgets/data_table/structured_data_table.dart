@@ -18,8 +18,10 @@ class StructuredDataColumn<T> {
     this.minWidth,
     this.sortValue,
     this.autoFitText,
+    this.autoFitTextStyle,
     this.autoFitWidth,
     this.autoFitExtraWidth,
+    this.wrap = false,
   });
 
   final String label;
@@ -30,8 +32,10 @@ class StructuredDataColumn<T> {
   final double? minWidth;
   final Comparable<Object?>? Function(T row)? sortValue;
   final String Function(T row)? autoFitText;
+  final TextStyle? autoFitTextStyle;
   final double Function(BuildContext context, T row)? autoFitWidth;
   final double? autoFitExtraWidth;
+  final bool wrap;
   final Widget Function(BuildContext context, T row) cellBuilder;
 }
 
@@ -54,11 +58,7 @@ class StructuredDataAction<T> {
 
 /// Small pill used to surface entry metadata (state, tags, counts, etc).
 class StructuredDataChip {
-  const StructuredDataChip({
-    required this.label,
-    this.icon,
-    this.color,
-  });
+  const StructuredDataChip({required this.label, this.icon, this.color});
 
   final String label;
   final IconData? icon;
@@ -73,6 +73,8 @@ class StructuredDataTable<T> extends StatefulWidget {
     super.key,
     required this.rows,
     required this.columns,
+    this.verticalController,
+    this.horizontalController,
     this.onRowTap,
     this.onRowDoubleTap,
     this.onSelectionChanged,
@@ -86,10 +88,13 @@ class StructuredDataTable<T> extends StatefulWidget {
     this.headerHeight = 38,
     this.shrinkToContent = false,
     this.primaryDoubleClickOpensContextMenu = false,
+    this.verticalScrollbarBottomInset = 0,
   }) : assert(columns.isNotEmpty, 'At least one column is required');
 
   final List<T> rows;
   final List<StructuredDataColumn<T>> columns;
+  final ScrollController? verticalController;
+  final ScrollController? horizontalController;
   final ValueChanged<T>? onRowTap;
   final ValueChanged<T>? onRowDoubleTap;
   final ValueChanged<List<T>>? onSelectionChanged;
@@ -103,6 +108,7 @@ class StructuredDataTable<T> extends StatefulWidget {
   final double headerHeight;
   final bool shrinkToContent;
   final bool primaryDoubleClickOpensContextMenu;
+  final double verticalScrollbarBottomInset;
 
   @override
   State<StructuredDataTable<T>> createState() => _StructuredDataTableState<T>();
@@ -111,13 +117,16 @@ class StructuredDataTable<T> extends StatefulWidget {
 class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
   late SelectableListController _listController;
   late FocusNode _focusNode;
-  final ScrollController _verticalController = ScrollController();
-  final ScrollController _horizontalController = ScrollController();
-  static const double _defaultMinFlexColumnWidth = 180;
+  late final ScrollController _verticalController;
+  late final ScrollController _horizontalController;
+  late final bool _ownsVerticalController;
+  late final bool _ownsHorizontalController;
+  static const double _defaultMinFlexColumnWidth = 120;
   late List<StructuredDataColumn<T>> _columns;
   late List<double?> _columnWidthOverrides;
   int? _sortColumnIndex;
   bool _sortAscending = true;
+  final Map<int, double> _autoFitCache = {};
 
   List<T> get _visibleRows {
     final sortIndex = _sortColumnIndex;
@@ -144,7 +153,8 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
   }
 
   void _toggleSort(int index) {
-    final sortable = index >= 0 &&
+    final sortable =
+        index >= 0 &&
         index < _columns.length &&
         _columns[index].sortValue != null;
     if (!sortable) return;
@@ -175,42 +185,29 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       return;
     }
 
-    final spacing = context.appTheme.spacing;
-    final headerStyle = Theme.of(context)
-        .textTheme
-        .labelMedium
-        ?.copyWith(fontWeight: FontWeight.w600);
-    final cellStyle = Theme.of(context).textTheme.bodyMedium;
+    final textScaler = MediaQuery.textScalerOf(context);
+    final headerStyle = Theme.of(
+      context,
+    ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600);
+    final cellStyle =
+        column.autoFitTextStyle ?? Theme.of(context).textTheme.bodyMedium;
 
     double measure(String text, TextStyle? style) {
       final painter = TextPainter(
         text: TextSpan(text: text, style: style),
         textDirection: TextDirection.ltr,
-        textScaler: MediaQuery.textScalerOf(context),
+        textScaler: textScaler,
         maxLines: 1,
       )..layout();
       return painter.width;
     }
 
-    double headerWidth() {
-      // Account for: label + sort icon (if present) + drag handle + small gaps.
-      // Auto-fit is triggered via the resize handle, so the header row widgets
-      // are a meaningful minimum.
-      final sortable = column.sortValue != null;
-      final sorted = _sortColumnIndex == index;
-      final sortIconWidth = (sortable && sorted) ? 14.0 + spacing.xs : 0.0;
-      final dragHandleWidth = 16.0 + spacing.xs;
-      return measure(column.label, headerStyle) + sortIconWidth + dragHandleWidth;
-    }
+    final headerWidth = measure(column.label, headerStyle);
 
-    var maxWidth = headerWidth();
-
-    // Sample rows to keep this fast on large datasets.
-    const maxSamples = 200;
-    final rows = _visibleRows;
-    final count = min(rows.length, maxSamples);
-    for (var i = 0; i < count; i++) {
-      final row = rows[i];
+    var maxWidth = _autoFitCache[index] ?? headerWidth;
+    final sampleCount = min(_visibleRows.length, 400);
+    for (var i = 0; i < sampleCount; i++) {
+      final row = _visibleRows[i];
       if (widthExtractor != null) {
         maxWidth = max(maxWidth, widthExtractor(context, row));
       } else {
@@ -218,15 +215,14 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       }
     }
 
-    // Padding budget: a conservative baseline for unknown "chrome" inside a
-    // cell (pill padding, icons, chip gaps). If a column provides an explicit
-    // width model via autoFitWidth, keep the baseline much smaller.
-    final baselineChrome = widthExtractor != null
-        ? (spacing.base * 1.5 + 8)
-        : (spacing.base * 7 + 64);
-    final chrome = baselineChrome + (column.autoFitExtraWidth ?? 0);
-    final target = maxWidth + chrome;
+    // Add a single-character pad so text is not flush against the edge.
+    final paddingChar = 'M';
+    final paddingWidth = measure(paddingChar, cellStyle);
+
+    final target = maxWidth + paddingWidth + (column.autoFitExtraWidth ?? 0);
     final minWidth = max(_defaultMinFlexColumnWidth, column.minWidth ?? 0);
+
+    _autoFitCache[index] = maxWidth;
 
     setState(() {
       _columnWidthOverrides[index] = max(minWidth, target);
@@ -245,8 +241,16 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
   void initState() {
     super.initState();
     _columns = List.of(widget.columns);
-    _columnWidthOverrides =
-        List<double?>.filled(_columns.length, null, growable: true);
+    _columnWidthOverrides = List<double?>.filled(
+      _columns.length,
+      null,
+      growable: true,
+    );
+    _autoFitCache.clear();
+    _verticalController = widget.verticalController ?? ScrollController();
+    _horizontalController = widget.horizontalController ?? ScrollController();
+    _ownsVerticalController = widget.verticalController == null;
+    _ownsHorizontalController = widget.horizontalController == null;
     _listController = SelectableListController(
       allowMultiSelect: widget.allowMultiSelect,
     )..addListener(_handleSelectionChanged);
@@ -259,8 +263,12 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
     super.didUpdateWidget(oldWidget);
     if (!_sameColumns(oldWidget.columns, widget.columns)) {
       _columns = List.of(widget.columns);
-      _columnWidthOverrides =
-          List<double?>.filled(_columns.length, null, growable: true);
+      _columnWidthOverrides = List<double?>.filled(
+        _columns.length,
+        null,
+        growable: true,
+      );
+      _autoFitCache.clear();
       _sortColumnIndex = null;
       _sortAscending = true;
       _listController.clearSelection();
@@ -273,7 +281,38 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
         allowMultiSelect: widget.allowMultiSelect,
       )..addListener(_handleSelectionChanged);
     }
+    if (oldWidget.verticalController != widget.verticalController &&
+        widget.verticalController != null) {
+      if (_ownsVerticalController) {
+        _verticalController.dispose();
+      }
+      _verticalController = widget.verticalController!;
+      _ownsVerticalController = false;
+    }
+    if (oldWidget.horizontalController != widget.horizontalController &&
+        widget.horizontalController != null) {
+      if (_ownsHorizontalController) {
+        _horizontalController.dispose();
+      }
+      _horizontalController = widget.horizontalController!;
+      _ownsHorizontalController = false;
+    }
     _listController.setItemCount(_visibleRows.length);
+  }
+
+  @override
+  void dispose() {
+    _listController
+      ..removeListener(_handleSelectionChanged)
+      ..dispose();
+    _focusNode.dispose();
+    if (_ownsVerticalController) {
+      _verticalController.dispose();
+    }
+    if (_ownsHorizontalController) {
+      _horizontalController.dispose();
+    }
+    super.dispose();
   }
 
   bool _sameColumns(
@@ -286,16 +325,6 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       if (a[i].label != b[i].label) return false;
     }
     return true;
-  }
-
-  @override
-  void dispose() {
-    _listController.removeListener(_handleSelectionChanged);
-    _listController.dispose();
-    _focusNode.dispose();
-    _verticalController.dispose();
-    _horizontalController.dispose();
-    super.dispose();
   }
 
   void _handleSelectionChanged() {
@@ -373,18 +402,21 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       final content = header
           ? Text(
               column.label,
-              style: Theme.of(context)
-                  .textTheme
-                  .labelMedium
-                  ?.copyWith(fontWeight: FontWeight.w600),
+              style: Theme.of(
+                context,
+              ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
               softWrap: false,
               overflow: TextOverflow.clip,
             )
-          : column.cellBuilder(context, row as T);
-      final aligned = Align(
-        alignment: column.alignment,
-        child: content,
-      );
+          : DefaultTextStyle.merge(
+              softWrap: column.wrap,
+              maxLines: column.wrap ? null : 1,
+              overflow: column.wrap
+                  ? TextOverflow.visible
+                  : TextOverflow.ellipsis,
+              child: column.cellBuilder(context, row as T),
+            );
+      final aligned = Align(alignment: column.alignment, child: content);
       final cell = SizedBox(width: columnWidths[i], child: aligned);
       cells.add(cell);
       if (i != _columns.length - 1) {
@@ -397,10 +429,9 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
   Widget _buildHeader(BuildContext context, List<double> columnWidths) {
     final spacing = context.appTheme.spacing;
     final scheme = Theme.of(context).colorScheme;
-    final textStyle = Theme.of(context)
-        .textTheme
-        .labelMedium
-        ?.copyWith(fontWeight: FontWeight.w600);
+    final textStyle = Theme.of(
+      context,
+    ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600);
     return Container(
       height: widget.headerHeight,
       padding: EdgeInsets.symmetric(horizontal: spacing.base * 1.2),
@@ -417,8 +448,9 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           final column = _columns[index];
           final sortable = column.sortValue != null;
           final sorted = _sortColumnIndex == index;
-          final icon =
-              _sortAscending ? Icons.arrow_upward : Icons.arrow_downward;
+          final icon = _sortAscending
+              ? Icons.arrow_upward
+              : Icons.arrow_downward;
 
           final headerLabel = Text(
             column.label,
@@ -433,11 +465,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
               Flexible(child: headerLabel),
               if (sortable && sorted) ...[
                 SizedBox(width: spacing.xs),
-                Icon(
-                  icon,
-                  size: 14,
-                  color: scheme.primary,
-                ),
+                Icon(icon, size: 14, color: scheme.primary),
               ],
             ],
           );
@@ -567,7 +595,45 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
             width: columnWidths[index],
             child: target,
           );
-          if (index == _columns.length - 1) return cell;
+          if (index == _columns.length - 1) {
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                cell,
+                Positioned(
+                  right: -spacing.base * 0.75,
+                  top: 0,
+                  bottom: 0,
+                  child: SizedBox(
+                    width: spacing.base * 1.5,
+                    child: _HeaderResizeHandle(
+                      key: ValueKey('structured_data_table.resize.$index'),
+                      height: widget.headerHeight,
+                      color: scheme.outlineVariant.withValues(alpha: 0.25),
+                      onResize: (delta) {
+                        setState(() {
+                          final column = _columns[index];
+                          final current =
+                              _columnWidthOverrides[index] ??
+                              column.width ??
+                              columnWidths[index];
+                          final minWidth = max(
+                            _defaultMinFlexColumnWidth,
+                            column.minWidth ?? 0,
+                          );
+                          _columnWidthOverrides[index] = max(
+                            minWidth,
+                            current + delta,
+                          );
+                        });
+                      },
+                      onAutoFit: () => _autoFitColumn(index),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
           return Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -581,15 +647,18 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
                   onResize: (delta) {
                     setState(() {
                       final column = _columns[index];
-                      final current = _columnWidthOverrides[index] ??
+                      final current =
+                          _columnWidthOverrides[index] ??
                           column.width ??
                           columnWidths[index];
                       final minWidth = max(
                         _defaultMinFlexColumnWidth,
                         column.minWidth ?? 0,
                       );
-                      _columnWidthOverrides[index] =
-                          max(minWidth, current + delta);
+                      _columnWidthOverrides[index] = max(
+                        minWidth,
+                        current + delta,
+                      );
                     });
                   },
                   onAutoFit: () => _autoFitColumn(index),
@@ -601,6 +670,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       ),
     );
   }
+
   Widget _buildRow(BuildContext context, int index, List<double> columnWidths) {
     final row = _visibleRows[index];
     final spacing = context.appTheme.spacing;
@@ -649,10 +719,11 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           },
           onDoubleTap: () {
             if (widget.primaryDoubleClickOpensContextMenu) {
-              final position = tapPosition ??
+              final position =
+                  tapPosition ??
                   (context.findRenderObject() as RenderBox?)?.localToGlobal(
-                        Offset.zero,
-                      ) ??
+                    Offset.zero,
+                  ) ??
                   Offset.zero;
               _showContextMenuForIndex(index, position);
               return;
@@ -699,21 +770,6 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
   }
 
   List<double> _computeColumnWidths(double availableWidth) {
-    final spacing = context.appTheme.spacing;
-
-    final totalGaps = max(0, _columns.length - 1);
-    final gapWidth = spacing.base * 1.5;
-
-    var fixedWidth = 0.0;
-    for (var i = 0; i < _columns.length; i++) {
-      final column = _columns[i];
-      final override = i < _columnWidthOverrides.length
-          ? _columnWidthOverrides[i]
-          : null;
-      fixedWidth += override ?? column.width ?? 0;
-    }
-    final fixedAndGaps = fixedWidth + totalGaps * gapWidth;
-
     final flexIndices = <int>[];
     var totalFlex = 0;
     for (var i = 0; i < _columns.length; i++) {
@@ -728,28 +784,18 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       }
     }
 
-    final minFlexWidth = flexIndices.fold<double>(
+    final remainingForFlex = flexIndices.fold<double>(
       0,
-      (sum, index) => sum +
-          max(
-            _defaultMinFlexColumnWidth,
-            _columns[index].minWidth ?? 0,
-          ),
+      (sum, index) =>
+          sum + max(_defaultMinFlexColumnWidth, _columns[index].minWidth ?? 0),
     );
-    final minTableWidth = fixedAndGaps + minFlexWidth;
-
-    final tableWidth = availableWidth < minTableWidth
-        ? minTableWidth
-        : availableWidth;
-
-    final remainingForFlex = tableWidth -
-        fixedAndGaps;
     final widths = <double>[];
 
     for (var i = 0; i < _columns.length; i++) {
       final column = _columns[i];
-      final override =
-          i < _columnWidthOverrides.length ? _columnWidthOverrides[i] : null;
+      final override = i < _columnWidthOverrides.length
+          ? _columnWidthOverrides[i]
+          : null;
       if (override != null) {
         widths.add(max(column.minWidth ?? 0, override));
         continue;
@@ -758,14 +804,14 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
         widths.add(max(column.minWidth ?? 0, column.width!));
         continue;
       }
-      final flexShare =
-          totalFlex == 0 ? remainingForFlex : remainingForFlex / totalFlex;
-      final target = totalFlex == 0 ? 0.0 : flexShare * column.flex;
+      final flexShare = totalFlex == 0
+          ? remainingForFlex
+          : remainingForFlex / totalFlex;
+      final target = totalFlex == 0
+          ? remainingForFlex
+          : flexShare * column.flex;
       widths.add(
-        max(
-          _defaultMinFlexColumnWidth,
-          max(column.minWidth ?? 0, target),
-        ),
+        max(_defaultMinFlexColumnWidth, max(column.minWidth ?? 0, target)),
       );
     }
     return widths;
@@ -795,13 +841,22 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columnWidths = _computeColumnWidths(constraints.maxWidth);
+        const double verticalScrollbarSpace = 14;
+        final availableWidth = max(
+          0.0,
+          constraints.maxWidth - verticalScrollbarSpace,
+        );
+        final columnWidths = _computeColumnWidths(availableWidth);
         final headerPaddingX = context.appTheme.spacing.base * 1.2;
         final rowPaddingX = context.appTheme.spacing.base;
         final contentWidth = _tableContentWidth(columnWidths);
-        final paddedWidth =
-            contentWidth + 2 * max(headerPaddingX, rowPaddingX);
+        final paddedWidth = contentWidth + 2 * max(headerPaddingX, rowPaddingX);
+        final targetWidth = max(
+          constraints.maxWidth,
+          paddedWidth + verticalScrollbarSpace,
+        );
 
+        const verticalScrollbarWidth = 12.0;
         return Container(
           margin: surface.margin,
           decoration: BoxDecoration(
@@ -812,29 +867,57 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
               width: 0.4,
             ),
           ),
-          child: Scrollbar(
-            controller: _horizontalController,
-            thumbVisibility: true,
-            scrollbarOrientation: ScrollbarOrientation.bottom,
-            child: SingleChildScrollView(
-              controller: _horizontalController,
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: max(constraints.maxWidth, paddedWidth),
-                height: constraints.maxHeight,
-                child: Column(
-                  children: [
-                    _buildHeader(context, columnWidths),
-                    Expanded(
-                      child: Scrollbar(
-                        controller: _verticalController,
-                        thumbVisibility: true,
-                        child: _buildBody(surface, columnWidths),
+          child: SizedBox(
+            width: constraints.maxWidth,
+            height: constraints.maxHeight,
+            child: Stack(
+              fit: StackFit.expand,
+              clipBehavior: Clip.hardEdge,
+              children: [
+                Positioned.fill(
+                  child: Scrollbar(
+                    controller: _horizontalController,
+                    thumbVisibility: true,
+                    scrollbarOrientation: ScrollbarOrientation.bottom,
+                    child: SingleChildScrollView(
+                      controller: _horizontalController,
+                      scrollDirection: Axis.horizontal,
+                      child: SizedBox(
+                        width: targetWidth,
+                        height: constraints.maxHeight,
+                        child: Column(
+                          children: [
+                            _buildHeader(context, columnWidths),
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(right: 14),
+                                child: _buildBody(surface, columnWidths),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
+                Positioned(
+                  top: 0,
+                  bottom: widget.verticalScrollbarBottomInset,
+                  right: 0,
+                  width: verticalScrollbarWidth,
+                  child: IgnorePointer(
+                    ignoring: true,
+                    child: RawScrollbar(
+                      controller: _verticalController,
+                      thumbVisibility: true,
+                      thickness: verticalScrollbarWidth,
+                      radius: const Radius.circular(6),
+                      scrollbarOrientation: ScrollbarOrientation.right,
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -848,19 +931,24 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       itemCount: _visibleRows.length,
       focusNode: _focusNode,
       onActivate: (index) => _handleDoubleTap(index),
-      child: ListView.separated(
+      child: ListView.builder(
         controller: _verticalController,
         padding: EdgeInsets.zero,
         shrinkWrap: widget.shrinkToContent,
         primary: false,
         physics: const ClampingScrollPhysics(),
+        itemExtent: widget.rowHeight + 1,
+        cacheExtent: (widget.rowHeight + 1) * 20,
         itemCount: _visibleRows.length,
-        separatorBuilder: (_, _) => Divider(
-          height: 1,
-          color: surface.borderColor.withValues(alpha: 0.5),
-        ),
-        itemBuilder: (context, index) =>
+        itemBuilder: (context, index) => Column(
+          children: [
             _buildRow(context, index, columnWidths),
+            Divider(
+              height: 1,
+              color: surface.borderColor.withValues(alpha: 0.5),
+            ),
+          ],
+        ),
       ),
     );
   }

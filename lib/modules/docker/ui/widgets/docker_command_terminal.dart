@@ -292,8 +292,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
             ? (details) => _handleLongPress(details.globalPosition)
             : null,
         onTap: _isMobile ? _enableMobileFocus : null,
-        onScaleStart:
-            _isMobile ? (_) => _beginMobileGestureBlock() : null,
+        onScaleStart: _isMobile ? (_) => _beginMobileGestureBlock() : null,
         onScaleEnd: _isMobile ? (_) => _endMobileGestureBlock() : null,
         child: TerminalView(
           _terminal,

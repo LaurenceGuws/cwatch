@@ -1,6 +1,6 @@
 import 'shortcut_actions.dart';
 
-enum ShortcutCategory { global, terminal, tabs, editor, docker }
+enum ShortcutCategory { global, terminal, tabs, editor, docker, grid }
 
 class ShortcutDefinition {
   const ShortcutDefinition({
@@ -173,6 +173,90 @@ class ShortcutCatalog {
       description: 'Move focus to the next view/pane.',
       category: ShortcutCategory.tabs,
       defaultBinding: 'alt+arrowdown',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.gridMoveLeft,
+      label: 'Move left',
+      description: 'Move to the previous cell.',
+      category: ShortcutCategory.grid,
+      defaultBinding: 'arrowleft',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.gridMoveRight,
+      label: 'Move right',
+      description: 'Move to the next cell.',
+      category: ShortcutCategory.grid,
+      defaultBinding: 'arrowright',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.gridMoveUp,
+      label: 'Move up',
+      description: 'Move to the cell above.',
+      category: ShortcutCategory.grid,
+      defaultBinding: 'arrowup',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.gridMoveDown,
+      label: 'Move down',
+      description: 'Move to the cell below.',
+      category: ShortcutCategory.grid,
+      defaultBinding: 'arrowdown',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.gridExtendLeft,
+      label: 'Extend left',
+      description: 'Extend selection to the left.',
+      category: ShortcutCategory.grid,
+      defaultBinding: 'shift+arrowleft',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.gridExtendRight,
+      label: 'Extend right',
+      description: 'Extend selection to the right.',
+      category: ShortcutCategory.grid,
+      defaultBinding: 'shift+arrowright',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.gridExtendUp,
+      label: 'Extend up',
+      description: 'Extend selection upward.',
+      category: ShortcutCategory.grid,
+      defaultBinding: 'shift+arrowup',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.gridExtendDown,
+      label: 'Extend down',
+      description: 'Extend selection downward.',
+      category: ShortcutCategory.grid,
+      defaultBinding: 'shift+arrowdown',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.gridEditToggle,
+      label: 'Toggle edit mode',
+      description: 'Enter or exit cell edit mode.',
+      category: ShortcutCategory.grid,
+      defaultBinding: 'f2',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.gridSelectRow,
+      label: 'Select row',
+      description: 'Select the current row.',
+      category: ShortcutCategory.grid,
+      defaultBinding: 'shift+space',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.gridSelectColumn,
+      label: 'Select column',
+      description: 'Select the current column.',
+      category: ShortcutCategory.grid,
+      defaultBinding: 'ctrl+space',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.gridSelectAll,
+      label: 'Select all',
+      description: 'Select all cells.',
+      category: ShortcutCategory.grid,
+      defaultBinding: 'ctrl+a',
     ),
   ];
 

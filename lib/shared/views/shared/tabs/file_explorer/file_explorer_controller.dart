@@ -1,6 +1,5 @@
 import 'dart:async';
 
-
 import '../../../../../models/explorer_context.dart';
 import '../../../../../models/remote_file_entry.dart';
 import '../../../../../models/ssh_host.dart';
@@ -384,9 +383,9 @@ class FileExplorerController extends ChangeNotifier {
     }
     if (staged.isEmpty) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Nothing to drag')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Nothing to drag')));
       }
       return;
     }

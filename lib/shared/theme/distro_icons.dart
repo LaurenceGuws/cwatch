@@ -13,8 +13,10 @@ import 'package:flutter/widgets.dart';
 import 'distro_data.dart';
 import 'nerd_fonts.dart';
 
-const IconData _kLinuxIcon =
-    IconData(kLinuxCodePoint, fontFamily: NerdFonts.family);
+const IconData _kLinuxIcon = IconData(
+  kLinuxCodePoint,
+  fontFamily: NerdFonts.family,
+);
 
 /// Long tail of distro slugs that map to the same icon.
 final Map<String, IconData> distroIconMap = {

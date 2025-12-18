@@ -165,8 +165,7 @@ class _DockerOverviewState extends State<DockerOverview> {
       if (!container.isRunning) {
         continue;
       }
-      final needsProbe =
-          !_containerDistroManager.hasCached(key) || !wasRunning;
+      final needsProbe = !_containerDistroManager.hasCached(key) || !wasRunning;
       if (needsProbe) {
         unawaited(
           _containerDistroManager.ensureDistroForContainer(
@@ -303,9 +302,9 @@ class _DockerOverviewState extends State<DockerOverview> {
                           onComposeAction: _handleComposeAction,
                           onComposeForward: widget.remoteHost != null
                               ? (project) => _actions.forwardComposePorts(
-                                    context,
-                                    project: project,
-                                  )
+                                  context,
+                                  project: project,
+                                )
                               : null,
                           onComposeStopForward: widget.remoteHost != null
                               ? (_) => _actions.stopForwardsForHost(context)

@@ -1,10 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 /// Supported local shell programs that can power an in-app terminal.
-enum SupportedLocalShell {
-  bash,
-  powershell,
-}
+enum SupportedLocalShell { bash, powershell }
 
 /// Defines a shell executable plus launch arguments.
 @immutable

@@ -285,6 +285,18 @@ class ShortcutBinding {
   }
 
   static String _formatKey(LogicalKeyboardKey key, {bool shifted = false}) {
+    if (key == LogicalKeyboardKey.space) return 'space';
+    if (key == LogicalKeyboardKey.tab) return 'tab';
+    if (key == LogicalKeyboardKey.enter) return 'enter';
+    if (key == LogicalKeyboardKey.escape) return 'escape';
+    if (key == LogicalKeyboardKey.arrowUp) return 'arrowup';
+    if (key == LogicalKeyboardKey.arrowDown) return 'arrowdown';
+    if (key == LogicalKeyboardKey.arrowLeft) return 'arrowleft';
+    if (key == LogicalKeyboardKey.arrowRight) return 'arrowright';
+    if (key == LogicalKeyboardKey.pageUp) return 'pageup';
+    if (key == LogicalKeyboardKey.pageDown) return 'pagedown';
+    if (key == LogicalKeyboardKey.home) return 'home';
+    if (key == LogicalKeyboardKey.end) return 'end';
     if (key == LogicalKeyboardKey.equal) {
       return shifted ? '+' : '=';
     }
@@ -295,19 +307,6 @@ class ShortcutBinding {
     if (label.isNotEmpty && label.length == 1) {
       return label.toLowerCase();
     }
-
-    if (key == LogicalKeyboardKey.arrowUp) return 'arrowup';
-    if (key == LogicalKeyboardKey.arrowDown) return 'arrowdown';
-    if (key == LogicalKeyboardKey.arrowLeft) return 'arrowleft';
-    if (key == LogicalKeyboardKey.arrowRight) return 'arrowright';
-    if (key == LogicalKeyboardKey.pageUp) return 'pageup';
-    if (key == LogicalKeyboardKey.pageDown) return 'pagedown';
-    if (key == LogicalKeyboardKey.home) return 'home';
-    if (key == LogicalKeyboardKey.end) return 'end';
-    if (key == LogicalKeyboardKey.enter) return 'enter';
-    if (key == LogicalKeyboardKey.escape) return 'escape';
-    if (key == LogicalKeyboardKey.space) return 'space';
-    if (key == LogicalKeyboardKey.tab) return 'tab';
 
     final number = _functionKeyNumber(key);
     if (number != null) return 'f$number';

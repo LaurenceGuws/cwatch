@@ -368,8 +368,11 @@ class DockerWorkspaceController {
     if (hosts.isEmpty) {
       return const [];
     }
-    final results =
-        List<RemoteDockerStatus?>.filled(hosts.length, null, growable: false);
+    final results = List<RemoteDockerStatus?>.filled(
+      hosts.length,
+      null,
+      growable: false,
+    );
     var nextIndex = 0;
 
     Future<void> runNext() async {

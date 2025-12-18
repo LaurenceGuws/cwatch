@@ -11,14 +11,14 @@ class _Row {
 }
 
 void main() {
-  testWidgets('auto-fit uses autoFitWidth to avoid under-fitting', (tester) async {
+  testWidgets('auto-fit uses autoFitWidth to avoid under-fitting', (
+    tester,
+  ) async {
     final scheme = ColorScheme.fromSeed(seedColor: Colors.blue);
     final theme = ThemeData(
       colorScheme: scheme,
       useMaterial3: true,
-      extensions: <ThemeExtension<dynamic>>[
-        AppThemeTokens.light(scheme),
-      ],
+      extensions: <ThemeExtension<dynamic>>[AppThemeTokens.light(scheme)],
     );
 
     const expectedContentWidth = 420.0;

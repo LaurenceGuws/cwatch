@@ -56,6 +56,7 @@ dependencies:
   general_lib: ^0.0.71
   xterm: ^4.0.0
   flutter_pty: ^0.4.0
+  pluto_grid: ^8.0.0
 
 dependency_overrides:
   xterm:

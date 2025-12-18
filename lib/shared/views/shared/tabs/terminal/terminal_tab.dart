@@ -137,9 +137,7 @@ class _TerminalTabState extends State<TerminalTab> {
         session.exitCode.then((code) {
           if (!mounted || _closing || token != _sessionToken) return;
           if (code != 0) {
-            _terminal.write(
-              '\r\nProcess exited with code $code\r\n',
-            );
+            _terminal.write('\r\nProcess exited with code $code\r\n');
             return;
           }
           _closing = true;
@@ -447,8 +445,9 @@ class _TerminalTabState extends State<TerminalTab> {
                   onScaleStart: _isMobile
                       ? (_) => _beginMobileGestureBlock()
                       : null,
-                  onScaleEnd:
-                      _isMobile ? (_) => _endMobileGestureBlock() : null,
+                  onScaleEnd: _isMobile
+                      ? (_) => _endMobileGestureBlock()
+                      : null,
                   child: TerminalView(
                     _terminal,
                     controller: _controller,

@@ -24,6 +24,8 @@ class ShortcutService {
   ShortcutResolver _resolver = const ShortcutResolver(null);
 
   final List<_ShortcutScope> _scopes = [];
+  final Map<FocusNode, VoidCallback> _nodeDisposers = {};
+  KeyEvent? _suppressedEvent;
 
   void updateSettings(AppSettings settings) {
     _resolver = ShortcutResolver(settings);
@@ -39,11 +41,12 @@ class ShortcutService {
     int priority = 0,
     bool consumeOnHandle = true,
   }) {
+    final node = focusNode ?? FocusNode(skipTraversal: true);
     final scope = _ShortcutScope(
       id: id,
       handlers: handlers,
       priority: priority,
-      focusNode: focusNode,
+      focusNode: node,
       resolver: _resolver,
       consumeOnHandle: consumeOnHandle,
     );
@@ -53,9 +56,11 @@ class ShortcutService {
       'registered scope="$id" priority=$priority bindings=${scope.bindingLabels.join(', ')}',
       tag: 'Shortcuts',
     );
+    _attachNodeListener(node);
     return ShortcutSubscription(() {
       _scopes.remove(scope);
       scope.dispose();
+      _detachNodeListener(node);
       AppLogger.d('disposed scope="$id"', tag: 'Shortcuts');
     });
   }
@@ -63,6 +68,10 @@ class ShortcutService {
   bool _onKeyEvent(KeyEvent event) {
     if (event is! KeyDownEvent) {
       return false;
+    }
+    if (identical(event, _suppressedEvent)) {
+      _suppressedEvent = null;
+      return true;
     }
     final binding = ShortcutBinding.fromKeyEvent(event);
     if (binding == null) {
@@ -85,29 +94,8 @@ class ShortcutService {
     }
 
     for (final scope in _scopes) {
-      if (shouldLog) {
-        AppLogger.d(
-          '  scope=${scope.id} active=${scope.active} bindings=${scope.bindingLabels.join(', ')}',
-          tag: 'Shortcuts',
-        );
-      }
-      if (!scope.active) {
-        continue;
-      }
-      final handler = scope.handlerFor(binding);
-      if (handler != null) {
-        if (shouldLog) {
-          final handledLabel = binding.toConfigString();
-          AppLogger.d('${scope.id} handled $handledLabel', tag: 'Shortcuts');
-        }
-        handler();
-        return scope.consumeOnHandle;
-      }
-      if (shouldLog) {
-        AppLogger.d(
-          '  ${scope.id} no match (incoming keyId=${binding.key.keyId})',
-          tag: 'Shortcuts',
-        );
+      if (_handleBinding(binding, scope, shouldLog)) {
+        return true;
       }
     }
     return false;
@@ -118,6 +106,73 @@ class ShortcutService {
         .where((scope) => includeInactive || scope.active)
         .map((scope) => scope.snapshot())
         .toList();
+  }
+
+  bool _handleBinding(
+    ShortcutBinding binding,
+    _ShortcutScope scope,
+    bool shouldLog,
+  ) {
+    if (shouldLog) {
+      AppLogger.d(
+        '  scope=${scope.id} active=${scope.active} bindings=${scope.bindingLabels.join(', ')}',
+        tag: 'Shortcuts',
+      );
+    }
+    if (!scope.active) {
+      return false;
+    }
+    final handler = scope.handlerFor(binding);
+    if (handler != null) {
+      if (shouldLog) {
+        final handledLabel = binding.toConfigString();
+        AppLogger.d('${scope.id} handled $handledLabel', tag: 'Shortcuts');
+      }
+      handler();
+      return scope.consumeOnHandle;
+    }
+    if (shouldLog) {
+      AppLogger.d(
+        '  ${scope.id} no match (incoming keyId=${binding.key.keyId})',
+        tag: 'Shortcuts',
+      );
+    }
+    return false;
+  }
+
+  void _attachNodeListener(FocusNode node) {
+    if (_nodeDisposers.containsKey(node)) return;
+    final previous = node.onKeyEvent;
+    KeyEventResult listener(FocusNode node, KeyEvent event) {
+      if (event is! KeyDownEvent) {
+        return previous?.call(node, event) ?? KeyEventResult.ignored;
+      }
+      final binding = ShortcutBinding.fromKeyEvent(event);
+      if (binding != null) {
+        for (final scope in _scopes.where((s) => s.focusNode == node)) {
+          final handled = _handleBinding(binding, scope, false);
+          if (handled) {
+            _suppressedEvent = event;
+            return scope.consumeOnHandle
+                ? KeyEventResult.handled
+                : KeyEventResult.skipRemainingHandlers;
+          }
+        }
+      }
+      return previous?.call(node, event) ?? KeyEventResult.ignored;
+    }
+
+    node.onKeyEvent = listener;
+    _nodeDisposers[node] = () {
+      if (identical(node.onKeyEvent, listener)) {
+        node.onKeyEvent = previous;
+      }
+    };
+  }
+
+  void _detachNodeListener(FocusNode node) {
+    final disposer = _nodeDisposers.remove(node);
+    disposer?.call();
   }
 }
 

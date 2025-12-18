@@ -258,13 +258,15 @@ class AppSettings {
               .toList() ??
           const [],
       serverDistroMap:
-          (json['serverDistroMap'] as Map<String, dynamic>?)
-                  ?.map((key, value) => MapEntry(key, value.toString())) ??
-              const {},
+          (json['serverDistroMap'] as Map<String, dynamic>?)?.map(
+            (key, value) => MapEntry(key, value.toString()),
+          ) ??
+          const {},
       dockerDistroMap:
-          (json['dockerDistroMap'] as Map<String, dynamic>?)
-                  ?.map((key, value) => MapEntry(key, value.toString())) ??
-              const {},
+          (json['dockerDistroMap'] as Map<String, dynamic>?)?.map(
+            (key, value) => MapEntry(key, value.toString()),
+          ) ??
+          const {},
       kubernetesConfigPaths:
           (json['kubernetesConfigPaths'] as List<dynamic>?)
               ?.whereType<String>()

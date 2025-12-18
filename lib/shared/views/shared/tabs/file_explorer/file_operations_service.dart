@@ -745,7 +745,8 @@ class FileOperationsService {
       }
     }
 
-    if (context.mounted && Navigator.of(context, rootNavigator: true).canPop()) {
+    if (context.mounted &&
+        Navigator.of(context, rootNavigator: true).canPop()) {
       Navigator.of(context, rootNavigator: true).pop();
     }
 
@@ -882,9 +883,7 @@ class FileOperationsService {
     return items;
   }
 
-  Future<List<FileOperationItem>> _buildDroppedItems(
-    List<String> paths,
-  ) async {
+  Future<List<FileOperationItem>> _buildDroppedItems(List<String> paths) async {
     final items = <FileOperationItem>[];
     for (final path in paths) {
       final type = await FileSystemEntity.type(path, followLinks: false);

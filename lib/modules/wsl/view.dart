@@ -19,9 +19,6 @@ class WslModule extends ShellModuleView {
 
   @override
   Widget build(BuildContext context, Widget leading) {
-    return WslHome(
-      leading: leading,
-      service: createWslService(),
-    );
+    return WslHome(leading: leading, service: createWslService());
   }
 }

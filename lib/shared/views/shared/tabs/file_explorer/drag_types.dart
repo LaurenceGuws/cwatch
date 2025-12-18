@@ -22,10 +22,7 @@ class DragLocalItem {
 
 /// Result of attempting to start a drag session.
 class DragStartResult {
-  const DragStartResult({
-    required this.started,
-    this.error,
-  });
+  const DragStartResult({required this.started, this.error});
 
   /// True when the platform drag loop was successfully started.
   final bool started;

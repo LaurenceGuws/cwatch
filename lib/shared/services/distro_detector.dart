@@ -2,10 +2,8 @@ import 'dart:async';
 
 import 'package:cwatch/shared/theme/distro_icons.dart';
 
-typedef DistroCommandRunner = Future<String> Function(
-  String command, {
-  Duration? timeout,
-});
+typedef DistroCommandRunner =
+    Future<String> Function(String command, {Duration? timeout});
 
 class DistroDetector {
   const DistroDetector(this.runner);
@@ -27,10 +25,7 @@ class DistroDetector {
 
   Future<Map<String, String>?> _readOsRelease(Duration timeout) async {
     try {
-      final output = await runner(
-        'cat /etc/os-release',
-        timeout: timeout,
-      );
+      final output = await runner('cat /etc/os-release', timeout: timeout);
       final lines = output.split('\n');
       final result = <String, String>{};
       for (final rawLine in lines) {
@@ -62,10 +57,7 @@ class DistroDetector {
 
   Future<String?> _runUname(Duration timeout) async {
     try {
-      final output = await runner(
-        'uname -s',
-        timeout: timeout,
-      );
+      final output = await runner('uname -s', timeout: timeout);
       final trimmed = output.trim();
       return trimmed.isEmpty ? null : trimmed;
     } on TimeoutException {

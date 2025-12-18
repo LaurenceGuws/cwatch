@@ -8,6 +8,7 @@ import 'package:window_manager/window_manager.dart';
 import '../../models/app_settings.dart';
 import '../../models/ssh_host.dart';
 import '../../modules/docker/view.dart';
+import '../../modules/experimental/view.dart';
 import '../../modules/kubernetes/view.dart';
 import '../../modules/servers/view.dart';
 import '../../modules/settings/view.dart';
@@ -632,6 +633,7 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
         commandLog: _commandLog,
         shellFactory: _shellFactory,
       ),
+      const ExperimentalModule(),
     ]);
     return modules;
   }
@@ -673,7 +675,8 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
           (modules.length - 1).clamp(0, 9999),
         );
         final bool showSidebar = !_sidebarCollapsed;
-        final bool useCustomChrome = _supportsCustomChrome &&
+        final bool useCustomChrome =
+            _supportsCustomChrome &&
             !widget.settingsController.settings.windowUseSystemDecorations;
         final Widget? windowControls = useCustomChrome
             ? _WindowControls(
@@ -688,10 +691,9 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
         Alignment navigationAlignment = Alignment.centerLeft;
         EdgeInsets contentPadding = EdgeInsets.zero;
         if (useCustomChrome) {
-          contentPadding = contentPadding +
-              const EdgeInsets.only(
-                top: _WindowControls.height + 6,
-              );
+          contentPadding =
+              contentPadding +
+              const EdgeInsets.only(top: _WindowControls.height + 6);
         }
         if (showSidebar) {
           switch (_sidebarPlacement) {
@@ -814,11 +816,7 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
                   ),
                 ),
                 if (windowControls != null)
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: windowControls,
-                  ),
+                  Positioned(top: 0, right: 0, child: windowControls),
               ],
             ),
           ),
@@ -927,9 +925,10 @@ class _WindowControlsState extends State<_WindowControls> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     // Match the tab bar background color to prevent lines showing through
-    final toolbarColor =
-        colorScheme.surfaceContainerHighest.withValues(alpha: 0.38);
-    
+    final toolbarColor = colorScheme.surfaceContainerHighest.withValues(
+      alpha: 0.38,
+    );
+
     return Container(
       color: toolbarColor,
       child: GestureDetector(
@@ -1282,19 +1281,19 @@ class _SidebarMenuButtonState extends State<_SidebarMenuButton> {
   Widget build(BuildContext context) {
     final tooltip = widget.collapsed ? 'Show navigation' : 'Sidebar options';
     // Match the tab bar height when custom chrome is enabled
-    final bool useCustomChrome = !kIsWeb &&
+    final bool useCustomChrome =
+        !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.windows ||
             defaultTargetPlatform == TargetPlatform.macOS ||
             defaultTargetPlatform == TargetPlatform.linux);
-    final buttonSize = useCustomChrome 
-        ? WindowControlsConstants.height 
-        : 48.0;
-    
+    final buttonSize = useCustomChrome ? WindowControlsConstants.height : 48.0;
+
     final colorScheme = Theme.of(context).colorScheme;
     // Use the same hover color as tab chips
-    final hoverColor =
-        colorScheme.surfaceContainerHighest.withValues(alpha: 0.55);
-    
+    final hoverColor = colorScheme.surfaceContainerHighest.withValues(
+      alpha: 0.55,
+    );
+
     return MouseRegion(
       onEnter: (_) => _setHovering(true),
       onExit: (_) => _setHovering(false),
@@ -1334,7 +1333,7 @@ class _WindowControlsPathClipper extends CustomClipper<ui.Path> {
     final path = ui.Path();
     // Create a path that covers the entire screen except the button area
     // Button area is at: top-right corner, width=buttonWidth, height=buttonHeight
-    
+
     // Start from top-left
     path.moveTo(0, 0);
     // Go to top-right, but stop before the button area

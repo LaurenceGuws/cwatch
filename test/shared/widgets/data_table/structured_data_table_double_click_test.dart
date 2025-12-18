@@ -16,9 +16,7 @@ void main() {
     final theme = ThemeData(
       colorScheme: scheme,
       useMaterial3: true,
-      extensions: <ThemeExtension<dynamic>>[
-        AppThemeTokens.light(scheme),
-      ],
+      extensions: <ThemeExtension<dynamic>>[AppThemeTokens.light(scheme)],
     );
 
     _Row? opened;
@@ -54,4 +52,3 @@ void main() {
     expect(opened?.value, 'alpha');
   });
 }
-

@@ -132,8 +132,8 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       child: _controller.loading
           ? const Center(child: CircularProgressIndicator())
           : _controller.error != null
-              ? Center(child: Text(_controller.error!))
-              : _buildEntriesList(),
+          ? Center(child: Text(_controller.error!))
+          : _buildEntriesList(),
     );
 
     final dropWrapped = _supportsDesktopDrop
@@ -323,8 +323,9 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       onRefreshCacheFromServer: _refreshCacheFromServer,
       onClearCachedCopy: _clearCachedCopy,
       onStartOsDrag: (position) async {
-        final selected = _controller.selectionController
-            .getSelectedEntries(sortedEntries);
+        final selected = _controller.selectionController.getSelectedEntries(
+          sortedEntries,
+        );
         if (selected.isEmpty) return;
         await _controller.startOsDrag(
           context: context,
@@ -346,9 +347,9 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       AppLogger.d('Drop ignored: no files', tag: 'Explorer');
       return;
     }
-    final paths = details.files.map((file) => file.path).where(
-      (path) => path.isNotEmpty,
-    );
+    final paths = details.files
+        .map((file) => file.path)
+        .where((path) => path.isNotEmpty);
     AppLogger.d(
       'Handling drop of ${details.files.length} items to '
       '${_controller.currentPath}: ${paths.join(', ')}',

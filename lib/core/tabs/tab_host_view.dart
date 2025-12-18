@@ -228,8 +228,6 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
     return false;
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     final tabs = widget.tabs;
@@ -241,24 +239,27 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
 
     final hasAddTab = onAddTab != null;
     final colorScheme = Theme.of(context).colorScheme;
-    final toolbarColor =
-        colorScheme.surfaceContainerHighest.withValues(alpha: 0.38);
-    
+    final toolbarColor = colorScheme.surfaceContainerHighest.withValues(
+      alpha: 0.38,
+    );
+
     // Match height to window controls when custom chrome is enabled
-    final bool useCustomChrome = !kIsWeb &&
+    final bool useCustomChrome =
+        !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.windows ||
             defaultTargetPlatform == TargetPlatform.macOS ||
             defaultTargetPlatform == TargetPlatform.linux);
-    final rightInset =
-        useCustomChrome ? WindowControlsConstants.totalWidth : 0.0;
+    final rightInset = useCustomChrome
+        ? WindowControlsConstants.totalWidth
+        : 0.0;
     // Match window controls height (32px) when custom chrome is enabled to eliminate dead space
-    final effectiveHeight = useCustomChrome 
-        ? WindowControlsConstants.height 
+    final effectiveHeight = useCustomChrome
+        ? WindowControlsConstants.height
         : tabBarHeight + 2;
-    final effectiveTabBarHeight = useCustomChrome 
-        ? WindowControlsConstants.height 
+    final effectiveTabBarHeight = useCustomChrome
+        ? WindowControlsConstants.height
         : tabBarHeight;
-    
+
     final overlayButtonSize = effectiveTabBarHeight;
     final bool showScrollbar = _hasOverflow;
     final double bottomSpacing = showScrollbar ? 8.0 : 0.0;
@@ -272,8 +273,8 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
       // underneath the native window buttons when custom chrome is active.
       decoration: BoxDecoration(
         color: toolbarColor,
-        border: useCustomChrome 
-            ? null 
+        border: useCustomChrome
+            ? null
             : Border(
                 bottom: BorderSide(
                   color: colorScheme.outlineVariant.withValues(alpha: 0.25),
@@ -295,14 +296,11 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
               },
               onExit: (_) {
                 _hoverHideTimer?.cancel();
-                _hoverHideTimer = Timer(
-                  const Duration(milliseconds: 200),
-                  () {
-                    if (mounted && _hoveringBar) {
-                      setState(() => _hoveringBar = false);
-                    }
-                  },
-                );
+                _hoverHideTimer = Timer(const Duration(milliseconds: 200), () {
+                  if (mounted && _hoveringBar) {
+                    setState(() => _hoveringBar = false);
+                  }
+                });
               },
               child: Stack(
                 children: [
@@ -312,8 +310,8 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
                       child: Padding(
                         padding: EdgeInsets.only(
                           left: 0,
-                          right: (hasAddTab ? overlayButtonSize : 0) +
-                              rightInset,
+                          right:
+                              (hasAddTab ? overlayButtonSize : 0) + rightInset,
                           bottom: bottomSpacing,
                         ),
                         child: RawScrollbar(
@@ -325,34 +323,33 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
                           scrollbarOrientation: ScrollbarOrientation.bottom,
                           notificationPredicate: (_) => true,
                           radius: const Radius.circular(3),
-                          thumbColor: Theme.of(context)
-                              .colorScheme
-                              .primary
+                          thumbColor: Theme.of(context).colorScheme.primary
                               .withValues(alpha: activeThumb ? 0.9 : 0.45),
                           trackColor: Colors.white.withValues(alpha: 0.08),
-                        child:
-                            NotificationListener<ScrollMetricsNotification>(
-                          onNotification: (notification) =>
-                              _handleMetrics(notification.metrics),
-                          child: NotificationListener<ScrollNotification>(
-                            onNotification: _handleScrollActivity,
-                            child: ReorderableListView.builder(
-                              scrollController: _scrollController,
-                              scrollDirection: Axis.horizontal,
-                              primary: false,
-                              physics: const ClampingScrollPhysics(),
-                              buildDefaultDragHandles: false,
-                              onReorder: onReorder ?? (oldIndex, newIndex) {},
-                              itemCount: tabs.length,
-                              itemBuilder: (context, index) =>
-                                  buildChip(context, index, tabs[index]),
-                            ),
-                          ),
+                          child:
+                              NotificationListener<ScrollMetricsNotification>(
+                                onNotification: (notification) =>
+                                    _handleMetrics(notification.metrics),
+                                child: NotificationListener<ScrollNotification>(
+                                  onNotification: _handleScrollActivity,
+                                  child: ReorderableListView.builder(
+                                    scrollController: _scrollController,
+                                    scrollDirection: Axis.horizontal,
+                                    primary: false,
+                                    physics: const ClampingScrollPhysics(),
+                                    buildDefaultDragHandles: false,
+                                    onReorder:
+                                        onReorder ?? (oldIndex, newIndex) {},
+                                    itemCount: tabs.length,
+                                    itemBuilder: (context, index) =>
+                                        buildChip(context, index, tabs[index]),
+                                  ),
+                                ),
+                              ),
                         ),
                       ),
                     ),
                   ),
-                ),
                   if (hasAddTab)
                     Positioned(
                       right: rightInset,
@@ -398,10 +395,7 @@ class _PinnedAddButton extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
-          colors: [
-            color.withValues(alpha: 0.0),
-            color,
-          ],
+          colors: [color.withValues(alpha: 0.0), color],
         ),
       ),
       child: Tooltip(

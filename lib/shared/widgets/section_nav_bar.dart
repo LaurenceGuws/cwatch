@@ -40,14 +40,17 @@ class SectionNavBar extends StatelessWidget {
     final showIconsOnly = compact;
 
     // Add right padding and match height to window controls when custom chrome is enabled
-    final bool useCustomChrome = !kIsWeb &&
+    final bool useCustomChrome =
+        !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.windows ||
             defaultTargetPlatform == TargetPlatform.macOS ||
             defaultTargetPlatform == TargetPlatform.linux);
-    final rightPadding = useCustomChrome ? WindowControlsConstants.totalWidth : 0.0;
+    final rightPadding = useCustomChrome
+        ? WindowControlsConstants.totalWidth
+        : 0.0;
     // Match window controls height (32px) when custom chrome is enabled to eliminate dead space
-    final tabBarHeight = useCustomChrome 
-        ? WindowControlsConstants.height 
+    final tabBarHeight = useCustomChrome
+        ? WindowControlsConstants.height
         : 42.0;
     // Reduce vertical padding when custom chrome is enabled to match button height
     final verticalPadding = useCustomChrome ? 0.0 : (compact ? 6.0 : 8.0);
@@ -113,14 +116,13 @@ class SectionNavBar extends StatelessWidget {
     List<IconData> icons,
   ) {
     // Match window controls height when custom chrome is enabled
-    final bool useCustomChrome = !kIsWeb &&
+    final bool useCustomChrome =
+        !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.windows ||
             defaultTargetPlatform == TargetPlatform.macOS ||
             defaultTargetPlatform == TargetPlatform.linux);
-    final tabHeight = useCustomChrome 
-        ? WindowControlsConstants.height 
-        : 42.0;
-    
+    final tabHeight = useCustomChrome ? WindowControlsConstants.height : 42.0;
+
     return List.generate(tabs.length, (index) {
       final tab = tabs[index];
       String? label;

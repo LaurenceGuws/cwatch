@@ -35,7 +35,10 @@ class BuiltInSshIdentityManager {
     _builtInKeyPassphrases[keyId] = passphrase;
   }
 
-  Future<void> _withPendingUnlock(String keyId, Future<void> Function() action) {
+  Future<void> _withPendingUnlock(
+    String keyId,
+    Future<void> Function() action,
+  ) {
     final pending = _pendingUnlocks[keyId];
     if (pending != null) {
       return pending;

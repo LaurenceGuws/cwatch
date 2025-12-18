@@ -142,8 +142,9 @@ class _TabChipState extends State<TabChip> {
     final closeColor = colorScheme.error;
     final closeHover = closeColor.withValues(alpha: 0.12);
     colorScheme.surfaceContainerHighest.withValues(alpha: 0.38);
-    final hoverColor =
-        colorScheme.surfaceContainerHighest.withValues(alpha: 0.55);
+    final hoverColor = colorScheme.surfaceContainerHighest.withValues(
+      alpha: 0.55,
+    );
     final contentBackground = appTheme.section.toolbarBackground;
     final background = widget.selected
         ? contentBackground
@@ -214,8 +215,9 @@ class _TabChipState extends State<TabChip> {
                           child: _DragHandle(
                             dragIndex: widget.dragIndex,
                             color: primaryActionColor,
-                            inactiveColor:
-                                primaryActionColor.withValues(alpha: 0.55),
+                            inactiveColor: primaryActionColor.withValues(
+                              alpha: 0.55,
+                            ),
                           ),
                         ),
                       ),
@@ -274,8 +276,7 @@ class _TabChipState extends State<TabChip> {
                                   : 'Cannot close tab',
                               visualDensity: VisualDensity.compact,
                               splashRadius: 16,
-                              disabledColor:
-                                  closeColor.withValues(alpha: 0.4),
+                              disabledColor: closeColor.withValues(alpha: 0.4),
                               onPressed: widget.closable
                                   ? () => _handleClose(context)
                                   : null,
@@ -306,9 +307,7 @@ class _TabChipState extends State<TabChip> {
                   child: Container(
                     width: 1,
                     color: colorScheme.outlineVariant.withValues(
-                      alpha: widget.selected
-                          ? 0.2
-                          : (_hovering ? 0.35 : 0.0),
+                      alpha: widget.selected ? 0.2 : (_hovering ? 0.35 : 0.0),
                     ),
                   ),
                 ),
@@ -589,10 +588,7 @@ class _TabLipPainter extends CustomPainter {
     for (final shadow in boxShadow) {
       final shadowPaint = Paint()
         ..color = shadow.color
-        ..maskFilter = MaskFilter.blur(
-          BlurStyle.normal,
-          shadow.blurRadius,
-        );
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, shadow.blurRadius);
       final shadowPath = path.shift(shadow.offset);
       canvas.drawPath(shadowPath, shadowPaint);
     }

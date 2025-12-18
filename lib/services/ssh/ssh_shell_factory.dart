@@ -82,8 +82,9 @@ class SshShellFactory {
   String _signatureFor(AppSettings settings) {
     final bindings = settings.builtinSshHostKeyBindings.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
-    final bindingsSig =
-        bindings.map((entry) => '${entry.key}:${entry.value}').join(',');
+    final bindingsSig = bindings
+        .map((entry) => '${entry.key}:${entry.value}')
+        .join(',');
     return [
       settings.sshClientBackend.name,
       settings.debugMode,

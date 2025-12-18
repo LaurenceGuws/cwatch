@@ -55,22 +55,13 @@ class HostDistroManager {
       );
       final slug = await detector.detect();
       if (slug == null) {
-        AppLogger.d(
-          'Distro detection failed for ${host.name}',
-          tag: 'Distro',
-        );
+        AppLogger.d('Distro detection failed for ${host.name}', tag: 'Distro');
         return;
       }
-      AppLogger.d(
-        'Distro for ${host.name} resolved to $slug',
-        tag: 'Distro',
-      );
+      AppLogger.d('Distro for ${host.name} resolved to $slug', tag: 'Distro');
       await settingsController.update(
         (settings) => settings.copyWith(
-          serverDistroMap: {
-            ...settings.serverDistroMap,
-            key: slug,
-          },
+          serverDistroMap: {...settings.serverDistroMap, key: slug},
         ),
       );
     } catch (error, stack) {

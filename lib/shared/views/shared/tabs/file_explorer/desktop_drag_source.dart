@@ -54,10 +54,7 @@ class WindowsDragSource implements DesktopDragSource {
     required List<DragLocalItem> items,
   }) async {
     if (items.isEmpty) {
-      return const DragStartResult(
-        started: false,
-        error: 'No items to drag',
-      );
+      return const DragStartResult(started: false, error: 'No items to drag');
     }
     try {
       final dragContext = await DragContext.instance();
@@ -71,7 +68,10 @@ class WindowsDragSource implements DesktopDragSource {
       final view = ui.PlatformDispatcher.instance.views.isNotEmpty
           ? ui.PlatformDispatcher.instance.views.first
           : null;
-      final devicePixelRatio = view?.devicePixelRatio ?? ui.PlatformDispatcher.instance.implicitView?.devicePixelRatio ?? 1.0;
+      final devicePixelRatio =
+          view?.devicePixelRatio ??
+          ui.PlatformDispatcher.instance.implicitView?.devicePixelRatio ??
+          1.0;
       final configItems = await _buildConfigItems(
         globalPosition,
         items,
@@ -85,10 +85,7 @@ class WindowsDragSource implements DesktopDragSource {
       }
       final configuration = sdd.DragConfiguration(
         items: configItems,
-        allowedOperations: [
-          sdd.DropOperation.copy,
-          sdd.DropOperation.move,
-        ],
+        allowedOperations: [sdd.DropOperation.copy, sdd.DropOperation.move],
       );
       final rawConfig = await configuration.intoRaw(devicePixelRatio);
       await dragContext.startDrag(
@@ -99,10 +96,7 @@ class WindowsDragSource implements DesktopDragSource {
       );
       return const DragStartResult(started: true);
     } catch (error) {
-      return DragStartResult(
-        started: false,
-        error: error.toString(),
-      );
+      return DragStartResult(started: false, error: error.toString());
     }
   }
 
@@ -163,10 +157,7 @@ class LinuxDragSource implements DesktopDragSource {
     required List<DragLocalItem> items,
   }) async {
     if (items.isEmpty) {
-      return const DragStartResult(
-        started: false,
-        error: 'No items to drag',
-      );
+      return const DragStartResult(started: false, error: 'No items to drag');
     }
     try {
       final dragContext = await DragContext.instance();
@@ -180,7 +171,8 @@ class LinuxDragSource implements DesktopDragSource {
       final view = ui.PlatformDispatcher.instance.views.isNotEmpty
           ? ui.PlatformDispatcher.instance.views.first
           : null;
-      final devicePixelRatio = view?.devicePixelRatio ??
+      final devicePixelRatio =
+          view?.devicePixelRatio ??
           ui.PlatformDispatcher.instance.implicitView?.devicePixelRatio ??
           1.0;
       final configItems = await _buildConfigItems(
@@ -196,10 +188,7 @@ class LinuxDragSource implements DesktopDragSource {
       }
       final configuration = sdd.DragConfiguration(
         items: configItems,
-        allowedOperations: [
-          sdd.DropOperation.copy,
-          sdd.DropOperation.move,
-        ],
+        allowedOperations: [sdd.DropOperation.copy, sdd.DropOperation.move],
       );
       final rawConfig = await configuration.intoRaw(devicePixelRatio);
       await dragContext.startDrag(
@@ -210,10 +199,7 @@ class LinuxDragSource implements DesktopDragSource {
       );
       return const DragStartResult(started: true);
     } catch (error) {
-      return DragStartResult(
-        started: false,
-        error: error.toString(),
-      );
+      return DragStartResult(started: false, error: error.toString());
     }
   }
 

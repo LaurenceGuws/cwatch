@@ -209,8 +209,9 @@ class _ServersListState extends State<ServersList> {
           return ErrorState(error: snapshot.error.toString());
         }
         final hosts = snapshot.data ?? <SshHost>[];
-        final shellCapableHosts =
-            hosts.where((host) => !_isNoShellHost(host)).toList();
+        final shellCapableHosts = hosts
+            .where((host) => !_isNoShellHost(host))
+            .toList();
         _trackHostDistroChecks(shellCapableHosts);
         return HostList(
           hosts: shellCapableHosts,
@@ -251,10 +252,7 @@ class _ServersListState extends State<ServersList> {
       final needsProbe = host.available && !hasCache;
       if (needsProbe) {
         unawaited(
-          _distroManager.ensureDistroForHost(
-            host,
-            force: !wasAvailable,
-          ),
+          _distroManager.ensureDistroForHost(host, force: !wasAvailable),
         );
       }
     }
