@@ -20,6 +20,8 @@ class GenericList<T> extends StatefulWidget {
     this.rowsPerPage = 20,
     this.onPageChanged,
     this.onRowsPerPageChanged,
+    this.cellSelectionEnabled = false,
+    this.onCellTap,
   });
 
   final List<T> rows;
@@ -34,6 +36,8 @@ class GenericList<T> extends StatefulWidget {
   final int rowsPerPage;
   final ValueChanged<int>? onPageChanged;
   final ValueChanged<int>? onRowsPerPageChanged;
+  final bool cellSelectionEnabled;
+  final ValueChanged<StructuredDataCellCoordinate>? onCellTap;
 
   @override
   State<GenericList<T>> createState() => _GenericListState<T>();
@@ -85,10 +89,7 @@ class _GenericListState<T> extends State<GenericList<T>> {
     if (clamped == _activeRowsPerPage) return;
     setState(() {
       _activeRowsPerPage = clamped;
-      final maxPage = _pageCount - 1;
-      if (_currentPage > maxPage) {
-        _currentPage = math.max(0, maxPage);
-      }
+      _clampCurrentPage();
     });
     widget.onRowsPerPageChanged?.call(clamped);
     _scrollToTop();
@@ -111,11 +112,28 @@ class _GenericListState<T> extends State<GenericList<T>> {
 
   void _applyRowsPerPageFromParent(int value) {
     final clamped = _clampRowsPerPage(value);
-    _activeRowsPerPage = clamped;
+    final needsUpdate = clamped != _activeRowsPerPage;
+    final valueChanged = clamped != value;
+    if (needsUpdate) {
+      setState(() {
+        _activeRowsPerPage = clamped;
+        _clampCurrentPage();
+      });
+    } else if (_clampCurrentPage()) {
+      setState(() {});
+    }
+    if (valueChanged) {
+      widget.onRowsPerPageChanged?.call(clamped);
+    }
+  }
+
+  bool _clampCurrentPage() {
     final maxPage = _pageCount - 1;
     if (_currentPage > maxPage) {
       _currentPage = math.max(0, maxPage);
+      return true;
     }
+    return false;
   }
 
   int _clampRowsPerPage(int value) {
@@ -147,6 +165,8 @@ class _GenericListState<T> extends State<GenericList<T>> {
               horizontalController: widget.horizontalController,
               verticalController: widget.verticalController,
               verticalScrollbarBottomInset: verticalInset,
+              cellSelectionEnabled: widget.cellSelectionEnabled,
+              onCellTap: widget.onCellTap,
               emptyState: const Text('No entries match this filter.'),
             ),
           ),
@@ -165,7 +185,7 @@ class _GenericListState<T> extends State<GenericList<T>> {
                     color: Theme.of(context)
                         .colorScheme
                         .outlineVariant
-                        .withOpacity(0.4),
+                        .withValues(alpha: 0.4),
                   ),
                 ),
               ),
@@ -210,23 +230,31 @@ class _GenericListState<T> extends State<GenericList<T>> {
           PopupMenuButton<int>(
             tooltip: 'Change rows per page preset',
             onSelected: _setRowsPerPageFromUser,
-            itemBuilder: (context) => _rowsPerPagePresets
-                .map(
-                  (option) => PopupMenuItem<int>(
-                    value: option,
-                    child: Row(
-                      children: [
-                        if (_activeRowsPerPage == option)
-                          const Icon(Icons.check, size: 16)
-                        else
-                          const SizedBox(width: 16),
-                        const SizedBox(width: 8),
-                        Text('$option per page'),
-                      ],
+            itemBuilder: (context) {
+              final maxRows = math.max(1, widget.rows.length);
+              final presetOptions = _rowsPerPagePresets
+                  .where((option) => option <= maxRows)
+                  .toSet();
+              final options = {...presetOptions, _activeRowsPerPage}.toList()
+                ..sort();
+              return options
+                  .map(
+                    (option) => PopupMenuItem<int>(
+                      value: option,
+                      child: Row(
+                        children: [
+                          if (_activeRowsPerPage == option)
+                            const Icon(Icons.check, size: 16)
+                          else
+                            const SizedBox(width: 16),
+                          const SizedBox(width: 8),
+                          Text('$option per page'),
+                        ],
+                      ),
                     ),
-                  ),
-                )
-                .toList(),
+                  )
+                  .toList();
+            },
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

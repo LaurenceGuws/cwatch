@@ -17,7 +17,6 @@ class DataTableSandboxView extends StatefulWidget {
 
 class _DataTableSandboxViewState extends State<DataTableSandboxView> {
   static const int _gridColumns = 20;
-  static const int _defaultRowsPerPage = 5;
   static const int _initialRowCount = 20;
   static const double _rowSliderMin = 5;
   static const double _rowSliderMax = 60;
@@ -30,7 +29,8 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
   late final ScrollController _fullHorizontal;
   late final ScrollController _fullVertical;
   int _rowCountSetting = _initialRowCount;
-  int _rowsPerPageSetting = _defaultRowsPerPage;
+  bool _cellSelectionEnabled = false;
+  final Map<String, StructuredDataCellCoordinate?> _cellSelections = {};
 
   @override
   void initState() {
@@ -86,11 +86,6 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
     );
   }
 
-  int _rowsPerPageMaxForCount(int count) {
-    final maxLimit = _rowSliderMax.toInt();
-    return math.max(1, math.min(count, maxLimit));
-  }
-
   void _updateRowCount(double value) {
     final base = value.round();
     final next = math.min(
@@ -99,18 +94,10 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
     );
     setState(() {
       _rowCountSetting = next;
-      _rowsPerPageSetting =
-          math.min(_rowsPerPageSetting, _rowsPerPageMaxForCount(next));
       _resetRows();
-    });
-  }
-
-  void _updateRowsPerPage(double value) {
-    final maxPerPage = _rowsPerPageMaxForCount(_rowCountSetting);
-    final next = value.round().clamp(1, maxPerPage);
-    if (next == _rowsPerPageSetting) return;
-    setState(() {
-      _rowsPerPageSetting = next;
+      if (_cellSelectionEnabled) {
+        _cellSelections.clear();
+      }
     });
   }
 
@@ -132,14 +119,7 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
     final spacing = context.appTheme.spacing;
     final typography = context.appTheme.typography;
     final scheme = Theme.of(context).colorScheme;
-    final rowsPerPageMax = _rowsPerPageMaxForCount(_rowCountSetting);
-    final rowsPerPageDivisions =
-        rowsPerPageMax > 1 ? rowsPerPageMax - 1 : null;
-    final rowsPerPageValue = math.max(
-      1.0,
-      math.min(rowsPerPageMax.toDouble(), _rowsPerPageSetting.toDouble()),
-    );
-
+    final textTheme = Theme.of(context).textTheme;
     final badge = Container(
       padding: EdgeInsets.symmetric(
         horizontal: spacing.sm,
@@ -217,11 +197,10 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
                   ),
                 ),
                 TextButton(
-                    onPressed: () => setState(() {
-                      _rowCountSetting = _initialRowCount;
-                      _rowsPerPageSetting = _defaultRowsPerPage;
-                      _resetRows();
-                    }),
+                  onPressed: () => setState(() {
+                    _rowCountSetting = _initialRowCount;
+                    _resetRows();
+                  }),
                   child: const Text('Reset'),
                 ),
               ],
@@ -230,54 +209,75 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
             Row(
               children: [
                 Text(
-                  'Rows per page: $_rowsPerPageSetting',
+                  'Enable cell selection',
                   style: typography.body,
                 ),
                 SizedBox(width: spacing.md),
-                Expanded(
-                  child: Slider(
-                    value: rowsPerPageValue,
-                    min: 1,
-                    max: rowsPerPageMax.toDouble(),
-                    divisions: rowsPerPageDivisions,
-                    label: '$_rowsPerPageSetting per page',
-                    onChanged: _updateRowsPerPage,
-                  ),
+                Switch(
+                  value: _cellSelectionEnabled,
+                  onChanged: (value) => setState(() {
+                    _cellSelectionEnabled = value;
+                    if (!value) {
+                      _cellSelections.clear();
+                    }
+                  }),
                 ),
+                if (_cellSelectionEnabled)
+                  SizedBox(width: spacing.md),
+                if (_cellSelectionEnabled)
+                  Text(
+                    'Tap any cell (A1-style) to highlight it.',
+                    style: textTheme.bodySmall,
+                  ),
               ],
             ),
+            if (_cellSelectionEnabled)
+              Padding(
+                padding: EdgeInsets.only(top: spacing.xs),
+                child: Text(
+                  'Selected coordinates appear under each grid.',
+                  style: textTheme.bodySmall,
+                ),
+              ),
+            if (_cellSelectionEnabled)
+              Padding(
+                padding: EdgeInsets.only(top: spacing.xs),
+                child: Text(
+                  'Row selection is disabled while cell selection is active.',
+                  style: textTheme.bodySmall,
+                ),
+              ),
             SizedBox(height: spacing.sm),
             Expanded(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Expanded(
-                  child: _buildGridPanel(
-                    title: 'Paginated grid',
-                    subtitle:
-                        'Page size: $_rowsPerPageSetting • $_rowCountSetting rows total',
-                    rows: _paginatedRows,
-                    paginationEnabled: true,
-                    horizontalController: _paginatedHorizontal,
-                    verticalController: _paginatedVertical,
-                    actionsPrefix: 'A',
-                    rowsPerPage: _rowsPerPageSetting,
-                    onRowsPerPageChanged: (selection) => setState(() {
-                      _rowsPerPageSetting = selection;
-                    }),
+                    child: _buildGridPanel(
+                      title: 'Grid A',
+                      subtitle: '$_rowCountSetting rows visible',
+                      rows: _paginatedRows,
+                      paginationEnabled: false,
+                      horizontalController: _paginatedHorizontal,
+                      verticalController: _paginatedVertical,
+                      actionsPrefix: 'A',
+                      panelId: 'A',
+                      cellSelectionEnabled: _cellSelectionEnabled,
+                    ),
                   ),
-                ),
                   SizedBox(width: spacing.md),
                   Expanded(
-                  child: _buildGridPanel(
-                    title: 'Full grid',
-                    subtitle: 'All rows visible ($_rowCountSetting)',
-                    rows: _fullRows,
-                    paginationEnabled: false,
-                    horizontalController: _fullHorizontal,
-                    verticalController: _fullVertical,
-                    actionsPrefix: 'B',
-                  ),
+                    child: _buildGridPanel(
+                      title: 'Grid B',
+                      subtitle: '$_rowCountSetting rows visible',
+                      rows: _fullRows,
+                      paginationEnabled: false,
+                      horizontalController: _fullHorizontal,
+                      verticalController: _fullVertical,
+                      actionsPrefix: 'B',
+                      panelId: 'B',
+                      cellSelectionEnabled: _cellSelectionEnabled,
+                    ),
                   ),
                 ],
               ),
@@ -296,11 +296,19 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
     required ScrollController horizontalController,
     required ScrollController verticalController,
     required String actionsPrefix,
-    ValueChanged<int>? onRowsPerPageChanged,
-    int rowsPerPage = _defaultRowsPerPage,
+    required String panelId,
+    required bool cellSelectionEnabled,
   }) {
     final spacing = context.appTheme.spacing;
     final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final selectionLabel =
+        cellSelectionEnabled ? _selectedCellLabel(panelId) : null;
+    final selectionInfo = cellSelectionEnabled
+        ? (selectionLabel != null
+            ? 'Selected cell: $selectionLabel'
+            : 'Tap any cell to highlight it')
+        : null;
 
     return Container(
       decoration: BoxDecoration(
@@ -314,25 +322,66 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
         children: [
           Text(title, style: Theme.of(context).textTheme.titleMedium),
           SizedBox(height: spacing.xs),
-          Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+          Text(subtitle, style: textTheme.bodySmall),
           SizedBox(height: spacing.sm),
           Expanded(
-          child: GenericList<WideRow>(
-            rows: rows,
-            columns: _columns,
-            actions: _actions(actionsPrefix),
-            horizontalController: horizontalController,
-            verticalController: verticalController,
-            onRowDoubleTap: (row) => _notify('Open ${row.cells.first}'),
-            rowHeight: 48,
-            paginationEnabled: paginationEnabled,
-            rowsPerPage: rowsPerPage,
-            onRowsPerPageChanged: onRowsPerPageChanged,
+            child: GenericList<WideRow>(
+              rows: rows,
+              columns: _columns,
+              actions: _actions(actionsPrefix),
+              horizontalController: horizontalController,
+              verticalController: verticalController,
+              onRowDoubleTap: (row) => _notify('Open ${row.cells.first}'),
+              rowHeight: 48,
+              paginationEnabled: paginationEnabled,
+              cellSelectionEnabled: cellSelectionEnabled,
+              onCellTap: cellSelectionEnabled
+                  ? (coordinate) => _handleCellSelection(
+                        panelId,
+                        coordinate,
+                      )
+                  : null,
+            ),
           ),
-        ),
+          if (selectionInfo != null) ...[
+            SizedBox(height: spacing.sm),
+            Text(selectionInfo, style: textTheme.bodySmall),
+          ],
         ],
       ),
     );
+  }
+
+  void _handleCellSelection(
+    String panelId,
+    StructuredDataCellCoordinate coordinate,
+  ) {
+    setState(() {
+      _cellSelections[panelId] = coordinate;
+    });
+  }
+
+  String? _selectedCellLabel(String panelId) {
+    final selection = _cellSelections[panelId];
+    if (selection == null) return null;
+    return _formatCellCoordinate(selection);
+  }
+
+  String _formatCellCoordinate(StructuredDataCellCoordinate coordinate) {
+    final column = _columnLabel(coordinate.columnIndex);
+    final rowNumber = coordinate.rowIndex + 1;
+    return '$column$rowNumber';
+  }
+
+  String _columnLabel(int columnIndex) {
+    var value = columnIndex + 1;
+    final buffer = StringBuffer();
+    while (value > 0) {
+      final remainder = (value - 1) % 26;
+      buffer.writeCharCode('A'.codeUnitAt(0) + remainder);
+      value = (value - 1) ~/ 26;
+    }
+    return buffer.toString().split('').reversed.join();
   }
 }
 
