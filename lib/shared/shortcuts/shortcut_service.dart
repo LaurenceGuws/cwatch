@@ -34,6 +34,25 @@ class ShortcutService {
     }
   }
 
+  bool shouldSuppressEvent(KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return false;
+    }
+    final binding = ShortcutBinding.fromKeyEvent(event);
+    if (binding == null) {
+      return false;
+    }
+    for (final scope in _scopes) {
+      if (!scope.active) {
+        continue;
+      }
+      if (scope.handlerFor(binding) != null) {
+        return scope.consumeOnHandle;
+      }
+    }
+    return false;
+  }
+
   ShortcutSubscription registerScope({
     required String id,
     required Map<String, ShortcutHandler> handlers,
@@ -41,12 +60,12 @@ class ShortcutService {
     int priority = 0,
     bool consumeOnHandle = true,
   }) {
-    final node = focusNode ?? FocusNode(skipTraversal: true);
+    final node = focusNode;
     final scope = _ShortcutScope(
       id: id,
       handlers: handlers,
       priority: priority,
-      focusNode: node,
+      focusNode: focusNode,
       resolver: _resolver,
       consumeOnHandle: consumeOnHandle,
     );
@@ -56,17 +75,21 @@ class ShortcutService {
       'registered scope="$id" priority=$priority bindings=${scope.bindingLabels.join(', ')}',
       tag: 'Shortcuts',
     );
-    _attachNodeListener(node);
+    if (node != null) {
+      _attachNodeListener(node);
+    }
     return ShortcutSubscription(() {
       _scopes.remove(scope);
       scope.dispose();
-      _detachNodeListener(node);
+      if (node != null) {
+        _detachNodeListener(node);
+      }
       AppLogger.d('disposed scope="$id"', tag: 'Shortcuts');
     });
   }
 
   bool _onKeyEvent(KeyEvent event) {
-    if (event is! KeyDownEvent) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return false;
     }
     if (identical(event, _suppressedEvent)) {
@@ -144,7 +167,7 @@ class ShortcutService {
     if (_nodeDisposers.containsKey(node)) return;
     final previous = node.onKeyEvent;
     KeyEventResult listener(FocusNode node, KeyEvent event) {
-      if (event is! KeyDownEvent) {
+      if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
         return previous?.call(node, event) ?? KeyEventResult.ignored;
       }
       final binding = ShortcutBinding.fromKeyEvent(event);

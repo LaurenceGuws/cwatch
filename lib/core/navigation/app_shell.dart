@@ -11,6 +11,7 @@ import '../../modules/docker/view.dart';
 import '../../modules/kubernetes/view.dart';
 import '../../modules/servers/view.dart';
 import '../../modules/settings/view.dart';
+import '../../modules/table_sandbox/view.dart';
 import '../../modules/wsl/view.dart';
 import '../../services/settings/app_settings_controller.dart';
 import '../../services/ssh/builtin/builtin_ssh_key_store.dart';
@@ -623,6 +624,7 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
         shellFactory: _shellFactory,
       ),
       KubernetesModule(settingsController: widget.settingsController),
+      const TableSandboxModule(),
       SettingsModule(
         controller: widget.settingsController,
         hostsFuture: _hostsFuture,

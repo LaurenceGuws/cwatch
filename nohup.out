@@ -19,3 +19,50 @@ Null check operator used on a null value
 #14     _invoke (dart:ui/hooks.dart:356)
 #15     PlatformDispatcher._drawFrame (dart:ui/platform_dispatcher.dart:444)
 #16     _drawFrame (dart:ui/hooks.dart:328)
+[2025-12-20 14:14:07.498] [info] Using configuration file /home/home/.config/waybar/config.jsonc
+[2025-12-20 14:14:07.500] [info] Discovered appearance 'dark'
+[2025-12-20 14:14:07.515] [info] Using CSS file /home/home/.config/waybar/style.css
+[2025-12-20 14:14:07.518] [info] Hyprland IPC starting
+[2025-12-20 14:14:07.518] [info] Loading persistent workspaces from Hyprland workspace rules
+[2025-12-20 14:14:07.518] [warning] 'swap-icon-label' must be a bool.
+[2025-12-20 14:14:07.532] [info] Loading persistent workspaces from Hyprland workspace rules
+[2025-12-20 14:14:07.532] [warning] 'swap-icon-label' must be a bool.
+[2025-12-20 14:14:07.556] [info] Bar configured (width: 2400, height: 40) for output: HDMI-A-1
+[2025-12-20 14:14:07.556] [error] Item '': No icon name or pixmap given.
+[2025-12-20 14:14:07.582] [error] Item '': No icon name or pixmap given.
+[2025-12-20 14:14:07.584] [info] Bar configured (width: 1920, height: 40) for output: DP-1
+
+(waybar:330263): Gtk-CRITICAL **: 14:14:07.588: gtk_widget_set_accel_path: assertion 'GTK_IS_ACCEL_GROUP (accel_group)' failed
+
+(waybar:330263): Gtk-CRITICAL **: 14:14:07.588: gtk_widget_add_accelerator: assertion 'GTK_IS_ACCEL_GROUP (accel_group)' failed
+[2025-12-20 14:14:07.588] [info] Bar configured (width: 1920, height: 40) for output: DP-1
+
+(waybar:330263): Gtk-CRITICAL **: 14:14:07.600: gtk_widget_set_accel_path: assertion 'GTK_IS_ACCEL_GROUP (accel_group)' failed
+
+(waybar:330263): Gtk-CRITICAL **: 14:14:07.600: gtk_widget_add_accelerator: assertion 'GTK_IS_ACCEL_GROUP (accel_group)' failed
+
+(waybar:330263): Gtk-CRITICAL **: 14:14:07.600: gtk_widget_set_accel_path: assertion 'GTK_IS_ACCEL_GROUP (accel_group)' failed
+
+(waybar:330263): Gtk-CRITICAL **: 14:14:07.600: gtk_widget_add_accelerator: assertion 'GTK_IS_ACCEL_GROUP (accel_group)' failed
+
+(waybar:330263): Gtk-CRITICAL **: 14:14:07.601: gtk_widget_set_accel_path: assertion 'GTK_IS_ACCEL_GROUP (accel_group)' failed
+
+(waybar:330263): Gtk-CRITICAL **: 14:14:07.601: gtk_widget_add_accelerator: assertion 'GTK_IS_ACCEL_GROUP (accel_group)' failed
+
+(waybar:330263): Gtk-CRITICAL **: 14:14:07.602: gtk_widget_set_accel_path: assertion 'GTK_IS_ACCEL_GROUP (accel_group)' failed
+
+(waybar:330263): Gtk-CRITICAL **: 14:14:07.602: gtk_widget_add_accelerator: assertion 'GTK_IS_ACCEL_GROUP (accel_group)' failed
+
+(waybar:330263): Gtk-CRITICAL **: 14:14:07.604: gtk_widget_set_accel_path: assertion 'GTK_IS_ACCEL_GROUP (accel_group)' failed
+
+(waybar:330263): Gtk-CRITICAL **: 14:14:07.604: gtk_widget_add_accelerator: assertion 'GTK_IS_ACCEL_GROUP (accel_group)' failed
+
+(waybar:330263): Gtk-CRITICAL **: 14:14:07.604: gtk_widget_set_accel_path: assertion 'GTK_IS_ACCEL_GROUP (accel_group)' failed
+
+(waybar:330263): Gtk-CRITICAL **: 14:14:07.604: gtk_widget_add_accelerator: assertion 'GTK_IS_ACCEL_GROUP (accel_group)' failed
+
+(waybar:330263): Gtk-CRITICAL **: 14:14:07.605: gtk_widget_set_accel_path: assertion 'GTK_IS_ACCEL_GROUP (accel_group)' failed
+
+(waybar:330263): Gtk-CRITICAL **: 14:14:07.605: gtk_widget_add_accelerator: assertion 'GTK_IS_ACCEL_GROUP (accel_group)' failed
+ok
+ok

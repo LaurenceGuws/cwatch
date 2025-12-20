@@ -455,6 +455,7 @@ class _TerminalTabState extends State<TerminalTab> {
                     autofocus: !_isMobile,
                     hardwareKeyboardOnly: !kIsWeb && !_isMobile,
                     backgroundOpacity: 1,
+                    onKeyEvent: _handleTerminalKeyEvent,
                     padding: EdgeInsets.symmetric(
                       horizontal: settings.terminalPaddingX
                           .clamp(0, 48)
@@ -534,6 +535,15 @@ class _TerminalTabState extends State<TerminalTab> {
     add(ShortcutActions.terminalOpenScrollback, const _OpenScrollbackIntent());
 
     return map;
+  }
+
+  KeyEventResult _handleTerminalKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    return ShortcutService.instance.shouldSuppressEvent(event)
+        ? KeyEventResult.handled
+        : KeyEventResult.ignored;
   }
 
   Future<void> _changeTerminalFont(double delta) async {

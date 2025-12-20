@@ -300,6 +300,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
           scrollController: _scrollController,
           focusNode: _focusNode,
           shortcuts: _shortcutBindings(resolvedSettings, inputMode),
+          onKeyEvent: _handleTerminalKeyEvent,
           autofocus: widget.autofocus && !_isMobile,
           hardwareKeyboardOnly: !kIsWeb && !_isMobile,
           alwaysShowCursor: true,
@@ -350,6 +351,15 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     add(ShortcutActions.terminalOpenScrollback, const _OpenScrollbackIntent());
 
     return map;
+  }
+
+  KeyEventResult _handleTerminalKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    return ShortcutService.instance.shouldSuppressEvent(event)
+        ? KeyEventResult.handled
+        : KeyEventResult.ignored;
   }
 
   Future<void> _changeTerminalFont(double delta) async {
@@ -427,6 +437,9 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   }
 
   void _configureShortcuts(InputModeConfig inputMode) {
+    if (widget.settingsController == null) {
+      return;
+    }
     if (!inputMode.enableShortcuts) {
       _shortcutSub?.dispose();
       _shortcutSub = null;
