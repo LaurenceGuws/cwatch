@@ -672,8 +672,10 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
             );
           }
 
+          const dragThreshold = 72.0;
           Offset? downPosition;
           var didMove = false;
+          var dragStarted = false;
 
           final headerInteractive = Listener(
             behavior: HitTestBehavior.opaque,
@@ -684,27 +686,28 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
             onPointerMove: (event) {
               final down = downPosition;
               if (down == null || didMove) return;
-              if ((event.position - down).distance > 6) {
+              if ((event.position - down).distance > dragThreshold) {
                 didMove = true;
               }
             },
             onPointerUp: (event) {
               final down = downPosition;
               if (down == null) return;
-              if (!didMove) _toggleSort(index);
+              if (!didMove && !dragStarted && sortable) {
+                _toggleSort(index);
+              }
               downPosition = null;
+              didMove = false;
             },
             onPointerCancel: (_) {
               downPosition = null;
               didMove = false;
             },
             child: MouseRegion(
-              cursor: sortable
-                  ? SystemMouseCursors.click
-                  : SystemMouseCursors.basic,
-                  child: Row(children: [Expanded(child: headerCellDecorated)]),
-                ),
-              );
+              cursor: sortable ? SystemMouseCursors.click : SystemMouseCursors.basic,
+              child: Row(children: [Expanded(child: headerCellDecorated)]),
+            ),
+          );
 
           final dragFeedback = Material(
             color: Colors.transparent,
@@ -746,11 +749,20 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
                         )
                       : null,
                 ),
-                child: Draggable<int>(
-                  data: index,
-                  axis: Axis.horizontal,
-                  feedback: dragFeedback,
-                  child: headerInteractive,
+                child: MediaQuery(
+                  data: MediaQuery.of(context).copyWith(
+                    gestureSettings:
+                        const DeviceGestureSettings(touchSlop: dragThreshold),
+                  ),
+                  child: _StructuredDataTableDraggable<int>(
+                    data: index,
+                    axis: Axis.horizontal,
+                    feedback: dragFeedback,
+                    dragThreshold: dragThreshold,
+                    onDragStarted: () => dragStarted = true,
+                    onDragEnd: (_) => dragStarted = false,
+                    child: headerInteractive,
+                  ),
                 ),
               );
             },
@@ -864,6 +876,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
                     : spacing.base * 1.2,
                 vertical: verticalPadding,
               ),
+              clipBehavior: Clip.hardEdge,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(2),
                 border: border,
@@ -988,7 +1001,8 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
             max(constraints.maxWidth, paddedWidth + verticalScrollbarSpace) +
             1.0;
 
-        const verticalScrollbarWidth = 12.0;
+        const verticalScrollbarWidth = 10.0;
+        const horizontalScrollbarThickness = 10.0;
         return Container(
           margin: surface.margin,
           decoration: BoxDecoration(
@@ -1002,54 +1016,44 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           child: SizedBox(
             width: constraints.maxWidth,
             height: constraints.maxHeight,
-            child: Stack(
-              fit: StackFit.expand,
-              clipBehavior: Clip.hardEdge,
-              children: [
-                Positioned.fill(
-                  child: Scrollbar(
-                    controller: _horizontalController,
-                    thumbVisibility: true,
-                    scrollbarOrientation: ScrollbarOrientation.bottom,
-                    child: SingleChildScrollView(
-                      controller: _horizontalController,
-                      scrollDirection: Axis.horizontal,
-                      child: SizedBox(
-                        width: targetWidth,
-                        height: constraints.maxHeight,
-                        child: Column(
-                          children: [
-                            _buildHeader(context, columnWidths, gapWidth),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.only(right: 14),
-                                child: _buildBody(surface, columnWidths),
-                              ),
-                            ),
-                          ],
+            child: RawScrollbar(
+              controller: _verticalController,
+              thumbVisibility: true,
+              thickness: verticalScrollbarWidth,
+              radius: const Radius.circular(6),
+              scrollbarOrientation: ScrollbarOrientation.right,
+              padding: EdgeInsets.only(
+                bottom: widget.verticalScrollbarBottomInset,
+              ),
+              notificationPredicate: (notification) =>
+                  notification.metrics.axis == Axis.vertical,
+              child: Scrollbar(
+                controller: _horizontalController,
+                thumbVisibility: true,
+                scrollbarOrientation: ScrollbarOrientation.bottom,
+                thickness: horizontalScrollbarThickness,
+                notificationPredicate: (notification) =>
+                    notification.metrics.axis == Axis.horizontal,
+                child: SingleChildScrollView(
+                  controller: _horizontalController,
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: targetWidth,
+                    height: constraints.maxHeight,
+                    child: Column(
+                      children: [
+                        _buildHeader(context, columnWidths, gapWidth),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 14),
+                            child: _buildBody(surface, columnWidths),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
                 ),
-                Positioned(
-                  top: 0,
-                  bottom: widget.verticalScrollbarBottomInset,
-                  right: 0,
-                  width: verticalScrollbarWidth,
-                  child: IgnorePointer(
-                    ignoring: true,
-                    child: RawScrollbar(
-                      controller: _verticalController,
-                      thumbVisibility: true,
-                      thickness: verticalScrollbarWidth,
-                      radius: const Radius.circular(6),
-                      scrollbarOrientation: ScrollbarOrientation.right,
-                      child: const SizedBox.expand(),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         );
@@ -1064,23 +1068,26 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       itemCount: _visibleRows.length,
       focusNode: _focusNode,
       onActivate: (index) => _handleDoubleTap(index),
-      child: ListView.builder(
-        controller: _verticalController,
-        padding: EdgeInsets.zero,
-        shrinkWrap: widget.shrinkToContent,
-        primary: false,
-        physics: const ClampingScrollPhysics(),
-        itemExtent: widget.rowHeight + 1,
-        cacheExtent: (widget.rowHeight + 1) * 20,
-        itemCount: _visibleRows.length,
-        itemBuilder: (context, index) => Column(
-          children: [
-            _buildRow(context, index, columnWidths),
-            Divider(
-              height: 1,
-              color: scheme.outlineVariant.withValues(alpha: 0.5),
-            ),
-          ],
+      child: ScrollConfiguration(
+        behavior: const ScrollBehavior().copyWith(scrollbars: false),
+        child: ListView.builder(
+          controller: _verticalController,
+          padding: EdgeInsets.zero,
+          shrinkWrap: widget.shrinkToContent,
+          primary: false,
+          physics: const ClampingScrollPhysics(),
+          itemExtent: widget.rowHeight + 1,
+          cacheExtent: (widget.rowHeight + 1) * 20,
+          itemCount: _visibleRows.length,
+          itemBuilder: (context, index) => Column(
+            children: [
+              _buildRow(context, index, columnWidths),
+              Divider(
+                height: 1,
+                color: scheme.outlineVariant.withValues(alpha: 0.5),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1131,5 +1138,195 @@ class _HeaderResizeHandleState extends State<_HeaderResizeHandle> {
         ),
       ),
     );
+  }
+}
+
+class _StructuredDataTableDraggable<T extends Object> extends Draggable<T> {
+  const _StructuredDataTableDraggable({
+    super.key,
+    required super.child,
+    required super.feedback,
+    super.data,
+    super.axis,
+    super.childWhenDragging,
+    super.feedbackOffset,
+    super.dragAnchorStrategy,
+    super.affinity,
+    super.maxSimultaneousDrags,
+    super.onDragStarted,
+    super.onDragUpdate,
+    super.onDraggableCanceled,
+    super.onDragEnd,
+    super.onDragCompleted,
+    super.ignoringFeedbackSemantics,
+    super.ignoringFeedbackPointer,
+    super.rootOverlay,
+    super.hitTestBehavior,
+    super.allowedButtonsFilter,
+    required this.dragThreshold,
+  });
+
+  final double dragThreshold;
+
+  @override
+  MultiDragGestureRecognizer createRecognizer(
+    GestureMultiDragStartCallback onStart,
+  ) {
+    final MultiDragGestureRecognizer recognizer = switch (axis) {
+      Axis.horizontal => _StructuredDataThresholdHorizontalMultiDragGestureRecognizer(
+          dragThreshold: dragThreshold,
+          allowedButtonsFilter: allowedButtonsFilter,
+        ),
+      Axis.vertical => _StructuredDataThresholdVerticalMultiDragGestureRecognizer(
+          dragThreshold: dragThreshold,
+          allowedButtonsFilter: allowedButtonsFilter,
+        ),
+      null => _StructuredDataThresholdImmediateMultiDragGestureRecognizer(
+          dragThreshold: dragThreshold,
+          allowedButtonsFilter: allowedButtonsFilter,
+        ),
+    };
+    recognizer.onStart = onStart;
+    return recognizer;
+  }
+}
+
+class _StructuredDataThresholdHorizontalMultiDragGestureRecognizer
+    extends HorizontalMultiDragGestureRecognizer {
+  _StructuredDataThresholdHorizontalMultiDragGestureRecognizer({
+    super.allowedButtonsFilter,
+    required this.dragThreshold,
+  });
+
+  final double dragThreshold;
+
+  @override
+  MultiDragPointerState createNewPointerState(PointerDownEvent event) {
+    return _StructuredDataThresholdHorizontalPointerState(
+      event.position,
+      event.kind,
+      gestureSettings,
+      dragThreshold,
+    );
+  }
+}
+
+class _StructuredDataThresholdHorizontalPointerState
+    extends MultiDragPointerState {
+  _StructuredDataThresholdHorizontalPointerState(
+    super.initialPosition,
+    super.kind,
+    super.gestureSettings,
+    this.dragThreshold,
+  );
+
+  final double dragThreshold;
+
+  @override
+  void checkForResolutionAfterMove() {
+    if (pendingDelta == null) {
+      return;
+    }
+    if (pendingDelta!.dx.abs() > dragThreshold) {
+      resolve(GestureDisposition.accepted);
+    }
+  }
+
+  @override
+  void accepted(GestureMultiDragStartCallback starter) {
+    starter(initialPosition);
+  }
+}
+
+class _StructuredDataThresholdVerticalMultiDragGestureRecognizer
+    extends VerticalMultiDragGestureRecognizer {
+  _StructuredDataThresholdVerticalMultiDragGestureRecognizer({
+    super.allowedButtonsFilter,
+    required this.dragThreshold,
+  });
+
+  final double dragThreshold;
+
+  @override
+  MultiDragPointerState createNewPointerState(PointerDownEvent event) {
+    return _StructuredDataThresholdVerticalPointerState(
+      event.position,
+      event.kind,
+      gestureSettings,
+      dragThreshold,
+    );
+  }
+}
+
+class _StructuredDataThresholdVerticalPointerState extends MultiDragPointerState {
+  _StructuredDataThresholdVerticalPointerState(
+    super.initialPosition,
+    super.kind,
+    super.gestureSettings,
+    this.dragThreshold,
+  );
+
+  final double dragThreshold;
+
+  @override
+  void checkForResolutionAfterMove() {
+    if (pendingDelta == null) {
+      return;
+    }
+    if (pendingDelta!.dy.abs() > dragThreshold) {
+      resolve(GestureDisposition.accepted);
+    }
+  }
+
+  @override
+  void accepted(GestureMultiDragStartCallback starter) {
+    starter(initialPosition);
+  }
+}
+
+class _StructuredDataThresholdImmediateMultiDragGestureRecognizer
+    extends ImmediateMultiDragGestureRecognizer {
+  _StructuredDataThresholdImmediateMultiDragGestureRecognizer({
+    super.allowedButtonsFilter,
+    required this.dragThreshold,
+  });
+
+  final double dragThreshold;
+
+  @override
+  MultiDragPointerState createNewPointerState(PointerDownEvent event) {
+    return _StructuredDataThresholdImmediatePointerState(
+      event.position,
+      event.kind,
+      gestureSettings,
+      dragThreshold,
+    );
+  }
+}
+
+class _StructuredDataThresholdImmediatePointerState
+    extends MultiDragPointerState {
+  _StructuredDataThresholdImmediatePointerState(
+    super.initialPosition,
+    super.kind,
+    super.gestureSettings,
+    this.dragThreshold,
+  );
+
+  final double dragThreshold;
+
+  @override
+  void checkForResolutionAfterMove() {
+    if (pendingDelta == null) {
+      return;
+    }
+    if (pendingDelta!.distance > dragThreshold) {
+      resolve(GestureDisposition.accepted);
+    }
+  }
+
+  @override
+  void accepted(GestureMultiDragStartCallback starter) {
+    starter(initialPosition);
   }
 }
