@@ -272,6 +272,7 @@ class _ContainerPeekState extends State<ContainerPeek> {
               : iconColor;
 
           return SelectableListItem(
+            stripeIndex: flatIndex,
             selected: widget.selectedIds.contains(container.id),
             title: container.name.isNotEmpty ? container.name : container.id,
             subtitle:
@@ -441,7 +442,7 @@ class ContainerList extends StatelessWidget {
           trailing: isCompose && onComposeAction != null
               ? PopupMenuButton<String>(
                   tooltip: 'Compose actions',
-                  icon: Icon(icons.settings),
+                  icon: const Icon(Icons.more_vert),
                   onSelected: (action) {
                     final name = projectName;
                     if (name != null) {
@@ -481,7 +482,8 @@ class ContainerList extends StatelessWidget {
                 )
               : null,
         );
-        final rows = items.map((container) {
+        final rows = List.generate(items.length, (index) {
+          final container = items[index];
           final runningLabel = container.isRunning
               ? _runningLabel(container)
               : container.status;
@@ -495,6 +497,7 @@ class ContainerList extends StatelessWidget {
               ? Theme.of(context).colorScheme.primary
               : iconColor;
           return SelectableListItem(
+            stripeIndex: index,
             selected: selectedIds.contains(container.id),
             title: container.name.isNotEmpty ? container.name : container.id,
             subtitle: 'Image: ${container.image} • $runningLabel',
@@ -530,7 +533,7 @@ class ContainerList extends StatelessWidget {
                 ? null
                 : (details) => onTapDown!(container, details, secondary: true),
           );
-        }).toList();
+        });
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 8),
@@ -614,7 +617,8 @@ class ImagePeek extends StatelessWidget {
           title: repo,
           subtitle: '${items.length} images',
         );
-        final rows = items.map((image) {
+        final rows = List.generate(items.length, (index) {
+          final image = items[index];
           final name = [
             image.repository.isNotEmpty ? image.repository : '<none>',
             image.tag.isNotEmpty ? image.tag : '<none>',
@@ -625,6 +629,7 @@ class ImagePeek extends StatelessWidget {
           final iconPadding = context.appTheme.spacing.base * 0.5;
           final iconColor = colorForDistro(slug, context.appTheme);
           return SelectableListItem(
+            stripeIndex: index,
             selected: isSelected,
             title: name,
             subtitle: 'Size: ${image.size}',
@@ -670,7 +675,7 @@ class ImagePeek extends StatelessWidget {
                     ),
                   ),
           );
-        }).toList();
+        });
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 8),
@@ -712,7 +717,8 @@ class ImageList extends StatelessWidget {
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: images.map((image) {
+      children: List.generate(images.length, (index) {
+        final image = images[index];
         final name = [
           image.repository.isNotEmpty ? image.repository : '<none>',
           image.tag.isNotEmpty ? image.tag : '<none>',
@@ -725,6 +731,7 @@ class ImageList extends StatelessWidget {
         return Padding(
           padding: const EdgeInsets.only(bottom: 6),
           child: SelectableListItem(
+            stripeIndex: index,
             selected: isSelected,
             title: name,
             subtitle: 'Size: ${image.size}',
@@ -767,7 +774,7 @@ class ImageList extends StatelessWidget {
                   ),
           ),
         );
-      }).toList(),
+      }),
     );
   }
 }
@@ -802,11 +809,13 @@ class NetworkList extends StatelessWidget {
           title: group,
           subtitle: '${items.length} networks',
         );
-        final rows = items.map((network) {
+        final rows = List.generate(items.length, (index) {
+          final network = items[index];
           final isSelected = selectedIds.contains(
             network.id.isNotEmpty ? network.id : network.name,
           );
           return SelectableListItem(
+            stripeIndex: index,
             selected: isSelected,
             title: network.name,
             subtitle: network.driver,
@@ -844,7 +853,7 @@ class NetworkList extends StatelessWidget {
                     ),
                   ),
           );
-        }).toList();
+        });
         return Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: SectionList(children: [header, ...rows]),
@@ -896,7 +905,8 @@ class VolumeList extends StatelessWidget {
           title: group,
           subtitle: '${items.length} volumes',
         );
-        final rows = items.map((volume) {
+        final rows = List.generate(items.length, (index) {
+          final volume = items[index];
           final isSelected = selectedIds.contains(volume.name);
           final subtitle = [
             volume.driver,
@@ -904,6 +914,7 @@ class VolumeList extends StatelessWidget {
               volume.size!,
           ].join(' • ');
           return SelectableListItem(
+            stripeIndex: index,
             selected: isSelected,
             title: volume.name,
             subtitle: subtitle,
@@ -941,7 +952,7 @@ class VolumeList extends StatelessWidget {
                     ),
                   ),
           );
-        }).toList();
+        });
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 8),

@@ -105,7 +105,7 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
 }
 
 class AppSpacing {
-  const AppSpacing({this.base = 6});
+  const AppSpacing({this.base = 4});
 
   final double base;
 
@@ -132,6 +132,8 @@ class AppListTokens {
     required this.selectedBackground,
     required this.selectedForeground,
     required this.unselectedForeground,
+    required this.stripeEvenBackground,
+    required this.stripeOddBackground,
   });
 
   final Color hoverBackground;
@@ -139,6 +141,8 @@ class AppListTokens {
   final Color selectedBackground;
   final Color selectedForeground;
   final Color unselectedForeground;
+  final Color stripeEvenBackground;
+  final Color stripeOddBackground;
 
   factory AppListTokens.fromScheme(ColorScheme scheme) {
     return AppListTokens(
@@ -147,6 +151,8 @@ class AppListTokens {
       selectedBackground: scheme.primary.withValues(alpha: 0.08),
       selectedForeground: scheme.primary,
       unselectedForeground: scheme.onSurface,
+      stripeEvenBackground: scheme.surface,
+      stripeOddBackground: scheme.surfaceContainerHigh,
     );
   }
 
@@ -166,6 +172,12 @@ class AppListTokens {
       unselectedForeground:
           Color.lerp(a.unselectedForeground, b.unselectedForeground, t) ??
           a.unselectedForeground,
+      stripeEvenBackground:
+          Color.lerp(a.stripeEvenBackground, b.stripeEvenBackground, t) ??
+          a.stripeEvenBackground,
+      stripeOddBackground:
+          Color.lerp(a.stripeOddBackground, b.stripeOddBackground, t) ??
+          a.stripeOddBackground,
     );
   }
 }
@@ -418,8 +430,8 @@ class AppTabChipTokens {
       unselectedForeground: scheme.onSurfaceVariant,
       selectedBorder: scheme.primary,
       unselectedBorder: scheme.outlineVariant,
-      borderRadius: BorderRadius.circular(8),
-      horizontalPadding: 0.6,
+      borderRadius: BorderRadius.circular(2),
+      horizontalPadding: 0.4,
       verticalPadding: 0.05,
     );
   }
@@ -509,8 +521,8 @@ class AppSectionTokens {
       surface: AppSurfaceStyle(
         background: scheme.surfaceContainerHigh,
         borderColor: scheme.outlineVariant.withValues(alpha: 0.6),
-        radius: BorderRadius.circular(10),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        radius: BorderRadius.circular(2),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         margin: EdgeInsets.zero,
         elevation: 0.5,
       ),

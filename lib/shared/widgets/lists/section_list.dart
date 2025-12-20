@@ -21,7 +21,7 @@ class SectionList extends StatelessWidget {
       margin: EdgeInsets.zero,
       color: scheme.surfaceContainerHigh,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(2),
         side: BorderSide(color: scheme.outlineVariant),
       ),
       child: Column(
@@ -30,8 +30,8 @@ class SectionList extends StatelessWidget {
           if (title != null || trailing != null)
             Padding(
               padding: EdgeInsets.symmetric(
-                horizontal: spacing.base * 2,
-                vertical: spacing.sm,
+                horizontal: spacing.base * 1.5,
+                vertical: spacing.xs,
               ),
               child: Row(
                 children: [

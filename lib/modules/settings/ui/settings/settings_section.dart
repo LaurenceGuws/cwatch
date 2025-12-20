@@ -44,24 +44,24 @@ class _SettingsSectionState extends State<SettingsSection> {
     final iconColor = Theme.of(context).colorScheme.primary;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             InkWell(
               onTap: _toggleExpanded,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(2),
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
+                padding: const EdgeInsets.symmetric(vertical: 2),
                 child: Row(
                   children: [
                     Icon(
                       _expanded
                           ? Icons.keyboard_arrow_down
                           : Icons.keyboard_arrow_right,
-                      size: 20,
+                      size: 18,
                       color: iconColor,
                     ),
                     const SizedBox(width: 4),
@@ -73,9 +73,14 @@ class _SettingsSectionState extends State<SettingsSection> {
                     ),
                     if (hasDescription)
                       IconButton(
-                        icon: const Icon(Icons.info_outline, size: 22),
+                        icon: const Icon(Icons.info_outline, size: 18),
                         color: iconColor,
                         padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 28,
+                          minHeight: 28,
+                        ),
+                        visualDensity: VisualDensity.compact,
                         tooltip: null,
                         onPressed: () => _showDescription(context),
                       ),
@@ -84,8 +89,8 @@ class _SettingsSectionState extends State<SettingsSection> {
               ),
             ),
             if (_expanded) ...[
-              const SizedBox(height: 6),
-              const Divider(height: 16),
+              const SizedBox(height: 4),
+              const Divider(height: 12),
               widget.child,
             ],
           ],

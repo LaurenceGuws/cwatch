@@ -21,6 +21,7 @@ class SelectableListItem extends StatefulWidget {
     this.onLongPress,
     this.onSecondaryTapDown,
     this.horizontalPadding,
+    this.stripeIndex,
   });
 
   final String title;
@@ -38,6 +39,7 @@ class SelectableListItem extends StatefulWidget {
   final VoidCallback? onLongPress;
   final void Function(TapDownDetails details)? onSecondaryTapDown;
   final double? horizontalPadding;
+  final int? stripeIndex;
 
   @override
   State<SelectableListItem> createState() => _SelectableListItemState();
@@ -49,9 +51,13 @@ class _SelectableListItemState extends State<SelectableListItem> {
     final scheme = Theme.of(context).colorScheme;
     final spacing = context.appTheme.spacing;
     final listTokens = context.appTheme.list;
-    final background = widget.selected
-        ? listTokens.selectedBackground
-        : Colors.transparent;
+    final stripeBackground = widget.stripeIndex == null
+        ? Colors.transparent
+        : (widget.stripeIndex!.isEven
+            ? listTokens.stripeEvenBackground
+            : listTokens.stripeOddBackground);
+    final background =
+        widget.selected ? listTokens.selectedBackground : stripeBackground;
     final foreground = widget.selected
         ? listTokens.selectedForeground
         : listTokens.unselectedForeground;
@@ -66,7 +72,7 @@ class _SelectableListItemState extends State<SelectableListItem> {
 
     return Material(
       color: background,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.zero,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTapDown: widget.onTapDown,
@@ -76,7 +82,7 @@ class _SelectableListItemState extends State<SelectableListItem> {
           onTap: widget.onTap,
           onDoubleTap: widget.onDoubleTap,
           onLongPress: widget.onLongPress,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.zero,
           overlayColor: overlay,
           enableFeedback: false,
           splashFactory: NoSplash.splashFactory,
@@ -84,10 +90,10 @@ class _SelectableListItemState extends State<SelectableListItem> {
           hoverColor: Colors.transparent,
           child: Container(
             padding: EdgeInsets.symmetric(
-              horizontal: widget.horizontalPadding ?? spacing.base * 0.75,
-              vertical: spacing.base * 1.2,
+              horizontal: widget.horizontalPadding ?? spacing.base * 0.6,
+              vertical: spacing.base * 0.9,
             ),
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
+            decoration: const BoxDecoration(borderRadius: BorderRadius.zero),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [

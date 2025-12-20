@@ -181,6 +181,80 @@ class SelectableListKeyboardHandler extends StatefulWidget {
 
 class _SelectableListKeyboardHandlerState
     extends State<SelectableListKeyboardHandler> {
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent &&
+        event is! KeyRepeatEvent &&
+        event is! KeyUpEvent) {
+      return KeyEventResult.ignored;
+    }
+    final key = event.logicalKey;
+    final isHandledKey = key == LogicalKeyboardKey.arrowDown ||
+        key == LogicalKeyboardKey.arrowUp ||
+        key == LogicalKeyboardKey.home ||
+        key == LogicalKeyboardKey.end ||
+        key == LogicalKeyboardKey.space ||
+        key == LogicalKeyboardKey.enter;
+    if (event is KeyUpEvent) {
+      return isHandledKey ? KeyEventResult.handled : KeyEventResult.ignored;
+    }
+    if (!isHandledKey || widget.itemCount == 0) {
+      return KeyEventResult.ignored;
+    }
+
+    final controller = widget.controller;
+    final hardware = HardwareKeyboard.instance;
+    final isShift = hardware.isShiftPressed;
+    if (key == LogicalKeyboardKey.arrowDown) {
+      if (isShift) {
+        final target = (controller.focusedIndex ?? 0) + 1;
+        controller.extendSelection(target);
+      } else {
+        controller.moveFocus(1);
+      }
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowUp) {
+      if (isShift) {
+        final target = (controller.focusedIndex ?? 0) - 1;
+        controller.extendSelection(target);
+      } else {
+        controller.moveFocus(-1);
+      }
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.home) {
+      if (isShift) {
+        controller.extendSelection(0);
+      } else {
+        controller.focusFirst(select: true);
+      }
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.end) {
+      if (isShift) {
+        controller.extendSelection(widget.itemCount - 1);
+      } else {
+        controller.focusLast(select: true);
+      }
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.space) {
+      final index = controller.focusedIndex;
+      if (index != null) {
+        controller.toggle(index);
+      }
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.enter) {
+      final index = controller.focusedIndex;
+      if (index != null) {
+        widget.onActivate?.call(index);
+      }
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -222,6 +296,7 @@ class _SelectableListKeyboardHandlerState
     return Focus(
       focusNode: widget.focusNode,
       onFocusChange: (_) => controller.setItemCount(itemCount),
+      onKeyEvent: _handleKeyEvent,
       child: Shortcuts(
         shortcuts: shortcuts,
         child: Actions(

@@ -100,6 +100,7 @@ class FileEntryList extends StatelessWidget {
               final remotePath = joinPath(currentPath, entry.name);
               final session = localEdits[remotePath];
               return FileEntryTile(
+                stripeIndex: index,
                 entry: entry,
                 remotePath: remotePath,
                 selected: selectedPaths.contains(remotePath),
@@ -136,6 +137,7 @@ class FileEntryList extends StatelessWidget {
 class FileEntryTile extends StatefulWidget {
   const FileEntryTile({
     super.key,
+    required this.stripeIndex,
     required this.entry,
     required this.remotePath,
     required this.selected,
@@ -154,6 +156,7 @@ class FileEntryTile extends StatefulWidget {
   });
 
   final RemoteFileEntry entry;
+  final int stripeIndex;
   final String remotePath;
   final bool selected;
   final LocalFileSession? session;
@@ -302,6 +305,7 @@ class _FileEntryTileState extends State<FileEntryTile> {
           _dragStarted = false;
         },
         child: SelectableListItem(
+          stripeIndex: widget.stripeIndex,
           title: widget.entry.name,
           subtitle: widget.entry.isDirectory
               ? 'Directory'

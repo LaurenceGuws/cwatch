@@ -518,9 +518,11 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                     onPressed: () =>
                         ExternalAppLauncher.openConfigFile(onlyPath, context),
                   ),
-                  children: contextsForPath
-                      .map((ctx) => _buildContextTile(ctx))
-                      .toList(),
+                  children: List.generate(
+                    contextsForPath.length,
+                    (index) =>
+                        _buildContextTile(contextsForPath[index], index),
+                  ),
                 ),
               ),
             ],
@@ -549,9 +551,11 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                           context,
                         ),
                       ),
-                      children: contextsForPath
-                          .map((ctx) => _buildContextTile(ctx))
-                          .toList(),
+                      children: List.generate(
+                        contextsForPath.length,
+                        (index) =>
+                            _buildContextTile(contextsForPath[index], index),
+                      ),
                     ),
                   );
                 },
@@ -563,7 +567,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     );
   }
 
-  Widget _buildContextTile(KubeconfigContext context) {
+  Widget _buildContextTile(KubeconfigContext context, int stripeIndex) {
     final selected = _selectedContextKey == _contextKey(context);
     final scheme = Theme.of(this.context).colorScheme;
     final statusColor = context.isCurrent
@@ -574,6 +578,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     final statusDotScale = 10 / iconSize;
     Offset? lastPointer;
     return SelectableListItem(
+      stripeIndex: stripeIndex,
       selected: selected,
       title: context.name,
       subtitle: _contextSubtitle(context),

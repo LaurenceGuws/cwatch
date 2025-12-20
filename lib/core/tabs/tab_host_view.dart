@@ -153,6 +153,10 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
   bool _hoveringBar = false;
   bool _touchScrolling = false;
   bool _reschedulePending = false;
+  bool _overflowUpdateScheduled = false;
+  bool? _pendingOverflow;
+  bool _touchUpdateScheduled = false;
+  bool? _pendingTouchScrolling;
   Timer? _hoverHideTimer;
   Timer? _scrollHideTimer;
 
@@ -195,9 +199,7 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
     final viewport = position.viewportDimension;
     final overflow = max > viewport + 0.5;
     if (_hasOverflow != overflow) {
-      setState(() {
-        _hasOverflow = overflow;
-      });
+      _scheduleOverflowUpdate(overflow);
     }
   }
 
@@ -205,27 +207,61 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
     final max = metrics.maxScrollExtent;
     final overflow = max > metrics.viewportDimension + 0.5;
     if (_hasOverflow != overflow) {
-      setState(() {
-        _hasOverflow = overflow;
-      });
+      _scheduleOverflowUpdate(overflow);
     }
     return false;
+  }
+
+  void _scheduleOverflowUpdate(bool overflow) {
+    _pendingOverflow = overflow;
+    if (_overflowUpdateScheduled) {
+      return;
+    }
+    _overflowUpdateScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _overflowUpdateScheduled = false;
+      final next = _pendingOverflow;
+      _pendingOverflow = null;
+      if (!mounted || next == null || _hasOverflow == next) {
+        return;
+      }
+      setState(() => _hasOverflow = next);
+    });
   }
 
   bool _handleScrollActivity(ScrollNotification notification) {
     if (notification is ScrollStartNotification ||
         notification is ScrollUpdateNotification) {
       _scrollHideTimer?.cancel();
-      if (!_touchScrolling) setState(() => _touchScrolling = true);
+      if (!_touchScrolling) {
+        _scheduleTouchScrollingUpdate(true);
+      }
     } else if (notification is ScrollEndNotification) {
       _scrollHideTimer?.cancel();
       _scrollHideTimer = Timer(const Duration(milliseconds: 400), () {
         if (mounted && _touchScrolling) {
-          setState(() => _touchScrolling = false);
+          _scheduleTouchScrollingUpdate(false);
         }
       });
     }
     return false;
+  }
+
+  void _scheduleTouchScrollingUpdate(bool value) {
+    _pendingTouchScrolling = value;
+    if (_touchUpdateScheduled) {
+      return;
+    }
+    _touchUpdateScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _touchUpdateScheduled = false;
+      final next = _pendingTouchScrolling;
+      _pendingTouchScrolling = null;
+      if (!mounted || next == null || _touchScrolling == next) {
+        return;
+      }
+      setState(() => _touchScrolling = next);
+    });
   }
 
   @override

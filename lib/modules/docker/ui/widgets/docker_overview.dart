@@ -72,6 +72,7 @@ class _DockerOverviewState extends State<DockerOverview> {
   late final ContainerDistroManager _containerDistroManager;
   final FocusNode _containerFocus = FocusNode(debugLabel: 'docker-containers');
   final Map<String, bool> _containerRunning = {};
+  bool _didProbeDistro = false;
   AppIcons get _icons => context.appTheme.icons;
   AppDockerTokens get _dockerTheme => context.appTheme.docker;
   bool _tabOptionsRegistered = false;
@@ -158,6 +159,10 @@ class _DockerOverviewState extends State<DockerOverview> {
   }
 
   void _trackContainerDistro(List<DockerContainer> containers) {
+    if (_didProbeDistro) {
+      return;
+    }
+    _didProbeDistro = true;
     for (final container in containers) {
       final key = containerDistroCacheKey(container);
       final wasRunning = _containerRunning[key] ?? false;
@@ -210,8 +215,9 @@ class _DockerOverviewState extends State<DockerOverview> {
   @override
   Widget build(BuildContext context) {
     final dockerTheme = _dockerTheme;
+    final spacing = context.appTheme.spacing;
     return Padding(
-      padding: const EdgeInsets.all(8),
+      padding: EdgeInsets.all(spacing.xs),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -285,8 +291,12 @@ class _DockerOverviewState extends State<DockerOverview> {
                 }
                 return ListView(
                   children: [
-                    Wrap(spacing: 8, runSpacing: 8, children: statsCards),
-                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: spacing.sm,
+                      runSpacing: spacing.sm,
+                      children: statsCards,
+                    ),
+                    SizedBox(height: spacing.base),
                     Focus(
                       focusNode: _containerFocus,
                       onKeyEvent: _handleContainerKey,
@@ -313,7 +323,7 @@ class _DockerOverviewState extends State<DockerOverview> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: spacing.xs),
                     SectionCard(
                       title: 'Images',
                       child: ImagePeek(
@@ -322,7 +332,7 @@ class _DockerOverviewState extends State<DockerOverview> {
                         selectedIds: _controller.selectedImageKeys,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: spacing.xs),
                     SectionCard(
                       title: 'Networks',
                       child: NetworkList(
@@ -331,7 +341,7 @@ class _DockerOverviewState extends State<DockerOverview> {
                         selectedIds: _controller.selectedNetworkKeys,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: spacing.xs),
                     SectionCard(
                       title: 'Volumes',
                       child: VolumeList(

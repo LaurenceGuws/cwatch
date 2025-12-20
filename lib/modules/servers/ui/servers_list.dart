@@ -67,6 +67,7 @@ class _ServersListState extends State<ServersList> {
   late final SshShellFactory _shellFactory;
   late final HostDistroManager _distroManager;
   final Map<String, bool> _hostAvailability = {};
+  bool _didProbeHostDistro = false;
   late final VoidCallback _settingsListener;
   late final VoidCallback _tabsListener;
   late final TabViewRegistry<ServerTab> _tabRegistry;
@@ -241,6 +242,10 @@ class _ServersListState extends State<ServersList> {
   }
 
   void _trackHostDistroChecks(List<SshHost> hosts) {
+    if (_didProbeHostDistro) {
+      return;
+    }
+    _didProbeHostDistro = true;
     for (final host in hosts) {
       final key = hostDistroCacheKey(host);
       final wasAvailable = _hostAvailability[key] ?? false;

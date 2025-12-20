@@ -32,114 +32,14 @@ class SshAuthPrompter {
       return const SshKeyUnlockResult(unlocked: true);
     }
     if (!context.mounted) return const SshKeyUnlockResult(unlocked: false);
-
-    final controller = TextEditingController();
-    String? errorText;
-    bool loading = false;
     final success = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            Future<void> attemptUnlock() async {
-              if (loading) return;
-              final password = controller.text.trim();
-              if (password.isEmpty) {
-                setState(() => errorText = 'Password is required');
-                return;
-              }
-              setState(() {
-                loading = true;
-                errorText = null;
-              });
-              try {
-                final result = await keyService.unlock(
-                  request.keyId,
-                  password: password,
-                );
-                if (result.isUnlocked) {
-                  if (!dialogContext.mounted) return;
-                  Navigator.of(dialogContext).pop(true);
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(
-                      content: Text('Key unlocked for this session.'),
-                    ),
-                  );
-                } else if (result.status ==
-                    BuiltInSshKeyUnlockStatus.incorrectPassword) {
-                  setState(() {
-                    errorText = 'Incorrect password. Please try again.';
-                    loading = false;
-                  });
-                } else {
-                  setState(() {
-                    errorText = result.message ?? 'Failed to unlock.';
-                    loading = false;
-                  });
-                }
-              } catch (e) {
-                setState(() {
-                  errorText = 'Failed to unlock: $e';
-                  loading = false;
-                });
-              }
-            }
-
-            return AlertDialog(
-              title: Text('Unlock ${request.keyLabel ?? 'key'}'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Host: ${request.hostName}'),
-                  if (request.storageEncrypted) ...[
-                    const SizedBox(height: 6),
-                    const Text('Storage password required.'),
-                  ],
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: controller,
-                    obscureText: true,
-                    decoration: const InputDecoration(labelText: 'Password'),
-                    enabled: !loading,
-                  ),
-                  if (errorText != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      errorText!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: loading
-                      ? null
-                      : () {
-                          Navigator.of(dialogContext).pop(false);
-                        },
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: loading ? null : attemptUnlock,
-                  child: loading
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Unlock'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (dialogContext) => _SshUnlockDialog(
+        keyService: keyService,
+        request: request,
+      ),
     );
-    _disposeControllerAfterFrame(controller);
     return SshKeyUnlockResult(unlocked: success == true);
   }
 
@@ -148,89 +48,210 @@ class SshAuthPrompter {
     SshPassphraseRequest request,
   ) async {
     if (!context.mounted) return null;
-    final controller = TextEditingController();
-    String? errorText;
-    bool loading = false;
     final passphrase = await showDialog<String>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            Future<void> submit() async {
-              if (loading) return;
-              final value = controller.text.trim();
-              if (value.isEmpty) {
-                setState(() => errorText = 'Passphrase is required');
-                return;
-              }
-              setState(() {
-                loading = true;
-                errorText = null;
-              });
-              Navigator.of(dialogContext).pop(value);
-            }
-
-            return AlertDialog(
-              title: Text(
-                request.kind == SshPassphraseKind.identityFile
-                    ? 'Identity passphrase required'
-                    : 'Key passphrase required',
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Host: ${request.hostName}'),
-                  const SizedBox(height: 8),
-                  Text(request.targetLabel),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: controller,
-                    obscureText: true,
-                    decoration: const InputDecoration(labelText: 'Passphrase'),
-                    enabled: !loading,
-                  ),
-                  if (errorText != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      errorText!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: loading
-                      ? null
-                      : () {
-                          Navigator.of(dialogContext).pop();
-                        },
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: loading ? null : submit,
-                  child: loading
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Submit'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (dialogContext) => _SshPassphraseDialog(request: request),
     );
-    _disposeControllerAfterFrame(controller);
     return passphrase;
   }
+}
 
-  static void _disposeControllerAfterFrame(TextEditingController controller) {
-    WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
+class _SshUnlockDialog extends StatefulWidget {
+  const _SshUnlockDialog({
+    required this.keyService,
+    required this.request,
+  });
+
+  final BuiltInSshKeyService keyService;
+  final SshKeyUnlockRequest request;
+
+  @override
+  State<_SshUnlockDialog> createState() => _SshUnlockDialogState();
+}
+
+class _SshUnlockDialogState extends State<_SshUnlockDialog> {
+  final TextEditingController _controller = TextEditingController();
+  String? _errorText;
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _attemptUnlock() async {
+    if (_loading) return;
+    final password = _controller.text.trim();
+    if (password.isEmpty) {
+      setState(() => _errorText = 'Password is required');
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _errorText = null;
+    });
+    try {
+      final result = await widget.keyService.unlock(
+        widget.request.keyId,
+        password: password,
+      );
+      if (!mounted) return;
+      if (result.isUnlocked) {
+        Navigator.of(context).pop(true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Key unlocked for this session.')),
+        );
+      } else if (result.status ==
+          BuiltInSshKeyUnlockStatus.incorrectPassword) {
+        setState(() {
+          _errorText = 'Incorrect password. Please try again.';
+          _loading = false;
+        });
+      } else {
+        setState(() {
+          _errorText = result.message ?? 'Failed to unlock.';
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorText = 'Failed to unlock: $e';
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Unlock ${widget.request.keyLabel ?? 'key'}'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Host: ${widget.request.hostName}'),
+          if (widget.request.storageEncrypted) ...[
+            const SizedBox(height: 6),
+            const Text('Storage password required.'),
+          ],
+          const SizedBox(height: 8),
+          TextField(
+            controller: _controller,
+            obscureText: true,
+            decoration: const InputDecoration(labelText: 'Password'),
+            enabled: !_loading,
+          ),
+          if (_errorText != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _errorText!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: _loading ? null : () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _loading ? null : _attemptUnlock,
+          child: _loading
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Unlock'),
+        ),
+      ],
+    );
+  }
+}
+
+class _SshPassphraseDialog extends StatefulWidget {
+  const _SshPassphraseDialog({required this.request});
+
+  final SshPassphraseRequest request;
+
+  @override
+  State<_SshPassphraseDialog> createState() => _SshPassphraseDialogState();
+}
+
+class _SshPassphraseDialogState extends State<_SshPassphraseDialog> {
+  final TextEditingController _controller = TextEditingController();
+  String? _errorText;
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (_loading) return;
+    final value = _controller.text.trim();
+    if (value.isEmpty) {
+      setState(() => _errorText = 'Passphrase is required');
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _errorText = null;
+    });
+    Navigator.of(context).pop(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(
+        widget.request.kind == SshPassphraseKind.identityFile
+            ? 'Identity passphrase required'
+            : 'Key passphrase required',
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Host: ${widget.request.hostName}'),
+          const SizedBox(height: 8),
+          Text(widget.request.targetLabel),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _controller,
+            obscureText: true,
+            decoration: const InputDecoration(labelText: 'Passphrase'),
+            enabled: !_loading,
+          ),
+          if (_errorText != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _errorText!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: _loading ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _loading ? null : _submit,
+          child: _loading
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Submit'),
+        ),
+      ],
+    );
   }
 }

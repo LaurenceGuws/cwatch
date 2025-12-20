@@ -35,17 +35,16 @@ class ActionPicker {
           content: SizedBox(
             width: 360,
             child: SectionList(
-              children: options
-                  .map(
-                    (option) => SectionListItem(
-                      title: option.title,
-                      subtitle: option.subtitle,
-                      leading: Icon(option.icon, color: scheme.primary),
-                      onTap: () =>
-                          Navigator.of(dialogContext).pop(option.value),
-                    ),
-                  )
-                  .toList(),
+              children: List.generate(options.length, (index) {
+                final option = options[index];
+                return SectionListItem(
+                  stripeIndex: index,
+                  title: option.title,
+                  subtitle: option.subtitle,
+                  leading: Icon(option.icon, color: scheme.primary),
+                  onTap: () => Navigator.of(dialogContext).pop(option.value),
+                );
+              }),
             ),
           ),
           actions: [

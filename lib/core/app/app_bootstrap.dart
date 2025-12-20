@@ -75,7 +75,7 @@ class _CwatchAppState extends State<CwatchApp> {
     AppThemeTokens tokens,
     String? fontFamily,
   ) {
-    final baseRadius = BorderRadius.circular(10);
+    final baseRadius = BorderRadius.circular(2);
     return ThemeData(
       colorScheme: scheme,
       useMaterial3: true,
@@ -101,7 +101,7 @@ class _CwatchAppState extends State<CwatchApp> {
       ),
       listTileTheme: ListTileThemeData(
         dense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         shape: RoundedRectangleBorder(borderRadius: baseRadius),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -116,12 +116,12 @@ class _CwatchAppState extends State<CwatchApp> {
           borderSide: BorderSide(color: scheme.primary),
         ),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 10,
+          horizontal: 8,
+          vertical: 6,
         ),
       ),
       scrollbarTheme: ScrollbarThemeData(
-        radius: const Radius.circular(12),
+        radius: const Radius.circular(2),
         thickness: WidgetStateProperty.all(4),
         thumbVisibility: WidgetStateProperty.all(true),
         thumbColor: WidgetStateProperty.all(

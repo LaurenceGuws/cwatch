@@ -183,6 +183,7 @@ class _HostListState extends State<HostList> {
     final tilePadding = context.appTheme.spacing.base * 0.4;
 
     return SelectableListItem(
+      stripeIndex: index,
       selected: selected,
       focused: focused,
       title: host.name,

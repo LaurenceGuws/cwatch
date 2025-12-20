@@ -15,6 +15,7 @@ class SectionListItem extends StatelessWidget {
     this.onSecondaryTapDown,
     this.selected = false,
     this.busy = false,
+    this.stripeIndex,
   });
 
   final String title;
@@ -28,14 +29,20 @@ class SectionListItem extends StatelessWidget {
   final void Function(TapDownDetails details)? onSecondaryTapDown;
   final bool selected;
   final bool busy;
+  final int? stripeIndex;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final spacing = context.appTheme.spacing;
-    final background = selected
-        ? scheme.primary.withValues(alpha: 0.08)
-        : Colors.transparent;
+    final listTokens = context.appTheme.list;
+    final stripeBackground = stripeIndex == null
+        ? Colors.transparent
+        : (stripeIndex!.isEven
+            ? listTokens.stripeEvenBackground
+            : listTokens.stripeOddBackground);
+    final background =
+        selected ? scheme.primary.withValues(alpha: 0.08) : stripeBackground;
     final foreground = selected ? scheme.primary : scheme.onSurface;
 
     return GestureDetector(
@@ -48,8 +55,8 @@ class SectionListItem extends StatelessWidget {
         child: Container(
           color: background,
           padding: EdgeInsets.symmetric(
-            horizontal: spacing.base * 2,
-            vertical: spacing.base * 1.2,
+            horizontal: spacing.base * 1.5,
+            vertical: spacing.base,
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,

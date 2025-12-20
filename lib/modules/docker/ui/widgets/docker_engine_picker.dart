@@ -84,7 +84,8 @@ class _EnginePickerState extends State<EnginePicker> {
             final iconSize = _leadingIconSize(context);
             return SectionList(
               title: 'Local contexts',
-              children: contexts.map((ctx) {
+              children: List.generate(contexts.length, (index) {
+                final ctx = contexts[index];
                 Offset? lastPointer;
                 final isSelected = _selectedContext == ctx.name;
                 void select() {
@@ -100,6 +101,7 @@ class _EnginePickerState extends State<EnginePicker> {
                 }
 
                 return SelectableListItem(
+                  stripeIndex: index,
                   selected: isSelected,
                   title: ctx.name,
                   leading: Icon(
@@ -113,7 +115,7 @@ class _EnginePickerState extends State<EnginePicker> {
                   onLongPress: () => open(lastPointer),
                   onSecondaryTapDown: (details) => open(details.globalPosition),
                 );
-              }).toList(),
+              }),
             );
           },
         ),
@@ -268,7 +270,8 @@ class RemoteHostList extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final iconSize = _leadingIconSize(context);
     return SectionList(
-      children: hosts.map((status) {
+      children: List.generate(hosts.length, (index) {
+        final status = hosts[index];
         final statusColor = status.available ? scheme.primary : scheme.error;
         final isSelected = selectedHostName == status.host.name;
         final slug = settingsController
@@ -277,6 +280,7 @@ class RemoteHostList extends StatelessWidget {
         final iconColor = colorForDistro(slug, context.appTheme);
         Offset? lastPointer;
         return SelectableListItem(
+          stripeIndex: index,
           selected: isSelected,
           title: status.host.name,
           subtitle: status.detail,
@@ -297,7 +301,7 @@ class RemoteHostList extends StatelessWidget {
             ),
           ),
         );
-      }).toList(),
+      }),
     );
   }
 }
