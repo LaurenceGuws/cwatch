@@ -10,8 +10,12 @@ class GenericList<T> extends StatefulWidget {
     super.key,
     required this.rows,
     required this.columns,
+    this.hiddenColumnIds = const {},
+    this.columnIdBuilder,
     this.actions = const [],
     this.metadataBuilder,
+    this.searchQuery = '',
+    this.rowSearchTextBuilder,
     this.onRowDoubleTap,
     this.rowHeight = 64,
     this.horizontalController,
@@ -32,8 +36,12 @@ class GenericList<T> extends StatefulWidget {
 
   final List<T> rows;
   final List<StructuredDataColumn<T>> columns;
+  final Set<String> hiddenColumnIds;
+  final String Function(StructuredDataColumn<T> column)? columnIdBuilder;
   final List<StructuredDataAction<T>> actions;
   final List<StructuredDataChip> Function(T row)? metadataBuilder;
+  final String searchQuery;
+  final String Function(T row)? rowSearchTextBuilder;
   final ValueChanged<T>? onRowDoubleTap;
   final double rowHeight;
   final ScrollController? horizontalController;
@@ -50,10 +58,11 @@ class GenericList<T> extends StatefulWidget {
   final void Function(
     StructuredDataCellRange sourceRange,
     StructuredDataCellRange targetRange,
-  )? onFillHandleCopy;
+  )?
+  onFillHandleCopy;
   final Object Function(T row, List<T> selectedRows)? rowDragPayloadBuilder;
   final Widget Function(BuildContext context, T row, List<T> selectedRows)?
-      rowDragFeedbackBuilder;
+  rowDragFeedbackBuilder;
 
   @override
   State<GenericList<T>> createState() => _GenericListState<T>();
@@ -77,7 +86,8 @@ class _GenericListState<T> extends State<GenericList<T>> {
   }
 
   List<T> get _visibleRows {
-    if (!widget.paginationEnabled || _activeRowsPerPage <= 0) return widget.rows;
+    if (!widget.paginationEnabled || _activeRowsPerPage <= 0)
+      return widget.rows;
     if (widget.rows.isEmpty) return const [];
     final start = _currentPage * _activeRowsPerPage;
     if (start >= widget.rows.length) return const [];
@@ -175,7 +185,11 @@ class _GenericListState<T> extends State<GenericList<T>> {
               rowHeight: widget.rowHeight,
               shrinkToContent: false,
               columns: widget.columns,
+              hiddenColumnIds: widget.hiddenColumnIds,
+              columnIdBuilder: widget.columnIdBuilder,
               metadataBuilder: widget.metadataBuilder,
+              searchQuery: widget.searchQuery,
+              rowSearchTextBuilder: widget.rowSearchTextBuilder,
               rowActions: widget.actions,
               onRowDoubleTap: widget.onRowDoubleTap,
               horizontalController: widget.horizontalController,
@@ -204,14 +218,15 @@ class _GenericListState<T> extends State<GenericList<T>> {
                 color: Theme.of(context).colorScheme.surface,
                 border: Border(
                   top: BorderSide(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .outlineVariant
-                        .withValues(alpha: 0.4),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.outlineVariant.withValues(alpha: 0.4),
                   ),
                 ),
               ),
-              padding: EdgeInsets.symmetric(horizontal: context.appTheme.spacing.base),
+              padding: EdgeInsets.symmetric(
+                horizontal: context.appTheme.spacing.base,
+              ),
               child: _buildPaginationControls(context),
             ),
           ),

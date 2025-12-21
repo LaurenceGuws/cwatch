@@ -90,10 +90,7 @@ class StructuredDataCellCoordinate {
 }
 
 class StructuredDataCellRange {
-  const StructuredDataCellRange({
-    required this.anchor,
-    required this.extent,
-  });
+  const StructuredDataCellRange({required this.anchor, required this.extent});
 
   final StructuredDataCellCoordinate anchor;
   final StructuredDataCellCoordinate extent;
@@ -112,6 +109,8 @@ class StructuredDataTable<T> extends StatefulWidget {
     super.key,
     required this.rows,
     required this.columns,
+    this.hiddenColumnIds = const {},
+    this.columnIdBuilder,
     this.verticalController,
     this.horizontalController,
     this.onRowTap,
@@ -122,6 +121,8 @@ class StructuredDataTable<T> extends StatefulWidget {
     this.rowActions = const [],
     this.metadataBuilder,
     this.emptyState,
+    this.searchQuery = '',
+    this.rowSearchTextBuilder,
     this.allowMultiSelect = true,
     this.rowHeight = 60,
     this.headerHeight = 38,
@@ -140,6 +141,8 @@ class StructuredDataTable<T> extends StatefulWidget {
 
   final List<T> rows;
   final List<StructuredDataColumn<T>> columns;
+  final Set<String> hiddenColumnIds;
+  final String Function(StructuredDataColumn<T> column)? columnIdBuilder;
   final ScrollController? verticalController;
   final ScrollController? horizontalController;
   final ValueChanged<T>? onRowTap;
@@ -150,6 +153,8 @@ class StructuredDataTable<T> extends StatefulWidget {
   final List<StructuredDataAction<T>> rowActions;
   final List<StructuredDataChip> Function(T row)? metadataBuilder;
   final Widget? emptyState;
+  final String searchQuery;
+  final String Function(T row)? rowSearchTextBuilder;
   final bool allowMultiSelect;
   final double rowHeight;
   final double headerHeight;
@@ -164,10 +169,11 @@ class StructuredDataTable<T> extends StatefulWidget {
   final void Function(
     StructuredDataCellRange sourceRange,
     StructuredDataCellRange targetRange,
-  )? onFillHandleCopy;
+  )?
+  onFillHandleCopy;
   final Object Function(T row, List<T> selectedRows)? rowDragPayloadBuilder;
   final Widget Function(BuildContext context, T row, List<T> selectedRows)?
-      rowDragFeedbackBuilder;
+  rowDragFeedbackBuilder;
 
   @override
   State<StructuredDataTable<T>> createState() => _StructuredDataTableState<T>();
@@ -210,13 +216,14 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
   bool _scrollToColumnScheduled = false;
 
   List<T> get _visibleRows {
+    final filtered = _applySearch(widget.rows);
     final sortIndex = _sortColumnIndex;
-    if (sortIndex == null) return widget.rows;
-    if (sortIndex < 0 || sortIndex >= _columns.length) return widget.rows;
+    if (sortIndex == null) return filtered;
+    if (sortIndex < 0 || sortIndex >= _columns.length) return filtered;
     final sortValue = _sortValueForColumn(sortIndex);
-    if (sortValue == null) return widget.rows;
+    if (sortValue == null) return filtered;
 
-    final sorted = widget.rows.toList(growable: false);
+    final sorted = filtered.toList(growable: false);
     sorted.sort((a, b) {
       final av = sortValue(a);
       final bv = sortValue(b);
@@ -224,6 +231,49 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       return _sortAscending ? result : -result;
     });
     return sorted;
+  }
+
+  List<T> _applySearch(List<T> rows) {
+    final query = widget.searchQuery.trim().toLowerCase();
+    if (query.isEmpty) return rows;
+    final builder = widget.rowSearchTextBuilder;
+    return rows
+        .where((row) => _rowMatchesQuery(row, query, builder))
+        .toList(growable: false);
+  }
+
+  bool _rowMatchesQuery(T row, String query, String Function(T row)? builder) {
+    if (builder != null) {
+      return builder(row).toLowerCase().contains(query);
+    }
+    var hasSearchableColumn = false;
+    for (final column in _columns) {
+      final textExtractor = column.autoFitText;
+      if (textExtractor == null) continue;
+      hasSearchableColumn = true;
+      if (textExtractor(row).toLowerCase().contains(query)) {
+        return true;
+      }
+    }
+    return !hasSearchableColumn;
+  }
+
+  List<StructuredDataColumn<T>> _buildVisibleColumns() {
+    if (widget.hiddenColumnIds.isEmpty) {
+      return List.of(widget.columns);
+    }
+    final idFor = widget.columnIdBuilder ?? (column) => column.label.trim();
+    final visible = <StructuredDataColumn<T>>[];
+    for (var i = 0; i < widget.columns.length; i++) {
+      final column = widget.columns[i];
+      if (!widget.hiddenColumnIds.contains(idFor(column))) {
+        visible.add(column);
+      }
+    }
+    if (visible.isEmpty && widget.columns.isNotEmpty) {
+      visible.add(widget.columns.first);
+    }
+    return visible;
   }
 
   int _compareNullable(Comparable<Object?>? a, Comparable<Object?>? b) {
@@ -327,7 +377,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
   @override
   void initState() {
     super.initState();
-    _columns = List.of(widget.columns);
+    _columns = _buildVisibleColumns();
     _columnWidthOverrides = List<double?>.filled(
       _columns.length,
       null,
@@ -348,8 +398,9 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
   @override
   void didUpdateWidget(covariant StructuredDataTable<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!_sameColumns(oldWidget.columns, widget.columns)) {
-      _columns = List.of(widget.columns);
+    if (!_sameColumns(oldWidget.columns, widget.columns) ||
+        oldWidget.hiddenColumnIds != widget.hiddenColumnIds) {
+      _columns = _buildVisibleColumns();
       _columnWidthOverrides = List<double?>.filled(
         _columns.length,
         null,
@@ -373,6 +424,17 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       _listController = SelectableListController(
         allowMultiSelect: widget.allowMultiSelect,
       )..addListener(_handleSelectionChanged);
+    }
+    if (oldWidget.searchQuery != widget.searchQuery) {
+      _listController.clearSelection();
+      if (widget.cellSelectionEnabled) {
+        _selectedCell = null;
+        _focusedCell = null;
+        _cellSelectionAnchor = null;
+        _cellSelectionExtent = null;
+        _additionalSelectedCells.clear();
+        _cellEditMode = false;
+      }
     }
     if (oldWidget.verticalController != widget.verticalController &&
         widget.verticalController != null) {
@@ -415,6 +477,15 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       _cellSelectionExtent = null;
       _additionalSelectedCells.clear();
       _cellEditMode = false;
+    }
+    if (_columns.isEmpty && widget.columns.isNotEmpty) {
+      _columns = _buildVisibleColumns();
+      _columnWidthOverrides = List<double?>.filled(
+        _columns.length,
+        null,
+        growable: true,
+      );
+      _autoFitCache.clear();
     }
     _listController.setItemCount(_visibleRows.length);
   }
@@ -506,10 +577,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
     if (_cellEditMode) {
       _exitCellEditMode(commit: false);
     }
-    _updateCellSelection(
-      rowIndex: rowIndex,
-      columnIndex: columnIndex,
-    );
+    _updateCellSelection(rowIndex: rowIndex, columnIndex: columnIndex);
   }
 
   void _updateCellSelection({
@@ -563,16 +631,16 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       return;
     }
     final fallbackRow = _listController.focusedIndex ?? 0;
-    _updateCellFocus(
-      rowIndex: fallbackRow,
-      columnIndex: 0,
-    );
+    _updateCellFocus(rowIndex: fallbackRow, columnIndex: 0);
   }
 
   bool _isCellSelected(int rowIndex, int columnIndex) {
     if (!widget.cellSelectionEnabled) return false;
     if (_additionalSelectedCells.contains(
-      StructuredDataCellCoordinate(rowIndex: rowIndex, columnIndex: columnIndex),
+      StructuredDataCellCoordinate(
+        rowIndex: rowIndex,
+        columnIndex: columnIndex,
+      ),
     )) {
       return true;
     }
@@ -665,15 +733,19 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
 
     if (verticalDelta != 0 && _verticalController.hasClients) {
       final position = _verticalController.position;
-      final next = (position.pixels + verticalDelta)
-          .clamp(position.minScrollExtent, position.maxScrollExtent);
+      final next = (position.pixels + verticalDelta).clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      );
       _verticalController.jumpTo(next);
     }
 
     if (horizontalDelta != 0 && _horizontalController.hasClients) {
       final position = _horizontalController.position;
-      final next = (position.pixels + horizontalDelta)
-          .clamp(position.minScrollExtent, position.maxScrollExtent);
+      final next = (position.pixels + horizontalDelta).clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      );
       _horizontalController.jumpTo(next);
     }
   }
@@ -688,9 +760,8 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
     if (rowIndex < 0 || rowIndex >= _visibleRows.length) {
       return null;
     }
-    var contentX = localPosition.dx +
-        _horizontalController.offset -
-        _lastRowPaddingX;
+    var contentX =
+        localPosition.dx + _horizontalController.offset - _lastRowPaddingX;
     if (contentX <= 0) {
       return StructuredDataCellCoordinate(rowIndex: rowIndex, columnIndex: 0);
     }
@@ -720,8 +791,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
     if (_columns.isEmpty || _lastColumnWidths.isEmpty) {
       return 0;
     }
-    var contentX =
-        localDx + _horizontalController.offset - _lastRowPaddingX;
+    var contentX = localDx + _horizontalController.offset - _lastRowPaddingX;
     if (contentX <= 0) return 0;
     for (var i = 0; i < _lastColumnWidths.length; i++) {
       final width = _lastColumnWidths[i];
@@ -777,10 +847,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
     return rowIndex;
   }
 
-  void _updateCellFocus({
-    required int rowIndex,
-    required int columnIndex,
-  }) {
+  void _updateCellFocus({required int rowIndex, required int columnIndex}) {
     if (!widget.cellSelectionEnabled || _visibleRows.isEmpty) {
       return;
     }
@@ -1020,7 +1087,8 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
     final hardware = HardwareKeyboard.instance;
     final isShift = hardware.isShiftPressed;
     final isControl = hardware.isControlPressed || hardware.isMetaPressed;
-    final current = _focusedCell ??
+    final current =
+        _focusedCell ??
         _selectedCell ??
         StructuredDataCellCoordinate(
           rowIndex: _listController.focusedIndex ?? 0,
@@ -1028,7 +1096,8 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
         );
     final key = event.logicalKey;
     if (event is KeyUpEvent) {
-      final isHandledKey = key == LogicalKeyboardKey.arrowUp ||
+      final isHandledKey =
+          key == LogicalKeyboardKey.arrowUp ||
           key == LogicalKeyboardKey.arrowDown ||
           key == LogicalKeyboardKey.arrowLeft ||
           key == LogicalKeyboardKey.arrowRight ||
@@ -1087,18 +1156,17 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           extend: true,
         );
       } else {
-        _updateCellFocus(
-          rowIndex: nextRow,
-          columnIndex: nextColumn,
-        );
+        _updateCellFocus(rowIndex: nextRow, columnIndex: nextColumn);
       }
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.keyA && isControl) {
       if (_visibleRows.isNotEmpty && _columns.isNotEmpty) {
         setState(() {
-          _cellSelectionAnchor =
-              const StructuredDataCellCoordinate(rowIndex: 0, columnIndex: 0);
+          _cellSelectionAnchor = const StructuredDataCellCoordinate(
+            rowIndex: 0,
+            columnIndex: 0,
+          );
           _cellSelectionExtent = StructuredDataCellCoordinate(
             rowIndex: _visibleRows.length - 1,
             columnIndex: _columns.length - 1,
@@ -1169,10 +1237,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           extend: true,
         );
       } else {
-        _updateCellFocus(
-          rowIndex: nextRow,
-          columnIndex: current.columnIndex,
-        );
+        _updateCellFocus(rowIndex: nextRow, columnIndex: current.columnIndex);
       }
       return KeyEventResult.handled;
     }
@@ -1187,10 +1252,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           extend: true,
         );
       } else {
-        _updateCellFocus(
-          rowIndex: nextRow,
-          columnIndex: current.columnIndex,
-        );
+        _updateCellFocus(rowIndex: nextRow, columnIndex: current.columnIndex);
       }
       return KeyEventResult.handled;
     }
@@ -1205,10 +1267,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           extend: true,
         );
       } else {
-        _updateCellFocus(
-          rowIndex: current.rowIndex,
-          columnIndex: nextColumn,
-        );
+        _updateCellFocus(rowIndex: current.rowIndex, columnIndex: nextColumn);
       }
       return KeyEventResult.handled;
     }
@@ -1223,10 +1282,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           extend: true,
         );
       } else {
-        _updateCellFocus(
-          rowIndex: current.rowIndex,
-          columnIndex: nextColumn,
-        );
+        _updateCellFocus(rowIndex: current.rowIndex, columnIndex: nextColumn);
       }
       return KeyEventResult.handled;
     }
@@ -1433,7 +1489,8 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           widget.cellSelectionEnabled &&
           _isCellSelected(rowIndex!, i);
       final isHoveredCell = isBodyCell && _isHoveredCell(rowIndex!, i);
-      final isHoveredColumn = widget.cellSelectionEnabled &&
+      final isHoveredColumn =
+          widget.cellSelectionEnabled &&
           _hoveredCell != null &&
           _hoveredCell!.columnIndex == i;
       final separatorSide = BorderSide(
@@ -1448,8 +1505,10 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       final highlightColor = scheme.primary.withValues(alpha: 0.85);
       final rangeFill = scheme.primary.withValues(alpha: 0.14);
       final selectedCellBorder = Border.all(color: highlightColor, width: 1.4);
-      final focusedCellBorder =
-          Border.all(color: scheme.primary.withValues(alpha: 0.6), width: 1.1);
+      final focusedCellBorder = Border.all(
+        color: scheme.primary.withValues(alpha: 0.6),
+        width: 1.1,
+      );
       final hoverFill = scheme.primary.withValues(alpha: 0.08);
       final columnHoverFill = scheme.primary.withValues(alpha: 0.02);
       final cellDecoration = BoxDecoration(
@@ -1457,12 +1516,12 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
         color: isRangeCell
             ? rangeFill
             : (isHoveredCell
-                ? hoverFill
-                : (isHoveredColumn ? columnHoverFill : null)),
+                  ? hoverFill
+                  : (isHoveredColumn ? columnHoverFill : null)),
         border: widget.cellSelectionEnabled
             ? (isSelectedCell
-                ? selectedCellBorder
-                : (isFocusedCell ? focusedCellBorder : defaultCellBorder))
+                  ? selectedCellBorder
+                  : (isFocusedCell ? focusedCellBorder : defaultCellBorder))
             : null,
       );
       final cellBody = Container(
@@ -1485,8 +1544,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
               onPointerDown: (event) {
                 if ((event.buttons & kPrimaryButton) != 0) {
                   final isShift = HardwareKeyboard.instance.isShiftPressed;
-                  if (!isShift &&
-                      _isCellSelected(rowIndex!, i)) {
+                  if (!isShift && _isCellSelected(rowIndex!, i)) {
                     return;
                   }
                   _handleCellTap(rowIndex, i);
@@ -1551,43 +1609,42 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
     final hasSpacing = gapWidth > 0;
 
     Widget buildResizeHandle(int index) => SizedBox(
-          width: handleWidth,
-          child: _HeaderResizeHandle(
-            key: ValueKey('structured_data_table.resize.$index'),
-            height: widget.headerHeight,
-            color: scheme.outlineVariant.withValues(alpha: 0.25),
-            onResize: (delta) {
-              setState(() {
-                final column = _columns[index];
-                final current =
-                    _columnWidthOverrides[index] ?? column.width ?? columnWidths[index];
-                final minWidth = max(
-                  _defaultMinFlexColumnWidth,
-                  column.minWidth ?? 0,
-                );
-                _columnWidthOverrides[index] = max(
-                  minWidth,
-                  current + delta,
-                );
-              });
-            },
-            onAutoFit: () => _autoFitColumn(index),
-          ),
-        );
+      width: handleWidth,
+      child: _HeaderResizeHandle(
+        key: ValueKey('structured_data_table.resize.$index'),
+        height: widget.headerHeight,
+        color: scheme.outlineVariant.withValues(alpha: 0.25),
+        onResize: (delta) {
+          setState(() {
+            final column = _columns[index];
+            final current =
+                _columnWidthOverrides[index] ??
+                column.width ??
+                columnWidths[index];
+            final minWidth = max(
+              _defaultMinFlexColumnWidth,
+              column.minWidth ?? 0,
+            );
+            _columnWidthOverrides[index] = max(minWidth, current + delta);
+          });
+        },
+        onAutoFit: () => _autoFitColumn(index),
+      ),
+    );
 
     Widget wrapWithOverlay(Widget base, int index) => Stack(
-          clipBehavior: Clip.none,
-          children: [
-            base,
-            Positioned(
-              top: 0,
-              bottom: 0,
-              right: -handleWidth / 2,
-              width: handleWidth,
-              child: buildResizeHandle(index),
-            ),
-          ],
-        );
+      clipBehavior: Clip.none,
+      children: [
+        base,
+        Positioned(
+          top: 0,
+          bottom: 0,
+          right: -handleWidth / 2,
+          width: handleWidth,
+          child: buildResizeHandle(index),
+        ),
+      ],
+    );
 
     return Container(
       height: widget.headerHeight,
@@ -1668,8 +1725,9 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
             behavior: HitTestBehavior.opaque,
             onTap: sortable ? () => _toggleSort(index) : null,
             child: MouseRegion(
-              cursor:
-                  sortable ? SystemMouseCursors.click : SystemMouseCursors.basic,
+              cursor: sortable
+                  ? SystemMouseCursors.click
+                  : SystemMouseCursors.basic,
               child: Row(children: [Expanded(child: headerCellDecorated)]),
             ),
           );
@@ -1677,8 +1735,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           final dragFeedback = Material(
             color: Colors.transparent,
             child: Container(
-              width: columnWidths[index] +
-                  (hasSpacing ? 0.0 : handleWidth),
+              width: columnWidths[index] + (hasSpacing ? 0.0 : handleWidth),
               padding: EdgeInsets.symmetric(
                 horizontal: spacing.base,
                 vertical: spacing.xs,
@@ -1733,26 +1790,25 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     border: Border(
-                      right:
-                          index == _columns.length - 1
-                              ? BorderSide.none
-                              : separatorSide,
+                      right: index == _columns.length - 1
+                          ? BorderSide.none
+                          : separatorSide,
                     ),
                   ),
                   child: Stack(
                     children: [
-                    Padding(
-                      padding: EdgeInsets.only(
-                        right: dragHandleWidth + dragHandleInsetRight,
+                      Padding(
+                        padding: EdgeInsets.only(
+                          right: dragHandleWidth + dragHandleInsetRight,
+                        ),
+                        child: headerInteractive,
                       ),
-                      child: headerInteractive,
-                    ),
-                    Positioned(
-                      right: dragHandleInsetRight,
-                      top: 0,
-                      bottom: 0,
-                      child: dragHandle,
-                    ),
+                      Positioned(
+                        right: dragHandleInsetRight,
+                        top: 0,
+                        bottom: 0,
+                        child: dragHandle,
+                      ),
                     ],
                   ),
                 ),
@@ -1802,15 +1858,17 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
         ? 0.0
         : spacing.base * 0.7;
     final gapWidth = widget.cellSelectionEnabled ? 0.0 : spacing.base * 1.5;
-    final rowContentWidth = _tableContentWidth(columnWidths, gapWidth) +
+    final rowContentWidth =
+        _tableContentWidth(columnWidths, gapWidth) +
         (widget.cellSelectionEnabled ? 0.0 : 1.0);
 
     final stripeBackground = widget.cellSelectionEnabled
         ? Colors.transparent
         : (index.isEven
-            ? listTokens.stripeEvenBackground
-            : listTokens.stripeOddBackground);
-    final rowHoverBackground = widget.cellSelectionEnabled &&
+              ? listTokens.stripeEvenBackground
+              : listTokens.stripeOddBackground);
+    final rowHoverBackground =
+        widget.cellSelectionEnabled &&
             _hoveredCell != null &&
             _hoveredCell!.rowIndex == index
         ? listTokens.hoverBackground.withValues(alpha: 0.12)
@@ -1862,13 +1920,11 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           onSecondaryTapDown: (details) {
             tapPosition = details.globalPosition;
             if (widget.cellSelectionEnabled) {
-              final columnIndex =
-                  _columnIndexForLocalDx(details.localPosition.dx);
+              final columnIndex = _columnIndexForLocalDx(
+                details.localPosition.dx,
+              );
               if (!_isCellSelected(index, columnIndex)) {
-                _updateCellSelection(
-                  rowIndex: index,
-                  columnIndex: columnIndex,
-                );
+                _updateCellSelection(rowIndex: index, columnIndex: columnIndex);
               }
             }
             _showContextMenuForIndex(index, details.globalPosition);
@@ -1878,8 +1934,9 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
               : (details) {
                   tapPosition = details.globalPosition;
                   if (widget.cellSelectionEnabled) {
-                    final columnIndex =
-                        _columnIndexForLocalDx(details.localPosition.dx);
+                    final columnIndex = _columnIndexForLocalDx(
+                      details.localPosition.dx,
+                    );
                     if (!_isCellSelected(index, columnIndex)) {
                       _updateCellSelection(
                         rowIndex: index,
@@ -1960,7 +2017,8 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
             ? _selectedRows()
             : [row],
       ),
-      feedback: widget.rowDragFeedbackBuilder?.call(
+      feedback:
+          widget.rowDragFeedbackBuilder?.call(
             context,
             row,
             _listController.selectedIndices.contains(index)
@@ -1975,10 +2033,9 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
                 vertical: spacing.xs,
               ),
               decoration: BoxDecoration(
-                color: Theme.of(context)
-                    .colorScheme
-                    .surfaceContainerHighest
-                    .withValues(alpha: 0.9),
+                color: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
                   color: Theme.of(context).colorScheme.outlineVariant,
@@ -1987,8 +2044,8 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
               child: Text(
                 _listController.selectedIndices.contains(index)
                     ? _selectedRows().length > 1
-                        ? '${_selectedRows().length} rows'
-                        : '1 row'
+                          ? '${_selectedRows().length} rows'
+                          : '1 row'
                     : '1 row',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
@@ -2085,9 +2142,9 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
         final columnWidths = _computeColumnWidths(availableWidth);
         final spacing = context.appTheme.spacing;
         final basePadding = spacing.base;
-    final headerPaddingX = widget.cellSelectionEnabled
-        ? basePadding + spacing.xs
-        : basePadding * 1.2 + spacing.xs;
+        final headerPaddingX = widget.cellSelectionEnabled
+            ? basePadding + spacing.xs
+            : basePadding * 1.2 + spacing.xs;
         final rowPaddingX = widget.cellSelectionEnabled
             ? spacing.base + spacing.xs
             : spacing.base * 1.2 + spacing.xs;
@@ -2095,7 +2152,8 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
         _lastColumnWidths = columnWidths;
         _lastGapWidth = gapWidth;
         _lastRowPaddingX = rowPaddingX;
-        final contentWidth = _tableContentWidth(columnWidths, gapWidth) +
+        final contentWidth =
+            _tableContentWidth(columnWidths, gapWidth) +
             (widget.cellSelectionEnabled ? 0.0 : 1.0);
         final paddedWidth = contentWidth + 2 * max(headerPaddingX, rowPaddingX);
         final targetWidth =
@@ -2238,10 +2296,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
               _isMarqueeSelecting = false;
             }
           },
-          child: Container(
-            key: _bodyKey,
-            child: listView,
-          ),
+          child: Container(key: _bodyKey, child: listView),
         ),
       );
     }
@@ -2330,13 +2385,13 @@ class _HeaderDragHandleState extends State<_HeaderDragHandle> {
     final color = _dragActive ? widget.activeColor : widget.inactiveColor;
     final handle = Align(
       alignment: Alignment.centerRight,
-        child: Padding(
-          padding: EdgeInsets.only(
-            left: context.appTheme.spacing.xs,
-            right: context.appTheme.spacing.sm,
-          ),
-          child: Icon(icon, size: 16, color: color),
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: context.appTheme.spacing.xs,
+          right: context.appTheme.spacing.sm,
         ),
+        child: Icon(icon, size: 16, color: color),
+      ),
     );
 
     return MouseRegion(

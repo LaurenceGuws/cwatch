@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -20,43 +21,66 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
   static const int _initialRowCount = 20;
   static const double _rowSliderMin = 5;
   static const double _rowSliderMax = 60;
+  static const String _columnVisibilityKey = 'table_sandbox.columns';
 
   late final List<StructuredDataColumn<WideRow>> _columns;
-  late List<WideRow> _paginatedRows;
-  late List<WideRow> _fullRows;
-  late final ScrollController _paginatedHorizontal;
-  late final ScrollController _paginatedVertical;
-  late final ScrollController _fullHorizontal;
-  late final ScrollController _fullVertical;
-  late final ScrollController _containerHorizontal;
-  late final ScrollController _containerVertical;
+  late List<WideRow> _rows;
+  late final ScrollController _horizontalController;
+  late final ScrollController _verticalController;
+  final _visibilityStore = _ColumnVisibilityStore();
   int _rowCountSetting = _initialRowCount;
   bool _cellSelectionEnabled = false;
-  final Map<String, StructuredDataCellCoordinate?> _cellSelections = {};
-  final Map<String, _DropState> _dropStates = {};
+  StructuredDataCellCoordinate? _selectedCell;
+  Set<String> _hiddenColumnIds = {};
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _columns = _wideColumns(columnCount: _gridColumns);
-    _paginatedHorizontal = ScrollController();
-    _paginatedVertical = ScrollController();
-    _fullHorizontal = ScrollController();
-    _fullVertical = ScrollController();
-    _containerHorizontal = ScrollController();
-    _containerVertical = ScrollController();
+    _horizontalController = ScrollController();
+    _verticalController = ScrollController();
     _resetRows();
+    unawaited(_loadColumnVisibility());
   }
 
   @override
   void dispose() {
-    _paginatedHorizontal.dispose();
-    _paginatedVertical.dispose();
-    _fullHorizontal.dispose();
-    _fullVertical.dispose();
-    _containerHorizontal.dispose();
-    _containerVertical.dispose();
+    _horizontalController.dispose();
+    _verticalController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadColumnVisibility() async {
+    final stored = await _visibilityStore.load(_columnVisibilityKey);
+    if (!mounted) return;
+    if (stored.isEmpty) return;
+    final validIds = _columns.map(_columnId).toSet();
+    stored.retainAll(validIds);
+    if (stored.isEmpty) return;
+    setState(() {
+      _hiddenColumnIds = stored;
+    });
+  }
+
+  Future<void> _persistColumnVisibility() async {
+    await _visibilityStore.save(_columnVisibilityKey, _hiddenColumnIds);
+  }
+
+  String _columnId(StructuredDataColumn<WideRow> column) => column.label.trim();
+
+  void _toggleColumnVisibility(String columnId) {
+    final visibleCount = _columns.length - _hiddenColumnIds.length;
+    setState(() {
+      final nextHidden = Set<String>.from(_hiddenColumnIds);
+      if (nextHidden.contains(columnId)) {
+        nextHidden.remove(columnId);
+      } else if (visibleCount > 1) {
+        nextHidden.add(columnId);
+      }
+      _hiddenColumnIds = nextHidden;
+    });
+    unawaited(_persistColumnVisibility());
   }
 
   void _notify(String message) {
@@ -71,41 +95,29 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
   void _shuffleMetrics() {
     final rand = math.Random();
     setState(() {
-      _paginatedRows = _paginatedRows
-          .map((row) => row.copyWith(seed: rand.nextInt(1000000)))
-          .toList(growable: false);
-      _fullRows = _fullRows
+      _rows = _rows
           .map((row) => row.copyWith(seed: rand.nextInt(1000000)))
           .toList(growable: false);
     });
   }
 
   void _resetRows() {
-    _paginatedRows = _buildSeedRows(
+    _rows = _buildSeedRows(
       rowCount: _rowCountSetting,
       columnCount: _gridColumns,
-      prefix: 'P',
-    );
-    _fullRows = _buildSeedRows(
-      rowCount: _rowCountSetting,
-      columnCount: _gridColumns,
-      prefix: 'F',
+      prefix: 'R',
     );
   }
 
-  Future<void> _editCell(
-    String panelId,
-    StructuredDataCellCoordinate coordinate,
-  ) async {
-    final rows = panelId == 'A' ? _paginatedRows : _fullRows;
-    if (coordinate.rowIndex < 0 || coordinate.rowIndex >= rows.length) {
+  Future<void> _editCell(StructuredDataCellCoordinate coordinate) async {
+    if (coordinate.rowIndex < 0 || coordinate.rowIndex >= _rows.length) {
       return;
     }
     if (coordinate.columnIndex < 0 ||
-        coordinate.columnIndex >= rows[coordinate.rowIndex].cells.length) {
+        coordinate.columnIndex >= _rows[coordinate.rowIndex].cells.length) {
       return;
     }
-    final row = rows[coordinate.rowIndex];
+    final row = _rows[coordinate.rowIndex];
     final existing = row.cells[coordinate.columnIndex];
     final controller = TextEditingController(text: existing);
     final updated = await showDialog<String>(
@@ -142,13 +154,7 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
       final nextCells = List<String>.from(row.cells);
       nextCells[coordinate.columnIndex] = updated;
       final updatedRow = WideRow(cells: nextCells);
-      if (panelId == 'A') {
-        _paginatedRows = List<WideRow>.from(_paginatedRows)
-          ..[coordinate.rowIndex] = updatedRow;
-      } else {
-        _fullRows = List<WideRow>.from(_fullRows)
-          ..[coordinate.rowIndex] = updatedRow;
-      }
+      _rows = List<WideRow>.from(_rows)..[coordinate.rowIndex] = updatedRow;
     });
     _notify('Updated ${_formatCellCoordinate(coordinate)}');
   }
@@ -163,58 +169,23 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
       _rowCountSetting = next;
       _resetRows();
       if (_cellSelectionEnabled) {
-        _cellSelections.clear();
+        _selectedCell = null;
       }
     });
   }
 
-  List<StructuredDataAction<WideRow>> _actions(String labelPrefix) => [
+  List<StructuredDataAction<WideRow>> get _actions => [
     StructuredDataAction<WideRow>(
-      label: '$labelPrefix Open',
+      label: 'Open',
       icon: Icons.open_in_new,
       onSelected: (row) => _notify('Open → ${row.cells.first}'),
     ),
     StructuredDataAction<WideRow>(
-      label: '$labelPrefix Inspect',
+      label: 'Inspect',
       icon: Icons.search,
       onSelected: (row) => _notify('Inspect → ${row.cells.first}'),
     ),
   ];
-
-  _DropState _dropStateFor(String panelId) =>
-      _dropStates[panelId] ?? const _DropState();
-
-  bool _acceptsPayload(String panelId, _RowDragPayload payload) {
-    if (panelId == 'containers') {
-      return payload.sourceType is ContainerEntryType;
-    }
-    return payload.sourceType is ExplorerEntryType;
-  }
-
-  String _dropMessage(String panelId, _RowDragPayload payload, bool accepts) {
-    final label = payload.sourceLabel;
-    if (!accepts) {
-      return panelId == 'containers'
-          ? 'Container list does not accept explorer items'
-          : 'Explorer list does not accept container items';
-    }
-    return 'Copy $label here';
-  }
-
-  void _setDropState(
-    String panelId, {
-    required bool isOver,
-    required bool accepts,
-    String? message,
-  }) {
-    setState(() {
-      _dropStates[panelId] = _DropState(
-        isOver: isOver,
-        accepts: accepts,
-        message: message ?? '',
-      );
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -248,6 +219,7 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
         ],
       ),
     );
+    final visibleCount = _columns.length - _hiddenColumnIds.length;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -267,6 +239,26 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
                 SizedBox(width: spacing.sm),
                 badge,
                 const Spacer(),
+                PopupMenuButton<String>(
+                  tooltip: 'Toggle columns',
+                  icon: const Icon(Icons.view_column),
+                  onSelected: _toggleColumnVisibility,
+                  itemBuilder: (context) => _columns
+                      .map(
+                        (column) => CheckedPopupMenuItem<String>(
+                          value: _columnId(column),
+                          checked: !_hiddenColumnIds.contains(
+                            _columnId(column),
+                          ),
+                          enabled: !_hiddenColumnIds.contains(_columnId(column))
+                              ? visibleCount > 1
+                              : true,
+                          child: Text(column.label),
+                        ),
+                      )
+                      .toList(),
+                ),
+                SizedBox(width: spacing.sm),
                 FilledButton.icon(
                   icon: const Icon(Icons.refresh, size: 18),
                   label: const Text('Shuffle data'),
@@ -276,17 +268,14 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
             ),
             SizedBox(height: spacing.sm),
             Text(
-              'Diff-style demo with 20 columns using two grid configurations '
-              'to showcase pagination on and off.',
+              'Diff-style demo with 20 columns to exercise selection, edit, and '
+              'column visibility controls.',
               style: typography.body.copyWith(color: scheme.onSurfaceVariant),
             ),
             SizedBox(height: spacing.sm),
             Row(
               children: [
-                Text(
-                  'Rows visible: $_rowCountSetting',
-                  style: typography.body,
-                ),
+                Text('Rows visible: $_rowCountSetting', style: typography.body),
                 SizedBox(width: spacing.md),
                 Expanded(
                   child: Slider(
@@ -310,22 +299,43 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
             SizedBox(height: spacing.sm),
             Row(
               children: [
-                Text(
-                  'Enable cell selection',
-                  style: typography.body,
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search rows',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _searchQuery.isEmpty
+                          ? null
+                          : IconButton(
+                              tooltip: 'Clear search',
+                              icon: const Icon(Icons.close),
+                              onPressed: () => setState(() {
+                                _searchQuery = '';
+                              }),
+                            ),
+                    ),
+                    onChanged: (value) => setState(() {
+                      _searchQuery = value;
+                    }),
+                  ),
                 ),
+              ],
+            ),
+            SizedBox(height: spacing.sm),
+            Row(
+              children: [
+                Text('Enable cell selection', style: typography.body),
                 SizedBox(width: spacing.md),
                 Switch(
                   value: _cellSelectionEnabled,
                   onChanged: (value) => setState(() {
                     _cellSelectionEnabled = value;
                     if (!value) {
-                      _cellSelections.clear();
+                      _selectedCell = null;
                     }
                   }),
                 ),
-                if (_cellSelectionEnabled)
-                  SizedBox(width: spacing.md),
+                if (_cellSelectionEnabled) SizedBox(width: spacing.md),
                 if (_cellSelectionEnabled)
                   Text(
                     'Tap any cell (A1-style) to highlight it.',
@@ -337,71 +347,19 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
               Padding(
                 padding: EdgeInsets.only(top: spacing.xs),
                 child: Text(
-                  'Selected coordinates appear under each grid.',
-                  style: textTheme.bodySmall,
-                ),
-              ),
-            if (_cellSelectionEnabled)
-              Padding(
-                padding: EdgeInsets.only(top: spacing.xs),
-                child: Text(
-                  'Row selection is disabled while cell selection is active.',
+                  'Selected coordinates appear under the grid.',
                   style: textTheme.bodySmall,
                 ),
               ),
             SizedBox(height: spacing.sm),
             Expanded(
-              child: Column(
-                children: [
-                  Expanded(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(
-                          child: _buildGridPanel(
-                            title: 'Explorer Files (A)',
-                            subtitle: '$_rowCountSetting rows visible',
-                            rows: _paginatedRows,
-                            paginationEnabled: false,
-                            horizontalController: _paginatedHorizontal,
-                            verticalController: _paginatedVertical,
-                            actionsPrefix: 'A',
-                            panelId: 'A',
-                            cellSelectionEnabled: _cellSelectionEnabled,
-                          ),
-                        ),
-                        SizedBox(width: spacing.md),
-                        Expanded(
-                          child: _buildGridPanel(
-                            title: 'Explorer Files (B)',
-                            subtitle: '$_rowCountSetting rows visible',
-                            rows: _fullRows,
-                            paginationEnabled: false,
-                            horizontalController: _fullHorizontal,
-                            verticalController: _fullVertical,
-                            actionsPrefix: 'B',
-                            panelId: 'B',
-                            cellSelectionEnabled: _cellSelectionEnabled,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: spacing.md),
-                  Expanded(
-                    child: _buildGridPanel(
-                      title: 'Containers',
-                      subtitle: '$_rowCountSetting rows visible',
-                      rows: _fullRows,
-                      paginationEnabled: false,
-                      horizontalController: _containerHorizontal,
-                      verticalController: _containerVertical,
-                      actionsPrefix: 'C',
-                      panelId: 'containers',
-                      cellSelectionEnabled: _cellSelectionEnabled,
-                    ),
-                  ),
-                ],
+              child: _buildGridPanel(
+                title: 'Explorer Files',
+                subtitle: '$_rowCountSetting rows visible',
+                rows: _rows,
+                horizontalController: _horizontalController,
+                verticalController: _verticalController,
+                cellSelectionEnabled: _cellSelectionEnabled,
               ),
             ),
           ],
@@ -414,195 +372,86 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
     required String title,
     required String subtitle,
     required List<WideRow> rows,
-    required bool paginationEnabled,
     required ScrollController horizontalController,
     required ScrollController verticalController,
-    required String actionsPrefix,
-    required String panelId,
     required bool cellSelectionEnabled,
   }) {
     final spacing = context.appTheme.spacing;
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final dropState = _dropStateFor(panelId);
-    final selectionLabel =
-        cellSelectionEnabled ? _selectedCellLabel(panelId) : null;
+    final selectionLabel = cellSelectionEnabled ? _selectedCellLabel() : null;
     final selectionInfo = cellSelectionEnabled
         ? (selectionLabel != null
-            ? 'Selected cell: $selectionLabel'
-            : 'Tap any cell to highlight it')
+              ? 'Selected cell: $selectionLabel'
+              : 'Tap any cell to highlight it')
         : null;
 
-    return DragTarget<_RowDragPayload>(
-      onWillAcceptWithDetails: (details) {
-        final accepts = _acceptsPayload(panelId, details.data);
-        _setDropState(
-          panelId,
-          isOver: true,
-          accepts: accepts,
-          message: _dropMessage(panelId, details.data, accepts),
-        );
-        return accepts;
-      },
-      onAcceptWithDetails: (details) {
-        final accepts = _acceptsPayload(panelId, details.data);
-        _setDropState(panelId, isOver: false, accepts: accepts);
-        _notify(_dropMessage(panelId, details.data, accepts));
-      },
-      onLeave: (details) {
-        _setDropState(panelId, isOver: false, accepts: true, message: '');
-      },
-      builder: (context, candidateData, rejectedData) {
-        final borderColor = dropState.isOver
-            ? (dropState.accepts
-                ? scheme.primary
-                : scheme.error.withValues(alpha: 0.7))
-            : scheme.outlineVariant;
-        final dropOverlayColor = dropState.isOver
-            ? (dropState.accepts
-                ? scheme.primary.withValues(alpha: 0.08)
-                : scheme.error.withValues(alpha: 0.08))
-            : Colors.transparent;
-        return Container(
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: borderColor, width: dropState.isOver ? 1.2 : 1),
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      padding: EdgeInsets.all(spacing.base * 1.2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          SizedBox(height: spacing.xs),
+          Text(subtitle, style: textTheme.bodySmall),
+          SizedBox(height: spacing.sm),
+          Expanded(
+            child: GenericList<WideRow>(
+              rows: rows,
+              columns: _columns,
+              hiddenColumnIds: _hiddenColumnIds,
+              actions: _actions,
+              searchQuery: _searchQuery,
+              horizontalController: horizontalController,
+              verticalController: verticalController,
+              onRowDoubleTap: (row) => _notify('Open ${row.cells.first}'),
+              rowHeight: 48,
+              paginationEnabled: false,
+              cellSelectionEnabled: cellSelectionEnabled,
+              onCellTap: cellSelectionEnabled
+                  ? (coordinate) => _handleCellSelection(coordinate)
+                  : null,
+              onCellEditRequested: cellSelectionEnabled
+                  ? (coordinate) => _editCell(coordinate)
+                  : null,
+              onCellEditCommitted: cellSelectionEnabled
+                  ? (coordinate) => _notify(
+                      'Committed ${_formatCellCoordinate(coordinate)}',
+                    )
+                  : null,
+              onCellEditCanceled: cellSelectionEnabled
+                  ? (coordinate) =>
+                        _notify('Canceled ${_formatCellCoordinate(coordinate)}')
+                  : null,
+              onFillHandleCopy: cellSelectionEnabled
+                  ? (sourceRange, targetRange) =>
+                        _applyFillHandleCopy(sourceRange, targetRange)
+                  : null,
+            ),
           ),
-          padding: EdgeInsets.all(spacing.base * 1.2),
-          child: Stack(
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: Theme.of(context).textTheme.titleMedium),
-                  SizedBox(height: spacing.xs),
-                  Text(subtitle, style: textTheme.bodySmall),
-                  SizedBox(height: spacing.sm),
-                  Expanded(
-                    child: GenericList<WideRow>(
-                      rows: rows,
-                      columns: _columns,
-                      actions: _actions(actionsPrefix),
-                      horizontalController: horizontalController,
-                      verticalController: verticalController,
-                      onRowDoubleTap: (row) => _notify('Open ${row.cells.first}'),
-                      rowHeight: 48,
-                      paginationEnabled: paginationEnabled,
-                      cellSelectionEnabled: cellSelectionEnabled,
-                      onCellTap: cellSelectionEnabled
-                          ? (coordinate) => _handleCellSelection(
-                                panelId,
-                                coordinate,
-                              )
-                          : null,
-                      onCellEditRequested: cellSelectionEnabled
-                          ? (coordinate) => _editCell(panelId, coordinate)
-                          : null,
-                      onCellEditCommitted: cellSelectionEnabled
-                          ? (coordinate) => _notify(
-                                'Committed ${_formatCellCoordinate(coordinate)}',
-                              )
-                          : null,
-                      onCellEditCanceled: cellSelectionEnabled
-                          ? (coordinate) => _notify(
-                                'Canceled ${_formatCellCoordinate(coordinate)}',
-                              )
-                          : null,
-                      onFillHandleCopy: cellSelectionEnabled
-                          ? (sourceRange, targetRange) => _applyFillHandleCopy(
-                                panelId,
-                                sourceRange,
-                                targetRange,
-                              )
-                          : null,
-                      rowDragPayloadBuilder: (row, selected) => _RowDragPayload(
-                        sourceType: panelId == 'containers'
-                            ? ContainerEntryType.container
-                            : ExplorerEntryType.file,
-                        sourceLocation: panelId == 'A'
-                            ? 'server:prod_db'
-                            : panelId == 'B'
-                                ? 'server:staging_fs'
-                                : 'docker:local',
-                        rows: selected,
-                      ),
-                      rowDragFeedbackBuilder: (context, row, selected) =>
-                          _DragFeedbackChip(
-                        label: _RowDragPayload(
-                          sourceType: panelId == 'containers'
-                              ? ContainerEntryType.container
-                              : ExplorerEntryType.file,
-                          sourceLocation: panelId == 'A'
-                              ? 'server:prod_db'
-                              : panelId == 'B'
-                                  ? 'server:staging_fs'
-                                  : 'docker:local',
-                          rows: selected,
-                        ).sourceLabel,
-                        count: selected.length,
-                      ),
-                    ),
-                  ),
-                  if (selectionInfo != null) ...[
-                    SizedBox(height: spacing.sm),
-                    Text(selectionInfo, style: textTheme.bodySmall),
-                  ],
-                ],
-              ),
-              if (dropState.isOver)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: dropOverlayColor,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      alignment: Alignment.topCenter,
-                      padding: EdgeInsets.only(top: spacing.sm),
-                      child: Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: spacing.sm,
-                          vertical: spacing.xs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: scheme.surface,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: borderColor),
-                        ),
-                        child: Text(
-                          dropState.message,
-                          style: textTheme.bodySmall?.copyWith(
-                            color: dropState.accepts
-                                ? scheme.primary
-                                : scheme.error,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
+          if (selectionInfo != null) ...[
+            SizedBox(height: spacing.sm),
+            Text(selectionInfo, style: textTheme.bodySmall),
+          ],
+        ],
+      ),
     );
   }
 
-  void _handleCellSelection(
-    String panelId,
-    StructuredDataCellCoordinate coordinate,
-  ) {
+  void _handleCellSelection(StructuredDataCellCoordinate coordinate) {
     setState(() {
-      _cellSelections[panelId] = coordinate;
+      _selectedCell = coordinate;
     });
   }
 
-  String? _selectedCellLabel(String panelId) {
-    final selection = _cellSelections[panelId];
-    if (selection == null) return null;
-    return _formatCellCoordinate(selection);
+  String? _selectedCellLabel() {
+    if (_selectedCell == null) return null;
+    return _formatCellCoordinate(_selectedCell!);
   }
 
   String _formatCellCoordinate(StructuredDataCellCoordinate coordinate) {
@@ -623,28 +472,17 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
   }
 
   void _applyFillHandleCopy(
-    String panelId,
     StructuredDataCellRange sourceRange,
     StructuredDataCellRange targetRange,
   ) {
-    if (panelId == 'containers') {
-      _copyCellsInList(_fullRows, sourceRange, targetRange, updateFull: true);
-      return;
-    }
-    if (panelId == 'A') {
-      _copyCellsInList(_paginatedRows, sourceRange, targetRange, updatePaginated: true);
-      return;
-    }
-    _copyCellsInList(_fullRows, sourceRange, targetRange, updateFull: true);
+    _copyCellsInList(_rows, sourceRange, targetRange);
   }
 
   void _copyCellsInList(
     List<WideRow> rows,
     StructuredDataCellRange sourceRange,
-    StructuredDataCellRange targetRange, {
-    bool updatePaginated = false,
-    bool updateFull = false,
-  }) {
+    StructuredDataCellRange targetRange,
+  ) {
     final sourceCoords = _coordsInRange(sourceRange);
     if (sourceCoords.isEmpty) return;
     final sourceValues = <String>[];
@@ -676,12 +514,7 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
     }
 
     setState(() {
-      if (updatePaginated) {
-        _paginatedRows = updatedRows;
-      }
-      if (updateFull) {
-        _fullRows = updatedRows;
-      }
+      _rows = updatedRows;
     });
   }
 
@@ -708,98 +541,17 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
   }
 }
 
-enum ExplorerEntryType { file, folder }
+class _ColumnVisibilityStore {
+  static final Map<String, Set<String>> _store = {};
 
-enum ContainerEntryType { container }
-
-class _RowDragPayload {
-  const _RowDragPayload({
-    required this.sourceType,
-    required this.sourceLocation,
-    required this.rows,
-  });
-
-  final Object sourceType;
-  final String sourceLocation;
-  final List<WideRow> rows;
-
-  String get sourceLabel {
-    final typeLabel = switch (sourceType) {
-      ExplorerEntryType.file => 'explorer file',
-      ExplorerEntryType.folder => 'explorer folder',
-      ContainerEntryType.container => 'container',
-      _ => 'item',
-    };
-    return '$typeLabel - $sourceLocation';
+  Future<Set<String>> load(String key) async {
+    final stored = _store[key];
+    if (stored == null) return {};
+    return Set<String>.from(stored);
   }
-}
 
-class _DropState {
-  const _DropState({
-    this.isOver = false,
-    this.accepts = true,
-    this.message = '',
-  });
-
-  final bool isOver;
-  final bool accepts;
-  final String message;
-}
-
-class _DragFeedbackChip extends StatelessWidget {
-  const _DragFeedbackChip({
-    required this.label,
-    required this.count,
-  });
-
-  final String label;
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final spacing = context.appTheme.spacing;
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: spacing.base,
-          vertical: spacing.xs,
-        ),
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest.withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: scheme.outlineVariant),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            SizedBox(width: spacing.sm),
-            Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: spacing.xs,
-                vertical: 2,
-              ),
-              decoration: BoxDecoration(
-                color: scheme.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                '${count.clamp(1, 999)}',
-                style: Theme.of(context)
-                    .textTheme
-                    .labelSmall
-                    ?.copyWith(color: scheme.primary),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  Future<void> save(String key, Set<String> hiddenIds) async {
+    _store[key] = Set<String>.from(hiddenIds);
   }
 }
 
@@ -827,7 +579,7 @@ List<WideRow> _buildSeedRows({
   for (var r = 0; r < rowCount; r++) {
     final cells = List<String>.generate(
       columnCount,
-      (c) => '$prefix R$r-C$c',
+      (c) => '$prefix$r-C$c',
       growable: false,
     );
     rows.add(WideRow(cells: cells));
@@ -835,9 +587,7 @@ List<WideRow> _buildSeedRows({
   return rows;
 }
 
-List<StructuredDataColumn<WideRow>> _wideColumns({
-  required int columnCount,
-}) {
+List<StructuredDataColumn<WideRow>> _wideColumns({required int columnCount}) {
   return List.generate(
     columnCount,
     (index) => StructuredDataColumn<WideRow>(
