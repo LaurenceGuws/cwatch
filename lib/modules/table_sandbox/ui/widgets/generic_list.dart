@@ -22,6 +22,12 @@ class GenericList<T> extends StatefulWidget {
     this.onRowsPerPageChanged,
     this.cellSelectionEnabled = false,
     this.onCellTap,
+    this.onCellEditRequested,
+    this.onCellEditCommitted,
+    this.onCellEditCanceled,
+    this.onFillHandleCopy,
+    this.rowDragPayloadBuilder,
+    this.rowDragFeedbackBuilder,
   });
 
   final List<T> rows;
@@ -38,6 +44,16 @@ class GenericList<T> extends StatefulWidget {
   final ValueChanged<int>? onRowsPerPageChanged;
   final bool cellSelectionEnabled;
   final ValueChanged<StructuredDataCellCoordinate>? onCellTap;
+  final ValueChanged<StructuredDataCellCoordinate>? onCellEditRequested;
+  final ValueChanged<StructuredDataCellCoordinate>? onCellEditCommitted;
+  final ValueChanged<StructuredDataCellCoordinate>? onCellEditCanceled;
+  final void Function(
+    StructuredDataCellRange sourceRange,
+    StructuredDataCellRange targetRange,
+  )? onFillHandleCopy;
+  final Object Function(T row, List<T> selectedRows)? rowDragPayloadBuilder;
+  final Widget Function(BuildContext context, T row, List<T> selectedRows)?
+      rowDragFeedbackBuilder;
 
   @override
   State<GenericList<T>> createState() => _GenericListState<T>();
@@ -167,6 +183,12 @@ class _GenericListState<T> extends State<GenericList<T>> {
               verticalScrollbarBottomInset: verticalInset,
               cellSelectionEnabled: widget.cellSelectionEnabled,
               onCellTap: widget.onCellTap,
+              onCellEditRequested: widget.onCellEditRequested,
+              onCellEditCommitted: widget.onCellEditCommitted,
+              onCellEditCanceled: widget.onCellEditCanceled,
+              onFillHandleCopy: widget.onFillHandleCopy,
+              rowDragPayloadBuilder: widget.rowDragPayloadBuilder,
+              rowDragFeedbackBuilder: widget.rowDragFeedbackBuilder,
               emptyState: const Text('No entries match this filter.'),
             ),
           ),
@@ -272,4 +294,3 @@ class _GenericListState<T> extends State<GenericList<T>> {
     );
   }
 }
-

@@ -28,9 +28,12 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
   late final ScrollController _paginatedVertical;
   late final ScrollController _fullHorizontal;
   late final ScrollController _fullVertical;
+  late final ScrollController _containerHorizontal;
+  late final ScrollController _containerVertical;
   int _rowCountSetting = _initialRowCount;
   bool _cellSelectionEnabled = false;
   final Map<String, StructuredDataCellCoordinate?> _cellSelections = {};
+  final Map<String, _DropState> _dropStates = {};
 
   @override
   void initState() {
@@ -40,6 +43,8 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
     _paginatedVertical = ScrollController();
     _fullHorizontal = ScrollController();
     _fullVertical = ScrollController();
+    _containerHorizontal = ScrollController();
+    _containerVertical = ScrollController();
     _resetRows();
   }
 
@@ -49,6 +54,8 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
     _paginatedVertical.dispose();
     _fullHorizontal.dispose();
     _fullVertical.dispose();
+    _containerHorizontal.dispose();
+    _containerVertical.dispose();
     super.dispose();
   }
 
@@ -86,6 +93,66 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
     );
   }
 
+  Future<void> _editCell(
+    String panelId,
+    StructuredDataCellCoordinate coordinate,
+  ) async {
+    final rows = panelId == 'A' ? _paginatedRows : _fullRows;
+    if (coordinate.rowIndex < 0 || coordinate.rowIndex >= rows.length) {
+      return;
+    }
+    if (coordinate.columnIndex < 0 ||
+        coordinate.columnIndex >= rows[coordinate.rowIndex].cells.length) {
+      return;
+    }
+    final row = rows[coordinate.rowIndex];
+    final existing = row.cells[coordinate.columnIndex];
+    final controller = TextEditingController(text: existing);
+    final updated = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit cell'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            labelText: 'Value',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.dispose();
+    });
+    if (!mounted || updated == null || updated == existing) {
+      return;
+    }
+    setState(() {
+      final nextCells = List<String>.from(row.cells);
+      nextCells[coordinate.columnIndex] = updated;
+      final updatedRow = WideRow(cells: nextCells);
+      if (panelId == 'A') {
+        _paginatedRows = List<WideRow>.from(_paginatedRows)
+          ..[coordinate.rowIndex] = updatedRow;
+      } else {
+        _fullRows = List<WideRow>.from(_fullRows)
+          ..[coordinate.rowIndex] = updatedRow;
+      }
+    });
+    _notify('Updated ${_formatCellCoordinate(coordinate)}');
+  }
+
   void _updateRowCount(double value) {
     final base = value.round();
     final next = math.min(
@@ -113,6 +180,41 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
       onSelected: (row) => _notify('Inspect → ${row.cells.first}'),
     ),
   ];
+
+  _DropState _dropStateFor(String panelId) =>
+      _dropStates[panelId] ?? const _DropState();
+
+  bool _acceptsPayload(String panelId, _RowDragPayload payload) {
+    if (panelId == 'containers') {
+      return payload.sourceType is ContainerEntryType;
+    }
+    return payload.sourceType is ExplorerEntryType;
+  }
+
+  String _dropMessage(String panelId, _RowDragPayload payload, bool accepts) {
+    final label = payload.sourceLabel;
+    if (!accepts) {
+      return panelId == 'containers'
+          ? 'Container list does not accept explorer items'
+          : 'Explorer list does not accept container items';
+    }
+    return 'Copy $label here';
+  }
+
+  void _setDropState(
+    String panelId, {
+    required bool isOver,
+    required bool accepts,
+    String? message,
+  }) {
+    setState(() {
+      _dropStates[panelId] = _DropState(
+        isOver: isOver,
+        accepts: accepts,
+        message: message ?? '',
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -249,33 +351,53 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
               ),
             SizedBox(height: spacing.sm),
             Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+              child: Column(
                 children: [
                   Expanded(
-                    child: _buildGridPanel(
-                      title: 'Grid A',
-                      subtitle: '$_rowCountSetting rows visible',
-                      rows: _paginatedRows,
-                      paginationEnabled: false,
-                      horizontalController: _paginatedHorizontal,
-                      verticalController: _paginatedVertical,
-                      actionsPrefix: 'A',
-                      panelId: 'A',
-                      cellSelectionEnabled: _cellSelectionEnabled,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: _buildGridPanel(
+                            title: 'Explorer Files (A)',
+                            subtitle: '$_rowCountSetting rows visible',
+                            rows: _paginatedRows,
+                            paginationEnabled: false,
+                            horizontalController: _paginatedHorizontal,
+                            verticalController: _paginatedVertical,
+                            actionsPrefix: 'A',
+                            panelId: 'A',
+                            cellSelectionEnabled: _cellSelectionEnabled,
+                          ),
+                        ),
+                        SizedBox(width: spacing.md),
+                        Expanded(
+                          child: _buildGridPanel(
+                            title: 'Explorer Files (B)',
+                            subtitle: '$_rowCountSetting rows visible',
+                            rows: _fullRows,
+                            paginationEnabled: false,
+                            horizontalController: _fullHorizontal,
+                            verticalController: _fullVertical,
+                            actionsPrefix: 'B',
+                            panelId: 'B',
+                            cellSelectionEnabled: _cellSelectionEnabled,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  SizedBox(width: spacing.md),
+                  SizedBox(height: spacing.md),
                   Expanded(
                     child: _buildGridPanel(
-                      title: 'Grid B',
+                      title: 'Containers',
                       subtitle: '$_rowCountSetting rows visible',
                       rows: _fullRows,
                       paginationEnabled: false,
-                      horizontalController: _fullHorizontal,
-                      verticalController: _fullVertical,
-                      actionsPrefix: 'B',
-                      panelId: 'B',
+                      horizontalController: _containerHorizontal,
+                      verticalController: _containerVertical,
+                      actionsPrefix: 'C',
+                      panelId: 'containers',
                       cellSelectionEnabled: _cellSelectionEnabled,
                     ),
                   ),
@@ -302,6 +424,7 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
     final spacing = context.appTheme.spacing;
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final dropState = _dropStateFor(panelId);
     final selectionLabel =
         cellSelectionEnabled ? _selectedCellLabel(panelId) : null;
     final selectionInfo = cellSelectionEnabled
@@ -310,45 +433,160 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
             : 'Tap any cell to highlight it')
         : null;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: scheme.outlineVariant),
-      ),
-      padding: EdgeInsets.all(spacing.base * 1.2),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.titleMedium),
-          SizedBox(height: spacing.xs),
-          Text(subtitle, style: textTheme.bodySmall),
-          SizedBox(height: spacing.sm),
-          Expanded(
-            child: GenericList<WideRow>(
-              rows: rows,
-              columns: _columns,
-              actions: _actions(actionsPrefix),
-              horizontalController: horizontalController,
-              verticalController: verticalController,
-              onRowDoubleTap: (row) => _notify('Open ${row.cells.first}'),
-              rowHeight: 48,
-              paginationEnabled: paginationEnabled,
-              cellSelectionEnabled: cellSelectionEnabled,
-              onCellTap: cellSelectionEnabled
-                  ? (coordinate) => _handleCellSelection(
-                        panelId,
-                        coordinate,
-                      )
-                  : null,
-            ),
+    return DragTarget<_RowDragPayload>(
+      onWillAcceptWithDetails: (details) {
+        final accepts = _acceptsPayload(panelId, details.data);
+        _setDropState(
+          panelId,
+          isOver: true,
+          accepts: accepts,
+          message: _dropMessage(panelId, details.data, accepts),
+        );
+        return accepts;
+      },
+      onAcceptWithDetails: (details) {
+        final accepts = _acceptsPayload(panelId, details.data);
+        _setDropState(panelId, isOver: false, accepts: accepts);
+        _notify(_dropMessage(panelId, details.data, accepts));
+      },
+      onLeave: (details) {
+        _setDropState(panelId, isOver: false, accepts: true, message: '');
+      },
+      builder: (context, candidateData, rejectedData) {
+        final borderColor = dropState.isOver
+            ? (dropState.accepts
+                ? scheme.primary
+                : scheme.error.withValues(alpha: 0.7))
+            : scheme.outlineVariant;
+        final dropOverlayColor = dropState.isOver
+            ? (dropState.accepts
+                ? scheme.primary.withValues(alpha: 0.08)
+                : scheme.error.withValues(alpha: 0.08))
+            : Colors.transparent;
+        return Container(
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: borderColor, width: dropState.isOver ? 1.2 : 1),
           ),
-          if (selectionInfo != null) ...[
-            SizedBox(height: spacing.sm),
-            Text(selectionInfo, style: textTheme.bodySmall),
-          ],
-        ],
-      ),
+          padding: EdgeInsets.all(spacing.base * 1.2),
+          child: Stack(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: Theme.of(context).textTheme.titleMedium),
+                  SizedBox(height: spacing.xs),
+                  Text(subtitle, style: textTheme.bodySmall),
+                  SizedBox(height: spacing.sm),
+                  Expanded(
+                    child: GenericList<WideRow>(
+                      rows: rows,
+                      columns: _columns,
+                      actions: _actions(actionsPrefix),
+                      horizontalController: horizontalController,
+                      verticalController: verticalController,
+                      onRowDoubleTap: (row) => _notify('Open ${row.cells.first}'),
+                      rowHeight: 48,
+                      paginationEnabled: paginationEnabled,
+                      cellSelectionEnabled: cellSelectionEnabled,
+                      onCellTap: cellSelectionEnabled
+                          ? (coordinate) => _handleCellSelection(
+                                panelId,
+                                coordinate,
+                              )
+                          : null,
+                      onCellEditRequested: cellSelectionEnabled
+                          ? (coordinate) => _editCell(panelId, coordinate)
+                          : null,
+                      onCellEditCommitted: cellSelectionEnabled
+                          ? (coordinate) => _notify(
+                                'Committed ${_formatCellCoordinate(coordinate)}',
+                              )
+                          : null,
+                      onCellEditCanceled: cellSelectionEnabled
+                          ? (coordinate) => _notify(
+                                'Canceled ${_formatCellCoordinate(coordinate)}',
+                              )
+                          : null,
+                      onFillHandleCopy: cellSelectionEnabled
+                          ? (sourceRange, targetRange) => _applyFillHandleCopy(
+                                panelId,
+                                sourceRange,
+                                targetRange,
+                              )
+                          : null,
+                      rowDragPayloadBuilder: (row, selected) => _RowDragPayload(
+                        sourceType: panelId == 'containers'
+                            ? ContainerEntryType.container
+                            : ExplorerEntryType.file,
+                        sourceLocation: panelId == 'A'
+                            ? 'server:prod_db'
+                            : panelId == 'B'
+                                ? 'server:staging_fs'
+                                : 'docker:local',
+                        rows: selected,
+                      ),
+                      rowDragFeedbackBuilder: (context, row, selected) =>
+                          _DragFeedbackChip(
+                        label: _RowDragPayload(
+                          sourceType: panelId == 'containers'
+                              ? ContainerEntryType.container
+                              : ExplorerEntryType.file,
+                          sourceLocation: panelId == 'A'
+                              ? 'server:prod_db'
+                              : panelId == 'B'
+                                  ? 'server:staging_fs'
+                                  : 'docker:local',
+                          rows: selected,
+                        ).sourceLabel,
+                        count: selected.length,
+                      ),
+                    ),
+                  ),
+                  if (selectionInfo != null) ...[
+                    SizedBox(height: spacing.sm),
+                    Text(selectionInfo, style: textTheme.bodySmall),
+                  ],
+                ],
+              ),
+              if (dropState.isOver)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: dropOverlayColor,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      alignment: Alignment.topCenter,
+                      padding: EdgeInsets.only(top: spacing.sm),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: spacing.sm,
+                          vertical: spacing.xs,
+                        ),
+                        decoration: BoxDecoration(
+                          color: scheme.surface,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: borderColor),
+                        ),
+                        child: Text(
+                          dropState.message,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: dropState.accepts
+                                ? scheme.primary
+                                : scheme.error,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -382,6 +620,186 @@ class _DataTableSandboxViewState extends State<DataTableSandboxView> {
       value = (value - 1) ~/ 26;
     }
     return buffer.toString().split('').reversed.join();
+  }
+
+  void _applyFillHandleCopy(
+    String panelId,
+    StructuredDataCellRange sourceRange,
+    StructuredDataCellRange targetRange,
+  ) {
+    if (panelId == 'containers') {
+      _copyCellsInList(_fullRows, sourceRange, targetRange, updateFull: true);
+      return;
+    }
+    if (panelId == 'A') {
+      _copyCellsInList(_paginatedRows, sourceRange, targetRange, updatePaginated: true);
+      return;
+    }
+    _copyCellsInList(_fullRows, sourceRange, targetRange, updateFull: true);
+  }
+
+  void _copyCellsInList(
+    List<WideRow> rows,
+    StructuredDataCellRange sourceRange,
+    StructuredDataCellRange targetRange, {
+    bool updatePaginated = false,
+    bool updateFull = false,
+  }) {
+    final sourceCoords = _coordsInRange(sourceRange);
+    if (sourceCoords.isEmpty) return;
+    final sourceValues = <String>[];
+    for (final coord in sourceCoords) {
+      if (coord.rowIndex >= rows.length) continue;
+      final row = rows[coord.rowIndex];
+      if (coord.columnIndex >= row.cells.length) continue;
+      sourceValues.add(row.cells[coord.columnIndex]);
+    }
+    if (sourceValues.isEmpty) return;
+
+    final targetCoords = _coordsInRange(targetRange);
+    if (targetCoords.isEmpty) return;
+
+    final updatedRows = List<WideRow>.from(rows);
+    var valueIndex = 0;
+    for (final coord in targetCoords) {
+      if (_isWithinRange(coord, sourceRange)) {
+        continue;
+      }
+      if (coord.rowIndex >= updatedRows.length) continue;
+      final row = updatedRows[coord.rowIndex];
+      if (coord.columnIndex >= row.cells.length) continue;
+      final nextCells = List<String>.from(row.cells);
+      nextCells[coord.columnIndex] =
+          sourceValues[valueIndex % sourceValues.length];
+      valueIndex += 1;
+      updatedRows[coord.rowIndex] = WideRow(cells: nextCells);
+    }
+
+    setState(() {
+      if (updatePaginated) {
+        _paginatedRows = updatedRows;
+      }
+      if (updateFull) {
+        _fullRows = updatedRows;
+      }
+    });
+  }
+
+  List<StructuredDataCellCoordinate> _coordsInRange(
+    StructuredDataCellRange range,
+  ) {
+    final coords = <StructuredDataCellCoordinate>[];
+    for (var r = range.top; r <= range.bottom; r++) {
+      for (var c = range.left; c <= range.right; c++) {
+        coords.add(StructuredDataCellCoordinate(rowIndex: r, columnIndex: c));
+      }
+    }
+    return coords;
+  }
+
+  bool _isWithinRange(
+    StructuredDataCellCoordinate coord,
+    StructuredDataCellRange range,
+  ) {
+    return coord.rowIndex >= range.top &&
+        coord.rowIndex <= range.bottom &&
+        coord.columnIndex >= range.left &&
+        coord.columnIndex <= range.right;
+  }
+}
+
+enum ExplorerEntryType { file, folder }
+
+enum ContainerEntryType { container }
+
+class _RowDragPayload {
+  const _RowDragPayload({
+    required this.sourceType,
+    required this.sourceLocation,
+    required this.rows,
+  });
+
+  final Object sourceType;
+  final String sourceLocation;
+  final List<WideRow> rows;
+
+  String get sourceLabel {
+    final typeLabel = switch (sourceType) {
+      ExplorerEntryType.file => 'explorer file',
+      ExplorerEntryType.folder => 'explorer folder',
+      ContainerEntryType.container => 'container',
+      _ => 'item',
+    };
+    return '$typeLabel - $sourceLocation';
+  }
+}
+
+class _DropState {
+  const _DropState({
+    this.isOver = false,
+    this.accepts = true,
+    this.message = '',
+  });
+
+  final bool isOver;
+  final bool accepts;
+  final String message;
+}
+
+class _DragFeedbackChip extends StatelessWidget {
+  const _DragFeedbackChip({
+    required this.label,
+    required this.count,
+  });
+
+  final String label;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final spacing = context.appTheme.spacing;
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: spacing.base,
+          vertical: spacing.xs,
+        ),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: scheme.outlineVariant),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            SizedBox(width: spacing.sm),
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: spacing.xs,
+                vertical: 2,
+              ),
+              decoration: BoxDecoration(
+                color: scheme.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '${count.clamp(1, 999)}',
+                style: Theme.of(context)
+                    .textTheme
+                    .labelSmall
+                    ?.copyWith(color: scheme.primary),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -430,4 +848,3 @@ List<StructuredDataColumn<WideRow>> _wideColumns({
     growable: false,
   );
 }
-

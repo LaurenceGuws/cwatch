@@ -89,6 +89,21 @@ class StructuredDataCellCoordinate {
   int get hashCode => Object.hash(rowIndex, columnIndex);
 }
 
+class StructuredDataCellRange {
+  const StructuredDataCellRange({
+    required this.anchor,
+    required this.extent,
+  });
+
+  final StructuredDataCellCoordinate anchor;
+  final StructuredDataCellCoordinate extent;
+
+  int get top => min(anchor.rowIndex, extent.rowIndex);
+  int get bottom => max(anchor.rowIndex, extent.rowIndex);
+  int get left => min(anchor.columnIndex, extent.columnIndex);
+  int get right => max(anchor.columnIndex, extent.columnIndex);
+}
+
 /// A flexible, list-backed data table with keyboard navigation, selection, and
 /// contextual actions. Designed for complex lists like servers, clusters, and
 /// explorer entries that need rich metadata and right-click menus.
@@ -115,6 +130,12 @@ class StructuredDataTable<T> extends StatefulWidget {
     this.verticalScrollbarBottomInset = 0,
     this.cellSelectionEnabled = false,
     this.onCellTap,
+    this.onCellEditRequested,
+    this.onCellEditCommitted,
+    this.onCellEditCanceled,
+    this.onFillHandleCopy,
+    this.rowDragPayloadBuilder,
+    this.rowDragFeedbackBuilder,
   }) : assert(columns.isNotEmpty, 'At least one column is required');
 
   final List<T> rows;
@@ -137,6 +158,16 @@ class StructuredDataTable<T> extends StatefulWidget {
   final double verticalScrollbarBottomInset;
   final bool cellSelectionEnabled;
   final ValueChanged<StructuredDataCellCoordinate>? onCellTap;
+  final ValueChanged<StructuredDataCellCoordinate>? onCellEditRequested;
+  final ValueChanged<StructuredDataCellCoordinate>? onCellEditCommitted;
+  final ValueChanged<StructuredDataCellCoordinate>? onCellEditCanceled;
+  final void Function(
+    StructuredDataCellRange sourceRange,
+    StructuredDataCellRange targetRange,
+  )? onFillHandleCopy;
+  final Object Function(T row, List<T> selectedRows)? rowDragPayloadBuilder;
+  final Widget Function(BuildContext context, T row, List<T> selectedRows)?
+      rowDragFeedbackBuilder;
 
   @override
   State<StructuredDataTable<T>> createState() => _StructuredDataTableState<T>();
@@ -156,8 +187,20 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
   bool _sortAscending = true;
   final Map<int, double> _autoFitCache = {};
   StructuredDataCellCoordinate? _selectedCell;
+  StructuredDataCellCoordinate? _focusedCell;
   StructuredDataCellCoordinate? _cellSelectionAnchor;
   StructuredDataCellCoordinate? _cellSelectionExtent;
+  final Set<StructuredDataCellCoordinate> _additionalSelectedCells = {};
+  bool _cellEditMode = false;
+  int? _marqueePointer;
+  bool _isMarqueeSelecting = false;
+  StructuredDataCellCoordinate? _hoveredCell;
+  final GlobalKey _bodyKey = GlobalKey();
+  bool _isFillHandleDragging = false;
+  StructuredDataCellRange? _fillHandleSourceRange;
+  StructuredDataCellCoordinate? _fillHandleExtent;
+  int? _touchDragPointer;
+  bool _isTouchDragging = false;
   List<double> _lastColumnWidths = const [];
   double _lastGapWidth = 0;
   double _lastRowPaddingX = 0;
@@ -317,8 +360,11 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       _sortAscending = true;
       _listController.clearSelection();
       _selectedCell = null;
+      _focusedCell = null;
       _cellSelectionAnchor = null;
       _cellSelectionExtent = null;
+      _additionalSelectedCells.clear();
+      _cellEditMode = false;
     }
     if (oldWidget.allowMultiSelect != widget.allowMultiSelect) {
       _listController
@@ -346,20 +392,29 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
     }
     if (!widget.cellSelectionEnabled) {
       _selectedCell = null;
+      _focusedCell = null;
       _cellSelectionAnchor = null;
       _cellSelectionExtent = null;
+      _additionalSelectedCells.clear();
+      _cellEditMode = false;
     } else if (oldWidget.cellSelectionEnabled != widget.cellSelectionEnabled) {
       _selectedCell = null;
+      _focusedCell = null;
       _cellSelectionAnchor = null;
       _cellSelectionExtent = null;
+      _additionalSelectedCells.clear();
+      _cellEditMode = false;
       _listController.clearSelection();
     }
     if (_selectedCell != null &&
         (_selectedCell!.rowIndex >= _visibleRows.length ||
             _selectedCell!.columnIndex >= _columns.length)) {
       _selectedCell = null;
+      _focusedCell = null;
       _cellSelectionAnchor = null;
       _cellSelectionExtent = null;
+      _additionalSelectedCells.clear();
+      _cellEditMode = false;
     }
     _listController.setItemCount(_visibleRows.length);
   }
@@ -448,6 +503,9 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
         columnIndex >= _columns.length) {
       return;
     }
+    if (_cellEditMode) {
+      _exitCellEditMode(commit: false);
+    }
     _updateCellSelection(
       rowIndex: rowIndex,
       columnIndex: columnIndex,
@@ -471,16 +529,19 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
     );
     if (_selectedCell == coordinate) {
       _listController.focus(clampedRow);
+      _focusedCell = coordinate;
       return;
     }
     setState(() {
       _selectedCell = coordinate;
+      _focusedCell = coordinate;
       if (extend) {
         _cellSelectionAnchor ??= _cellSelectionExtent ?? coordinate;
         _cellSelectionExtent = coordinate;
       } else {
         _cellSelectionAnchor = coordinate;
         _cellSelectionExtent = coordinate;
+        _additionalSelectedCells.clear();
       }
     });
     _listController.focus(clampedRow);
@@ -494,23 +555,27 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
     _scheduleScrollToColumn(clampedColumn);
   }
 
-  void _ensureCellSelection() {
+  void _ensureCellFocus() {
     if (!widget.cellSelectionEnabled || _visibleRows.isEmpty) {
       return;
     }
-    if (_selectedCell != null) {
+    if (_focusedCell != null || _selectedCell != null) {
       return;
     }
     final fallbackRow = _listController.focusedIndex ?? 0;
-    _updateCellSelection(
+    _updateCellFocus(
       rowIndex: fallbackRow,
       columnIndex: 0,
-      notify: false,
     );
   }
 
   bool _isCellSelected(int rowIndex, int columnIndex) {
     if (!widget.cellSelectionEnabled) return false;
+    if (_additionalSelectedCells.contains(
+      StructuredDataCellCoordinate(rowIndex: rowIndex, columnIndex: columnIndex),
+    )) {
+      return true;
+    }
     final anchor = _cellSelectionAnchor;
     final extent = _cellSelectionExtent ?? _selectedCell;
     if (anchor == null || extent == null) return false;
@@ -522,6 +587,244 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
         rowIndex <= bottom &&
         columnIndex >= left &&
         columnIndex <= right;
+  }
+
+  bool _isHoveredCell(int rowIndex, int columnIndex) {
+    if (!widget.cellSelectionEnabled) return false;
+    final hovered = _hoveredCell;
+    if (hovered == null) return false;
+    return hovered.rowIndex == rowIndex && hovered.columnIndex == columnIndex;
+  }
+
+  StructuredDataCellRange? _selectionRange() {
+    final anchor = _cellSelectionAnchor;
+    final extent = _cellSelectionExtent ?? _selectedCell;
+    if (anchor == null || extent == null) return null;
+    return StructuredDataCellRange(anchor: anchor, extent: extent);
+  }
+
+  void _startFillHandleDrag(StructuredDataCellRange range) {
+    setState(() {
+      _isFillHandleDragging = true;
+      _fillHandleSourceRange = range;
+      _fillHandleExtent = range.extent;
+    });
+  }
+
+  void _updateFillHandleDrag(Offset globalPosition) {
+    final coordinate = _cellCoordinateForGlobalOffset(globalPosition);
+    if (coordinate == null) return;
+    final sourceRange = _fillHandleSourceRange;
+    if (sourceRange == null) return;
+    setState(() {
+      _fillHandleExtent = coordinate;
+      _cellSelectionAnchor = sourceRange.anchor;
+      _cellSelectionExtent = coordinate;
+      _selectedCell = coordinate;
+      _focusedCell = coordinate;
+    });
+  }
+
+  void _endFillHandleDrag() {
+    final sourceRange = _fillHandleSourceRange;
+    final extent = _fillHandleExtent;
+    if (sourceRange != null && extent != null) {
+      final targetRange = StructuredDataCellRange(
+        anchor: sourceRange.anchor,
+        extent: extent,
+      );
+      widget.onFillHandleCopy?.call(sourceRange, targetRange);
+    }
+    setState(() {
+      _isFillHandleDragging = false;
+      _fillHandleSourceRange = null;
+      _fillHandleExtent = null;
+    });
+  }
+
+  void _applyEdgeScroll(Offset localPosition) {
+    final renderBox = _bodyKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+    final size = renderBox.size;
+    const edgeThreshold = 24.0;
+    const scrollStep = 18.0;
+
+    var verticalDelta = 0.0;
+    if (localPosition.dy < edgeThreshold) {
+      verticalDelta = -scrollStep;
+    } else if (localPosition.dy > size.height - edgeThreshold) {
+      verticalDelta = scrollStep;
+    }
+
+    var horizontalDelta = 0.0;
+    if (localPosition.dx < edgeThreshold) {
+      horizontalDelta = -scrollStep;
+    } else if (localPosition.dx > size.width - edgeThreshold) {
+      horizontalDelta = scrollStep;
+    }
+
+    if (verticalDelta != 0 && _verticalController.hasClients) {
+      final position = _verticalController.position;
+      final next = (position.pixels + verticalDelta)
+          .clamp(position.minScrollExtent, position.maxScrollExtent);
+      _verticalController.jumpTo(next);
+    }
+
+    if (horizontalDelta != 0 && _horizontalController.hasClients) {
+      final position = _horizontalController.position;
+      final next = (position.pixels + horizontalDelta)
+          .clamp(position.minScrollExtent, position.maxScrollExtent);
+      _horizontalController.jumpTo(next);
+    }
+  }
+
+  StructuredDataCellCoordinate? _cellCoordinateForOffset(Offset localPosition) {
+    if (_visibleRows.isEmpty || _columns.isEmpty || _lastColumnWidths.isEmpty) {
+      return null;
+    }
+    final rowExtent = widget.rowHeight + 1;
+    final contentY = localPosition.dy + _verticalController.offset;
+    final rowIndex = (contentY / rowExtent).floor();
+    if (rowIndex < 0 || rowIndex >= _visibleRows.length) {
+      return null;
+    }
+    var contentX = localPosition.dx +
+        _horizontalController.offset -
+        _lastRowPaddingX;
+    if (contentX <= 0) {
+      return StructuredDataCellCoordinate(rowIndex: rowIndex, columnIndex: 0);
+    }
+    for (var i = 0; i < _lastColumnWidths.length; i++) {
+      final width = _lastColumnWidths[i];
+      if (contentX < width) {
+        return StructuredDataCellCoordinate(rowIndex: rowIndex, columnIndex: i);
+      }
+      contentX -= width + _lastGapWidth;
+    }
+    return StructuredDataCellCoordinate(
+      rowIndex: rowIndex,
+      columnIndex: _lastColumnWidths.length - 1,
+    );
+  }
+
+  StructuredDataCellCoordinate? _cellCoordinateForGlobalOffset(
+    Offset globalPosition,
+  ) {
+    final renderBox = _bodyKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return null;
+    final local = renderBox.globalToLocal(globalPosition);
+    return _cellCoordinateForOffset(local);
+  }
+
+  int _columnIndexForLocalDx(double localDx) {
+    if (_columns.isEmpty || _lastColumnWidths.isEmpty) {
+      return 0;
+    }
+    var contentX =
+        localDx + _horizontalController.offset - _lastRowPaddingX;
+    if (contentX <= 0) return 0;
+    for (var i = 0; i < _lastColumnWidths.length; i++) {
+      final width = _lastColumnWidths[i];
+      if (contentX < width) {
+        return i;
+      }
+      contentX -= width + _lastGapWidth;
+    }
+    return _lastColumnWidths.length - 1;
+  }
+
+  void _beginMarqueeSelection(Offset localPosition) {
+    final coordinate = _cellCoordinateForOffset(localPosition);
+    if (coordinate == null) return;
+    final isShift = HardwareKeyboard.instance.isShiftPressed;
+    if (!isShift &&
+        _isCellSelected(coordinate.rowIndex, coordinate.columnIndex)) {
+      setState(() {
+        _focusedCell = coordinate;
+      });
+      return;
+    }
+    if (_cellEditMode) {
+      _exitCellEditMode(commit: false);
+    }
+    setState(() {
+      _selectedCell = coordinate;
+      _focusedCell = coordinate;
+      _cellSelectionAnchor = coordinate;
+      _cellSelectionExtent = coordinate;
+      _additionalSelectedCells.clear();
+    });
+  }
+
+  void _updateMarqueeSelection(Offset localPosition) {
+    final coordinate = _cellCoordinateForOffset(localPosition);
+    if (coordinate == null) return;
+    setState(() {
+      _selectedCell = coordinate;
+      _focusedCell = coordinate;
+      _cellSelectionExtent = coordinate;
+    });
+  }
+
+  int? _rowIndexForOffset(Offset localPosition) {
+    if (_visibleRows.isEmpty) return null;
+    final rowExtent = widget.rowHeight + 1;
+    final contentY = localPosition.dy + _verticalController.offset;
+    final rowIndex = (contentY / rowExtent).floor();
+    if (rowIndex < 0 || rowIndex >= _visibleRows.length) {
+      return null;
+    }
+    return rowIndex;
+  }
+
+  void _updateCellFocus({
+    required int rowIndex,
+    required int columnIndex,
+  }) {
+    if (!widget.cellSelectionEnabled || _visibleRows.isEmpty) {
+      return;
+    }
+    final clampedRow = rowIndex.clamp(0, _visibleRows.length - 1);
+    final clampedColumn = columnIndex.clamp(0, _columns.length - 1);
+    final coordinate = StructuredDataCellCoordinate(
+      rowIndex: clampedRow,
+      columnIndex: clampedColumn,
+    );
+    if (_focusedCell == coordinate) {
+      _listController.focus(clampedRow);
+      return;
+    }
+    setState(() {
+      _focusedCell = coordinate;
+    });
+    _listController.focus(clampedRow);
+    if (!_focusNode.hasFocus) {
+      _focusNode.requestFocus();
+    }
+    _scheduleScrollToRow(clampedRow);
+    _scheduleScrollToColumn(clampedColumn);
+  }
+
+  void _enterCellEditMode(StructuredDataCellCoordinate coordinate) {
+    if (_cellEditMode) return;
+    setState(() {
+      _cellEditMode = true;
+    });
+    widget.onCellEditRequested?.call(coordinate);
+  }
+
+  void _exitCellEditMode({required bool commit}) {
+    if (!_cellEditMode) return;
+    final coordinate = _selectedCell ?? _focusedCell;
+    setState(() {
+      _cellEditMode = false;
+    });
+    if (coordinate == null) return;
+    if (commit) {
+      widget.onCellEditCommitted?.call(coordinate);
+    } else {
+      widget.onCellEditCanceled?.call(coordinate);
+    }
   }
 
   int _pageStep() {
@@ -713,11 +1016,12 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
     if (!widget.cellSelectionEnabled || _visibleRows.isEmpty) {
       return KeyEventResult.ignored;
     }
-    _ensureCellSelection();
+    _ensureCellFocus();
     final hardware = HardwareKeyboard.instance;
     final isShift = hardware.isShiftPressed;
     final isControl = hardware.isControlPressed || hardware.isMetaPressed;
-    final current = _selectedCell ??
+    final current = _focusedCell ??
+        _selectedCell ??
         StructuredDataCellCoordinate(
           rowIndex: _listController.focusedIndex ?? 0,
           columnIndex: 0,
@@ -735,15 +1039,34 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           key == LogicalKeyboardKey.enter ||
           key == LogicalKeyboardKey.tab ||
           key == LogicalKeyboardKey.f2 ||
+          key == LogicalKeyboardKey.escape ||
           (key == LogicalKeyboardKey.keyA && isControl) ||
           (key == LogicalKeyboardKey.space && (isControl || isShift));
       return isHandledKey ? KeyEventResult.handled : KeyEventResult.ignored;
     }
+    if (key == LogicalKeyboardKey.enter && isControl) {
+      setState(() {
+        _additionalSelectedCells.add(current);
+        _cellSelectionAnchor ??= current;
+        _cellSelectionExtent ??= current;
+        _selectedCell ??= current;
+        _focusedCell = current;
+      });
+      return KeyEventResult.handled;
+    }
     if (key == LogicalKeyboardKey.enter) {
-      _updateCellSelection(
-        rowIndex: current.rowIndex + (isShift ? -1 : 1),
-        columnIndex: current.columnIndex,
-      );
+      if (_cellEditMode) {
+        _exitCellEditMode(commit: true);
+        _updateCellSelection(
+          rowIndex: current.rowIndex + (isShift ? -1 : 1),
+          columnIndex: current.columnIndex,
+        );
+      } else {
+        _updateCellSelection(
+          rowIndex: current.rowIndex,
+          columnIndex: current.columnIndex,
+        );
+      }
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.tab) {
@@ -757,10 +1080,18 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
         nextColumn = 0;
         nextRow = current.rowIndex + 1;
       }
-      _updateCellSelection(
-        rowIndex: nextRow,
-        columnIndex: nextColumn,
-      );
+      if (isShift) {
+        _updateCellSelection(
+          rowIndex: nextRow,
+          columnIndex: nextColumn,
+          extend: true,
+        );
+      } else {
+        _updateCellFocus(
+          rowIndex: nextRow,
+          columnIndex: nextColumn,
+        );
+      }
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.keyA && isControl) {
@@ -772,6 +1103,12 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
             rowIndex: _visibleRows.length - 1,
             columnIndex: _columns.length - 1,
           );
+          _selectedCell = StructuredDataCellCoordinate(
+            rowIndex: _visibleRows.length - 1,
+            columnIndex: _columns.length - 1,
+          );
+          _focusedCell = _selectedCell;
+          _additionalSelectedCells.clear();
         });
         _scheduleScrollToRow(_visibleRows.length - 1);
       }
@@ -788,6 +1125,9 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
             rowIndex: _visibleRows.length - 1,
             columnIndex: current.columnIndex,
           );
+          _selectedCell = current;
+          _focusedCell = current;
+          _additionalSelectedCells.clear();
         });
         _scheduleScrollToRow(_visibleRows.length - 1);
       } else if (isShift) {
@@ -800,14 +1140,21 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
             rowIndex: current.rowIndex,
             columnIndex: _columns.length - 1,
           );
+          _selectedCell = current;
+          _focusedCell = current;
+          _additionalSelectedCells.clear();
         });
       }
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.f2) {
-      final coordinate = _selectedCell;
+      final coordinate = _selectedCell ?? _focusedCell;
       if (coordinate != null) {
-        widget.onCellTap?.call(coordinate);
+        if (_cellEditMode) {
+          _exitCellEditMode(commit: true);
+        } else {
+          _enterCellEditMode(coordinate);
+        }
       }
       return KeyEventResult.handled;
     }
@@ -815,88 +1162,166 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       final nextRow = isControl
           ? _jumpRow(current.rowIndex, current.columnIndex, -1)
           : current.rowIndex - 1;
-      _updateCellSelection(
-        rowIndex: nextRow,
-        columnIndex: current.columnIndex,
-        extend: isShift,
-      );
+      if (isShift) {
+        _updateCellSelection(
+          rowIndex: nextRow,
+          columnIndex: current.columnIndex,
+          extend: true,
+        );
+      } else {
+        _updateCellFocus(
+          rowIndex: nextRow,
+          columnIndex: current.columnIndex,
+        );
+      }
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.arrowDown) {
       final nextRow = isControl
           ? _jumpRow(current.rowIndex, current.columnIndex, 1)
           : current.rowIndex + 1;
-      _updateCellSelection(
-        rowIndex: nextRow,
-        columnIndex: current.columnIndex,
-        extend: isShift,
-      );
+      if (isShift) {
+        _updateCellSelection(
+          rowIndex: nextRow,
+          columnIndex: current.columnIndex,
+          extend: true,
+        );
+      } else {
+        _updateCellFocus(
+          rowIndex: nextRow,
+          columnIndex: current.columnIndex,
+        );
+      }
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.arrowLeft) {
       final nextColumn = isControl
           ? _jumpColumn(current.rowIndex, current.columnIndex, -1)
           : current.columnIndex - 1;
-      _updateCellSelection(
-        rowIndex: current.rowIndex,
-        columnIndex: nextColumn,
-        extend: isShift,
-      );
+      if (isShift) {
+        _updateCellSelection(
+          rowIndex: current.rowIndex,
+          columnIndex: nextColumn,
+          extend: true,
+        );
+      } else {
+        _updateCellFocus(
+          rowIndex: current.rowIndex,
+          columnIndex: nextColumn,
+        );
+      }
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.arrowRight) {
       final nextColumn = isControl
           ? _jumpColumn(current.rowIndex, current.columnIndex, 1)
           : current.columnIndex + 1;
-      _updateCellSelection(
-        rowIndex: current.rowIndex,
-        columnIndex: nextColumn,
-        extend: isShift,
-      );
+      if (isShift) {
+        _updateCellSelection(
+          rowIndex: current.rowIndex,
+          columnIndex: nextColumn,
+          extend: true,
+        );
+      } else {
+        _updateCellFocus(
+          rowIndex: current.rowIndex,
+          columnIndex: nextColumn,
+        );
+      }
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.home) {
       if (isControl) {
-        _updateCellSelection(rowIndex: 0, columnIndex: 0, extend: isShift);
+        if (isShift) {
+          _updateCellSelection(rowIndex: 0, columnIndex: 0, extend: true);
+        } else {
+          _updateCellFocus(rowIndex: 0, columnIndex: 0);
+        }
       } else {
-        _updateCellSelection(
-          rowIndex: current.rowIndex,
-          columnIndex: 0,
-          extend: isShift,
-        );
+        if (isShift) {
+          _updateCellSelection(
+            rowIndex: current.rowIndex,
+            columnIndex: 0,
+            extend: true,
+          );
+        } else {
+          _updateCellFocus(rowIndex: current.rowIndex, columnIndex: 0);
+        }
       }
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.end) {
       if (isControl) {
-        _updateCellSelection(
-          rowIndex: _visibleRows.length - 1,
-          columnIndex: _columns.length - 1,
-          extend: isShift,
-        );
+        if (isShift) {
+          _updateCellSelection(
+            rowIndex: _visibleRows.length - 1,
+            columnIndex: _columns.length - 1,
+            extend: true,
+          );
+        } else {
+          _updateCellFocus(
+            rowIndex: _visibleRows.length - 1,
+            columnIndex: _columns.length - 1,
+          );
+        }
       } else {
-        _updateCellSelection(
-          rowIndex: current.rowIndex,
-          columnIndex: _columns.length - 1,
-          extend: isShift,
-        );
+        if (isShift) {
+          _updateCellSelection(
+            rowIndex: current.rowIndex,
+            columnIndex: _columns.length - 1,
+            extend: true,
+          );
+        } else {
+          _updateCellFocus(
+            rowIndex: current.rowIndex,
+            columnIndex: _columns.length - 1,
+          );
+        }
       }
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.pageUp) {
-      _updateCellSelection(
-        rowIndex: current.rowIndex - _pageStep(),
-        columnIndex: current.columnIndex,
-        extend: isShift,
-      );
+      if (isShift) {
+        _updateCellSelection(
+          rowIndex: current.rowIndex - _pageStep(),
+          columnIndex: current.columnIndex,
+          extend: true,
+        );
+      } else {
+        _updateCellFocus(
+          rowIndex: current.rowIndex - _pageStep(),
+          columnIndex: current.columnIndex,
+        );
+      }
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.pageDown) {
-      _updateCellSelection(
-        rowIndex: current.rowIndex + _pageStep(),
-        columnIndex: current.columnIndex,
-        extend: isShift,
-      );
+      if (isShift) {
+        _updateCellSelection(
+          rowIndex: current.rowIndex + _pageStep(),
+          columnIndex: current.columnIndex,
+          extend: true,
+        );
+      } else {
+        _updateCellFocus(
+          rowIndex: current.rowIndex + _pageStep(),
+          columnIndex: current.columnIndex,
+        );
+      }
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.escape) {
+      if (_cellEditMode) {
+        _exitCellEditMode(commit: false);
+      } else {
+        setState(() {
+          if (_selectedCell != null) {
+            _cellSelectionAnchor = _selectedCell;
+            _cellSelectionExtent = _selectedCell;
+          }
+          _additionalSelectedCells.clear();
+        });
+      }
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
@@ -940,7 +1365,10 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
   void _showContextMenuForIndex(int index, Offset position) {
     if (_visibleRows.isEmpty || widget.rowActions.isEmpty) return;
     if (!widget.cellSelectionEnabled) {
-      _selectSingle(index);
+      final isAlreadySelected = _listController.selectedIndices.contains(index);
+      if (!isAlreadySelected) {
+        _selectSingle(index);
+      }
     }
     _showContextMenu(_visibleRows[index], position);
   }
@@ -994,11 +1422,20 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           _selectedCell != null &&
           _selectedCell!.rowIndex == rowIndex &&
           _selectedCell!.columnIndex == i;
+      final isFocusedCell =
+          isBodyCell &&
+          widget.cellSelectionEnabled &&
+          _focusedCell != null &&
+          _focusedCell!.rowIndex == rowIndex &&
+          _focusedCell!.columnIndex == i;
       final isRangeCell =
           isBodyCell &&
           widget.cellSelectionEnabled &&
-          _selectedCell != null &&
           _isCellSelected(rowIndex!, i);
+      final isHoveredCell = isBodyCell && _isHoveredCell(rowIndex!, i);
+      final isHoveredColumn = widget.cellSelectionEnabled &&
+          _hoveredCell != null &&
+          _hoveredCell!.columnIndex == i;
       final separatorSide = BorderSide(
         color: scheme.outlineVariant.withValues(alpha: 0.5),
         width: 0.5,
@@ -1011,11 +1448,21 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       final highlightColor = scheme.primary.withValues(alpha: 0.85);
       final rangeFill = scheme.primary.withValues(alpha: 0.14);
       final selectedCellBorder = Border.all(color: highlightColor, width: 1.4);
+      final focusedCellBorder =
+          Border.all(color: scheme.primary.withValues(alpha: 0.6), width: 1.1);
+      final hoverFill = scheme.primary.withValues(alpha: 0.08);
+      final columnHoverFill = scheme.primary.withValues(alpha: 0.02);
       final cellDecoration = BoxDecoration(
         borderRadius: roundedCorner,
-        color: isRangeCell ? rangeFill : null,
+        color: isRangeCell
+            ? rangeFill
+            : (isHoveredCell
+                ? hoverFill
+                : (isHoveredColumn ? columnHoverFill : null)),
         border: widget.cellSelectionEnabled
-            ? (isSelectedCell ? selectedCellBorder : defaultCellBorder)
+            ? (isSelectedCell
+                ? selectedCellBorder
+                : (isFocusedCell ? focusedCellBorder : defaultCellBorder))
             : null,
       );
       final cellBody = Container(
@@ -1037,10 +1484,44 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
               behavior: HitTestBehavior.translucent,
               onPointerDown: (event) {
                 if ((event.buttons & kPrimaryButton) != 0) {
+                  final isShift = HardwareKeyboard.instance.isShiftPressed;
+                  if (!isShift &&
+                      _isCellSelected(rowIndex!, i)) {
+                    return;
+                  }
                   _handleCellTap(rowIndex, i);
                 }
               },
-              child: SizedBox.expand(child: cellBody),
+              child: MouseRegion(
+                onEnter: (_) => setState(() {
+                  _hoveredCell = StructuredDataCellCoordinate(
+                    rowIndex: rowIndex!,
+                    columnIndex: i,
+                  );
+                }),
+                onExit: (_) => setState(() {
+                  final hovered = _hoveredCell;
+                  if (hovered?.rowIndex == rowIndex &&
+                      hovered?.columnIndex == i) {
+                    _hoveredCell = null;
+                  }
+                }),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onDoubleTap: () {
+                    final coordinate = StructuredDataCellCoordinate(
+                      rowIndex: rowIndex!,
+                      columnIndex: i,
+                    );
+                    _updateCellSelection(
+                      rowIndex: coordinate.rowIndex,
+                      columnIndex: coordinate.columnIndex,
+                    );
+                    _enterCellEditMode(coordinate);
+                  },
+                  child: SizedBox.expand(child: cellBody),
+                ),
+              ),
             )
           : SizedBox.expand(child: cellBody);
       final cell = SizedBox(width: columnWidths[i], child: interactiveCell);
@@ -1329,16 +1810,23 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
         : (index.isEven
             ? listTokens.stripeEvenBackground
             : listTokens.stripeOddBackground);
+    final rowHoverBackground = widget.cellSelectionEnabled &&
+            _hoveredCell != null &&
+            _hoveredCell!.rowIndex == index
+        ? listTokens.hoverBackground.withValues(alpha: 0.12)
+        : Colors.transparent;
     final background = widget.cellSelectionEnabled
-        ? Colors.transparent
+        ? rowHoverBackground
         : (selected ? listTokens.selectedBackground : stripeBackground);
-    final overlayColor = WidgetStateProperty.resolveWith<Color?>((states) {
-      if (states.contains(WidgetState.hovered) ||
-          states.contains(WidgetState.pressed)) {
-        return listTokens.hoverBackground;
-      }
-      return null;
-    });
+    final overlayColor = widget.cellSelectionEnabled
+        ? WidgetStateProperty.all(Colors.transparent)
+        : WidgetStateProperty.resolveWith<Color?>((states) {
+            if (states.contains(WidgetState.hovered) ||
+                states.contains(WidgetState.pressed)) {
+              return listTokens.hoverBackground;
+            }
+            return null;
+          });
 
     final showFocusOutline = focused && !widget.cellSelectionEnabled;
     final border = Border.all(
@@ -1348,7 +1836,9 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
 
     Offset? tapPosition;
 
-    return Material(
+    final allowRowDrag =
+        !widget.cellSelectionEnabled && widget.rowDragPayloadBuilder != null;
+    final rowContent = Material(
       color: background,
       child: Listener(
         behavior: HitTestBehavior.opaque,
@@ -1356,7 +1846,13 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           tapPosition = event.position;
           if ((event.buttons & kPrimaryButton) != 0) {
             if (!widget.cellSelectionEnabled) {
-              _handleRowTapSelection(index);
+              final canDragRows = widget.rowDragPayloadBuilder != null;
+              final isShift = HardwareKeyboard.instance.isShiftPressed;
+              if (!(canDragRows &&
+                  _listController.selectedIndices.contains(index) &&
+                  !isShift)) {
+                _handleRowTapSelection(index);
+              }
             }
             widget.onRowTap?.call(row);
           }
@@ -1365,12 +1861,34 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           behavior: HitTestBehavior.opaque,
           onSecondaryTapDown: (details) {
             tapPosition = details.globalPosition;
+            if (widget.cellSelectionEnabled) {
+              final columnIndex =
+                  _columnIndexForLocalDx(details.localPosition.dx);
+              if (!_isCellSelected(index, columnIndex)) {
+                _updateCellSelection(
+                  rowIndex: index,
+                  columnIndex: columnIndex,
+                );
+              }
+            }
             _showContextMenuForIndex(index, details.globalPosition);
           },
-          onLongPressStart: (details) {
-            tapPosition = details.globalPosition;
-            _showContextMenuForIndex(index, details.globalPosition);
-          },
+          onLongPressStart: allowRowDrag
+              ? null
+              : (details) {
+                  tapPosition = details.globalPosition;
+                  if (widget.cellSelectionEnabled) {
+                    final columnIndex =
+                        _columnIndexForLocalDx(details.localPosition.dx);
+                    if (!_isCellSelected(index, columnIndex)) {
+                      _updateCellSelection(
+                        rowIndex: index,
+                        columnIndex: columnIndex,
+                      );
+                    }
+                  }
+                  _showContextMenuForIndex(index, details.globalPosition);
+                },
           onDoubleTap: () {
             if (widget.primaryDoubleClickOpensContextMenu) {
               final position =
@@ -1430,6 +1948,60 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           ),
         ),
       ),
+    );
+
+    if (!allowRowDrag) {
+      return rowContent;
+    }
+    return LongPressDraggable<Object>(
+      data: widget.rowDragPayloadBuilder!(
+        row,
+        _listController.selectedIndices.contains(index)
+            ? _selectedRows()
+            : [row],
+      ),
+      feedback: widget.rowDragFeedbackBuilder?.call(
+            context,
+            row,
+            _listController.selectedIndices.contains(index)
+                ? _selectedRows()
+                : [row],
+          ) ??
+          Material(
+            color: Colors.transparent,
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: spacing.base,
+                vertical: spacing.xs,
+              ),
+              decoration: BoxDecoration(
+                color: Theme.of(context)
+                    .colorScheme
+                    .surfaceContainerHighest
+                    .withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+              ),
+              child: Text(
+                _listController.selectedIndices.contains(index)
+                    ? _selectedRows().length > 1
+                        ? '${_selectedRows().length} rows'
+                        : '1 row'
+                    : '1 row',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ),
+      dragAnchorStrategy: pointerDragAnchorStrategy,
+      delay: const Duration(milliseconds: 150),
+      onDragStarted: () {
+        if (!_listController.selectedIndices.contains(index)) {
+          _selectSingle(index);
+        }
+      },
+      child: rowContent,
     );
   }
 
@@ -1620,16 +2192,107 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
         focusNode: _focusNode,
         onFocusChange: (_) => _listController.setItemCount(_visibleRows.length),
         onKeyEvent: _handleCellKeyEvent,
-        child: listView,
+        child: Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: (event) {
+            if (event.kind == PointerDeviceKind.touch) {
+              _touchDragPointer = event.pointer;
+              _isTouchDragging = true;
+              _beginMarqueeSelection(event.localPosition);
+              return;
+            }
+            if (event.kind != PointerDeviceKind.mouse) return;
+            if ((event.buttons & kPrimaryButton) == 0) return;
+            _marqueePointer = event.pointer;
+            _isMarqueeSelecting = true;
+            _beginMarqueeSelection(event.localPosition);
+          },
+          onPointerMove: (event) {
+            if (_isTouchDragging && _touchDragPointer == event.pointer) {
+              _updateMarqueeSelection(event.localPosition);
+              _applyEdgeScroll(event.localPosition);
+              return;
+            }
+            if (!_isMarqueeSelecting || _marqueePointer != event.pointer) {
+              return;
+            }
+            _updateMarqueeSelection(event.localPosition);
+          },
+          onPointerUp: (event) {
+            if (_touchDragPointer == event.pointer) {
+              _touchDragPointer = null;
+              _isTouchDragging = false;
+            }
+            if (_marqueePointer == event.pointer) {
+              _marqueePointer = null;
+              _isMarqueeSelecting = false;
+            }
+          },
+          onPointerCancel: (event) {
+            if (_touchDragPointer == event.pointer) {
+              _touchDragPointer = null;
+              _isTouchDragging = false;
+            }
+            if (_marqueePointer == event.pointer) {
+              _marqueePointer = null;
+              _isMarqueeSelecting = false;
+            }
+          },
+          child: Container(
+            key: _bodyKey,
+            child: listView,
+          ),
+        ),
       );
     }
 
-    return SelectableListKeyboardHandler(
-      controller: _listController,
-      itemCount: _visibleRows.length,
-      focusNode: _focusNode,
-      onActivate: (index) => _handleDoubleTap(index),
-      child: listView,
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (event) {
+        if (event.kind != PointerDeviceKind.mouse) return;
+        if ((event.buttons & kPrimaryButton) == 0) return;
+        final rowIndex = _rowIndexForOffset(event.localPosition);
+        if (rowIndex == null) return;
+        final canDragRows = widget.rowDragPayloadBuilder != null;
+        final isShift = HardwareKeyboard.instance.isShiftPressed;
+        if (canDragRows &&
+            _listController.selectedIndices.contains(rowIndex) &&
+            !isShift) {
+          return;
+        }
+        _marqueePointer = event.pointer;
+        _isMarqueeSelecting = true;
+        if (isShift) {
+          _listController.extendSelection(rowIndex);
+        } else {
+          _handleRowTapSelection(rowIndex);
+        }
+      },
+      onPointerMove: (event) {
+        if (!_isMarqueeSelecting || _marqueePointer != event.pointer) return;
+        final rowIndex = _rowIndexForOffset(event.localPosition);
+        if (rowIndex == null) return;
+        _listController.extendSelection(rowIndex);
+      },
+      onPointerUp: (event) {
+        if (_marqueePointer == event.pointer) {
+          _marqueePointer = null;
+          _isMarqueeSelecting = false;
+        }
+      },
+      onPointerCancel: (event) {
+        if (_marqueePointer == event.pointer) {
+          _marqueePointer = null;
+          _isMarqueeSelecting = false;
+        }
+      },
+      child: SelectableListKeyboardHandler(
+        controller: _listController,
+        itemCount: _visibleRows.length,
+        focusNode: _focusNode,
+        onActivate: (index) => _handleDoubleTap(index),
+        child: listView,
+      ),
     );
   }
 }
