@@ -134,6 +134,18 @@ class StructuredDataTable<T> extends StatefulWidget {
     this.onRowTap,
     this.onRowDoubleTap,
     this.onRowContextMenu,
+    this.onRowPointerDown,
+    this.onRowPointerMove,
+    this.onRowPointerUp,
+    this.onRowPointerCancel,
+    this.onRowPointerEnter,
+    this.onBackgroundContextMenu,
+    this.rowSelectionEnabled = true,
+    this.rowSelectionPredicate,
+    this.selectedRowsBuilder,
+    this.enableKeyboardNavigation = true,
+    this.focusNode,
+    this.onKeyEvent,
     this.onSelectionChanged,
     this.onSortChanged,
     this.onColumnsReordered,
@@ -172,6 +184,22 @@ class StructuredDataTable<T> extends StatefulWidget {
   final ValueChanged<T>? onRowTap;
   final ValueChanged<T>? onRowDoubleTap;
   final void Function(T row, Offset? anchor)? onRowContextMenu;
+  final void Function(int index, T row, PointerDownEvent event)?
+  onRowPointerDown;
+  final void Function(int index, T row, PointerMoveEvent event)?
+  onRowPointerMove;
+  final void Function(int index, T row, PointerUpEvent event)? onRowPointerUp;
+  final void Function(int index, T row, PointerCancelEvent event)?
+  onRowPointerCancel;
+  final void Function(int index, T row, PointerEnterEvent event)?
+  onRowPointerEnter;
+  final ValueChanged<Offset>? onBackgroundContextMenu;
+  final bool rowSelectionEnabled;
+  final bool Function(T row)? rowSelectionPredicate;
+  final List<T> Function(List<T> rows)? selectedRowsBuilder;
+  final bool enableKeyboardNavigation;
+  final FocusNode? focusNode;
+  final KeyEventResult Function(FocusNode, KeyEvent)? onKeyEvent;
   final ValueChanged<List<T>>? onSelectionChanged;
   final void Function(int columnIndex, bool ascending)? onSortChanged;
   final ValueChanged<List<StructuredDataColumn<T>>>? onColumnsReordered;
@@ -580,18 +608,28 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
     }
   }
 
-  List<T> _selectedRows() => _listController.selectedIndices
-      .where((index) => index < _visibleRows.length)
-      .map((index) => _visibleRows[index])
-      .toList(growable: false);
+  List<T> _selectedRows() {
+    final builder = widget.selectedRowsBuilder;
+    if (builder != null) {
+      return builder(_visibleRows);
+    }
+    return _listController.selectedIndices
+        .where((index) => index < _visibleRows.length)
+        .map((index) => _visibleRows[index])
+        .toList(growable: false);
+  }
 
   void _selectSingle(int index) {
     _listController.selectSingle(index);
   }
 
   void _handleRowTapSelection(int index) {
-    if (!_focusNode.hasFocus) {
-      _focusNode.requestFocus();
+    if (!widget.rowSelectionEnabled) {
+      return;
+    }
+    final focusNode = widget.focusNode ?? _focusNode;
+    if (!focusNode.hasFocus) {
+      focusNode.requestFocus();
     }
     if (!widget.allowMultiSelect) {
       _selectSingle(index);
@@ -613,7 +651,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
 
   void _handleDoubleTap(int index) {
     if (_visibleRows.isEmpty) return;
-    if (!widget.cellSelectionEnabled) {
+    if (!widget.cellSelectionEnabled && widget.rowSelectionEnabled) {
       _selectSingle(index);
     }
     widget.onRowDoubleTap?.call(_visibleRows[index]);
@@ -1515,10 +1553,17 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
         widget.onRowContextMenu == null) {
       return;
     }
-    if (!widget.cellSelectionEnabled) {
-      final isAlreadySelected = _listController.selectedIndices.contains(index);
-      if (!isAlreadySelected) {
-        _selectSingle(index);
+    if (!widget.cellSelectionEnabled && widget.rowSelectionEnabled) {
+      final usesExternalSelection =
+          widget.rowSelectionPredicate != null ||
+          widget.selectedRowsBuilder != null;
+      if (!usesExternalSelection) {
+        final isAlreadySelected = _listController.selectedIndices.contains(
+          index,
+        );
+        if (!isAlreadySelected) {
+          _selectSingle(index);
+        }
       }
     }
     final onRowContextMenu = widget.onRowContextMenu;
@@ -1953,7 +1998,9 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
     final row = _visibleRows[index];
     final spacing = context.appTheme.spacing;
     final listTokens = context.appTheme.list;
-    final selected = _listController.selectedIndices.contains(index);
+    final selected =
+        widget.rowSelectionPredicate?.call(row) ??
+        _listController.selectedIndices.contains(index);
     final focused = _listController.focusedIndex == index;
     final verticalPadding = widget.cellSelectionEnabled
         ? 0.0
@@ -2004,6 +2051,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       child: Listener(
         behavior: HitTestBehavior.opaque,
         onPointerDown: (event) {
+          widget.onRowPointerDown?.call(index, row, event);
           tapPosition = event.position;
           if ((event.buttons & kPrimaryButton) != 0) {
             if (!widget.cellSelectionEnabled) {
@@ -2018,95 +2066,108 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
             widget.onRowTap?.call(row);
           }
         },
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onSecondaryTapDown: (details) {
-            tapPosition = details.globalPosition;
-            if (widget.cellSelectionEnabled) {
-              final columnIndex = _columnIndexForLocalDx(
-                details.localPosition.dx,
-              );
-              if (!_isCellSelected(index, columnIndex)) {
-                _updateCellSelection(rowIndex: index, columnIndex: columnIndex);
-              }
-            }
-            _showContextMenuForIndex(index, details.globalPosition);
-          },
-          onLongPressStart: allowRowDrag
+        onPointerMove: (event) =>
+            widget.onRowPointerMove?.call(index, row, event),
+        onPointerUp: (event) => widget.onRowPointerUp?.call(index, row, event),
+        onPointerCancel: (event) =>
+            widget.onRowPointerCancel?.call(index, row, event),
+        child: MouseRegion(
+          onEnter: widget.onRowPointerEnter == null
               ? null
-              : (details) {
-                  tapPosition = details.globalPosition;
-                  if (widget.cellSelectionEnabled) {
-                    final columnIndex = _columnIndexForLocalDx(
-                      details.localPosition.dx,
-                    );
-                    if (!_isCellSelected(index, columnIndex)) {
-                      _updateCellSelection(
-                        rowIndex: index,
-                        columnIndex: columnIndex,
+              : (event) => widget.onRowPointerEnter?.call(index, row, event),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onSecondaryTapDown: (details) {
+              tapPosition = details.globalPosition;
+              if (widget.cellSelectionEnabled) {
+                final columnIndex = _columnIndexForLocalDx(
+                  details.localPosition.dx,
+                );
+                if (!_isCellSelected(index, columnIndex)) {
+                  _updateCellSelection(
+                    rowIndex: index,
+                    columnIndex: columnIndex,
+                  );
+                }
+              }
+              _showContextMenuForIndex(index, details.globalPosition);
+            },
+            onLongPressStart: allowRowDrag
+                ? null
+                : (details) {
+                    tapPosition = details.globalPosition;
+                    if (widget.cellSelectionEnabled) {
+                      final columnIndex = _columnIndexForLocalDx(
+                        details.localPosition.dx,
                       );
+                      if (!_isCellSelected(index, columnIndex)) {
+                        _updateCellSelection(
+                          rowIndex: index,
+                          columnIndex: columnIndex,
+                        );
+                      }
                     }
-                  }
-                  _showContextMenuForIndex(index, details.globalPosition);
-                },
-          onDoubleTap: () {
-            if (widget.primaryDoubleClickOpensContextMenu ||
-                widget.onRowContextMenu != null) {
-              final renderBox =
-                  _bodyKey.currentContext?.findRenderObject() as RenderBox?;
-              final position =
-                  tapPosition ??
-                  renderBox?.localToGlobal(Offset.zero) ??
-                  Offset.zero;
-              _showContextMenuForIndex(index, position);
-              return;
-            }
-            _handleDoubleTap(index);
-          },
-          child: InkWell(
-            splashFactory: NoSplash.splashFactory,
-            hoverColor: Colors.transparent,
-            overlayColor: overlayColor,
-            onTap: () {},
-            child: Container(
-              height: widget.rowHeight,
-              constraints: BoxConstraints(minHeight: widget.rowHeight),
-              padding: EdgeInsets.symmetric(
-                horizontal: widget.cellSelectionEnabled
-                    ? spacing.base
-                    : spacing.base * 1.2,
-                vertical: verticalPadding,
-              ),
-              clipBehavior: Clip.hardEdge,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(1),
-                border: border,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.max,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: SizedBox(
-                        width: rowContentWidth,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            ..._buildRowCells(
-                              context,
-                              row: row,
-                              header: false,
-                              columnWidths: columnWidths,
-                              rowIndex: index,
-                            ),
-                          ],
+                    _showContextMenuForIndex(index, details.globalPosition);
+                  },
+            onDoubleTap: () {
+              if (widget.primaryDoubleClickOpensContextMenu) {
+                final renderBox =
+                    _bodyKey.currentContext?.findRenderObject() as RenderBox?;
+                final position =
+                    tapPosition ??
+                    renderBox?.localToGlobal(Offset.zero) ??
+                    Offset.zero;
+                _showContextMenuForIndex(index, position);
+                return;
+              }
+              _handleDoubleTap(index);
+            },
+
+            child: InkWell(
+              splashFactory: NoSplash.splashFactory,
+              hoverColor: Colors.transparent,
+              overlayColor: overlayColor,
+              onTap: () {},
+              child: Container(
+                height: widget.rowHeight,
+                constraints: BoxConstraints(minHeight: widget.rowHeight),
+                padding: EdgeInsets.symmetric(
+                  horizontal: widget.cellSelectionEnabled
+                      ? spacing.base
+                      : spacing.base * 1.2,
+                  vertical: verticalPadding,
+                ),
+                clipBehavior: Clip.hardEdge,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(1),
+                  border: border,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.max,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: SizedBox(
+                          width: rowContentWidth,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              ..._buildRowCells(
+                                context,
+                                row: row,
+                                header: false,
+                                columnWidths: columnWidths,
+                                rowIndex: index,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -2419,9 +2480,37 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       );
     }
 
+    final listContent = widget.onBackgroundContextMenu == null
+        ? listView
+        : GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onSecondaryTapDown: (details) {
+              final rowIndex = _rowIndexForOffset(details.localPosition);
+              if (rowIndex != null) {
+                return;
+              }
+              widget.onBackgroundContextMenu?.call(details.globalPosition);
+            },
+            child: listView,
+          );
+    final focusNode = widget.focusNode ?? _focusNode;
+    final keyboardWrapped = widget.enableKeyboardNavigation
+        ? SelectableListKeyboardHandler(
+            controller: _listController,
+            itemCount: _visibleRows.length,
+            focusNode: focusNode,
+            onActivate: (index) => _handleDoubleTap(index),
+            child: listContent,
+          )
+        : Focus(
+            focusNode: focusNode,
+            onKeyEvent: widget.onKeyEvent,
+            child: listContent,
+          );
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: (event) {
+        if (!widget.rowSelectionEnabled) return;
         if (event.kind != PointerDeviceKind.mouse) return;
         if ((event.buttons & kPrimaryButton) == 0) return;
         final rowIndex = _rowIndexForOffset(event.localPosition);
@@ -2442,6 +2531,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
         }
       },
       onPointerMove: (event) {
+        if (!widget.rowSelectionEnabled) return;
         if (!_isMarqueeSelecting || _marqueePointer != event.pointer) return;
         final rowIndex = _rowIndexForOffset(event.localPosition);
         if (rowIndex == null) return;
@@ -2459,13 +2549,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           _isMarqueeSelecting = false;
         }
       },
-      child: SelectableListKeyboardHandler(
-        controller: _listController,
-        itemCount: _visibleRows.length,
-        focusNode: _focusNode,
-        onActivate: (index) => _handleDoubleTap(index),
-        child: listView,
-      ),
+      child: keyboardWrapped,
     );
   }
 }

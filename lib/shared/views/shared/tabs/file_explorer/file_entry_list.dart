@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../models/remote_file_entry.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../theme/nerd_fonts.dart';
+import '../../../../widgets/data_table/structured_data_table.dart';
 import '../../../../widgets/lists/selectable_list_item.dart';
 import 'file_icon_resolver.dart';
 
@@ -21,7 +22,7 @@ class LocalFileSession {
 }
 
 /// Widget for displaying the list of file entries
-class FileEntryList extends StatelessWidget {
+class FileEntryList extends StatefulWidget {
   const FileEntryList({
     super.key,
     required this.entries,
@@ -70,63 +71,244 @@ class FileEntryList extends StatelessWidget {
   final String Function(String, String) joinPath;
 
   @override
-  Widget build(BuildContext context) {
-    if (entries.isEmpty) {
-      return const Center(child: Text('Directory is empty.'));
-    }
+  State<FileEntryList> createState() => _FileEntryListState();
+}
 
-    final dividerColor = context.appTheme.section.divider;
-    return Focus(
-      focusNode: focusNode,
-      onKeyEvent: (node, event) => onKeyEvent(node, event, entries),
-      child: GestureDetector(
-        behavior: HitTestBehavior.deferToChild,
-        onSecondaryTapDown: onBackgroundContextMenu == null
-            ? null
-            : (details) => onBackgroundContextMenu!(details.globalPosition),
-        child: Listener(
-          onPointerDown: (_) => focusNode.requestFocus(),
-          onPointerUp: (_) => onStopDragSelection(),
-          onPointerCancel: (_) => onStopDragSelection(),
-          child: ListView.separated(
-            controller: scrollController,
-            itemCount: entries.length,
-            separatorBuilder: (_, _) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Divider(height: 1, thickness: 1, color: dividerColor),
-            ),
-            itemBuilder: (context, index) {
-              final entry = entries[index];
-              final remotePath = joinPath(currentPath, entry.name);
-              final session = localEdits[remotePath];
-              return FileEntryTile(
-                stripeIndex: index,
-                entry: entry,
-                remotePath: remotePath,
-                selected: selectedPaths.contains(remotePath),
-                session: session,
-                syncing: syncingPaths.contains(remotePath),
-                refreshing: refreshingPaths.contains(remotePath),
-                onDoubleTap: () => onEntryDoubleTap(entry),
-                onContextMenu: (position) =>
-                    onEntryContextMenu(entry, position),
-                onPointerDown: (event) =>
-                    onEntryPointerDown(event, entries, index, remotePath),
-                onDragHover: (event) => onDragHover(event, index, remotePath),
-                onStopDragSelection: onStopDragSelection,
-                onStartOsDrag: onStartOsDrag,
-                onSyncLocalEdit: session != null
-                    ? () => onSyncLocalEdit(session)
-                    : null,
-                onRefreshCacheFromServer: session != null
-                    ? () => onRefreshCacheFromServer(session)
-                    : null,
-                onClearCachedCopy: session != null
-                    ? () => onClearCachedCopy(session)
-                    : null,
-              );
-            },
+class _FileEntryListState extends State<FileEntryList> {
+  final Map<int, Offset> _pointerDownPositions = {};
+  final Set<int> _draggedPointers = {};
+
+  String _remotePath(RemoteFileEntry entry) {
+    return widget.joinPath(widget.currentPath, entry.name);
+  }
+
+  bool _isSelected(RemoteFileEntry entry) {
+    return widget.selectedPaths.contains(_remotePath(entry));
+  }
+
+  LocalFileSession? _sessionFor(RemoteFileEntry entry) {
+    return widget.localEdits[_remotePath(entry)];
+  }
+
+  String _sizeLabel(RemoteFileEntry entry) {
+    if (entry.isDirectory) {
+      return '—';
+    }
+    return '${(entry.sizeBytes / 1024).toStringAsFixed(1)} KB';
+  }
+
+  String _secondaryLabel(RemoteFileEntry entry) {
+    return entry.isDirectory ? 'Directory' : _sizeLabel(entry);
+  }
+
+  String _modifiedLabel(RemoteFileEntry entry) {
+    return entry.modified.toLocal().toString();
+  }
+
+  void _handleRowPointerDown(
+    int index,
+    RemoteFileEntry entry,
+    PointerDownEvent event,
+  ) {
+    _pointerDownPositions[event.pointer] = event.position;
+    _draggedPointers.remove(event.pointer);
+    widget.onEntryPointerDown(event, widget.entries, index, _remotePath(entry));
+  }
+
+  void _handleRowPointerMove(
+    int index,
+    RemoteFileEntry entry,
+    PointerMoveEvent event,
+  ) {
+    if (widget.onStartOsDrag == null) {
+      return;
+    }
+    if (_draggedPointers.contains(event.pointer)) {
+      return;
+    }
+    if (event.kind != PointerDeviceKind.mouse) {
+      return;
+    }
+    if ((event.buttons & kPrimaryMouseButton) == 0) {
+      return;
+    }
+    final origin = _pointerDownPositions[event.pointer];
+    if (origin == null) {
+      return;
+    }
+    final delta = (event.position - origin).distance;
+    if (delta <= 6) {
+      return;
+    }
+    _draggedPointers.add(event.pointer);
+    widget.onStartOsDrag!(event.position);
+  }
+
+  void _handleRowPointerUp(
+    int index,
+    RemoteFileEntry entry,
+    PointerUpEvent event,
+  ) {
+    _pointerDownPositions.remove(event.pointer);
+    _draggedPointers.remove(event.pointer);
+    widget.onStopDragSelection();
+  }
+
+  void _handleRowPointerCancel(
+    int index,
+    RemoteFileEntry entry,
+    PointerCancelEvent event,
+  ) {
+    _pointerDownPositions.remove(event.pointer);
+    _draggedPointers.remove(event.pointer);
+    widget.onStopDragSelection();
+  }
+
+  void _handleRowPointerEnter(
+    int index,
+    RemoteFileEntry entry,
+    PointerEnterEvent event,
+  ) {
+    widget.onDragHover(event, index, _remotePath(entry));
+  }
+
+  List<StructuredDataColumn<RemoteFileEntry>> _columns(BuildContext context) {
+    return [
+      StructuredDataColumn<RemoteFileEntry>(
+        label: 'Name',
+        autoFitText: (entry) => entry.name,
+        cellBuilder: _buildNameCell,
+      ),
+      StructuredDataColumn<RemoteFileEntry>(
+        label: 'Size',
+        alignment: Alignment.centerRight,
+        autoFitText: _sizeLabel,
+        cellBuilder: (context, entry) => Text(_sizeLabel(entry)),
+      ),
+      StructuredDataColumn<RemoteFileEntry>(
+        label: 'Modified',
+        autoFitText: _modifiedLabel,
+        cellBuilder: (context, entry) => Text(_modifiedLabel(entry)),
+      ),
+      StructuredDataColumn<RemoteFileEntry>(
+        label: 'Actions',
+        alignment: Alignment.centerRight,
+        minWidth: 140,
+        autoFitText: (_) => 'Actions',
+        cellBuilder: _buildActionsCell,
+      ),
+    ];
+  }
+
+  Widget _buildNameCell(BuildContext context, RemoteFileEntry entry) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final selected = _isSelected(entry);
+    final iconColor = selected
+        ? colorScheme.primary
+        : FileIconResolver.colorFor(entry, colorScheme);
+    final icon = FileIconResolver.iconFor(entry);
+    return Row(
+      children: [
+        Icon(icon, color: iconColor),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(entry.name, style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                _secondaryLabel(entry),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionsCell(BuildContext context, RemoteFileEntry entry) {
+    if (entry.isDirectory) {
+      return const SizedBox.shrink();
+    }
+    final session = _sessionFor(entry);
+    if (session == null) {
+      return const SizedBox.shrink();
+    }
+    final remotePath = session.remotePath;
+    final syncing = widget.syncingPaths.contains(remotePath);
+    final refreshing = widget.refreshingPaths.contains(remotePath);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          tooltip: 'Push local changes to server',
+          icon: syncing
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Icon(NerdIcon.cloudUpload.data),
+          onPressed: syncing ? null : () => widget.onSyncLocalEdit(session),
+        ),
+        IconButton(
+          tooltip: 'Refresh cache from server',
+          icon: refreshing
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Icon(NerdIcon.refresh.data),
+          onPressed: refreshing
+              ? null
+              : () => widget.onRefreshCacheFromServer(session),
+        ),
+        IconButton(
+          tooltip: 'Clear cached copy',
+          icon: Icon(NerdIcon.delete.data),
+          onPressed: () => widget.onClearCachedCopy(session),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Focus(
+      focusNode: widget.focusNode,
+      onKeyEvent: (node, event) =>
+          widget.onKeyEvent(node, event, widget.entries),
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerUp: (_) => widget.onStopDragSelection(),
+        onPointerCancel: (_) => widget.onStopDragSelection(),
+        child: StructuredDataTable<RemoteFileEntry>(
+          rows: widget.entries,
+          columns: _columns(context),
+          rowHeight: 64,
+          shrinkToContent: false,
+          useZebraStripes: false,
+          surfaceBackgroundColor: context.appTheme.section.surface.background,
+          primaryDoubleClickOpensContextMenu: false,
+          verticalController: widget.scrollController,
+          rowSelectionEnabled: false,
+          enableKeyboardNavigation: false,
+          rowSelectionPredicate: _isSelected,
+          selectedRowsBuilder: (rows) =>
+              rows.where((entry) => _isSelected(entry)).toList(),
+          onRowDoubleTap: widget.onEntryDoubleTap,
+          onRowContextMenu: (entry, position) =>
+              widget.onEntryContextMenu(entry, position ?? Offset.zero),
+          onRowPointerDown: _handleRowPointerDown,
+          onRowPointerMove: _handleRowPointerMove,
+          onRowPointerUp: _handleRowPointerUp,
+          onRowPointerCancel: _handleRowPointerCancel,
+          onRowPointerEnter: _handleRowPointerEnter,
+          onBackgroundContextMenu: widget.onBackgroundContextMenu,
+          emptyState: const Center(child: Text('Directory is empty.')),
         ),
       ),
     );

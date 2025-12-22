@@ -139,7 +139,7 @@ class _EnginePickerState extends State<EnginePicker> {
                         shrinkToContent: true,
                         useZebraStripes: false,
                         surfaceBackgroundColor: sectionColor,
-                        primaryDoubleClickOpensContextMenu: false,
+                        primaryDoubleClickOpensContextMenu: true,
                         metadataBuilder: _contextMetadata,
                         onRowContextMenu: (ctx, anchor) =>
                             widget.onOpenContext(ctx.name, anchor),
@@ -357,7 +357,7 @@ class RemoteHostList extends StatelessWidget {
       shrinkToContent: true,
       useZebraStripes: false,
       surfaceBackgroundColor: backgroundColor,
-      primaryDoubleClickOpensContextMenu: false,
+      primaryDoubleClickOpensContextMenu: true,
       refreshListenable: settingsController,
       onRowContextMenu: (status, anchor) => onOpenHost(status.host, anchor),
       emptyState: const Padding(
