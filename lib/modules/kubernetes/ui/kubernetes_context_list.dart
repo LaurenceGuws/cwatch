@@ -12,8 +12,8 @@ import 'package:cwatch/services/kubernetes/kubeconfig_service.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
+import 'package:cwatch/shared/widgets/data_table/structured_data_table.dart';
 import 'package:cwatch/shared/widgets/distro_leading_slot.dart';
-import 'package:cwatch/shared/widgets/lists/selectable_list_item.dart';
 import 'package:cwatch/shared/widgets/lists/section_list.dart';
 import 'package:cwatch/shared/views/shared/tabs/file_explorer/external_app_launcher.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
@@ -65,6 +65,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   late final TabNavigationHandle _tabNavigator;
   late final CommandPaletteHandle _commandPaletteHandle;
   String? _selectedContextKey;
+  final Map<String, bool> _collapsedByConfigPath = {};
 
   List<KubernetesTab> get _tabs => _tabController.tabs;
 
@@ -481,151 +482,227 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
         final grouped = _contextController.groupByConfigPath(contexts);
         final configPaths = grouped.keys.toList()..sort();
         final spacing = context.appTheme.spacing;
-        final refreshButton = Padding(
-          padding: EdgeInsets.only(
-            left: spacing.base * 2,
-            right: spacing.base * 2,
-            bottom: spacing.base,
-          ),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: ElevatedButton.icon(
-              onPressed: _refreshContexts,
-              icon: const Icon(Icons.refresh, size: 16),
-              label: const Text('Reload contexts'),
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(
-                  horizontal: spacing.base * 1.5,
-                  vertical: spacing.sm,
-                ),
-              ),
-            ),
-          ),
-        );
-
-        if (configPaths.length == 1) {
-          final onlyPath = configPaths.first;
-          final contextsForPath = grouped[onlyPath]!;
-          return Column(
-            children: [
-              refreshButton,
-              Expanded(
-                child: SectionList(
-                  title: path.basename(onlyPath),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.edit, size: 18),
-                    tooltip: 'Open kubeconfig',
-                    onPressed: () =>
-                        ExternalAppLauncher.openConfigFile(onlyPath, context),
-                  ),
-                  children: List.generate(
-                    contextsForPath.length,
-                    (index) =>
-                        _buildContextTile(contextsForPath[index], index),
-                  ),
-                ),
-              ),
-            ],
-          );
-        }
-
-        return Column(
-          children: [
-            refreshButton,
-            Expanded(
-              child: ListView.builder(
-                padding: EdgeInsets.zero,
-                itemCount: configPaths.length,
-                itemBuilder: (context, index) {
-                  final configPath = configPaths[index];
-                  final contextsForPath = grouped[configPath]!;
-                  return Padding(
-                    padding: EdgeInsets.only(bottom: spacing.base * 1.5),
-                    child: SectionList(
-                      title: path.basename(configPath),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.edit, size: 18),
-                        tooltip: 'Open kubeconfig',
-                        onPressed: () => ExternalAppLauncher.openConfigFile(
-                          configPath,
-                          context,
-                        ),
+        return ListView.builder(
+          padding: EdgeInsets.symmetric(vertical: spacing.base),
+          itemCount: configPaths.length,
+          itemBuilder: (context, index) {
+            final configPath = configPaths[index];
+            final contextsForPath = grouped[configPath]!;
+            final collapsed = _isConfigCollapsed(configPath);
+            final sectionColor = _sectionBackgroundForIndex(context, index);
+            return Padding(
+              padding: EdgeInsets.only(bottom: spacing.base * 1.5),
+              child: SectionList(
+                title: path.basename(configPath),
+                backgroundColor: sectionColor,
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        collapsed ? Icons.expand_more : Icons.expand_less,
+                        size: 18,
                       ),
-                      children: List.generate(
-                        contextsForPath.length,
-                        (index) =>
-                            _buildContextTile(contextsForPath[index], index),
-                      ),
+                      tooltip: collapsed ? 'Expand' : 'Collapse',
+                      onPressed: () => _toggleConfigCollapsed(configPath),
                     ),
-                  );
-                },
+                    PopupMenuButton<String>(
+                      tooltip: 'Section options',
+                      icon: const Icon(Icons.more_horiz, size: 18),
+                      onSelected: (value) {
+                        if (value == 'reloadContexts') {
+                          _refreshContexts();
+                        } else if (value == 'openConfig') {
+                          ExternalAppLauncher.openConfigFile(
+                            configPath,
+                            context,
+                          );
+                        }
+                      },
+                      itemBuilder: (context) => const [
+                        PopupMenuItem<String>(
+                          value: 'reloadContexts',
+                          child: Text('Reload contexts'),
+                        ),
+                        PopupMenuItem<String>(
+                          value: 'openConfig',
+                          child: Text('Open kubeconfig'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                children: collapsed
+                    ? const []
+                    : [
+                        StructuredDataTable<KubeconfigContext>(
+                          rows: contextsForPath,
+                          columns: _contextColumns(context),
+                          rowHeight: 64,
+                          shrinkToContent: true,
+                          useZebraStripes: false,
+                          surfaceBackgroundColor: sectionColor,
+                          primaryDoubleClickOpensContextMenu: false,
+                          metadataBuilder: _contextMetadata,
+                          onRowTap: (kubeContext) {
+                            setState(() {
+                              _selectedContextKey = _contextKey(kubeContext);
+                            });
+                          },
+                          onRowDoubleTap: _openContextTab,
+                          rowContextMenuBuilder: _buildContextMenuActions,
+                        ),
+                      ],
               ),
-            ),
-          ],
+            );
+          },
         );
       },
     );
   }
 
-  Widget _buildContextTile(KubeconfigContext context, int stripeIndex) {
-    final selected = _selectedContextKey == _contextKey(context);
-    final scheme = Theme.of(this.context).colorScheme;
-    final statusColor = context.isCurrent
+  bool _isConfigCollapsed(String configPath) {
+    return _collapsedByConfigPath[configPath] ?? false;
+  }
+
+  void _toggleConfigCollapsed(String configPath) {
+    setState(() {
+      _collapsedByConfigPath[configPath] =
+          !(_collapsedByConfigPath[configPath] ?? false);
+    });
+  }
+
+  Color _sectionBackgroundForIndex(BuildContext context, int index) {
+    final scheme = Theme.of(context).colorScheme;
+    final base = context.appTheme.section.surface.background;
+    final overlay = scheme.surfaceTint.withValues(alpha: 0.08);
+    final alternate = Color.alphaBlend(overlay, base);
+    return index.isEven ? base : alternate;
+  }
+
+  String _valueOrDash(String? value) {
+    if (value == null || value.isEmpty) {
+      return '—';
+    }
+    return value;
+  }
+
+  List<StructuredDataColumn<KubeconfigContext>> _contextColumns(
+    BuildContext context,
+  ) {
+    return [
+      StructuredDataColumn<KubeconfigContext>(
+        label: 'Context',
+        autoFitText: (kubeContext) => kubeContext.name,
+        cellBuilder: _buildContextCell,
+      ),
+      StructuredDataColumn<KubeconfigContext>(
+        label: 'Cluster',
+        autoFitText: (kubeContext) => _valueOrDash(kubeContext.cluster),
+        cellBuilder: (context, kubeContext) =>
+            Text(_valueOrDash(kubeContext.cluster)),
+      ),
+      StructuredDataColumn<KubeconfigContext>(
+        label: 'Namespace',
+        autoFitText: (kubeContext) => _valueOrDash(kubeContext.namespace),
+        cellBuilder: (context, kubeContext) =>
+            Text(_valueOrDash(kubeContext.namespace)),
+      ),
+      StructuredDataColumn<KubeconfigContext>(
+        label: 'User',
+        autoFitText: (kubeContext) => _valueOrDash(kubeContext.user),
+        cellBuilder: (context, kubeContext) =>
+            Text(_valueOrDash(kubeContext.user)),
+      ),
+      StructuredDataColumn<KubeconfigContext>(
+        label: 'Endpoint',
+        autoFitText: (kubeContext) => _valueOrDash(kubeContext.server),
+        cellBuilder: (context, kubeContext) =>
+            Text(_valueOrDash(kubeContext.server)),
+      ),
+    ];
+  }
+
+  Widget _buildContextCell(
+    BuildContext context,
+    KubeconfigContext kubeContext,
+  ) {
+    final scheme = Theme.of(context).colorScheme;
+    final iconSize = _leadingIconSize(context);
+    final statusColor = kubeContext.isCurrent
         ? scheme.primary
         : scheme.onSurfaceVariant;
-    final iconColor = selected ? scheme.primary : scheme.onSurfaceVariant;
-    final iconSize = _leadingIconSize(this.context);
     final statusDotScale = 10 / iconSize;
-    Offset? lastPointer;
-    return SelectableListItem(
-      stripeIndex: stripeIndex,
-      selected: selected,
-      title: context.name,
-      subtitle: _contextSubtitle(context),
-      leading: DistroLeadingSlot(
-        iconData: NerdIcon.kubernetes.data,
-        iconSize: iconSize,
-        iconColor: iconColor,
-        statusColor: statusColor,
-        statusDotScale: statusDotScale,
-      ),
-      trailing: IconButton(
-        icon: const Icon(Icons.more_vert, size: 18),
-        tooltip: 'Context options',
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-        visualDensity: VisualDensity.compact,
-        onPressed: () => _showContextMenu(context),
-      ),
-      onTapDown: (details) => lastPointer = details.globalPosition,
-      onDoubleTapDown: (details) => lastPointer = details.globalPosition,
-      onTap: () {
-        setState(() {
-          _selectedContextKey = _contextKey(context);
-        });
-      },
-      onDoubleTap: () => _openContextTab(context),
-      onLongPress: () => _showContextMenu(context, lastPointer),
-      onSecondaryTapDown: (details) =>
-          _showContextMenu(context, details.globalPosition),
+    return Row(
+      children: [
+        DistroLeadingSlot(
+          iconData: NerdIcon.kubernetes.data,
+          iconSize: iconSize,
+          iconColor: statusColor,
+          statusColor: statusColor,
+          statusDotScale: statusDotScale,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            kubeContext.name,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ),
+      ],
     );
   }
 
-  String _contextSubtitle(KubeconfigContext context) {
-    final parts = <String>[];
-    if (context.cluster != null) {
-      parts.add('Cluster: ${context.cluster}');
+  List<StructuredDataChip> _contextMetadata(KubeconfigContext kubeContext) {
+    if (!kubeContext.isCurrent) {
+      return const [];
     }
-    if (context.namespace != null) {
-      parts.add('Namespace: ${context.namespace}');
-    }
-    if (context.user != null) {
-      parts.add('User: ${context.user}');
-    }
-    if (context.server != null) {
-      parts.add(context.server!);
-    }
-    return parts.join(' • ');
+    return const [
+      StructuredDataChip(label: 'Current', icon: Icons.check_circle),
+    ];
+  }
+
+  List<StructuredDataMenuAction<KubeconfigContext>> _buildContextMenuActions(
+    KubeconfigContext kubeContext,
+    List<KubeconfigContext> selected,
+    Offset? anchor,
+  ) {
+    return [
+      StructuredDataMenuAction<KubeconfigContext>(
+        label: 'Open context',
+        icon: NerdIcon.kubernetes.data,
+        onSelected: (_, primary) => _openContextTab(primary),
+      ),
+      StructuredDataMenuAction<KubeconfigContext>(
+        label: 'Open resources',
+        icon: NerdIcon.database.data,
+        onSelected: (_, primary) =>
+            _openContextTab(primary, kind: KubernetesTabKind.resources),
+      ),
+      StructuredDataMenuAction<KubeconfigContext>(
+        label: 'Copy server URL',
+        icon: Icons.copy,
+        enabled: kubeContext.server != null,
+        onSelected: (_, primary) {
+          final server = primary.server;
+          if (server == null) {
+            return;
+          }
+          Clipboard.setData(ClipboardData(text: server));
+          ScaffoldMessenger.of(this.context).showSnackBar(
+            const SnackBar(content: Text('Server endpoint copied')),
+          );
+        },
+      ),
+      StructuredDataMenuAction<KubeconfigContext>(
+        label: 'Open kubeconfig',
+        icon: Icons.edit,
+        onSelected: (_, primary) => ExternalAppLauncher.openConfigFile(
+          primary.configPath,
+          this.context,
+        ),
+      ),
+    ];
   }
 
   String _contextKey(KubeconfigContext context) =>
@@ -640,107 +717,6 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   double _leadingIconSize(BuildContext context) {
     final titleSize = Theme.of(context).textTheme.titleMedium?.fontSize ?? 14;
     return titleSize * 1.9;
-  }
-
-  void _showContextMenu(
-    KubeconfigContext context, [
-    Offset? tapPosition,
-  ]) async {
-    final overlay = Overlay.of(this.context).context.findRenderObject();
-    if (overlay is! RenderBox) {
-      return;
-    }
-    final base = overlay.localToGlobal(Offset.zero);
-    final anchor = tapPosition ?? base + const Offset(200, 200);
-    final position = RelativeRect.fromLTRB(
-      anchor.dx - base.dx,
-      anchor.dy - base.dy,
-      anchor.dx - base.dx,
-      anchor.dy - base.dy,
-    );
-    final choice = await showMenu<String>(
-      context: this.context,
-      position: position,
-      items: _contextActions(context, Theme.of(this.context).colorScheme),
-    );
-    _handleContextAction(choice, context);
-  }
-
-  List<PopupMenuEntry<String>> _contextActions(
-    KubeconfigContext context,
-    ColorScheme scheme,
-  ) {
-    return [
-      PopupMenuItem(
-        value: 'open',
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(NerdIcon.kubernetes.data, size: 18, color: scheme.primary),
-            const SizedBox(width: 8),
-            const Text('Open context'),
-          ],
-        ),
-      ),
-      PopupMenuItem(
-        value: 'resources',
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(NerdIcon.database.data, size: 18, color: scheme.primary),
-            const SizedBox(width: 8),
-            const Text('Open resources'),
-          ],
-        ),
-      ),
-      PopupMenuItem(
-        enabled: context.server != null,
-        value: 'copy-server',
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.copy, size: 18, color: scheme.primary),
-            const SizedBox(width: 8),
-            const Text('Copy server URL'),
-          ],
-        ),
-      ),
-      PopupMenuItem(
-        value: 'open-config',
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.edit, size: 18, color: scheme.primary),
-            const SizedBox(width: 8),
-            const Text('Open kubeconfig'),
-          ],
-        ),
-      ),
-    ];
-  }
-
-  void _handleContextAction(String? choice, KubeconfigContext context) {
-    switch (choice) {
-      case 'open':
-        _openContextTab(context);
-        break;
-      case 'resources':
-        _openContextTab(context, kind: KubernetesTabKind.resources);
-        break;
-      case 'copy-server':
-        if (context.server != null) {
-          Clipboard.setData(ClipboardData(text: context.server!));
-          ScaffoldMessenger.of(this.context).showSnackBar(
-            const SnackBar(content: Text('Server endpoint copied')),
-          );
-        }
-        break;
-      case 'open-config':
-        ExternalAppLauncher.openConfigFile(context.configPath, this.context);
-        break;
-      default:
-        break;
-    }
   }
 
   Widget _buildResources(
