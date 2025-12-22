@@ -63,7 +63,7 @@ class AppLogger {
     final now = _formatNow();
     final color = _colorFor(level);
     final reset = '\x1B[0m';
-    buffer.write('$color$now [cwatch] ');
+    buffer.write('$color$now ');
     if (tag != null && tag.isNotEmpty) {
       buffer.write('[$tag] ');
     }

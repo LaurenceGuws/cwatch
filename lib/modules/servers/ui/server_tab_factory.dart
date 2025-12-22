@@ -48,7 +48,7 @@ class ServerTabFactory {
       explorerPath: initialPath,
       bodyKey: bodyKey ?? GlobalKey(debugLabel: 'server-tab-$id'),
       explorerContext: explorerContext ?? ExplorerContext.server(host),
-      optionsController: TabOptionsController(),
+      optionsController: CompositeTabOptionsController(),
     );
   }
 
@@ -66,7 +66,7 @@ class ServerTabFactory {
       customName: path,
       initialContent: initialContent,
       bodyKey: bodyKey ?? GlobalKey(debugLabel: 'server-tab-$id'),
-      optionsController: TabOptionsController(),
+      optionsController: CompositeTabOptionsController(),
     );
   }
 
@@ -82,7 +82,7 @@ class ServerTabFactory {
       action: ServerAction.terminal,
       customName: initialDirectory,
       bodyKey: bodyKey ?? GlobalKey(debugLabel: 'server-tab-$id'),
-      optionsController: TabOptionsController(),
+      optionsController: CompositeTabOptionsController(),
     );
   }
 
@@ -98,7 +98,7 @@ class ServerTabFactory {
       action: ServerAction.resources,
       customName: customName,
       bodyKey: bodyKey ?? GlobalKey(debugLabel: 'server-tab-$id'),
-      optionsController: TabOptionsController(),
+      optionsController: CompositeTabOptionsController(),
     );
   }
 
@@ -114,7 +114,7 @@ class ServerTabFactory {
       action: ServerAction.connectivity,
       customName: customName,
       bodyKey: bodyKey ?? GlobalKey(debugLabel: 'server-tab-$id'),
-      optionsController: TabOptionsController(),
+      optionsController: CompositeTabOptionsController(),
     );
   }
 
@@ -132,7 +132,7 @@ class ServerTabFactory {
       customName: customName ?? 'Trash • ${host.name}',
       explorerContext: explorerContext ?? ExplorerContext.server(host),
       bodyKey: bodyKey ?? GlobalKey(debugLabel: 'server-tab-$id'),
-      optionsController: TabOptionsController(),
+      optionsController: CompositeTabOptionsController(),
     );
   }
 
@@ -142,7 +142,7 @@ class ServerTabFactory {
       host: const PlaceholderHost(),
       action: ServerAction.empty,
       bodyKey: GlobalKey(debugLabel: 'server-tab-$id'),
-      optionsController: TabOptionsController(),
+      optionsController: CompositeTabOptionsController(),
     );
   }
 

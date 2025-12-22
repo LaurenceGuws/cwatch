@@ -241,7 +241,12 @@ class _TerminalTabState extends State<TerminalTab> {
         onSelected: _startSession,
       ),
     ];
-    widget.optionsController?.update(options);
+    final controller = widget.optionsController;
+    if (controller is CompositeTabOptionsController) {
+      controller.updateBase(options);
+    } else {
+      controller?.update(options);
+    }
   }
 
   String _shellEscape(String input) {

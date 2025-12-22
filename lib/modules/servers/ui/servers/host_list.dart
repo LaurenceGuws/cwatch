@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
 
+import 'package:flutter/material.dart';
+
 import 'package:cwatch/models/custom_ssh_host.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/distro_icons.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
-import 'package:cwatch/shared/widgets/lists/selectable_list_controller.dart';
-import 'package:cwatch/shared/widgets/lists/selectable_list_item.dart';
+import 'package:cwatch/shared/widgets/data_table/structured_data_table.dart';
 import 'package:cwatch/shared/widgets/lists/section_list.dart';
 import 'package:cwatch/shared/views/shared/tabs/file_explorer/external_app_launcher.dart';
 import 'package:cwatch/shared/widgets/distro_leading_slot.dart';
 import 'package:cwatch/modules/servers/services/host_distro_key.dart';
+import 'package:cwatch/services/logging/app_logger.dart';
 
 /// Host list widget that displays SSH hosts grouped by source
 class HostList extends StatefulWidget {
@@ -47,9 +49,8 @@ class HostList extends StatefulWidget {
 }
 
 class _HostListState extends State<HostList> {
-  final SelectableListController _listController = SelectableListController();
-  final FocusNode _listFocusNode = FocusNode(debugLabel: 'HostList');
-  Offset? _lastPointerPosition;
+  final Map<String, bool> _collapsedBySource = {};
+  int _lastHostCount = -1;
 
   Map<String, List<SshHost>> _groupHostsBySource() {
     final grouped = <String, List<SshHost>>{};
@@ -60,13 +61,6 @@ class _HostListState extends State<HostList> {
     return grouped;
   }
 
-  @override
-  void dispose() {
-    _listController.dispose();
-    _listFocusNode.dispose();
-    super.dispose();
-  }
-
   String _getSourceDisplayName(String source) {
     if (source == 'custom') {
       return 'Added Servers';
@@ -75,303 +69,255 @@ class _HostListState extends State<HostList> {
     return parts.last;
   }
 
+  bool _isCollapsed(String source) => _collapsedBySource[source] ?? false;
+
+  void _toggleCollapsed(String source) {
+    setState(() {
+      _collapsedBySource[source] = !(_collapsedBySource[source] ?? false);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final spacing = context.appTheme.spacing;
     final grouped = _groupHostsBySource();
     final sources = grouped.keys.toList()..sort();
+    if (_lastHostCount != widget.hosts.length) {
+      _lastHostCount = widget.hosts.length;
+      AppLogger.d(
+        'HostList rebuild: hosts=${widget.hosts.length}',
+        tag: 'ServersList',
+      );
+    }
 
     if (widget.hosts.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('No SSH hosts found.'),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () => widget.onAddServer(_displayNames()),
-              icon: const Icon(Icons.add),
-              label: const Text('Add Server'),
-            ),
-          ],
+      return const Center(child: Text('No SSH hosts found.'));
+    }
+
+    Widget buildSection(String source, int index) {
+      final hosts = grouped[source]!;
+      final sectionColor = _sectionBackgroundForIndex(context, index);
+      final collapsed = _isCollapsed(source);
+      return Padding(
+        padding: EdgeInsets.only(bottom: spacing.base * 1.5),
+        child: SectionList(
+          backgroundColor: sectionColor,
+          title: _getSourceDisplayName(source),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: Icon(
+                  collapsed ? Icons.expand_more : Icons.expand_less,
+                  size: 18,
+                ),
+                tooltip: collapsed ? 'Expand' : 'Collapse',
+                onPressed: () => _toggleCollapsed(source),
+              ),
+              PopupMenuButton<String>(
+                tooltip: 'Section options',
+                icon: const Icon(Icons.settings, size: 18),
+                onSelected: (value) {
+                  if (value == 'reloadHosts') {
+                    widget.onHostsChanged();
+                    return;
+                  }
+                  if (value == 'editConfig') {
+                    ExternalAppLauncher.openConfigFile(source, context);
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem<String>(
+                    value: 'reloadHosts',
+                    child: Text('Reload server list'),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'editConfig',
+                    enabled: source != 'custom',
+                    child: const Text('Edit config file'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          children: collapsed
+              ? const []
+              : [_buildHostTable(hosts, surfaceColor: sectionColor)],
         ),
       );
     }
 
-    final addButton = Padding(
-      padding: EdgeInsets.only(
-        left: spacing.base * 2,
-        right: spacing.base * 2,
-        bottom: spacing.base,
-      ),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: ElevatedButton.icon(
-          onPressed: () => widget.onAddServer(_displayNames()),
-          icon: const Icon(Icons.add, size: 16),
-          label: const Text('Add Server'),
-          style: ElevatedButton.styleFrom(
-            padding: EdgeInsets.symmetric(
-              horizontal: spacing.base * 1.5,
-              vertical: spacing.sm,
-            ),
-          ),
-        ),
+    final list = sources.length == 1
+        ? buildSection(sources.first, 0)
+        : ListView.builder(
+            padding: EdgeInsets.zero,
+            itemCount: sources.length,
+            itemBuilder: (context, index) =>
+                buildSection(sources[index], index),
+          );
+
+    return Column(children: [Expanded(child: list)]);
+  }
+
+  Widget _buildHostTable(List<SshHost> hosts, {required Color surfaceColor}) {
+    return StructuredDataTable<SshHost>(
+      rows: hosts,
+      columns: _columns(),
+      rowHeight: 64,
+      shrinkToContent: true,
+      primaryDoubleClickOpensContextMenu: true,
+      useZebraStripes: false,
+      surfaceBackgroundColor: surfaceColor,
+      onRowTap: (host) => widget.onSelect?.call(host),
+      onRowDoubleTap: (host) => widget.onActivate?.call(host),
+      refreshListenable: widget.settingsController,
+      rowContextMenuBuilder: _buildContextMenuActions,
+      emptyState: const Padding(
+        padding: EdgeInsets.all(16),
+        child: Text('No servers in this group.'),
       ),
     );
+  }
 
+  List<StructuredDataColumn<SshHost>> _columns() {
+    return [
+      StructuredDataColumn<SshHost>(
+        label: 'Distro',
+        width: 64,
+        autoFitText: (host) => labelForDistro(_slugForHost(host)),
+        cellBuilder: _buildDistroCell,
+      ),
+      StructuredDataColumn<SshHost>(
+        label: 'Name',
+        autoFitText: (host) => host.name,
+        cellBuilder: (context, host) =>
+            Text(host.name, style: Theme.of(context).textTheme.titleMedium),
+      ),
+      StructuredDataColumn<SshHost>(
+        label: 'Host',
+        autoFitText: (host) => host.hostname,
+        cellBuilder: (context, host) => Text(host.hostname),
+      ),
+      StructuredDataColumn<SshHost>(
+        label: 'Port',
+        autoFitText: (host) => host.port.toString(),
+        cellBuilder: (context, host) => Text('${host.port}'),
+        alignment: Alignment.centerRight,
+      ),
+      StructuredDataColumn<SshHost>(
+        label: 'User',
+        autoFitText: (host) => host.user ?? '',
+        cellBuilder: (context, host) => Text(host.user ?? '-'),
+      ),
+    ];
+  }
+
+  Widget _buildDistroCell(BuildContext context, SshHost host) {
+    final scheme = Theme.of(context).colorScheme;
+    final statusColor = host.available ? scheme.primary : scheme.error;
+    final iconSize = _distroIconSize(context);
+    final iconColor = colorForDistro(_slugForHost(host), context.appTheme);
     return AnimatedBuilder(
-      animation: _listController,
+      animation: widget.settingsController,
       builder: (context, _) {
-        final list = sources.length == 1
-            ? SectionList(children: widget.hosts.map(_buildHostTile).toList())
-            : ListView.builder(
-                padding: EdgeInsets.zero,
-                itemCount: sources.length,
-                itemBuilder: (context, index) {
-                  final source = sources[index];
-                  final hosts = grouped[source]!;
-                  return Padding(
-                    padding: EdgeInsets.only(bottom: spacing.base * 1.5),
-                    child: SectionList(
-                      title: _getSourceDisplayName(source),
-                      trailing: source == 'custom'
-                          ? null
-                          : IconButton(
-                              icon: const Icon(Icons.edit, size: 18),
-                              tooltip: 'Edit config file',
-                              onPressed: () =>
-                                  ExternalAppLauncher.openConfigFile(
-                                    source,
-                                    context,
-                                  ),
-                            ),
-                      children: hosts.map(_buildHostTile).toList(),
-                    ),
-                  );
-                },
-              );
-        return Column(
-          children: [
-            addButton,
-            Expanded(
-              child: SelectableListKeyboardHandler(
-                controller: _listController,
-                itemCount: widget.hosts.length,
-                focusNode: _listFocusNode,
-                onActivate: (index) {
-                  final host = widget.hosts[index];
-                  widget.onActivate?.call(host);
-                },
-                child: list,
-              ),
-            ),
-          ],
+        final slug = widget
+            .settingsController
+            .settings
+            .serverDistroMap[hostDistroCacheKey(host)];
+        return Tooltip(
+          message: labelForDistro(slug),
+          child: DistroLeadingSlot(
+            slug: slug,
+            iconSize: iconSize,
+            iconColor: iconColor,
+            statusColor: statusColor,
+          ),
         );
       },
     );
   }
 
-  Widget _buildHostTile(SshHost host) {
-    final index = widget.hosts.indexOf(host);
-    final selected = _listController.selectedIndices.contains(index);
-    final focused = _listController.focusedIndex == index;
+  Color _sectionBackgroundForIndex(BuildContext context, int index) {
     final scheme = Theme.of(context).colorScheme;
-    final statusColor = host.available ? scheme.primary : scheme.error;
-    final iconSize = _distroIconSize(context);
-    final iconColor = colorForDistro(_slugForHost(host), context.appTheme);
-    final tilePadding = context.appTheme.spacing.base * 0.4;
+    final base = context.appTheme.section.surface.background;
+    final overlay = scheme.surfaceTint.withValues(alpha: 0.08);
+    final alternate = Color.alphaBlend(overlay, base);
+    return index.isEven ? base : alternate;
+  }
 
-    return SelectableListItem(
-      stripeIndex: index,
-      selected: selected,
-      focused: focused,
-      title: host.name,
-      subtitle:
-          '${host.hostname}:${host.port}'
-          '${host.user?.isNotEmpty == true ? ' • ${host.user}' : ''}',
-      leading: AnimatedBuilder(
-        animation: widget.settingsController,
-        builder: (context, _) {
-          final slug = widget
-              .settingsController
-              .settings
-              .serverDistroMap[hostDistroCacheKey(host)];
-          return Tooltip(
-            message: labelForDistro(slug),
-            child: DistroLeadingSlot(
-              slug: slug,
-              iconSize: iconSize,
-              iconColor: iconColor,
-              statusColor: statusColor,
-            ),
-          );
+  List<StructuredDataMenuAction<SshHost>> _buildContextMenuActions(
+    SshHost host,
+    List<SshHost> selected,
+  ) {
+    final selection = selected.isNotEmpty ? selected : [host];
+    final canRemoveAll = selection.every(
+      (item) => item is CustomSshHost || item.source == 'custom',
+    );
+    final singleSelection = selection.length == 1;
+
+    return [
+      StructuredDataMenuAction<SshHost>(
+        label: 'Open terminal',
+        icon: NerdIcon.terminal.data,
+        enabled: singleSelection,
+        onSelected: (_, primary) {
+          if (widget.onOpenTerminal != null) {
+            widget.onOpenTerminal!(primary);
+          } else {
+            widget.onActivate?.call(primary);
+          }
         },
       ),
-      onTapDown: (details) {
-        _lastPointerPosition = details.globalPosition;
-        _handleSelect(index, host, focusOnly: false);
-      },
-      onTap: () => _handleSelect(index, host, focusOnly: false),
-      onDoubleTap: () {
-        _handleSelect(index, host, focusOnly: false);
-        _showContextMenu(host, scheme, _lastPointerPosition);
-      },
-      onLongPress: () {
-        _handleSelect(index, host, focusOnly: false);
-        _showContextMenu(host, scheme, _lastPointerPosition);
-      },
-      onSecondaryTapDown: (details) {
-        _lastPointerPosition = details.globalPosition;
-        _handleSelect(index, host, focusOnly: true);
-        _showContextMenu(host, scheme, details.globalPosition);
-      },
-      horizontalPadding: tilePadding,
-    );
-  }
-
-  void _handleSelect(int index, SshHost host, {required bool focusOnly}) {
-    _listController.focus(index);
-    if (!focusOnly) {
-      _listController.selectSingle(index);
-    }
-    widget.onSelect?.call(host);
-  }
-
-  List<String> _displayNames() => widget.hosts.map((h) => h.name).toList();
-
-  List<PopupMenuEntry<String>> _hostActions(ColorScheme scheme, SshHost host) {
-    final isCustom = host is CustomSshHost || host.source == 'custom';
-    return [
-      PopupMenuItem(
-        value: 'connect',
-        child: Row(
-          children: [
-            Icon(NerdIcon.terminal.data, color: scheme.primary, size: 18),
-            const SizedBox(width: 8),
-            const Text('Open terminal'),
-          ],
-        ),
+      StructuredDataMenuAction<SshHost>(
+        label: 'Open file explorer',
+        icon: NerdIcon.folderOpen.data,
+        enabled: singleSelection,
+        onSelected: (_, primary) {
+          if (widget.onOpenExplorer != null) {
+            widget.onOpenExplorer!(primary);
+          } else {
+            widget.onActivate?.call(primary);
+          }
+        },
       ),
-      PopupMenuItem(
-        value: 'explore',
-        child: Row(
-          children: [
-            Icon(NerdIcon.folderOpen.data, color: scheme.primary, size: 18),
-            const SizedBox(width: 8),
-            const Text('Open file explorer'),
-          ],
-        ),
+      StructuredDataMenuAction<SshHost>(
+        label: 'Port forwarding',
+        icon: Icons.link,
+        enabled: singleSelection,
+        onSelected: (_, primary) => widget.onOpenPortForward?.call(primary),
       ),
-      PopupMenuItem(
-        value: 'portForward',
-        child: Row(
-          children: [
-            Icon(Icons.link, color: scheme.primary, size: 18),
-            const SizedBox(width: 8),
-            const Text('Port forwarding'),
-          ],
-        ),
+      StructuredDataMenuAction<SshHost>(
+        label: 'Connectivity',
+        icon: NerdIcon.accessPoint.data,
+        enabled: singleSelection,
+        onSelected: (_, primary) => widget.onOpenConnectivity?.call(primary),
       ),
-      PopupMenuItem(
-        value: 'connectivity',
-        child: Row(
-          children: [
-            Icon(NerdIcon.accessPoint.data, color: scheme.primary, size: 18),
-            const SizedBox(width: 8),
-            const Text('Connectivity'),
-          ],
-        ),
+      StructuredDataMenuAction<SshHost>(
+        label: 'Resources',
+        icon: NerdIcon.database.data,
+        enabled: singleSelection,
+        onSelected: (_, primary) => widget.onOpenResources?.call(primary),
       ),
-      PopupMenuItem(
-        value: 'resources',
-        child: Row(
-          children: [
-            Icon(NerdIcon.database.data, color: scheme.primary, size: 18),
-            const SizedBox(width: 8),
-            const Text('Resources'),
-          ],
-        ),
-      ),
-      const PopupMenuDivider(),
-      PopupMenuItem(
-        enabled: isCustom,
-        value: 'remove',
-        child: Row(
-          children: [
-            Icon(Icons.delete_outline, color: scheme.error, size: 18),
-            const SizedBox(width: 8),
-            Text('Remove', style: TextStyle(color: scheme.error)),
-          ],
-        ),
+      StructuredDataMenuAction<SshHost>(
+        label: 'Remove',
+        icon: Icons.delete_outline,
+        destructive: true,
+        enabled: canRemoveAll,
+        onSelected: (selectedRows, _) {
+          if (!canRemoveAll) return;
+          final current = widget.settingsController.settings;
+          final removalNames = selectedRows.map((item) => item.name).toSet();
+          final updated = [...current.customSshHosts]
+            ..removeWhere((item) => removalNames.contains(item.name));
+          widget.settingsController.update(
+            (settings) => settings.copyWith(customSshHosts: updated),
+          );
+        },
       ),
     ];
   }
 
-  void _handleHostAction(String? choice, SshHost host) {
-    switch (choice) {
-      case 'connect':
-        if (widget.onOpenTerminal != null) {
-          widget.onOpenTerminal!(host);
-        } else {
-          widget.onActivate?.call(host);
-        }
-        break;
-      case 'explore':
-        if (widget.onOpenExplorer != null) {
-          widget.onOpenExplorer!(host);
-        } else {
-          widget.onActivate?.call(host);
-        }
-        break;
-      case 'connectivity':
-        widget.onOpenConnectivity?.call(host);
-        break;
-      case 'resources':
-        widget.onOpenResources?.call(host);
-        break;
-      case 'portForward':
-        widget.onOpenPortForward?.call(host);
-        break;
-      case 'remove':
-        final isCustom = host is CustomSshHost || host.source == 'custom';
-        if (isCustom) {
-          final current = widget.settingsController.settings;
-          final updated = [...current.customSshHosts]
-            ..removeWhere((h) => h.name == host.name);
-          widget.settingsController.update(
-            (settings) => settings.copyWith(customSshHosts: updated),
-          );
-          widget.onHostsChanged();
-        }
-        break;
-      default:
-        break;
-    }
-  }
-
-  void _showContextMenu(
-    SshHost host,
-    ColorScheme scheme, [
-    Offset? tapPosition,
-  ]) async {
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox?;
-    final basePosition = overlay?.localToGlobal(Offset.zero) ?? Offset.zero;
-    final anchor = tapPosition ?? basePosition + const Offset(200, 200);
-    final relative = RelativeRect.fromLTRB(
-      anchor.dx - basePosition.dx,
-      anchor.dy - basePosition.dy,
-      anchor.dx - basePosition.dx,
-      anchor.dy - basePosition.dy,
-    );
-    final choice = await showMenu<String>(
-      context: context,
-      position: relative,
-      items: _hostActions(scheme, host),
-    );
-    _handleHostAction(choice, host);
-  }
+  List<String> _displayNames() => widget.hosts.map((h) => h.name).toList();
 
   double _distroIconSize(BuildContext context) {
     final titleSize = Theme.of(context).textTheme.titleMedium?.fontSize ?? 14;

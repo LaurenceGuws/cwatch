@@ -839,7 +839,11 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       _optionsScheduled = false;
       final pending = _pendingTabOptions!;
       _pendingTabOptions = null;
-      controller.update(pending);
+      if (controller is CompositeTabOptionsController) {
+        controller.updateBase(pending);
+      } else {
+        controller.update(pending);
+      }
     });
   }
 }

@@ -18,7 +18,7 @@ class ServerTab {
     this.explorerContext,
     this.initialContent,
     TabOptionsController? optionsController,
-  }) : optionsController = optionsController ?? TabOptionsController();
+  }) : optionsController = optionsController ?? CompositeTabOptionsController();
 
   final String id;
   final SshHost host;

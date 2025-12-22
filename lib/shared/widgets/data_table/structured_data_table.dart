@@ -4,6 +4,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:cwatch/services/logging/app_logger.dart';
+
 import '../../theme/app_theme.dart';
 import '../../theme/nerd_fonts.dart';
 import '../lists/selectable_list_controller.dart';
@@ -54,6 +56,22 @@ class StructuredDataAction<T> {
   final String label;
   final IconData icon;
   final void Function(T row) onSelected;
+  final bool enabled;
+  final bool destructive;
+}
+
+class StructuredDataMenuAction<T> {
+  const StructuredDataMenuAction({
+    required this.label,
+    required this.icon,
+    required this.onSelected,
+    this.enabled = true,
+    this.destructive = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final void Function(List<T> selectedRows, T primaryRow) onSelected;
   final bool enabled;
   final bool destructive;
 }
@@ -119,15 +137,20 @@ class StructuredDataTable<T> extends StatefulWidget {
     this.onSortChanged,
     this.onColumnsReordered,
     this.rowActions = const [],
+    this.rowContextMenuBuilder,
     this.metadataBuilder,
     this.emptyState,
     this.searchQuery = '',
     this.rowSearchTextBuilder,
+    this.useZebraStripes = true,
+    this.surfaceBackgroundColor,
+    this.refreshListenable,
     this.allowMultiSelect = true,
+
     this.rowHeight = 60,
     this.headerHeight = 38,
     this.shrinkToContent = false,
-    this.primaryDoubleClickOpensContextMenu = false,
+    this.primaryDoubleClickOpensContextMenu = true,
     this.verticalScrollbarBottomInset = 0,
     this.cellSelectionEnabled = false,
     this.onCellTap,
@@ -151,10 +174,15 @@ class StructuredDataTable<T> extends StatefulWidget {
   final void Function(int columnIndex, bool ascending)? onSortChanged;
   final ValueChanged<List<StructuredDataColumn<T>>>? onColumnsReordered;
   final List<StructuredDataAction<T>> rowActions;
+  final List<StructuredDataMenuAction<T>> Function(T row, List<T> selectedRows)?
+  rowContextMenuBuilder;
   final List<StructuredDataChip> Function(T row)? metadataBuilder;
   final Widget? emptyState;
   final String searchQuery;
   final String Function(T row)? rowSearchTextBuilder;
+  final bool useZebraStripes;
+  final Color? surfaceBackgroundColor;
+  final Listenable? refreshListenable;
   final bool allowMultiSelect;
   final double rowHeight;
   final double headerHeight;
@@ -374,6 +402,18 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
     return totalWidth.ceilToDouble();
   }
 
+  void _handleExternalRefresh() {
+    if (!mounted) return;
+    AppLogger.d(
+      'StructuredDataTable refreshListenable fired: '
+      'rows=${widget.rows.length} visible=${_visibleRows.length}',
+      tag: 'StructuredDataTable',
+    );
+    setState(() {
+      _listController.setItemCount(_visibleRows.length);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -391,6 +431,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
     _listController = SelectableListController(
       allowMultiSelect: widget.allowMultiSelect,
     )..addListener(_handleSelectionChanged);
+    widget.refreshListenable?.addListener(_handleExternalRefresh);
     _focusNode = FocusNode(debugLabel: 'StructuredDataTable');
     _listController.setItemCount(_visibleRows.length);
   }
@@ -424,6 +465,10 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       _listController = SelectableListController(
         allowMultiSelect: widget.allowMultiSelect,
       )..addListener(_handleSelectionChanged);
+    }
+    if (oldWidget.refreshListenable != widget.refreshListenable) {
+      oldWidget.refreshListenable?.removeListener(_handleExternalRefresh);
+      widget.refreshListenable?.addListener(_handleExternalRefresh);
     }
     if (oldWidget.searchQuery != widget.searchQuery) {
       _listController.clearSelection();
@@ -492,6 +537,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
 
   @override
   void dispose() {
+    widget.refreshListenable?.removeListener(_handleExternalRefresh);
     _listController
       ..removeListener(_handleSelectionChanged)
       ..dispose();
@@ -1383,9 +1429,36 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
     return KeyEventResult.ignored;
   }
 
-  Future<void> _showContextMenu(T row, Offset position) async {
-    if (widget.rowActions.isEmpty) return;
-    final selected = await showMenu<StructuredDataAction<T>>(
+  List<StructuredDataMenuAction<T>> _contextActionsFor(
+    T row,
+    List<T> selectedRows,
+  ) {
+    final customBuilder = widget.rowContextMenuBuilder;
+    if (customBuilder != null) {
+      return customBuilder(row, selectedRows);
+    }
+    if (widget.rowActions.isEmpty) return const [];
+    return widget.rowActions
+        .map(
+          (action) => StructuredDataMenuAction<T>(
+            label: action.label,
+            icon: action.icon,
+            enabled: action.enabled,
+            destructive: action.destructive,
+            onSelected: (_, primary) => action.onSelected(primary),
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<void> _showContextMenu(
+    T row,
+    Offset position,
+    List<T> selectedRows,
+  ) async {
+    final actions = _contextActionsFor(row, selectedRows);
+    if (actions.isEmpty) return;
+    final selected = await showMenu<StructuredDataMenuAction<T>>(
       context: context,
       position: RelativeRect.fromLTRB(
         position.dx,
@@ -1393,9 +1466,9 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
         position.dx,
         position.dy,
       ),
-      items: widget.rowActions
+      items: actions
           .map(
-            (action) => PopupMenuItem<StructuredDataAction<T>>(
+            (action) => PopupMenuItem<StructuredDataMenuAction<T>>(
               value: action,
               enabled: action.enabled,
               child: Row(
@@ -1415,18 +1488,22 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           )
           .toList(),
     );
-    selected?.onSelected(row);
+    selected?.onSelected(selectedRows, row);
   }
 
   void _showContextMenuForIndex(int index, Offset position) {
-    if (_visibleRows.isEmpty || widget.rowActions.isEmpty) return;
+    if (_visibleRows.isEmpty) return;
+    if (widget.rowActions.isEmpty && widget.rowContextMenuBuilder == null) {
+      return;
+    }
     if (!widget.cellSelectionEnabled) {
       final isAlreadySelected = _listController.selectedIndices.contains(index);
       if (!isAlreadySelected) {
         _selectSingle(index);
       }
     }
-    _showContextMenu(_visibleRows[index], position);
+    final selectedRows = _selectedRows();
+    _showContextMenu(_visibleRows[index], position, selectedRows);
   }
 
   List<Widget> _buildRowCells(
@@ -1864,9 +1941,11 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
 
     final stripeBackground = widget.cellSelectionEnabled
         ? Colors.transparent
-        : (index.isEven
-              ? listTokens.stripeEvenBackground
-              : listTokens.stripeOddBackground);
+        : (widget.useZebraStripes
+              ? (index.isEven
+                    ? listTokens.stripeEvenBackground
+                    : listTokens.stripeOddBackground)
+              : Colors.transparent);
     final rowHoverBackground =
         widget.cellSelectionEnabled &&
             _hoveredCell != null &&
@@ -1948,11 +2027,11 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
                 },
           onDoubleTap: () {
             if (widget.primaryDoubleClickOpensContextMenu) {
+              final renderBox =
+                  _bodyKey.currentContext?.findRenderObject() as RenderBox?;
               final position =
                   tapPosition ??
-                  (context.findRenderObject() as RenderBox?)?.localToGlobal(
-                    Offset.zero,
-                  ) ??
+                  renderBox?.localToGlobal(Offset.zero) ??
                   Offset.zero;
               _showContextMenuForIndex(index, position);
               return;
@@ -1983,19 +2062,22 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: SizedBox(
-                      width: rowContentWidth,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          ..._buildRowCells(
-                            context,
-                            row: row,
-                            header: false,
-                            columnWidths: columnWidths,
-                            rowIndex: index,
-                          ),
-                        ],
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: SizedBox(
+                        width: rowContentWidth,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            ..._buildRowCells(
+                              context,
+                              row: row,
+                              header: false,
+                              columnWidths: columnWidths,
+                              rowIndex: index,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -2113,17 +2195,20 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
   @override
   Widget build(BuildContext context) {
     final surface = context.appTheme.section.surface;
+    final surfaceBackground =
+        widget.surfaceBackgroundColor ?? surface.background;
 
     if (_visibleRows.isEmpty && widget.emptyState != null) {
       return Container(
         decoration: BoxDecoration(
-          color: surface.background,
+          color: surfaceBackground,
           borderRadius: BorderRadius.circular(2),
           border: Border.all(
             color: surface.borderColor.withValues(alpha: 0.2),
             width: 0.4,
           ),
         ),
+
         padding: EdgeInsets.symmetric(
           horizontal: context.appTheme.spacing.base * 1.2,
           vertical: context.appTheme.spacing.base * 1.2,
@@ -2162,10 +2247,28 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
 
         const verticalScrollbarWidth = 10.0;
         const horizontalScrollbarThickness = 10.0;
+        final hasBoundedHeight = constraints.hasBoundedHeight;
+        final body = Column(
+          children: [
+            _buildHeader(context, columnWidths, gapWidth),
+            if (hasBoundedHeight)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 14),
+                  child: _buildBody(surface, columnWidths),
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.only(right: 14),
+                child: _buildBody(surface, columnWidths),
+              ),
+          ],
+        );
         return Container(
           margin: surface.margin,
           decoration: BoxDecoration(
-            color: surface.background,
+            color: surfaceBackground,
             borderRadius: BorderRadius.circular(2),
             border: Border.all(
               color: surface.borderColor.withValues(alpha: 0.2),
@@ -2174,7 +2277,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           ),
           child: SizedBox(
             width: constraints.maxWidth,
-            height: constraints.maxHeight,
+            height: hasBoundedHeight ? constraints.maxHeight : null,
             child: RawScrollbar(
               controller: _verticalController,
               thumbVisibility: true,
@@ -2198,18 +2301,8 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
                   scrollDirection: Axis.horizontal,
                   child: SizedBox(
                     width: targetWidth,
-                    height: constraints.maxHeight,
-                    child: Column(
-                      children: [
-                        _buildHeader(context, columnWidths, gapWidth),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(right: 14),
-                            child: _buildBody(surface, columnWidths),
-                          ),
-                        ),
-                      ],
-                    ),
+                    height: hasBoundedHeight ? constraints.maxHeight : null,
+                    child: body,
                   ),
                 ),
               ),

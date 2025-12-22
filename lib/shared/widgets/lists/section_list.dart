@@ -7,19 +7,22 @@ class SectionList extends StatelessWidget {
     required this.children,
     this.title,
     this.trailing,
+    this.backgroundColor,
   });
 
   final List<Widget> children;
   final String? title;
   final Widget? trailing;
+  final Color? backgroundColor;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final spacing = context.appTheme.spacing;
+    final cardColor = backgroundColor ?? scheme.surfaceContainerHigh;
     return Card(
       margin: EdgeInsets.zero,
-      color: scheme.surfaceContainerHigh,
+      color: cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(2),
         side: BorderSide(color: scheme.outlineVariant),

@@ -345,7 +345,11 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
         return;
       }
       _pendingTabOptions = null;
-      controller.update(pending);
+      if (controller is CompositeTabOptionsController) {
+        controller.updateBase(pending);
+      } else {
+        controller.update(pending);
+      }
     });
   }
 

@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 
@@ -14,11 +17,14 @@ import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/services/ssh/remote_command_logging.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/services/ssh/ssh_shell_factory.dart';
+import 'package:cwatch/services/ssh/ssh_config_service.dart';
 import 'package:cwatch/modules/servers/services/host_distro_manager.dart';
 import 'package:cwatch/services/ssh/ssh_auth_prompter.dart';
 import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
+import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/shared/widgets/port_forward_dialog.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
+import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/core/navigation/tab_navigation_registry.dart';
 import 'package:cwatch/core/navigation/command_palette_registry.dart';
 import 'package:cwatch/core/tabs/tab_bar_visibility.dart';
@@ -67,6 +73,7 @@ class _ServersListState extends State<ServersList> {
   late final SshShellFactory _shellFactory;
   late final HostDistroManager _distroManager;
   final Map<String, bool> _hostAvailability = {};
+  final Set<String> _pendingCustomAvailabilityChecks = {};
   bool _didProbeHostDistro = false;
   late final VoidCallback _settingsListener;
   late final VoidCallback _tabsListener;
@@ -76,7 +83,179 @@ class _ServersListState extends State<ServersList> {
   late final ServerWorkspaceController _workspaceController;
   late final TabNavigationHandle _tabNavigator;
   late final CommandPaletteHandle _commandPaletteHandle;
+  late Future<List<SshHost>> _hostsFuture;
+  late final ValueNotifier<Future<List<SshHost>>> _hostsFutureNotifier;
+  List<SshHost> _lastHosts = const [];
+  String _customHostsSignature = '';
+  String _pathsSignature = '';
+  String _workspaceSignature = '';
   ServerTabFactory get _tabFactory => _workspaceController.tabFactory;
+
+  Future<List<SshHost>> _loadHosts() async {
+    final settings = widget.settingsController.settings;
+    final hosts = await SshConfigService(
+      customHosts: settings.customSshHosts,
+      additionalEntryPoints: settings.customSshConfigPaths,
+      disabledEntryPoints: settings.disabledSshConfigPaths,
+    ).loadHosts();
+    _lastHosts = hosts;
+    return hosts;
+  }
+
+  String _buildCustomHostsSignature() {
+    final settings = widget.settingsController.settings;
+    final customHosts =
+        settings.customSshHosts.map((host) {
+            final keyParts = [
+              host.name,
+              host.hostname,
+              host.port.toString(),
+              host.user ?? '',
+              host.identityFile ?? '',
+            ];
+            return {'key': keyParts.join('|'), 'host': host.toJson()};
+          }).toList()
+          ..sort((a, b) => (a['key'] as String).compareTo(b['key'] as String));
+    return jsonEncode(customHosts.map((entry) => entry['host']).toList());
+  }
+
+  String _buildPathsSignature() {
+    final settings = widget.settingsController.settings;
+    final customPaths = [...settings.customSshConfigPaths]..sort();
+    final disabledPaths = [...settings.disabledSshConfigPaths]..sort();
+    return jsonEncode({
+      'customPaths': customPaths,
+      'disabledPaths': disabledPaths,
+    });
+  }
+
+  String _customHostKey(CustomSshHost host) {
+    return [
+      host.name,
+      host.hostname,
+      host.port.toString(),
+      host.user ?? '',
+      host.identityFile ?? '',
+    ].join('|');
+  }
+
+  String _customHostKeyFromSsh(SshHost host) {
+    return [
+      host.name,
+      host.hostname,
+      host.port.toString(),
+      host.user ?? '',
+      host.identityFiles.isNotEmpty ? host.identityFiles.first : '',
+    ].join('|');
+  }
+
+  Future<List<SshHost>> _updateCustomHosts(List<CustomSshHost> customHosts) {
+    if (_lastHosts.isEmpty) {
+      return _loadHosts();
+    }
+    final existingCustom = <String, SshHost>{
+      for (final host in _lastHosts.where((host) => host.source == 'custom'))
+        _customHostKeyFromSsh(host): host,
+    };
+    final nonCustomHosts = _lastHosts
+        .where((host) => host.source != 'custom')
+        .toList();
+    final updatedCustomHosts = <SshHost>[];
+    for (final customHost in customHosts) {
+      final key = _customHostKey(customHost);
+      final existing = existingCustom[key];
+      final available = existing?.available ?? false;
+      if (existing == null) {
+        _scheduleCustomAvailabilityCheck(customHost, key);
+      }
+      updatedCustomHosts.add(
+        SshHost(
+          name: customHost.name,
+          hostname: customHost.hostname,
+          port: customHost.port,
+          available: available,
+          user: customHost.user,
+          identityFiles: customHost.identityFile != null
+              ? [customHost.identityFile!]
+              : const [],
+          source: 'custom',
+        ),
+      );
+    }
+    final nextHosts = [...nonCustomHosts, ...updatedCustomHosts];
+    _lastHosts = nextHosts;
+    return Future.value(nextHosts);
+  }
+
+  void _scheduleCustomAvailabilityCheck(CustomSshHost host, String key) {
+    if (!_pendingCustomAvailabilityChecks.add(key)) {
+      return;
+    }
+    unawaited(
+      _checkAvailability(host)
+          .then((available) {
+            if (!mounted) {
+              return;
+            }
+            _applyCustomAvailability(host, available);
+          })
+          .whenComplete(() {
+            _pendingCustomAvailabilityChecks.remove(key);
+          }),
+    );
+  }
+
+  void _applyCustomAvailability(CustomSshHost host, bool available) {
+    final key = _customHostKey(host);
+    final index = _lastHosts.indexWhere(
+      (entry) =>
+          entry.source == 'custom' && _customHostKeyFromSsh(entry) == key,
+    );
+    if (index == -1) {
+      return;
+    }
+    final existing = _lastHosts[index];
+    if (existing.available == available) {
+      return;
+    }
+    final updated = SshHost(
+      name: existing.name,
+      hostname: existing.hostname,
+      port: existing.port,
+      available: available,
+      user: existing.user,
+      identityFiles: existing.identityFiles,
+      source: existing.source,
+    );
+    final nextHosts = [..._lastHosts];
+    nextHosts[index] = updated;
+    _lastHosts = nextHosts;
+    _hostsFuture = Future.value(nextHosts);
+    _hostsFutureNotifier.value = _hostsFuture;
+
+    final distroKey = hostDistroCacheKey(updated);
+    final wasAvailable = _hostAvailability[distroKey] ?? false;
+    _hostAvailability[distroKey] = available;
+    if (available && !_distroManager.hasCached(distroKey)) {
+      unawaited(
+        _distroManager.ensureDistroForHost(updated, force: !wasAvailable),
+      );
+    }
+  }
+
+  Future<bool> _checkAvailability(CustomSshHost host) async {
+    try {
+      final socket = await Socket.connect(
+        host.hostname,
+        host.port,
+        timeout: const Duration(seconds: 2),
+      );
+      socket.destroy();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 
   List<ServerTab> get _tabs => _tabController.tabs;
   int get _selectedTabIndex => _tabController.selectedIndex;
@@ -109,11 +288,13 @@ class _ServersListState extends State<ServersList> {
       shellFactory: _shellFactory,
     );
     _portForwardService.setAuthCoordinator(_shellFactory.authCoordinator);
+    _hostsFuture = _loadHosts();
+    _hostsFutureNotifier = ValueNotifier(_hostsFuture);
     _workspaceController = ServerWorkspaceController(
       settingsController: widget.settingsController,
       keyService: widget.keyService,
       commandLog: widget.commandLog,
-      hostsLoader: () => widget.hostsFuture,
+      hostsLoader: _loadHosts,
       trashManager: _trashManager,
       shellServiceForHost: _shellServiceForHost,
       editorBuilder: _buildEditorBody,
@@ -153,10 +334,15 @@ class _ServersListState extends State<ServersList> {
       _commandPaletteHandle,
     );
     final base = _tabController.tabs.first;
+    _syncTabOverlayOptions(base);
     _tabCache[base.id] = base;
     _tabRegistry.widgetFor(base, () => _buildTabWidget(base));
     _tabsListener = _handleTabsChanged;
     _tabController.addListener(_tabsListener);
+    _customHostsSignature = _buildCustomHostsSignature();
+    _pathsSignature = _buildPathsSignature();
+    _workspaceSignature =
+        widget.settingsController.settings.serverWorkspace?.signature ?? '';
     _settingsListener = _handleSettingsChanged;
     widget.settingsController.addListener(_settingsListener);
     _restoreWorkspace();
@@ -166,7 +352,9 @@ class _ServersListState extends State<ServersList> {
   void didUpdateWidget(covariant ServersList oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.hostsFuture != oldWidget.hostsFuture) {
-      _restoreWorkspace();
+      _hostsFuture = _loadHosts();
+      _hostsFutureNotifier.value = _hostsFuture;
+      _refreshHostSelectionTabs();
     }
   }
 
@@ -174,6 +362,7 @@ class _ServersListState extends State<ServersList> {
   void dispose() {
     _tabController.removeListener(_tabsListener);
     _tabController.dispose();
+    _hostsFutureNotifier.dispose();
     widget.settingsController.removeListener(_settingsListener);
     _portForwardService.dispose();
     TabNavigationRegistry.instance.unregister(widget.moduleId, _tabNavigator);
@@ -200,37 +389,45 @@ class _ServersListState extends State<ServersList> {
     ValueChanged<SshHost>? onHostSelected,
     ValueChanged<SshHost>? onHostActivate,
   }) {
-    return FutureBuilder<List<SshHost>>(
-      future: widget.hostsFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return ErrorState(error: snapshot.error.toString());
-        }
-        final hosts = snapshot.data ?? <SshHost>[];
-        final shellCapableHosts = hosts
-            .where((host) => !_isNoShellHost(host))
-            .toList();
-        _trackHostDistroChecks(shellCapableHosts);
-        return HostList(
-          hosts: shellCapableHosts,
-          onSelect: onHostSelected,
-          onActivate: onHostActivate ?? _startActionFlowForHost,
-          settingsController: widget.settingsController,
-          onOpenConnectivity: (host) =>
-              _addTab(host, ServerAction.connectivity),
-          onOpenResources: (host) => _addTab(host, ServerAction.resources),
-          onOpenTerminal: (host) => _addTab(host, ServerAction.terminal),
-          onOpenExplorer: (host) => _addTab(host, ServerAction.fileExplorer),
-          onOpenPortForward: _openPortForwardDialog,
-          onHostsChanged: () {
-            // Trigger rebuild when hosts change
-            setState(() {});
+    return ValueListenableBuilder<Future<List<SshHost>>>(
+      valueListenable: _hostsFutureNotifier,
+      builder: (context, hostsFuture, _) {
+        return FutureBuilder<List<SshHost>>(
+          future: hostsFuture,
+          builder: (context, snapshot) {
+            final cachedHosts = _lastHosts;
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                cachedHosts.isEmpty) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError && cachedHosts.isEmpty) {
+              return ErrorState(error: snapshot.error.toString());
+            }
+            final hosts = snapshot.data ?? cachedHosts;
+            final shellCapableHosts = hosts
+                .where((host) => !_isNoShellHost(host))
+                .toList();
+            _trackHostDistroChecks(shellCapableHosts);
+            return HostList(
+              hosts: shellCapableHosts,
+              onSelect: onHostSelected,
+              onActivate: onHostActivate ?? _startActionFlowForHost,
+              settingsController: widget.settingsController,
+              onOpenConnectivity: (host) =>
+                  _addTab(host, ServerAction.connectivity),
+              onOpenResources: (host) => _addTab(host, ServerAction.resources),
+              onOpenTerminal: (host) => _addTab(host, ServerAction.terminal),
+              onOpenExplorer: (host) =>
+                  _addTab(host, ServerAction.fileExplorer),
+              onOpenPortForward: _openPortForwardDialog,
+              onHostsChanged: () {
+                // Trigger rebuild when hosts change
+                _refreshHostSelectionTabs();
+              },
+              onAddServer: (existingNames) =>
+                  _showAddServerDialog(context, existingNames),
+            );
           },
-          onAddServer: (existingNames) =>
-              _showAddServerDialog(context, existingNames),
         );
       },
     );
@@ -261,6 +458,15 @@ class _ServersListState extends State<ServersList> {
         );
       }
     }
+  }
+
+  void _openAddServerDialog() {
+    final existingNames = _lastHosts.isNotEmpty
+        ? _lastHosts.map((host) => host.name).toList()
+        : widget.settingsController.settings.customSshHosts
+              .map((host) => host.name)
+              .toList();
+    _showAddServerDialog(context, existingNames);
   }
 
   Future<void> _showAddServerDialog(
@@ -322,6 +528,28 @@ class _ServersListState extends State<ServersList> {
                   builder: (context, options, _) {
                     final canRename = tab.action != ServerAction.empty;
                     final canDrag = tab.action != ServerAction.empty;
+                    final chipOptions = [
+                      ...options,
+                      if (tab.optionsController
+                          is! CompositeTabOptionsController) ...[
+                        TabChipOption(
+                          label: 'Add server',
+                          icon: Icons.add,
+                          onSelected: _openAddServerDialog,
+                        ),
+                        TabChipOption(
+                          label: 'Reload tab view',
+                          icon: NerdIcon.refresh.data,
+                          onSelected: () => _reloadTabView(tab),
+                        ),
+                        TabChipOption(
+                          label: 'Reload server list',
+                          icon: NerdIcon.refresh.data,
+                          onSelected: _reloadServerListView,
+                        ),
+                      ],
+                    ];
+
                     return TabChip(
                       host: tab.host,
                       title: tab.title,
@@ -336,7 +564,7 @@ class _ServersListState extends State<ServersList> {
                       onRename: canRename ? () => _renameTab(index) : null,
                       closeWarning: _closeWarningForTab(tab),
                       dragIndex: canDrag ? index : null,
-                      options: options,
+                      options: chipOptions,
                     );
                   },
                 );
@@ -413,10 +641,83 @@ class _ServersListState extends State<ServersList> {
     if (!mounted) {
       return;
     }
-    _restoreWorkspace();
+    final nextCustomSignature = _buildCustomHostsSignature();
+    final nextPathsSignature = _buildPathsSignature();
+    final customHostsChanged = nextCustomSignature != _customHostsSignature;
+    final pathsChanged = nextPathsSignature != _pathsSignature;
+    if (pathsChanged) {
+      _customHostsSignature = nextCustomSignature;
+      _pathsSignature = nextPathsSignature;
+      AppLogger.d('ServersList hosts updated', tag: 'ServersList');
+      _hostsFuture = _loadHosts();
+      _hostsFutureNotifier.value = _hostsFuture;
+      _refreshHostSelectionTabs();
+    } else if (customHostsChanged) {
+      _customHostsSignature = nextCustomSignature;
+      AppLogger.d('ServersList custom hosts updated', tag: 'ServersList');
+      _hostsFuture = _updateCustomHosts(
+        widget.settingsController.settings.customSshHosts,
+      );
+      _hostsFutureNotifier.value = _hostsFuture;
+    }
+
     _workspaceController.workspacePersistence.persistIfPending(
       _persistWorkspace,
     );
+  }
+
+  void _reloadServerListView() {
+    if (!mounted) return;
+    AppLogger.d('ServersList manual reload', tag: 'ServersList');
+    _hostsFuture = _loadHosts();
+    _hostsFutureNotifier.value = _hostsFuture;
+    _hostAvailability.clear();
+    _didProbeHostDistro = false;
+    _refreshHostSelectionTabs();
+  }
+
+  void _reloadTabView(ServerTab tab) {
+    if (!mounted) return;
+    AppLogger.d('ServersList tab view reload', tag: 'ServersList');
+    _tabRegistry.remove(tab);
+    _tabRegistry.widgetFor(tab, () => _buildTabWidget(tab));
+  }
+
+  void _syncTabOverlayOptions(ServerTab tab) {
+    final controller = tab.optionsController;
+    if (controller is! CompositeTabOptionsController) {
+      return;
+    }
+    controller.updateOverlay([
+      TabChipOption(
+        label: 'Add server',
+        icon: Icons.add,
+        onSelected: _openAddServerDialog,
+      ),
+      TabChipOption(
+        label: 'Reload tab view',
+        icon: NerdIcon.refresh.data,
+        onSelected: () => _reloadTabView(tab),
+      ),
+      TabChipOption(
+        label: 'Reload server list',
+        icon: NerdIcon.refresh.data,
+        onSelected: _reloadServerListView,
+      ),
+    ]);
+  }
+
+  void _refreshHostSelectionTabs() {
+    final emptyTabs = _tabs
+        .where((tab) => tab.action == ServerAction.empty)
+        .toList(growable: false);
+    if (emptyTabs.isEmpty) {
+      return;
+    }
+    for (final tab in emptyTabs) {
+      _tabRegistry.remove(tab);
+      _tabRegistry.widgetFor(tab, () => _buildTabWidget(tab));
+    }
   }
 
   void _handleTabsChanged() {
@@ -429,6 +730,7 @@ class _ServersListState extends State<ServersList> {
       _tabRegistry.remove(_placeholderTab(id));
     }
     for (final tab in currentTabs) {
+      _syncTabOverlayOptions(tab);
       _tabCache[tab.id] = tab;
       _tabRegistry.widgetFor(tab, () => _buildTabWidget(tab));
     }
