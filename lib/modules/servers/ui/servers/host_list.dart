@@ -50,6 +50,7 @@ class HostList extends StatefulWidget {
 
 class _HostListState extends State<HostList> {
   final Map<String, bool> _collapsedBySource = {};
+  final Set<String> _selectedHostKeys = {};
   int _lastHostCount = -1;
 
   Map<String, List<SshHost>> _groupHostsBySource() {
@@ -163,6 +164,22 @@ class _HostListState extends State<HostList> {
     );
   }
 
+  String _hostSelectionKey(SshHost host) => hostDistroCacheKey(host);
+
+  void _syncSelection(List<SshHost> hosts, List<SshHost> selected) {
+    final tableKeys = hosts.map(_hostSelectionKey).toSet();
+    _selectedHostKeys
+      ..removeAll(tableKeys)
+      ..addAll(selected.map(_hostSelectionKey));
+  }
+
+  List<SshHost> _selectedHostsForAction(SshHost fallback) {
+    final selected = widget.hosts
+        .where((host) => _selectedHostKeys.contains(_hostSelectionKey(host)))
+        .toList();
+    return selected.isEmpty ? [fallback] : selected;
+  }
+
   Widget _buildHostTable(List<SshHost> hosts, {required Color surfaceColor}) {
     return StructuredDataTable<SshHost>(
       rows: hosts,
@@ -176,6 +193,9 @@ class _HostListState extends State<HostList> {
       onRowDoubleTap: (host) => widget.onActivate?.call(host),
       refreshListenable: widget.settingsController,
       rowContextMenuBuilder: _buildContextMenuActions,
+      onSelectionChanged: (selectedRows) {
+        _syncSelection(hosts, selectedRows);
+      },
       emptyState: const Padding(
         padding: EdgeInsets.all(16),
         child: Text('No servers in this group.'),
@@ -254,7 +274,7 @@ class _HostListState extends State<HostList> {
     List<SshHost> selected,
     Offset? anchor,
   ) {
-    final selection = selected.isNotEmpty ? selected : [host];
+    final selection = _selectedHostsForAction(host);
     final canRemoveAll = selection.every(
       (item) => item is CustomSshHost || item.source == 'custom',
     );
@@ -264,24 +284,28 @@ class _HostListState extends State<HostList> {
       StructuredDataMenuAction<SshHost>(
         label: 'Open terminal',
         icon: NerdIcon.terminal.data,
-        enabled: singleSelection,
-        onSelected: (_, primary) {
-          if (widget.onOpenTerminal != null) {
-            widget.onOpenTerminal!(primary);
-          } else {
-            widget.onActivate?.call(primary);
+        enabled: selection.isNotEmpty,
+        onSelected: (_, __) {
+          for (final target in selection) {
+            if (widget.onOpenTerminal != null) {
+              widget.onOpenTerminal!(target);
+            } else if (target == selection.first) {
+              widget.onActivate?.call(target);
+            }
           }
         },
       ),
       StructuredDataMenuAction<SshHost>(
         label: 'Open file explorer',
         icon: NerdIcon.folderOpen.data,
-        enabled: singleSelection,
-        onSelected: (_, primary) {
-          if (widget.onOpenExplorer != null) {
-            widget.onOpenExplorer!(primary);
-          } else {
-            widget.onActivate?.call(primary);
+        enabled: selection.isNotEmpty,
+        onSelected: (_, __) {
+          for (final target in selection) {
+            if (widget.onOpenExplorer != null) {
+              widget.onOpenExplorer!(target);
+            } else if (target == selection.first) {
+              widget.onActivate?.call(target);
+            }
           }
         },
       ),
@@ -294,24 +318,32 @@ class _HostListState extends State<HostList> {
       StructuredDataMenuAction<SshHost>(
         label: 'Connectivity',
         icon: NerdIcon.accessPoint.data,
-        enabled: singleSelection,
-        onSelected: (_, primary) => widget.onOpenConnectivity?.call(primary),
+        enabled: selection.isNotEmpty,
+        onSelected: (_, __) {
+          for (final target in selection) {
+            widget.onOpenConnectivity?.call(target);
+          }
+        },
       ),
       StructuredDataMenuAction<SshHost>(
         label: 'Resources',
         icon: NerdIcon.database.data,
-        enabled: singleSelection,
-        onSelected: (_, primary) => widget.onOpenResources?.call(primary),
+        enabled: selection.isNotEmpty,
+        onSelected: (_, __) {
+          for (final target in selection) {
+            widget.onOpenResources?.call(target);
+          }
+        },
       ),
       StructuredDataMenuAction<SshHost>(
         label: 'Remove',
         icon: Icons.delete_outline,
         destructive: true,
         enabled: canRemoveAll,
-        onSelected: (selectedRows, _) {
+        onSelected: (_, __) {
           if (!canRemoveAll) return;
           final current = widget.settingsController.settings;
-          final removalNames = selectedRows.map((item) => item.name).toSet();
+          final removalNames = selection.map((item) => item.name).toSet();
           final updated = [...current.customSshHosts]
             ..removeWhere((item) => removalNames.contains(item.name));
           widget.settingsController.update(

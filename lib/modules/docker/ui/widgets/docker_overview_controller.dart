@@ -105,6 +105,17 @@ class DockerOverviewController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void replaceSelection(
+    Set<String> set,
+    Set<String> tableKeys,
+    Iterable<String> selected,
+  ) {
+    set
+      ..removeAll(tableKeys)
+      ..addAll(selected);
+    notifyListeners();
+  }
+
   void _updateSelection(
     Set<String> set,
     String key, {

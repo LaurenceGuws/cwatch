@@ -662,12 +662,15 @@ done'
     onOpenTab!(tab);
   }
 
-  Future<void> copyExecCommand(BuildContext context, String containerId) async {
+  String execCommand(String containerId) {
     final contextFlag = contextName != null && contextName!.isNotEmpty
         ? '--context ${contextName!} '
         : '';
-    final command =
-        'docker ${contextFlag}exec -it $containerId /bin/sh # change to /bin/bash if needed';
+    return 'docker ${contextFlag}exec -it $containerId /bin/sh # change to /bin/bash if needed';
+  }
+
+  Future<void> copyExecCommand(BuildContext context, String containerId) async {
+    final command = execCommand(containerId);
     await Clipboard.setData(ClipboardData(text: command));
     if (!context.mounted) return;
     ScaffoldMessenger.of(

@@ -72,6 +72,9 @@ class _DockerOverviewState extends State<DockerOverview> {
   late final ContainerDistroManager _containerDistroManager;
   final FocusNode _containerFocus = FocusNode(debugLabel: 'docker-containers');
   final Map<String, bool> _containerRunning = {};
+  List<DockerImage> _currentImages = const [];
+  List<DockerNetwork> _currentNetworks = const [];
+  List<DockerVolume> _currentVolumes = const [];
   bool _didProbeDistro = false;
   AppIcons get _icons => context.appTheme.icons;
   AppDockerTokens get _dockerTheme => context.appTheme.docker;
@@ -243,6 +246,9 @@ class _DockerOverviewState extends State<DockerOverview> {
                 final images = data.images;
                 final networks = data.networks;
                 final volumes = data.volumes;
+                _currentImages = images;
+                _currentNetworks = networks;
+                _currentVolumes = volumes;
                 final running = containers.where((c) => c.isRunning).length;
                 final stopped = containers.length - running;
                 final total = containers.length;
@@ -305,6 +311,7 @@ class _DockerOverviewState extends State<DockerOverview> {
                         child: ContainerPeek(
                           containers: containers,
                           onTapDown: _handleContainerTapDown,
+                          onSelectionChanged: _handleContainerSelectionChanged,
                           selectedIds: _controller.selectedContainerIds,
                           busyIds: _controller.containerActionInProgress.keys
                               .toSet(),
@@ -329,6 +336,7 @@ class _DockerOverviewState extends State<DockerOverview> {
                       child: ImagePeek(
                         images: images,
                         onTapDown: _handleImageTapDown,
+                        onSelectionChanged: _handleImageSelectionChanged,
                         selectedIds: _controller.selectedImageKeys,
                       ),
                     ),
@@ -338,6 +346,7 @@ class _DockerOverviewState extends State<DockerOverview> {
                       child: NetworkList(
                         networks: networks,
                         onTapDown: _handleNetworkTapDown,
+                        onSelectionChanged: _handleNetworkSelectionChanged,
                         selectedIds: _controller.selectedNetworkKeys,
                       ),
                     ),
@@ -347,6 +356,7 @@ class _DockerOverviewState extends State<DockerOverview> {
                       child: VolumeList(
                         volumes: volumes,
                         onTapDown: _handleVolumeTapDown,
+                        onSelectionChanged: _handleVolumeSelectionChanged,
                         selectedIds: _controller.selectedVolumeKeys,
                       ),
                     ),
@@ -360,8 +370,72 @@ class _DockerOverviewState extends State<DockerOverview> {
     );
   }
 
+  List<DockerContainer> _selectedContainersForAction(DockerContainer fallback) {
+    final selectedIds = _controller.selectedContainerIds;
+    if (selectedIds.isEmpty) {
+      return [fallback];
+    }
+    final selected = _currentContainers
+        .where((container) => selectedIds.contains(container.id))
+        .toList();
+    return selected.isEmpty ? [fallback] : selected;
+  }
+
+  String _networkKey(DockerNetwork network) {
+    return network.id.isNotEmpty ? network.id : network.name;
+  }
+
+  List<DockerImage> _selectedImagesForAction(DockerImage fallback) {
+    final selectedKeys = _controller.selectedImageKeys;
+    if (selectedKeys.isEmpty) {
+      return [fallback];
+    }
+    final selected = _currentImages
+        .where((image) => selectedKeys.contains(_imageKey(image)))
+        .toList();
+    return selected.isEmpty ? [fallback] : selected;
+  }
+
+  List<DockerNetwork> _selectedNetworksForAction(DockerNetwork fallback) {
+    final selectedKeys = _controller.selectedNetworkKeys;
+    if (selectedKeys.isEmpty) {
+      return [fallback];
+    }
+    final selected = _currentNetworks
+        .where((network) => selectedKeys.contains(_networkKey(network)))
+        .toList();
+    return selected.isEmpty ? [fallback] : selected;
+  }
+
+  List<DockerVolume> _selectedVolumesForAction(DockerVolume fallback) {
+    final selectedKeys = _controller.selectedVolumeKeys;
+    if (selectedKeys.isEmpty) {
+      return [fallback];
+    }
+    final selected = _currentVolumes
+        .where((volume) => selectedKeys.contains(volume.name))
+        .toList();
+    return selected.isEmpty ? [fallback] : selected;
+  }
+
   void _openContainerMenu(DockerContainer container, TapDownDetails details) {
     final scheme = Theme.of(context).colorScheme;
+    final selection = _selectedContainersForAction(container);
+    final isMulti = selection.length > 1;
+    final title = isMulti
+        ? '${selection.length} containers selected'
+        : (container.name.isNotEmpty ? container.name : container.id);
+    final detailsMap = isMulti
+        ? {'Selected': '${selection.length}'}
+        : {
+            'Image': container.image,
+            'Status': container.status,
+            'Ports': container.ports,
+          };
+    final copyValue = isMulti
+        ? selection.map((item) => item.id).join('\n')
+        : container.id;
+    final copyLabel = isMulti ? 'Container IDs' : 'Container ID';
     final extraActions = <PopupMenuEntry<String>>[
       _menus.menuItem(context, 'logs', 'Tail logs', Icons.list_alt_outlined),
       _menus.menuItem(
@@ -401,64 +475,101 @@ class _DockerOverviewState extends State<DockerOverview> {
     _menus.showItemMenu(
       context: context,
       globalPosition: details.globalPosition,
-      title: container.name.isNotEmpty ? container.name : container.id,
-      details: {
-        'Image': container.image,
-        'Status': container.status,
-        'Ports': container.ports,
-      },
-      copyValue: container.id,
-      copyLabel: 'Container ID',
+      title: title,
+      details: detailsMap,
+      copyValue: copyValue,
+      copyLabel: copyLabel,
       extraActions: extraActions,
       onAction: (action) async {
         switch (action) {
           case 'logs':
-            await _actions.openLogsTab(container, context: context);
+            for (final target in selection) {
+              await _actions.openLogsTab(target, context: context);
+            }
             break;
           case 'shell':
-            await _actions.openExecTerminal(context, container);
+            for (final target in selection) {
+              await _actions.openExecTerminal(context, target);
+            }
             break;
           case 'copyExec':
-            await _actions.copyExecCommand(context, container.id);
+            if (selection.length == 1) {
+              await _actions.copyExecCommand(context, selection.first.id);
+            } else {
+              final commands = selection
+                  .map((item) => _actions.execCommand(item.id))
+                  .join('\n');
+              await Clipboard.setData(ClipboardData(text: commands));
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Exec commands copied (${selection.length}).',
+                    ),
+                  ),
+                );
+              }
+            }
             break;
           case 'stopForward':
             await _actions.stopForwardsForHost(context);
             break;
           case 'forward':
-            await _actions.forwardContainerPorts(context, container: container);
+            for (final target in selection) {
+              await _actions.forwardContainerPorts(context, container: target);
+            }
             break;
           case 'explore':
-            await _actions.openContainerExplorer(
-              context,
-              container,
-              dockerContextName: _dockerContextName(
-                widget.remoteHost ??
-                    const SshHost(
-                      name: 'local',
-                      hostname: 'localhost',
-                      port: 22,
-                      available: true,
-                      user: null,
-                      identityFiles: <String>[],
-                      source: 'local',
-                    ),
-              ),
-            );
+            for (final target in selection) {
+              await _actions.openContainerExplorer(
+                context,
+                target,
+                dockerContextName: _dockerContextName(
+                  widget.remoteHost ??
+                      const SshHost(
+                        name: 'local',
+                        hostname: 'localhost',
+                        port: 22,
+                        available: true,
+                        user: null,
+                        identityFiles: <String>[],
+                        source: 'local',
+                      ),
+                ),
+              );
+            }
             break;
           case 'start':
           case 'stop':
           case 'restart':
-          case 'remove':
-            await _actions.runContainerAction(
-              context,
-              container: container,
-              action: action,
-              onRestarted: () => _updateContainerAfterRestart(container),
-              onStarted: () => _updateContainerAfterStart(container),
-              onStopped: () => _markContainerStopped(container.id),
-              onRefresh: _refresh,
-              loadStartTime: () => _loadStartTime(container),
+            await Future.wait(
+              selection.map(
+                (target) => _actions.runContainerAction(
+                  context,
+                  container: target,
+                  action: action,
+                  onRestarted: () => _updateContainerAfterRestart(target),
+                  onStarted: () => _updateContainerAfterStart(target),
+                  onStopped: () => _markContainerStopped(target.id),
+                  onRefresh: _refresh,
+                  loadStartTime: () => _loadStartTime(target),
+                ),
+              ),
             );
+            break;
+          case 'remove':
+            for (final target in selection) {
+              await _actions.runContainerAction(
+                context,
+                container: target,
+                action: action,
+                onRestarted: () => _updateContainerAfterRestart(target),
+                onStarted: () => _updateContainerAfterStart(target),
+                onStopped: () => _markContainerStopped(target.id),
+                onRefresh: _refresh,
+                loadStartTime: () => _loadStartTime(target),
+              );
+            }
             break;
           default:
             break;
@@ -500,43 +611,77 @@ class _DockerOverviewState extends State<DockerOverview> {
   }
 
   void _openImageMenu(DockerImage image, TapDownDetails details) {
+    final selection = _selectedImagesForAction(image);
+    final isMulti = selection.length > 1;
     final ref = [
       image.repository.isNotEmpty ? image.repository : '<none>',
       image.tag.isNotEmpty ? image.tag : '<none>',
     ].join(':');
+    final title = isMulti ? '${selection.length} images selected' : ref;
+    final detailsMap = isMulti
+        ? {'Selected': '${selection.length}'}
+        : {'ID': image.id, 'Size': image.size};
+    final copyValue = isMulti
+        ? selection.map((item) => item.id).join('\n')
+        : image.id;
+    final copyLabel = isMulti ? 'Image IDs' : 'Image ID';
     _menus.showItemMenu(
       context: context,
       globalPosition: details.globalPosition,
-      title: ref,
-      details: {'ID': image.id, 'Size': image.size},
-      copyValue: image.id,
-      copyLabel: 'Image ID',
+      title: title,
+      details: detailsMap,
+      copyValue: copyValue,
+      copyLabel: copyLabel,
     );
   }
 
   void _openNetworkMenu(DockerNetwork network, TapDownDetails details) {
+    final selection = _selectedNetworksForAction(network);
+    final isMulti = selection.length > 1;
+    final title = isMulti
+        ? '${selection.length} networks selected'
+        : network.name;
+    final detailsMap = isMulti
+        ? {'Selected': '${selection.length}'}
+        : {'Driver': network.driver, 'Scope': network.scope};
+    final copyValue = isMulti
+        ? selection.map(_networkKey).join('\n')
+        : _networkKey(network);
+    final copyLabel = isMulti ? 'Network IDs' : 'Network ID';
     _menus.showItemMenu(
       context: context,
       globalPosition: details.globalPosition,
-      title: network.name,
-      details: {'Driver': network.driver, 'Scope': network.scope},
-      copyValue: network.id,
-      copyLabel: 'Network ID',
+      title: title,
+      details: detailsMap,
+      copyValue: copyValue,
+      copyLabel: copyLabel,
     );
   }
 
   void _openVolumeMenu(DockerVolume volume, TapDownDetails details) {
+    final selection = _selectedVolumesForAction(volume);
+    final isMulti = selection.length > 1;
+    final title = isMulti
+        ? '${selection.length} volumes selected'
+        : volume.name;
+    final detailsMap = isMulti
+        ? {'Selected': '${selection.length}'}
+        : {
+            'Driver': volume.driver,
+            'Mountpoint': volume.mountpoint ?? '—',
+            'Scope': volume.scope ?? '—',
+          };
+    final copyValue = isMulti
+        ? selection.map((item) => item.name).join('\n')
+        : volume.name;
+    final copyLabel = isMulti ? 'Volume names' : 'Volume name';
     _menus.showItemMenu(
       context: context,
       globalPosition: details.globalPosition,
-      title: volume.name,
-      details: {
-        'Driver': volume.driver,
-        'Mountpoint': volume.mountpoint ?? '—',
-        'Scope': volume.scope ?? '—',
-      },
-      copyValue: volume.name,
-      copyLabel: 'Volume name',
+      title: title,
+      details: detailsMap,
+      copyValue: copyValue,
+      copyLabel: copyLabel,
     );
   }
 
@@ -605,12 +750,6 @@ class _DockerOverviewState extends State<DockerOverview> {
     bool secondary = false,
     int? flatIndex,
   }) {
-    final key = container.id;
-    _controller.updateContainerSelection(
-      key,
-      isTouch: details.kind == PointerDeviceKind.touch,
-      index: flatIndex,
-    );
     if (secondary) {
       _openContainerMenu(container, details);
     }
@@ -622,12 +761,6 @@ class _DockerOverviewState extends State<DockerOverview> {
     bool secondary = false,
     int? flatIndex,
   }) {
-    final key = _imageKey(image);
-    _controller.updateSimpleSelection(
-      _controller.selectedImageKeys,
-      key,
-      isTouch: details.kind == PointerDeviceKind.touch,
-    );
     if (secondary) {
       _openImageMenu(image, details);
     }
@@ -639,12 +772,6 @@ class _DockerOverviewState extends State<DockerOverview> {
     bool secondary = false,
     int? flatIndex,
   }) {
-    final key = network.id.isNotEmpty ? network.id : network.name;
-    _controller.updateSimpleSelection(
-      _controller.selectedNetworkKeys,
-      key,
-      isTouch: details.kind == PointerDeviceKind.touch,
-    );
     if (secondary) {
       _openNetworkMenu(network, details);
     }
@@ -656,15 +783,55 @@ class _DockerOverviewState extends State<DockerOverview> {
     bool secondary = false,
     int? flatIndex,
   }) {
-    final key = volume.name;
-    _controller.updateSimpleSelection(
-      _controller.selectedVolumeKeys,
-      key,
-      isTouch: details.kind == PointerDeviceKind.touch,
-    );
     if (secondary) {
       _openVolumeMenu(volume, details);
     }
+  }
+
+  void _handleContainerSelectionChanged(
+    Set<String> tableKeys,
+    List<DockerContainer> selected,
+  ) {
+    _controller.replaceSelection(
+      _controller.selectedContainerIds,
+      tableKeys,
+      selected.map((container) => container.id),
+    );
+  }
+
+  void _handleImageSelectionChanged(
+    Set<String> tableKeys,
+    List<DockerImage> selected,
+  ) {
+    _controller.replaceSelection(
+      _controller.selectedImageKeys,
+      tableKeys,
+      selected.map(_imageKey),
+    );
+  }
+
+  void _handleNetworkSelectionChanged(
+    Set<String> tableKeys,
+    List<DockerNetwork> selected,
+  ) {
+    _controller.replaceSelection(
+      _controller.selectedNetworkKeys,
+      tableKeys,
+      selected.map(
+        (network) => network.id.isNotEmpty ? network.id : network.name,
+      ),
+    );
+  }
+
+  void _handleVolumeSelectionChanged(
+    Set<String> tableKeys,
+    List<DockerVolume> selected,
+  ) {
+    _controller.replaceSelection(
+      _controller.selectedVolumeKeys,
+      tableKeys,
+      selected.map((volume) => volume.name),
+    );
   }
 
   KeyEventResult _handleContainerKey(FocusNode node, KeyEvent event) {

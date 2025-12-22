@@ -105,6 +105,7 @@ class ContainerPeek extends StatefulWidget {
     required this.containers,
     this.onTap,
     this.onTapDown,
+    this.onSelectionChanged,
     required this.selectedIds,
     required this.busyIds,
     required this.actionLabels,
@@ -117,6 +118,8 @@ class ContainerPeek extends StatefulWidget {
   final List<DockerContainer> containers;
   final ValueChanged<DockerContainer>? onTap;
   final ItemTapDown<DockerContainer>? onTapDown;
+  final void Function(Set<String> tableKeys, List<DockerContainer> selected)?
+  onSelectionChanged;
   final Set<String> selectedIds;
   final Set<String> busyIds;
   final Map<String, String> actionLabels;
@@ -258,8 +261,11 @@ class _ContainerPeekState extends State<ContainerPeek> {
                       useZebraStripes: false,
                       surfaceBackgroundColor: sectionColor,
                       primaryDoubleClickOpensContextMenu: false,
-                      onRowTap: _handleContainerTap,
                       onRowContextMenu: _handleContainerContextMenu,
+                      onSelectionChanged: (selectedRows) {
+                        final keys = items.map((item) => item.id).toSet();
+                        widget.onSelectionChanged?.call(keys, selectedRows);
+                      },
                     ),
                   ],
           ),
@@ -336,10 +342,7 @@ class _ContainerPeekState extends State<ContainerPeek> {
       StructuredDataColumn<DockerContainer>(
         label: 'Action',
         autoFitText: (container) => _actionLabel(container),
-        cellBuilder: (context, container) => Text(
-          _valueOrDash(_actionLabel(container)),
-          style: Theme.of(context).textTheme.labelSmall,
-        ),
+        cellBuilder: _buildActionCell,
       ),
     ];
   }
@@ -389,6 +392,31 @@ class _ContainerPeekState extends State<ContainerPeek> {
 
   String _actionLabel(DockerContainer container) {
     return widget.actionLabels[container.id] ?? '';
+  }
+
+  Widget _buildActionCell(BuildContext context, DockerContainer container) {
+    final label = _actionLabel(container);
+    final isBusy = widget.busyIds.contains(container.id);
+    final theme = Theme.of(context).textTheme.labelSmall;
+    if (!isBusy) {
+      return Text(_valueOrDash(label), style: theme);
+    }
+    final displayLabel = label.isNotEmpty ? label : 'Working';
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 16,
+          height: 16,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(displayLabel, style: theme),
+      ],
+    );
   }
 
   Map<String, List<DockerContainer>> _group(List<DockerContainer> containers) {
@@ -631,12 +659,15 @@ class ImagePeek extends StatelessWidget {
     required this.images,
     this.onTap,
     this.onTapDown,
+    this.onSelectionChanged,
     required this.selectedIds,
   });
 
   final List<DockerImage> images;
   final ValueChanged<DockerImage>? onTap;
   final ItemTapDown<DockerImage>? onTapDown;
+  final void Function(Set<String> tableKeys, List<DockerImage> selected)?
+  onSelectionChanged;
   final Set<String> selectedIds;
 
   @override
@@ -672,8 +703,11 @@ class ImagePeek extends StatelessWidget {
                 useZebraStripes: false,
                 surfaceBackgroundColor: sectionColor,
                 primaryDoubleClickOpensContextMenu: false,
-                onRowTap: _handleImageTap,
                 onRowContextMenu: _handleImageContextMenu,
+                onSelectionChanged: (selectedRows) {
+                  final keys = items.map(_imageKey).toSet();
+                  onSelectionChanged?.call(keys, selectedRows);
+                },
               ),
             ],
           ),
@@ -683,8 +717,6 @@ class ImagePeek extends StatelessWidget {
   }
 
   void _handleImageTap(DockerImage image) {
-    final details = _tapDetails();
-    onTapDown?.call(image, details, secondary: false);
     onTap?.call(image);
   }
 
@@ -857,12 +889,15 @@ class NetworkList extends StatelessWidget {
     required this.networks,
     this.onTap,
     this.onTapDown,
+    this.onSelectionChanged,
     required this.selectedIds,
   });
 
   final List<DockerNetwork> networks;
   final ValueChanged<DockerNetwork>? onTap;
   final ItemTapDown<DockerNetwork>? onTapDown;
+  final void Function(Set<String> tableKeys, List<DockerNetwork> selected)?
+  onSelectionChanged;
   final Set<String> selectedIds;
 
   @override
@@ -899,8 +934,13 @@ class NetworkList extends StatelessWidget {
                 useZebraStripes: false,
                 surfaceBackgroundColor: sectionColor,
                 primaryDoubleClickOpensContextMenu: false,
-                onRowTap: _handleNetworkTap,
                 onRowContextMenu: _handleNetworkContextMenu,
+                onSelectionChanged: (selectedRows) {
+                  final keys = items
+                      .map((item) => item.id.isNotEmpty ? item.id : item.name)
+                      .toSet();
+                  onSelectionChanged?.call(keys, selectedRows);
+                },
               ),
             ],
           ),
@@ -910,8 +950,6 @@ class NetworkList extends StatelessWidget {
   }
 
   void _handleNetworkTap(DockerNetwork network) {
-    final details = _tapDetails();
-    onTapDown?.call(network, details, secondary: false);
     onTap?.call(network);
   }
 
@@ -992,12 +1030,15 @@ class VolumeList extends StatelessWidget {
     required this.volumes,
     this.onTap,
     this.onTapDown,
+    this.onSelectionChanged,
     required this.selectedIds,
   });
 
   final List<DockerVolume> volumes;
   final ValueChanged<DockerVolume>? onTap;
   final ItemTapDown<DockerVolume>? onTapDown;
+  final void Function(Set<String> tableKeys, List<DockerVolume> selected)?
+  onSelectionChanged;
   final Set<String> selectedIds;
 
   @override
@@ -1034,8 +1075,11 @@ class VolumeList extends StatelessWidget {
                 useZebraStripes: false,
                 surfaceBackgroundColor: sectionColor,
                 primaryDoubleClickOpensContextMenu: false,
-                onRowTap: _handleVolumeTap,
                 onRowContextMenu: _handleVolumeContextMenu,
+                onSelectionChanged: (selectedRows) {
+                  final keys = items.map((item) => item.name).toSet();
+                  onSelectionChanged?.call(keys, selectedRows);
+                },
               ),
             ],
           ),
@@ -1045,8 +1089,6 @@ class VolumeList extends StatelessWidget {
   }
 
   void _handleVolumeTap(DockerVolume volume) {
-    final details = _tapDetails();
-    onTapDown?.call(volume, details, secondary: false);
     onTap?.call(volume);
   }
 
