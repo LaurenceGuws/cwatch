@@ -64,7 +64,6 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   late final VoidCallback _tabsListener;
   late final TabNavigationHandle _tabNavigator;
   late final CommandPaletteHandle _commandPaletteHandle;
-  String? _selectedContextKey;
   final Map<String, bool> _collapsedByConfigPath = {};
 
   List<KubernetesTab> get _tabs => _tabController.tabs;
@@ -184,7 +183,6 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                         selected: index == _tabController.selectedIndex,
                         onSelect: () {
                           _tabController.select(index);
-                          _selectedContextKey = _tabContextKey(tab);
                           _persistWorkspace();
                         },
                         onClose: () => _closeTab(index),
@@ -284,12 +282,6 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
       restoredTabs,
       selectedIndex: workspace.selectedIndex,
     );
-    final selectedTab = _tabs.isEmpty
-        ? null
-        : _tabs[_tabController.selectedIndex.clamp(0, _tabs.length - 1)];
-    _selectedContextKey = selectedTab != null
-        ? _tabContextKey(selectedTab)
-        : null;
   }
 
   List<KubernetesTab> _buildTabsFromState(
@@ -544,11 +536,6 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                           surfaceBackgroundColor: sectionColor,
                           primaryDoubleClickOpensContextMenu: false,
                           metadataBuilder: _contextMetadata,
-                          onRowTap: (kubeContext) {
-                            setState(() {
-                              _selectedContextKey = _contextKey(kubeContext);
-                            });
-                          },
                           onRowDoubleTap: _openContextTab,
                           rowContextMenuBuilder: _buildContextMenuActions,
                         ),
@@ -689,7 +676,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
             return;
           }
           Clipboard.setData(ClipboardData(text: server));
-          ScaffoldMessenger.of(this.context).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Server endpoint copied')),
           );
         },
@@ -697,21 +684,10 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
       StructuredDataMenuAction<KubeconfigContext>(
         label: 'Open kubeconfig',
         icon: Icons.edit,
-        onSelected: (_, primary) => ExternalAppLauncher.openConfigFile(
-          primary.configPath,
-          this.context,
-        ),
+        onSelected: (_, primary) =>
+            ExternalAppLauncher.openConfigFile(primary.configPath, context),
       ),
     ];
-  }
-
-  String _contextKey(KubeconfigContext context) =>
-      '${context.name}|${context.configPath}';
-
-  String _tabContextKey(KubernetesTab tab) {
-    final context = tab.context;
-    if (context == null) return '';
-    return _contextKey(context);
   }
 
   double _leadingIconSize(BuildContext context) {

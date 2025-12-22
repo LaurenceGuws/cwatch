@@ -1,4 +1,3 @@
-import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:flutter/material.dart';
 
 import 'package:cwatch/models/docker_context.dart';

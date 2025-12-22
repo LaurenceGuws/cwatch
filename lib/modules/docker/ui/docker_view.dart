@@ -573,7 +573,7 @@ class _DockerViewState extends State<DockerView> {
     Offset? anchor,
   ) {
     final overlayState = Overlay.of(context, rootOverlay: true);
-    final overlay = overlayState?.context.findRenderObject() as RenderBox?;
+    final overlay = overlayState.context.findRenderObject() as RenderBox?;
     final overlaySize = overlay?.size ?? MediaQuery.sizeOf(context);
     final overlayBase = overlay?.localToGlobal(Offset.zero) ?? Offset.zero;
     final anchorPoint =

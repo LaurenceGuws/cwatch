@@ -86,8 +86,9 @@ class _GenericListState<T> extends State<GenericList<T>> {
   }
 
   List<T> get _visibleRows {
-    if (!widget.paginationEnabled || _activeRowsPerPage <= 0)
+    if (!widget.paginationEnabled || _activeRowsPerPage <= 0) {
       return widget.rows;
+    }
     if (widget.rows.isEmpty) return const [];
     final start = _currentPage * _activeRowsPerPage;
     if (start >= widget.rows.length) return const [];

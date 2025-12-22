@@ -274,17 +274,6 @@ class _ContainerPeekState extends State<ContainerPeek> {
     );
   }
 
-  void _handleContainerTap(DockerContainer container) {
-    final details = _tapDetails();
-    widget.onTapDown?.call(
-      container,
-      details,
-      secondary: false,
-      flatIndex: _flatIndexFor(container),
-    );
-    widget.onTap?.call(container);
-  }
-
   void _handleContainerContextMenu(DockerContainer container, Offset? anchor) {
     if (widget.onTapDown == null) {
       return;
@@ -716,10 +705,6 @@ class ImagePeek extends StatelessWidget {
     );
   }
 
-  void _handleImageTap(DockerImage image) {
-    onTap?.call(image);
-  }
-
   void _handleImageContextMenu(DockerImage image, Offset? anchor) {
     if (onTapDown == null) {
       return;
@@ -949,10 +934,6 @@ class NetworkList extends StatelessWidget {
     );
   }
 
-  void _handleNetworkTap(DockerNetwork network) {
-    onTap?.call(network);
-  }
-
   void _handleNetworkContextMenu(DockerNetwork network, Offset? anchor) {
     if (onTapDown == null) {
       return;
@@ -1086,10 +1067,6 @@ class VolumeList extends StatelessWidget {
         );
       }),
     );
-  }
-
-  void _handleVolumeTap(DockerVolume volume) {
-    onTap?.call(volume);
   }
 
   void _handleVolumeContextMenu(DockerVolume volume, Offset? anchor) {

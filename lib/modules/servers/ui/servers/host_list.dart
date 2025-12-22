@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'package:flutter/material.dart';
-
 import 'package:cwatch/models/custom_ssh_host.dart';
+
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
@@ -285,7 +284,7 @@ class _HostListState extends State<HostList> {
         label: 'Open terminal',
         icon: NerdIcon.terminal.data,
         enabled: selection.isNotEmpty,
-        onSelected: (_, __) {
+        onSelected: (_, _) {
           for (final target in selection) {
             if (widget.onOpenTerminal != null) {
               widget.onOpenTerminal!(target);
@@ -299,7 +298,7 @@ class _HostListState extends State<HostList> {
         label: 'Open file explorer',
         icon: NerdIcon.folderOpen.data,
         enabled: selection.isNotEmpty,
-        onSelected: (_, __) {
+        onSelected: (_, _) {
           for (final target in selection) {
             if (widget.onOpenExplorer != null) {
               widget.onOpenExplorer!(target);
@@ -319,7 +318,7 @@ class _HostListState extends State<HostList> {
         label: 'Connectivity',
         icon: NerdIcon.accessPoint.data,
         enabled: selection.isNotEmpty,
-        onSelected: (_, __) {
+        onSelected: (_, _) {
           for (final target in selection) {
             widget.onOpenConnectivity?.call(target);
           }
@@ -329,7 +328,7 @@ class _HostListState extends State<HostList> {
         label: 'Resources',
         icon: NerdIcon.database.data,
         enabled: selection.isNotEmpty,
-        onSelected: (_, __) {
+        onSelected: (_, _) {
           for (final target in selection) {
             widget.onOpenResources?.call(target);
           }
@@ -340,7 +339,7 @@ class _HostListState extends State<HostList> {
         icon: Icons.delete_outline,
         destructive: true,
         enabled: canRemoveAll,
-        onSelected: (_, __) {
+        onSelected: (_, _) {
           if (!canRemoveAll) return;
           final current = widget.settingsController.settings;
           final removalNames = selection.map((item) => item.name).toSet();
@@ -353,8 +352,6 @@ class _HostListState extends State<HostList> {
       ),
     ];
   }
-
-  List<String> _displayNames() => widget.hosts.map((h) => h.name).toList();
 
   double _distroIconSize(BuildContext context) {
     final titleSize = Theme.of(context).textTheme.titleMedium?.fontSize ?? 14;

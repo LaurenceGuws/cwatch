@@ -264,9 +264,6 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
   bool _isMarqueeSelecting = false;
   StructuredDataCellCoordinate? _hoveredCell;
   final GlobalKey _bodyKey = GlobalKey();
-  bool _isFillHandleDragging = false;
-  StructuredDataCellRange? _fillHandleSourceRange;
-  StructuredDataCellCoordinate? _fillHandleExtent;
   int? _touchDragPointer;
   bool _isTouchDragging = false;
   List<double> _lastColumnWidths = const [];
@@ -754,52 +751,6 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
     return hovered.rowIndex == rowIndex && hovered.columnIndex == columnIndex;
   }
 
-  StructuredDataCellRange? _selectionRange() {
-    final anchor = _cellSelectionAnchor;
-    final extent = _cellSelectionExtent ?? _selectedCell;
-    if (anchor == null || extent == null) return null;
-    return StructuredDataCellRange(anchor: anchor, extent: extent);
-  }
-
-  void _startFillHandleDrag(StructuredDataCellRange range) {
-    setState(() {
-      _isFillHandleDragging = true;
-      _fillHandleSourceRange = range;
-      _fillHandleExtent = range.extent;
-    });
-  }
-
-  void _updateFillHandleDrag(Offset globalPosition) {
-    final coordinate = _cellCoordinateForGlobalOffset(globalPosition);
-    if (coordinate == null) return;
-    final sourceRange = _fillHandleSourceRange;
-    if (sourceRange == null) return;
-    setState(() {
-      _fillHandleExtent = coordinate;
-      _cellSelectionAnchor = sourceRange.anchor;
-      _cellSelectionExtent = coordinate;
-      _selectedCell = coordinate;
-      _focusedCell = coordinate;
-    });
-  }
-
-  void _endFillHandleDrag() {
-    final sourceRange = _fillHandleSourceRange;
-    final extent = _fillHandleExtent;
-    if (sourceRange != null && extent != null) {
-      final targetRange = StructuredDataCellRange(
-        anchor: sourceRange.anchor,
-        extent: extent,
-      );
-      widget.onFillHandleCopy?.call(sourceRange, targetRange);
-    }
-    setState(() {
-      _isFillHandleDragging = false;
-      _fillHandleSourceRange = null;
-      _fillHandleExtent = null;
-    });
-  }
-
   void _applyEdgeScroll(Offset localPosition) {
     final renderBox = _bodyKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
@@ -866,15 +817,6 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       rowIndex: rowIndex,
       columnIndex: _lastColumnWidths.length - 1,
     );
-  }
-
-  StructuredDataCellCoordinate? _cellCoordinateForGlobalOffset(
-    Offset globalPosition,
-  ) {
-    final renderBox = _bodyKey.currentContext?.findRenderObject() as RenderBox?;
-    if (renderBox == null) return null;
-    final local = renderBox.globalToLocal(globalPosition);
-    return _cellCoordinateForOffset(local);
   }
 
   int _columnIndexForLocalDx(double localDx) {
@@ -1504,7 +1446,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
     final actions = _contextActionsFor(row, selectedRows, position);
     if (actions.isEmpty) return;
     final overlayState = Overlay.of(context, rootOverlay: true);
-    final overlay = overlayState?.context.findRenderObject() as RenderBox?;
+    final overlay = overlayState.context.findRenderObject() as RenderBox?;
     if (overlay == null) {
       return;
     }
@@ -1633,8 +1575,8 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       final isRangeCell =
           isBodyCell &&
           widget.cellSelectionEnabled &&
-          _isCellSelected(rowIndex!, i);
-      final isHoveredCell = isBodyCell && _isHoveredCell(rowIndex!, i);
+          _isCellSelected(rowIndex, i);
+      final isHoveredCell = isBodyCell && _isHoveredCell(rowIndex, i);
       final isHoveredColumn =
           widget.cellSelectionEnabled &&
           _hoveredCell != null &&
@@ -1690,7 +1632,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
               onPointerDown: (event) {
                 if ((event.buttons & kPrimaryButton) != 0) {
                   final isShift = HardwareKeyboard.instance.isShiftPressed;
-                  if (!isShift && _isCellSelected(rowIndex!, i)) {
+                  if (!isShift && _isCellSelected(rowIndex, i)) {
                     return;
                   }
                   _handleCellTap(rowIndex, i);
@@ -1699,7 +1641,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
               child: MouseRegion(
                 onEnter: (_) => setState(() {
                   _hoveredCell = StructuredDataCellCoordinate(
-                    rowIndex: rowIndex!,
+                    rowIndex: rowIndex,
                     columnIndex: i,
                   );
                 }),
@@ -1714,7 +1656,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
                   behavior: HitTestBehavior.opaque,
                   onDoubleTap: () {
                     final coordinate = StructuredDataCellCoordinate(
-                      rowIndex: rowIndex!,
+                      rowIndex: rowIndex,
                       columnIndex: i,
                     );
                     _updateCellSelection(
@@ -2613,7 +2555,7 @@ class _HeaderDragHandleState extends State<_HeaderDragHandle> {
               feedback: widget.feedback,
               onDragStarted: () => _setActive(true),
               onDragEnd: (_) => _setActive(false),
-              onDraggableCanceled: (_, __) => _setActive(false),
+              onDraggableCanceled: (_, _) => _setActive(false),
               onDragCompleted: () => _setActive(false),
               child: handle,
             ),

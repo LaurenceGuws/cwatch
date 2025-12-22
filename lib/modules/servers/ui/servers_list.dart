@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -88,7 +87,7 @@ class _ServersListState extends State<ServersList> {
   List<SshHost> _lastHosts = const [];
   String _customHostsSignature = '';
   String _pathsSignature = '';
-  String _workspaceSignature = '';
+  // String _workspaceSignature = '';
   ServerTabFactory get _tabFactory => _workspaceController.tabFactory;
 
   Future<List<SshHost>> _loadHosts() async {
@@ -341,8 +340,6 @@ class _ServersListState extends State<ServersList> {
     _tabController.addListener(_tabsListener);
     _customHostsSignature = _buildCustomHostsSignature();
     _pathsSignature = _buildPathsSignature();
-    _workspaceSignature =
-        widget.settingsController.settings.serverWorkspace?.signature ?? '';
     _settingsListener = _handleSettingsChanged;
     widget.settingsController.addListener(_settingsListener);
     _restoreWorkspace();

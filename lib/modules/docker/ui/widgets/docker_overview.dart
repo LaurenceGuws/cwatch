@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
@@ -484,11 +483,13 @@ class _DockerOverviewState extends State<DockerOverview> {
         switch (action) {
           case 'logs':
             for (final target in selection) {
+              if (!mounted) return;
               await _actions.openLogsTab(target, context: context);
             }
             break;
           case 'shell':
             for (final target in selection) {
+              if (!mounted) return;
               await _actions.openExecTerminal(context, target);
             }
             break;
@@ -500,15 +501,12 @@ class _DockerOverviewState extends State<DockerOverview> {
                   .map((item) => _actions.execCommand(item.id))
                   .join('\n');
               await Clipboard.setData(ClipboardData(text: commands));
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Exec commands copied (${selection.length}).',
-                    ),
-                  ),
-                );
-              }
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Exec commands copied (${selection.length}).'),
+                ),
+              );
             }
             break;
           case 'stopForward':
