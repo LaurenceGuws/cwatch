@@ -116,7 +116,8 @@ class _HostListState extends State<HostList> {
               ),
               PopupMenuButton<String>(
                 tooltip: 'Section options',
-                icon: const Icon(Icons.settings, size: 18),
+                icon: const Icon(Icons.more_horiz, size: 18),
+
                 onSelected: (value) {
                   if (value == 'reloadHosts') {
                     widget.onHostsChanged();
@@ -156,7 +157,10 @@ class _HostListState extends State<HostList> {
                 buildSection(sources[index], index),
           );
 
-    return Column(children: [Expanded(child: list)]);
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: spacing.base),
+      child: Column(children: [Expanded(child: list)]),
+    );
   }
 
   Widget _buildHostTable(List<SshHost> hosts, {required Color surfaceColor}) {
@@ -248,6 +252,7 @@ class _HostListState extends State<HostList> {
   List<StructuredDataMenuAction<SshHost>> _buildContextMenuActions(
     SshHost host,
     List<SshHost> selected,
+    Offset? anchor,
   ) {
     final selection = selected.isNotEmpty ? selected : [host];
     final canRemoveAll = selection.every(

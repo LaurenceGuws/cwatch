@@ -133,6 +133,7 @@ class StructuredDataTable<T> extends StatefulWidget {
     this.horizontalController,
     this.onRowTap,
     this.onRowDoubleTap,
+    this.onRowContextMenu,
     this.onSelectionChanged,
     this.onSortChanged,
     this.onColumnsReordered,
@@ -170,11 +171,16 @@ class StructuredDataTable<T> extends StatefulWidget {
   final ScrollController? horizontalController;
   final ValueChanged<T>? onRowTap;
   final ValueChanged<T>? onRowDoubleTap;
+  final void Function(T row, Offset? anchor)? onRowContextMenu;
   final ValueChanged<List<T>>? onSelectionChanged;
   final void Function(int columnIndex, bool ascending)? onSortChanged;
   final ValueChanged<List<StructuredDataColumn<T>>>? onColumnsReordered;
   final List<StructuredDataAction<T>> rowActions;
-  final List<StructuredDataMenuAction<T>> Function(T row, List<T> selectedRows)?
+  final List<StructuredDataMenuAction<T>> Function(
+    T row,
+    List<T> selectedRows,
+    Offset? anchor,
+  )?
   rowContextMenuBuilder;
   final List<StructuredDataChip> Function(T row)? metadataBuilder;
   final Widget? emptyState;
@@ -1432,10 +1438,11 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
   List<StructuredDataMenuAction<T>> _contextActionsFor(
     T row,
     List<T> selectedRows,
+    Offset? anchor,
   ) {
     final customBuilder = widget.rowContextMenuBuilder;
     if (customBuilder != null) {
-      return customBuilder(row, selectedRows);
+      return customBuilder(row, selectedRows, anchor);
     }
     if (widget.rowActions.isEmpty) return const [];
     return widget.rowActions
@@ -1456,15 +1463,25 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
     Offset position,
     List<T> selectedRows,
   ) async {
-    final actions = _contextActionsFor(row, selectedRows);
+    final actions = _contextActionsFor(row, selectedRows, position);
     if (actions.isEmpty) return;
+    final overlayState = Overlay.of(context, rootOverlay: true);
+    final overlay = overlayState?.context.findRenderObject() as RenderBox?;
+    if (overlay == null) {
+      return;
+    }
+    final base = overlay.localToGlobal(Offset.zero);
+    final anchor = position;
+    final left = anchor.dx - base.dx;
+    final top = anchor.dy - base.dy;
     final selected = await showMenu<StructuredDataMenuAction<T>>(
       context: context,
+      useRootNavigator: true,
       position: RelativeRect.fromLTRB(
-        position.dx,
-        position.dy,
-        position.dx,
-        position.dy,
+        left,
+        top,
+        overlay.size.width - left,
+        overlay.size.height - top,
       ),
       items: actions
           .map(
@@ -1493,7 +1510,9 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
 
   void _showContextMenuForIndex(int index, Offset position) {
     if (_visibleRows.isEmpty) return;
-    if (widget.rowActions.isEmpty && widget.rowContextMenuBuilder == null) {
+    if (widget.rowActions.isEmpty &&
+        widget.rowContextMenuBuilder == null &&
+        widget.onRowContextMenu == null) {
       return;
     }
     if (!widget.cellSelectionEnabled) {
@@ -1501,6 +1520,11 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       if (!isAlreadySelected) {
         _selectSingle(index);
       }
+    }
+    final onRowContextMenu = widget.onRowContextMenu;
+    if (onRowContextMenu != null) {
+      onRowContextMenu(_visibleRows[index], position);
+      return;
     }
     final selectedRows = _selectedRows();
     _showContextMenu(_visibleRows[index], position, selectedRows);
@@ -2026,7 +2050,8 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
                   _showContextMenuForIndex(index, details.globalPosition);
                 },
           onDoubleTap: () {
-            if (widget.primaryDoubleClickOpensContextMenu) {
+            if (widget.primaryDoubleClickOpensContextMenu ||
+                widget.onRowContextMenu != null) {
               final renderBox =
                   _bodyKey.currentContext?.findRenderObject() as RenderBox?;
               final position =

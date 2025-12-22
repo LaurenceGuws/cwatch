@@ -572,16 +572,23 @@ class _DockerViewState extends State<DockerView> {
     IconData icon,
     Offset? anchor,
   ) {
-    final renderBox = context.findRenderObject() as RenderBox?;
-    final size = renderBox?.size ?? MediaQuery.sizeOf(context);
-    final anchorPoint = anchor ?? Offset(size.width / 2, size.height / 2);
+    final overlayState = Overlay.of(context, rootOverlay: true);
+    final overlay = overlayState?.context.findRenderObject() as RenderBox?;
+    final overlaySize = overlay?.size ?? MediaQuery.sizeOf(context);
+    final overlayBase = overlay?.localToGlobal(Offset.zero) ?? Offset.zero;
+    final anchorPoint =
+        anchor ??
+        overlayBase + Offset(overlaySize.width / 2, overlaySize.height / 2);
+    final left = anchorPoint.dx - overlayBase.dx;
+    final top = anchorPoint.dy - overlayBase.dy;
     return showMenu<_DashboardTarget>(
       context: context,
+      useRootNavigator: true,
       position: RelativeRect.fromLTRB(
-        anchorPoint.dx,
-        anchorPoint.dy,
-        anchorPoint.dx,
-        anchorPoint.dy,
+        left,
+        top,
+        overlaySize.width - left,
+        overlaySize.height - top,
       ),
       items: [
         PopupMenuItem(

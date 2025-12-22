@@ -7,9 +7,9 @@ import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/modules/servers/services/host_distro_key.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/distro_icons.dart';
+import 'package:cwatch/shared/widgets/data_table/structured_data_table.dart';
 import 'package:cwatch/shared/widgets/distro_leading_slot.dart';
 import 'package:cwatch/shared/widgets/lists/section_list.dart';
-import 'package:cwatch/shared/widgets/lists/selectable_list_item.dart';
 import 'docker_shared.dart';
 
 class RemoteDockerStatus {
@@ -55,12 +55,27 @@ class EnginePicker extends StatefulWidget {
 }
 
 class _EnginePickerState extends State<EnginePicker> {
-  String? _selectedContext;
-  String? _selectedRemoteHost;
+  bool _localCollapsed = false;
+  bool _remoteCollapsed = false;
+
+  void _toggleLocalCollapsed() {
+    setState(() {
+      _localCollapsed = !_localCollapsed;
+    });
+  }
+
+  void _toggleRemoteCollapsed() {
+    setState(() {
+      _remoteCollapsed = !_remoteCollapsed;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
+    final remoteSectionColor = _sectionBackgroundForIndex(context, 1);
     return ListView(
+      padding: EdgeInsets.symmetric(vertical: spacing.base),
       children: [
         FutureBuilder<List<DockerContext>>(
           future: widget.contextsFuture,
@@ -81,71 +96,128 @@ class _EnginePickerState extends State<EnginePicker> {
             if (contexts.isEmpty) {
               return EmptyState(onRefresh: widget.onRefreshContexts);
             }
-            final iconSize = _leadingIconSize(context);
+            final collapsed = _localCollapsed;
+            final sectionColor = _sectionBackgroundForIndex(context, 0);
             return SectionList(
               title: 'Local contexts',
-              children: List.generate(contexts.length, (index) {
-                final ctx = contexts[index];
-                Offset? lastPointer;
-                final isSelected = _selectedContext == ctx.name;
-                void select() {
-                  setState(() {
-                    _selectedContext = ctx.name;
-                    _selectedRemoteHost = null;
-                  });
-                }
-
-                void open([Offset? anchor]) {
-                  select();
-                  widget.onOpenContext(ctx.name, anchor);
-                }
-
-                return SelectableListItem(
-                  stripeIndex: index,
-                  selected: isSelected,
-                  title: ctx.name,
-                  leading: Icon(
-                    NerdIcon.docker.data,
-                    size: iconSize,
-                    color: Theme.of(context).iconTheme.color,
+              backgroundColor: sectionColor,
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      collapsed ? Icons.expand_more : Icons.expand_less,
+                      size: 18,
+                    ),
+                    tooltip: collapsed ? 'Expand' : 'Collapse',
+                    onPressed: _toggleLocalCollapsed,
                   ),
-                  onTapDown: (details) => lastPointer = details.globalPosition,
-                  onTap: () => select(),
-                  onDoubleTap: () => open(lastPointer),
-                  onLongPress: () => open(lastPointer),
-                  onSecondaryTapDown: (details) => open(details.globalPosition),
-                );
-              }),
+                  PopupMenuButton<String>(
+                    tooltip: 'Section options',
+                    icon: const Icon(Icons.more_horiz, size: 18),
+                    onSelected: (value) {
+                      if (value == 'reloadContexts') {
+                        widget.onRefreshContexts();
+                      }
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem<String>(
+                        value: 'reloadContexts',
+                        child: Text('Reload contexts'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              children: collapsed
+                  ? const []
+                  : [
+                      StructuredDataTable<DockerContext>(
+                        rows: contexts,
+                        columns: _contextColumns(context),
+                        rowHeight: 64,
+                        shrinkToContent: true,
+                        useZebraStripes: false,
+                        surfaceBackgroundColor: sectionColor,
+                        primaryDoubleClickOpensContextMenu: false,
+                        metadataBuilder: _contextMetadata,
+                        onRowContextMenu: (ctx, anchor) =>
+                            widget.onOpenContext(ctx.name, anchor),
+                      ),
+                    ],
             );
           },
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: spacing.base * 1.5),
         RemoteSection(
           remoteStatusFuture: widget.remoteStatusFuture,
           scanRequested: widget.remoteScanRequested,
           cachedReady: widget.cachedReady,
           onScan: widget.onScanRemotes,
-          onOpenHost: (host, anchor) {
-            setState(() {
-              _selectedRemoteHost = host.name;
-              _selectedContext = null;
-            });
-            widget.onOpenHost(host, anchor);
-          },
-          selectedHostName: _selectedRemoteHost,
-          onSelectHost: (host, anchor) {
-            setState(() {
-              _selectedRemoteHost = host.name;
-              _selectedContext = null;
-            });
-            if (anchor != null) {
-              widget.onOpenHost(host, anchor);
-            }
-          },
+          onOpenHost: widget.onOpenHost,
           settingsController: widget.settingsController,
+          collapsed: _remoteCollapsed,
+          onToggleCollapsed: _toggleRemoteCollapsed,
+          backgroundColor: remoteSectionColor,
         ),
       ],
     );
+  }
+
+  Color _sectionBackgroundForIndex(BuildContext context, int index) {
+    final scheme = Theme.of(context).colorScheme;
+    final base = context.appTheme.section.surface.background;
+    final overlay = scheme.surfaceTint.withValues(alpha: 0.08);
+    final alternate = Color.alphaBlend(overlay, base);
+    return index.isEven ? base : alternate;
+  }
+
+  List<StructuredDataColumn<DockerContext>> _contextColumns(
+    BuildContext context,
+  ) {
+    final iconSize = _leadingIconSize(context);
+    final icons = context.appTheme.icons;
+    return [
+      StructuredDataColumn<DockerContext>(
+        label: 'Context',
+        autoFitText: (ctx) => ctx.name,
+        cellBuilder: (context, ctx) => Row(
+          children: [
+            Icon(
+              icons.container,
+              size: iconSize,
+              color: Theme.of(context).iconTheme.color,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                ctx.name,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+          ],
+        ),
+      ),
+      StructuredDataColumn<DockerContext>(
+        label: 'Endpoint',
+        autoFitText: (ctx) => ctx.dockerEndpoint,
+        cellBuilder: (context, ctx) => Text(ctx.dockerEndpoint),
+      ),
+    ];
+  }
+
+  List<StructuredDataChip> _contextMetadata(DockerContext dockerContext) {
+    final chips = <StructuredDataChip>[];
+    if (dockerContext.current) {
+      chips.add(
+        const StructuredDataChip(label: 'Current', icon: Icons.check_circle),
+      );
+    }
+    final orchestrator = dockerContext.orchestrator?.trim();
+    if (orchestrator != null && orchestrator.isNotEmpty) {
+      chips.add(StructuredDataChip(label: orchestrator));
+    }
+    return chips;
   }
 }
 
@@ -162,9 +234,10 @@ class RemoteSection extends StatelessWidget {
     required this.cachedReady,
     required this.onScan,
     required this.onOpenHost,
-    required this.selectedHostName,
-    required this.onSelectHost,
     required this.settingsController,
+    required this.collapsed,
+    required this.onToggleCollapsed,
+    required this.backgroundColor,
   });
 
   final Future<List<RemoteDockerStatus>>? remoteStatusFuture;
@@ -172,79 +245,91 @@ class RemoteSection extends StatelessWidget {
   final List<RemoteDockerStatus> cachedReady;
   final VoidCallback onScan;
   final void Function(SshHost host, Offset? anchor) onOpenHost;
-  final String? selectedHostName;
-  final void Function(SshHost host, Offset? anchor) onSelectHost;
   final AppSettingsController settingsController;
+  final bool collapsed;
+  final VoidCallback onToggleCollapsed;
+  final Color backgroundColor;
 
   @override
   Widget build(BuildContext context) {
-    final icons = context.appTheme.icons;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          child: Row(
-            children: [
-              Text('Servers', style: Theme.of(context).textTheme.titleMedium),
-              const Spacer(),
-              FilledButton.icon(
-                onPressed: onScan,
-                icon: Icon(icons.search),
-                label: const Text('Scan'),
+    Widget body;
+    if (!scanRequested) {
+      body = cachedReady.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              child: Text('Scan to check which servers have Docker available.'),
+            )
+          : RemoteHostList(
+              hosts: cachedReady,
+              onOpenHost: onOpenHost,
+              settingsController: settingsController,
+              backgroundColor: backgroundColor,
+            );
+    } else {
+      body = FutureBuilder<List<RemoteDockerStatus>>(
+        future: remoteStatusFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Padding(
+              padding: EdgeInsets.all(16),
+              child: LinearProgressIndicator(),
+            );
+          }
+          if (snapshot.hasError) {
+            return ErrorCard(
+              message: snapshot.error.toString(),
+              onRetry: onScan,
+            );
+          }
+          final statuses = snapshot.data ?? const <RemoteDockerStatus>[];
+          final available = statuses.where((s) => s.available).toList();
+          if (available.isEmpty) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              child: Text('No Docker-ready remote hosts found.'),
+            );
+          }
+          return RemoteHostList(
+            hosts: available,
+            onOpenHost: onOpenHost,
+            settingsController: settingsController,
+            backgroundColor: backgroundColor,
+          );
+        },
+      );
+    }
+    return SectionList(
+      title: 'Servers',
+      backgroundColor: backgroundColor,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: Icon(
+              collapsed ? Icons.expand_more : Icons.expand_less,
+              size: 18,
+            ),
+            tooltip: collapsed ? 'Expand' : 'Collapse',
+            onPressed: onToggleCollapsed,
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'Section options',
+            icon: const Icon(Icons.more_horiz, size: 18),
+            onSelected: (value) {
+              if (value == 'scanServers') {
+                onScan();
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem<String>(
+                value: 'scanServers',
+                child: Text('Scan servers'),
               ),
             ],
           ),
-        ),
-        if (!scanRequested)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: cachedReady.isEmpty
-                ? const Text(
-                    'Scan to check which servers have Docker available.',
-                  )
-                : RemoteHostList(
-                    hosts: cachedReady,
-                    onOpenHost: onOpenHost,
-                    selectedHostName: selectedHostName,
-                    onSelectHost: onSelectHost,
-                    settingsController: settingsController,
-                  ),
-          )
-        else
-          FutureBuilder<List<RemoteDockerStatus>>(
-            future: remoteStatusFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: LinearProgressIndicator(),
-                );
-              }
-              if (snapshot.hasError) {
-                return ErrorCard(
-                  message: snapshot.error.toString(),
-                  onRetry: onScan,
-                );
-              }
-              final statuses = snapshot.data ?? const <RemoteDockerStatus>[];
-              final available = statuses.where((s) => s.available).toList();
-              if (available.isEmpty) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                  child: Text('No Docker-ready remote hosts found.'),
-                );
-              }
-              return RemoteHostList(
-                hosts: available,
-                onOpenHost: onOpenHost,
-                selectedHostName: selectedHostName,
-                onSelectHost: onSelectHost,
-                settingsController: settingsController,
-              );
-            },
-          ),
-      ],
+        ],
+      ),
+      children: collapsed ? const [] : [body],
     );
   }
 }
@@ -254,54 +339,104 @@ class RemoteHostList extends StatelessWidget {
     super.key,
     required this.hosts,
     required this.onOpenHost,
-    required this.selectedHostName,
-    required this.onSelectHost,
     required this.settingsController,
+    required this.backgroundColor,
   });
 
   final List<RemoteDockerStatus> hosts;
   final void Function(SshHost host, Offset? anchor) onOpenHost;
-  final String? selectedHostName;
-  final void Function(SshHost host, Offset? anchor) onSelectHost;
   final AppSettingsController settingsController;
+  final Color backgroundColor;
 
   @override
   Widget build(BuildContext context) {
+    return StructuredDataTable<RemoteDockerStatus>(
+      rows: hosts,
+      columns: _columns(context),
+      rowHeight: 64,
+      shrinkToContent: true,
+      useZebraStripes: false,
+      surfaceBackgroundColor: backgroundColor,
+      primaryDoubleClickOpensContextMenu: false,
+      refreshListenable: settingsController,
+      onRowContextMenu: (status, anchor) => onOpenHost(status.host, anchor),
+      emptyState: const Padding(
+        padding: EdgeInsets.all(16),
+        child: Text('No Docker-ready remote hosts found.'),
+      ),
+    );
+  }
+
+  List<StructuredDataColumn<RemoteDockerStatus>> _columns(
+    BuildContext context,
+  ) {
+    return [
+      StructuredDataColumn<RemoteDockerStatus>(
+        label: 'Distro',
+        width: 64,
+        autoFitText: (status) => labelForDistro(_slugForHost(status.host)),
+        cellBuilder: _buildDistroCell,
+      ),
+      StructuredDataColumn<RemoteDockerStatus>(
+        label: 'Host',
+        autoFitText: (status) => status.host.name,
+        cellBuilder: (context, status) => _buildHostCell(context, status.host),
+      ),
+      StructuredDataColumn<RemoteDockerStatus>(
+        label: 'Status',
+        autoFitText: (status) => status.detail,
+        cellBuilder: (context, status) => Text(status.detail),
+      ),
+    ];
+  }
+
+  Widget _buildHostCell(BuildContext context, SshHost host) {
+    final address = _hostAddress(host);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(host.name, style: Theme.of(context).textTheme.titleMedium),
+        Text(address, style: Theme.of(context).textTheme.bodySmall),
+      ],
+    );
+  }
+
+  String _hostAddress(SshHost host) {
+    final port = host.port;
+    final base = host.hostname;
+    if (port == 22) {
+      return base;
+    }
+    return '$base:$port';
+  }
+
+  String? _slugForHost(SshHost host) {
+    return settingsController.settings.serverDistroMap[hostDistroCacheKey(
+      host,
+    )];
+  }
+
+  Widget _buildDistroCell(BuildContext context, RemoteDockerStatus status) {
     final scheme = Theme.of(context).colorScheme;
     final iconSize = _leadingIconSize(context);
-    return SectionList(
-      children: List.generate(hosts.length, (index) {
-        final status = hosts[index];
-        final statusColor = status.available ? scheme.primary : scheme.error;
-        final isSelected = selectedHostName == status.host.name;
-        final slug = settingsController
-            .settings
-            .serverDistroMap[hostDistroCacheKey(status.host)];
+    final statusColor = status.available ? scheme.primary : scheme.error;
+    return AnimatedBuilder(
+      animation: settingsController,
+      builder: (context, _) {
+        final slug = _slugForHost(status.host);
         final iconColor = colorForDistro(slug, context.appTheme);
-        Offset? lastPointer;
-        return SelectableListItem(
-          stripeIndex: index,
-          selected: isSelected,
-          title: status.host.name,
-          subtitle: status.detail,
-          onTapDown: (details) => lastPointer = details.globalPosition,
-          onTap: () => onSelectHost(status.host, null),
-          onDoubleTap: () => onOpenHost(status.host, lastPointer),
-          onLongPress: () => onOpenHost(status.host, lastPointer),
-          onSecondaryTapDown: (details) =>
-              onOpenHost(status.host, details.globalPosition),
-          leading: Tooltip(
-            message: labelForDistro(slug),
-            child: DistroLeadingSlot(
-              slug: slug,
-              iconSize: iconSize,
-              iconColor: iconColor,
-              statusColor: statusColor,
-              statusDotScale: 10 / iconSize,
-            ),
+        return Tooltip(
+          message: labelForDistro(slug),
+          child: DistroLeadingSlot(
+            slug: slug,
+            iconSize: iconSize,
+            iconColor: iconColor,
+            statusColor: statusColor,
+            statusDotScale: 10 / iconSize,
           ),
         );
-      }),
+      },
     );
   }
 }
