@@ -9,6 +9,7 @@ import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/distro_icons.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/modules/docker/services/container_distro_key.dart';
+import 'package:cwatch/shared/widgets/data_table/structured_data_table.dart';
 import 'package:cwatch/shared/widgets/distro_leading_slot.dart';
 import 'package:cwatch/shared/widgets/lists/section_list.dart';
 import 'package:cwatch/shared/widgets/lists/section_list_item.dart';
@@ -134,13 +135,15 @@ class _ContainerPeekState extends State<ContainerPeek> {
   @override
   Widget build(BuildContext context) {
     final icons = context.appTheme.icons;
+    final spacing = context.appTheme.spacing;
     if (widget.containers.isEmpty) {
       return const EmptyCard(message: 'No containers match your filters.');
     }
     final groups = _group(widget.containers);
-    var flatIndex = 0;
+    final entries = groups.entries.toList();
     return Column(
-      children: groups.entries.map((entry) {
+      children: List.generate(entries.length, (index) {
+        final entry = entries[index];
         final project = entry.key;
         final items = entry.value;
         final collapsed = _collapsed.contains(project);
@@ -148,237 +151,244 @@ class _ContainerPeekState extends State<ContainerPeek> {
         final projectName = isCompose
             ? project.replaceFirst('Compose: ', '')
             : null;
-        final header = SectionListItem(
-          title: project,
-          subtitle: '${items.length} containers',
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isCompose && widget.onComposeAction != null)
-                PopupMenuButton<String>(
-                  tooltip: 'Compose actions',
-                  icon: Icon(icons.settings),
-                  onSelected: (action) {
-                    final name = projectName;
-                    if (name != null) {
-                      if (action == 'forward' &&
-                          widget.onComposeForward != null) {
-                        widget.onComposeForward!(name);
-                      } else if (action == 'stopForward' &&
-                          widget.onComposeStopForward != null) {
-                        widget.onComposeStopForward!(name);
-                      } else {
-                        widget.onComposeAction!(name, action);
-                      }
-                    }
-                  },
-                  itemBuilder: (context) {
-                    final scheme = Theme.of(context).colorScheme;
-                    return [
-                      _actionMenuItem(
-                        context,
-                        value: 'logs',
-                        label: 'Tail logs',
-                        icon: Icons.list_alt_outlined,
-                      ),
-                      _actionMenuItem(
-                        context,
-                        value: 'restart',
-                        label: 'Restart project',
-                        icon: icons.refresh,
-                      ),
-                      _actionMenuItem(
-                        context,
-                        value: 'up',
-                        label: 'Compose up (detach)',
-                        icon: Icons.play_arrow_rounded,
-                      ),
-                      _actionMenuItem(
-                        context,
-                        value: 'down',
-                        label: 'Compose down',
-                        icon: Icons.stop_rounded,
-                        color: scheme.error,
-                      ),
-                      if (widget.onComposeForward != null)
-                        _actionMenuItem(
-                          context,
-                          value: 'forward',
-                          label: 'Port forward…',
-                          icon: Icons.link_outlined,
-                        ),
-                      if (widget.onComposeForward != null)
-                        _actionMenuItem(
-                          context,
-                          value: 'stopForward',
-                          label: 'Stop port forwards',
-                          icon: Icons.link_off_outlined,
-                        ),
-                    ];
-                  },
-                ),
-              Icon(collapsed ? icons.arrowRight : icons.arrowDown, size: 18),
-            ],
-          ),
-          onTap: () {
-            setState(() {
-              if (collapsed) {
-                _collapsed.remove(project);
-              } else {
-                _collapsed.add(project);
-              }
-            });
-          },
-        );
-
-        final rows = items.map((container) {
-          flatIndex += 1;
-          String runningLabel() {
-            if (container.startedAt != null) {
-              final now = DateTime.now();
-              final diff = now.difference(container.startedAt!.toLocal());
-              if (diff.inDays >= 1) {
-                final days = diff.inDays;
-                final hours = diff.inHours % 24;
-                return 'Running for ${days}d ${hours}h';
-              }
-              if (diff.inHours >= 1) {
-                final hours = diff.inHours;
-                final mins = diff.inMinutes % 60;
-                return 'Running for ${hours}h ${mins}m';
-              }
-              if (diff.inMinutes >= 1) {
-                final mins = diff.inMinutes;
-                final secs = diff.inSeconds % 60;
-                return 'Running for ${mins}m ${secs}s';
-              }
-              return 'Running for ${diff.inSeconds}s';
-            }
-            if (container.createdAt != null &&
-                container.createdAt!.isNotEmpty) {
-              return 'Running for ${container.createdAt}';
-            }
-            return 'Running';
-          }
-
-          final slug = _slugForContainer(widget.settingsController, container);
-          final iconColor = colorForDistro(slug, context.appTheme);
-          final iconSize = _distroIconSize(context);
-          final statusColor = container.isRunning
-              ? context.appTheme.docker.running
-              : context.appTheme.docker.stopped;
-          final resolvedIconColor = widget.busyIds.contains(container.id)
-              ? Theme.of(context).colorScheme.primary
-              : iconColor;
-
-          return SelectableListItem(
-            stripeIndex: flatIndex,
-            selected: widget.selectedIds.contains(container.id),
-            title: container.name.isNotEmpty ? container.name : container.id,
-            subtitle:
-                'Image: ${container.image} • ${container.isRunning ? runningLabel() : container.status}',
-            leading: Tooltip(
-              message: labelForDistro(slug),
-              child: DistroLeadingSlot(
-                slug: slug,
-                iconSize: iconSize,
-                iconColor: resolvedIconColor,
-                statusColor: statusColor,
-              ),
-            ),
-            horizontalPadding: context.appTheme.spacing.base * 0.3,
-            busy: widget.busyIds.contains(container.id),
-            trailing: () {
-              final actionLabel = widget.actionLabels[container.id];
-              final actionButton = widget.onTapDown == null
-                  ? null
-                  : IconButton(
-                      splashRadius: 16,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 32,
-                        minHeight: 32,
-                      ),
-                      icon: Icon(Icons.more_vert, size: 20),
-                      tooltip: 'Actions',
-                      onPressed: () => widget.onTapDown!(
-                        container,
-                        TapDownDetails(kind: PointerDeviceKind.touch),
-                        secondary: true,
-                        flatIndex: flatIndex,
-                      ),
-                    );
-              if (actionButton == null && actionLabel == null) {
-                return null;
-              }
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (actionLabel != null) ...[
-                    Text(
-                      actionLabel,
-                      style: Theme.of(context).textTheme.labelSmall,
-                    ),
-                    if (actionButton != null) const SizedBox(width: 4),
-                  ],
-                  if (actionButton != null) actionButton,
-                ],
-              );
-            }(),
-            onTapDown: widget.onTapDown == null
-                ? null
-                : (details) => widget.onTapDown!(
-                    container,
-                    details,
-                    secondary: false,
-                    flatIndex: flatIndex,
-                  ),
-            onTap: widget.onTap == null ? null : () => widget.onTap!(container),
-            onLongPress: widget.onTapDown == null
-                ? null
-                : () => widget.onTapDown!(
-                    container,
-                    TapDownDetails(kind: PointerDeviceKind.touch),
-                    secondary: true,
-                    flatIndex: flatIndex,
-                  ),
-            onDoubleTap: widget.onTapDown == null
-                ? null
-                : () => widget.onTapDown!(
-                    container,
-                    TapDownDetails(kind: PointerDeviceKind.touch),
-                    secondary: true,
-                    flatIndex: flatIndex,
-                  ),
-            onSecondaryTapDown: widget.onTapDown == null
-                ? null
-                : (details) => widget.onTapDown!(
-                    container,
-                    details,
-                    secondary: true,
-                    flatIndex: flatIndex,
-                  ),
-          );
-        }).toList();
+        final sectionColor = _sectionBackgroundForIndex(context, index);
 
         return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
+          padding: EdgeInsets.only(bottom: spacing.base * 1.5),
           child: SectionList(
-            children: [
-              header,
-              if (!collapsed)
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
-                  child: Column(children: rows),
+            title: project,
+            backgroundColor: sectionColor,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${items.length} containers',
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
-            ],
+                const SizedBox(width: 8),
+                if (isCompose && widget.onComposeAction != null)
+                  PopupMenuButton<String>(
+                    tooltip: 'Compose actions',
+                    icon: const Icon(Icons.more_horiz, size: 18),
+                    onSelected: (action) {
+                      final name = projectName;
+                      if (name != null) {
+                        if (action == 'forward' &&
+                            widget.onComposeForward != null) {
+                          widget.onComposeForward!(name);
+                        } else if (action == 'stopForward' &&
+                            widget.onComposeStopForward != null) {
+                          widget.onComposeStopForward!(name);
+                        } else {
+                          widget.onComposeAction!(name, action);
+                        }
+                      }
+                    },
+                    itemBuilder: (context) {
+                      final scheme = Theme.of(context).colorScheme;
+                      return [
+                        _actionMenuItem(
+                          context,
+                          value: 'logs',
+                          label: 'Tail logs',
+                          icon: Icons.list_alt_outlined,
+                        ),
+                        _actionMenuItem(
+                          context,
+                          value: 'restart',
+                          label: 'Restart project',
+                          icon: icons.refresh,
+                        ),
+                        _actionMenuItem(
+                          context,
+                          value: 'up',
+                          label: 'Compose up (detach)',
+                          icon: Icons.play_arrow_rounded,
+                        ),
+                        _actionMenuItem(
+                          context,
+                          value: 'down',
+                          label: 'Compose down',
+                          icon: Icons.stop_rounded,
+                          color: scheme.error,
+                        ),
+                        if (widget.onComposeForward != null)
+                          _actionMenuItem(
+                            context,
+                            value: 'forward',
+                            label: 'Port forward…',
+                            icon: Icons.link_outlined,
+                          ),
+                        if (widget.onComposeForward != null)
+                          _actionMenuItem(
+                            context,
+                            value: 'stopForward',
+                            label: 'Stop port forwards',
+                            icon: Icons.link_off_outlined,
+                          ),
+                      ];
+                    },
+                  ),
+                IconButton(
+                  icon: Icon(
+                    collapsed ? Icons.expand_more : Icons.expand_less,
+                    size: 18,
+                  ),
+                  tooltip: collapsed ? 'Expand' : 'Collapse',
+                  onPressed: () {
+                    setState(() {
+                      if (collapsed) {
+                        _collapsed.remove(project);
+                      } else {
+                        _collapsed.add(project);
+                      }
+                    });
+                  },
+                ),
+              ],
+            ),
+            children: collapsed
+                ? const []
+                : [
+                    StructuredDataTable<DockerContainer>(
+                      rows: items,
+                      columns: _containerColumns(context),
+                      rowHeight: 64,
+                      shrinkToContent: true,
+                      useZebraStripes: false,
+                      surfaceBackgroundColor: sectionColor,
+                      primaryDoubleClickOpensContextMenu: false,
+                      onRowTap: _handleContainerTap,
+                      onRowContextMenu: _handleContainerContextMenu,
+                    ),
+                  ],
           ),
         );
-      }).toList(),
+      }),
     );
+  }
+
+  void _handleContainerTap(DockerContainer container) {
+    final details = _tapDetails();
+    widget.onTapDown?.call(
+      container,
+      details,
+      secondary: false,
+      flatIndex: _flatIndexFor(container),
+    );
+    widget.onTap?.call(container);
+  }
+
+  void _handleContainerContextMenu(DockerContainer container, Offset? anchor) {
+    if (widget.onTapDown == null) {
+      return;
+    }
+    final details = _tapDetails(anchor: anchor);
+    widget.onTapDown!(
+      container,
+      details,
+      secondary: true,
+      flatIndex: _flatIndexFor(container),
+    );
+  }
+
+  TapDownDetails _tapDetails({
+    Offset? anchor,
+    PointerDeviceKind kind = PointerDeviceKind.mouse,
+  }) {
+    final position = anchor ?? Offset.zero;
+    return TapDownDetails(
+      globalPosition: position,
+      localPosition: position,
+      kind: kind,
+    );
+  }
+
+  int? _flatIndexFor(DockerContainer container) {
+    final index = widget.containers.indexWhere(
+      (item) => item.id == container.id,
+    );
+    if (index == -1) {
+      return null;
+    }
+    return index;
+  }
+
+  List<StructuredDataColumn<DockerContainer>> _containerColumns(
+    BuildContext context,
+  ) {
+    return [
+      StructuredDataColumn<DockerContainer>(
+        label: 'Container',
+        autoFitText: (container) => _displayName(container),
+        cellBuilder: _buildContainerCell,
+      ),
+      StructuredDataColumn<DockerContainer>(
+        label: 'Image',
+        autoFitText: (container) => container.image,
+        cellBuilder: (context, container) => Text(container.image),
+      ),
+      StructuredDataColumn<DockerContainer>(
+        label: 'Status',
+        autoFitText: _statusText,
+        cellBuilder: (context, container) => Text(_statusText(container)),
+      ),
+      StructuredDataColumn<DockerContainer>(
+        label: 'Action',
+        autoFitText: (container) => _actionLabel(container),
+        cellBuilder: (context, container) => Text(
+          _valueOrDash(_actionLabel(container)),
+          style: Theme.of(context).textTheme.labelSmall,
+        ),
+      ),
+    ];
+  }
+
+  String _displayName(DockerContainer container) {
+    return container.name.isNotEmpty ? container.name : container.id;
+  }
+
+  Widget _buildContainerCell(BuildContext context, DockerContainer container) {
+    final slug = _slugForContainer(widget.settingsController, container);
+    final iconColor = colorForDistro(slug, context.appTheme);
+    final iconSize = _distroIconSize(context);
+    final statusColor = container.isRunning
+        ? context.appTheme.docker.running
+        : context.appTheme.docker.stopped;
+    final resolvedIconColor = widget.busyIds.contains(container.id)
+        ? Theme.of(context).colorScheme.primary
+        : iconColor;
+    return Row(
+      children: [
+        Tooltip(
+          message: labelForDistro(slug),
+          child: DistroLeadingSlot(
+            slug: slug,
+            iconSize: iconSize,
+            iconColor: resolvedIconColor,
+            statusColor: statusColor,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            _displayName(container),
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _statusText(DockerContainer container) {
+    if (container.isRunning) {
+      return _runningLabel(container);
+    }
+    return container.status;
+  }
+
+  String _actionLabel(DockerContainer container) {
+    return widget.actionLabels[container.id] ?? '';
   }
 
   Map<String, List<DockerContainer>> _group(List<DockerContainer> containers) {
@@ -396,6 +406,33 @@ class _ContainerPeekState extends State<ContainerPeek> {
         return a.compareTo(b);
       });
     return {for (final k in sortedKeys) k: map[k]!};
+  }
+
+  String _runningLabel(DockerContainer container) {
+    if (container.startedAt != null) {
+      final now = DateTime.now();
+      final diff = now.difference(container.startedAt!.toLocal());
+      if (diff.inDays >= 1) {
+        final days = diff.inDays;
+        final hours = diff.inHours % 24;
+        return 'Running for ${days}d ${hours}h';
+      }
+      if (diff.inHours >= 1) {
+        final hours = diff.inHours;
+        final mins = diff.inMinutes % 60;
+        return 'Running for ${hours}h ${mins}m';
+      }
+      if (diff.inMinutes >= 1) {
+        final mins = diff.inMinutes;
+        final secs = diff.inSeconds % 60;
+        return 'Running for ${mins}m ${secs}s';
+      }
+      return 'Running for ${diff.inSeconds}s';
+    }
+    if (container.createdAt != null && container.createdAt!.isNotEmpty) {
+      return 'Running for ${container.createdAt}';
+    }
+    return 'Running';
   }
 }
 
@@ -607,82 +644,117 @@ class ImagePeek extends StatelessWidget {
     if (images.isEmpty) {
       return const EmptyCard(message: 'No images found.');
     }
+    final spacing = context.appTheme.spacing;
     final groups = _groupImages(images);
+    final entries = groups.entries.toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: groups.entries.map((entry) {
+      children: List.generate(entries.length, (index) {
+        final entry = entries[index];
         final repo = entry.key;
         final items = entry.value;
-        final header = SectionListItem(
-          title: repo,
-          subtitle: '${items.length} images',
-        );
-        final rows = List.generate(items.length, (index) {
-          final image = items[index];
-          final name = [
-            image.repository.isNotEmpty ? image.repository : '<none>',
-            image.tag.isNotEmpty ? image.tag : '<none>',
-          ].join(':');
-          final isSelected = selectedIds.contains(_imageKey(image));
-          final slug = slugForImage(image.repository, image.tag);
-          final iconSize = _distroIconSize(context);
-          final iconPadding = context.appTheme.spacing.base * 0.5;
-          final iconColor = colorForDistro(slug, context.appTheme);
-          return SelectableListItem(
-            stripeIndex: index,
-            selected: isSelected,
-            title: name,
-            subtitle: 'Size: ${image.size}',
-            leading: Tooltip(
-              message: labelForDistro(slug),
-              child: SizedBox(
-                width: iconSize + iconPadding,
-                child: Center(
-                  child: Icon(
-                    iconForDistro(slug),
-                    size: iconSize,
-                    color: iconColor,
-                  ),
-                ),
-              ),
-            ),
-            onTapDown: onTapDown == null
-                ? null
-                : (details) => onTapDown!(image, details, secondary: false),
-            onTap: onTap == null ? null : () => onTap!(image),
-            onLongPress: onTapDown == null
-                ? null
-                : () => onTapDown!(
-                    image,
-                    TapDownDetails(kind: PointerDeviceKind.mouse),
-                    secondary: false,
-                  ),
-            trailing: onTapDown == null
-                ? null
-                : IconButton(
-                    splashRadius: 16,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 32,
-                      minHeight: 32,
-                    ),
-                    icon: Icon(Icons.more_vert, size: 20),
-                    tooltip: 'Actions',
-                    onPressed: () => onTapDown!(
-                      image,
-                      TapDownDetails(kind: PointerDeviceKind.touch),
-                      secondary: true,
-                    ),
-                  ),
-          );
-        });
-
+        final sectionColor = _sectionBackgroundForIndex(context, index);
         return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: SectionList(children: [header, ...rows]),
+          padding: EdgeInsets.only(bottom: spacing.base * 1.5),
+          child: SectionList(
+            title: repo,
+            backgroundColor: sectionColor,
+            trailing: Text(
+              '${items.length} images',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            children: [
+              StructuredDataTable<DockerImage>(
+                rows: items,
+                columns: _imageColumns(context),
+                rowHeight: 64,
+                shrinkToContent: true,
+                useZebraStripes: false,
+                surfaceBackgroundColor: sectionColor,
+                primaryDoubleClickOpensContextMenu: false,
+                onRowTap: _handleImageTap,
+                onRowContextMenu: _handleImageContextMenu,
+              ),
+            ],
+          ),
         );
-      }).toList(),
+      }),
     );
+  }
+
+  void _handleImageTap(DockerImage image) {
+    final details = _tapDetails();
+    onTapDown?.call(image, details, secondary: false);
+    onTap?.call(image);
+  }
+
+  void _handleImageContextMenu(DockerImage image, Offset? anchor) {
+    if (onTapDown == null) {
+      return;
+    }
+    final details = _tapDetails(anchor: anchor);
+    onTapDown!(image, details, secondary: true);
+  }
+
+  TapDownDetails _tapDetails({
+    Offset? anchor,
+    PointerDeviceKind kind = PointerDeviceKind.mouse,
+  }) {
+    final position = anchor ?? Offset.zero;
+    return TapDownDetails(
+      globalPosition: position,
+      localPosition: position,
+      kind: kind,
+    );
+  }
+
+  List<StructuredDataColumn<DockerImage>> _imageColumns(BuildContext context) {
+    return [
+      StructuredDataColumn<DockerImage>(
+        label: 'Tag',
+        autoFitText: _tagLabel,
+        cellBuilder: _buildTagCell,
+      ),
+      StructuredDataColumn<DockerImage>(
+        label: 'Size',
+        autoFitText: (image) => image.size,
+        cellBuilder: (context, image) => Text(image.size),
+      ),
+      StructuredDataColumn<DockerImage>(
+        label: 'Created',
+        autoFitText: _createdLabel,
+        cellBuilder: (context, image) => Text(_createdLabel(image)),
+      ),
+    ];
+  }
+
+  Widget _buildTagCell(BuildContext context, DockerImage image) {
+    final slug = slugForImage(image.repository, image.tag);
+    final iconSize = _distroIconSize(context);
+    final iconColor = colorForDistro(slug, context.appTheme);
+    return Row(
+      children: [
+        Tooltip(
+          message: labelForDistro(slug),
+          child: Icon(iconForDistro(slug), size: iconSize, color: iconColor),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            _tagLabel(image),
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _tagLabel(DockerImage image) {
+    return image.tag.isNotEmpty ? image.tag : '<none>';
+  }
+
+  String _createdLabel(DockerImage image) {
+    return _valueOrDash(image.createdSince);
   }
 
   Map<String, List<DockerImage>> _groupImages(List<DockerImage> images) {
@@ -799,67 +871,106 @@ class NetworkList extends StatelessWidget {
     if (networks.isEmpty) {
       return const EmptyCard(message: 'No networks found.');
     }
+    final spacing = context.appTheme.spacing;
     final groups = _groupByComposeish(networks);
+    final entries = groups.entries.toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: groups.entries.map((entry) {
+      children: List.generate(entries.length, (index) {
+        final entry = entries[index];
         final group = entry.key;
         final items = entry.value;
-        final header = SectionListItem(
-          title: group,
-          subtitle: '${items.length} networks',
+        final sectionColor = _sectionBackgroundForIndex(context, index);
+        return Padding(
+          padding: EdgeInsets.only(bottom: spacing.base * 1.5),
+          child: SectionList(
+            title: group,
+            backgroundColor: sectionColor,
+            trailing: Text(
+              '${items.length} networks',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            children: [
+              StructuredDataTable<DockerNetwork>(
+                rows: items,
+                columns: _networkColumns(context, icons),
+                rowHeight: 64,
+                shrinkToContent: true,
+                useZebraStripes: false,
+                surfaceBackgroundColor: sectionColor,
+                primaryDoubleClickOpensContextMenu: false,
+                onRowTap: _handleNetworkTap,
+                onRowContextMenu: _handleNetworkContextMenu,
+              ),
+            ],
+          ),
         );
-        final rows = List.generate(items.length, (index) {
-          final network = items[index];
-          final isSelected = selectedIds.contains(
-            network.id.isNotEmpty ? network.id : network.name,
-          );
-          return SelectableListItem(
-            stripeIndex: index,
-            selected: isSelected,
-            title: network.name,
-            subtitle: network.driver,
-            leading: Icon(
+      }),
+    );
+  }
+
+  void _handleNetworkTap(DockerNetwork network) {
+    final details = _tapDetails();
+    onTapDown?.call(network, details, secondary: false);
+    onTap?.call(network);
+  }
+
+  void _handleNetworkContextMenu(DockerNetwork network, Offset? anchor) {
+    if (onTapDown == null) {
+      return;
+    }
+    final details = _tapDetails(anchor: anchor);
+    onTapDown!(network, details, secondary: true);
+  }
+
+  TapDownDetails _tapDetails({
+    Offset? anchor,
+    PointerDeviceKind kind = PointerDeviceKind.mouse,
+  }) {
+    final position = anchor ?? Offset.zero;
+    return TapDownDetails(
+      globalPosition: position,
+      localPosition: position,
+      kind: kind,
+    );
+  }
+
+  List<StructuredDataColumn<DockerNetwork>> _networkColumns(
+    BuildContext context,
+    AppIcons icons,
+  ) {
+    return [
+      StructuredDataColumn<DockerNetwork>(
+        label: 'Network',
+        autoFitText: (network) => network.name,
+        cellBuilder: (context, network) => Row(
+          children: [
+            Icon(
               icons.network,
               size: 18,
               color: Theme.of(context).iconTheme.color,
             ),
-            onTapDown: onTapDown == null
-                ? null
-                : (details) => onTapDown!(network, details, secondary: false),
-            onTap: onTap == null ? null : () => onTap!(network),
-            onLongPress: onTapDown == null
-                ? null
-                : () => onTapDown!(
-                    network,
-                    TapDownDetails(kind: PointerDeviceKind.mouse),
-                    secondary: false,
-                  ),
-            trailing: onTapDown == null
-                ? null
-                : IconButton(
-                    splashRadius: 16,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 32,
-                      minHeight: 32,
-                    ),
-                    icon: Icon(Icons.more_vert, size: 20),
-                    tooltip: 'Actions',
-                    onPressed: () => onTapDown!(
-                      network,
-                      TapDownDetails(kind: PointerDeviceKind.touch),
-                      secondary: true,
-                    ),
-                  ),
-          );
-        });
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: SectionList(children: [header, ...rows]),
-        );
-      }).toList(),
-    );
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                network.name,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+          ],
+        ),
+      ),
+      StructuredDataColumn<DockerNetwork>(
+        label: 'Driver',
+        autoFitText: (network) => network.driver,
+        cellBuilder: (context, network) => Text(network.driver),
+      ),
+      StructuredDataColumn<DockerNetwork>(
+        label: 'Scope',
+        autoFitText: (network) => network.scope,
+        cellBuilder: (context, network) => Text(network.scope),
+      ),
+    ];
   }
 
   Map<String, List<DockerNetwork>> _groupByComposeish(
@@ -895,71 +1006,111 @@ class VolumeList extends StatelessWidget {
     if (volumes.isEmpty) {
       return const EmptyCard(message: 'No volumes found.');
     }
+    final spacing = context.appTheme.spacing;
     final groups = _groupByComposeish(volumes);
+    final entries = groups.entries.toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: groups.entries.map((entry) {
+      children: List.generate(entries.length, (index) {
+        final entry = entries[index];
         final group = entry.key;
         final items = entry.value;
-        final header = SectionListItem(
-          title: group,
-          subtitle: '${items.length} volumes',
+        final sectionColor = _sectionBackgroundForIndex(context, index);
+        return Padding(
+          padding: EdgeInsets.only(bottom: spacing.base * 1.5),
+          child: SectionList(
+            title: group,
+            backgroundColor: sectionColor,
+            trailing: Text(
+              '${items.length} volumes',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            children: [
+              StructuredDataTable<DockerVolume>(
+                rows: items,
+                columns: _volumeColumns(context, icons),
+                rowHeight: 64,
+                shrinkToContent: true,
+                useZebraStripes: false,
+                surfaceBackgroundColor: sectionColor,
+                primaryDoubleClickOpensContextMenu: false,
+                onRowTap: _handleVolumeTap,
+                onRowContextMenu: _handleVolumeContextMenu,
+              ),
+            ],
+          ),
         );
-        final rows = List.generate(items.length, (index) {
-          final volume = items[index];
-          final isSelected = selectedIds.contains(volume.name);
-          final subtitle = [
-            volume.driver,
-            if (volume.size != null && volume.size!.trim().isNotEmpty)
-              volume.size!,
-          ].join(' • ');
-          return SelectableListItem(
-            stripeIndex: index,
-            selected: isSelected,
-            title: volume.name,
-            subtitle: subtitle,
-            leading: Icon(
+      }),
+    );
+  }
+
+  void _handleVolumeTap(DockerVolume volume) {
+    final details = _tapDetails();
+    onTapDown?.call(volume, details, secondary: false);
+    onTap?.call(volume);
+  }
+
+  void _handleVolumeContextMenu(DockerVolume volume, Offset? anchor) {
+    if (onTapDown == null) {
+      return;
+    }
+    final details = _tapDetails(anchor: anchor);
+    onTapDown!(volume, details, secondary: true);
+  }
+
+  TapDownDetails _tapDetails({
+    Offset? anchor,
+    PointerDeviceKind kind = PointerDeviceKind.mouse,
+  }) {
+    final position = anchor ?? Offset.zero;
+    return TapDownDetails(
+      globalPosition: position,
+      localPosition: position,
+      kind: kind,
+    );
+  }
+
+  List<StructuredDataColumn<DockerVolume>> _volumeColumns(
+    BuildContext context,
+    AppIcons icons,
+  ) {
+    return [
+      StructuredDataColumn<DockerVolume>(
+        label: 'Volume',
+        autoFitText: (volume) => volume.name,
+        cellBuilder: (context, volume) => Row(
+          children: [
+            Icon(
               icons.volume,
               size: 18,
               color: Theme.of(context).iconTheme.color,
             ),
-            onTapDown: onTapDown == null
-                ? null
-                : (details) => onTapDown!(volume, details, secondary: false),
-            onTap: onTap == null ? null : () => onTap!(volume),
-            onLongPress: onTapDown == null
-                ? null
-                : () => onTapDown!(
-                    volume,
-                    TapDownDetails(kind: PointerDeviceKind.mouse),
-                    secondary: false,
-                  ),
-            trailing: onTapDown == null
-                ? null
-                : IconButton(
-                    splashRadius: 16,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 32,
-                      minHeight: 32,
-                    ),
-                    icon: Icon(Icons.more_vert, size: 20),
-                    tooltip: 'Actions',
-                    onPressed: () => onTapDown!(
-                      volume,
-                      TapDownDetails(kind: PointerDeviceKind.touch),
-                      secondary: true,
-                    ),
-                  ),
-          );
-        });
-
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: SectionList(children: [header, ...rows]),
-        );
-      }).toList(),
-    );
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                volume.name,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+          ],
+        ),
+      ),
+      StructuredDataColumn<DockerVolume>(
+        label: 'Driver',
+        autoFitText: (volume) => volume.driver,
+        cellBuilder: (context, volume) => Text(volume.driver),
+      ),
+      StructuredDataColumn<DockerVolume>(
+        label: 'Size',
+        autoFitText: (volume) => _valueOrDash(volume.size),
+        cellBuilder: (context, volume) => Text(_valueOrDash(volume.size)),
+      ),
+      StructuredDataColumn<DockerVolume>(
+        label: 'Scope',
+        autoFitText: (volume) => _valueOrDash(volume.scope),
+        cellBuilder: (context, volume) => Text(_valueOrDash(volume.scope)),
+      ),
+    ];
   }
 
   Map<String, List<DockerVolume>> _groupByComposeish(
@@ -1027,4 +1178,19 @@ String? _slugForContainer(
 double _distroIconSize(BuildContext context) {
   final titleSize = Theme.of(context).textTheme.titleMedium?.fontSize ?? 14;
   return titleSize * 1.9;
+}
+
+Color _sectionBackgroundForIndex(BuildContext context, int index) {
+  final scheme = Theme.of(context).colorScheme;
+  final base = context.appTheme.section.surface.background;
+  final overlay = scheme.surfaceTint.withValues(alpha: 0.08);
+  final alternate = Color.alphaBlend(overlay, base);
+  return index.isEven ? base : alternate;
+}
+
+String _valueOrDash(String? value) {
+  if (value == null || value.isEmpty) {
+    return '—';
+  }
+  return value;
 }
