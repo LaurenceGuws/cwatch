@@ -1,0 +1,29 @@
+# Rippedcasts terminal theme for CWatch.
+
+name = "Rippedcasts"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#ffffff"
+background = "#2b2b2b"
+black = "#2b2b2b"
+red = "#cd3f45"
+green = "#9fca56"
+yellow = "#e6cd69"
+blue = "#55b5db"
+magenta = "#a074c4"
+cyan = "#55dbbe"
+white = "#e6e6e6"
+bright_black = "#4a4a4a"
+bright_red = "#cd3f45"
+bright_green = "#9fca56"
+bright_yellow = "#e6cd69"
+bright_blue = "#55b5db"
+bright_magenta = "#a074c4"
+bright_cyan = "#55dbbe"
+bright_white = "#ffffff"
+search_hit_background = "#e6cd69"
+search_hit_background_current = "#9fca56"
+search_hit_foreground = "#2b2b2b"
+

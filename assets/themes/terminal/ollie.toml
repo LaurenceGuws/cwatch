@@ -1,0 +1,29 @@
+# Ollie terminal theme for CWatch.
+
+name = "Ollie"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#8a8dae"
+background = "#222125"
+black = "#000000"
+red = "#ac8e8c"
+green = "#8aac8b"
+yellow = "#aca98a"
+blue = "#8f8aac"
+magenta = "#ac8aac"
+cyan = "#8aabac"
+white = "#f5f4f7"
+bright_black = "#5d4f5e"
+bright_red = "#dfb8b6"
+bright_green = "#b8dfb7"
+bright_yellow = "#dfddb7"
+bright_blue = "#b8b6df"
+bright_magenta = "#dfb6df"
+bright_cyan = "#b6dfdd"
+bright_white = "#ffffff"
+search_hit_background = "#aca98a"
+search_hit_background_current = "#8aac8b"
+search_hit_foreground = "#222125"
+

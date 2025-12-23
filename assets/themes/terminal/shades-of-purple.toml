@@ -1,0 +1,29 @@
+# Shades of Purple terminal theme for CWatch.
+
+name = "Shades of Purple"
+
+[colors]
+cursor = "#ffffff"
+selection = "#a599e9"
+foreground = "#ffffff"
+background = "#2d2b55"
+black = "#000000"
+red = "#ff6e67"
+green = "#5af78e"
+yellow = "#f3f99d"
+blue = "#57c7ff"
+magenta = "#ff6ac1"
+cyan = "#9aedfe"
+white = "#f1f1f0"
+bright_black = "#686868"
+bright_red = "#ff6e67"
+bright_green = "#5af78e"
+bright_yellow = "#f3f99d"
+bright_blue = "#57c7ff"
+bright_magenta = "#ff6ac1"
+bright_cyan = "#9aedfe"
+bright_white = "#ffffff"
+search_hit_background = "#f3f99d"
+search_hit_background_current = "#ffb86c"
+search_hit_foreground = "#2d2b55"
+

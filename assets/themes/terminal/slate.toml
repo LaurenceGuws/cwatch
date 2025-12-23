@@ -1,0 +1,29 @@
+# Slate terminal theme for CWatch.
+
+name = "Slate"
+
+[colors]
+cursor = "#ffffff"
+selection = "#4e4e4e"
+foreground = "#ffffff"
+background = "#222222"
+black = "#222222"
+red = "#ff0000"
+green = "#00ff00"
+yellow = "#ffff00"
+blue = "#0088ff"
+magenta = "#ff00ff"
+cyan = "#00ffff"
+white = "#ffffff"
+bright_black = "#444444"
+bright_red = "#ff4444"
+bright_green = "#44ff44"
+bright_yellow = "#ffff44"
+bright_blue = "#4488ff"
+bright_magenta = "#ff44ff"
+bright_cyan = "#44ffff"
+bright_white = "#ffffff"
+search_hit_background = "#ffff00"
+search_hit_background_current = "#ff8800"
+search_hit_foreground = "#222222"
+

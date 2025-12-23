@@ -1,0 +1,29 @@
+# ToyChest terminal theme for CWatch.
+
+name = "ToyChest"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#31d07b"
+background = "#24364b"
+black = "#2c3f58"
+red = "#be2d26"
+green = "#1a9172"
+yellow = "#dbda16"
+blue = "#325d96"
+magenta = "#8a5edc"
+cyan = "#35a08f"
+white = "#23d183"
+bright_black = "#336889"
+bright_red = "#dd5944"
+bright_green = "#31d07b"
+bright_yellow = "#e7d84b"
+bright_blue = "#34a6da"
+bright_magenta = "#ae6bdc"
+bright_cyan = "#42c3ae"
+bright_white = "#d5d5d5"
+search_hit_background = "#dbda16"
+search_hit_background_current = "#1a9172"
+search_hit_foreground = "#24364b"
+

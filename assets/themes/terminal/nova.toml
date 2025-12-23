@@ -1,0 +1,29 @@
+# Nova terminal theme for CWatch.
+
+name = "Nova"
+
+[colors]
+cursor = "#ffffff"
+selection = "#3c4c55"
+foreground = "#c5d4dd"
+background = "#3c4c55"
+black = "#3c4c55"
+red = "#83afe5"
+green = "#7fc1ca"
+yellow = "#a8ce93"
+blue = "#7fc1ca"
+magenta = "#f2c38f"
+cyan = "#f2c38f"
+white = "#c5d4dd"
+bright_black = "#899ba6"
+bright_red = "#83afe5"
+bright_green = "#7fc1ca"
+bright_yellow = "#a8ce93"
+bright_blue = "#7fc1ca"
+bright_magenta = "#f2c38f"
+bright_cyan = "#f2c38f"
+bright_white = "#ece8ec"
+search_hit_background = "#a8ce93"
+search_hit_background_current = "#f2c38f"
+search_hit_foreground = "#3c4c55"
+

@@ -33,6 +33,7 @@ dependencies:
   meta: any
   yaml: ^3.1.1
   path: ^1.9.0
+  toml: ^0.15.0
   fl_chart: ^1.1.1
   flutter_code_editor: ^0.3.0
   flutter_highlight: ^0.7.0
@@ -88,6 +89,10 @@ flutter:
   # assets:
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
+  assets:
+    - assets/themes/terminal/
+    - assets/themes/editor/
+    - assets/themes/app/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

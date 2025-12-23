@@ -1,0 +1,29 @@
+# Ocean terminal theme for CWatch.
+
+name = "Ocean"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#ffffff"
+background = "#224fbc"
+black = "#000000"
+red = "#990000"
+green = "#00d900"
+yellow = "#999900"
+blue = "#0066ff"
+magenta = "#b200b2"
+cyan = "#00cccc"
+white = "#cccccc"
+bright_black = "#666666"
+bright_red = "#e50000"
+bright_green = "#00ff00"
+bright_yellow = "#e5e500"
+bright_blue = "#0080ff"
+bright_magenta = "#e500e5"
+bright_cyan = "#00ffff"
+bright_white = "#ffffff"
+search_hit_background = "#999900"
+search_hit_background_current = "#00d900"
+search_hit_foreground = "#224fbc"
+

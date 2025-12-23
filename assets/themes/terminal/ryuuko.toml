@@ -1,0 +1,29 @@
+# Ryuuko terminal theme for CWatch.
+
+name = "Ryuuko"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#ffffff"
+background = "#2c3940"
+black = "#2c3940"
+red = "#ce2f2f"
+green = "#6e875e"
+yellow = "#e58963"
+blue = "#5b89ad"
+magenta = "#6e6e8e"
+cyan = "#5d7e19"
+white = "#afb3c0"
+bright_black = "#5d6267"
+bright_red = "#ef6565"
+bright_green = "#93c475"
+bright_yellow = "#f5a15c"
+bright_blue = "#7ba5dd"
+bright_magenta = "#9d9dbd"
+bright_cyan = "#8bc95d"
+bright_white = "#ffffff"
+search_hit_background = "#e58963"
+search_hit_background_current = "#6e875e"
+search_hit_foreground = "#2c3940"
+

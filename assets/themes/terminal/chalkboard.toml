@@ -1,0 +1,28 @@
+# Chalkboard terminal theme for CWatch.
+
+name = "Chalkboard"
+
+[colors]
+cursor = "#ffffff"
+selection = "#404040"
+foreground = "#ffffff"
+background = "#29262f"
+black = "#29262f"
+red = "#c37372"
+green = "#72c373"
+yellow = "#c2c372"
+blue = "#7372c3"
+magenta = "#c372c2"
+cyan = "#72c2c3"
+white = "#d9d9d9"
+bright_black = "#5c5858"
+bright_red = "#dbaaaa"
+bright_green = "#aadbaa"
+bright_yellow = "#dadbaa"
+bright_blue = "#aaaadb"
+bright_magenta = "#dbaaad"
+bright_cyan = "#aadadb"
+bright_white = "#ffffff"
+search_hit_background = "#c2c372"
+search_hit_background_current = "#dadbaa"
+search_hit_foreground = "#29262f"

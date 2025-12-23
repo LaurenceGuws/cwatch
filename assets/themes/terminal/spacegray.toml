@@ -1,0 +1,29 @@
+# Spacegray terminal theme for CWatch.
+
+name = "Spacegray"
+
+[colors]
+cursor = "#ffffff"
+selection = "#3d3d3d"
+foreground = "#b3b3b3"
+background = "#20242d"
+black = "#20242d"
+red = "#b04b57"
+green = "#87b379"
+yellow = "#e5c07b"
+blue = "#7d8fa3"
+magenta = "#a47d9c"
+cyan = "#85a7a5"
+white = "#b3b3b3"
+bright_black = "#5c6370"
+bright_red = "#b04b57"
+bright_green = "#87b379"
+bright_yellow = "#e5c07b"
+bright_blue = "#7d8fa3"
+bright_magenta = "#a47d9c"
+bright_cyan = "#85a7a5"
+bright_white = "#ffffff"
+search_hit_background = "#e5c07b"
+search_hit_background_current = "#d19a66"
+search_hit_foreground = "#20242d"
+

@@ -1,0 +1,28 @@
+# LiquidCarbon Transparent Inverse terminal theme for CWatch.
+
+name = "LiquidCarbon Transparent Inverse"
+
+[colors]
+cursor = "#303030"
+selection = "#404040"
+foreground = "#303030"
+background = "#afc2c2"
+black = "#ffffff"
+red = "#00cfcf"
+green = "#aa6599"
+yellow = "#ff53ff"
+blue = "#ff6600"
+magenta = "#339633"
+cyan = "#8533cc"
+white = "#333333"
+bright_black = "#ffffff"
+bright_red = "#00cfcf"
+bright_green = "#aa6599"
+bright_yellow = "#ff53ff"
+bright_blue = "#ff6600"
+bright_magenta = "#339633"
+bright_cyan = "#8533cc"
+bright_white = "#000000"
+search_hit_background = "#ff53ff"
+search_hit_background_current = "#ff6600"
+search_hit_foreground = "#afc2c2"

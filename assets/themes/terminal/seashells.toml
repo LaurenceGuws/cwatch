@@ -1,0 +1,29 @@
+# SeaShells terminal theme for CWatch.
+
+name = "SeaShells"
+
+[colors]
+cursor = "#73635a"
+selection = "#8b7265"
+foreground = "#deb887"
+background = "#09141b"
+black = "#17384c"
+red = "#d15123"
+green = "#027c9b"
+yellow = "#fca02f"
+blue = "#1e4950"
+magenta = "#68d4f1"
+cyan = "#50a3b5"
+white = "#deb887"
+bright_black = "#434b53"
+bright_red = "#d48678"
+bright_green = "#628d98"
+bright_yellow = "#fdd39f"
+bright_blue = "#1bbcdd"
+bright_magenta = "#bbecf2"
+bright_cyan = "#87ceeb"
+bright_white = "#ffffff"
+search_hit_background = "#fca02f"
+search_hit_background_current = "#027c9b"
+search_hit_foreground = "#09141b"
+

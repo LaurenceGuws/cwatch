@@ -1,0 +1,29 @@
+# Spiderman terminal theme for CWatch.
+
+name = "Spiderman"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#ffffff"
+background = "#1b1d1e"
+black = "#1b1d1e"
+red = "#e60813"
+green = "#e60813"
+yellow = "#e60813"
+blue = "#e60813"
+magenta = "#e60813"
+cyan = "#e60813"
+white = "#ffffff"
+bright_black = "#505354"
+bright_red = "#ff2740"
+bright_green = "#ff2740"
+bright_yellow = "#ff2740"
+bright_blue = "#ff2740"
+bright_magenta = "#ff2740"
+bright_cyan = "#ff2740"
+bright_white = "#ffffff"
+search_hit_background = "#e60813"
+search_hit_background_current = "#ff2740"
+search_hit_foreground = "#1b1d1e"
+

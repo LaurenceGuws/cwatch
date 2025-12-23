@@ -1,0 +1,29 @@
+# PaperColor Dark terminal theme for CWatch.
+
+name = "PaperColor Dark"
+
+[colors]
+cursor = "#eeeeee"
+selection = "#585858"
+foreground = "#eeeeee"
+background = "#1c1c1c"
+black = "#1c1c1c"
+red = "#af005f"
+green = "#5faf00"
+yellow = "#d7af5f"
+blue = "#5fafd7"
+magenta = "#af87d7"
+cyan = "#00afaf"
+white = "#eeeeee"
+bright_black = "#585858"
+bright_red = "#af005f"
+bright_green = "#5faf00"
+bright_yellow = "#d7af5f"
+bright_blue = "#5fafd7"
+bright_magenta = "#af87d7"
+bright_cyan = "#00afaf"
+bright_white = "#ffffd7"
+search_hit_background = "#d7af5f"
+search_hit_background_current = "#ff8700"
+search_hit_foreground = "#1c1c1c"
+

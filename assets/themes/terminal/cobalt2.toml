@@ -1,0 +1,29 @@
+# Cobalt2 terminal theme for CWatch.
+
+name = "Cobalt2"
+
+[colors]
+cursor = "#ffffff"
+selection = "#193549"
+foreground = "#ffffff"
+background = "#122738"
+black = "#000000"
+red = "#ff0000"
+green = "#38de21"
+yellow = "#ffea00"
+blue = "#0088ff"
+magenta = "#ff00ff"
+cyan = "#00ffff"
+white = "#ffffff"
+bright_black = "#808080"
+bright_red = "#ff0000"
+bright_green = "#38de21"
+bright_yellow = "#ffea00"
+bright_blue = "#0088ff"
+bright_magenta = "#ff00ff"
+bright_cyan = "#00ffff"
+bright_white = "#ffffff"
+search_hit_background = "#ffea00"
+search_hit_background_current = "#ff9d00"
+search_hit_foreground = "#122738"
+

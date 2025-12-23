@@ -1,0 +1,29 @@
+# Dimmed Monokai terminal theme for CWatch.
+
+name = "Dimmed Monokai"
+
+[colors]
+cursor = "#f8f8f2"
+selection = "#49483e"
+foreground = "#f8f8f2"
+background = "#1e1e1e"
+black = "#1e1e1e"
+red = "#a1260d"
+green = "#629755"
+yellow = "#b1b731"
+blue = "#6c99bb"
+magenta = "#c1868b"
+cyan = "#86c1b9"
+white = "#d4cfc9"
+bright_black = "#5a5854"
+bright_red = "#f92672"
+bright_green = "#a6e22e"
+bright_yellow = "#e2e22e"
+bright_blue = "#66d9ef"
+bright_magenta = "#9e6ffe"
+bright_cyan = "#5e7175"
+bright_white = "#f8f8f2"
+search_hit_background = "#b1b731"
+search_hit_background_current = "#e2e22e"
+search_hit_foreground = "#1e1e1e"
+

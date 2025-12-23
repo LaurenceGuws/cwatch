@@ -1,0 +1,29 @@
+# FunForrest terminal theme for CWatch.
+
+name = "FunForrest"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#dec165"
+background = "#251200"
+black = "#000000"
+red = "#d6262b"
+green = "#919c00"
+yellow = "#be8a13"
+blue = "#4699a3"
+magenta = "#8d4331"
+cyan = "#da8213"
+white = "#ddca88"
+bright_black = "#8e6f30"
+bright_red = "#e55a1c"
+bright_green = "#bfc65a"
+bright_yellow = "#ffb000"
+bright_blue = "#5cc1ff"
+bright_magenta = "#ff6d3c"
+bright_cyan = "#f58d30"
+bright_white = "#ffeaa3"
+search_hit_background = "#be8a13"
+search_hit_background_current = "#919c00"
+search_hit_foreground = "#251200"
+

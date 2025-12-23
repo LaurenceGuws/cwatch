@@ -1,0 +1,29 @@
+# Highway terminal theme for CWatch.
+
+name = "Highway"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#ededed"
+background = "#222222"
+black = "#000000"
+red = "#d00e18"
+green = "#138034"
+yellow = "#ffcb39"
+blue = "#006bb3"
+magenta = "#6b2775"
+cyan = "#384564"
+white = "#ededed"
+bright_black = "#5d504a"
+bright_red = "#f07e18"
+bright_green = "#b1d130"
+bright_yellow = "#fff120"
+bright_blue = "#4fc2fd"
+bright_magenta = "#de0071"
+bright_cyan = "#5d504a"
+bright_white = "#ffffff"
+search_hit_background = "#ffcb39"
+search_hit_background_current = "#138034"
+search_hit_foreground = "#222222"
+

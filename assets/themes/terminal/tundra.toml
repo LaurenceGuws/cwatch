@@ -1,0 +1,29 @@
+# Tundra terminal theme for CWatch.
+
+name = "Tundra"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#d5d5d5"
+background = "#2d2d2d"
+black = "#2d2d2d"
+red = "#ab4642"
+green = "#a1b56c"
+yellow = "#f7ca88"
+blue = "#7cafc2"
+magenta = "#ba8baf"
+cyan = "#86c1b9"
+white = "#d8d8d8"
+bright_black = "#585858"
+bright_red = "#ab4642"
+bright_green = "#a1b56c"
+bright_yellow = "#f7ca88"
+bright_blue = "#7cafc2"
+bright_magenta = "#ba8baf"
+bright_cyan = "#86c1b9"
+bright_white = "#f8f8f8"
+search_hit_background = "#f7ca88"
+search_hit_background_current = "#a1b56c"
+search_hit_foreground = "#2d2d2d"
+

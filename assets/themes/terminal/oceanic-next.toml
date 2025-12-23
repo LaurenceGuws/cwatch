@@ -1,0 +1,29 @@
+# Oceanic Next terminal theme for CWatch.
+
+name = "Oceanic Next"
+
+[colors]
+cursor = "#b3b8c3"
+selection = "#343d46"
+foreground = "#c0c5ce"
+background = "#1b2b34"
+black = "#1b2b34"
+red = "#ec5f67"
+green = "#99c794"
+yellow = "#fac863"
+blue = "#6699cc"
+magenta = "#c594c5"
+cyan = "#5fb3b3"
+white = "#c0c5ce"
+bright_black = "#65737e"
+bright_red = "#ec5f67"
+bright_green = "#99c794"
+bright_yellow = "#fac863"
+bright_blue = "#6699cc"
+bright_magenta = "#c594c5"
+bright_cyan = "#5fb3b3"
+bright_white = "#d8dee9"
+search_hit_background = "#fac863"
+search_hit_background_current = "#f99157"
+search_hit_foreground = "#1b2b34"
+

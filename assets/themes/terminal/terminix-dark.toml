@@ -1,0 +1,29 @@
+# Terminix Dark terminal theme for CWatch.
+
+name = "Terminix Dark"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#a8a8a8"
+background = "#000000"
+black = "#000000"
+red = "#cd3131"
+green = "#0dbc79"
+yellow = "#e5e510"
+blue = "#2472c8"
+magenta = "#bc3fbc"
+cyan = "#11a8cd"
+white = "#e5e5e5"
+bright_black = "#666666"
+bright_red = "#f14c4c"
+bright_green = "#23d18b"
+bright_yellow = "#f5f543"
+bright_blue = "#3b8eea"
+bright_magenta = "#d670d6"
+bright_cyan = "#29b8db"
+bright_white = "#e5e5e5"
+search_hit_background = "#e5e510"
+search_hit_background_current = "#0dbc79"
+search_hit_foreground = "#000000"
+

@@ -1,0 +1,29 @@
+# IC Orange PPL terminal theme for CWatch.
+
+name = "IC Orange PPL"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#ffb555"
+background = "#262626"
+black = "#262626"
+red = "#ff3030"
+green = "#559a70"
+yellow = "#ccac00"
+blue = "#5599cc"
+magenta = "#cc69c8"
+cyan = "#7ac4cc"
+white = "#b2b2b2"
+bright_black = "#555555"
+bright_red = "#ff3030"
+bright_green = "#559a70"
+bright_yellow = "#ccac00"
+bright_blue = "#5599cc"
+bright_magenta = "#cc69c8"
+bright_cyan = "#7ac4cc"
+bright_white = "#ffffff"
+search_hit_background = "#ccac00"
+search_hit_background_current = "#559a70"
+search_hit_foreground = "#262626"
+

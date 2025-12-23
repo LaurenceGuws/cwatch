@@ -1,0 +1,29 @@
+# NightLion v1 terminal theme for CWatch.
+
+name = "NightLion v1"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#d3d0b8"
+background = "#000000"
+black = "#4c4c4c"
+red = "#bb0000"
+green = "#5fde8f"
+yellow = "#f3e167"
+blue = "#7d8cc4"
+magenta = "#bb00bb"
+cyan = "#00bbbb"
+white = "#feffff"
+bright_black = "#555555"
+bright_red = "#fe3e7e"
+bright_green = "#86fc28"
+bright_yellow = "#fff563"
+bright_blue = "#22d7f9"
+bright_magenta = "#ff55ff"
+bright_cyan = "#55ffff"
+bright_white = "#ffffff"
+search_hit_background = "#f3e167"
+search_hit_background_current = "#5fde8f"
+search_hit_foreground = "#000000"
+

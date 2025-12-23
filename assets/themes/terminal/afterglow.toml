@@ -1,0 +1,28 @@
+# Afterglow terminal theme for CWatch.
+
+name = "Afterglow"
+
+[colors]
+cursor = "#d0d0d0"
+selection = "#4a4a4a"
+foreground = "#d0d0d0"
+background = "#222222"
+black = "#151515"
+red = "#bc5653"
+green = "#909d63"
+yellow = "#ebc17a"
+blue = "#6a8799"
+magenta = "#b06698"
+cyan = "#c9dfff"
+white = "#d0d0d0"
+bright_black = "#4a4a4a"
+bright_red = "#bc5653"
+bright_green = "#909d63"
+bright_yellow = "#ebc17a"
+bright_blue = "#6a8799"
+bright_magenta = "#b06698"
+bright_cyan = "#c9dfff"
+bright_white = "#f5f5f5"
+search_hit_background = "#ebc17a"
+search_hit_background_current = "#909d63"
+search_hit_foreground = "#222222"

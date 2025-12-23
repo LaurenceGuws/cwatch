@@ -1,0 +1,29 @@
+# Encom terminal theme for CWatch.
+
+name = "Encom"
+
+[colors]
+cursor = "#00ff00"
+selection = "#0000ff"
+foreground = "#00ff00"
+background = "#000000"
+black = "#000000"
+red = "#dd0000"
+green = "#00ff00"
+yellow = "#ff0000"
+blue = "#0000dd"
+magenta = "#ff00ff"
+cyan = "#00ffff"
+white = "#ffffff"
+bright_black = "#000000"
+bright_red = "#ff0000"
+bright_green = "#00ff00"
+bright_yellow = "#ffff00"
+bright_blue = "#0000ff"
+bright_magenta = "#ff00ff"
+bright_cyan = "#00ffff"
+bright_white = "#ffffff"
+search_hit_background = "#ffff00"
+search_hit_background_current = "#00ff00"
+search_hit_foreground = "#000000"
+

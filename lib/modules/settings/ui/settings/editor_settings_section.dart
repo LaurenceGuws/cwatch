@@ -125,7 +125,7 @@ class _EditorSettingsSectionState extends State<EditorSettingsSection> {
   }
 }
 
-// Shared list of style themes for app, terminal, and editor.
+// Shared list of editor syntax highlight themes.
 const Map<String, String> kStyleThemes = {
   'a11y-dark': 'A11y Dark',
   'a11y-light': 'A11y Light',

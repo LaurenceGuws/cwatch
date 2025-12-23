@@ -1,0 +1,29 @@
+# Material Palenight terminal theme for CWatch.
+
+name = "Material Palenight"
+
+[colors]
+cursor = "#80cbc4"
+selection = "#2e3c43"
+foreground = "#eeffff"
+background = "#292d3e"
+black = "#292d3e"
+red = "#f07178"
+green = "#c3e88d"
+yellow = "#ffcb6b"
+blue = "#82aaff"
+magenta = "#c792ea"
+cyan = "#89ddff"
+white = "#eeffff"
+bright_black = "#676e95"
+bright_red = "#f07178"
+bright_green = "#c3e88d"
+bright_yellow = "#ffcb6b"
+bright_blue = "#82aaff"
+bright_magenta = "#c792ea"
+bright_cyan = "#89ddff"
+bright_white = "#ffffff"
+search_hit_background = "#ffcb6b"
+search_hit_background_current = "#ff9800"
+search_hit_foreground = "#292d3e"
+

@@ -642,7 +642,7 @@ class ContainerList extends StatelessWidget {
   }
 }
 
-class ImagePeek extends StatelessWidget {
+class ImagePeek extends StatefulWidget {
   const ImagePeek({
     super.key,
     required this.images,
@@ -660,12 +660,19 @@ class ImagePeek extends StatelessWidget {
   final Set<String> selectedIds;
 
   @override
+  State<ImagePeek> createState() => _ImagePeekState();
+}
+
+class _ImagePeekState extends State<ImagePeek> {
+  final Set<String> _collapsed = {};
+
+  @override
   Widget build(BuildContext context) {
-    if (images.isEmpty) {
+    if (widget.images.isEmpty) {
       return const EmptyCard(message: 'No images found.');
     }
     final spacing = context.appTheme.spacing;
-    final groups = _groupImages(images);
+    final groups = _groupImages(widget.images);
     final entries = groups.entries.toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -673,32 +680,58 @@ class ImagePeek extends StatelessWidget {
         final entry = entries[index];
         final repo = entry.key;
         final items = entry.value;
+        final collapsed = _collapsed.contains(repo);
         final sectionColor = _sectionBackgroundForIndex(context, index);
         return Padding(
           padding: EdgeInsets.only(bottom: spacing.base * 1.5),
           child: SectionList(
             title: repo,
             backgroundColor: sectionColor,
-            trailing: Text(
-              '${items.length} images',
-              style: Theme.of(context).textTheme.bodySmall,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${items.length} images',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(
+                    collapsed ? Icons.expand_more : Icons.expand_less,
+                    size: 18,
+                  ),
+                  tooltip: collapsed ? 'Expand' : 'Collapse',
+                  onPressed: () {
+                    setState(() {
+                      if (collapsed) {
+                        _collapsed.remove(repo);
+                      } else {
+                        _collapsed.add(repo);
+                      }
+                    });
+                  },
+                ),
+              ],
             ),
-            children: [
-              StructuredDataTable<DockerImage>(
-                rows: items,
-                columns: _imageColumns(context),
-                rowHeight: 64,
-                shrinkToContent: true,
-                useZebraStripes: false,
-                surfaceBackgroundColor: sectionColor,
-                primaryDoubleClickOpensContextMenu: false,
-                onRowContextMenu: _handleImageContextMenu,
-                onSelectionChanged: (selectedRows) {
-                  final keys = items.map(_imageKey).toSet();
-                  onSelectionChanged?.call(keys, selectedRows);
-                },
-              ),
-            ],
+            children:
+                collapsed
+                    ? const []
+                    : [
+                        StructuredDataTable<DockerImage>(
+                          rows: items,
+                          columns: _imageColumns(context),
+                          rowHeight: 64,
+                          shrinkToContent: true,
+                          useZebraStripes: false,
+                          surfaceBackgroundColor: sectionColor,
+                          primaryDoubleClickOpensContextMenu: false,
+                          onRowContextMenu: _handleImageContextMenu,
+                          onSelectionChanged: (selectedRows) {
+                            final keys = items.map(_imageKey).toSet();
+                            widget.onSelectionChanged?.call(keys, selectedRows);
+                          },
+                        ),
+                      ],
           ),
         );
       }),
@@ -706,11 +739,11 @@ class ImagePeek extends StatelessWidget {
   }
 
   void _handleImageContextMenu(DockerImage image, Offset? anchor) {
-    if (onTapDown == null) {
+    if (widget.onTapDown == null) {
       return;
     }
     final details = _tapDetails(anchor: anchor);
-    onTapDown!(image, details, secondary: true);
+    widget.onTapDown!(image, details, secondary: true);
   }
 
   TapDownDetails _tapDetails({
@@ -868,7 +901,7 @@ class ImageList extends StatelessWidget {
   }
 }
 
-class NetworkList extends StatelessWidget {
+class NetworkList extends StatefulWidget {
   const NetworkList({
     super.key,
     required this.networks,
@@ -886,13 +919,20 @@ class NetworkList extends StatelessWidget {
   final Set<String> selectedIds;
 
   @override
+  State<NetworkList> createState() => _NetworkListState();
+}
+
+class _NetworkListState extends State<NetworkList> {
+  final Set<String> _collapsed = {};
+
+  @override
   Widget build(BuildContext context) {
     final icons = context.appTheme.icons;
-    if (networks.isEmpty) {
+    if (widget.networks.isEmpty) {
       return const EmptyCard(message: 'No networks found.');
     }
     final spacing = context.appTheme.spacing;
-    final groups = _groupByComposeish(networks);
+    final groups = _groupByComposeish(widget.networks);
     final entries = groups.entries.toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -900,34 +940,66 @@ class NetworkList extends StatelessWidget {
         final entry = entries[index];
         final group = entry.key;
         final items = entry.value;
+        final collapsed = _collapsed.contains(group);
         final sectionColor = _sectionBackgroundForIndex(context, index);
         return Padding(
           padding: EdgeInsets.only(bottom: spacing.base * 1.5),
           child: SectionList(
             title: group,
             backgroundColor: sectionColor,
-            trailing: Text(
-              '${items.length} networks',
-              style: Theme.of(context).textTheme.bodySmall,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${items.length} networks',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(
+                    collapsed ? Icons.expand_more : Icons.expand_less,
+                    size: 18,
+                  ),
+                  tooltip: collapsed ? 'Expand' : 'Collapse',
+                  onPressed: () {
+                    setState(() {
+                      if (collapsed) {
+                        _collapsed.remove(group);
+                      } else {
+                        _collapsed.add(group);
+                      }
+                    });
+                  },
+                ),
+              ],
             ),
-            children: [
-              StructuredDataTable<DockerNetwork>(
-                rows: items,
-                columns: _networkColumns(context, icons),
-                rowHeight: 64,
-                shrinkToContent: true,
-                useZebraStripes: false,
-                surfaceBackgroundColor: sectionColor,
-                primaryDoubleClickOpensContextMenu: false,
-                onRowContextMenu: _handleNetworkContextMenu,
-                onSelectionChanged: (selectedRows) {
-                  final keys = items
-                      .map((item) => item.id.isNotEmpty ? item.id : item.name)
-                      .toSet();
-                  onSelectionChanged?.call(keys, selectedRows);
-                },
-              ),
-            ],
+            children:
+                collapsed
+                    ? const []
+                    : [
+                        StructuredDataTable<DockerNetwork>(
+                          rows: items,
+                          columns: _networkColumns(context, icons),
+                          rowHeight: 64,
+                          shrinkToContent: true,
+                          useZebraStripes: false,
+                          surfaceBackgroundColor: sectionColor,
+                          primaryDoubleClickOpensContextMenu: false,
+                          onRowContextMenu: _handleNetworkContextMenu,
+                          onSelectionChanged: (selectedRows) {
+                            final keys = items
+                                .map(
+                                  (item) =>
+                                      item.id.isNotEmpty ? item.id : item.name,
+                                )
+                                .toSet();
+                            widget.onSelectionChanged?.call(
+                              keys,
+                              selectedRows,
+                            );
+                          },
+                        ),
+                      ],
           ),
         );
       }),
@@ -935,11 +1007,11 @@ class NetworkList extends StatelessWidget {
   }
 
   void _handleNetworkContextMenu(DockerNetwork network, Offset? anchor) {
-    if (onTapDown == null) {
+    if (widget.onTapDown == null) {
       return;
     }
     final details = _tapDetails(anchor: anchor);
-    onTapDown!(network, details, secondary: true);
+    widget.onTapDown!(network, details, secondary: true);
   }
 
   TapDownDetails _tapDetails({
@@ -1005,7 +1077,7 @@ class NetworkList extends StatelessWidget {
   }
 }
 
-class VolumeList extends StatelessWidget {
+class VolumeList extends StatefulWidget {
   const VolumeList({
     super.key,
     required this.volumes,
@@ -1023,13 +1095,20 @@ class VolumeList extends StatelessWidget {
   final Set<String> selectedIds;
 
   @override
+  State<VolumeList> createState() => _VolumeListState();
+}
+
+class _VolumeListState extends State<VolumeList> {
+  final Set<String> _collapsed = {};
+
+  @override
   Widget build(BuildContext context) {
     final icons = context.appTheme.icons;
-    if (volumes.isEmpty) {
+    if (widget.volumes.isEmpty) {
       return const EmptyCard(message: 'No volumes found.');
     }
     final spacing = context.appTheme.spacing;
-    final groups = _groupByComposeish(volumes);
+    final groups = _groupByComposeish(widget.volumes);
     final entries = groups.entries.toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1037,32 +1116,62 @@ class VolumeList extends StatelessWidget {
         final entry = entries[index];
         final group = entry.key;
         final items = entry.value;
+        final collapsed = _collapsed.contains(group);
         final sectionColor = _sectionBackgroundForIndex(context, index);
         return Padding(
           padding: EdgeInsets.only(bottom: spacing.base * 1.5),
           child: SectionList(
             title: group,
             backgroundColor: sectionColor,
-            trailing: Text(
-              '${items.length} volumes',
-              style: Theme.of(context).textTheme.bodySmall,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${items.length} volumes',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(
+                    collapsed ? Icons.expand_more : Icons.expand_less,
+                    size: 18,
+                  ),
+                  tooltip: collapsed ? 'Expand' : 'Collapse',
+                  onPressed: () {
+                    setState(() {
+                      if (collapsed) {
+                        _collapsed.remove(group);
+                      } else {
+                        _collapsed.add(group);
+                      }
+                    });
+                  },
+                ),
+              ],
             ),
-            children: [
-              StructuredDataTable<DockerVolume>(
-                rows: items,
-                columns: _volumeColumns(context, icons),
-                rowHeight: 64,
-                shrinkToContent: true,
-                useZebraStripes: false,
-                surfaceBackgroundColor: sectionColor,
-                primaryDoubleClickOpensContextMenu: false,
-                onRowContextMenu: _handleVolumeContextMenu,
-                onSelectionChanged: (selectedRows) {
-                  final keys = items.map((item) => item.name).toSet();
-                  onSelectionChanged?.call(keys, selectedRows);
-                },
-              ),
-            ],
+            children:
+                collapsed
+                    ? const []
+                    : [
+                        StructuredDataTable<DockerVolume>(
+                          rows: items,
+                          columns: _volumeColumns(context, icons),
+                          rowHeight: 64,
+                          shrinkToContent: true,
+                          useZebraStripes: false,
+                          surfaceBackgroundColor: sectionColor,
+                          primaryDoubleClickOpensContextMenu: false,
+                          onRowContextMenu: _handleVolumeContextMenu,
+                          onSelectionChanged: (selectedRows) {
+                            final keys =
+                                items.map((item) => item.name).toSet();
+                            widget.onSelectionChanged?.call(
+                              keys,
+                              selectedRows,
+                            );
+                          },
+                        ),
+                      ],
           ),
         );
       }),
@@ -1070,11 +1179,11 @@ class VolumeList extends StatelessWidget {
   }
 
   void _handleVolumeContextMenu(DockerVolume volume, Offset? anchor) {
-    if (onTapDown == null) {
+    if (widget.onTapDown == null) {
       return;
     }
     final details = _tapDetails(anchor: anchor);
-    onTapDown!(volume, details, secondary: true);
+    widget.onTapDown!(volume, details, secondary: true);
   }
 
   TapDownDetails _tapDetails({

@@ -1,0 +1,29 @@
+# Embers terminal theme for CWatch.
+
+name = "Embers"
+
+[colors]
+cursor = "#a39a90"
+selection = "#4a4543"
+foreground = "#a39a90"
+background = "#16130f"
+black = "#16130f"
+red = "#826d57"
+green = "#57826d"
+yellow = "#6d8257"
+blue = "#6d5782"
+magenta = "#82576d"
+cyan = "#576d82"
+white = "#a39a90"
+bright_black = "#5a5047"
+bright_red = "#826d57"
+bright_green = "#57826d"
+bright_yellow = "#6d8257"
+bright_blue = "#6d5782"
+bright_magenta = "#82576d"
+bright_cyan = "#576d82"
+bright_white = "#dbd6d1"
+search_hit_background = "#6d8257"
+search_hit_background_current = "#8a9a6d"
+search_hit_foreground = "#16130f"
+

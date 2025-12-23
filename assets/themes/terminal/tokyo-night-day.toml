@@ -1,0 +1,29 @@
+# Tokyo Night Day terminal theme for CWatch.
+
+name = "Tokyo Night Day"
+
+[colors]
+cursor = "#3760bf"
+selection = "#b4c7e7"
+foreground = "#3760bf"
+background = "#e1e2e7"
+black = "#343b58"
+red = "#f7768e"
+green = "#41a6b5"
+yellow = "#e0af68"
+blue = "#7aa2f7"
+magenta = "#bb9af7"
+cyan = "#7dcfff"
+white = "#787c99"
+bright_black = "#444b6a"
+bright_red = "#f7768e"
+bright_green = "#41a6b5"
+bright_yellow = "#e0af68"
+bright_blue = "#7aa2f7"
+bright_magenta = "#bb9af7"
+bright_cyan = "#7dcfff"
+bright_white = "#1a1b26"
+search_hit_background = "#e0af68"
+search_hit_background_current = "#ff9e64"
+search_hit_foreground = "#e1e2e7"
+

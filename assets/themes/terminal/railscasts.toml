@@ -1,0 +1,29 @@
+# Railscasts terminal theme for CWatch.
+
+name = "Railscasts"
+
+[colors]
+cursor = "#ffffff"
+selection = "#5a647e"
+foreground = "#e6e1dc"
+background = "#2b2b2b"
+black = "#2b2b2b"
+red = "#da4939"
+green = "#a5c261"
+yellow = "#ffc66d"
+blue = "#6d9cbe"
+magenta = "#b6b3eb"
+cyan = "#519f50"
+white = "#e6e1dc"
+bright_black = "#5a647e"
+bright_red = "#da4939"
+bright_green = "#a5c261"
+bright_yellow = "#ffc66d"
+bright_blue = "#6d9cbe"
+bright_magenta = "#b6b3eb"
+bright_cyan = "#519f50"
+bright_white = "#f9f7f3"
+search_hit_background = "#ffc66d"
+search_hit_background_current = "#cc7833"
+search_hit_foreground = "#2b2b2b"
+

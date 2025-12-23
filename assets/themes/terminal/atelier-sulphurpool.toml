@@ -1,0 +1,29 @@
+# Atelier Sulphurpool terminal theme for CWatch.
+
+name = "Atelier Sulphurpool"
+
+[colors]
+cursor = "#979db4"
+selection = "#5e6687"
+foreground = "#979db4"
+background = "#202746"
+black = "#202746"
+red = "#c94922"
+green = "#ac9739"
+yellow = "#c08b30"
+blue = "#3d8fd1"
+magenta = "#6679cc"
+cyan = "#22a2c9"
+white = "#979db4"
+bright_black = "#6b7394"
+bright_red = "#c76b29"
+bright_green = "#29336a"
+bright_yellow = "#5e6687"
+bright_blue = "#898ea4"
+bright_magenta = "#9c637a"
+bright_cyan = "#979db4"
+bright_white = "#f5f7ff"
+search_hit_background = "#c08b30"
+search_hit_background_current = "#ac9739"
+search_hit_foreground = "#202746"
+

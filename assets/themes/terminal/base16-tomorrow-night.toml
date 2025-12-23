@@ -1,0 +1,28 @@
+# Base16 Tomorrow Night terminal theme for CWatch.
+
+name = "Base16 Tomorrow Night"
+
+[colors]
+cursor = "#c5c8c6"
+selection = "#282a2e"
+foreground = "#c5c8c6"
+background = "#1d1f21"
+black = "#1d1f21"
+red = "#cc6666"
+green = "#b5bd68"
+yellow = "#f0c674"
+blue = "#81a2be"
+magenta = "#b294bb"
+cyan = "#8abeb7"
+white = "#c5c8c6"
+bright_black = "#969896"
+bright_red = "#cc6666"
+bright_green = "#b5bd68"
+bright_yellow = "#f0c674"
+bright_blue = "#81a2be"
+bright_magenta = "#b294bb"
+bright_cyan = "#8abeb7"
+bright_white = "#ffffff"
+search_hit_background = "#f0c674"
+search_hit_background_current = "#b5bd68"
+search_hit_foreground = "#1d1f21"

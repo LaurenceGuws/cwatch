@@ -1,0 +1,29 @@
+# Atom One Light terminal theme for CWatch.
+
+name = "Atom One Light"
+
+[colors]
+cursor = "#383a42"
+selection = "#e5e5e5"
+foreground = "#383a42"
+background = "#fafafa"
+black = "#383a42"
+red = "#e45649"
+green = "#50a14f"
+yellow = "#c18401"
+blue = "#0184bc"
+magenta = "#a626a4"
+cyan = "#0997b3"
+white = "#fafafa"
+bright_black = "#4f525e"
+bright_red = "#e45649"
+bright_green = "#50a14f"
+bright_yellow = "#c18401"
+bright_blue = "#0184bc"
+bright_magenta = "#a626a4"
+bright_cyan = "#0997b3"
+bright_white = "#090a0b"
+search_hit_background = "#c18401"
+search_hit_background_current = "#d19a66"
+search_hit_foreground = "#fafafa"
+

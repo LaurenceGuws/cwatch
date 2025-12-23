@@ -1,0 +1,29 @@
+# Wombat terminal theme for CWatch.
+
+name = "Wombat"
+
+[colors]
+cursor = "#f6f3e8"
+selection = "#444444"
+foreground = "#f6f3e8"
+background = "#171717"
+black = "#000000"
+red = "#ff615a"
+green = "#b1e969"
+yellow = "#ebd99c"
+blue = "#5da9f6"
+magenta = "#e86aff"
+cyan = "#82fff7"
+white = "#dedacf"
+bright_black = "#313131"
+bright_red = "#f58c80"
+bright_green = "#ddf88f"
+bright_yellow = "#eee5b2"
+bright_blue = "#a5c7ff"
+bright_magenta = "#ddaaff"
+bright_cyan = "#b7fff9"
+bright_white = "#ffffff"
+search_hit_background = "#ebd99c"
+search_hit_background_current = "#daa520"
+search_hit_foreground = "#171717"
+

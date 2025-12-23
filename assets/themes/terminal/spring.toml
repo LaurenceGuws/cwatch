@@ -1,0 +1,29 @@
+# Spring terminal theme for CWatch.
+
+name = "Spring"
+
+[colors]
+cursor = "#000000"
+selection = "#d0d0d0"
+foreground = "#000000"
+background = "#ffffff"
+black = "#000000"
+red = "#ff4b83"
+green = "#83ef52"
+yellow = "#ffff65"
+blue = "#5d6acf"
+magenta = "#9f5afe"
+cyan = "#2ee1da"
+white = "#ffffff"
+bright_black = "#000000"
+bright_red = "#ff0021"
+bright_green = "#7fc15e"
+bright_yellow = "#d0c650"
+bright_blue = "#0070f2"
+bright_magenta = "#c90d42"
+bright_cyan = "#58c2b1"
+bright_white = "#ffffff"
+search_hit_background = "#ffff65"
+search_hit_background_current = "#83ef52"
+search_hit_foreground = "#ffffff"
+

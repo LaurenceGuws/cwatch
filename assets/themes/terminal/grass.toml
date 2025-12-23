@@ -1,0 +1,29 @@
+# Grass terminal theme for CWatch.
+
+name = "Grass"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#fff0a5"
+background = "#13773d"
+black = "#000000"
+red = "#ff3f00"
+green = "#00bb00"
+yellow = "#ffbb00"
+blue = "#0071ff"
+magenta = "#bb00bb"
+cyan = "#00bbbb"
+white = "#bbbbbb"
+bright_black = "#555555"
+bright_red = "#bb0000"
+bright_green = "#00bb00"
+bright_yellow = "#e7b000"
+bright_blue = "#0071ae"
+bright_magenta = "#ff55ff"
+bright_cyan = "#55ffff"
+bright_white = "#ffffff"
+search_hit_background = "#ffbb00"
+search_hit_background_current = "#00bb00"
+search_hit_foreground = "#13773d"
+

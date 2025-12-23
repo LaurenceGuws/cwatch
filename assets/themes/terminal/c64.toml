@@ -1,0 +1,28 @@
+# C64 terminal theme for CWatch.
+
+name = "C64"
+
+[colors]
+cursor = "#ffffff"
+selection = "#6c5eb5"
+foreground = "#7869c4"
+background = "#40318d"
+black = "#090300"
+red = "#883932"
+green = "#55a049"
+yellow = "#bfce72"
+blue = "#40318d"
+magenta = "#8b3f96"
+cyan = "#67b6bd"
+white = "#7869c4"
+bright_black = "#000000"
+bright_red = "#9d2933"
+bright_green = "#55a049"
+bright_yellow = "#bfce72"
+bright_blue = "#40318d"
+bright_magenta = "#8b3f96"
+bright_cyan = "#67b6bd"
+bright_white = "#f7f7f7"
+search_hit_background = "#bfce72"
+search_hit_background_current = "#f7f7f7"
+search_hit_foreground = "#40318d"

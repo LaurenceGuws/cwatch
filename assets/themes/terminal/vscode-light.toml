@@ -1,0 +1,29 @@
+# VS Code Light+ terminal theme for CWatch.
+
+name = "VS Code Light+"
+
+[colors]
+cursor = "#000000"
+selection = "#add6ff"
+foreground = "#000000"
+background = "#ffffff"
+black = "#000000"
+red = "#cd3131"
+green = "#00bc79"
+yellow = "#949800"
+blue = "#0451a5"
+magenta = "#bc05bc"
+cyan = "#0598bc"
+white = "#555555"
+bright_black = "#666666"
+bright_red = "#cd3131"
+bright_green = "#00bc79"
+bright_yellow = "#949800"
+bright_blue = "#0451a5"
+bright_magenta = "#bc05bc"
+bright_cyan = "#0598bc"
+bright_white = "#a5a5a5"
+search_hit_background = "#949800"
+search_hit_background_current = "#f5f543"
+search_hit_foreground = "#ffffff"
+

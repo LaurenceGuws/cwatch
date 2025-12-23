@@ -1,0 +1,29 @@
+# Duotone Dark terminal theme for CWatch.
+
+name = "Duotone Dark"
+
+[colors]
+cursor = "#b29762"
+selection = "#2d2a2e"
+foreground = "#b29762"
+background = "#1c1c1c"
+black = "#1c1c1c"
+red = "#d1868d"
+green = "#a4c86a"
+yellow = "#d4a96a"
+blue = "#8dcaff"
+magenta = "#bd99ff"
+cyan = "#7dd6cf"
+white = "#e6d6ac"
+bright_black = "#262626"
+bright_red = "#d1868d"
+bright_green = "#a4c86a"
+bright_yellow = "#d4a96a"
+bright_blue = "#8dcaff"
+bright_magenta = "#bd99ff"
+bright_cyan = "#7dd6cf"
+bright_white = "#f4efde"
+search_hit_background = "#d4a96a"
+search_hit_background_current = "#a4c86a"
+search_hit_foreground = "#1c1c1c"
+

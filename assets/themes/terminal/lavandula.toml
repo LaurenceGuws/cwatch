@@ -1,0 +1,28 @@
+# Lavandula terminal theme for CWatch.
+
+name = "Lavandula"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#736eaa"
+background = "#050014"
+black = "#230046"
+red = "#7d1625"
+green = "#337e6f"
+yellow = "#7f6f49"
+blue = "#4f4a7f"
+magenta = "#5a3f7f"
+cyan = "#58777f"
+white = "#736eaa"
+bright_black = "#372d46"
+bright_red = "#e05167"
+bright_green = "#52d0b0"
+bright_yellow = "#e0c386"
+bright_blue = "#8e87cc"
+bright_magenta = "#a776cc"
+bright_cyan = "#9ad4cc"
+bright_white = "#8c87aa"
+search_hit_background = "#7f6f49"
+search_hit_background_current = "#337e6f"
+search_hit_foreground = "#050014"

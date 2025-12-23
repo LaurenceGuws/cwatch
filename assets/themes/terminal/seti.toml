@@ -1,0 +1,29 @@
+# Seti terminal theme for CWatch.
+
+name = "Seti"
+
+[colors]
+cursor = "#d4d7d6"
+selection = "#3e7589"
+foreground = "#d4d7d6"
+background = "#151718"
+black = "#323232"
+red = "#c22832"
+green = "#8ec43d"
+yellow = "#eab93d"
+blue = "#55b5db"
+magenta = "#bf26c5"
+cyan = "#44b5b1"
+white = "#d4d7d6"
+bright_black = "#555555"
+bright_red = "#ff3e48"
+bright_green = "#b8e986"
+bright_yellow = "#ffd21e"
+bright_blue = "#73d0ff"
+bright_magenta = "#d381c3"
+bright_cyan = "#73d0ff"
+bright_white = "#ffffff"
+search_hit_background = "#eab93d"
+search_hit_background_current = "#ffd21e"
+search_hit_foreground = "#151718"
+

@@ -1,0 +1,29 @@
+# Flatland terminal theme for CWatch.
+
+name = "Flatland"
+
+[colors]
+cursor = "#b8dbef"
+selection = "#3c3c3c"
+foreground = "#b8dbef"
+background = "#1d1f21"
+black = "#1d1f21"
+red = "#a54242"
+green = "#8c9440"
+yellow = "#de935f"
+blue = "#5f819d"
+magenta = "#85678f"
+cyan = "#5e8d87"
+white = "#b8dbef"
+bright_black = "#666666"
+bright_red = "#cc6666"
+bright_green = "#b5bd68"
+bright_yellow = "#f0c674"
+bright_blue = "#81a2be"
+bright_magenta = "#b294bb"
+bright_cyan = "#8abeb7"
+bright_white = "#ffffff"
+search_hit_background = "#de935f"
+search_hit_background_current = "#f0c674"
+search_hit_foreground = "#1d1f21"
+

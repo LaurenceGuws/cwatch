@@ -1,0 +1,29 @@
+# Tender terminal theme for CWatch.
+
+name = "Tender"
+
+[colors]
+cursor = "#eeeeee"
+selection = "#484848"
+foreground = "#eeeeee"
+background = "#282828"
+black = "#282828"
+red = "#f43753"
+green = "#c9d05c"
+yellow = "#ffc24b"
+blue = "#b3deef"
+magenta = "#d3b987"
+cyan = "#73cef4"
+white = "#eeeeee"
+bright_black = "#4c4c4c"
+bright_red = "#f43753"
+bright_green = "#c9d05c"
+bright_yellow = "#ffc24b"
+bright_blue = "#b3deef"
+bright_magenta = "#d3b987"
+bright_cyan = "#73cef4"
+bright_white = "#feffff"
+search_hit_background = "#ffc24b"
+search_hit_background_current = "#c9d05c"
+search_hit_foreground = "#282828"
+

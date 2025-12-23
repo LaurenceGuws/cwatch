@@ -1,0 +1,28 @@
+# Bad Wolf terminal theme for CWatch.
+
+name = "Bad Wolf"
+
+[colors]
+cursor = "#ffffff"
+selection = "#4e4e4e"
+foreground = "#f5f5f5"
+background = "#1c1c1c"
+black = "#1c1c1c"
+red = "#5f8787"
+green = "#afaf00"
+yellow = "#af8700"
+blue = "#5f87af"
+magenta = "#8787af"
+cyan = "#5fafaf"
+white = "#bcbcbc"
+bright_black = "#6c6c6c"
+bright_red = "#ff8700"
+bright_green = "#afd700"
+bright_yellow = "#d7af00"
+bright_blue = "#5fafd7"
+bright_magenta = "#afafd7"
+bright_cyan = "#87d7d7"
+bright_white = "#ffffff"
+search_hit_background = "#af8700"
+search_hit_background_current = "#d7af00"
+search_hit_foreground = "#1c1c1c"

@@ -1,0 +1,28 @@
+# Batman terminal theme for CWatch.
+
+name = "Batman"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#ffffff"
+background = "#1b1d1e"
+black = "#1b1d1e"
+red = "#e6db43"
+green = "#c8c8fa"
+yellow = "#d6bf86"
+blue = "#ffb3fd"
+magenta = "#c4c5b5"
+cyan = "#f92672"
+white = "#ffffff"
+bright_black = "#505354"
+bright_red = "#fff68d"
+bright_green = "#cfcfd9"
+bright_yellow = "#e6db74"
+bright_blue = "#ffb3fd"
+bright_magenta = "#c4c5b5"
+bright_cyan = "#ff5995"
+bright_white = "#ffffff"
+search_hit_background = "#d6bf86"
+search_hit_background_current = "#e6db43"
+search_hit_foreground = "#1b1d1e"

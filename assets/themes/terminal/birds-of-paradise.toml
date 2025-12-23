@@ -1,0 +1,28 @@
+# Birds of Paradise terminal theme for CWatch.
+
+name = "Birds of Paradise"
+
+[colors]
+cursor = "#ffffff"
+selection = "#2a2a2a"
+foreground = "#ffffff"
+background = "#2a1f1d"
+black = "#573d26"
+red = "#be3e48"
+green = "#919f61"
+yellow = "#dbae38"
+blue = "#426a79"
+magenta = "#ba8f53"
+cyan = "#5b9c64"
+white = "#faf0c5"
+bright_black = "#7f7053"
+bright_red = "#fb4934"
+bright_green = "#b8bb26"
+bright_yellow = "#fabd2f"
+bright_blue = "#83a598"
+bright_magenta = "#d3869b"
+bright_cyan = "#8ec07c"
+bright_white = "#fbf1c7"
+search_hit_background = "#dbae38"
+search_hit_background_current = "#fabd2f"
+search_hit_foreground = "#2a1f1d"

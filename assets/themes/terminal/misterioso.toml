@@ -1,0 +1,29 @@
+# Misterioso terminal theme for CWatch.
+
+name = "Misterioso"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#e1e1e0"
+background = "#2d3743"
+black = "#000000"
+red = "#ff4242"
+green = "#74af68"
+yellow = "#ffad29"
+blue = "#338f86"
+magenta = "#9414e6"
+cyan = "#23d7d7"
+white = "#e1e1e0"
+bright_black = "#555555"
+bright_red = "#ff3242"
+bright_green = "#74cd68"
+bright_yellow = "#ffb929"
+bright_blue = "#23d7d7"
+bright_magenta = "#ff37ff"
+bright_cyan = "#00ede1"
+bright_white = "#ffffff"
+search_hit_background = "#ffad29"
+search_hit_background_current = "#74af68"
+search_hit_foreground = "#2d3743"
+

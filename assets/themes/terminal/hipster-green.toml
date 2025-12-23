@@ -1,0 +1,29 @@
+# Hipster Green terminal theme for CWatch.
+
+name = "Hipster Green"
+
+[colors]
+cursor = "#84c138"
+selection = "#2d5016"
+foreground = "#84c138"
+background = "#000000"
+black = "#000000"
+red = "#b6214a"
+green = "#00a600"
+yellow = "#bfbf00"
+blue = "#246eb2"
+magenta = "#b200b2"
+cyan = "#00a6b2"
+white = "#bfbfbf"
+bright_black = "#666666"
+bright_red = "#e50000"
+bright_green = "#86a93e"
+bright_yellow = "#e5e500"
+bright_blue = "#0000ff"
+bright_magenta = "#e500e5"
+bright_cyan = "#00e5e5"
+bright_white = "#e5e5e5"
+search_hit_background = "#bfbf00"
+search_hit_background_current = "#00a600"
+search_hit_foreground = "#000000"
+

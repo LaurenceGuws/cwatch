@@ -1,0 +1,29 @@
+# Github Dark terminal theme for CWatch.
+
+name = "Github Dark"
+
+[colors]
+cursor = "#c9d1d9"
+selection = "#264f78"
+foreground = "#c9d1d9"
+background = "#0d1117"
+black = "#484f58"
+red = "#f85149"
+green = "#3fb950"
+yellow = "#d29922"
+blue = "#58a6ff"
+magenta = "#bc8cff"
+cyan = "#39c5cf"
+white = "#b1bac4"
+bright_black = "#6e7681"
+bright_red = "#ff7b72"
+bright_green = "#56d364"
+bright_yellow = "#e3b341"
+bright_blue = "#79c0ff"
+bright_magenta = "#d2a8ff"
+bright_cyan = "#56d4dd"
+bright_white = "#f0f6fc"
+search_hit_background = "#d29922"
+search_hit_background_current = "#e3b341"
+search_hit_foreground = "#0d1117"
+

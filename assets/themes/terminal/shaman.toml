@@ -1,0 +1,29 @@
+# Shaman terminal theme for CWatch.
+
+name = "Shaman"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#ffffff"
+background = "#001015"
+black = "#012026"
+red = "#b2302d"
+green = "#00a941"
+yellow = "#5e8e2e"
+blue = "#449a86"
+magenta = "#00599d"
+cyan = "#5d7e19"
+white = "#405555"
+bright_black = "#384451"
+bright_red = "#ff4242"
+bright_green = "#2aea5e"
+bright_yellow = "#8ed26f"
+bright_blue = "#61d5ba"
+bright_magenta = "#1298ff"
+bright_cyan = "#9dffa1"
+bright_white = "#53fbd6"
+search_hit_background = "#5e8e2e"
+search_hit_background_current = "#00a941"
+search_hit_foreground = "#001015"
+

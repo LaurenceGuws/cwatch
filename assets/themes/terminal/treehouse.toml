@@ -1,0 +1,29 @@
+# Treehouse terminal theme for CWatch.
+
+name = "Treehouse"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#f7f7f7"
+background = "#191919"
+black = "#321300"
+red = "#b2270e"
+green = "#44a900"
+yellow = "#aa820c"
+blue = "#58859a"
+magenta = "#97363d"
+cyan = "#b25a1e"
+white = "#786b53"
+bright_black = "#433626"
+bright_red = "#ed5d20"
+bright_green = "#55f238"
+bright_yellow = "#f2b732"
+bright_blue = "#85cfed"
+bright_magenta = "#e14c5a"
+bright_cyan = "#f07d14"
+bright_white = "#ffc800"
+search_hit_background = "#aa820c"
+search_hit_background_current = "#44a900"
+search_hit_foreground = "#191919"
+

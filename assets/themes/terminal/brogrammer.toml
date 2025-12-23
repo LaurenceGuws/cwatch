@@ -1,0 +1,28 @@
+# Brogrammer terminal theme for CWatch.
+
+name = "Brogrammer"
+
+[colors]
+cursor = "#ffffff"
+selection = "#2a2a2a"
+foreground = "#d6dbe5"
+background = "#1e1e1e"
+black = "#1e1e1e"
+red = "#d6dbe5"
+green = "#f3bd09"
+yellow = "#1dd361"
+blue = "#5350b9"
+magenta = "#0f7ddb"
+cyan = "#1081d6"
+white = "#d6dbe5"
+bright_black = "#d6dbe5"
+bright_red = "#d6dbe5"
+bright_green = "#f3bd09"
+bright_yellow = "#1dd361"
+bright_blue = "#5350b9"
+bright_magenta = "#0f7ddb"
+bright_cyan = "#1081d6"
+bright_white = "#ffffff"
+search_hit_background = "#f3bd09"
+search_hit_background_current = "#1dd361"
+search_hit_foreground = "#1e1e1e"

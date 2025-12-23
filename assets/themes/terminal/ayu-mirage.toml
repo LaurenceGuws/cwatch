@@ -1,0 +1,29 @@
+# Ayu Mirage terminal theme for CWatch.
+
+name = "Ayu Mirage"
+
+[colors]
+cursor = "#f29718"
+selection = "#283648"
+foreground = "#cbccc6"
+background = "#1f2430"
+black = "#1f2430"
+red = "#ff3333"
+green = "#86b300"
+yellow = "#f29718"
+blue = "#41a6d9"
+magenta = "#f07178"
+cyan = "#4dbf99"
+white = "#cbccc6"
+bright_black = "#3d424d"
+bright_red = "#ff6565"
+bright_green = "#b8e532"
+bright_yellow = "#ffb454"
+bright_blue = "#73d0ff"
+bright_magenta = "#ffa3aa"
+bright_cyan = "#7ff0cb"
+bright_white = "#ffffff"
+search_hit_background = "#f29718"
+search_hit_background_current = "#ffb454"
+search_hit_foreground = "#1f2430"
+

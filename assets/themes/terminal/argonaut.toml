@@ -1,0 +1,28 @@
+# Argonaut terminal theme for CWatch.
+
+name = "Argonaut"
+
+[colors]
+cursor = "#fffef6"
+selection = "#2d2d2d"
+foreground = "#fffef6"
+background = "#0e1019"
+black = "#232323"
+red = "#ff000f"
+green = "#8ce10b"
+yellow = "#ffb900"
+blue = "#008df8"
+magenta = "#6d43a6"
+cyan = "#00d8eb"
+white = "#ffffff"
+bright_black = "#444444"
+bright_red = "#ff2740"
+bright_green = "#abe15b"
+bright_yellow = "#ffd121"
+bright_blue = "#0092ff"
+bright_magenta = "#9a5feb"
+bright_cyan = "#67fff0"
+bright_white = "#ffffff"
+search_hit_background = "#ffb900"
+search_hit_background_current = "#ffd121"
+search_hit_foreground = "#0e1019"

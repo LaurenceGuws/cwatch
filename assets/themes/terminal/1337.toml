@@ -1,0 +1,29 @@
+# 1337 terminal theme for CWatch.
+
+name = "1337"
+
+[colors]
+cursor = "#00ff00"
+selection = "#333333"
+foreground = "#00ff00"
+background = "#000000"
+black = "#000000"
+red = "#ff0000"
+green = "#00ff00"
+yellow = "#ffff00"
+blue = "#0000ff"
+magenta = "#ff00ff"
+cyan = "#00ffff"
+white = "#ffffff"
+bright_black = "#666666"
+bright_red = "#ff6666"
+bright_green = "#66ff66"
+bright_yellow = "#ffff66"
+bright_blue = "#6666ff"
+bright_magenta = "#ff66ff"
+bright_cyan = "#66ffff"
+bright_white = "#ffffff"
+search_hit_background = "#ffff00"
+search_hit_background_current = "#00ff00"
+search_hit_foreground = "#000000"
+

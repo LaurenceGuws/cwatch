@@ -1,0 +1,29 @@
+# Teerb terminal theme for CWatch.
+
+name = "Teerb"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#d0d0d0"
+background = "#262626"
+black = "#1c1c1c"
+red = "#d68686"
+green = "#aed686"
+yellow = "#d7af87"
+blue = "#86aed6"
+magenta = "#d6aed6"
+cyan = "#87ceeb"
+white = "#d0d0d0"
+bright_black = "#4e4e4e"
+bright_red = "#d68686"
+bright_green = "#aed686"
+bright_yellow = "#e4c9af"
+bright_blue = "#86aed6"
+bright_magenta = "#d6aed6"
+bright_cyan = "#b0e0e6"
+bright_white = "#efefef"
+search_hit_background = "#d7af87"
+search_hit_background_current = "#aed686"
+search_hit_foreground = "#262626"
+

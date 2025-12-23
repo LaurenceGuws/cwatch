@@ -1,0 +1,29 @@
+# Frontend Delight terminal theme for CWatch.
+
+name = "Frontend Delight"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#ffffff"
+background = "#1b1c1d"
+black = "#1b1c1d"
+red = "#d92028"
+green = "#5ab977"
+yellow = "#cf9e72"
+blue = "#479acc"
+magenta = "#cd6683"
+cyan = "#4bb5a7"
+white = "#ffffff"
+bright_black = "#555555"
+bright_red = "#d92028"
+bright_green = "#5ab977"
+bright_yellow = "#cf9e72"
+bright_blue = "#479acc"
+bright_magenta = "#cd6683"
+bright_cyan = "#4bb5a7"
+bright_white = "#ffffff"
+search_hit_background = "#cf9e72"
+search_hit_background_current = "#5ab977"
+search_hit_foreground = "#1b1c1d"
+

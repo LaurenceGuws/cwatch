@@ -1,0 +1,29 @@
+# Ayu Dark terminal theme for CWatch.
+
+name = "Ayu Dark"
+
+[colors]
+cursor = "#f29718"
+selection = "#253340"
+foreground = "#b3b1ad"
+background = "#0a0e14"
+black = "#0a0e14"
+red = "#ff3333"
+green = "#86b300"
+yellow = "#f29718"
+blue = "#41a6d9"
+magenta = "#f07178"
+cyan = "#4dbf99"
+white = "#ffffff"
+bright_black = "#3d424d"
+bright_red = "#ff6565"
+bright_green = "#b8e532"
+bright_yellow = "#ffb454"
+bright_blue = "#73d0ff"
+bright_magenta = "#ffa3aa"
+bright_cyan = "#7ff0cb"
+bright_white = "#ffffff"
+search_hit_background = "#f29718"
+search_hit_background_current = "#ffb454"
+search_hit_foreground = "#0a0e14"
+

@@ -1,0 +1,29 @@
+# Earthsong terminal theme for CWatch.
+
+name = "Earthsong"
+
+[colors]
+cursor = "#e5c138"
+selection = "#4a4a4a"
+foreground = "#e5c138"
+background = "#292520"
+black = "#292520"
+red = "#cf3f61"
+green = "#7bb5b3"
+yellow = "#e9b32a"
+blue = "#444047"
+magenta = "#a57fc4"
+cyan = "#6bbf8f"
+white = "#f6f6f6"
+bright_black = "#4a4a4a"
+bright_red = "#cf3f61"
+bright_green = "#7bb5b3"
+bright_yellow = "#e9b32a"
+bright_blue = "#444047"
+bright_magenta = "#a57fc4"
+bright_cyan = "#6bbf8f"
+bright_white = "#f6f6f6"
+search_hit_background = "#e9b32a"
+search_hit_background_current = "#7bb5b3"
+search_hit_foreground = "#292520"
+

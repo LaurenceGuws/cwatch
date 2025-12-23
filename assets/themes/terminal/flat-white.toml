@@ -1,0 +1,29 @@
+# Flat White terminal theme for CWatch.
+
+name = "Flat White"
+
+[colors]
+cursor = "#000000"
+selection = "#d0d0d0"
+foreground = "#2c2c2c"
+background = "#ffffff"
+black = "#2c2c2c"
+red = "#da3700"
+green = "#0e7c6b"
+yellow = "#a27300"
+blue = "#0048ff"
+magenta = "#d900cb"
+cyan = "#00a5ab"
+white = "#eaeaea"
+bright_black = "#7d7d7d"
+bright_red = "#da3700"
+bright_green = "#0e7c6b"
+bright_yellow = "#a27300"
+bright_blue = "#0048ff"
+bright_magenta = "#d900cb"
+bright_cyan = "#00a5ab"
+bright_white = "#ffffff"
+search_hit_background = "#a27300"
+search_hit_background_current = "#0e7c6b"
+search_hit_foreground = "#ffffff"
+

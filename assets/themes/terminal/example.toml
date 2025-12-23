@@ -1,0 +1,31 @@
+# Example terminal theme for CWatch.
+# Save files in ~/.config/cwatch/themes/terminal and use .toml extension.
+# The theme key is the filename without extension.
+# Colors accept #RRGGBB or #AARRGGBB.
+
+name = "Example Theme"
+
+[colors]
+cursor = "#ffcc00"
+selection = "#334155"
+foreground = "#e2e8f0"
+background = "#0f172a"
+black = "#0f172a"
+red = "#ef4444"
+green = "#22c55e"
+yellow = "#eab308"
+blue = "#38bdf8"
+magenta = "#a855f7"
+cyan = "#06b6d4"
+white = "#e2e8f0"
+bright_black = "#334155"
+bright_red = "#f87171"
+bright_green = "#4ade80"
+bright_yellow = "#facc15"
+bright_blue = "#7dd3fc"
+bright_magenta = "#c084fc"
+bright_cyan = "#22d3ee"
+bright_white = "#f8fafc"
+search_hit_background = "#f6d32d"
+search_hit_background_current = "#ff8c00"
+search_hit_foreground = "#000000"

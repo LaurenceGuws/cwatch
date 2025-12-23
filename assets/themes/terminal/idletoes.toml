@@ -1,0 +1,29 @@
+# IdleToes terminal theme for CWatch.
+
+name = "IdleToes"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#ffffff"
+background = "#323232"
+black = "#323232"
+red = "#d25252"
+green = "#7fe173"
+yellow = "#ffc66d"
+blue = "#4099ff"
+magenta = "#f680ff"
+cyan = "#bed6ff"
+white = "#eeeeec"
+bright_black = "#535353"
+bright_red = "#f07070"
+bright_green = "#9dff91"
+bright_yellow = "#ffe48b"
+bright_blue = "#5eb7f7"
+bright_magenta = "#ff9dff"
+bright_cyan = "#dcf4ff"
+bright_white = "#ffffff"
+search_hit_background = "#ffc66d"
+search_hit_background_current = "#7fe173"
+search_hit_foreground = "#323232"
+

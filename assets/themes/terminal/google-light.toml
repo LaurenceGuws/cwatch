@@ -1,0 +1,28 @@
+# Google Light terminal theme for CWatch.
+
+name = "Google Light"
+
+[colors]
+cursor = "#202124"
+selection = "#e8eaed"
+foreground = "#202124"
+background = "#ffffff"
+black = "#202124"
+red = "#ea4335"
+green = "#34a853"
+yellow = "#fbbc04"
+blue = "#4285f4"
+magenta = "#9c27b0"
+cyan = "#00acc1"
+white = "#ffffff"
+bright_black = "#5f6368"
+bright_red = "#ea4335"
+bright_green = "#34a853"
+bright_yellow = "#fbbc04"
+bright_blue = "#4285f4"
+bright_magenta = "#9c27b0"
+bright_cyan = "#00acc1"
+bright_white = "#ffffff"
+search_hit_background = "#fbbc04"
+search_hit_background_current = "#ff9800"
+search_hit_foreground = "#ffffff"

@@ -1,0 +1,28 @@
+# JetBrains Darcula terminal theme for CWatch.
+
+name = "JetBrains Darcula"
+
+[colors]
+cursor = "#bbbbbb"
+selection = "#214283"
+foreground = "#a9b7c6"
+background = "#2b2b2b"
+black = "#000000"
+red = "#ff6b68"
+green = "#99cc99"
+yellow = "#ffcc66"
+blue = "#6699cc"
+magenta = "#cc99cc"
+cyan = "#66cccc"
+white = "#ffffff"
+bright_black = "#555555"
+bright_red = "#ff6b68"
+bright_green = "#99cc99"
+bright_yellow = "#ffcc66"
+bright_blue = "#6699cc"
+bright_magenta = "#cc99cc"
+bright_cyan = "#66cccc"
+bright_white = "#ffffff"
+search_hit_background = "#ffcc66"
+search_hit_background_current = "#99cc99"
+search_hit_foreground = "#2b2b2b"

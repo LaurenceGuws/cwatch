@@ -1,0 +1,29 @@
+# Vaughn terminal theme for CWatch.
+
+name = "Vaughn"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#dcdccc"
+background = "#25234f"
+black = "#25234f"
+red = "#705050"
+green = "#60b48a"
+yellow = "#dfaf8f"
+blue = "#5555ff"
+magenta = "#f08cc3"
+cyan = "#8cd0d3"
+white = "#709080"
+bright_black = "#709080"
+bright_red = "#dca3a3"
+bright_green = "#c3bf9f"
+bright_yellow = "#f0dfaf"
+bright_blue = "#94bff3"
+bright_magenta = "#ec93d3"
+bright_cyan = "#93e0e3"
+bright_white = "#ffffff"
+search_hit_background = "#dfaf8f"
+search_hit_background_current = "#60b48a"
+search_hit_foreground = "#25234f"
+

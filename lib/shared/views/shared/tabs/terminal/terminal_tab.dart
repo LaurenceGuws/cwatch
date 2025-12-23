@@ -17,6 +17,7 @@ import '../../../../../shared/shortcuts/shortcut_service.dart';
 import '../../../../../shared/shortcuts/input_mode_resolver.dart';
 import '../../../../../shared/gestures/gesture_activators.dart';
 import '../../../../../shared/gestures/gesture_service.dart';
+import '../../../../../shared/widgets/style_picker_dialog.dart';
 import '../../../../theme/nerd_fonts.dart';
 import '../tab_chip.dart';
 import 'terminal_theme_presets.dart';
@@ -78,6 +79,7 @@ class _TerminalTabState extends State<TerminalTab> {
     _settingsListener = _handleSettingsChanged;
     widget.settingsController.addListener(_settingsListener);
     _configureInputMode(widget.settingsController.settings);
+    unawaited(reloadUserTerminalThemes());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_isMobile) {
         _focusNode.requestFocus();
@@ -240,6 +242,11 @@ class _TerminalTabState extends State<TerminalTab> {
         icon: Icons.refresh,
         onSelected: _startSession,
       ),
+      TabChipOption(
+        label: 'Theme',
+        icon: Icons.palette,
+        onSelected: () => _showThemeDialog(context),
+      ),
     ];
     final controller = widget.optionsController;
     if (controller is CompositeTabOptionsController) {
@@ -247,6 +254,51 @@ class _TerminalTabState extends State<TerminalTab> {
     } else {
       controller?.update(options);
     }
+  }
+
+  Future<void> _showThemeDialog(BuildContext context) async {
+    await reloadUserTerminalThemes();
+    final brightness = Theme.of(context).colorScheme.brightness;
+    final settings = widget.settingsController.settings;
+    final savedTheme = brightness == Brightness.dark
+        ? settings.terminalThemeDark
+        : settings.terminalThemeLight;
+    final labels = terminalThemeLabelCatalog();
+    final initialKey = labels.containsKey(savedTheme)
+        ? savedTheme
+        : 'xterm-default';
+    final options = labels.entries
+        .map((entry) => StyleOption(key: entry.key, label: entry.value))
+        .toList();
+
+    final chosen = await showStylePickerDialog(
+      context: context,
+      title: 'Select terminal theme',
+      options: options,
+      selectedKey: initialKey,
+      onPreview: (key) =>
+          unawaited(_setTerminalThemeForBrightness(brightness, key)),
+    );
+
+    if (chosen == null) {
+      await _setTerminalThemeForBrightness(brightness, savedTheme);
+      return;
+    }
+    await _setTerminalThemeForBrightness(brightness, chosen);
+  }
+
+  Future<void> _setTerminalThemeForBrightness(
+    Brightness brightness,
+    String themeKey,
+  ) {
+    return widget.settingsController.update((current) {
+      if (brightness == Brightness.dark) {
+        if (current.terminalThemeDark == themeKey) return current;
+        return current.copyWith(terminalThemeDark: themeKey);
+      }
+      if (current.terminalThemeLight == themeKey) return current;
+      return current.copyWith(terminalThemeLight: themeKey);
+    });
   }
 
   String _shellEscape(String input) {

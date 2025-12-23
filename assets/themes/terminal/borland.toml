@@ -1,0 +1,28 @@
+# Borland terminal theme for CWatch.
+
+name = "Borland"
+
+[colors]
+cursor = "#ffffff"
+selection = "#0000ff"
+foreground = "#ffff4e"
+background = "#0000a4"
+black = "#000000"
+red = "#ff0000"
+green = "#00ff00"
+yellow = "#ffff00"
+blue = "#0000ff"
+magenta = "#ff00ff"
+cyan = "#00ffff"
+white = "#ffffff"
+bright_black = "#808080"
+bright_red = "#ff0000"
+bright_green = "#00ff00"
+bright_yellow = "#ffff00"
+bright_blue = "#0000ff"
+bright_magenta = "#ff00ff"
+bright_cyan = "#00ffff"
+bright_white = "#ffffff"
+search_hit_background = "#ffff00"
+search_hit_background_current = "#ffff4e"
+search_hit_foreground = "#0000a4"

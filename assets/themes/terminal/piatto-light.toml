@@ -1,0 +1,29 @@
+# Piatto Light terminal theme for CWatch.
+
+name = "Piatto Light"
+
+[colors]
+cursor = "#000000"
+selection = "#d0d0d0"
+foreground = "#000000"
+background = "#ffffff"
+black = "#000000"
+red = "#c91b00"
+green = "#00c200"
+yellow = "#c7c200"
+blue = "#0225c7"
+magenta = "#c930c7"
+cyan = "#00c5c7"
+white = "#c7c7c7"
+bright_black = "#676767"
+bright_red = "#ff6d67"
+bright_green = "#5ff967"
+bright_yellow = "#fefb67"
+bright_blue = "#6871ff"
+bright_magenta = "#ff77ff"
+bright_cyan = "#5ffdff"
+bright_white = "#feffff"
+search_hit_background = "#c7c200"
+search_hit_background_current = "#00c200"
+search_hit_foreground = "#ffffff"
+

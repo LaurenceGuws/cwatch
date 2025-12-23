@@ -1,0 +1,28 @@
+# Jackie Brown terminal theme for CWatch.
+
+name = "Jackie Brown"
+
+[colors]
+cursor = "#ffffff"
+selection = "#4a4a4a"
+foreground = "#ffffff"
+background = "#1c1c1c"
+black = "#1c1c1c"
+red = "#af5f5f"
+green = "#5f875f"
+yellow = "#87875f"
+blue = "#5f87af"
+magenta = "#5f5f87"
+cyan = "#5f8787"
+white = "#6c6c6c"
+bright_black = "#444444"
+bright_red = "#ff8700"
+bright_green = "#87af5f"
+bright_yellow = "#ffffaf"
+bright_blue = "#8fafd7"
+bright_magenta = "#8787af"
+bright_cyan = "#5fafaf"
+bright_white = "#ffffff"
+search_hit_background = "#87875f"
+search_hit_background_current = "#ffffaf"
+search_hit_foreground = "#1c1c1c"

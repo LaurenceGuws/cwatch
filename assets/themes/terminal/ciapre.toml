@@ -1,0 +1,29 @@
+# Ciapre terminal theme for CWatch.
+
+name = "Ciapre"
+
+[colors]
+cursor = "#ffffff"
+selection = "#4a4a4a"
+foreground = "#e5e5e5"
+background = "#191919"
+black = "#181818"
+red = "#810009"
+green = "#48513b"
+yellow = "#cc8c3c"
+blue = "#576d8c"
+magenta = "#724d7c"
+cyan = "#5c4f4b"
+white = "#aea47f"
+bright_black = "#555555"
+bright_red = "#ac3835"
+bright_green = "#8e9c7d"
+bright_yellow = "#c4a86f"
+bright_blue = "#8097bf"
+bright_magenta = "#85678f"
+bright_cyan = "#9c8f79"
+bright_white = "#f4e3bd"
+search_hit_background = "#cc8c3c"
+search_hit_background_current = "#48513b"
+search_hit_foreground = "#191919"
+

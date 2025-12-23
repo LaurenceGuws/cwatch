@@ -1,0 +1,29 @@
+# PaperColor Light terminal theme for CWatch.
+
+name = "PaperColor Light"
+
+[colors]
+cursor = "#1c1c1c"
+selection = "#d0d0d0"
+foreground = "#1c1c1c"
+background = "#eeeeee"
+black = "#1c1c1c"
+red = "#af0000"
+green = "#008700"
+yellow = "#af8700"
+blue = "#0087af"
+magenta = "#8700af"
+cyan = "#00af87"
+white = "#eeeeee"
+bright_black = "#585858"
+bright_red = "#af0000"
+bright_green = "#008700"
+bright_yellow = "#af8700"
+bright_blue = "#0087af"
+bright_magenta = "#8700af"
+bright_cyan = "#00af87"
+bright_white = "#ffffd7"
+search_hit_background = "#af8700"
+search_hit_background_current = "#ff8700"
+search_hit_foreground = "#eeeeee"
+

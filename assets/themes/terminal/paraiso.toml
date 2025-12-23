@@ -1,0 +1,29 @@
+# Paraiso terminal theme for CWatch.
+
+name = "Paraiso"
+
+[colors]
+cursor = "#e7e9db"
+selection = "#41323f"
+foreground = "#e7e9db"
+background = "#2f1e2e"
+black = "#2f1e2e"
+red = "#ef6155"
+green = "#48b685"
+yellow = "#fec418"
+blue = "#06b6ef"
+magenta = "#815ba4"
+cyan = "#5bc4bf"
+white = "#e7e9db"
+bright_black = "#776e71"
+bright_red = "#ef6155"
+bright_green = "#48b685"
+bright_yellow = "#fec418"
+bright_blue = "#06b6ef"
+bright_magenta = "#815ba4"
+bright_cyan = "#5bc4bf"
+bright_white = "#ffffff"
+search_hit_background = "#fec418"
+search_hit_background_current = "#f99b15"
+search_hit_foreground = "#2f1e2e"
+

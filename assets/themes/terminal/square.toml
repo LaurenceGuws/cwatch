@@ -1,0 +1,29 @@
+# Square terminal theme for CWatch.
+
+name = "Square"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#acacac"
+background = "#1a1a1a"
+black = "#050505"
+red = "#e9897c"
+green = "#b6377d"
+yellow = "#ecebbe"
+blue = "#a9cdeb"
+magenta = "#75507b"
+cyan = "#c9caef"
+white = "#f2f2f2"
+bright_black = "#141414"
+bright_red = "#f99286"
+bright_green = "#c3f786"
+bright_yellow = "#fcfbcc"
+bright_blue = "#b3def5"
+bright_magenta = "#ad7fa8"
+bright_cyan = "#d7d9fc"
+bright_white = "#e2e2e2"
+search_hit_background = "#ecebbe"
+search_hit_background_current = "#b6377d"
+search_hit_foreground = "#1a1a1a"
+

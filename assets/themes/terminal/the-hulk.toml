@@ -1,0 +1,29 @@
+# The Hulk terminal theme for CWatch.
+
+name = "The Hulk"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#b5b5b5"
+background = "#1b1d1e"
+black = "#1b1d1e"
+red = "#269926"
+green = "#13ce30"
+yellow = "#63e457"
+blue = "#2525f5"
+magenta = "#641f74"
+cyan = "#378ca9"
+white = "#d9d9d9"
+bright_black = "#505354"
+bright_red = "#8dff2a"
+bright_green = "#48ff77"
+bright_yellow = "#3afe16"
+bright_blue = "#506b95"
+bright_magenta = "#72589d"
+bright_cyan = "#4085a6"
+bright_white = "#e5e6e1"
+search_hit_background = "#63e457"
+search_hit_background_current = "#13ce30"
+search_hit_foreground = "#1b1d1e"
+

@@ -1,0 +1,399 @@
+TERMINAL COLOR SCHEMES TODO LIST
+================================
+Track your progress by marking schemes as [DONE] when completed.
+
+POPULAR TERMINAL COLOR SCHEMES:
+-------------------------------
+
+[DONE] Catppuccin (Latte, Frappe, Macchiato, Mocha)
+[DONE] Dracula
+[DONE] Nord
+[DONE] One Dark / One Light
+[DONE] Solarized Dark / Solarized Light
+[DONE] Gruvbox (Dark, Light)
+[DONE] Tokyo Night (Night, Storm, Day)
+[DONE] Monokai / Monokai Pro
+[DONE] Tomorrow Night / Tomorrow
+[DONE] Material Theme (Darker, Lighter, Ocean, Palenight)
+[DONE] Ayu (Dark, Mirage, Light)
+[DONE] Snazzy
+[DONE] Base16 (various variants - Default Dark/Light, Eighties, Tomorrow Night, Ocean, Monokai, Dracula, Nord, Gruvbox Dark/Light)
+[DONE] PaperColor (Light, Dark)
+[DONE] Oceanic Next
+[DONE] Cobalt2
+[DONE] Atom One Dark / One Light
+[DONE] Flat
+[DONE] Spacegray
+[DONE] Zenburn
+[DONE] Molokai
+[DONE] Desert
+[DONE] Wombat
+[DONE] Jellybeans
+[DONE] Hybrid
+[DONE] Apprentice
+[DONE] Bad Wolf
+[DONE] Code School
+[DONE] Dark Pastels
+[DONE] Dimmed Monokai
+[DONE] Eighties
+[DONE] Embers
+[DONE] Flatland
+[DONE] Github
+[DONE] Google Dark / Google Light
+[DONE] IR Black
+[DONE] Isotope
+[DONE] Lovelace
+[DONE] Material
+[DONE] Material Vivid
+[DONE] Neopolitan
+[DONE] Nova
+[DONE] Obsidian
+[DONE] Paraiso
+[DONE] Railscasts
+[DONE] Seti
+[DONE] Shades of Purple
+[DONE] Slate
+[DONE] Sublime Snazzy
+[DONE] Tango
+[DONE] Terminal Basic
+[DONE] Twilight
+[DONE] Unikitty
+[DONE] VS Code Dark+ / Light+
+[DONE] Xcode Default
+[DONE] 1337
+[DONE] Adventure Time
+[DONE] Afterglow
+[DONE] Alien Blood
+[DONE] Argonaut
+[DONE] Arthur
+[DONE] Atelier
+[DONE] Batman
+[DONE] Belafonte Day / Night
+[DONE] Birds of Paradise
+[DONE] Blazer
+[DONE] Borland
+[DONE] Bright Lights
+[DONE] Broadcast
+[DONE] Brogrammer
+[DONE] C64
+[DONE] Chalk
+[DONE] Chalkboard
+[DONE] Ciapre
+[DONE] Cobalt Neon
+[DONE] Crayon Pony Fish
+[DONE] Dark+
+[DONE] Darkside
+[DONE] Doom One
+[DONE] Doom Peacock
+[DONE] Dot Gov
+[DONE] Duotone Dark
+[DONE] Earthsong
+[DONE] Elemental
+[DONE] Encom
+[DONE] Espresso Libre
+[DONE] Espresso
+[DONE] Fideloper
+[DONE] FishTank
+[DONE] Flat White
+[DONE] Frontend Delight
+[DONE] FunForrest
+[DONE] Galaxy
+[DONE] Github Dark
+[DONE] Glacier
+[DONE] Grape
+[DONE] Grass
+[DONE] Hardcore
+[DONE] Harper
+[DONE] Highway
+[DONE] Hipster Green
+[DONE] Homebrew
+[DONE] Hurtado
+[DONE] Hype
+[DONE] IC Green PPL
+[DONE] IC Orange PPL
+[DONE] Idea
+[DONE] IdleToes
+[DONE] IR_Black
+[DONE] Jackie Brown
+[DONE] Japanesque
+[DONE] JellyX
+[DONE] JetBrains Darcula
+[DONE] Kibble
+[DONE] Later This Evening
+[DONE] Lavandula
+[DONE] LiquidCarbon
+[DONE] LiquidCarbonTransparent
+[DONE] LiquidCarbonTransparentInverse
+[DONE] Man Page
+[DONE] Mathias
+[DONE] Medallion
+[DONE] Misterioso
+[DONE] Molokai
+[DONE] Mona Lisa
+[DONE] Monokai Soda
+[DONE] N0tch2k
+[DONE] Neopolitan
+[DONE] Neutron
+[DONE] NightLion v1
+[DONE] NightLion v2
+[DONE] Novel
+[DONE] Obsidian
+[DONE] Ocean
+[DONE] Ollie
+[DONE] Parasite
+[DONE] PaulMillr
+[DONE] PencilDark
+[DONE] PencilLight
+[DONE] Piatto Light
+[DONE] Pnevma
+[DONE] Pro
+[DONE] Red Alert
+[DONE] Red Sands
+[DONE] Relaxed
+[DONE] Rippedcasts
+[DONE] Royal
+[DONE] Ryuuko
+[DONE] SeaShells
+[DONE] Seafoam Pastel
+[DONE] Seti
+[DONE] Shaman
+[DONE] Slate
+[DONE] Smyck
+[DONE] SoftServer
+[DONE] Solarized Darcula
+[DONE] SpaceGray
+[DONE] Spiderman
+[DONE] Spring
+[DONE] Square
+[DONE] Sundried
+[DONE] Symfonic
+[DONE] Teerb
+[DONE] Terminal Basic
+[DONE] Thayer Bright
+[DONE] The Hulk
+[DONE] Tomorrow Night Blue
+[DONE] Tomorrow Night Bright
+[DONE] Tomorrow Night Eighties
+[DONE] Tomorrow Night
+[DONE] Tomorrow
+[DONE] ToyChest
+[DONE] Treehouse
+[DONE] Tango Adapted
+[DONE] Tango Half Adapted
+[DONE] Tango Light
+[DONE] Tango
+[DONE] Tender
+[DONE] Terminal.app
+[DONE] Terminix Dark
+[DONE] Thayer Bright
+[DONE] The Hulk
+[DONE] Tinacious Design (Dark)
+[DONE] Tinacious Design (Light)
+[DONE] Tokyo Night Storm
+[DONE] Tokyo Night
+[DONE] Tomorrow Night Blue
+[DONE] Tomorrow Night Bright
+[DONE] Tomorrow Night Eighties
+[DONE] Tomorrow Night
+[DONE] Tomorrow
+[DONE] ToyChest
+[DONE] Treehouse
+[DONE] Tundra
+[DONE] Ubuntu
+[DONE] Under the Sea
+[DONE] Urple
+[DONE] Vaughn
+[DONE] Vibrant Ink
+[DONE] VS Code Dark+
+[DONE] VS Code Light+
+[DONE] WarmNeon
+[DONE] Wez
+[DONE] Wild Cherry
+[DONE] Wombat
+[DONE] Wryan
+[DONE] Zenburn
+[DONE] 3024 Day
+[DONE] 3024 Night
+[DONE] Adventure
+[DONE] Afterglow
+[DONE] Alien Blood
+[DONE] Andromeda
+[DONE] Apprentice
+[DONE] Argonaut
+[DONE] Arthur
+[DONE] AtelierSulphurpool
+[DONE] Atom
+[DONE] ayu
+[DONE] ayu Light
+[DONE] ayu Mirage
+[DONE] Batman
+[DONE] Belafonte Day
+[DONE] Belafonte Night
+[DONE] BirdsOfParadise
+[DONE] Blazer
+[DONE] Borland
+[DONE] Bright Lights
+[DONE] Broadcast
+[DONE] Brogrammer
+[DONE] C64
+[DONE] Chalk
+[DONE] Chalkboard
+[DONE] Ciapre
+[DONE] Cobalt2
+[DONE] Cobalt Neon
+[DONE] CrayonPonyFish
+[DONE] Dark Pastel
+[DONE] Dark+
+[DONE] Darkside
+[DONE] Desert
+[DONE] Dimmed Monokai
+[DONE] DotGov
+[DONE] Dracula
+[DONE] Duotone Dark
+[DONE] Earthsong
+[DONE] Elemental
+[DONE] Encom
+[DONE] Espresso
+[DONE] Espresso Libre
+[DONE] Fideloper
+[DONE] FishTank
+[DONE] Flat
+[DONE] Flat White
+[DONE] Flatland
+[DONE] Frontend Delight
+[DONE] FunForrest
+[DONE] Galaxy
+[DONE] Github
+[DONE] Glacier
+[DONE] Grape
+[DONE] Grass
+[DONE] Gruvbox Dark
+[DONE] Gruvbox Light
+[DONE] Hardcore
+[DONE] Harper
+[DONE] Highway
+[DONE] Hipster Green
+[DONE] Homebrew
+[DONE] Hurtado
+[DONE] Hype
+[DONE] IC Green PPL
+[DONE] IC Orange PPL
+[DONE] Idea
+[DONE] IdleToes
+[DONE] IR_Black
+[DONE] Jackie Brown
+[DONE] Japanesque
+[DONE] Jellybeans
+[DONE] JellyX
+[DONE] JetBrains Darcula
+[DONE] Kibble
+[DONE] Later This Evening
+[DONE] Lavandula
+[DONE] LiquidCarbon
+[DONE] LiquidCarbonTransparent
+[DONE] LiquidCarbonTransparentInverse
+[DONE] Man Page
+[DONE] Mathias
+[DONE] Medallion
+[DONE] Misterioso
+[DONE] Molokai
+[DONE] Mona Lisa
+[DONE] Monokai
+[DONE] Monokai Pro
+[DONE] Monokai Soda
+[DONE] N0tch2k
+[DONE] Neopolitan
+[DONE] Neutron
+[DONE] NightLion v1
+[DONE] NightLion v2
+[DONE] Nord
+[DONE] Novel
+[DONE] Obsidian
+[DONE] Ocean
+[DONE] Oceanic Next
+[DONE] Ollie
+[DONE] One Dark
+[DONE] One Light
+[DONE] PaperColor Dark
+[DONE] PaperColor Light
+[DONE] Parasite
+[DONE] PaulMillr
+[DONE] PencilDark
+[DONE] PencilLight
+[DONE] Piatto Light
+[DONE] Pnevma
+[DONE] Pro
+[DONE] Red Alert
+[DONE] Red Sands
+[DONE] Relaxed
+[DONE] Rippedcasts
+[DONE] Royal
+[DONE] Ryuuko
+[DONE] SeaShells
+[DONE] Seafoam Pastel
+[DONE] Seti
+[DONE] Shades of Purple
+[DONE] Shaman
+[DONE] Slate
+[DONE] Smyck
+[DONE] Snazzy
+[DONE] SoftServer
+[DONE] Solarized Dark
+[DONE] Solarized Darcula
+[DONE] Solarized Light
+[DONE] SpaceGray
+[DONE] Spiderman
+[DONE] Spring
+[DONE] Square
+[DONE] Sublime Snazzy
+[DONE] Sundried
+[DONE] Symfonic
+[DONE] Tango
+[DONE] Teerb
+[DONE] Terminal Basic
+[DONE] Terminal.app
+[DONE] Terminix Dark
+[DONE] Thayer Bright
+[DONE] The Hulk
+[DONE] Tinacious Design Dark
+[DONE] Tinacious Design Light
+[DONE] Tokyo Night
+[DONE] Tokyo Night Day
+[DONE] Tokyo Night Storm
+[DONE] Tomorrow
+[DONE] Tomorrow Night
+[DONE] Tomorrow Night Blue
+[DONE] Tomorrow Night Bright
+[DONE] Tomorrow Night Eighties
+[DONE] ToyChest
+[DONE] Treehouse
+[DONE] Tundra
+[DONE] Ubuntu
+[DONE] Under the Sea
+[DONE] Urple
+[DONE] Vaughn
+[DONE] Vibrant Ink
+[DONE] VS Code Dark+
+[DONE] VS Code Light+
+[DONE] WarmNeon
+[DONE] Wez
+[DONE] Wild Cherry
+[DONE] Wombat
+[DONE] Wryan
+[DONE] Xcode Default
+[DONE] Zenburn
+[DONE] 1337
+[DONE] 3024 Day
+[DONE] 3024 Night
+
+NOTES:
+------
+- Some schemes have multiple variants (dark/light, different styles)
+- Mark [DONE] when a .toml file is created for that scheme
+- Popular schemes are listed first, followed by comprehensive list
+- Some schemes may have duplicate entries (different naming conventions)
+
+TOTAL SCHEMES: ~200+
+COMPLETED: 218 theme files created (.toml files excluding example)
+ALL POPULAR THEMES COMPLETE: Base16 variants added (17 variants including Default Dark/Light, Eighties, Tomorrow Night, Ocean, Monokai, Dracula, Nord, Gruvbox Dark/Light, and more)
+

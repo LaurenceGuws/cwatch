@@ -1,0 +1,29 @@
+# Hype terminal theme for CWatch.
+
+name = "Hype"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#ffffff"
+background = "#000000"
+black = "#000000"
+red = "#fd3f92"
+green = "#04c75e"
+yellow = "#e8d639"
+blue = "#3271ff"
+magenta = "#c724cd"
+cyan = "#0598bc"
+white = "#e7e7e7"
+bright_black = "#555555"
+bright_red = "#ff6eb2"
+bright_green = "#06d98a"
+bright_yellow = "#ffeb59"
+bright_blue = "#5b9fff"
+bright_magenta = "#d96ffc"
+bright_cyan = "#05c1e5"
+bright_white = "#ffffff"
+search_hit_background = "#e8d639"
+search_hit_background_current = "#04c75e"
+search_hit_foreground = "#000000"
+

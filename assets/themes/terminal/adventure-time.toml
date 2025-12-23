@@ -1,0 +1,28 @@
+# Adventure Time terminal theme for CWatch.
+
+name = "Adventure Time"
+
+[colors]
+cursor = "#f8f8f0"
+selection = "#49483e"
+foreground = "#f8f8f0"
+background = "#1f1d1e"
+black = "#050404"
+red = "#bd0013"
+green = "#4ab118"
+yellow = "#e7741e"
+blue = "#0f4ac6"
+magenta = "#665993"
+cyan = "#70a598"
+white = "#f8f8f0"
+bright_black = "#4e4e4e"
+bright_red = "#ff0013"
+bright_green = "#9eff6e"
+bright_yellow = "#efc11a"
+bright_blue = "#1997c6"
+bright_magenta = "#9b5953"
+bright_cyan = "#c8faf4"
+bright_white = "#f6f6f4"
+search_hit_background = "#e7741e"
+search_hit_background_current = "#efc11a"
+search_hit_foreground = "#1f1d1e"

@@ -1,0 +1,29 @@
+# FishTank terminal theme for CWatch.
+
+name = "FishTank"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#ecf0c1"
+background = "#232537"
+black = "#03073c"
+red = "#c6004a"
+green = "#73e936"
+yellow = "#dcd631"
+blue = "#308c87"
+magenta = "#ec0048"
+cyan = "#74fbfd"
+white = "#ececec"
+bright_black = "#095b67"
+bright_red = "#d16c52"
+bright_green = "#6df592"
+bright_yellow = "#f5d86b"
+bright_blue = "#26bdd9"
+bright_magenta = "#ff6480"
+bright_cyan = "#00f9f9"
+bright_white = "#f4f4f4"
+search_hit_background = "#dcd631"
+search_hit_background_current = "#73e936"
+search_hit_foreground = "#232537"
+

@@ -1,0 +1,28 @@
+# Base16 Ocean terminal theme for CWatch.
+
+name = "Base16 Ocean"
+
+[colors]
+cursor = "#c0c5ce"
+selection = "#4f5b66"
+foreground = "#c0c5ce"
+background = "#2b303b"
+black = "#2b303b"
+red = "#bf616a"
+green = "#a3be8c"
+yellow = "#ebcb8b"
+blue = "#8fa1b3"
+magenta = "#b48ead"
+cyan = "#96b5b4"
+white = "#c0c5ce"
+bright_black = "#65737e"
+bright_red = "#bf616a"
+bright_green = "#a3be8c"
+bright_yellow = "#ebcb8b"
+bright_blue = "#8fa1b3"
+bright_magenta = "#b48ead"
+bright_cyan = "#96b5b4"
+bright_white = "#eff1f5"
+search_hit_background = "#ebcb8b"
+search_hit_background_current = "#a3be8c"
+search_hit_foreground = "#2b303b"

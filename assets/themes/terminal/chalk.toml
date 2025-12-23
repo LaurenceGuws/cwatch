@@ -1,0 +1,28 @@
+# Chalk terminal theme for CWatch.
+
+name = "Chalk"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#ffffff"
+background = "#2b2b2b"
+black = "#2b2b2b"
+red = "#fb9fb1"
+green = "#acc267"
+yellow = "#ddb26f"
+blue = "#6fc2ef"
+magenta = "#e1a3ee"
+cyan = "#12cfc0"
+white = "#ffffff"
+bright_black = "#666666"
+bright_red = "#fb9fb1"
+bright_green = "#acc267"
+bright_yellow = "#ddb26f"
+bright_blue = "#6fc2ef"
+bright_magenta = "#e1a3ee"
+bright_cyan = "#12cfc0"
+bright_white = "#ffffff"
+search_hit_background = "#ddb26f"
+search_hit_background_current = "#ffb454"
+search_hit_foreground = "#2b2b2b"

@@ -393,10 +393,21 @@ class RemoteHostList extends StatelessWidget {
     final address = _hostAddress(host);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(host.name, style: Theme.of(context).textTheme.titleMedium),
-        Text(address, style: Theme.of(context).textTheme.bodySmall),
+        Text(
+          host.name,
+          style: Theme.of(context).textTheme.titleMedium,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        Text(
+          address,
+          style: Theme.of(context).textTheme.bodySmall,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
       ],
     );
   }

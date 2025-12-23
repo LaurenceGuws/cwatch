@@ -1,0 +1,29 @@
+# Obsidian terminal theme for CWatch.
+
+name = "Obsidian"
+
+[colors]
+cursor = "#ffffff"
+selection = "#293d54"
+foreground = "#e0e2e4"
+background = "#283033"
+black = "#000000"
+red = "#a6231e"
+green = "#7c8c32"
+yellow = "#d39745"
+blue = "#2e78c2"
+magenta = "#8230a2"
+cyan = "#359ddf"
+white = "#e0e2e4"
+bright_black = "#666666"
+bright_red = "#e13227"
+bright_green = "#99c366"
+bright_yellow = "#ffc123"
+bright_blue = "#4195ff"
+bright_magenta = "#b741e6"
+bright_cyan = "#4cb4d6"
+bright_white = "#ffffff"
+search_hit_background = "#d39745"
+search_hit_background_current = "#ffc123"
+search_hit_foreground = "#283033"
+

@@ -1,0 +1,29 @@
+# Atom terminal theme for CWatch.
+
+name = "Atom"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#c5c8c6"
+background = "#161719"
+black = "#000000"
+red = "#fd5ff1"
+green = "#87c38a"
+yellow = "#ffd7b1"
+blue = "#85befd"
+magenta = "#b9b6fc"
+cyan = "#85befd"
+white = "#e0e0e0"
+bright_black = "#000000"
+bright_red = "#fd5ff1"
+bright_green = "#87c38a"
+bright_yellow = "#ffd7b1"
+bright_blue = "#85befd"
+bright_magenta = "#b9b6fc"
+bright_cyan = "#85befd"
+bright_white = "#e0e0e0"
+search_hit_background = "#ffd7b1"
+search_hit_background_current = "#87c38a"
+search_hit_foreground = "#161719"
+

@@ -1,0 +1,29 @@
+# Neutron terminal theme for CWatch.
+
+name = "Neutron"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#c5c8c6"
+background = "#1c1d1f"
+black = "#23252b"
+red = "#b54036"
+green = "#5ab977"
+yellow = "#deb566"
+blue = "#6a7ec2"
+magenta = "#ac7dde"
+cyan = "#6a9584"
+white = "#b7b8b9"
+bright_black = "#2c2e34"
+bright_red = "#d5635c"
+bright_green = "#7bc47f"
+bright_yellow = "#e6d29a"
+bright_blue = "#8b9cfe"
+bright_magenta = "#c2a1e2"
+bright_cyan = "#8fc9b4"
+bright_white = "#ffffff"
+search_hit_background = "#deb566"
+search_hit_background_current = "#5ab977"
+search_hit_foreground = "#1c1d1f"
+

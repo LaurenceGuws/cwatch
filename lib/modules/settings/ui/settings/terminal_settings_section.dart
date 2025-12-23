@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'package:cwatch/shared/views/shared/tabs/terminal/terminal_theme_presets.dart';
+
 import 'settings_section.dart';
-import 'editor_settings_section.dart' show kStyleThemes;
 
 class TerminalSettingsSection extends StatefulWidget {
   const TerminalSettingsSection({
@@ -178,11 +179,13 @@ class _ThemePickerRow extends StatefulWidget {
 
 class _ThemePickerRowState extends State<_ThemePickerRow> {
   late final TextEditingController _controller;
+  late final Future<void> _themeLoad;
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.value);
+    _themeLoad = reloadUserTerminalThemes();
   }
 
   @override
@@ -201,24 +204,31 @@ class _ThemePickerRowState extends State<_ThemePickerRow> {
 
   @override
   Widget build(BuildContext context) {
-    final items = kStyleThemes.entries.toList()
-      ..sort((a, b) => a.value.compareTo(b.value));
-    if (!items.any((e) => e.key == widget.value)) {
-      items.add(MapEntry(widget.value, widget.value));
-    }
-    return DropdownButtonFormField<String>(
-      initialValue: widget.value,
-      decoration: InputDecoration(labelText: widget.label),
-      items: items
-          .map(
-            (entry) =>
-                DropdownMenuItem(value: entry.key, child: Text(entry.value)),
-          )
-          .toList(),
-      onChanged: (value) {
-        if (value == null) return;
-        _controller.text = value;
-        widget.onChanged(value);
+    return FutureBuilder<void>(
+      future: _themeLoad,
+      builder: (context, snapshot) {
+        final items = terminalThemeLabelCatalog().entries.toList()
+          ..sort((a, b) => a.value.compareTo(b.value));
+        if (!items.any((e) => e.key == widget.value)) {
+          items.add(MapEntry(widget.value, widget.value));
+        }
+        return DropdownButtonFormField<String>(
+          initialValue: widget.value,
+          decoration: InputDecoration(labelText: widget.label),
+          items: items
+              .map(
+                (entry) => DropdownMenuItem(
+                  value: entry.key,
+                  child: Text(entry.value),
+                ),
+              )
+              .toList(),
+          onChanged: (value) {
+            if (value == null) return;
+            _controller.text = value;
+            widget.onChanged(value);
+          },
+        );
       },
     );
   }

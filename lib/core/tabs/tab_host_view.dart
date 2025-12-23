@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import 'tab_host.dart';
 import '../navigation/window_controls_constants.dart';
+import '../../shared/theme/app_theme.dart';
 
 /// Simple wrapper that renders a tab bar and content stack using a
 /// TabHostController. Modules supply a tab list, chip builder, and body builder.
@@ -225,6 +226,9 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
       if (!mounted || next == null || _hasOverflow == next) {
         return;
       }
+      if (!next && _scrollController.hasClients) {
+        _scrollController.jumpTo(0);
+      }
       setState(() => _hasOverflow = next);
     });
   }
@@ -275,9 +279,7 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
 
     final hasAddTab = onAddTab != null;
     final colorScheme = Theme.of(context).colorScheme;
-    final toolbarColor = colorScheme.surfaceContainerHighest.withValues(
-      alpha: 0.38,
-    );
+    final toolbarColor = context.appTheme.section.toolbarBackground;
 
     // Match height to window controls when custom chrome is enabled
     final bool useCustomChrome =
@@ -374,11 +376,14 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
                                     primary: false,
                                     physics: const ClampingScrollPhysics(),
                                     buildDefaultDragHandles: false,
-                                    onReorder:
-                                        onReorder ?? (oldIndex, newIndex) {},
+                                    onReorder: onReorder ??
+                                        (oldIndex, newIndex) {},
                                     itemCount: tabs.length,
-                                    itemBuilder: (context, index) =>
-                                        buildChip(context, index, tabs[index]),
+                                    itemBuilder: (context, index) => buildChip(
+                                      context,
+                                      index,
+                                      tabs[index],
+                                    ),
                                   ),
                                 ),
                               ),

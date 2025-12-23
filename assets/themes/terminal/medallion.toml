@@ -1,0 +1,29 @@
+# Medallion terminal theme for CWatch.
+
+name = "Medallion"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#cac5b0"
+background = "#1a1818"
+black = "#1a1818"
+red = "#b64a47"
+green = "#578e57"
+yellow = "#b89b17"
+blue = "#6c8eb4"
+magenta = "#b380b0"
+cyan = "#6c96b4"
+white = "#cac5b0"
+bright_black = "#4a4843"
+bright_red = "#d75f5f"
+bright_green = "#87af87"
+bright_yellow = "#d7af5f"
+bright_blue = "#87afd7"
+bright_magenta = "#d7afd7"
+bright_cyan = "#87d7d7"
+bright_white = "#e0e0e0"
+search_hit_background = "#b89b17"
+search_hit_background_current = "#578e57"
+search_hit_foreground = "#1a1818"
+

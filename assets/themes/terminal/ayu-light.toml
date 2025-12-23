@@ -1,0 +1,29 @@
+# Ayu Light terminal theme for CWatch.
+
+name = "Ayu Light"
+
+[colors]
+cursor = "#f29718"
+selection = "#d9d8d2"
+foreground = "#5c6773"
+background = "#fafafa"
+black = "#01060e"
+red = "#d95757"
+green = "#86b300"
+yellow = "#f29718"
+blue = "#41a6d9"
+magenta = "#f07178"
+cyan = "#4dbf99"
+white = "#fafafa"
+bright_black = "#575f66"
+bright_red = "#d95757"
+bright_green = "#86b300"
+bright_yellow = "#f29718"
+bright_blue = "#41a6d9"
+bright_magenta = "#f07178"
+bright_cyan = "#4dbf99"
+bright_white = "#ffffff"
+search_hit_background = "#f29718"
+search_hit_background_current = "#ffb454"
+search_hit_foreground = "#fafafa"
+

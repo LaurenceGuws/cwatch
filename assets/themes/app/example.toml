@@ -1,0 +1,8 @@
+# Example app theme overrides for CWatch.
+# Save files in ~/.config/cwatch/themes/app and use .toml extension.
+# theme_mode options: system, light, dark
+# app_accent options: blue-grey, teal, amber, indigo, purple, green
+
+theme_mode = "system"
+app_accent = "blue-grey"
+# app_font_family = "JetBrainsMono Nerd Font"

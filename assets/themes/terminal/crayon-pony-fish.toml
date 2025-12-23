@@ -1,0 +1,29 @@
+# Crayon Pony Fish terminal theme for CWatch.
+
+name = "Crayon Pony Fish"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#ececec"
+background = "#150707"
+black = "#1a1a1a"
+red = "#f4005f"
+green = "#98e024"
+yellow = "#fa8419"
+blue = "#9d65ff"
+magenta = "#f4005f"
+cyan = "#58d1eb"
+white = "#c4c5b5"
+bright_black = "#625e5c"
+bright_red = "#f4005f"
+bright_green = "#98e024"
+bright_yellow = "#e0d561"
+bright_blue = "#9d65ff"
+bright_magenta = "#f4005f"
+bright_cyan = "#58d1eb"
+bright_white = "#f6f6ef"
+search_hit_background = "#fa8419"
+search_hit_background_current = "#98e024"
+search_hit_foreground = "#150707"
+

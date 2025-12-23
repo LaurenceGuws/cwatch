@@ -1,0 +1,29 @@
+# Twilight terminal theme for CWatch.
+
+name = "Twilight"
+
+[colors]
+cursor = "#ffffff"
+selection = "#323537"
+foreground = "#ffffff"
+background = "#141414"
+black = "#141414"
+red = "#c06c44"
+green = "#afb979"
+yellow = "#c2a86c"
+blue = "#444649"
+magenta = "#b4b7b4"
+cyan = "#778385"
+white = "#ffffd4"
+bright_black = "#262626"
+bright_red = "#de935f"
+bright_green = "#ccccc6"
+bright_yellow = "#f0c674"
+bright_blue = "#81a2be"
+bright_magenta = "#b294bb"
+bright_cyan = "#8abeb7"
+bright_white = "#ffffff"
+search_hit_background = "#c2a86c"
+search_hit_background_current = "#f0c674"
+search_hit_foreground = "#141414"
+

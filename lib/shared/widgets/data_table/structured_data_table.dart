@@ -263,6 +263,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
   int? _marqueePointer;
   bool _isMarqueeSelecting = false;
   StructuredDataCellCoordinate? _hoveredCell;
+  int? _hoveredHeaderIndex;
   final GlobalKey _bodyKey = GlobalKey();
   int? _touchDragPointer;
   bool _isTouchDragging = false;
@@ -455,8 +456,11 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       growable: true,
     );
     _autoFitCache.clear();
-    _verticalController = widget.verticalController ?? ScrollController();
-    _horizontalController = widget.horizontalController ?? ScrollController();
+    _verticalController =
+        widget.verticalController ?? ScrollController(keepScrollOffset: false);
+    _horizontalController =
+        widget.horizontalController ??
+        ScrollController(keepScrollOffset: false);
     _ownsVerticalController = widget.verticalController == null;
     _ownsHorizontalController = widget.horizontalController == null;
     _listController = SelectableListController(
@@ -1478,7 +1482,12 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
                     size: 18,
                   ),
                   const SizedBox(width: 10),
-                  Text(action.label),
+                  Flexible(
+                    child: Text(
+                      action.label,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1849,59 +1858,70 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
               : (handleWidth / 2) + spacing.sm;
           final dragHandle = SizedBox(
             width: dragHandleWidth,
-            child: _HeaderDragHandle(
-              enabled: canReorder,
-              data: index,
-              feedback: dragFeedback,
-              activeColor: scheme.primary,
-              inactiveColor: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+            child: Opacity(
+              opacity: canReorder && _hoveredHeaderIndex == index ? 1 : 0,
+              child: _HeaderDragHandle(
+                enabled: canReorder,
+                data: index,
+                feedback: dragFeedback,
+                activeColor: scheme.primary,
+                inactiveColor: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+              ),
             ),
           );
 
-          final target = DragTarget<int>(
-            hitTestBehavior: HitTestBehavior.deferToChild,
-            onWillAcceptWithDetails: (details) => details.data != index,
-            onAcceptWithDetails: (details) => reorderFrom(details.data),
-            builder: (context, candidateData, rejectedData) {
-              final highlight = candidateData.isNotEmpty;
-              return DecoratedBox(
-                decoration: BoxDecoration(
-                  border: highlight
-                      ? Border(
-                          bottom: BorderSide(
-                            color: scheme.primary.withValues(alpha: 0.7),
-                            width: 2,
-                          ),
-                        )
-                      : null,
-                ),
-                child: DecoratedBox(
+          final target = MouseRegion(
+            onEnter: (_) => setState(() => _hoveredHeaderIndex = index),
+            onExit: (_) {
+              if (_hoveredHeaderIndex == index) {
+                setState(() => _hoveredHeaderIndex = null);
+              }
+            },
+            child: DragTarget<int>(
+              hitTestBehavior: HitTestBehavior.deferToChild,
+              onWillAcceptWithDetails: (details) => details.data != index,
+              onAcceptWithDetails: (details) => reorderFrom(details.data),
+              builder: (context, candidateData, rejectedData) {
+                final highlight = candidateData.isNotEmpty;
+                return DecoratedBox(
                   decoration: BoxDecoration(
-                    border: Border(
-                      right: index == _columns.length - 1
-                          ? BorderSide.none
-                          : separatorSide,
+                    border: highlight
+                        ? Border(
+                            bottom: BorderSide(
+                              color: scheme.primary.withValues(alpha: 0.7),
+                              width: 2,
+                            ),
+                          )
+                        : null,
+                  ),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      border: Border(
+                        right: index == _columns.length - 1
+                            ? BorderSide.none
+                            : separatorSide,
+                      ),
+                    ),
+                    child: Stack(
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.only(
+                            right: dragHandleWidth + dragHandleInsetRight,
+                          ),
+                          child: headerInteractive,
+                        ),
+                        Positioned(
+                          right: dragHandleInsetRight,
+                          top: 0,
+                          bottom: 0,
+                          child: dragHandle,
+                        ),
+                      ],
                     ),
                   ),
-                  child: Stack(
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.only(
-                          right: dragHandleWidth + dragHandleInsetRight,
-                        ),
-                        child: headerInteractive,
-                      ),
-                      Positioned(
-                        right: dragHandleInsetRight,
-                        top: 0,
-                        bottom: 0,
-                        child: dragHandle,
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           );
 
           final cell = SizedBox(
@@ -2175,6 +2195,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
   List<double> _computeColumnWidths(double availableWidth) {
     final flexIndices = <int>[];
     var totalFlex = 0;
+    var fixedWidth = 0.0;
     for (var i = 0; i < _columns.length; i++) {
       final column = _columns[i];
       final override = i < _columnWidthOverrides.length
@@ -2184,14 +2205,18 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       if (!isFixed) {
         flexIndices.add(i);
         totalFlex += column.flex;
+      } else {
+        final target = override ?? column.width ?? 0.0;
+        fixedWidth += max(column.minWidth ?? 0, target);
       }
     }
 
-    final remainingForFlex = flexIndices.fold<double>(
+    final minFlexWidth = flexIndices.fold<double>(
       0,
       (sum, index) =>
           sum + max(_defaultMinFlexColumnWidth, _columns[index].minWidth ?? 0),
     );
+    final remainingForFlex = max(availableWidth - fixedWidth, minFlexWidth);
     final widths = <double>[];
 
     for (var i = 0; i < _columns.length; i++) {
@@ -2207,12 +2232,8 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
         widths.add(max(column.minWidth ?? 0, column.width!));
         continue;
       }
-      final flexShare = totalFlex == 0
-          ? remainingForFlex
-          : remainingForFlex / totalFlex;
-      final target = totalFlex == 0
-          ? remainingForFlex
-          : flexShare * column.flex;
+      final flexShare = totalFlex == 0 ? remainingForFlex : remainingForFlex / totalFlex;
+      final target = totalFlex == 0 ? remainingForFlex : flexShare * column.flex;
       widths.add(
         max(_defaultMinFlexColumnWidth, max(column.minWidth ?? 0, target)),
       );
@@ -2306,24 +2327,26 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           child: SizedBox(
             width: constraints.maxWidth,
             height: hasBoundedHeight ? constraints.maxHeight : null,
-            child: RawScrollbar(
-              controller: _verticalController,
-              thumbVisibility: true,
-              thickness: verticalScrollbarWidth,
-              radius: const Radius.circular(6),
-              scrollbarOrientation: ScrollbarOrientation.right,
-              padding: EdgeInsets.only(
-                bottom: widget.verticalScrollbarBottomInset,
+          child: RawScrollbar(
+            controller: _verticalController,
+            thumbVisibility: false,
+            trackVisibility: false,
+            thickness: verticalScrollbarWidth,
+            radius: const Radius.circular(6),
+            scrollbarOrientation: ScrollbarOrientation.right,
+            padding: EdgeInsets.only(
+              bottom: widget.verticalScrollbarBottomInset,
               ),
               notificationPredicate: (notification) =>
                   notification.metrics.axis == Axis.vertical,
-              child: Scrollbar(
-                controller: _horizontalController,
-                thumbVisibility: true,
-                scrollbarOrientation: ScrollbarOrientation.bottom,
-                thickness: horizontalScrollbarThickness,
-                notificationPredicate: (notification) =>
-                    notification.metrics.axis == Axis.horizontal,
+            child: Scrollbar(
+              controller: _horizontalController,
+              thumbVisibility: false,
+              trackVisibility: false,
+              scrollbarOrientation: ScrollbarOrientation.bottom,
+              thickness: horizontalScrollbarThickness,
+              notificationPredicate: (notification) =>
+                  notification.metrics.axis == Axis.horizontal,
                 child: SingleChildScrollView(
                   controller: _horizontalController,
                   scrollDirection: Axis.horizontal,

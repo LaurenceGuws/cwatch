@@ -1,0 +1,29 @@
+# Desert terminal theme for CWatch.
+
+name = "Desert"
+
+[colors]
+cursor = "#ffffff"
+selection = "#333333"
+foreground = "#ffffff"
+background = "#333333"
+black = "#4d4d4d"
+red = "#ff2b2b"
+green = "#98fb98"
+yellow = "#f0e68c"
+blue = "#cd853f"
+magenta = "#ffdead"
+cyan = "#ffa0a0"
+white = "#f5deb3"
+bright_black = "#555555"
+bright_red = "#ff5555"
+bright_green = "#55ff55"
+bright_yellow = "#ffff55"
+bright_blue = "#87ceff"
+bright_magenta = "#ff55ff"
+bright_cyan = "#ffd700"
+bright_white = "#ffffff"
+search_hit_background = "#f0e68c"
+search_hit_background_current = "#daa520"
+search_hit_foreground = "#333333"
+

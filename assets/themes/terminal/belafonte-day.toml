@@ -1,0 +1,28 @@
+# Belafonte Day terminal theme for CWatch.
+
+name = "Belafonte Day"
+
+[colors]
+cursor = "#453a39"
+selection = "#c46c32"
+foreground = "#453a39"
+background = "#d5ccba"
+black = "#20111b"
+red = "#be100e"
+green = "#858162"
+yellow = "#eaa549"
+blue = "#426a79"
+magenta = "#97522c"
+cyan = "#989a9c"
+white = "#968c83"
+bright_black = "#5e5252"
+bright_red = "#be100e"
+bright_green = "#858162"
+bright_yellow = "#eaa549"
+bright_blue = "#426a79"
+bright_magenta = "#97522c"
+bright_cyan = "#989a9c"
+bright_white = "#d5ccba"
+search_hit_background = "#eaa549"
+search_hit_background_current = "#be100e"
+search_hit_foreground = "#d5ccba"

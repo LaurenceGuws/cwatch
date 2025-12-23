@@ -1,0 +1,29 @@
+# Tomorrow terminal theme for CWatch.
+
+name = "Tomorrow"
+
+[colors]
+cursor = "#4d4d4c"
+selection = "#d6d6d6"
+foreground = "#4d4d4c"
+background = "#ffffff"
+black = "#000000"
+red = "#c82829"
+green = "#718c00"
+yellow = "#eab700"
+blue = "#4271ae"
+magenta = "#8959a8"
+cyan = "#3e999f"
+white = "#ffffff"
+bright_black = "#4d4d4c"
+bright_red = "#c82829"
+bright_green = "#718c00"
+bright_yellow = "#eab700"
+bright_blue = "#4271ae"
+bright_magenta = "#8959a8"
+bright_cyan = "#3e999f"
+bright_white = "#ffffff"
+search_hit_background = "#eab700"
+search_hit_background_current = "#f5871f"
+search_hit_foreground = "#ffffff"
+

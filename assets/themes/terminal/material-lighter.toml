@@ -1,0 +1,29 @@
+# Material Lighter terminal theme for CWatch.
+
+name = "Material Lighter"
+
+[colors]
+cursor = "#80cbc4"
+selection = "#e0e0e0"
+foreground = "#90a4ae"
+background = "#fafafa"
+black = "#263238"
+red = "#e53935"
+green = "#91b859"
+yellow = "#ffb62c"
+blue = "#6182b8"
+magenta = "#7c4dff"
+cyan = "#39adb5"
+white = "#ffffff"
+bright_black = "#546e7a"
+bright_red = "#e53935"
+bright_green = "#91b859"
+bright_yellow = "#ffb62c"
+bright_blue = "#6182b8"
+bright_magenta = "#7c4dff"
+bright_cyan = "#39adb5"
+bright_white = "#ffffff"
+search_hit_background = "#ffb62c"
+search_hit_background_current = "#ff9800"
+search_hit_foreground = "#fafafa"
+

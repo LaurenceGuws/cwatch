@@ -1,0 +1,29 @@
+# Jellybeans terminal theme for CWatch.
+
+name = "Jellybeans"
+
+[colors]
+cursor = "#ffffff"
+selection = "#404040"
+foreground = "#e8e8d3"
+background = "#151515"
+black = "#151515"
+red = "#ffb964"
+green = "#a8c373"
+yellow = "#fad07a"
+blue = "#6699cc"
+magenta = "#c5a3ff"
+cyan = "#5fd7ff"
+white = "#e8e8d3"
+bright_black = "#505050"
+bright_red = "#ffb964"
+bright_green = "#a8c373"
+bright_yellow = "#fad07a"
+bright_blue = "#6699cc"
+bright_magenta = "#c5a3ff"
+bright_cyan = "#5fd7ff"
+bright_white = "#f4f4f4"
+search_hit_background = "#fad07a"
+search_hit_background_current = "#ff8700"
+search_hit_foreground = "#151515"
+

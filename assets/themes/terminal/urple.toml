@@ -1,0 +1,29 @@
+# Urple terminal theme for CWatch.
+
+name = "Urple"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#877a9b"
+background = "#1b1b23"
+black = "#1b1b23"
+red = "#ff4050"
+green = "#a4cc35"
+yellow = "#ffd24e"
+blue = "#66bfff"
+magenta = "#f553bf"
+cyan = "#26c99e"
+white = "#ac8aac"
+bright_black = "#4a4a4a"
+bright_red = "#ff4050"
+bright_green = "#a4cc35"
+bright_yellow = "#ffd24e"
+bright_blue = "#66bfff"
+bright_magenta = "#f553bf"
+bright_cyan = "#26c99e"
+bright_white = "#ffffff"
+search_hit_background = "#ffd24e"
+search_hit_background_current = "#a4cc35"
+search_hit_foreground = "#1b1b23"
+

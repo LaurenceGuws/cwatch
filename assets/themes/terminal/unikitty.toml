@@ -1,0 +1,28 @@
+# Unikitty terminal theme for CWatch.
+
+name = "Unikitty"
+
+[colors]
+cursor = "#ffffff"
+selection = "#ff6ac1"
+foreground = "#ffffff"
+background = "#0a0e14"
+black = "#0a0e14"
+red = "#ff6ac1"
+green = "#5af78e"
+yellow = "#f3f99d"
+blue = "#57c7ff"
+magenta = "#c678dd"
+cyan = "#9aedfe"
+white = "#ffffff"
+bright_black = "#1e1e1e"
+bright_red = "#ff6ac1"
+bright_green = "#5af78e"
+bright_yellow = "#f3f99d"
+bright_blue = "#57c7ff"
+bright_magenta = "#c678dd"
+bright_cyan = "#9aedfe"
+bright_white = "#ffffff"
+search_hit_background = "#f3f99d"
+search_hit_background_current = "#ffb86c"
+search_hit_foreground = "#0a0e14"

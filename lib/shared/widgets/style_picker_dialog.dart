@@ -15,93 +15,252 @@ Future<String?> showStylePickerDialog({
   required String selectedKey,
   ValueChanged<String>? onPreview,
 }) {
-  final sorted = List<StyleOption>.from(options)
-    ..sort((a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
   return showDialog<String>(
     context: context,
     builder: (dialogContext) {
-      var current = selectedKey;
-      final searchController = TextEditingController();
-      final focusNode = FocusNode();
+      return _StylePickerDialog(
+        title: title,
+        options: options,
+        selectedKey: selectedKey,
+        onPreview: onPreview,
+      );
+    },
+  );
+}
 
-      List<StyleOption> filtered(String query) {
-        if (query.trim().isEmpty) return sorted;
-        final lower = query.toLowerCase();
-        return sorted
-            .where(
-              (opt) =>
-                  opt.label.toLowerCase().contains(lower) ||
-                  opt.key.toLowerCase().contains(lower),
-            )
-            .toList();
+class _StylePickerDialog extends StatefulWidget {
+  const _StylePickerDialog({
+    required this.title,
+    required this.options,
+    required this.selectedKey,
+    this.onPreview,
+  });
+
+  final String title;
+  final List<StyleOption> options;
+  final String selectedKey;
+  final ValueChanged<String>? onPreview;
+
+  @override
+  State<_StylePickerDialog> createState() => _StylePickerDialogState();
+}
+
+class _StylePickerDialogState extends State<_StylePickerDialog> {
+  late final TextEditingController _searchController;
+  late final FocusNode _searchFocusNode;
+  late final List<StyleOption> _options;
+  late String _current;
+
+  @override
+  void initState() {
+    super.initState();
+    _options = List<StyleOption>.from(widget.options)
+      ..sort((a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
+    if (!_options.any((opt) => opt.key == widget.selectedKey)) {
+      _options.add(
+        StyleOption(key: widget.selectedKey, label: widget.selectedKey),
+      );
+    }
+    _current = widget.selectedKey;
+    _searchController = TextEditingController();
+    _searchFocusNode = FocusNode();
+    _searchController.addListener(_handleSearchChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _searchFocusNode.requestFocus();
       }
+    });
+  }
 
-      return StatefulBuilder(
-        builder: (context, setState) {
-          final visible = filtered(searchController.text);
-          return AlertDialog(
-            title: Text(title),
-            content: SizedBox(
-              width: 420,
-              height: 520,
-              child: Column(
+  @override
+  void dispose() {
+    _searchController.removeListener(_handleSearchChanged);
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _handleSearchChanged() {
+    setState(() {});
+  }
+
+  List<StyleOption> get _visible {
+    final query = _searchController.text.trim();
+    if (query.isEmpty) return _options;
+    final lower = query.toLowerCase();
+    return _options
+        .where(
+          (opt) =>
+              opt.label.toLowerCase().contains(lower) ||
+              opt.key.toLowerCase().contains(lower),
+        )
+        .toList();
+  }
+
+  void _select(String key, {bool apply = false}) {
+    if (_current != key) {
+      setState(() => _current = key);
+      widget.onPreview?.call(key);
+    }
+    if (apply) {
+      _apply();
+    }
+  }
+
+  void _apply() {
+    Navigator.of(context).pop(_current);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final visible = _visible;
+
+    return Dialog(
+      insetPadding: const EdgeInsets.all(12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        width: 520,
+        height: 460,
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              color: scheme.surfaceContainerHigh,
+              child: Row(
                 children: [
-                  TextField(
-                    controller: searchController,
-                    focusNode: focusNode,
-                    decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.search),
-                      hintText: 'Search',
-                    ),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                  const SizedBox(height: 12),
                   Expanded(
-                    child: ListView.builder(
-                      itemCount: visible.length,
-                      itemBuilder: (context, index) {
-                        final option = visible[index];
-                        final selected = option.key == current;
-                        return ListTile(
-                          dense: true,
-                          leading: Icon(
-                            selected
-                                ? Icons.radio_button_checked
-                                : Icons.radio_button_unchecked,
-                            color: selected
-                                ? Theme.of(context).colorScheme.primary
-                                : Theme.of(context).iconTheme.color,
-                          ),
-                          title: Text(option.label),
-                          subtitle: Text(
-                            option.key,
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(color: Theme.of(context).hintColor),
-                          ),
-                          onTap: () {
-                            setState(() => current = option.key);
-                            onPreview?.call(option.key);
-                          },
-                        );
-                      },
+                    child: Text(
+                      widget.title,
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${visible.length}',
+                    style: textTheme.labelMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
                     ),
                   ),
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(null),
-                child: const Text('Cancel'),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+              child: TextField(
+                controller: _searchController,
+                focusNode: _searchFocusNode,
+                decoration: const InputDecoration(
+                  hintText: 'Search themes',
+                  prefixIcon: Icon(Icons.search, size: 18),
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
+                ),
               ),
-              FilledButton(
-                onPressed: () => Navigator.of(dialogContext).pop(current),
-                child: const Text('Use selection'),
+            ),
+            Expanded(
+              child: Scrollbar(
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                  itemCount: visible.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 6),
+                  itemBuilder: (context, index) {
+                    final option = visible[index];
+                    final selected = option.key == _current;
+                    final bg = selected
+                        ? scheme.secondaryContainer
+                        : scheme.surface;
+                    final borderColor = selected
+                        ? scheme.primary
+                        : scheme.outlineVariant;
+                    return InkWell(
+                      onTap: () => _select(option.key),
+                      onDoubleTap: () => _select(option.key, apply: true),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: bg,
+                          border: Border.all(color: borderColor),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              selected
+                                  ? Icons.check_circle
+                                  : Icons.circle_outlined,
+                              size: 18,
+                              color: selected ? scheme.primary : scheme.outline,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    option.label,
+                                    style: textTheme.bodyMedium?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    option.key,
+                                    style: textTheme.labelSmall?.copyWith(
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
-            ],
-          );
-        },
-      );
-    },
-  );
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh,
+                border: Border(top: BorderSide(color: scheme.outlineVariant)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _current,
+                      style: textTheme.labelSmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(null),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(onPressed: _apply, child: const Text('Apply')),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

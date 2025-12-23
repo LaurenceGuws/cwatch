@@ -1,0 +1,29 @@
+# Espresso terminal theme for CWatch.
+
+name = "Espresso"
+
+[colors]
+cursor = "#ffffff"
+selection = "#4a4a4a"
+foreground = "#ffffff"
+background = "#2d2d2d"
+black = "#2d2d2d"
+red = "#d25252"
+green = "#a5c261"
+yellow = "#ffc66d"
+blue = "#6c99bb"
+magenta = "#d197d9"
+cyan = "#bed6ff"
+white = "#cccccc"
+bright_black = "#777777"
+bright_red = "#f00c0c"
+bright_green = "#c2e075"
+bright_yellow = "#e1e48b"
+bright_blue = "#8ab7d9"
+bright_magenta = "#efb5f7"
+bright_cyan = "#dcf4ff"
+bright_white = "#ffffff"
+search_hit_background = "#ffc66d"
+search_hit_background_current = "#a5c261"
+search_hit_foreground = "#2d2d2d"
+

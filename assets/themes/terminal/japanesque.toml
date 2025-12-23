@@ -1,0 +1,28 @@
+# Japanesque terminal theme for CWatch.
+
+name = "Japanesque"
+
+[colors]
+cursor = "#f7f6ec"
+selection = "#343434"
+foreground = "#f7f6ec"
+background = "#1e1e1e"
+black = "#343434"
+red = "#705050"
+green = "#60b48a"
+yellow = "#dfaf8f"
+blue = "#506070"
+magenta = "#dc8cc3"
+cyan = "#8cd0d3"
+white = "#dcdccc"
+bright_black = "#709080"
+bright_red = "#dca3a3"
+bright_green = "#c3bf9f"
+bright_yellow = "#f0dfaf"
+bright_blue = "#94bff3"
+bright_magenta = "#ec93d3"
+bright_cyan = "#93e0e3"
+bright_white = "#ffffff"
+search_hit_background = "#dfaf8f"
+search_hit_background_current = "#f0dfaf"
+search_hit_foreground = "#1e1e1e"

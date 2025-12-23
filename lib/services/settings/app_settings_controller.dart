@@ -28,4 +28,9 @@ class AppSettingsController extends ChangeNotifier {
     notifyListeners();
     await _storage.save(_settings);
   }
+
+  void applyOverrides(AppSettings Function(AppSettings current) transform) {
+    _settings = transform(_settings);
+    notifyListeners();
+  }
 }

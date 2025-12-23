@@ -1,0 +1,29 @@
+# Thayer Bright terminal theme for CWatch.
+
+name = "Thayer Bright"
+
+[colors]
+cursor = "#000000"
+selection = "#d0d0d0"
+foreground = "#f8f8f8"
+background = "#1b1d1e"
+black = "#1b1d1e"
+red = "#f92672"
+green = "#82b414"
+yellow = "#fd971f"
+blue = "#268bd2"
+magenta = "#8c54fe"
+cyan = "#56c2d6"
+white = "#ccccc6"
+bright_black = "#505354"
+bright_red = "#ff5995"
+bright_green = "#b6e354"
+bright_yellow = "#feed6c"
+bright_blue = "#0e84b4"
+bright_magenta = "#9e6ffe"
+bright_cyan = "#66d9ef"
+bright_white = "#f8f8f2"
+search_hit_background = "#fd971f"
+search_hit_background_current = "#82b414"
+search_hit_foreground = "#1b1d1e"
+

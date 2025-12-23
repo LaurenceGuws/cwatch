@@ -1,0 +1,29 @@
+# Mona Lisa terminal theme for CWatch.
+
+name = "Mona Lisa"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#f7d6a0"
+background = "#351f0f"
+black = "#351f0f"
+red = "#9b2c46"
+green = "#78997a"
+yellow = "#e5b96a"
+blue = "#554fb3"
+magenta = "#ac6b87"
+cyan = "#6b97b3"
+white = "#f7d6a0"
+bright_black = "#7a6f4e"
+bright_red = "#cf6171"
+bright_green = "#a4b5a6"
+bright_yellow = "#e5c078"
+bright_blue = "#7c75c0"
+bright_magenta = "#c88ca0"
+bright_cyan = "#8bb3c0"
+bright_white = "#f7f7a0"
+search_hit_background = "#e5b96a"
+search_hit_background_current = "#78997a"
+search_hit_foreground = "#351f0f"
+

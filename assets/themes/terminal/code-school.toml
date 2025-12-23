@@ -1,0 +1,28 @@
+# Code School terminal theme for CWatch.
+
+name = "Code School"
+
+[colors]
+cursor = "#ffffff"
+selection = "#2a343a"
+foreground = "#b5d1f3"
+background = "#232c31"
+black = "#232c31"
+red = "#2a5491"
+green = "#237986"
+yellow = "#a03e1c"
+blue = "#484d79"
+magenta = "#c59820"
+cyan = "#b02f30"
+white = "#9ea7a6"
+bright_black = "#3f4944"
+bright_red = "#2a5491"
+bright_green = "#237986"
+bright_yellow = "#a03e1c"
+bright_blue = "#484d79"
+bright_magenta = "#c59820"
+bright_cyan = "#b02f30"
+bright_white = "#b5d1f3"
+search_hit_background = "#a03e1c"
+search_hit_background_current = "#c59820"
+search_hit_foreground = "#232c31"

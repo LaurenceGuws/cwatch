@@ -1,0 +1,29 @@
+# Under the Sea terminal theme for CWatch.
+
+name = "Under the Sea"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#ffffff"
+background = "#011116"
+black = "#001014"
+red = "#ff3333"
+green = "#7accb7"
+yellow = "#ffcc00"
+blue = "#1d8991"
+magenta = "#ff6600"
+cyan = "#00ffff"
+white = "#ffffff"
+bright_black = "#003340"
+bright_red = "#ff6666"
+bright_green = "#99ffcc"
+bright_yellow = "#ffff00"
+bright_blue = "#00ccff"
+bright_magenta = "#ff9966"
+bright_cyan = "#66ffff"
+bright_white = "#ffffff"
+search_hit_background = "#ffcc00"
+search_hit_background_current = "#7accb7"
+search_hit_foreground = "#011116"
+

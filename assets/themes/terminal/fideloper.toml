@@ -1,0 +1,29 @@
+# Fideloper terminal theme for CWatch.
+
+name = "Fideloper"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#dbdbdb"
+background = "#292929"
+black = "#292929"
+red = "#f84547"
+green = "#95c76f"
+yellow = "#efa16b"
+blue = "#3c98d9"
+magenta = "#9d7cd8"
+cyan = "#41c6b9"
+white = "#ffffff"
+bright_black = "#555555"
+bright_red = "#d28e5d"
+bright_green = "#b0d18f"
+bright_yellow = "#fdb292"
+bright_blue = "#6bb8d9"
+bright_magenta = "#b899e0"
+bright_cyan = "#7dd3c0"
+bright_white = "#ffffff"
+search_hit_background = "#efa16b"
+search_hit_background_current = "#95c76f"
+search_hit_foreground = "#292929"
+

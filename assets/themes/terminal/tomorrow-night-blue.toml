@@ -1,0 +1,29 @@
+# Tomorrow Night Blue terminal theme for CWatch.
+
+name = "Tomorrow Night Blue"
+
+[colors]
+cursor = "#ffffff"
+selection = "#003d82"
+foreground = "#ffffff"
+background = "#002451"
+black = "#000000"
+red = "#ff9da4"
+green = "#d1f1a9"
+yellow = "#ffeead"
+blue = "#bbdaff"
+magenta = "#ebbbff"
+cyan = "#99ffff"
+white = "#ffffff"
+bright_black = "#7285b7"
+bright_red = "#ff9da4"
+bright_green = "#d1f1a9"
+bright_yellow = "#ffeead"
+bright_blue = "#bbdaff"
+bright_magenta = "#ebbbff"
+bright_cyan = "#99ffff"
+bright_white = "#ffffff"
+search_hit_background = "#ffeead"
+search_hit_background_current = "#d1f1a9"
+search_hit_foreground = "#002451"
+

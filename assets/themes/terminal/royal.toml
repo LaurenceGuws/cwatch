@@ -1,0 +1,29 @@
+# Royal terminal theme for CWatch.
+
+name = "Royal"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#ffffff"
+background = "#100815"
+black = "#241f2b"
+red = "#91284c"
+green = "#23801c"
+yellow = "#b49d27"
+blue = "#6580cf"
+magenta = "#674d96"
+cyan = "#8aaabe"
+white = "#524966"
+bright_black = "#312d38"
+bright_red = "#d5356c"
+bright_green = "#2cd946"
+bright_yellow = "#fde84b"
+bright_blue = "#90baf9"
+bright_magenta = "#a479e2"
+bright_cyan = "#acd4eb"
+bright_white = "#9e8cbd"
+search_hit_background = "#b49d27"
+search_hit_background_current = "#23801c"
+search_hit_foreground = "#100815"
+

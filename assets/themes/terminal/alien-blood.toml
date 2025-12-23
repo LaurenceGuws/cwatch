@@ -1,0 +1,28 @@
+# Alien Blood terminal theme for CWatch.
+
+name = "Alien Blood"
+
+[colors]
+cursor = "#00ff00"
+selection = "#444444"
+foreground = "#00ff00"
+background = "#0f1610"
+black = "#112616"
+red = "#7f2b27"
+green = "#2f7e25"
+yellow = "#717f24"
+blue = "#2f6a7f"
+magenta = "#47587f"
+cyan = "#327f77"
+white = "#647d75"
+bright_black = "#3c4812"
+bright_red = "#e08009"
+bright_green = "#18e000"
+bright_yellow = "#bde000"
+bright_blue = "#00aae0"
+bright_magenta = "#0058e0"
+bright_cyan = "#00e0c4"
+bright_white = "#73fa91"
+search_hit_background = "#bde000"
+search_hit_background_current = "#18e000"
+search_hit_foreground = "#0f1610"

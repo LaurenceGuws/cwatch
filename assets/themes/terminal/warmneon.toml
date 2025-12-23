@@ -1,0 +1,29 @@
+# WarmNeon terminal theme for CWatch.
+
+name = "WarmNeon"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#ffcb83"
+background = "#3f3f3f"
+black = "#3f3f3f"
+red = "#ff8b92"
+green = "#afff8f"
+yellow = "#ffdd96"
+blue = "#96d9ff"
+magenta = "#ff96e0"
+cyan = "#9ffff5"
+white = "#ffffff"
+bright_black = "#7f7f7f"
+bright_red = "#ffb3b8"
+bright_green = "#c8ffb3"
+bright_yellow = "#ffe5b3"
+bright_blue = "#b3e5ff"
+bright_magenta = "#ffb3f0"
+bright_cyan = "#ccfff5"
+bright_white = "#ffffff"
+search_hit_background = "#ffdd96"
+search_hit_background_current = "#afff8f"
+search_hit_foreground = "#3f3f3f"
+

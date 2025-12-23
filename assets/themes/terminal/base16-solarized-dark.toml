@@ -1,0 +1,29 @@
+# Base16 Solarized Dark terminal theme for CWatch.
+
+name = "Base16 Solarized Dark"
+
+[colors]
+cursor = "#839496"
+selection = "#073642"
+foreground = "#839496"
+background = "#002b36"
+black = "#002b36"
+red = "#dc322f"
+green = "#859900"
+yellow = "#b58900"
+blue = "#268bd2"
+magenta = "#d33682"
+cyan = "#2aa198"
+white = "#eee8d5"
+bright_black = "#586e75"
+bright_red = "#cb4b16"
+bright_green = "#859900"
+bright_yellow = "#b58900"
+bright_blue = "#268bd2"
+bright_magenta = "#6c71c4"
+bright_cyan = "#2aa198"
+bright_white = "#fdf6e3"
+search_hit_background = "#b58900"
+search_hit_background_current = "#859900"
+search_hit_foreground = "#002b36"
+

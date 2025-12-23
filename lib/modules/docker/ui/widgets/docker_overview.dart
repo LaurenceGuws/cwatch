@@ -17,6 +17,7 @@ import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
+import 'package:cwatch/shared/widgets/section_nav_bar.dart';
 import '../engine_tab.dart';
 import '../docker_tab_factory.dart';
 import 'docker_lists.dart';
@@ -63,12 +64,14 @@ class DockerOverview extends StatefulWidget {
   State<DockerOverview> createState() => _DockerOverviewState();
 }
 
-class _DockerOverviewState extends State<DockerOverview> {
+class _DockerOverviewState extends State<DockerOverview>
+    with SingleTickerProviderStateMixin {
   late DockerOverviewController _controller;
   late final VoidCallback _controllerListener;
   late DockerOverviewActions _actions;
   late DockerOverviewMenus _menus;
   late final ContainerDistroManager _containerDistroManager;
+  late final TabController _tabController;
   final FocusNode _containerFocus = FocusNode(debugLabel: 'docker-containers');
   final Map<String, bool> _containerRunning = {};
   List<DockerImage> _currentImages = const [];
@@ -79,9 +82,26 @@ class _DockerOverviewState extends State<DockerOverview> {
   AppDockerTokens get _dockerTheme => context.appTheme.docker;
   bool _tabOptionsRegistered = false;
 
+  static const _tabs = [
+    Tab(text: 'Overview'),
+    Tab(text: 'Containers'),
+    Tab(text: 'Images'),
+    Tab(text: 'Networks'),
+    Tab(text: 'Volumes'),
+  ];
+
+  static const _tabIcons = [
+    Icons.dashboard_outlined,
+    Icons.apps_outlined,
+    Icons.layers_outlined,
+    Icons.lan_outlined,
+    Icons.storage_outlined,
+  ];
+
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: _tabs.length, vsync: this);
     _controller = DockerOverviewController(
       docker: widget.docker,
       contextName: widget.contextName,
@@ -152,6 +172,7 @@ class _DockerOverviewState extends State<DockerOverview> {
     _controller
       ..removeListener(_controllerListener)
       ..dispose();
+    _tabController.dispose();
     _containerFocus.dispose();
     super.dispose();
   }
@@ -218,12 +239,19 @@ class _DockerOverviewState extends State<DockerOverview> {
   Widget build(BuildContext context) {
     final dockerTheme = _dockerTheme;
     final spacing = context.appTheme.spacing;
-    return Padding(
-      padding: EdgeInsets.all(spacing.xs),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionNavBar(
+          title: 'Docker',
+          tabs: _tabs,
+          tabIcons: _tabIcons,
+          controller: _tabController,
+          showTitle: false,
+        ),
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.all(spacing.xs),
             child: FutureBuilder<EngineSnapshot>(
               future: _controller.snapshot,
               builder: (context, snapshot) {
@@ -284,89 +312,136 @@ class _DockerOverviewState extends State<DockerOverview> {
                   ),
                 ];
 
-                if (containers.isEmpty &&
-                    images.isEmpty &&
-                    networks.isEmpty &&
-                    volumes.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'No containers, images, networks, or volumes found.',
-                    ),
-                  );
-                }
-                return ListView(
+                return TabBarView(
+                  controller: _tabController,
                   children: [
-                    Wrap(
-                      spacing: spacing.sm,
-                      runSpacing: spacing.sm,
-                      children: statsCards,
-                    ),
-                    SizedBox(height: spacing.base),
-                    Focus(
-                      focusNode: _containerFocus,
-                      onKeyEvent: _handleContainerKey,
-                      child: SectionCard(
-                        title: 'Containers',
-                        child: ContainerPeek(
-                          containers: containers,
-                          onTapDown: _handleContainerTapDown,
-                          onSelectionChanged: _handleContainerSelectionChanged,
-                          selectedIds: _controller.selectedContainerIds,
-                          busyIds: _controller.containerActionInProgress.keys
-                              .toSet(),
-                          actionLabels: _controller.containerActionInProgress,
-                          onComposeAction: _handleComposeAction,
-                          onComposeForward: widget.remoteHost != null
-                              ? (project) => _actions.forwardComposePorts(
-                                  context,
-                                  project: project,
-                                )
-                              : null,
-                          onComposeStopForward: widget.remoteHost != null
-                              ? (_) => _actions.stopForwardsForHost(context)
-                              : null,
-                          settingsController: widget.settingsController,
+                    ListView(
+                      children: [
+                        Wrap(
+                          spacing: spacing.sm,
+                          runSpacing: spacing.sm,
+                          children: statsCards,
                         ),
-                      ),
+                        if (containers.isEmpty &&
+                            images.isEmpty &&
+                            networks.isEmpty &&
+                            volumes.isEmpty)
+                          Padding(
+                            padding: EdgeInsets.only(top: spacing.lg),
+                            child: const Center(
+                              child: Text(
+                                'No containers, images, networks, or volumes found.',
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                    SizedBox(height: spacing.xs),
-                    SectionCard(
-                      title: 'Images',
-                      child: ImagePeek(
-                        images: images,
-                        onTapDown: _handleImageTapDown,
-                        onSelectionChanged: _handleImageSelectionChanged,
-                        selectedIds: _controller.selectedImageKeys,
-                      ),
-                    ),
-                    SizedBox(height: spacing.xs),
-                    SectionCard(
-                      title: 'Networks',
-                      child: NetworkList(
-                        networks: networks,
-                        onTapDown: _handleNetworkTapDown,
-                        onSelectionChanged: _handleNetworkSelectionChanged,
-                        selectedIds: _controller.selectedNetworkKeys,
-                      ),
-                    ),
-                    SizedBox(height: spacing.xs),
-                    SectionCard(
-                      title: 'Volumes',
-                      child: VolumeList(
-                        volumes: volumes,
-                        onTapDown: _handleVolumeTapDown,
-                        onSelectionChanged: _handleVolumeSelectionChanged,
-                        selectedIds: _controller.selectedVolumeKeys,
-                      ),
-                    ),
+                    containers.isEmpty
+                        ? _buildEmptyTab('No containers found.')
+                        : ListView(
+                            children: [
+                              Focus(
+                                focusNode: _containerFocus,
+                                onKeyEvent: _handleContainerKey,
+                                child: SectionCard(
+                                  title: 'Containers',
+                                  child: ContainerPeek(
+                                    containers: containers,
+                                    onTapDown: _handleContainerTapDown,
+                                    onSelectionChanged:
+                                        _handleContainerSelectionChanged,
+                                    selectedIds:
+                                        _controller.selectedContainerIds,
+                                    busyIds:
+                                        _controller
+                                            .containerActionInProgress
+                                            .keys
+                                            .toSet(),
+                                    actionLabels:
+                                        _controller.containerActionInProgress,
+                                    onComposeAction: _handleComposeAction,
+                                    onComposeForward: widget.remoteHost != null
+                                        ? (project) =>
+                                            _actions.forwardComposePorts(
+                                              context,
+                                              project: project,
+                                            )
+                                        : null,
+                                    onComposeStopForward:
+                                        widget.remoteHost != null
+                                        ? (_) => _actions.stopForwardsForHost(
+                                            context,
+                                          )
+                                        : null,
+                                    settingsController:
+                                        widget.settingsController,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                    images.isEmpty
+                        ? _buildEmptyTab('No images found.')
+                        : ListView(
+                            children: [
+                              SectionCard(
+                                title: 'Images',
+                                child: ImagePeek(
+                                  images: images,
+                                  onTapDown: _handleImageTapDown,
+                                  onSelectionChanged:
+                                      _handleImageSelectionChanged,
+                                  selectedIds: _controller.selectedImageKeys,
+                                ),
+                              ),
+                            ],
+                          ),
+                    networks.isEmpty
+                        ? _buildEmptyTab('No networks found.')
+                        : ListView(
+                            children: [
+                              SectionCard(
+                                title: 'Networks',
+                                child: NetworkList(
+                                  networks: networks,
+                                  onTapDown: _handleNetworkTapDown,
+                                  onSelectionChanged:
+                                      _handleNetworkSelectionChanged,
+                                  selectedIds:
+                                      _controller.selectedNetworkKeys,
+                                ),
+                              ),
+                            ],
+                          ),
+                    volumes.isEmpty
+                        ? _buildEmptyTab('No volumes found.')
+                        : ListView(
+                            children: [
+                              SectionCard(
+                                title: 'Volumes',
+                                child: VolumeList(
+                                  volumes: volumes,
+                                  onTapDown: _handleVolumeTapDown,
+                                  onSelectionChanged:
+                                      _handleVolumeSelectionChanged,
+                                  selectedIds:
+                                      _controller.selectedVolumeKeys,
+                                ),
+                              ),
+                            ],
+                          ),
                   ],
                 );
               },
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
+  }
+
+  Widget _buildEmptyTab(String message) {
+    return Center(child: Text(message));
   }
 
   List<DockerContainer> _selectedContainersForAction(DockerContainer fallback) {

@@ -1,0 +1,28 @@
+# Base16 Gruvbox Light terminal theme for CWatch.
+
+name = "Base16 Gruvbox Light"
+
+[colors]
+cursor = "#3c3836"
+selection = "#d5c4a1"
+foreground = "#3c3836"
+background = "#fbf1c7"
+black = "#fbf1c7"
+red = "#cc241d"
+green = "#98971a"
+yellow = "#d79921"
+blue = "#458588"
+magenta = "#b16286"
+cyan = "#689d6a"
+white = "#7c6f64"
+bright_black = "#928374"
+bright_red = "#fb4934"
+bright_green = "#b8bb26"
+bright_yellow = "#fabd2f"
+bright_blue = "#83a598"
+bright_magenta = "#d3869b"
+bright_cyan = "#8ec07c"
+bright_white = "#282828"
+search_hit_background = "#d79921"
+search_hit_background_current = "#98971a"
+search_hit_foreground = "#fbf1c7"

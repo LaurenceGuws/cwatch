@@ -1,0 +1,29 @@
+# Elemental terminal theme for CWatch.
+
+name = "Elemental"
+
+[colors]
+cursor = "#ffffff"
+selection = "#4a4a4a"
+foreground = "#ffffff"
+background = "#1c1c1c"
+black = "#3c3c30"
+red = "#98290f"
+green = "#479a43"
+yellow = "#7f7111"
+blue = "#497f7d"
+magenta = "#7f4e2f"
+cyan = "#89b6fa"
+white = "#adad9e"
+bright_black = "#555555"
+bright_red = "#e0502a"
+bright_green = "#61e070"
+bright_yellow = "#d69927"
+bright_blue = "#5fd8ff"
+bright_magenta = "#ca6fda"
+bright_cyan = "#5fd8ff"
+bright_white = "#ffffff"
+search_hit_background = "#d69927"
+search_hit_background_current = "#61e070"
+search_hit_foreground = "#1c1c1c"
+

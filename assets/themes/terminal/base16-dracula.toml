@@ -1,0 +1,28 @@
+# Base16 Dracula terminal theme for CWatch.
+
+name = "Base16 Dracula"
+
+[colors]
+cursor = "#f8f8f2"
+selection = "#44475a"
+foreground = "#f8f8f2"
+background = "#282936"
+black = "#282936"
+red = "#ea51b2"
+green = "#00f769"
+yellow = "#ebff87"
+blue = "#62d6e8"
+magenta = "#b45bcf"
+cyan = "#a1efe4"
+white = "#e9e9f4"
+bright_black = "#626483"
+bright_red = "#ea51b2"
+bright_green = "#00f769"
+bright_yellow = "#ebff87"
+bright_blue = "#62d6e8"
+bright_magenta = "#b45bcf"
+bright_cyan = "#a1efe4"
+bright_white = "#f7f7fb"
+search_hit_background = "#ebff87"
+search_hit_background_current = "#00f769"
+search_hit_foreground = "#282936"

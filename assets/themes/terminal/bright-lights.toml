@@ -1,0 +1,28 @@
+# Bright Lights terminal theme for CWatch.
+
+name = "Bright Lights"
+
+[colors]
+cursor = "#ffffff"
+selection = "#4a4a4a"
+foreground = "#ffffff"
+background = "#191919"
+black = "#191919"
+red = "#ff355b"
+green = "#d9e778"
+yellow = "#ffc251"
+blue = "#4d99e1"
+magenta = "#ff6ac1"
+cyan = "#50c3bd"
+white = "#c7c7c7"
+bright_black = "#4a4a4a"
+bright_red = "#ff6e67"
+bright_green = "#b8e532"
+bright_yellow = "#ffb454"
+bright_blue = "#73d0ff"
+bright_magenta = "#ffa3aa"
+bright_cyan = "#7ff0cb"
+bright_white = "#ffffff"
+search_hit_background = "#ffc251"
+search_hit_background_current = "#ffb454"
+search_hit_foreground = "#191919"

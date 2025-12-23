@@ -1,0 +1,29 @@
+# IC Green PPL terminal theme for CWatch.
+
+name = "IC Green PPL"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#76ff9f"
+background = "#1f1f1f"
+black = "#1f1f1f"
+red = "#fb002a"
+green = "#339c24"
+yellow = "#659b00"
+blue = "#149b45"
+magenta = "#53b82c"
+cyan = "#2cb868"
+white = "#76ff9f"
+bright_black = "#555555"
+bright_red = "#fb002a"
+bright_green = "#339c24"
+bright_yellow = "#659b00"
+bright_blue = "#149b45"
+bright_magenta = "#53b82c"
+bright_cyan = "#2cb868"
+bright_white = "#76ff9f"
+search_hit_background = "#659b00"
+search_hit_background_current = "#339c24"
+search_hit_foreground = "#1f1f1f"
+

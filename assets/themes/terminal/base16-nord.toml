@@ -1,0 +1,28 @@
+# Base16 Nord terminal theme for CWatch.
+
+name = "Base16 Nord"
+
+[colors]
+cursor = "#d8dee9"
+selection = "#3b4252"
+foreground = "#d8dee9"
+background = "#2e3440"
+black = "#2e3440"
+red = "#bf616a"
+green = "#a3be8c"
+yellow = "#ebcb8b"
+blue = "#81a1c1"
+magenta = "#b48ead"
+cyan = "#88c0d0"
+white = "#e5e9f0"
+bright_black = "#4c566a"
+bright_red = "#bf616a"
+bright_green = "#a3be8c"
+bright_yellow = "#ebcb8b"
+bright_blue = "#81a1c1"
+bright_magenta = "#b48ead"
+bright_cyan = "#8fbcbb"
+bright_white = "#eceff4"
+search_hit_background = "#ebcb8b"
+search_hit_background_current = "#a3be8c"
+search_hit_foreground = "#2e3440"

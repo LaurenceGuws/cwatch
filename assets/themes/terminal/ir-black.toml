@@ -1,0 +1,28 @@
+# IR_Black terminal theme for CWatch.
+
+name = "IR_Black"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#f1f1f1"
+background = "#000000"
+black = "#000000"
+red = "#ff6c60"
+green = "#a8ff60"
+yellow = "#ffffb6"
+blue = "#96cbfe"
+magenta = "#ff73fd"
+cyan = "#c6c5fe"
+white = "#f1f1f1"
+bright_black = "#6c6c6c"
+bright_red = "#ffb6b0"
+bright_green = "#ceffac"
+bright_yellow = "#ffffcc"
+bright_blue = "#b5dcff"
+bright_magenta = "#ff9cff"
+bright_cyan = "#dfdffe"
+bright_white = "#ffffff"
+search_hit_background = "#ffffb6"
+search_hit_background_current = "#a8ff60"
+search_hit_foreground = "#000000"

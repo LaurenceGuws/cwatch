@@ -1,0 +1,29 @@
+# Galaxy terminal theme for CWatch.
+
+name = "Galaxy"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#ffffff"
+background = "#1d2837"
+black = "#000000"
+red = "#f9555f"
+green = "#21b089"
+yellow = "#fef02a"
+blue = "#589df6"
+magenta = "#944d95"
+cyan = "#1f9ee7"
+white = "#ffffff"
+bright_black = "#555555"
+bright_red = "#fa8c8f"
+bright_green = "#35bb9a"
+bright_yellow = "#ffff55"
+bright_blue = "#589df6"
+bright_magenta = "#e75699"
+bright_cyan = "#3979bc"
+bright_white = "#ffffff"
+search_hit_background = "#fef02a"
+search_hit_background_current = "#21b089"
+search_hit_foreground = "#1d2837"
+

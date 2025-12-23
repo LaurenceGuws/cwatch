@@ -1,0 +1,28 @@
+# Isotope terminal theme for CWatch.
+
+name = "Isotope"
+
+[colors]
+cursor = "#ffffff"
+selection = "#404040"
+foreground = "#ffffff"
+background = "#000000"
+black = "#000000"
+red = "#ff0000"
+green = "#33ff00"
+yellow = "#ff0099"
+blue = "#0066ff"
+magenta = "#cc00ff"
+cyan = "#00ffff"
+white = "#f0f0f0"
+bright_black = "#808080"
+bright_red = "#ff8080"
+bright_green = "#80ff80"
+bright_yellow = "#ff80ff"
+bright_blue = "#8080ff"
+bright_magenta = "#ff80ff"
+bright_cyan = "#80ffff"
+bright_white = "#ffffff"
+search_hit_background = "#ff0099"
+search_hit_background_current = "#ff00ff"
+search_hit_foreground = "#000000"

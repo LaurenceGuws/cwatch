@@ -1,0 +1,29 @@
+# Cobalt Neon terminal theme for CWatch.
+
+name = "Cobalt Neon"
+
+[colors]
+cursor = "#ffffff"
+selection = "#193549"
+foreground = "#ffffff"
+background = "#142838"
+black = "#142838"
+red = "#ff0000"
+green = "#00ff00"
+yellow = "#ffff00"
+blue = "#0088ff"
+magenta = "#ff00ff"
+cyan = "#00ffff"
+white = "#ffffff"
+bright_black = "#1e1e1e"
+bright_red = "#ff6e67"
+bright_green = "#5af78e"
+bright_yellow = "#f3f99d"
+bright_blue = "#57c7ff"
+bright_magenta = "#ff6ac1"
+bright_cyan = "#9aedfe"
+bright_white = "#ffffff"
+search_hit_background = "#ffff00"
+search_hit_background_current = "#00ff00"
+search_hit_foreground = "#142838"
+

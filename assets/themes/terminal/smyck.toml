@@ -1,0 +1,29 @@
+# Smyck terminal theme for CWatch.
+
+name = "Smyck"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#f7f7f7"
+background = "#1b1b1b"
+black = "#000000"
+red = "#c75646"
+green = "#8eb33b"
+yellow = "#d0b03c"
+blue = "#72b3cc"
+magenta = "#c8a98f"
+cyan = "#218693"
+white = "#b0b0b0"
+bright_black = "#5d5d5d"
+bright_red = "#e09690"
+bright_green = "#cdee69"
+bright_yellow = "#ffe377"
+bright_blue = "#9cd9f0"
+bright_magenta = "#fbbadf"
+bright_cyan = "#77dfd8"
+bright_white = "#f7f7f7"
+search_hit_background = "#d0b03c"
+search_hit_background_current = "#8eb33b"
+search_hit_foreground = "#1b1b1b"
+

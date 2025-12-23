@@ -7,12 +7,18 @@ import '../../services/ssh/terminal_session.dart';
 import '../../services/window/window_chrome_service.dart';
 import '../navigation/app_shell.dart';
 import '../../shared/theme/app_theme.dart';
+import '../../shared/theme/theme_config_loader.dart';
+import '../../shared/views/shared/tabs/terminal/terminal_theme_presets.dart';
 
 Future<void> runAppBootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
   await LocalPtySession.cleanupStaleSessions();
   final settingsController = AppSettingsController();
   await settingsController.load();
+  await ensureThemeExamples();
+  await loadAssetTerminalThemes();
+  await reloadUserTerminalThemes();
+  await applyThemeConfigOverrides(settingsController);
   await WindowChromeService().ensureInitialized(settingsController.settings);
   runApp(CwatchApp(settingsController: settingsController));
 }
@@ -115,10 +121,7 @@ class _CwatchAppState extends State<CwatchApp> {
           borderRadius: baseRadius,
           borderSide: BorderSide(color: scheme.primary),
         ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 8,
-          vertical: 6,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       ),
       scrollbarTheme: ScrollbarThemeData(
         radius: const Radius.circular(2),

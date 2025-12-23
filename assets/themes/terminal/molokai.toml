@@ -1,0 +1,29 @@
+# Molokai terminal theme for CWatch.
+
+name = "Molokai"
+
+[colors]
+cursor = "#f8f8f0"
+selection = "#49483e"
+foreground = "#f8f8f2"
+background = "#1e1e1e"
+black = "#1e1e1e"
+red = "#960050"
+green = "#00aa00"
+yellow = "#d0af00"
+blue = "#0087d7"
+magenta = "#d70087"
+cyan = "#00afaf"
+white = "#d0d0d0"
+bright_black = "#808080"
+bright_red = "#d7005f"
+bright_green = "#5faf5f"
+bright_yellow = "#ffd700"
+bright_blue = "#5fafff"
+bright_magenta = "#af5fff"
+bright_cyan = "#5fd7ff"
+bright_white = "#ffffff"
+search_hit_background = "#d0af00"
+search_hit_background_current = "#ff8700"
+search_hit_foreground = "#1e1e1e"
+

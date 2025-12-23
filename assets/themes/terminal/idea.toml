@@ -1,0 +1,29 @@
+# Idea terminal theme for CWatch.
+
+name = "Idea"
+
+[colors]
+cursor = "#bbbbbb"
+selection = "#4a4a4a"
+foreground = "#bbbbbb"
+background = "#ffffff"
+black = "#000000"
+red = "#000080"
+green = "#008000"
+yellow = "#008080"
+blue = "#0000ff"
+magenta = "#800080"
+cyan = "#008080"
+white = "#c0c0c0"
+bright_black = "#808080"
+bright_red = "#0000ff"
+bright_green = "#00ff00"
+bright_yellow = "#00ffff"
+bright_blue = "#0000ff"
+bright_magenta = "#ff00ff"
+bright_cyan = "#00ffff"
+bright_white = "#ffffff"
+search_hit_background = "#008080"
+search_hit_background_current = "#008000"
+search_hit_foreground = "#ffffff"
+

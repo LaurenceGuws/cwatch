@@ -1,0 +1,29 @@
+# Hybrid terminal theme for CWatch.
+
+name = "Hybrid"
+
+[colors]
+cursor = "#ffffff"
+selection = "#373b41"
+foreground = "#c5c8c6"
+background = "#232c31"
+black = "#2a2a2a"
+red = "#d75f5f"
+green = "#afaf00"
+yellow = "#ffd700"
+blue = "#5f87ff"
+magenta = "#af5fd7"
+cyan = "#5fafaf"
+white = "#e4e4e4"
+bright_black = "#626262"
+bright_red = "#ff8787"
+bright_green = "#ffff00"
+bright_yellow = "#ffff5f"
+bright_blue = "#87afff"
+bright_magenta = "#d787d7"
+bright_cyan = "#87ffff"
+bright_white = "#ffffff"
+search_hit_background = "#ffd700"
+search_hit_background_current = "#ff8700"
+search_hit_foreground = "#232c31"
+

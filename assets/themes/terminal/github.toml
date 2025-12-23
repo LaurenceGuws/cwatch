@@ -1,0 +1,29 @@
+# Github terminal theme for CWatch.
+
+name = "Github"
+
+[colors]
+cursor = "#3e3e3e"
+selection = "#c8e1ff"
+foreground = "#3e3e3e"
+background = "#ffffff"
+black = "#3e3e3e"
+red = "#970b16"
+green = "#07962a"
+yellow = "#f8eec7"
+blue = "#003e8a"
+magenta = "#e94691"
+cyan = "#89d1ec"
+white = "#ffffff"
+bright_black = "#666666"
+bright_red = "#de0000"
+bright_green = "#87d5a2"
+bright_yellow = "#f1d007"
+bright_blue = "#2e6cba"
+bright_magenta = "#ffa29f"
+bright_cyan = "#1cfafe"
+bright_white = "#ffffff"
+search_hit_background = "#f8eec7"
+search_hit_background_current = "#f1d007"
+search_hit_foreground = "#3e3e3e"
+

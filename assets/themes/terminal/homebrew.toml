@@ -1,0 +1,29 @@
+# Homebrew terminal theme for CWatch.
+
+name = "Homebrew"
+
+[colors]
+cursor = "#ffffff"
+selection = "#444444"
+foreground = "#00ff00"
+background = "#000000"
+black = "#000000"
+red = "#990000"
+green = "#00ff00"
+yellow = "#999900"
+blue = "#0000b2"
+magenta = "#b200b2"
+cyan = "#00b2b2"
+white = "#b2b2b2"
+bright_black = "#666666"
+bright_red = "#e50000"
+bright_green = "#00ff00"
+bright_yellow = "#e5e500"
+bright_blue = "#0000ff"
+bright_magenta = "#e500e5"
+bright_cyan = "#00e5e5"
+bright_white = "#ffffff"
+search_hit_background = "#999900"
+search_hit_background_current = "#00ff00"
+search_hit_foreground = "#000000"
+

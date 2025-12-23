@@ -1,0 +1,29 @@
+# Glacier terminal theme for CWatch.
+
+name = "Glacier"
+
+[colors]
+cursor = "#ffffff"
+selection = "#4a4a4a"
+foreground = "#ffffff"
+background = "#0c1115"
+black = "#0c1115"
+red = "#c21900"
+green = "#00a600"
+yellow = "#c7a000"
+blue = "#0082c9"
+magenta = "#c200c2"
+cyan = "#00c5c7"
+white = "#c7c7c7"
+bright_black = "#686868"
+bright_red = "#ff443e"
+bright_green = "#00ff00"
+bright_yellow = "#ffd700"
+bright_blue = "#00b4ff"
+bright_magenta = "#ff00ff"
+bright_cyan = "#00ffff"
+bright_white = "#ffffff"
+search_hit_background = "#c7a000"
+search_hit_background_current = "#00a600"
+search_hit_foreground = "#0c1115"
+

@@ -1,0 +1,28 @@
+# Dot Gov terminal theme for CWatch.
+
+name = "Dot Gov"
+
+[colors]
+cursor = "#ffffff"
+selection = "#2a2a2a"
+foreground = "#ffffff"
+background = "#262c35"
+black = "#191919"
+red = "#bf091d"
+green = "#3d9751"
+yellow = "#f6bb34"
+blue = "#17b2e0"
+magenta = "#7830bc"
+cyan = "#8abeb7"
+white = "#ffffff"
+bright_black = "#191919"
+bright_red = "#bf091d"
+bright_green = "#3d9751"
+bright_yellow = "#f6bb34"
+bright_blue = "#17b2e0"
+bright_magenta = "#7830bc"
+bright_cyan = "#8abeb7"
+bright_white = "#ffffff"
+search_hit_background = "#f6bb34"
+search_hit_background_current = "#f6bb34"
+search_hit_foreground = "#262c35"

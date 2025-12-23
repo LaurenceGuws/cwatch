@@ -1,0 +1,29 @@
+# Apprentice terminal theme for CWatch.
+
+name = "Apprentice"
+
+[colors]
+cursor = "#bcbcbc"
+selection = "#262626"
+foreground = "#bcbcbc"
+background = "#262626"
+black = "#1c1c1c"
+red = "#5f8787"
+green = "#87af87"
+yellow = "#5f8787"
+blue = "#5f87af"
+magenta = "#8787af"
+cyan = "#5fafaf"
+white = "#6c6c6c"
+bright_black = "#444444"
+bright_red = "#bcbcbc"
+bright_green = "#afd787"
+bright_yellow = "#d7d7af"
+bright_blue = "#87afd7"
+bright_magenta = "#afafd7"
+bright_cyan = "#87d7d7"
+bright_white = "#ffffff"
+search_hit_background = "#5f8787"
+search_hit_background_current = "#ff8700"
+search_hit_foreground = "#262626"
+
