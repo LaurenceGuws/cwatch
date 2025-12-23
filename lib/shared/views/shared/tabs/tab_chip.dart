@@ -140,7 +140,6 @@ class _TabChipState extends State<TabChip> {
       selected: widget.selected,
       spacing: spacing,
     );
-    final bleed = spacing.xs * 0.1;
     final foreground = widget.selected
         ? colorScheme.primary
         : colorScheme.onSurfaceVariant.withValues(alpha: 0.85);
@@ -160,12 +159,28 @@ class _TabChipState extends State<TabChip> {
         ? Colors.transparent
         : colorScheme.outlineVariant.withValues(alpha: 0.2);
     final radius = BorderRadius.zero;
+    // Pressed key effect: inset shadows to create depth
     final boxShadow = widget.selected
         ? [
+            // Top/left shadow (darker) - creates inset effect
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.14),
-              blurRadius: 10,
-              spreadRadius: 0.15,
+              color: Colors.black.withValues(alpha: 0.3),
+              blurRadius: 4,
+              spreadRadius: 0,
+              offset: const Offset(-1, -1),
+            ),
+            // Bottom/right highlight (lighter) - creates depth
+            BoxShadow(
+              color: Colors.white.withValues(alpha: 0.1),
+              blurRadius: 2,
+              spreadRadius: 0,
+              offset: const Offset(1, 1),
+            ),
+            // Overall depth shadow
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 8,
+              spreadRadius: 0,
               offset: const Offset(0, 2),
             ),
           ]
@@ -189,7 +204,7 @@ class _TabChipState extends State<TabChip> {
           menuOptions,
         ),
         child: Transform.translate(
-          offset: Offset(0, widget.selected ? -bleed : 0),
+          offset: Offset(0, widget.selected ? 1 : 0), // Slight press down effect
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeOutCubic,
@@ -318,8 +333,8 @@ class _TabChipState extends State<TabChip> {
                 ),
                 if (widget.selected || _hovering)
                   Positioned(
-                    left: spacing.xs,
-                    right: spacing.xs,
+                    left: 0,
+                    right: 0,
                     top: 0,
                     child: Container(
                       height: 2,
@@ -327,19 +342,32 @@ class _TabChipState extends State<TabChip> {
                         color: widget.selected
                             ? colorScheme.primary
                             : colorScheme.primary.withValues(alpha: 0.25),
-                        borderRadius: BorderRadius.circular(4),
                       ),
                     ),
                   ),
+                // Left border
+                if (widget.selected)
+                  Positioned(
+                    top: 0,
+                    bottom: 0,
+                    left: 0,
+                    child: Container(
+                      width: 1,
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                // Right border
                 Positioned(
-                  top: 4,
-                  bottom: 4,
+                  top: 0,
+                  bottom: 0,
                   right: 0,
                   child: Container(
                     width: 1,
-                    color: colorScheme.outlineVariant.withValues(
-                      alpha: widget.selected ? 0.2 : (_hovering ? 0.35 : 0.0),
-                    ),
+                    color: widget.selected
+                        ? colorScheme.primary
+                        : colorScheme.primary.withValues(
+                            alpha: _hovering ? 0.3 : 0.2,
+                          ),
                   ),
                 ),
                 ],
@@ -687,3 +715,4 @@ class _TabLipPainter extends CustomPainter {
         boxShadow != oldDelegate.boxShadow;
   }
 }
+

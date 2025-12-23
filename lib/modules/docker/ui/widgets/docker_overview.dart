@@ -22,7 +22,6 @@ import '../engine_tab.dart';
 import '../docker_tab_factory.dart';
 import 'docker_lists.dart';
 import 'docker_shared.dart';
-import 'section_card.dart';
 import 'docker_overview_controller.dart';
 import 'docker_overview_actions.dart';
 import 'package:cwatch/modules/docker/services/container_distro_manager.dart';
@@ -343,8 +342,6 @@ class _DockerOverviewState extends State<DockerOverview>
                               Focus(
                                 focusNode: _containerFocus,
                                 onKeyEvent: _handleContainerKey,
-                                child: SectionCard(
-                                  title: 'Containers',
                                   child: ContainerPeek(
                                     containers: containers,
                                     onTapDown: _handleContainerTapDown,
@@ -375,7 +372,6 @@ class _DockerOverviewState extends State<DockerOverview>
                                         : null,
                                     settingsController:
                                         widget.settingsController,
-                                  ),
                                 ),
                               ),
                             ],
@@ -384,15 +380,12 @@ class _DockerOverviewState extends State<DockerOverview>
                         ? _buildEmptyTab('No images found.')
                         : ListView(
                             children: [
-                              SectionCard(
-                                title: 'Images',
-                                child: ImagePeek(
+                              ImagePeek(
                                   images: images,
                                   onTapDown: _handleImageTapDown,
                                   onSelectionChanged:
                                       _handleImageSelectionChanged,
                                   selectedIds: _controller.selectedImageKeys,
-                                ),
                               ),
                             ],
                           ),
@@ -400,16 +393,13 @@ class _DockerOverviewState extends State<DockerOverview>
                         ? _buildEmptyTab('No networks found.')
                         : ListView(
                             children: [
-                              SectionCard(
-                                title: 'Networks',
-                                child: NetworkList(
+                              NetworkList(
                                   networks: networks,
                                   onTapDown: _handleNetworkTapDown,
                                   onSelectionChanged:
                                       _handleNetworkSelectionChanged,
                                   selectedIds:
                                       _controller.selectedNetworkKeys,
-                                ),
                               ),
                             ],
                           ),
@@ -417,16 +407,13 @@ class _DockerOverviewState extends State<DockerOverview>
                         ? _buildEmptyTab('No volumes found.')
                         : ListView(
                             children: [
-                              SectionCard(
-                                title: 'Volumes',
-                                child: VolumeList(
+                              VolumeList(
                                   volumes: volumes,
                                   onTapDown: _handleVolumeTapDown,
                                   onSelectionChanged:
                                       _handleVolumeSelectionChanged,
                                   selectedIds:
                                       _controller.selectedVolumeKeys,
-                                ),
                               ),
                             ],
                           ),

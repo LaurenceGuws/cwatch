@@ -371,15 +371,9 @@ class RemoteHostList extends StatelessWidget {
   ) {
     return [
       StructuredDataColumn<RemoteDockerStatus>(
-        label: 'Distro',
-        width: 64,
-        autoFitText: (status) => labelForDistro(_slugForHost(status.host)),
-        cellBuilder: _buildDistroCell,
-      ),
-      StructuredDataColumn<RemoteDockerStatus>(
         label: 'Host',
-        autoFitText: (status) => status.host.name,
-        cellBuilder: (context, status) => _buildHostCell(context, status.host),
+        autoFitText: (status) => '${status.host.name} ${_hostAddress(status.host)}',
+        cellBuilder: (context, status) => _buildCombinedCell(context, status),
       ),
       StructuredDataColumn<RemoteDockerStatus>(
         label: 'Status',
@@ -389,26 +383,58 @@ class RemoteHostList extends StatelessWidget {
     ];
   }
 
-  Widget _buildHostCell(BuildContext context, SshHost host) {
+  Widget _buildCombinedCell(BuildContext context, RemoteDockerStatus status) {
+    final host = status.host;
     final address = _hostAddress(host);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          host.name,
-          style: Theme.of(context).textTheme.titleMedium,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        Text(
-          address,
-          style: Theme.of(context).textTheme.bodySmall,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
+    final scheme = Theme.of(context).colorScheme;
+    final iconSize = _leadingIconSize(context);
+    final statusColor = status.available ? scheme.primary : scheme.error;
+    return AnimatedBuilder(
+      animation: settingsController,
+      builder: (context, _) {
+        final slug = _slugForHost(host);
+        final iconColor = colorForDistro(slug, context.appTheme);
+        return ClipRect(
+          child: Row(
+            children: [
+              Tooltip(
+                message: labelForDistro(slug),
+                child: DistroLeadingSlot(
+                  slug: slug,
+                  iconSize: iconSize,
+                  iconColor: iconColor,
+                  statusColor: statusColor,
+                  statusDotScale: 10 / iconSize,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      host.name,
+                      style: Theme.of(context).textTheme.titleMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      address,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        height: 1.0,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -427,28 +453,6 @@ class RemoteHostList extends StatelessWidget {
     )];
   }
 
-  Widget _buildDistroCell(BuildContext context, RemoteDockerStatus status) {
-    final scheme = Theme.of(context).colorScheme;
-    final iconSize = _leadingIconSize(context);
-    final statusColor = status.available ? scheme.primary : scheme.error;
-    return AnimatedBuilder(
-      animation: settingsController,
-      builder: (context, _) {
-        final slug = _slugForHost(status.host);
-        final iconColor = colorForDistro(slug, context.appTheme);
-        return Tooltip(
-          message: labelForDistro(slug),
-          child: DistroLeadingSlot(
-            slug: slug,
-            iconSize: iconSize,
-            iconColor: iconColor,
-            statusColor: statusColor,
-            statusDotScale: 10 / iconSize,
-          ),
-        );
-      },
-    );
-  }
 }
 
 class EngineButton extends StatelessWidget {

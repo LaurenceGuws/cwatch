@@ -16,7 +16,7 @@ class StructuredDataColumn<T> {
     required this.label,
     required this.cellBuilder,
     this.tooltip,
-    this.flex = 1,
+    this.flex = 0,
     this.alignment = Alignment.centerLeft,
     this.width,
     this.minWidth,
@@ -248,7 +248,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
   late final ScrollController _horizontalController;
   late final bool _ownsVerticalController;
   late final bool _ownsHorizontalController;
-  static const double _defaultMinFlexColumnWidth = 120;
+  static const double _defaultMinFlexColumnWidth = 300;
   late List<StructuredDataColumn<T>> _columns;
   late List<double?> _columnWidthOverrides;
   int? _sortColumnIndex;
@@ -2201,13 +2201,18 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       final override = i < _columnWidthOverrides.length
           ? _columnWidthOverrides[i]
           : null;
-      final isFixed = override != null || column.width != null;
+      final isFixed = override != null || column.width != null || column.flex == 0;
       if (!isFixed) {
         flexIndices.add(i);
         totalFlex += column.flex;
       } else {
-        final target = override ?? column.width ?? 0.0;
-        fixedWidth += max(column.minWidth ?? 0, target);
+        if (override != null || column.width != null) {
+          final target = override ?? column.width ?? 0.0;
+          fixedWidth += max(column.minWidth ?? 0, target);
+        } else {
+          // flex == 0, use minWidth or default
+          fixedWidth += max(_defaultMinFlexColumnWidth, column.minWidth ?? 0);
+        }
       }
     }
 
@@ -2230,6 +2235,11 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       }
       if (column.width != null) {
         widths.add(max(column.minWidth ?? 0, column.width!));
+        continue;
+      }
+      if (column.flex == 0) {
+        // Non-flexing column, use minWidth or default
+        widths.add(max(_defaultMinFlexColumnWidth, column.minWidth ?? 0));
         continue;
       }
       final flexShare = totalFlex == 0 ? remainingForFlex : remainingForFlex / totalFlex;

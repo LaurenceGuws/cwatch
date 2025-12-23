@@ -205,21 +205,9 @@ class _HostListState extends State<HostList> {
   List<StructuredDataColumn<SshHost>> _columns() {
     return [
       StructuredDataColumn<SshHost>(
-        label: 'Distro',
-        width: 64,
-        autoFitText: (host) => labelForDistro(_slugForHost(host)),
-        cellBuilder: _buildDistroCell,
-      ),
-      StructuredDataColumn<SshHost>(
-        label: 'Name',
-        autoFitText: (host) => host.name,
-        cellBuilder: (context, host) =>
-            Text(host.name, style: Theme.of(context).textTheme.titleMedium),
-      ),
-      StructuredDataColumn<SshHost>(
-        label: 'Host',
-        autoFitText: (host) => host.hostname,
-        cellBuilder: (context, host) => Text(host.hostname),
+        label: 'Server',
+        autoFitText: (host) => '${host.name} ${host.hostname}',
+        cellBuilder: _buildCombinedCell,
       ),
       StructuredDataColumn<SshHost>(
         label: 'Port',
@@ -235,11 +223,10 @@ class _HostListState extends State<HostList> {
     ];
   }
 
-  Widget _buildDistroCell(BuildContext context, SshHost host) {
+  Widget _buildCombinedCell(BuildContext context, SshHost host) {
     final scheme = Theme.of(context).colorScheme;
     final statusColor = host.available ? scheme.primary : scheme.error;
     final iconSize = _distroIconSize(context);
-    final iconColor = colorForDistro(_slugForHost(host), context.appTheme);
     return AnimatedBuilder(
       animation: widget.settingsController,
       builder: (context, _) {
@@ -247,14 +234,43 @@ class _HostListState extends State<HostList> {
             .settingsController
             .settings
             .serverDistroMap[hostDistroCacheKey(host)];
-        return Tooltip(
-          message: labelForDistro(slug),
-          child: DistroLeadingSlot(
-            slug: slug,
-            iconSize: iconSize,
-            iconColor: iconColor,
-            statusColor: statusColor,
-          ),
+        final iconColor = colorForDistro(slug, context.appTheme);
+        return Row(
+          children: [
+            Tooltip(
+              message: labelForDistro(slug),
+              child: DistroLeadingSlot(
+                slug: slug,
+                iconSize: iconSize,
+                iconColor: iconColor,
+                statusColor: statusColor,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    host.name,
+                    style: Theme.of(context).textTheme.titleMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    host.hostname,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      height: 1.0,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
         );
       },
     );
@@ -359,8 +375,4 @@ class _HostListState extends State<HostList> {
     return titleSize * 1.9;
   }
 
-  String? _slugForHost(SshHost host) {
-    final settings = widget.settingsController.settings;
-    return settings.serverDistroMap[hostDistroCacheKey(host)];
-  }
 }
