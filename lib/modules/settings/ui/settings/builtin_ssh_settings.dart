@@ -10,6 +10,7 @@ import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_entry.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
+import 'package:cwatch/shared/widgets/form_spacer.dart';
 
 /// Built-in SSH settings widget for managing SSH keys
 class BuiltInSshSettings extends StatefulWidget {
@@ -365,10 +366,10 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(height: spacing.lg),
-        SizedBox(height: spacing.lg),
+        const FormSpacer(),
+        const FormSpacer(),
         _buildAddKeyForm(context),
-        SizedBox(height: spacing.lg),
+        const FormSpacer(),
         FutureBuilder<List<BuiltInSshKeyEntry>>(
           future: _keysFuture,
           builder: (context, snapshot) {
@@ -420,7 +421,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
             child: const Text('Clear unlocked keys'),
           ),
         ),
-        SizedBox(height: spacing.lg),
+        const FormSpacer(),
         FutureBuilder<List<BuiltInSshKeyEntry>>(
           future: _keysFuture,
           builder: (context, keysSnapshot) {

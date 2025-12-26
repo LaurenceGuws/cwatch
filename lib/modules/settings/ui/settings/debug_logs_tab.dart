@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:cwatch/services/ssh/remote_command_logging.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
+import 'package:cwatch/shared/widgets/form_spacer.dart';
 
 class DebugLogsTab extends StatelessWidget {
   const DebugLogsTab({
@@ -32,7 +33,7 @@ class DebugLogsTab extends StatelessWidget {
                     size: 48,
                     color: Theme.of(context).colorScheme.primary,
                   ),
-                  SizedBox(height: spacing.lg),
+                  const FormSpacer(),
                   Text(
                     debugEnabled
                         ? 'No SSH activity logged yet.'

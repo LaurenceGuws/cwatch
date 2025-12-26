@@ -11,6 +11,7 @@ import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
+import 'package:cwatch/shared/widgets/form_spacer.dart';
 import 'builtin_ssh_settings.dart';
 import 'settings_section.dart';
 
@@ -180,7 +181,7 @@ class _ServersSettingsTabState extends State<ServersSettingsTab> {
                     const Text('No additional config files added yet.'),
                 ],
               ),
-              SizedBox(height: spacing.lg),
+              const FormSpacer(),
               Align(
                 alignment: Alignment.centerLeft,
                 child: ElevatedButton.icon(

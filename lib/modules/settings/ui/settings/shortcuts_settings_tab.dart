@@ -6,6 +6,7 @@ import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_binding.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_definition.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
+import 'package:cwatch/shared/widgets/form_spacer.dart';
 import 'settings_section.dart';
 
 class ShortcutsSettingsTab extends StatelessWidget {
@@ -106,7 +107,7 @@ class ShortcutCategorySection extends StatelessWidget {
             'Configure key bindings. Leave a field empty to use the default.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
-          SizedBox(height: spacing.lg),
+          const FormSpacer(),
           if (definitions.isEmpty)
             Text(
               'No shortcuts available for this section yet.',

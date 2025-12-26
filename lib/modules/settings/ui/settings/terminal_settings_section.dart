@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:cwatch/shared/views/shared/tabs/terminal/terminal_theme_presets.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
+import 'package:cwatch/shared/widgets/form_spacer.dart';
 
 import 'settings_section.dart';
 
@@ -84,7 +85,7 @@ class _TerminalSettingsSectionState extends State<TerminalSettingsSection> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
-          SizedBox(height: spacing.lg),
+          const FormSpacer(),
           const _GroupLabel('Typography'),
           TextFormField(
             controller: _fontController,
@@ -94,7 +95,7 @@ class _TerminalSettingsSectionState extends State<TerminalSettingsSection> {
             ),
             onChanged: widget.onFontFamilyChanged,
           ),
-          SizedBox(height: spacing.lg),
+          const FormSpacer(),
           _SliderRow(
             label: 'Font size',
             valueLabel: widget.fontSize.toStringAsFixed(1),
@@ -119,7 +120,7 @@ class _TerminalSettingsSectionState extends State<TerminalSettingsSection> {
               onChanged: widget.onLineHeightChanged,
             ),
           ),
-          SizedBox(height: spacing.lg),
+          const FormSpacer(),
           const _GroupLabel('Padding'),
           _SliderRow(
             label: 'Horizontal padding',
@@ -145,14 +146,14 @@ class _TerminalSettingsSectionState extends State<TerminalSettingsSection> {
               onChanged: widget.onPaddingYChanged,
             ),
           ),
-          SizedBox(height: spacing.lg),
+          const FormSpacer(),
           const _GroupLabel('Color themes'),
           _ThemePickerRow(
             label: 'Light theme',
             value: widget.lightTheme,
             onChanged: widget.onLightThemeChanged,
           ),
-          SizedBox(height: spacing.lg),
+          const FormSpacer(),
           _ThemePickerRow(
             label: 'Dark theme',
             value: widget.darkTheme,

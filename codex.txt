@@ -1,2 +1,0 @@
- wsl started
- 	codex resume 019b24ae-3f6f-7342-8c5b-f692761002ac

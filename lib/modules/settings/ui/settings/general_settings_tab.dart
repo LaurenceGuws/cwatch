@@ -5,6 +5,7 @@ import 'package:cwatch/models/app_settings.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/models/input_mode_preference.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_definition.dart';
+import 'package:cwatch/shared/widgets/form_spacer.dart';
 import '../../../../shared/theme/app_theme.dart';
 import 'settings_section.dart';
 import 'shortcuts_settings_tab.dart';
@@ -81,7 +82,7 @@ class GeneralSettingsTab extends StatelessWidget {
                   DropdownMenuItem(value: ThemeMode.dark, child: Text('Dark')),
                 ],
               ),
-              SizedBox(height: spacing.lg),
+              const FormSpacer(),
               TextFormField(
                 initialValue: appFontFamily ?? '',
                 decoration: const InputDecoration(
@@ -90,7 +91,7 @@ class GeneralSettingsTab extends StatelessWidget {
                 ),
                 onChanged: onAppFontFamilyChanged,
               ),
-              SizedBox(height: spacing.lg),
+              const FormSpacer(),
               DropdownButtonFormField<String>(
                 initialValue: appThemeKey,
                 decoration: const InputDecoration(labelText: 'App accent'),

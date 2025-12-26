@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:cwatch/shared/theme/app_theme.dart';
+import 'package:cwatch/shared/widgets/form_spacer.dart';
 import 'settings_section.dart';
 
 class EditorSettingsSection extends StatefulWidget {
@@ -74,7 +75,7 @@ class _EditorSettingsSectionState extends State<EditorSettingsSection> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
-          SizedBox(height: spacing.lg),
+          const FormSpacer(),
           TextFormField(
             controller: _fontController,
             decoration: const InputDecoration(
@@ -83,7 +84,7 @@ class _EditorSettingsSectionState extends State<EditorSettingsSection> {
             ),
             onChanged: widget.onFontFamilyChanged,
           ),
-          SizedBox(height: spacing.lg),
+          const FormSpacer(),
           _SliderRow(
             label: 'Font size',
             valueLabel: widget.fontSize.toStringAsFixed(1),
@@ -108,14 +109,14 @@ class _EditorSettingsSectionState extends State<EditorSettingsSection> {
               onChanged: widget.onLineHeightChanged,
             ),
           ),
-          SizedBox(height: spacing.lg),
+          const FormSpacer(),
           const _GroupLabel('Highlighting'),
           _ThemePickerRow(
             label: 'Light theme',
             value: widget.lightTheme ?? 'atom-one-light',
             onChanged: widget.onLightThemeChanged,
           ),
-          SizedBox(height: spacing.lg),
+          const FormSpacer(),
           _ThemePickerRow(
             label: 'Dark theme',
             value: widget.darkTheme ?? 'atom-one-dark',
