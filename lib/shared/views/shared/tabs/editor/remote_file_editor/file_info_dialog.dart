@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:cwatch/shared/theme/app_theme.dart';
+
 class _InfoRow extends StatelessWidget {
   const _InfoRow({required this.label, required this.value});
 
@@ -33,6 +35,7 @@ Future<void> showFileInfoDialog({
 }) async {
   final lines = content.isEmpty ? 0 : content.split('\n').length;
   final textTheme = Theme.of(context).textTheme;
+  final spacing = context.appTheme.spacing;
 
   await showDialog(
     context: context,
@@ -43,20 +46,20 @@ Future<void> showFileInfoDialog({
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _InfoRow(label: 'Path', value: path),
-          const SizedBox(height: 8),
+          SizedBox(height: spacing.md),
           _InfoRow(label: 'Lines', value: '$lines'),
-          const SizedBox(height: 8),
+          SizedBox(height: spacing.md),
           _InfoRow(label: 'Characters', value: '${content.length}'),
-          const SizedBox(height: 8),
+          SizedBox(height: spacing.md),
           _InfoRow(label: 'Language', value: language ?? 'Unknown'),
           if (parserName != null) ...[
-            const SizedBox(height: 8),
+            SizedBox(height: spacing.md),
             _InfoRow(label: 'Parser', value: parserName),
           ],
           if (helperText != null) ...[
-            const SizedBox(height: 16),
+            SizedBox(height: spacing.xl),
             Text('Notes', style: textTheme.titleMedium),
-            const SizedBox(height: 4),
+            SizedBox(height: spacing.sm),
             Text(helperText, style: textTheme.bodySmall),
           ],
         ],

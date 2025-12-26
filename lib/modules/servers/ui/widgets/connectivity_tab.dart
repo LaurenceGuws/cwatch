@@ -144,10 +144,10 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
             ),
           ),
         if (_loading)
-          const Center(
+          Center(
             child: Padding(
-              padding: EdgeInsets.all(32),
-              child: CircularProgressIndicator(),
+              padding: EdgeInsets.all(spacing.base * 8),
+              child: const CircularProgressIndicator(),
             ),
           )
         else
@@ -169,6 +169,7 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
   Widget _buildStatGrid(BuildContext context) {
     final appTheme = context.appTheme;
     final spacing = appTheme.spacing;
+    final scheme = Theme.of(context).colorScheme;
     final series = _seriesWindow();
     final stats = [
       _StatDisplay(
@@ -176,7 +177,7 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
         value: '${_stats.latencyMs.toStringAsFixed(1)} ms',
         trend: _stats.latencyTrend,
         icon: NerdIcon.accessPoint.data,
-        color: Colors.blueAccent,
+        color: scheme.primary,
         sparkline: series.latency,
       ),
       _StatDisplay(
@@ -184,7 +185,7 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
         value: '${_stats.jitterMs.toStringAsFixed(1)} ms',
         trend: _stats.jitterTrend,
         icon: NerdIcon.fileCode.data,
-        color: Colors.purpleAccent,
+        color: scheme.secondary,
         sparkline: series.jitter,
       ),
       _StatDisplay(
@@ -192,7 +193,7 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
         value: '${_stats.packetLossPct.toStringAsFixed(2)} %',
         trend: _stats.packetLossTrend,
         icon: NerdIcon.alert.data,
-        color: Colors.orangeAccent,
+        color: scheme.error,
         sparkline: series.packetLoss,
       ),
       _StatDisplay(
@@ -200,7 +201,7 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
         value: '${_stats.throughputMbps.toStringAsFixed(1)} Mbps',
         trend: _stats.throughputTrend,
         icon: NerdIcon.servers.data,
-        color: Colors.greenAccent,
+        color: scheme.tertiary,
         sparkline: series.throughput,
       ),
       _StatDisplay(
@@ -618,8 +619,8 @@ class _TrendIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final color = switch (trend) {
-      TrendDirection.up => Colors.redAccent,
-      TrendDirection.down => Colors.greenAccent,
+      TrendDirection.up => colorScheme.error,
+      TrendDirection.down => colorScheme.primary,
       TrendDirection.flat => colorScheme.outline,
     };
     final icon = switch (trend) {

@@ -269,8 +269,9 @@ class _DockerViewState extends State<DockerView> {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      padding: spacing.inset(horizontal: 1.5, vertical: 1),
       child: Column(
         children: [
           Expanded(
@@ -283,7 +284,7 @@ class _DockerViewState extends State<DockerView> {
                 showTabBar: TabBarVisibilityController.instance,
                 leading: widget.leading != null
                     ? Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        padding: EdgeInsets.symmetric(horizontal: spacing.sm),
                         child: SizedBox(
                           height: 36,
                           child: Center(child: widget.leading),

@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
+import 'package:cwatch/shared/theme/app_theme.dart';
 
 /// Dialog for adding an SSH key
 class AddKeyDialog extends StatefulWidget {
@@ -138,13 +139,19 @@ class _AddKeyDialogState extends State<AddKeyDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return AlertDialog(
       title: const Text(
         'Add SSH Key',
         overflow: TextOverflow.visible,
         softWrap: true,
       ),
-      contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+      contentPadding: EdgeInsets.fromLTRB(
+        spacing.base * 6,
+        spacing.base * 5,
+        spacing.base * 6,
+        spacing.base * 6,
+      ),
       content: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: 500,
@@ -170,7 +177,7 @@ class _AddKeyDialogState extends State<AddKeyDialog> {
                     },
                     autofocus: true,
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: spacing.xl),
                   Row(
                     children: [
                       Expanded(
@@ -198,7 +205,7 @@ class _AddKeyDialogState extends State<AddKeyDialog> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: spacing.xl),
                   TextFormField(
                     controller: _passwordController,
                     decoration: const InputDecoration(

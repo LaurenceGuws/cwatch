@@ -39,6 +39,7 @@ class DockerEngineList extends StatelessWidget implements TabListHost {
   @override
   Widget build(BuildContext context) {
     final appTheme = context.appTheme;
+    final spacing = appTheme.spacing;
     final safeIndex = tabs.isEmpty
         ? 0
         : selectedIndex.clamp(0, tabs.length - 1);
@@ -50,7 +51,7 @@ class DockerEngineList extends StatelessWidget implements TabListHost {
             children: [
               if (leading != null)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  padding: EdgeInsets.symmetric(horizontal: spacing.sm),
                   child: SizedBox(height: 36, child: Center(child: leading)),
                 ),
               Expanded(
@@ -58,7 +59,7 @@ class DockerEngineList extends StatelessWidget implements TabListHost {
                   height: 36,
                   child: ReorderableListView.builder(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    padding: EdgeInsets.symmetric(horizontal: spacing.md),
                     buildDefaultDragHandles: false,
                     onReorder: onReorder,
                     itemCount: tabs.length,

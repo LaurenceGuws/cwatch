@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 import 'docker_engine_picker.dart';
 import 'package:cwatch/models/ssh_host.dart';
+import 'package:cwatch/shared/theme/app_theme.dart';
 
 class RemoteScanDialog extends StatelessWidget {
   const RemoteScanDialog({
@@ -20,6 +21,7 @@ class RemoteScanDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return AlertDialog(
       title: const Text('Scanning servers for Docker'),
       content: ValueListenableBuilder<bool>(
@@ -38,11 +40,11 @@ class RemoteScanDialog extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        padding: EdgeInsets.symmetric(vertical: spacing.md),
                         child: Row(
                           children: [
                             if (scanning) const CircularProgressIndicator(),
-                            if (scanning) const SizedBox(width: 12),
+                            if (scanning) SizedBox(width: spacing.lg),
                             const Expanded(
                               child: Text(
                                 'Checking remote hosts for Docker availability...',

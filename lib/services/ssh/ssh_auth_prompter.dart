@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'builtin/builtin_ssh_key_service.dart';
 import 'ssh_auth_coordinator.dart';
+import '../../shared/theme/app_theme.dart';
 
 /// UI helpers that adapt unlock/passphrase prompts into an [SshAuthCoordinator]
 /// so backend services can handle retries without leaking implementation
@@ -126,6 +127,7 @@ class _SshUnlockDialogState extends State<_SshUnlockDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return AlertDialog(
       title: Text('Unlock ${widget.request.keyLabel ?? 'key'}'),
       content: Column(
@@ -133,10 +135,10 @@ class _SshUnlockDialogState extends State<_SshUnlockDialog> {
         children: [
           Text('Host: ${widget.request.hostName}'),
           if (widget.request.storageEncrypted) ...[
-            const SizedBox(height: 6),
+            SizedBox(height: spacing.base * 1.5),
             const Text('Storage password required.'),
           ],
-          const SizedBox(height: 8),
+          SizedBox(height: spacing.md),
           TextField(
             controller: _controller,
             obscureText: true,
@@ -144,7 +146,7 @@ class _SshUnlockDialogState extends State<_SshUnlockDialog> {
             enabled: !_loading,
           ),
           if (_errorText != null) ...[
-            const SizedBox(height: 8),
+            SizedBox(height: spacing.md),
             Text(
               _errorText!,
               style: TextStyle(color: Theme.of(context).colorScheme.error),
@@ -208,6 +210,7 @@ class _SshPassphraseDialogState extends State<_SshPassphraseDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return AlertDialog(
       title: Text(
         widget.request.kind == SshPassphraseKind.identityFile
@@ -218,9 +221,9 @@ class _SshPassphraseDialogState extends State<_SshPassphraseDialog> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text('Host: ${widget.request.hostName}'),
-          const SizedBox(height: 8),
+          SizedBox(height: spacing.md),
           Text(widget.request.targetLabel),
-          const SizedBox(height: 8),
+          SizedBox(height: spacing.md),
           TextField(
             controller: _controller,
             obscureText: true,
@@ -228,7 +231,7 @@ class _SshPassphraseDialogState extends State<_SshPassphraseDialog> {
             enabled: !_loading,
           ),
           if (_errorText != null) ...[
-            const SizedBox(height: 8),
+            SizedBox(height: spacing.md),
             Text(
               _errorText!,
               style: TextStyle(color: Theme.of(context).colorScheme.error),

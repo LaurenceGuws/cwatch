@@ -123,6 +123,7 @@ class _BreadcrumbsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     final segments = currentPath
         .split('/')
         .where((segment) => segment.isNotEmpty)
@@ -169,7 +170,7 @@ class _BreadcrumbsView extends StatelessWidget {
         tooltip: 'Navigate to subdirectory',
         onPressed: onNavigateToSubdirectory,
         style: IconButton.styleFrom(
-          padding: const EdgeInsets.all(4),
+          padding: EdgeInsets.all(spacing.sm),
           minimumSize: const Size(32, 32),
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
@@ -179,14 +180,14 @@ class _BreadcrumbsView extends StatelessWidget {
     final spacedChips = <Widget>[];
     for (final chip in chips) {
       if (spacedChips.isNotEmpty) {
-        spacedChips.add(const SizedBox(width: 4));
+        spacedChips.add(SizedBox(width: spacing.sm));
       }
       spacedChips.add(chip);
     }
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: EdgeInsets.symmetric(vertical: spacing.xs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: spacedChips,

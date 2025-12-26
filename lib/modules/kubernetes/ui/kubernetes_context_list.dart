@@ -147,8 +147,9 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   @override
   Widget build(BuildContext context) {
     final appTheme = context.appTheme;
+    final spacing = appTheme.spacing;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      padding: spacing.inset(horizontal: 1.5, vertical: 1),
       child: Column(
         children: [
           Expanded(
@@ -161,7 +162,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                 showTabBar: TabBarVisibilityController.instance,
                 leading: widget.leading != null
                     ? Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        padding: EdgeInsets.symmetric(horizontal: spacing.sm),
                         child: SizedBox(
                           height: 36,
                           child: Center(child: widget.leading),
@@ -434,6 +435,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     return FutureBuilder<List<KubeconfigContext>>(
       future: _contextsFuture,
       builder: (context, snapshot) {
+        final spacing = context.appTheme.spacing;
         if (snapshot.connectionState == ConnectionState.waiting &&
             _cachedContexts.isEmpty) {
           return const Center(child: CircularProgressIndicator());
@@ -444,7 +446,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text('Failed to load contexts: ${snapshot.error}'),
-                const SizedBox(height: 12),
+                SizedBox(height: spacing.lg),
                 FilledButton.icon(
                   onPressed: _refreshContexts,
                   icon: const Icon(Icons.refresh),
@@ -461,7 +463,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Text('No Kubernetes contexts found.'),
-                const SizedBox(height: 12),
+                SizedBox(height: spacing.lg),
                 FilledButton.icon(
                   onPressed: _refreshContexts,
                   icon: const Icon(Icons.refresh),
@@ -473,7 +475,6 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
         }
         final grouped = _contextController.groupByConfigPath(contexts);
         final configPaths = grouped.keys.toList()..sort();
-        final spacing = context.appTheme.spacing;
         return ListView.builder(
           padding: EdgeInsets.symmetric(vertical: spacing.base),
           itemCount: configPaths.length,
@@ -629,7 +630,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
           statusColor: statusColor,
           statusDotScale: statusDotScale,
         ),
-        const SizedBox(width: 8),
+        SizedBox(width: context.appTheme.spacing.md),
         Expanded(
           child: Text(
             kubeContext.name,
@@ -734,9 +735,9 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
               ),
               if (kubeContext.isCurrent)
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: spacing.base * 2.5,
+                    vertical: spacing.base * 1.5,
                   ),
                   decoration: BoxDecoration(
                     color: scheme.primary.withValues(alpha: 0.12),
@@ -814,7 +815,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: EdgeInsets.symmetric(vertical: context.appTheme.spacing.base * 1.5),
       child: Row(
         children: [
           SizedBox(

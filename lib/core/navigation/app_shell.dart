@@ -23,6 +23,7 @@ import '../../services/ssh/ssh_auth_coordinator.dart';
 import '../../services/ssh/ssh_config_service.dart';
 import '../../shared/shortcuts/shortcut_actions.dart';
 import '../../shared/shortcuts/shortcut_service.dart';
+import '../../shared/theme/app_theme.dart';
 import '../../shared/theme/nerd_fonts.dart';
 import '../../shared/shortcuts/input_mode_resolver.dart';
 import '../../shared/gestures/gesture_activators.dart';
@@ -655,6 +656,7 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
         void showOptions(Offset position) =>
             _showSidebarOptions(context, position);
         _ensurePageCached(_selectedDestination, context);
+        final spacing = context.appTheme.spacing;
         final viewportWidth = MediaQuery.of(context).size.width;
         final viewportHeight = MediaQuery.of(context).size.height;
         final isPortrait = viewportHeight > viewportWidth;
@@ -689,7 +691,9 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
         if (useCustomChrome) {
           contentPadding =
               contentPadding +
-              const EdgeInsets.only(top: _WindowControls.height + 6);
+              EdgeInsets.only(
+                top: _WindowControls.height + spacing.base * 1.5,
+              );
         }
         if (showSidebar) {
           switch (_sidebarPlacement) {
@@ -988,10 +992,10 @@ class _CaptionButtonState extends State<_CaptionButton> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final hoverColor = widget.destructive
-        ? Colors.red.withValues(alpha: 0.8)
+        ? scheme.error.withValues(alpha: 0.8)
         : scheme.surfaceContainerHighest.withValues(alpha: 0.35);
     final iconColor = widget.destructive
-        ? (_hovering ? Colors.white : scheme.onSurface)
+        ? (_hovering ? scheme.onError : scheme.onSurface)
         : scheme.onSurface;
     return Tooltip(
       message: widget.tooltip,
@@ -1036,6 +1040,7 @@ class _Sidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final spacing = context.appTheme.spacing;
     final decoration = BoxDecoration(
       color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.22),
       border: alignRight
@@ -1056,7 +1061,7 @@ class _Sidebar extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const SizedBox(height: 12),
+          SizedBox(height: spacing.lg),
           Column(
             mainAxisSize: MainAxisSize.min,
             children: primaryModules
@@ -1088,7 +1093,7 @@ class _Sidebar extends StatelessWidget {
                 )
                 .toList(),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: spacing.lg),
         ],
       ),
     );
@@ -1188,6 +1193,7 @@ class _NavigationButtonState extends State<_NavigationButton> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final spacing = context.appTheme.spacing;
     final defaultColor = colorScheme.onSurfaceVariant;
     final hoverColor = colorScheme.primary.withValues(alpha: 0.75);
     final iconColor = widget.selected
@@ -1231,7 +1237,7 @@ class _NavigationButtonState extends State<_NavigationButton> {
     );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: EdgeInsets.symmetric(vertical: spacing.base * 1.5),
       child: MouseRegion(
         onEnter: (_) => _setHovering(true),
         onExit: (_) => _setHovering(false),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:cwatch/models/server_action.dart';
 import 'package:cwatch/models/ssh_host.dart';
+import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/widgets/action_picker.dart';
 
@@ -13,17 +14,19 @@ class ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
+    final scheme = Theme.of(context).colorScheme;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(NerdIcon.alert.data, color: Colors.orange, size: 48),
-          const SizedBox(height: 16),
+          Icon(NerdIcon.alert.data, color: scheme.error, size: 48),
+          SizedBox(height: spacing.xl),
           Text(
             'Failed to read SSH config',
             style: Theme.of(context).textTheme.titleLarge,
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: spacing.md),
           Text(error, textAlign: TextAlign.center),
         ],
       ),

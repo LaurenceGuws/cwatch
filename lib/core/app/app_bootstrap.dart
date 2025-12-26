@@ -107,7 +107,7 @@ class _CwatchAppState extends State<CwatchApp> {
       ),
       listTileTheme: ListTileThemeData(
         dense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        contentPadding: tokens.spacing.inset(horizontal: 2, vertical: 1),
         shape: RoundedRectangleBorder(borderRadius: baseRadius),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -121,7 +121,7 @@ class _CwatchAppState extends State<CwatchApp> {
           borderRadius: baseRadius,
           borderSide: BorderSide(color: scheme.primary),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        contentPadding: tokens.spacing.inset(horizontal: 2, vertical: 1.5),
       ),
       scrollbarTheme: ScrollbarThemeData(
         radius: const Radius.circular(2),

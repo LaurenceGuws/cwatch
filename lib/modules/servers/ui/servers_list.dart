@@ -372,12 +372,13 @@ class _ServersListState extends State<ServersList> {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     final workspace = _tabs.isEmpty
         ? _buildHostSelection(onHostActivate: _startActionFlowForHost)
         : _buildTabWorkspace();
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      padding: spacing.inset(horizontal: 1.5, vertical: 1),
       child: workspace,
     );
   }
@@ -497,6 +498,7 @@ class _ServersListState extends State<ServersList> {
 
   Widget _buildTabWorkspace() {
     final appTheme = context.appTheme;
+    final spacing = appTheme.spacing;
     return Column(
       children: [
         Expanded(
@@ -509,7 +511,7 @@ class _ServersListState extends State<ServersList> {
               showTabBar: TabBarVisibilityController.instance,
               leading: widget.leading != null
                   ? Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      padding: EdgeInsets.symmetric(horizontal: spacing.sm),
                       child: SizedBox(
                         height: 36,
                         child: Center(child: widget.leading),

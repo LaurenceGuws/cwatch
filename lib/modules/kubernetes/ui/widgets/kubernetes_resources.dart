@@ -37,8 +37,9 @@ class _LegendChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final spacing = context.appTheme.spacing;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: spacing.inset(horizontal: 2, vertical: 1),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(10),
@@ -56,7 +57,7 @@ class _LegendChip extends StatelessWidget {
               border: Border.all(color: scheme.surface),
             ),
           ),
-          const SizedBox(width: 6),
+          SizedBox(width: spacing.base * 1.5),
           Text(
             label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -222,7 +223,7 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text('Failed to load resources: $_error'),
-            const SizedBox(height: 12),
+            SizedBox(height: spacing.lg),
             FilledButton.icon(
               onPressed: () => _loadResources(initial: true),
               icon: const Icon(Icons.refresh),
@@ -259,7 +260,7 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
                     valueColor: AlwaysStoppedAnimation(scheme.primary),
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: spacing.md),
                 const Text('Refreshing...'),
               ],
             ),
@@ -333,7 +334,7 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
                               style: Theme.of(context).textTheme.labelMedium
                                   ?.copyWith(color: scheme.onSurfaceVariant),
                             ),
-                            const SizedBox(height: 4),
+                            SizedBox(height: spacing.sm),
                             Text(
                               card.value,
                               style: Theme.of(context).textTheme.titleLarge
@@ -367,7 +368,7 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text('Namespace'),
-            const SizedBox(width: 8),
+            SizedBox(width: spacing.md),
             DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: selectedNamespace,
@@ -399,7 +400,7 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text('Top pods'),
-            const SizedBox(width: 8),
+            SizedBox(width: spacing.md),
             DropdownButtonHideUnderline(
               child: DropdownButton<int>(
                 value: _podLimit,
@@ -423,7 +424,7 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text('Pod sort'),
-            const SizedBox(width: 8),
+            SizedBox(width: spacing.md),
             SegmentedButton<PodSortMetric>(
               segments: const [
                 ButtonSegment(

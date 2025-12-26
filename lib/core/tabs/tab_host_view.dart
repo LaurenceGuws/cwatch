@@ -277,6 +277,7 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
   @override
   Widget build(BuildContext context) {
     final tabs = widget.tabs;
+    final spacing = context.appTheme.spacing;
     final tabBarHeight = widget.tabBarHeight;
     final leading = widget.leading;
     final onAddTab = widget.onAddTab;
@@ -306,8 +307,9 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
 
     final overlayButtonSize = effectiveTabBarHeight;
     final bool showScrollbar = _hasOverflow;
-    final double bottomSpacing = showScrollbar ? 8.0 : 0.0;
-    final double hoverActionReserve = showScrollbar ? 48.0 : 0.0;
+    final double bottomSpacing = showScrollbar ? spacing.md : 0.0;
+    final double hoverActionReserve =
+        showScrollbar ? spacing.base * 12 : 0.0;
     final bool showHoverActionReserve = showScrollbar;
     final bool activeThumb = showScrollbar && (_hoveringBar || _touchScrolling);
     final bool showThumb = showScrollbar;
@@ -333,7 +335,7 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
           // Leading button stays at normal position (not translated)
           if (leading != null) leading,
           // Buffer between sidebar button and first tab
-          if (leading != null) const SizedBox(width: 6),
+          if (leading != null) SizedBox(width: spacing.base * 1.5),
           // Tab content area - clip to prevent overflow into button space
           Expanded(
             child: MouseRegion(
@@ -373,7 +375,9 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
                           radius: const Radius.circular(3),
                           thumbColor: Theme.of(context).colorScheme.primary
                               .withValues(alpha: activeThumb ? 0.9 : 0.0),
-                          trackColor: Colors.white.withValues(alpha: 0.08),
+                          trackColor:
+                              Theme.of(context).colorScheme.onSurface
+                                  .withValues(alpha: 0.08),
                           child: Padding(
                             padding: EdgeInsets.only(bottom: bottomSpacing),
                             child:

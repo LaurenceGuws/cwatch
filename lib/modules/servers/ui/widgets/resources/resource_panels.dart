@@ -14,6 +14,7 @@ class CpuPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final spacing = context.appTheme.spacing;
+    final scheme = Theme.of(context).colorScheme;
     return SectionCard(
       title: 'CPU',
       subtitle:
@@ -33,7 +34,7 @@ class CpuPanel extends StatelessWidget {
             height: 100,
             child: SparklineChart(
               data: cpuHistory.isEmpty ? [snapshot.cpuUsage] : cpuHistory,
-              color: Colors.blueAccent,
+              color: scheme.primary,
               label: 'CPU %',
             ),
           ),
@@ -57,6 +58,7 @@ class MemoryPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final spacing = context.appTheme.spacing;
+    final scheme = Theme.of(context).colorScheme;
     return SectionCard(
       title: 'Memory',
       child: Column(
@@ -85,7 +87,7 @@ class MemoryPanel extends StatelessWidget {
               data: memoryHistory.isEmpty
                   ? [snapshot.memoryUsedPct]
                   : memoryHistory,
-              color: Colors.tealAccent,
+              color: scheme.secondary,
               label: 'Memory %',
             ),
           ),
@@ -110,6 +112,8 @@ class NetworkPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
+    final scheme = Theme.of(context).colorScheme;
     return SectionCard(
       title: 'Network IO',
       subtitle:
@@ -121,19 +125,19 @@ class NetworkPanel extends StatelessWidget {
             height: 120,
             child: SparklineChart(
               data: netInHistory.isEmpty ? [snapshot.netInMbps] : netInHistory,
-              color: Colors.lightBlueAccent,
+              color: scheme.tertiary,
               normalize: false,
               label: 'Inbound Mbps',
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: spacing.lg),
           SizedBox(
             height: 120,
             child: SparklineChart(
               data: netOutHistory.isEmpty
                   ? [snapshot.netOutMbps]
                   : netOutHistory,
-              color: Colors.orangeAccent,
+              color: scheme.primary,
               normalize: false,
               label: 'Outbound Mbps',
             ),
@@ -165,13 +169,14 @@ class DisksPanel extends StatelessWidget {
       );
     }
     final spacing = context.appTheme.spacing;
+    final scheme = Theme.of(context).colorScheme;
     final ioChart = diskIoHistory.length < 2
         ? null
         : SizedBox(
             height: 140,
             child: SparklineChart(
               data: diskIoHistory,
-              color: Colors.amberAccent,
+              color: scheme.tertiary,
               normalize: false,
               label: 'Disk IO Mbps',
             ),

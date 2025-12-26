@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../services/wsl_distribution.dart';
 import '../services/wsl_service_interface.dart';
+import 'package:cwatch/shared/theme/app_theme.dart';
 
 class WslHome extends StatefulWidget {
   const WslHome({super.key, required this.service, this.leading});
@@ -42,8 +43,9 @@ class _WslHomeState extends State<WslHome> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final spacing = context.appTheme.spacing;
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(spacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -51,7 +53,7 @@ class _WslHomeState extends State<WslHome> {
             children: [
               if (widget.leading != null)
                 Padding(
-                  padding: const EdgeInsets.only(right: 8),
+                  padding: EdgeInsets.only(right: spacing.md),
                   child: widget.leading,
                 ),
               Text(
@@ -66,7 +68,7 @@ class _WslHomeState extends State<WslHome> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: spacing.lg),
           Expanded(child: _buildBody(theme)),
         ],
       ),
@@ -150,12 +152,13 @@ class _InfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final spacing = context.appTheme.spacing;
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),
         child: Card(
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(spacing.xl),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -163,13 +166,16 @@ class _InfoCard extends StatelessWidget {
                 Row(
                   children: [
                     Icon(icon, size: 20, color: theme.colorScheme.primary),
-                    const SizedBox(width: 8),
+                    SizedBox(width: spacing.md),
                     Text(title, style: theme.textTheme.titleMedium),
                   ],
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: spacing.md),
                 Text(message, style: theme.textTheme.bodyMedium),
-                if (action != null) ...[const SizedBox(height: 12), action!],
+                if (action != null) ...[
+                  SizedBox(height: spacing.lg),
+                  action!,
+                ],
               ],
             ),
           ),

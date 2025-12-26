@@ -251,12 +251,15 @@ class RemoteSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     Widget body;
     if (!scanRequested) {
       body = cachedReady.isEmpty
-          ? const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-              child: Text('Scan to check which servers have Docker available.'),
+          ? Padding(
+              padding: spacing.inset(horizontal: 1, vertical: 2),
+              child: const Text(
+                'Scan to check which servers have Docker available.',
+              ),
             )
           : RemoteHostList(
               hosts: cachedReady,
@@ -269,9 +272,9 @@ class RemoteSection extends StatelessWidget {
         future: remoteStatusFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: LinearProgressIndicator(),
+            return Padding(
+              padding: EdgeInsets.all(spacing.xl),
+              child: const LinearProgressIndicator(),
             );
           }
           if (snapshot.hasError) {
@@ -283,9 +286,9 @@ class RemoteSection extends StatelessWidget {
           final statuses = snapshot.data ?? const <RemoteDockerStatus>[];
           final available = statuses.where((s) => s.available).toList();
           if (available.isEmpty) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-              child: Text('No Docker-ready remote hosts found.'),
+            return Padding(
+              padding: spacing.inset(horizontal: 1, vertical: 2),
+              child: const Text('No Docker-ready remote hosts found.'),
             );
           }
           return RemoteHostList(

@@ -95,7 +95,10 @@ class _CommandPaletteState extends State<CommandPalette> {
     final filtered = _filtered;
     return Dialog(
       elevation: 10,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 48, vertical: 24),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: appTheme.spacing.base * 12,
+        vertical: appTheme.spacing.base * 6,
+      ),
       backgroundColor: scheme.surface.withValues(alpha: 0.98),
       shape: RoundedRectangleBorder(
         borderRadius: appTheme.section.surface.radius,

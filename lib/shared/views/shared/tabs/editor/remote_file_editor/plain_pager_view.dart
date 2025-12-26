@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:flutter/services.dart';
 
 import 'match_markers.dart';
@@ -130,6 +132,7 @@ class PlainPagerViewState extends State<PlainPagerView> {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     final percent = (_progress * 100).clamp(0, 100);
     final gutterWidth = widget.showLineNumbers
         ? (_lines.length.toString().length * 9.0)
@@ -139,7 +142,8 @@ class PlainPagerViewState extends State<PlainPagerView> {
             widget.activeMatchIndex < widget.matches.length
         ? widget.matches[widget.activeMatchIndex].lineNumber
         : null;
-    final textOffsetX = widget.showLineNumbers ? gutterWidth + 12 : 0.0;
+    final textOffsetX =
+        widget.showLineNumbers ? gutterWidth + spacing.lg : 0.0;
     return FocusableActionDetector(
       autofocus: true,
       focusNode: widget.focusNode,
@@ -167,7 +171,7 @@ class PlainPagerViewState extends State<PlainPagerView> {
         children: [
           if (widget.showControls) ...[
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: spacing.inset(horizontal: 2, vertical: 1),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(6),
@@ -193,31 +197,31 @@ class PlainPagerViewState extends State<PlainPagerView> {
                   IconButton(
                     tooltip: 'Bottom',
                     icon: const Icon(Icons.vertical_align_bottom, size: 18),
-                    onPressed: () async {
-                      if (_scrollController.hasClients) {
-                        await _scrollTo(
-                          _scrollController.position.maxScrollExtent,
-                        );
-                      }
-                    },
-                  ),
-                  const SizedBox(width: 12),
-                  Text('${percent.toStringAsFixed(0)}%'),
-                ],
-              ),
+                  onPressed: () async {
+                    if (_scrollController.hasClients) {
+                      await _scrollTo(
+                        _scrollController.position.maxScrollExtent,
+                      );
+                    }
+                  },
+                ),
+                SizedBox(width: spacing.lg),
+                Text('${percent.toStringAsFixed(0)}%'),
+              ],
             ),
-            const SizedBox(height: 8),
-          ],
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
+          ),
+          SizedBox(height: spacing.md),
+        ],
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
                 return Stack(
                   children: [
                     Scrollbar(
                       controller: _scrollController,
                       child: SingleChildScrollView(
                         controller: _scrollController,
-                        padding: const EdgeInsets.only(right: 14),
+                        padding: EdgeInsets.only(right: spacing.base * 3.5),
                         child: Stack(
                           children: [
                             Positioned.fill(
@@ -241,7 +245,9 @@ class PlainPagerViewState extends State<PlainPagerView> {
                               children: [
                                 if (widget.showLineNumbers)
                                   Padding(
-                                    padding: const EdgeInsets.only(right: 12),
+                                    padding: EdgeInsets.only(
+                                      right: spacing.lg,
+                                    ),
                                     child: ConstrainedBox(
                                       constraints: BoxConstraints(
                                         minWidth: gutterWidth,

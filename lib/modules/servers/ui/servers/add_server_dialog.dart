@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cwatch/models/custom_ssh_host.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_entry.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
+import 'package:cwatch/shared/theme/app_theme.dart';
 import 'add_key_dialog.dart';
 
 /// Dialog for adding or editing a server
@@ -81,13 +82,19 @@ class _AddServerDialogState extends State<AddServerDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return AlertDialog(
       title: Text(
         widget.initialHost == null ? 'Add Server' : 'Edit Server',
         overflow: TextOverflow.visible,
         softWrap: true,
       ),
-      contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+      contentPadding: EdgeInsets.fromLTRB(
+        spacing.base * 6,
+        spacing.base * 5,
+        spacing.base * 6,
+        spacing.base * 6,
+      ),
       content: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: 500,
@@ -122,7 +129,7 @@ class _AddServerDialogState extends State<AddServerDialog> {
                     },
                     autofocus: true,
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: spacing.xl),
                   TextFormField(
                     controller: _hostnameController,
                     decoration: const InputDecoration(
@@ -137,7 +144,7 @@ class _AddServerDialogState extends State<AddServerDialog> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: spacing.xl),
                   TextFormField(
                     controller: _portController,
                     decoration: const InputDecoration(
@@ -156,7 +163,7 @@ class _AddServerDialogState extends State<AddServerDialog> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: spacing.xl),
                   TextFormField(
                     controller: _userController,
                     decoration: const InputDecoration(
@@ -164,7 +171,7 @@ class _AddServerDialogState extends State<AddServerDialog> {
                       helperText: 'SSH username',
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: spacing.xl),
                   FutureBuilder<List<BuiltInSshKeyEntry>>(
                     future: _keysFuture,
                     builder: (context, snapshot) {
@@ -180,12 +187,12 @@ class _AddServerDialogState extends State<AddServerDialog> {
                             child: Text(key.label),
                           ),
                         ),
-                        const DropdownMenuItem(
+                        DropdownMenuItem(
                           value: '__add_key__',
                           child: Row(
                             children: [
                               Icon(Icons.add, size: 18),
-                              SizedBox(width: 8),
+                              SizedBox(width: spacing.md),
                               Text('Add new key...'),
                             ],
                           ),

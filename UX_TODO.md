@@ -68,3 +68,33 @@ Reduce code duplication and enforce consistent behavior.
     - [x] `MergeConflictDialog` spacing (`lib/shared/views/shared/tabs/file_explorer/merge_conflict_dialog.dart`)
     - [x] `FileOperationProgressDialog` spacing (`lib/shared/widgets/file_operation_progress_dialog.dart`)
     - [x] `InputHelpDialog` spacing (`lib/shared/widgets/input_help_dialog.dart`)
+
+## 7. Visual Sweep (continued)
+- [x] **Dialogs + Inline UI**
+    - [x] Terminal error/empty spacing (`lib/shared/views/shared/tabs/terminal/terminal_tab.dart`)
+    - [x] SSH auth prompts (`lib/services/ssh/ssh_auth_prompter.dart`)
+    - [x] File info dialog (`lib/shared/views/shared/tabs/editor/remote_file_editor/file_info_dialog.dart`)
+    - [x] Plain pager controls (`lib/shared/views/shared/tabs/editor/remote_file_editor/plain_pager_view.dart`)
+    - [x] Command palette inset padding (`lib/shared/widgets/command_palette.dart`)
+    - [x] Add server dialog (`lib/modules/servers/ui/servers/add_server_dialog.dart`)
+    - [x] Add key dialog (`lib/modules/servers/ui/servers/add_key_dialog.dart`)
+    - [x] Remote scan dialog (`lib/modules/docker/ui/widgets/remote_scan_dialog.dart`)
+    - [x] WSL home cards (`lib/modules/wsl/ui/wsl_home.dart`)
+- [x] **Tab Shells**
+    - [x] Servers list padding (`lib/modules/servers/ui/servers_list.dart`)
+    - [x] Docker view padding (`lib/modules/docker/ui/docker_view.dart`)
+    - [x] Docker engine list (`lib/modules/docker/ui/docker_engine_list.dart`)
+    - [x] Kubernetes context list (`lib/modules/kubernetes/ui/kubernetes_context_list.dart`)
+- [x] **Theme Defaults**
+    - [x] List tile + input paddings (`lib/core/app/app_bootstrap.dart`)
+- [x] **Resource Panels**
+    - [x] Server resource charts (`lib/modules/servers/ui/widgets/resources/resource_panels.dart`)
+    - [x] Connectivity stats colors (`lib/modules/servers/ui/widgets/connectivity_tab.dart`)
+    - [x] Kubernetes legend chips (`lib/modules/kubernetes/ui/widgets/kubernetes_resources.dart`)
+    - [x] Error state styling (`lib/modules/servers/ui/servers/servers_widgets.dart`)
+- [x] **Shell + Resource Tables**
+    - [x] App shell spacing (`lib/core/navigation/app_shell.dart`)
+    - [x] Tab host bar spacing (`lib/core/tabs/tab_host_view.dart`)
+    - [x] Process tree spacing (`lib/modules/servers/ui/widgets/resources/process_tree_view.dart`)
+    - [x] Kubernetes resources spacing (`lib/modules/kubernetes/ui/widgets/kubernetes_resources.dart`)
+    - [x] Kubernetes context details spacing (`lib/modules/kubernetes/ui/kubernetes_context_list.dart`)

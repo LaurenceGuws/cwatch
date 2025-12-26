@@ -17,6 +17,7 @@ import '../../../../../shared/shortcuts/shortcut_service.dart';
 import '../../../../../shared/shortcuts/input_mode_resolver.dart';
 import '../../../../../shared/gestures/gesture_activators.dart';
 import '../../../../../shared/gestures/gesture_service.dart';
+import '../../../../../shared/theme/app_theme.dart';
 import '../../../../../shared/widgets/style_picker_dialog.dart';
 import '../../../../theme/nerd_fonts.dart';
 import '../tab_chip.dart';
@@ -435,6 +436,7 @@ class _TerminalTabState extends State<TerminalTab> {
   }
 
   Widget _buildError(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -443,9 +445,9 @@ class _TerminalTabState extends State<TerminalTab> {
             'Failed to start terminal',
             style: Theme.of(context).textTheme.titleMedium,
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: spacing.md),
           Text(_error ?? 'Unknown error', textAlign: TextAlign.center),
-          const SizedBox(height: 12),
+          SizedBox(height: spacing.lg),
           FilledButton(onPressed: _startSession, child: const Text('Retry')),
         ],
       ),
@@ -473,9 +475,10 @@ class _TerminalTabState extends State<TerminalTab> {
         return LayoutBuilder(
           builder: (context, constraints) {
             if (constraints.maxHeight < _minTerminalHeight) {
+              final spacing = context.appTheme.spacing;
               return Center(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: EdgeInsets.symmetric(horizontal: spacing.xl),
                   child: Text(
                     'Terminal needs at least ${_minTerminalHeight.toInt()} px '
                     'of vertical space. Increase the window height to use '

@@ -102,6 +102,7 @@ class _ProcessTreeViewState extends State<ProcessTreeView> {
       },
       child: LayoutBuilder(
         builder: (context, constraints) {
+          final spacing = context.appTheme.spacing;
           final tableWidth = max<double>(
             _minProcessTableWidth,
             constraints.maxWidth,
@@ -119,7 +120,7 @@ class _ProcessTreeViewState extends State<ProcessTreeView> {
                     ascending: _sortAscending,
                     onSort: _handleSort,
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: spacing.md),
                   Container(
                     width: tableWidth,
                     decoration: BoxDecoration(
@@ -500,13 +501,13 @@ class ProcessTreeRow extends StatelessWidget {
               ),
             ),
             Expanded(
-              flex: _commandFlex,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 4),
-                child: Row(
-                  children: [
-                    if (row.isExpandable)
-                      GestureDetector(
+          flex: _commandFlex,
+          child: Padding(
+            padding: EdgeInsets.only(left: spacing.sm),
+            child: Row(
+              children: [
+                if (row.isExpandable)
+                  GestureDetector(
                         onTap: onToggleCollapse,
                         child: Icon(
                           row.isCollapsed
@@ -514,13 +515,13 @@ class ProcessTreeRow extends StatelessWidget {
                               : Icons.expand_more,
                           size: 16,
                           color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      )
-                    else
-                      const SizedBox(width: 16),
-                    if (prefix.isNotEmpty)
-                      Text(
-                        prefix,
+                      ),
+                    )
+                  else
+                    SizedBox(width: spacing.xl),
+                if (prefix.isNotEmpty)
+                  Text(
+                    prefix,
                         style: textStyle?.copyWith(
                           color: theme.colorScheme.outline,
                         ),
@@ -606,6 +607,7 @@ class ProcessHeader extends StatelessWidget {
     required ProcessSortColumn column,
     bool expand = false,
   }) {
+    final spacing = context.appTheme.spacing;
     final isActive = sortColumn == column;
     final icon = isActive
         ? (ascending ? Icons.arrow_upward : Icons.arrow_downward)
@@ -616,13 +618,16 @@ class ProcessHeader extends StatelessWidget {
           : MainAxisAlignment.center,
       children: [
         Text(label, style: Theme.of(context).textTheme.bodySmall),
-        if (icon != null) ...[const SizedBox(width: 4), Icon(icon, size: 12)],
+        if (icon != null) ...[
+          SizedBox(width: spacing.sm),
+          Icon(icon, size: 12),
+        ],
       ],
     );
     final child = InkWell(
       onTap: () => onSort(column),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: EdgeInsets.symmetric(vertical: spacing.md),
         child: content,
       ),
     );
