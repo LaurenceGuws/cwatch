@@ -197,8 +197,7 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
     }
     final position = _scrollController.position;
     final max = position.maxScrollExtent;
-    final viewport = position.viewportDimension;
-    final overflow = max > viewport + 0.5;
+    final overflow = max > 0.5;
     if (_hasOverflow != overflow) {
       _scheduleOverflowUpdate(overflow);
     }
@@ -206,7 +205,7 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
 
   bool _handleMetrics(ScrollMetrics metrics) {
     final max = metrics.maxScrollExtent;
-    final overflow = max > metrics.viewportDimension + 0.5;
+    final overflow = max > 0.5;
     if (_hasOverflow != overflow) {
       _scheduleOverflowUpdate(overflow);
     }
@@ -228,6 +227,13 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
       }
       if (!next && _scrollController.hasClients) {
         _scrollController.jumpTo(0);
+      }
+      if (kDebugMode) {
+        debugPrint(
+          '[TabHostView] overflow=${next ? 'on' : 'off'} '
+          'scrollbar=${next ? 'visible' : 'hidden'} '
+          'pinnedAdd=${widget.onAddTab != null && next ? 'on' : 'off'}',
+        );
       }
       setState(() => _hasOverflow = next);
     });
@@ -301,8 +307,11 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
     final overlayButtonSize = effectiveTabBarHeight;
     final bool showScrollbar = _hasOverflow;
     final double bottomSpacing = showScrollbar ? 8.0 : 0.0;
+    final double hoverActionReserve = showScrollbar ? 48.0 : 0.0;
+    final bool showHoverActionReserve = showScrollbar;
     final bool activeThumb = showScrollbar && (_hoveringBar || _touchScrolling);
-    final bool showThumb = activeThumb;
+    final bool showThumb = showScrollbar;
+    final bool showPinnedAddButton = hasAddTab && _hasOverflow;
 
     return Container(
       height: effectiveHeight,
@@ -348,9 +357,9 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
                       child: Padding(
                         padding: EdgeInsets.only(
                           left: 0,
-                          right:
-                              (hasAddTab ? overlayButtonSize : 0) + rightInset,
-                          bottom: bottomSpacing,
+                          right: (showPinnedAddButton ? overlayButtonSize : 0) +
+                              rightInset,
+                          bottom: 0,
                         ),
                         child: RawScrollbar(
                           controller: _scrollController,
@@ -361,37 +370,85 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
                           scrollbarOrientation: ScrollbarOrientation.bottom,
                           notificationPredicate: (_) => true,
                           radius: const Radius.circular(3),
-                          thumbColor: Theme.of(context).colorScheme.primary
-                              .withValues(alpha: activeThumb ? 0.9 : 0.45),
+                          thumbColor: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: activeThumb ? 0.9 : 0.0),
                           trackColor: Colors.white.withValues(alpha: 0.08),
-                          child:
-                              NotificationListener<ScrollMetricsNotification>(
-                                onNotification: (notification) =>
-                                    _handleMetrics(notification.metrics),
-                                child: NotificationListener<ScrollNotification>(
-                                  onNotification: _handleScrollActivity,
-                                  child: ReorderableListView.builder(
-                                    scrollController: _scrollController,
-                                    scrollDirection: Axis.horizontal,
-                                    primary: false,
-                                    physics: const ClampingScrollPhysics(),
-                                    buildDefaultDragHandles: false,
-                                    onReorder: onReorder ??
-                                        (oldIndex, newIndex) {},
-                                    itemCount: tabs.length,
-                                    itemBuilder: (context, index) => buildChip(
+                          child: Padding(
+                            padding: EdgeInsets.only(bottom: bottomSpacing),
+                            child: NotificationListener<
+                                ScrollMetricsNotification>(
+                              onNotification: (notification) =>
+                                  _handleMetrics(notification.metrics),
+                              child: NotificationListener<ScrollNotification>(
+                                onNotification: _handleScrollActivity,
+                                child: ReorderableListView.builder(
+                                  scrollController: _scrollController,
+                                  scrollDirection: Axis.horizontal,
+                                  primary: false,
+                                  physics: const ClampingScrollPhysics(),
+                                  buildDefaultDragHandles: false,
+                                  onReorder: onReorder != null
+                                      ? (oldIndex, newIndex) {
+                                          final cappedIndex =
+                                              newIndex > tabs.length
+                                                  ? tabs.length
+                                                  : newIndex;
+                                          onReorder(oldIndex, cappedIndex);
+                                        }
+                                      : (oldIndex, newIndex) {},
+                                  itemCount: tabs.length +
+                                      (hasAddTab && !showPinnedAddButton
+                                          ? 1
+                                          : 0) +
+                                      (showHoverActionReserve ? 1 : 0),
+                                  itemBuilder: (context, index) {
+                                    final inlineAddIndex = tabs.length;
+                                    final reserveIndex = inlineAddIndex +
+                                        (hasAddTab && !showPinnedAddButton
+                                            ? 1
+                                            : 0);
+                                    if (hasAddTab &&
+                                        !showPinnedAddButton &&
+                                        index == inlineAddIndex) {
+                                      return KeyedSubtree(
+                                        key: const ValueKey(
+                                          'tab-bar-add-inline',
+                                        ),
+                                        child: _InlineAddButton(
+                                          size: overlayButtonSize,
+                                          enabled: !showPinnedAddButton,
+                                          onTap: onAddTab!,
+                                        ),
+                                      );
+                                    }
+                                    if (showHoverActionReserve &&
+                                        index == reserveIndex) {
+                                      return KeyedSubtree(
+                                        key: const ValueKey(
+                                          'tab-bar-hover-reserve',
+                                        ),
+                                        child: SizedBox(
+                                          width: hoverActionReserve,
+                                        ),
+                                      );
+                                    }
+                                    return buildChip(
                                       context,
                                       index,
                                       tabs[index],
-                                    ),
-                                  ),
+                                    );
+                                  },
                                 ),
                               ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                  if (hasAddTab)
+                  if (showPinnedAddButton)
                     Positioned(
                       right: rightInset,
                       top: 0,
@@ -441,11 +498,101 @@ class _PinnedAddButton extends StatelessWidget {
       ),
       child: Tooltip(
         message: 'New tab',
-        child: InkWell(
+        child: _AddTabSliceButton(
+          size: size,
+          enabled: true,
           onTap: onTap,
-          child: Icon(Icons.add, size: 18, color: scheme.onSurface),
         ),
       ),
     );
+  }
+}
+
+class _InlineAddButton extends StatelessWidget {
+  const _InlineAddButton({
+    required this.size,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final double size;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: enabled ? 1 : 0.2,
+      duration: const Duration(milliseconds: 140),
+      curve: Curves.easeOutCubic,
+      child: IgnorePointer(
+        ignoring: !enabled,
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Semantics(
+            label: 'New tab',
+            button: true,
+            child: _AddTabSliceButton(
+              size: size,
+              enabled: enabled,
+              onTap: onTap,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AddTabSliceButton extends StatefulWidget {
+  const _AddTabSliceButton({
+    required this.size,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final double size;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  State<_AddTabSliceButton> createState() => _AddTabSliceButtonState();
+}
+
+class _AddTabSliceButtonState extends State<_AddTabSliceButton> {
+  bool _hovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final hoverColor = scheme.onSurface.withValues(alpha: 0.08);
+    return MouseRegion(
+      cursor: widget.enabled
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
+      onEnter: (_) => _setHovering(true),
+      onExit: (_) => _setHovering(false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOutCubic,
+        decoration: BoxDecoration(
+          color: _hovering && widget.enabled ? hoverColor : Colors.transparent,
+          borderRadius: BorderRadius.zero,
+        ),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.enabled ? widget.onTap : null,
+          child: Center(
+            child: Icon(Icons.add, size: 18, color: scheme.onSurface),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _setHovering(bool value) {
+    if (_hovering == value) return;
+    setState(() => _hovering = value);
   }
 }

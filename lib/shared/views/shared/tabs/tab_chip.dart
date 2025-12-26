@@ -140,9 +140,10 @@ class _TabChipState extends State<TabChip> {
       selected: widget.selected,
       spacing: spacing,
     );
-    final foreground = widget.selected
-        ? colorScheme.primary
-        : colorScheme.onSurfaceVariant.withValues(alpha: 0.85);
+    final inactiveForeground =
+        colorScheme.onSurfaceVariant.withValues(alpha: 0.85);
+    final foreground =
+        widget.selected ? colorScheme.primary : inactiveForeground;
     final primaryActionColor = colorScheme.primary;
     final primaryActionHover = colorScheme.onSurface.withValues(alpha: 0.08);
     final closeColor = colorScheme.error;
@@ -155,9 +156,7 @@ class _TabChipState extends State<TabChip> {
     final background = widget.selected
         ? contentBackground
         : (_hovering ? hoverColor : Colors.transparent);
-    final borderColor = widget.selected
-        ? Colors.transparent
-        : colorScheme.outlineVariant.withValues(alpha: 0.2);
+    final borderColor = Colors.transparent;
     final radius = BorderRadius.zero;
     // Pressed key effect: inset shadows to create depth
     final boxShadow = widget.selected
@@ -186,9 +185,12 @@ class _TabChipState extends State<TabChip> {
           ]
         : const <BoxShadow>[];
     final menuOptions = _buildMenuOptions();
+    final edgeBreathingSpace = spacing.xs * 0.4;
+    final actionWidth = 28.0;
+    final actionHeight = 24.0;
     final padding = EdgeInsets.only(
-      left: chipStyle.padding.left + spacing.xs * 0.6,
-      right: chipStyle.padding.right + spacing.xs * 0.6,
+      left: chipStyle.padding.left + spacing.xs * 0.6 + edgeBreathingSpace,
+      right: chipStyle.padding.right + spacing.xs * 0.6 + edgeBreathingSpace,
       top: chipStyle.padding.top + spacing.xs * 0.1,
       bottom: 0,
     );
@@ -240,18 +242,14 @@ class _TabChipState extends State<TabChip> {
                             ? CrossFadeState.showSecond
                             : CrossFadeState.showFirst,
                         firstChild: const SizedBox(width: 0, height: 0),
-                        secondChild: _TabChipAction(
+                        secondChild: _TabChipDragAction(
                           hoverColor: primaryActionHover,
-                          padding: const EdgeInsets.all(2),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: _DragHandle(
-                            dragIndex: widget.dragIndex,
-                            color: primaryActionColor,
-                            inactiveColor: primaryActionColor.withValues(
-                              alpha: 0.55,
-                            ),
+                          dragIndex: widget.dragIndex,
+                          width: actionWidth,
+                          height: actionHeight,
+                          color: primaryActionColor,
+                          inactiveColor: primaryActionColor.withValues(
+                            alpha: 0.55,
                           ),
                         ),
                       ),
@@ -262,7 +260,11 @@ class _TabChipState extends State<TabChip> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(widget.icon, size: 18, color: foreground),
+                              Icon(
+                                widget.icon,
+                                size: 18,
+                                color: colorScheme.primary,
+                              ),
                               Text(
                                 ' ',
                                 style: appTheme.typography.tabLabel.copyWith(
@@ -306,23 +308,21 @@ class _TabChipState extends State<TabChip> {
                             ],
                             _TabChipAction(
                               hoverColor: closeHover,
-                              child: IconButton(
-                                icon: Icon(
-                                  NerdIcon.close.data,
-                                  size: 16,
-                                  color: closeColor,
+                              onTap: widget.closable
+                                  ? () => _handleClose(context)
+                                  : null,
+                              child: SizedBox(
+                                width: actionWidth,
+                                height: actionHeight,
+                                child: Center(
+                                  child: Icon(
+                                    NerdIcon.close.data,
+                                    size: 16,
+                                    color: widget.closable
+                                        ? closeColor
+                                        : closeColor.withValues(alpha: 0.4),
+                                  ),
                                 ),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                                  tooltip: '',
-                                visualDensity: VisualDensity.compact,
-                                splashRadius: 16,
-                                disabledColor: closeColor.withValues(
-                                  alpha: 0.4,
-                                ),
-                                onPressed: widget.closable
-                                    ? () => _handleClose(context)
-                                    : null,
                               ),
                             ),
                           ],
@@ -331,31 +331,19 @@ class _TabChipState extends State<TabChip> {
                     ],
                   ),
                 ),
-                if (widget.selected || _hovering)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      height: 2,
-                      decoration: BoxDecoration(
-                        color: widget.selected
-                            ? colorScheme.primary
-                            : colorScheme.primary.withValues(alpha: 0.25),
-                      ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    height: 2,
+                    decoration: BoxDecoration(
+                      color: widget.selected
+                          ? colorScheme.primary
+                          : colorScheme.primary.withValues(alpha: 0.25),
                     ),
                   ),
-                // Left border
-                if (widget.selected)
-                  Positioned(
-                    top: 0,
-                    bottom: 0,
-                    left: 0,
-                    child: Container(
-                      width: 1,
-                      color: colorScheme.primary,
-                    ),
-                  ),
+                ),
                 // Right border
                 Positioned(
                   top: 0,
@@ -363,11 +351,9 @@ class _TabChipState extends State<TabChip> {
                   right: 0,
                   child: Container(
                     width: 1,
-                    color: widget.selected
-                        ? colorScheme.primary
-                        : colorScheme.primary.withValues(
-                            alpha: _hovering ? 0.3 : 0.2,
-                          ),
+                    color: colorScheme.primary.withValues(
+                      alpha: _hovering ? 0.3 : 0.2,
+                    ),
                   ),
                 ),
                 ],
@@ -403,7 +389,7 @@ class _TabChipState extends State<TabChip> {
         constraints: const BoxConstraints(minWidth: 0, minHeight: 0),
         tooltip: 'Tab options',
         child: SizedBox(
-          width: 24,
+          width: 28,
           height: 24,
           child: Center(
             child: Icon(Icons.more_vert, size: 16, color: iconColor),
@@ -516,14 +502,18 @@ class _TabChipAction extends StatefulWidget {
   const _TabChipAction({
     required this.child,
     required this.hoverColor,
-    this.padding = const EdgeInsets.all(2),
-    this.shape = const CircleBorder(),
+    this.padding = EdgeInsets.zero,
+    this.shape = const RoundedRectangleBorder(
+      borderRadius: BorderRadius.zero,
+    ),
+    this.onTap,
   });
 
   final Widget child;
   final Color hoverColor;
   final EdgeInsetsGeometry padding;
   final ShapeBorder shape;
+  final VoidCallback? onTap;
 
   @override
   State<_TabChipAction> createState() => _TabChipActionState();
@@ -534,24 +524,31 @@ class _TabChipActionState extends State<_TabChipAction> {
 
   @override
   Widget build(BuildContext context) {
+    final content = AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      padding: widget.padding,
+      decoration: BoxDecoration(
+        color: _hovering ? widget.hoverColor : Colors.transparent,
+        shape:
+            widget.shape is CircleBorder ? BoxShape.circle : BoxShape.rectangle,
+        borderRadius: widget.shape is RoundedRectangleBorder
+            ? (widget.shape as RoundedRectangleBorder).borderRadius
+            : null,
+      ),
+      child: widget.child,
+    );
+
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => _setHovering(true),
       onExit: (_) => _setHovering(false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: widget.padding,
-        decoration: BoxDecoration(
-          color: _hovering ? widget.hoverColor : Colors.transparent,
-          shape: widget.shape is CircleBorder
-              ? BoxShape.circle
-              : BoxShape.rectangle,
-          borderRadius: widget.shape is RoundedRectangleBorder
-              ? (widget.shape as RoundedRectangleBorder).borderRadius
-              : null,
-        ),
-        child: widget.child,
-      ),
+      child: widget.onTap == null
+          ? content
+          : GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: widget.onTap,
+              child: content,
+            ),
     );
   }
 
@@ -561,48 +558,40 @@ class _TabChipActionState extends State<_TabChipAction> {
   }
 }
 
-class _DragHandle extends StatefulWidget {
-  const _DragHandle({
+class _TabChipDragAction extends StatefulWidget {
+  const _TabChipDragAction({
     required this.dragIndex,
+    required this.hoverColor,
+    required this.width,
+    required this.height,
     required this.color,
     required this.inactiveColor,
   });
 
   final int? dragIndex;
+  final Color hoverColor;
+  final double width;
+  final double height;
   final Color color;
   final Color inactiveColor;
 
   @override
-  State<_DragHandle> createState() => _DragHandleState();
+  State<_TabChipDragAction> createState() => _TabChipDragActionState();
 }
 
-class _DragHandleState extends State<_DragHandle> {
-  final ValueNotifier<bool> _dragActive = ValueNotifier(false);
+class _TabChipDragActionState extends State<_TabChipDragAction> {
+  bool _dragActive = false;
 
-  void _setDragActive(bool value) {
-    _dragActive.value = value;
-  }
-
-  Widget get _handle => SizedBox(
-    width: 20,
-    height: 20,
-    child: Center(
-      child: ValueListenableBuilder<bool>(
-        valueListenable: _dragActive,
-        builder: (context, active, child) {
-          final icon = active ? NerdIcon.dragSelect.data : NerdIcon.drag.data;
-          final color = active ? widget.color : widget.inactiveColor;
-          return Icon(icon, size: 16, color: color);
-        },
-      ),
-    ),
-  );
-
-  @override
-  void dispose() {
-    _dragActive.dispose();
-    super.dispose();
-  }
+  Widget get _handle => _TabChipAction(
+        hoverColor: widget.hoverColor,
+        child: _DragHandle(
+          width: widget.width,
+          height: widget.height,
+          color: widget.color,
+          inactiveColor: widget.inactiveColor,
+          active: _dragActive,
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -617,6 +606,40 @@ class _DragHandleState extends State<_DragHandle> {
       child: ReorderableDragStartListener(
         index: widget.dragIndex!,
         child: _handle,
+      ),
+    );
+  }
+
+  void _setDragActive(bool value) {
+    if (_dragActive == value) return;
+    setState(() => _dragActive = value);
+  }
+}
+
+class _DragHandle extends StatelessWidget {
+  const _DragHandle({
+    required this.width,
+    required this.height,
+    required this.color,
+    required this.inactiveColor,
+    required this.active,
+  });
+
+  final double width;
+  final double height;
+  final Color color;
+  final Color inactiveColor;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = active ? NerdIcon.dragSelect.data : NerdIcon.drag.data;
+    final iconColor = active ? color : inactiveColor;
+    return SizedBox(
+      width: width,
+      height: height,
+      child: Center(
+        child: Icon(icon, size: 16, color: iconColor),
       ),
     );
   }
@@ -715,4 +738,3 @@ class _TabLipPainter extends CustomPainter {
         boxShadow != oldDelegate.boxShadow;
   }
 }
-
