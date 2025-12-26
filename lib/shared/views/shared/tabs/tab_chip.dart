@@ -140,10 +140,12 @@ class _TabChipState extends State<TabChip> {
       selected: widget.selected,
       spacing: spacing,
     );
-    final inactiveForeground =
-        colorScheme.onSurfaceVariant.withValues(alpha: 0.85);
-    final foreground =
-        widget.selected ? colorScheme.primary : inactiveForeground;
+    final inactiveForeground = colorScheme.onSurfaceVariant.withValues(
+      alpha: 0.85,
+    );
+    final foreground = widget.selected
+        ? colorScheme.primary
+        : inactiveForeground;
     final primaryActionColor = colorScheme.primary;
     final primaryActionHover = colorScheme.onSurface.withValues(alpha: 0.08);
     final closeColor = colorScheme.error;
@@ -200,13 +202,13 @@ class _TabChipState extends State<TabChip> {
       onExit: (_) => _setHovering(false),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onSecondaryTapDown: (details) => _showContextMenu(
-          context,
-          details.globalPosition,
-          menuOptions,
-        ),
+        onSecondaryTapDown: (details) =>
+            _showContextMenu(context, details.globalPosition, menuOptions),
         child: Transform.translate(
-          offset: Offset(0, widget.selected ? 1 : 0), // Slight press down effect
+          offset: Offset(
+            0,
+            widget.selected ? 1 : 0,
+          ), // Slight press down effect
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeOutCubic,
@@ -227,135 +229,136 @@ class _TabChipState extends State<TabChip> {
               ),
               child: Stack(
                 children: [
-                Padding(
-                  padding: padding,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      AnimatedCrossFade(
-                        duration: const Duration(milliseconds: 140),
-                        firstCurve: Curves.easeOutCubic,
-                        secondCurve: Curves.easeOutCubic,
-                        sizeCurve: Curves.easeOutCubic,
-                        crossFadeState: showActions
-                            ? CrossFadeState.showSecond
-                            : CrossFadeState.showFirst,
-                        firstChild: const SizedBox(width: 0, height: 0),
-                        secondChild: _TabChipDragAction(
-                          hoverColor: primaryActionHover,
-                          dragIndex: widget.dragIndex,
-                          width: actionWidth,
-                          height: actionHeight,
-                          color: primaryActionColor,
-                          inactiveColor: primaryActionColor.withValues(
-                            alpha: 0.55,
+                  Padding(
+                    padding: padding,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        AnimatedCrossFade(
+                          duration: const Duration(milliseconds: 140),
+                          firstCurve: Curves.easeOutCubic,
+                          secondCurve: Curves.easeOutCubic,
+                          sizeCurve: Curves.easeOutCubic,
+                          crossFadeState: showActions
+                              ? CrossFadeState.showSecond
+                              : CrossFadeState.showFirst,
+                          firstChild: const SizedBox(width: 0, height: 0),
+                          secondChild: _TabChipDragAction(
+                            hoverColor: primaryActionHover,
+                            dragIndex: widget.dragIndex,
+                            width: actionWidth,
+                            height: actionHeight,
+                            color: primaryActionColor,
+                            inactiveColor: primaryActionColor.withValues(
+                              alpha: 0.55,
+                            ),
                           ),
                         ),
-                      ),
-                      SizedBox(width: showActions ? spacing.xs : 0),
-                      Flexible(
-                        child: InkWell(
-                          onTap: widget.onSelect,
-                          child: Row(
+                        SizedBox(width: showActions ? spacing.xs : 0),
+                        Flexible(
+                          child: InkWell(
+                            onTap: widget.onSelect,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  widget.icon,
+                                  size: 18,
+                                  color: colorScheme.primary,
+                                ),
+                                Text(
+                                  ' ',
+                                  style: appTheme.typography.tabLabel.copyWith(
+                                    color: Colors.transparent,
+                                  ),
+                                ),
+                                Flexible(
+                                  child: Text(
+                                    widget.title,
+                                    style: appTheme.typography.tabLabel
+                                        .copyWith(
+                                          color: foreground,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: showActions ? spacing.xs : 0),
+                        AnimatedCrossFade(
+                          duration: const Duration(milliseconds: 140),
+                          firstCurve: Curves.easeOutCubic,
+                          secondCurve: Curves.easeOutCubic,
+                          sizeCurve: Curves.easeOutCubic,
+                          crossFadeState: showActions
+                              ? CrossFadeState.showSecond
+                              : CrossFadeState.showFirst,
+                          firstChild: const SizedBox(width: 0, height: 0),
+                          secondChild: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(
-                                widget.icon,
-                                size: 18,
-                                color: colorScheme.primary,
-                              ),
-                              Text(
-                                ' ',
-                                style: appTheme.typography.tabLabel.copyWith(
-                                  color: Colors.transparent,
+                              if (!isDesktop) ...[
+                                _buildOptionsButton(
+                                  primaryActionColor,
+                                  primaryActionHover,
+                                  menuOptions,
                                 ),
-                              ),
-                              Flexible(
-                                child: Text(
-                                  widget.title,
-                                  style: appTheme.typography.tabLabel.copyWith(
-                                    color: foreground,
-                                    fontWeight: FontWeight.w500,
+                                SizedBox(width: spacing.xs),
+                              ],
+                              _TabChipAction(
+                                hoverColor: closeHover,
+                                onTap: widget.closable
+                                    ? () => _handleClose(context)
+                                    : null,
+                                child: SizedBox(
+                                  width: actionWidth,
+                                  height: actionHeight,
+                                  child: Center(
+                                    child: Icon(
+                                      NerdIcon.close.data,
+                                      size: 16,
+                                      color: widget.closable
+                                          ? closeColor
+                                          : closeColor.withValues(alpha: 0.4),
+                                    ),
                                   ),
-                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ),
-                      SizedBox(width: showActions ? spacing.xs : 0),
-                      AnimatedCrossFade(
-                        duration: const Duration(milliseconds: 140),
-                        firstCurve: Curves.easeOutCubic,
-                        secondCurve: Curves.easeOutCubic,
-                        sizeCurve: Curves.easeOutCubic,
-                        crossFadeState: showActions
-                            ? CrossFadeState.showSecond
-                            : CrossFadeState.showFirst,
-                        firstChild: const SizedBox(width: 0, height: 0),
-                        secondChild: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (!isDesktop) ...[
-                              _buildOptionsButton(
-                                primaryActionColor,
-                                primaryActionHover,
-                                menuOptions,
-                              ),
-                              SizedBox(width: spacing.xs),
-                            ],
-                            _TabChipAction(
-                              hoverColor: closeHover,
-                              onTap: widget.closable
-                                  ? () => _handleClose(context)
-                                  : null,
-                              child: SizedBox(
-                                width: actionWidth,
-                                height: actionHeight,
-                                child: Center(
-                                  child: Icon(
-                                    NerdIcon.close.data,
-                                    size: 16,
-                                    color: widget.closable
-                                        ? closeColor
-                                        : closeColor.withValues(alpha: 0.4),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  child: Container(
-                    height: 2,
-                    decoration: BoxDecoration(
-                      color: widget.selected
-                          ? colorScheme.primary
-                          : colorScheme.primary.withValues(alpha: 0.25),
+                      ],
                     ),
                   ),
-                ),
-                // Right border
-                Positioned(
-                  top: 0,
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    width: 1,
-                    color: colorScheme.primary.withValues(
-                      alpha: _hovering ? 0.3 : 0.2,
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      height: 2,
+                      decoration: BoxDecoration(
+                        color: widget.selected
+                            ? colorScheme.primary
+                            : colorScheme.primary.withValues(alpha: 0.25),
+                      ),
                     ),
                   ),
-                ),
+                  // Right border
+                  Positioned(
+                    top: 0,
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 1,
+                      color: colorScheme.primary.withValues(
+                        alpha: _hovering ? 0.3 : 0.2,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -502,17 +505,11 @@ class _TabChipAction extends StatefulWidget {
   const _TabChipAction({
     required this.child,
     required this.hoverColor,
-    this.padding = EdgeInsets.zero,
-    this.shape = const RoundedRectangleBorder(
-      borderRadius: BorderRadius.zero,
-    ),
     this.onTap,
   });
 
   final Widget child;
   final Color hoverColor;
-  final EdgeInsetsGeometry padding;
-  final ShapeBorder shape;
   final VoidCallback? onTap;
 
   @override
@@ -526,14 +523,11 @@ class _TabChipActionState extends State<_TabChipAction> {
   Widget build(BuildContext context) {
     final content = AnimatedContainer(
       duration: const Duration(milliseconds: 150),
-      padding: widget.padding,
+      padding: EdgeInsets.zero,
       decoration: BoxDecoration(
         color: _hovering ? widget.hoverColor : Colors.transparent,
-        shape:
-            widget.shape is CircleBorder ? BoxShape.circle : BoxShape.rectangle,
-        borderRadius: widget.shape is RoundedRectangleBorder
-            ? (widget.shape as RoundedRectangleBorder).borderRadius
-            : null,
+        shape: BoxShape.rectangle,
+        borderRadius: const RoundedRectangleBorder().borderRadius,
       ),
       child: widget.child,
     );
@@ -583,15 +577,15 @@ class _TabChipDragActionState extends State<_TabChipDragAction> {
   bool _dragActive = false;
 
   Widget get _handle => _TabChipAction(
-        hoverColor: widget.hoverColor,
-        child: _DragHandle(
-          width: widget.width,
-          height: widget.height,
-          color: widget.color,
-          inactiveColor: widget.inactiveColor,
-          active: _dragActive,
-        ),
-      );
+    hoverColor: widget.hoverColor,
+    child: _DragHandle(
+      width: widget.width,
+      height: widget.height,
+      color: widget.color,
+      inactiveColor: widget.inactiveColor,
+      active: _dragActive,
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -638,9 +632,7 @@ class _DragHandle extends StatelessWidget {
     return SizedBox(
       width: width,
       height: height,
-      child: Center(
-        child: Icon(icon, size: 16, color: iconColor),
-      ),
+      child: Center(child: Icon(icon, size: 16, color: iconColor)),
     );
   }
 }

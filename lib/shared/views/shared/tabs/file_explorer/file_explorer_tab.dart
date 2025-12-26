@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 
+import '../../../../../shared/mixins/tab_options_mixin.dart';
+import '../../../../../shared/theme/app_theme.dart';
 import '../../../../../models/explorer_context.dart';
 import '../../../../../models/remote_file_entry.dart';
 import '../../../../../models/ssh_host.dart';
@@ -54,13 +56,12 @@ class FileExplorerTab extends StatefulWidget {
   State<FileExplorerTab> createState() => _FileExplorerTabState();
 }
 
-class _FileExplorerTabState extends State<FileExplorerTab> {
+class _FileExplorerTabState extends State<FileExplorerTab>
+    with TabOptionsMixin {
   late final FileExplorerController _controller;
   late final VoidCallback _controllerListener;
   final FocusNode _listFocusNode = FocusNode(debugLabel: 'file-explorer-list');
   final ScrollController _scrollController = ScrollController();
-  List<TabChipOption>? _pendingTabOptions;
-  bool _optionsScheduled = false;
   bool _dropHover = false;
 
   @override
@@ -127,6 +128,9 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
+    final dropOverlayColor =
+        context.appTheme.list.selectedBackground.withValues(alpha: 0.35);
     final contentCard = Card(
       clipBehavior: Clip.antiAlias,
       child: _controller.loading
@@ -179,14 +183,14 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
                 contentCard,
                 if (_dropHover)
                   Container(
-                    color: Colors.blue.withValues(alpha: 0.08),
+                    color: dropOverlayColor,
                     alignment: Alignment.center,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(Icons.upload_file, size: 48),
-                        SizedBox(height: 8),
-                        Text('Drop files or folders to upload'),
+                      children: [
+                        const Icon(Icons.upload_file, size: 48),
+                        SizedBox(height: spacing.md),
+                        const Text('Drop files or folders to upload'),
                       ],
                     ),
                   ),
@@ -199,10 +203,10 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(bottom: 8),
+          padding: EdgeInsets.only(bottom: spacing.md),
           child: _buildPathNavigator(context),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: spacing.lg),
         Expanded(child: dropWrapped),
       ],
     );
@@ -823,27 +827,6 @@ class _FileExplorerTabState extends State<FileExplorerTab> {
         ),
       );
     }
-    _scheduleTabOptions(controller, options);
-  }
-
-  void _scheduleTabOptions(
-    TabOptionsController controller,
-    List<TabChipOption> options,
-  ) {
-    _pendingTabOptions = options;
-    if (_optionsScheduled) {
-      return;
-    }
-    _optionsScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _optionsScheduled = false;
-      final pending = _pendingTabOptions!;
-      _pendingTabOptions = null;
-      if (controller is CompositeTabOptionsController) {
-        controller.updateBase(pending);
-      } else {
-        controller.update(pending);
-      }
-    });
+    queueTabOptions(controller, options, useBase: true);
   }
 }

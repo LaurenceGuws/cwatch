@@ -15,9 +15,11 @@ import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
+import 'package:cwatch/shared/mixins/tab_options_mixin.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/widgets/section_nav_bar.dart';
+import 'package:cwatch/shared/widgets/standard_empty_state.dart';
 import '../engine_tab.dart';
 import '../docker_tab_factory.dart';
 import 'docker_lists.dart';
@@ -64,7 +66,7 @@ class DockerOverview extends StatefulWidget {
 }
 
 class _DockerOverviewState extends State<DockerOverview>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, TabOptionsMixin {
   late DockerOverviewController _controller;
   late final VoidCallback _controllerListener;
   late DockerOverviewActions _actions;
@@ -160,10 +162,7 @@ class _DockerOverviewState extends State<DockerOverview>
         onSelected: () => _runPrune(includeVolumes: true),
       ),
     ];
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      widget.optionsController?.update(options);
-    });
+    queueTabOptions(widget.optionsController, options);
   }
 
   @override
@@ -327,10 +326,9 @@ class _DockerOverviewState extends State<DockerOverview>
                             volumes.isEmpty)
                           Padding(
                             padding: EdgeInsets.only(top: spacing.lg),
-                            child: const Center(
-                              child: Text(
-                                'No containers, images, networks, or volumes found.',
-                              ),
+                            child: const StandardEmptyState(
+                              message:
+                                  'No containers, images, networks, or volumes found.',
                             ),
                           ),
                       ],
@@ -428,7 +426,7 @@ class _DockerOverviewState extends State<DockerOverview>
   }
 
   Widget _buildEmptyTab(String message) {
-    return Center(child: Text(message));
+    return StandardEmptyState(message: message);
   }
 
   List<DockerContainer> _selectedContainersForAction(DockerContainer fallback) {

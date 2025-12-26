@@ -5,6 +5,7 @@ import 'package:cwatch/models/app_settings.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/models/input_mode_preference.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_definition.dart';
+import '../../../../shared/theme/app_theme.dart';
 import 'settings_section.dart';
 import 'shortcuts_settings_tab.dart';
 
@@ -50,8 +51,9 @@ class GeneralSettingsTab extends StatelessWidget {
         (defaultTargetPlatform == TargetPlatform.macOS ||
             defaultTargetPlatform == TargetPlatform.linux ||
             defaultTargetPlatform == TargetPlatform.windows);
+    final spacing = context.appTheme.spacing;
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      padding: spacing.inset(horizontal: 1.5, vertical: 1),
       children: [
         SettingsSection(
           title: 'Theme',
@@ -79,7 +81,7 @@ class GeneralSettingsTab extends StatelessWidget {
                   DropdownMenuItem(value: ThemeMode.dark, child: Text('Dark')),
                 ],
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: spacing.lg),
               TextFormField(
                 initialValue: appFontFamily ?? '',
                 decoration: const InputDecoration(
@@ -88,7 +90,7 @@ class GeneralSettingsTab extends StatelessWidget {
                 ),
                 onChanged: onAppFontFamilyChanged,
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: spacing.lg),
               DropdownButtonFormField<String>(
                 initialValue: appThemeKey,
                 decoration: const InputDecoration(labelText: 'App accent'),
@@ -167,10 +169,10 @@ class GeneralSettingsTab extends StatelessWidget {
             contentPadding: EdgeInsets.zero,
             subtitle: null,
             title: Row(
-              children: const [
-                Text('Enable SSH debug overlays'),
-                SizedBox(width: 8),
-                Tooltip(
+              children: [
+                const Text('Enable SSH debug overlays'),
+                SizedBox(width: spacing.md),
+                const Tooltip(
                   message:
                       'Displays commands, raw output, and post-action checks like file existence verification.',
                   preferBelow: false,

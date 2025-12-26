@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../theme/app_theme.dart';
 import '../../../../theme/nerd_fonts.dart';
 
 /// Widget for navigating file paths with breadcrumbs or text input
@@ -44,6 +45,7 @@ class _PathNavigatorState extends State<PathNavigator> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final spacing = context.appTheme.spacing;
     final toggle = ToggleButtons(
       isSelected: [widget.showBreadcrumbs, !widget.showBreadcrumbs],
       onPressed: (index) {
@@ -73,7 +75,7 @@ class _PathNavigatorState extends State<PathNavigator> {
           );
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      padding: spacing.inset(horizontal: 1.5, vertical: 1),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(8),
@@ -82,7 +84,7 @@ class _PathNavigatorState extends State<PathNavigator> {
       child: Row(
         children: [
           toggle,
-          const SizedBox(width: 8),
+          SizedBox(width: spacing.md),
           Expanded(child: content),
         ],
       ),

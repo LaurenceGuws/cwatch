@@ -72,10 +72,14 @@ class WindowsDragSource implements DesktopDragSource {
           view?.devicePixelRatio ??
           ui.PlatformDispatcher.instance.implicitView?.devicePixelRatio ??
           1.0;
+      final placeholderColor = Theme.of(
+        context,
+      ).colorScheme.primary.withValues(alpha: 0.8);
       final configItems = await _buildConfigItems(
         globalPosition,
         items,
         devicePixelRatio,
+        placeholderColor,
       );
       if (!context.mounted) {
         return const DragStartResult(
@@ -104,8 +108,9 @@ class WindowsDragSource implements DesktopDragSource {
     Offset globalPosition,
     List<DragLocalItem> items,
     double devicePixelRatio,
+    Color placeholderColor,
   ) async {
-    final image = await _placeholderImage(devicePixelRatio);
+    final image = await _placeholderImage(devicePixelRatio, placeholderColor);
     final snapshot = WidgetSnapshot.image(image);
     final rect = Rect.fromLTWH(
       globalPosition.dx,
@@ -126,11 +131,14 @@ class WindowsDragSource implements DesktopDragSource {
         .toList();
   }
 
-  Future<ui.Image> _placeholderImage(double devicePixelRatio) async {
+  Future<ui.Image> _placeholderImage(
+    double devicePixelRatio,
+    Color placeholderColor,
+  ) async {
     final size = (20 * devicePixelRatio).round();
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    final paint = Paint()..color = Colors.blue.withValues(alpha: 0.8);
+    final paint = Paint()..color = placeholderColor;
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromLTWH(0, 0, size.toDouble(), size.toDouble()),
@@ -175,10 +183,14 @@ class LinuxDragSource implements DesktopDragSource {
           view?.devicePixelRatio ??
           ui.PlatformDispatcher.instance.implicitView?.devicePixelRatio ??
           1.0;
+      final placeholderColor = Theme.of(
+        context,
+      ).colorScheme.primary.withValues(alpha: 0.8);
       final configItems = await _buildConfigItems(
         globalPosition,
         items,
         devicePixelRatio,
+        placeholderColor,
       );
       if (!context.mounted) {
         return const DragStartResult(
@@ -207,8 +219,9 @@ class LinuxDragSource implements DesktopDragSource {
     Offset globalPosition,
     List<DragLocalItem> items,
     double devicePixelRatio,
+    Color placeholderColor,
   ) async {
-    final image = await _placeholderImage(devicePixelRatio);
+    final image = await _placeholderImage(devicePixelRatio, placeholderColor);
     final snapshot = WidgetSnapshot.image(image);
     final rect = Rect.fromLTWH(
       globalPosition.dx,
@@ -229,11 +242,14 @@ class LinuxDragSource implements DesktopDragSource {
         .toList();
   }
 
-  Future<ui.Image> _placeholderImage(double devicePixelRatio) async {
+  Future<ui.Image> _placeholderImage(
+    double devicePixelRatio,
+    Color placeholderColor,
+  ) async {
     final size = (20 * devicePixelRatio).round();
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    final paint = Paint()..color = Colors.blue.withValues(alpha: 0.8);
+    final paint = Paint()..color = placeholderColor;
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromLTWH(0, 0, size.toDouble(), size.toDouble()),

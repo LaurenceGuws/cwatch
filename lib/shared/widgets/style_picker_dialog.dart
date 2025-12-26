@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 class StyleOption {
   const StyleOption({required this.key, required this.label});
 
@@ -115,11 +117,14 @@ class _StylePickerDialogState extends State<_StylePickerDialog> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final spacing = context.appTheme.spacing;
     final visible = _visible;
 
     return Dialog(
-      insetPadding: const EdgeInsets.all(12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+      insetPadding: EdgeInsets.all(spacing.lg),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(spacing.base * 1.5),
+      ),
       clipBehavior: Clip.antiAlias,
       child: SizedBox(
         width: 520,
@@ -127,7 +132,10 @@ class _StylePickerDialogState extends State<_StylePickerDialog> {
         child: Column(
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: EdgeInsets.symmetric(
+                horizontal: spacing.xl,
+                vertical: spacing.lg,
+              ),
               color: scheme.surfaceContainerHigh,
               child: Row(
                 children: [
@@ -149,28 +157,35 @@ class _StylePickerDialogState extends State<_StylePickerDialog> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+              padding: EdgeInsets.fromLTRB(
+                spacing.lg,
+                spacing.base * 2.5,
+                spacing.lg,
+                spacing.md,
+              ),
               child: TextField(
                 controller: _searchController,
                 focusNode: _searchFocusNode,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'Search themes',
-                  prefixIcon: Icon(Icons.search, size: 18),
+                  prefixIcon: Icon(Icons.search, size: spacing.base * 4.5),
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 10,
-                  ),
+                  contentPadding: EdgeInsets.all(spacing.base * 2.5),
                 ),
               ),
             ),
             Expanded(
               child: Scrollbar(
                 child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                  padding: EdgeInsets.fromLTRB(
+                    spacing.lg,
+                    spacing.sm,
+                    spacing.lg,
+                    spacing.lg,
+                  ),
                   itemCount: visible.length,
                   separatorBuilder: (context, index) =>
-                      const SizedBox(height: 6),
+                      SizedBox(height: spacing.base * 1.5),
                   itemBuilder: (context, index) {
                     final option = visible[index];
                     final selected = option.key == _current;
@@ -184,14 +199,14 @@ class _StylePickerDialogState extends State<_StylePickerDialog> {
                       onTap: () => _select(option.key),
                       onDoubleTap: () => _select(option.key, apply: true),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: spacing.lg,
+                          vertical: spacing.base * 2.5,
                         ),
                         decoration: BoxDecoration(
                           color: bg,
                           border: Border.all(color: borderColor),
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(spacing.sm),
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -200,10 +215,10 @@ class _StylePickerDialogState extends State<_StylePickerDialog> {
                               selected
                                   ? Icons.check_circle
                                   : Icons.circle_outlined,
-                              size: 18,
+                              size: spacing.base * 4.5,
                               color: selected ? scheme.primary : scheme.outline,
                             ),
-                            const SizedBox(width: 10),
+                            SizedBox(width: spacing.base * 2.5),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -214,7 +229,7 @@ class _StylePickerDialogState extends State<_StylePickerDialog> {
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  const SizedBox(height: 2),
+                                  SizedBox(height: spacing.xs),
                                   Text(
                                     option.key,
                                     style: textTheme.labelSmall?.copyWith(
@@ -233,7 +248,10 @@ class _StylePickerDialogState extends State<_StylePickerDialog> {
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: EdgeInsets.symmetric(
+                horizontal: spacing.lg,
+                vertical: spacing.base * 2.5,
+              ),
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerHigh,
                 border: Border(top: BorderSide(color: scheme.outlineVariant)),
@@ -253,7 +271,7 @@ class _StylePickerDialogState extends State<_StylePickerDialog> {
                     onPressed: () => Navigator.of(context).pop(null),
                     child: const Text('Cancel'),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: spacing.md),
                   FilledButton(onPressed: _apply, child: const Text('Apply')),
                 ],
               ),

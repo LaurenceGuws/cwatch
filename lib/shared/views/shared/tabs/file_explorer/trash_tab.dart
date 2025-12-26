@@ -9,6 +9,7 @@ import '../../../../../services/logging/app_logger.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
 import '../../../../../services/ssh/builtin/builtin_ssh_key_service.dart';
+import '../../../../../shared/theme/app_theme.dart';
 import 'ssh_auth_handler.dart';
 
 class TrashTab extends StatefulWidget {
@@ -311,11 +312,12 @@ class _TrashTabState extends State<TrashTab> {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Trash', style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 12),
+        SizedBox(height: spacing.lg),
         Expanded(
           child: RefreshIndicator(
             onRefresh: _refresh,
@@ -337,7 +339,7 @@ class _TrashTabState extends State<TrashTab> {
                 entries.sort((a, b) => b.trashedAt.compareTo(a.trashedAt));
                 return ListView.separated(
                   itemCount: entries.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  separatorBuilder: (_, _) => SizedBox(height: spacing.md),
                   itemBuilder: (context, index) {
                     final entry = entries[index];
                     final contextDetails = entry.contextLabel != entry.hostName
@@ -357,7 +359,7 @@ class _TrashTabState extends State<TrashTab> {
                         ),
                         isThreeLine: true,
                         trailing: Wrap(
-                          spacing: 8,
+                          spacing: spacing.md,
                           children: [
                             IconButton(
                               tooltip: 'Restore to ${entry.remotePath}',

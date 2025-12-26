@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 class InlineSearchBar extends StatelessWidget {
   const InlineSearchBar({
     super.key,
@@ -19,12 +21,13 @@ class InlineSearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final spacing = context.appTheme.spacing;
     return Container(
-      padding: const EdgeInsets.all(8),
-      margin: const EdgeInsets.only(bottom: 8),
+      padding: spacing.all(2),
+      margin: EdgeInsets.only(bottom: spacing.md),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(spacing.md),
         border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Row(

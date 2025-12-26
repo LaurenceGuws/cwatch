@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:cwatch/shared/theme/app_theme.dart';
 import 'settings_section.dart';
 
 class EditorSettingsSection extends StatefulWidget {
@@ -58,6 +59,7 @@ class _EditorSettingsSectionState extends State<EditorSettingsSection> {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return SettingsSection(
       title: 'Appearance',
       description:
@@ -72,7 +74,7 @@ class _EditorSettingsSectionState extends State<EditorSettingsSection> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: spacing.lg),
           TextFormField(
             controller: _fontController,
             decoration: const InputDecoration(
@@ -81,7 +83,7 @@ class _EditorSettingsSectionState extends State<EditorSettingsSection> {
             ),
             onChanged: widget.onFontFamilyChanged,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: spacing.lg),
           _SliderRow(
             label: 'Font size',
             valueLabel: widget.fontSize.toStringAsFixed(1),
@@ -106,14 +108,14 @@ class _EditorSettingsSectionState extends State<EditorSettingsSection> {
               onChanged: widget.onLineHeightChanged,
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: spacing.lg),
           const _GroupLabel('Highlighting'),
           _ThemePickerRow(
             label: 'Light theme',
             value: widget.lightTheme ?? 'atom-one-light',
             onChanged: widget.onLightThemeChanged,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: spacing.lg),
           _ThemePickerRow(
             label: 'Dark theme',
             value: widget.darkTheme ?? 'atom-one-dark',

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:cwatch/shared/views/shared/tabs/terminal/terminal_theme_presets.dart';
+import 'package:cwatch/shared/theme/app_theme.dart';
 
 import 'settings_section.dart';
 
@@ -69,6 +70,7 @@ class _TerminalSettingsSectionState extends State<TerminalSettingsSection> {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return SettingsSection(
       title: 'Appearance',
       description:
@@ -82,7 +84,7 @@ class _TerminalSettingsSectionState extends State<TerminalSettingsSection> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: spacing.lg),
           const _GroupLabel('Typography'),
           TextFormField(
             controller: _fontController,
@@ -92,7 +94,7 @@ class _TerminalSettingsSectionState extends State<TerminalSettingsSection> {
             ),
             onChanged: widget.onFontFamilyChanged,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: spacing.lg),
           _SliderRow(
             label: 'Font size',
             valueLabel: widget.fontSize.toStringAsFixed(1),
@@ -117,7 +119,7 @@ class _TerminalSettingsSectionState extends State<TerminalSettingsSection> {
               onChanged: widget.onLineHeightChanged,
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: spacing.lg),
           const _GroupLabel('Padding'),
           _SliderRow(
             label: 'Horizontal padding',
@@ -143,14 +145,14 @@ class _TerminalSettingsSectionState extends State<TerminalSettingsSection> {
               onChanged: widget.onPaddingYChanged,
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: spacing.lg),
           const _GroupLabel('Color themes'),
           _ThemePickerRow(
             label: 'Light theme',
             value: widget.lightTheme,
             onChanged: widget.onLightThemeChanged,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: spacing.lg),
           _ThemePickerRow(
             label: 'Dark theme',
             value: widget.darkTheme,

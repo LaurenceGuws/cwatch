@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/navigation/command_palette_registry.dart';
 import '../theme/app_theme.dart';
+import 'lists/selectable_list_item.dart';
 
 class CommandPalette extends StatefulWidget {
   const CommandPalette({super.key, required this.entries});
@@ -20,8 +21,6 @@ class _CommandPaletteState extends State<CommandPalette> {
   int _selectedIndex = 0;
   final ScrollController _scrollController = ScrollController();
   static const double _itemExtent = 64;
-  int? _pointerIndex;
-  bool _pointerActive = false;
 
   @override
   void initState() {
@@ -129,22 +128,14 @@ class _CommandPaletteState extends State<CommandPalette> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
+                padding: appTheme.spacing.inset(horizontal: 4, vertical: 3),
                 child: TextField(
                   controller: _controller,
                   focusNode: _focusNode,
                   decoration: InputDecoration(
                     hintText: 'Type a command…',
                     prefixIcon: const Icon(Icons.search),
-                    border: const OutlineInputBorder(),
                     isDense: true,
-                    filled: true,
-                    fillColor: scheme.surfaceContainerHighest.withValues(
-                      alpha: 0.8,
-                    ),
                   ),
                   onSubmitted: (_) => _activate(_selectedIndex),
                   onEditingComplete: () {},
@@ -155,7 +146,7 @@ class _CommandPaletteState extends State<CommandPalette> {
                 child: filtered.isEmpty
                     ? Center(
                         child: Padding(
-                          padding: const EdgeInsets.all(24),
+                          padding: EdgeInsets.all(appTheme.spacing.xl * 1.5),
                           child: Text(
                             'No commands match your search.',
                             style: Theme.of(context).textTheme.bodyMedium,
@@ -172,101 +163,33 @@ class _CommandPaletteState extends State<CommandPalette> {
                         itemBuilder: (context, index) {
                           final entry = filtered[index];
                           final selected = index == _selectedIndex;
-                          final hovered =
-                              _pointerActive && _pointerIndex == index;
-                          return MouseRegion(
-                            onEnter: (_) => setState(() {
-                              _pointerActive = true;
-                              _pointerIndex = index;
-                            }),
-                            onExit: (_) => setState(() {
-                              _pointerActive = false;
-                              _pointerIndex = null;
-                            }),
-                            child: InkWell(
-                              onTap: () => _activate(index),
-                              child: Container(
-                                height: _itemExtent,
-                                color: selected
-                                    ? scheme.primary.withValues(alpha: 0.08)
-                                    : hovered
-                                    ? scheme.surfaceContainerHighest.withValues(
-                                        alpha: 0.5,
-                                      )
-                                    : Colors.transparent,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 10,
-                                ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    if (entry.icon != null) ...[
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          right: 12,
-                                          top: 2,
-                                        ),
-                                        child: Icon(
-                                          entry.icon,
-                                          size: 18,
-                                          color: selected
-                                              ? scheme.primary
-                                              : scheme.onSurfaceVariant,
-                                        ),
-                                      ),
-                                    ],
-                                    Expanded(
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            entry.label,
-                                            style: Theme.of(
-                                              context,
-                                            ).textTheme.titleMedium,
-                                          ),
-                                          if (entry.description != null)
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                top: 2,
-                                              ),
-                                              child: Text(
-                                                entry.description!,
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .bodySmall
-                                                    ?.copyWith(
-                                                      color: scheme
-                                                          .onSurfaceVariant,
-                                                    ),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: scheme.surfaceContainerHighest,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        entry.category,
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.labelSmall,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+
+                          return SelectableListItem(
+                            title: entry.label,
+                            subtitle: entry.description,
+                            selected: selected,
+                            onTap: () => _activate(index),
+                            leading: entry.icon != null
+                                ? Icon(
+                                    entry.icon,
+                                    size: 18,
+                                    color: selected
+                                        ? scheme.primary
+                                        : scheme.onSurfaceVariant,
+                                  )
+                                : null,
+                            trailing: Container(
+                              padding: appTheme.spacing.inset(
+                                horizontal: 2,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: scheme.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                entry.category,
+                                style: Theme.of(context).textTheme.labelSmall,
                               ),
                             ),
                           );

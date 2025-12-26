@@ -12,7 +12,6 @@ import 'package:cwatch/modules/docker/services/container_distro_key.dart';
 import 'package:cwatch/shared/widgets/data_table/structured_data_table.dart';
 import 'package:cwatch/shared/widgets/distro_leading_slot.dart';
 import 'package:cwatch/shared/widgets/lists/section_list.dart';
-import 'package:cwatch/shared/widgets/lists/section_list_item.dart';
 import 'package:cwatch/shared/widgets/lists/selectable_list_item.dart';
 import 'docker_lists_helpers.dart';
 
@@ -490,7 +489,7 @@ class ContainerList extends StatelessWidget {
         final projectName = isCompose
             ? project.replaceFirst('Compose: ', '')
             : null;
-        final header = SectionListItem(
+        final header = SelectableListItem(
           title: project,
           subtitle: '${items.length} containers',
           trailing: isCompose && onComposeAction != null
@@ -564,7 +563,7 @@ class ContainerList extends StatelessWidget {
                 statusColor: statusColor,
               ),
             ),
-            horizontalPadding: context.appTheme.spacing.base * 0.3,
+            horizontalPadding: context.appTheme.spacing.xs,
             busy: busyIds.contains(container.id),
             trailing: actionLabels[container.id] != null
                 ? Text(

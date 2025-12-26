@@ -9,6 +9,7 @@ import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_entry.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
+import 'package:cwatch/shared/theme/app_theme.dart';
 
 /// Built-in SSH settings widget for managing SSH keys
 class BuiltInSshSettings extends StatefulWidget {
@@ -153,6 +154,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
     return showDialog<String>(
       context: context,
       builder: (context) {
+        final spacing = context.appTheme.spacing;
         return AlertDialog(
           title: Text(
             isRequired ? 'Key passphrase required' : 'Key validation needed',
@@ -168,7 +170,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
                     : 'The key could not be parsed. It may be encrypted with a passphrase, '
                           'or it may be unsupported. Please try providing a passphrase if the key is encrypted.',
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: spacing.xl),
               TextField(
                 controller: controller,
                 autofocus: true,
@@ -359,13 +361,14 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 12),
-        const SizedBox(height: 12),
+        SizedBox(height: spacing.lg),
+        SizedBox(height: spacing.lg),
         _buildAddKeyForm(context),
-        const SizedBox(height: 12),
+        SizedBox(height: spacing.lg),
         FutureBuilder<List<BuiltInSshKeyEntry>>(
           future: _keysFuture,
           builder: (context, snapshot) {
@@ -409,7 +412,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
             );
           },
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: spacing.base * 5),
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton(
@@ -417,7 +420,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
             child: const Text('Clear unlocked keys'),
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: spacing.lg),
         FutureBuilder<List<BuiltInSshKeyEntry>>(
           future: _keysFuture,
           builder: (context, keysSnapshot) {
@@ -466,7 +469,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text('Host to key bindings'),
-                      const SizedBox(height: 6),
+                      SizedBox(height: spacing.base * 1.5),
                       ...hosts.map((host) => _buildHostMapping(host)),
                     ],
                   );
@@ -477,12 +480,15 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text('Host to key bindings'),
-                    const SizedBox(height: 6),
+                    SizedBox(height: spacing.base * 1.5),
                     ...sources.expand((source) {
                       final sourceHosts = grouped[source]!;
                       return [
                         Padding(
-                          padding: const EdgeInsets.only(top: 12, bottom: 6),
+                          padding: EdgeInsets.only(
+                            top: spacing.lg,
+                            bottom: spacing.base * 1.5,
+                          ),
                           child: Text(
                             _getSourceDisplayName(source),
                             style: Theme.of(context).textTheme.titleSmall
@@ -507,14 +513,15 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
   }
 
   Widget _buildAddKeyForm(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('Add a new key'),
-        const SizedBox(height: 8),
+        SizedBox(height: spacing.md),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: spacing.md,
+          runSpacing: spacing.md,
           children: [
             ElevatedButton.icon(
               icon: const Icon(Icons.file_open_outlined),
@@ -533,12 +540,12 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
               ),
           ],
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: spacing.md),
         TextField(
           controller: _labelController,
           decoration: const InputDecoration(labelText: 'Key label'),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: spacing.md),
         TextField(
           controller: _keyController,
           decoration: const InputDecoration(
@@ -546,7 +553,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
           ),
           maxLines: null,
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: spacing.md),
         TextField(
           controller: _passwordController,
           decoration: const InputDecoration(
@@ -557,7 +564,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
           ),
           obscureText: true,
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: spacing.md),
         Align(
           alignment: Alignment.centerRight,
           child: ElevatedButton(

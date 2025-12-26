@@ -4,6 +4,7 @@ import '../../../../../models/remote_file_entry.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../theme/nerd_fonts.dart';
 import '../../../../widgets/data_table/structured_data_table.dart';
+import '../../../../widgets/standard_empty_state.dart';
 import '../../../../widgets/lists/selectable_list_item.dart';
 import 'file_icon_resolver.dart';
 
@@ -98,7 +99,7 @@ class _FileEntryListState extends State<FileEntryList> {
   }
 
   String _secondaryLabel(RemoteFileEntry entry) {
-    return entry.isDirectory ? 'Directory' : _sizeLabel(entry);
+    return entry.isDirectory ? 'Directory' : 'File';
   }
 
   String _modifiedLabel(RemoteFileEntry entry) {
@@ -202,24 +203,39 @@ class _FileEntryListState extends State<FileEntryList> {
 
   Widget _buildNameCell(BuildContext context, RemoteFileEntry entry) {
     final colorScheme = Theme.of(context).colorScheme;
+    final spacing = context.appTheme.spacing;
     final selected = _isSelected(entry);
     final iconColor = selected
         ? colorScheme.primary
         : FileIconResolver.colorFor(entry, colorScheme);
     final icon = FileIconResolver.iconFor(entry);
+    const compactTextHeight = TextHeightBehavior(
+      applyHeightToFirstAscent: false,
+      applyHeightToLastDescent: false,
+    );
     return Row(
       children: [
         Icon(icon, color: iconColor),
-        const SizedBox(width: 8),
+        SizedBox(width: spacing.md),
         Expanded(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(entry.name, style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                entry.name,
+                style: Theme.of(context).textTheme.titleMedium,
+                textHeightBehavior: compactTextHeight,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               Text(
                 _secondaryLabel(entry),
                 style: Theme.of(context).textTheme.bodySmall,
+                textHeightBehavior: compactTextHeight,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -308,7 +324,9 @@ class _FileEntryListState extends State<FileEntryList> {
           onRowPointerCancel: _handleRowPointerCancel,
           onRowPointerEnter: _handleRowPointerEnter,
           onBackgroundContextMenu: widget.onBackgroundContextMenu,
-          emptyState: const Center(child: Text('Directory is empty.')),
+          emptyState: const StandardEmptyState(
+            message: 'Directory is empty.',
+          ),
         ),
       ),
     );

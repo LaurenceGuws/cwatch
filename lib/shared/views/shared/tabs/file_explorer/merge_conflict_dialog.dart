@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../theme/app_theme.dart';
 import '../../../../theme/nerd_fonts.dart';
 
 class MergeConflictDialog extends StatefulWidget {
@@ -46,6 +47,7 @@ class _MergeConflictDialogState extends State<MergeConflictDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     final size = MediaQuery.of(context).size;
     final width = size.width * 0.8;
     final diffHeight = size.height * 0.4;
@@ -53,7 +55,12 @@ class _MergeConflictDialogState extends State<MergeConflictDialog> {
 
     return AlertDialog(
       title: Text('Resolve conflicts for ${widget.remotePath}'),
-      contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 4),
+      contentPadding: EdgeInsets.fromLTRB(
+        spacing.base * 6,
+        spacing.base * 5,
+        spacing.base * 6,
+        spacing.sm,
+      ),
       content: SizedBox(
         width: width,
         child: Column(
@@ -62,7 +69,7 @@ class _MergeConflictDialogState extends State<MergeConflictDialog> {
             const Text(
               'Remote file changed while you edited locally. Review differences and provide the merged result.',
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: spacing.xl),
             SizedBox(
               height: diffHeight,
               child: Row(
@@ -74,7 +81,7 @@ class _MergeConflictDialogState extends State<MergeConflictDialog> {
                       controller: _remoteController,
                     ),
                   ),
-                  const VerticalDivider(width: 16),
+                  VerticalDivider(width: spacing.xl),
                   Expanded(
                     child: _DiffPane(
                       title: 'Local (cached)',
@@ -85,14 +92,14 @@ class _MergeConflictDialogState extends State<MergeConflictDialog> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: spacing.xl),
             SizedBox(
               height: mergedHeight,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('Merged result'),
-                  const SizedBox(height: 8),
+                  SizedBox(height: spacing.md),
                   Expanded(
                     child: TextField(
                       controller: _mergedController,
@@ -184,11 +191,12 @@ class _DiffPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
+        SizedBox(height: spacing.md),
         Expanded(
           child: Container(
             decoration: BoxDecoration(
@@ -200,7 +208,7 @@ class _DiffPane extends StatelessWidget {
               thumbVisibility: true,
               child: ListView.builder(
                 controller: controller,
-                padding: const EdgeInsets.all(8),
+                padding: EdgeInsets.all(spacing.md),
                 primary: false,
                 itemCount: lines.length,
                 itemBuilder: (context, index) {
@@ -208,9 +216,9 @@ class _DiffPane extends StatelessWidget {
                   final colors = _colorsForType(line.type, context);
                   return Container(
                     color: colors.background,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 2,
-                      horizontal: 4,
+                    padding: EdgeInsets.symmetric(
+                      vertical: spacing.xs,
+                      horizontal: spacing.sm,
                     ),
                     child: Text(
                       line.text,

@@ -9,6 +9,7 @@ import 'package:cwatch/shared/theme/distro_icons.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/widgets/data_table/structured_data_table.dart';
 import 'package:cwatch/shared/widgets/lists/section_list.dart';
+import 'package:cwatch/shared/widgets/standard_empty_state.dart';
 import 'package:cwatch/shared/views/shared/tabs/file_explorer/external_app_launcher.dart';
 import 'package:cwatch/shared/widgets/distro_leading_slot.dart';
 import 'package:cwatch/modules/servers/services/host_distro_key.dart';
@@ -91,7 +92,10 @@ class _HostListState extends State<HostList> {
     }
 
     if (widget.hosts.isEmpty) {
-      return const Center(child: Text('No SSH hosts found.'));
+      return const StandardEmptyState(
+        message: 'No SSH hosts found.',
+        icon: Icons.dns,
+      );
     }
 
     Widget buildSection(String source, int index) {
@@ -143,7 +147,9 @@ class _HostListState extends State<HostList> {
           ),
           children: collapsed
               ? const []
-              : [_buildHostTable(hosts, surfaceColor: sectionColor)],
+              : [
+                  _buildHostTable(context, hosts, surfaceColor: sectionColor),
+                ],
         ),
       );
     }
@@ -179,7 +185,12 @@ class _HostListState extends State<HostList> {
     return selected.isEmpty ? [fallback] : selected;
   }
 
-  Widget _buildHostTable(List<SshHost> hosts, {required Color surfaceColor}) {
+  Widget _buildHostTable(
+    BuildContext context,
+    List<SshHost> hosts, {
+    required Color surfaceColor,
+  }) {
+    final spacing = context.appTheme.spacing;
     return StructuredDataTable<SshHost>(
       rows: hosts,
       columns: _columns(),
@@ -195,9 +206,9 @@ class _HostListState extends State<HostList> {
       onSelectionChanged: (selectedRows) {
         _syncSelection(hosts, selectedRows);
       },
-      emptyState: const Padding(
-        padding: EdgeInsets.all(16),
-        child: Text('No servers in this group.'),
+      emptyState: Padding(
+        padding: EdgeInsets.all(spacing.xl),
+        child: const StandardEmptyState(message: 'No servers in this group.'),
       ),
     );
   }
@@ -225,6 +236,7 @@ class _HostListState extends State<HostList> {
 
   Widget _buildCombinedCell(BuildContext context, SshHost host) {
     final scheme = Theme.of(context).colorScheme;
+    final spacing = context.appTheme.spacing;
     final statusColor = host.available ? scheme.primary : scheme.error;
     final iconSize = _distroIconSize(context);
     return AnimatedBuilder(
@@ -246,7 +258,7 @@ class _HostListState extends State<HostList> {
                 statusColor: statusColor,
               ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: spacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

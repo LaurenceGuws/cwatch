@@ -10,6 +10,7 @@ import 'package:cwatch/models/ssh_client_backend.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/models/ssh_host.dart';
+import 'package:cwatch/shared/theme/app_theme.dart';
 import 'builtin_ssh_settings.dart';
 import 'settings_section.dart';
 
@@ -47,6 +48,7 @@ class _ServersSettingsTabState extends State<ServersSettingsTab> {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     final settings = widget.controller.settings;
     final backend = settings.sshClientBackend;
     final usingBuiltIn = backend == SshClientBackend.builtin;
@@ -66,7 +68,7 @@ class _ServersSettingsTabState extends State<ServersSettingsTab> {
 
     return ListView(
       controller: _scrollController,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: spacing.inset(horizontal: 2, vertical: 1),
       children: [
         SettingsSection(
           title: 'SSH Client',
@@ -88,10 +90,10 @@ class _ServersSettingsTabState extends State<ServersSettingsTab> {
                     );
                   },
                   title: Row(
-                    children: const [
-                      Text('Use built-in SSH client'),
-                      SizedBox(width: 8),
-                      Tooltip(
+                    children: [
+                      const Text('Use built-in SSH client'),
+                      SizedBox(width: spacing.md),
+                      const Tooltip(
                         message:
                             'When off, use the system SSH client and configs. When on, use the app key vault.',
                         preferBelow: false,
@@ -117,9 +119,9 @@ class _ServersSettingsTabState extends State<ServersSettingsTab> {
             future: widget.hostsFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: LinearProgressIndicator(),
+                return Padding(
+                  padding: EdgeInsets.all(spacing.lg),
+                  child: const LinearProgressIndicator(),
                 );
               }
               if (snapshot.hasError) {
@@ -165,8 +167,8 @@ class _ServersSettingsTabState extends State<ServersSettingsTab> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: spacing.md,
+                runSpacing: spacing.md,
                 children: [
                   for (final path in customConfigs)
                     InputChip(
@@ -178,7 +180,7 @@ class _ServersSettingsTabState extends State<ServersSettingsTab> {
                     const Text('No additional config files added yet.'),
                 ],
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: spacing.lg),
               Align(
                 alignment: Alignment.centerLeft,
                 child: ElevatedButton.icon(

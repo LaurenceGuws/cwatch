@@ -18,6 +18,7 @@ import 'package:cwatch/shared/shortcuts/shortcut_actions.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_resolver.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_service.dart';
 import 'package:cwatch/shared/shortcuts/input_mode_resolver.dart';
+import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 import 'package:cwatch/shared/views/shared/tabs/terminal/terminal_theme_presets.dart';
@@ -829,6 +830,7 @@ class _ComposeLogsTerminalState extends State<ComposeLogsTerminal> {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setState) {
+            final spacing = context.appTheme.spacing;
             return AlertDialog(
               title: const Text('Filter services'),
               content: SizedBox(
@@ -838,8 +840,8 @@ class _ComposeLogsTerminalState extends State<ComposeLogsTerminal> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
+                      spacing: spacing.base * 1.5,
+                      runSpacing: spacing.base * 1.5,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         if (serviceItems.isEmpty)
@@ -860,7 +862,7 @@ class _ComposeLogsTerminalState extends State<ComposeLogsTerminal> {
                           ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: spacing.lg),
                     Row(
                       children: [
                         const Text('Exclude selected'),

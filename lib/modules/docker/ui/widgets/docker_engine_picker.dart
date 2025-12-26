@@ -517,15 +517,16 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     final icons = context.appTheme.icons;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icons.dns, size: 64),
-          const SizedBox(height: 12),
+          SizedBox(height: spacing.lg),
           const Text('No Docker contexts found.'),
-          const SizedBox(height: 12),
+          SizedBox(height: spacing.lg),
           FilledButton(onPressed: onRefresh, child: const Text('Refresh')),
         ],
       ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../shared/theme/app_theme.dart';
+
 /// Reusable settings section widget with collapse/expand support.
 class SettingsSection extends StatefulWidget {
   const SettingsSection({
@@ -42,11 +44,12 @@ class _SettingsSectionState extends State<SettingsSection> {
     final hasDescription =
         widget.description != null && widget.description!.trim().isNotEmpty;
     final iconColor = Theme.of(context).colorScheme.primary;
+    final spacing = context.appTheme.spacing;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: EdgeInsets.only(bottom: spacing.md),
       child: Padding(
-        padding: const EdgeInsets.all(8),
+        padding: EdgeInsets.all(spacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -54,7 +57,7 @@ class _SettingsSectionState extends State<SettingsSection> {
               onTap: _toggleExpanded,
               borderRadius: BorderRadius.circular(2),
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
+                padding: EdgeInsets.symmetric(vertical: spacing.xs),
                 child: Row(
                   children: [
                     Icon(
@@ -64,7 +67,7 @@ class _SettingsSectionState extends State<SettingsSection> {
                       size: 18,
                       color: iconColor,
                     ),
-                    const SizedBox(width: 4),
+                    SizedBox(width: spacing.sm),
                     Expanded(
                       child: Text(
                         widget.title,
@@ -89,8 +92,8 @@ class _SettingsSectionState extends State<SettingsSection> {
               ),
             ),
             if (_expanded) ...[
-              const SizedBox(height: 4),
-              const Divider(height: 12),
+              SizedBox(height: spacing.sm),
+              Divider(height: spacing.lg),
               widget.child,
             ],
           ],

@@ -8,6 +8,7 @@ import '../../shared/shortcuts/input_mode_resolver.dart';
 import '../../shared/shortcuts/shortcut_definition.dart';
 import '../../shared/shortcuts/shortcut_resolver.dart';
 import '../../shared/shortcuts/shortcut_service.dart';
+import '../../shared/theme/app_theme.dart';
 
 class _ScopeSummary {
   _ScopeSummary({
@@ -154,6 +155,7 @@ Future<void> showInputHelpDialog(
     context: context,
     builder: (context) {
       final theme = Theme.of(context);
+      final spacing = context.appTheme.spacing;
       return AlertDialog(
         title: const Text('Input, shortcuts, and gestures'),
         content: SizedBox(
@@ -168,25 +170,25 @@ Future<void> showInputHelpDialog(
                   'shortcuts ${inputMode.enableShortcuts ? "on" : "off"}',
                   style: theme.textTheme.bodyMedium,
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: spacing.lg),
                 if (moduleHandle != null)
                   Text('Module: $moduleId', style: theme.textTheme.bodyMedium),
                 if (contextualScopes.isNotEmpty) ...[
-                  const SizedBox(height: 12),
+                  SizedBox(height: spacing.lg),
                   Text('Current context', style: theme.textTheme.titleMedium),
                   ...contextualScopes.map(buildScopeTile),
                 ],
                 if (globalScopes.isNotEmpty) ...[
-                  const SizedBox(height: 8),
+                  SizedBox(height: spacing.md),
                   Text('Global', style: theme.textTheme.titleMedium),
                   ...globalScopes.map(buildScopeTile),
                 ],
-                const SizedBox(height: 12),
+                SizedBox(height: spacing.lg),
                 Text('Bindings', style: theme.textTheme.titleMedium),
-                const SizedBox(height: 6),
+                SizedBox(height: spacing.base * 1.5),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: spacing.md,
+                  runSpacing: spacing.md,
                   children: resolvedBindings.entries
                       .map(
                         (entry) => Chip(

@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/services/settings/settings_path_provider.dart';
@@ -259,11 +258,7 @@ final Map<String, TerminalTheme> _assetTerminalThemes = {};
 final Map<String, String> _assetTerminalThemeLabels = {};
 
 Map<String, TerminalTheme> terminalThemeCatalog() {
-  return {
-    ...terminalThemes,
-    ..._assetTerminalThemes,
-    ..._userTerminalThemes,
-  };
+  return {...terminalThemes, ..._assetTerminalThemes, ..._userTerminalThemes};
 }
 
 Map<String, String> terminalThemeLabelCatalog() {
@@ -495,7 +490,7 @@ List<_ParsedTerminalTheme> _parseThemeContent({
   final parsed = <_ParsedTerminalTheme>[];
 
   for (final entry in entries) {
-    final key = entry.key == null ? basename : '${basename}-${entry.key}';
+    final key = entry.key == null ? basename : '$basename-${entry.key}';
     final label = entry.label ?? _titleCase(entry.key ?? basename);
     final colorTable = _resolveColorTable(entry.data);
     final missing = _terminalThemeRequiredKeys
@@ -503,7 +498,7 @@ List<_ParsedTerminalTheme> _parseThemeContent({
         .toList();
     if (missing.isNotEmpty) {
       AppLogger.w(
-        'Theme ${basename}${entry.keySuffix} missing keys: '
+        'Theme $basename${entry.keySuffix} missing keys: '
         '${missing.join(', ')}',
         tag: 'TerminalTheme',
       );
@@ -545,7 +540,7 @@ List<_ParsedTerminalTheme> _parseThemeContent({
         .toList();
     if (invalid.isNotEmpty) {
       AppLogger.w(
-        'Theme ${basename}${entry.keySuffix} has invalid colors: '
+        'Theme $basename${entry.keySuffix} has invalid colors: '
         '${invalid.join(', ')}',
         tag: 'TerminalTheme',
       );

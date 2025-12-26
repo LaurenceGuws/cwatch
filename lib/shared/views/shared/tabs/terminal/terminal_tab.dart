@@ -258,6 +258,9 @@ class _TerminalTabState extends State<TerminalTab> {
 
   Future<void> _showThemeDialog(BuildContext context) async {
     await reloadUserTerminalThemes();
+    if (!context.mounted) {
+      return;
+    }
     final brightness = Theme.of(context).colorScheme.brightness;
     final settings = widget.settingsController.settings;
     final savedTheme = brightness == Brightness.dark

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../theme/nerd_fonts.dart';
+import '../../../../theme/app_theme.dart';
 
 /// Command bar for executing ad-hoc SSH commands
 class CommandBar extends StatefulWidget {
@@ -33,26 +34,45 @@ class _CommandBarState extends State<CommandBar> {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: _controller,
-      decoration: InputDecoration(
-        labelText: 'Run command',
-        prefixText: 'ssh ${widget.hostName}\$ ',
-        suffixIcon: IconButton(
-          icon: Icon(NerdIcon.terminal.data),
-          onPressed: () {
-            final command = _controller.text.trim();
-            if (command.isNotEmpty) {
-              widget.onCommandSubmitted(command);
-              _controller.clear();
-            }
-          },
-        ),
+    final theme = Theme.of(context);
+    final spacing = context.appTheme.spacing;
+    return Container(
+      padding: spacing.all(2),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(spacing.md),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
-      onSubmitted: (value) {
-        widget.onCommandSubmitted(value);
-        _controller.clear();
-      },
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: 'Run command',
+                prefixText: 'ssh ${widget.hostName}\$ ',
+                border: InputBorder.none,
+              ),
+              onSubmitted: (value) {
+                widget.onCommandSubmitted(value);
+                _controller.clear();
+              },
+            ),
+          ),
+          IconButton(
+            tooltip: 'Run command',
+            icon: Icon(NerdIcon.terminal.data),
+            onPressed: () {
+              final command = _controller.text.trim();
+              if (command.isNotEmpty) {
+                widget.onCommandSubmitted(command);
+                _controller.clear();
+              }
+            },
+          ),
+        ],
+      ),
     );
   }
 }

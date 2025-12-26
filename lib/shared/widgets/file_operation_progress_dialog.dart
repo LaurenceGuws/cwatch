@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:cwatch/shared/theme/app_theme.dart';
 
 enum FileOperationStatus { pending, inProgress, completed, failed, skipped }
 
@@ -234,6 +235,7 @@ class _FileOperationProgressDialogState
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     final controller = widget.controller;
     final overallProgress = controller.overallProgress;
     final speed = controller.bytesPerSecond;
@@ -265,24 +267,24 @@ class _FileOperationProgressDialogState
               ],
             ),
             if (eta != null) ...[
-              const SizedBox(height: 4),
+              SizedBox(height: spacing.sm),
               Text(
                 'Est. time remaining: ${_formatDuration(eta)}',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
-            const SizedBox(height: 12),
+            SizedBox(height: spacing.lg),
             LinearProgressIndicator(value: overallProgress, minHeight: 10),
-            const SizedBox(height: 16),
+            SizedBox(height: spacing.xl),
             if (controller.speedSamples.isNotEmpty) ...[
               SizedBox(
                 height: 140,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  padding: EdgeInsets.symmetric(vertical: spacing.md),
                   child: _SpeedChart(samples: controller.speedSamples),
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: spacing.lg),
             ],
             if (hasItems)
               Expanded(
@@ -327,7 +329,7 @@ class _FileOperationProgressDialogState
                 overflow: TextOverflow.ellipsis,
               ),
               if (controller.currentItemProgress != null) ...[
-                const SizedBox(height: 8),
+                SizedBox(height: spacing.md),
                 LinearProgressIndicator(
                   value: controller.currentItemProgress,
                   minHeight: 6,

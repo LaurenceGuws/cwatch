@@ -11,7 +11,9 @@ import '../../../../../shared/gestures/gesture_service.dart';
 import '../../../../../shared/shortcuts/input_mode_resolver.dart';
 import '../../../../../shared/shortcuts/shortcut_actions.dart';
 import '../../../../../shared/shortcuts/shortcut_service.dart';
+import '../../../../theme/app_theme.dart';
 import '../../../../theme/nerd_fonts.dart';
+import '../../../../mixins/tab_options_mixin.dart';
 import '../../../../widgets/inline_search_bar.dart';
 import '../tab_chip.dart';
 import 'remote_file_editor/code_editor_view.dart';
@@ -48,7 +50,8 @@ class RemoteFileEditorTab extends StatefulWidget {
   State<RemoteFileEditorTab> createState() => _RemoteFileEditorTabState();
 }
 
-class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
+class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
+    with TabOptionsMixin {
   late final EditorState _state;
   final GlobalKey<PlainPagerViewState> _plainViewerKey =
       GlobalKey<PlainPagerViewState>();
@@ -58,9 +61,6 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
   GestureSubscription? _pagerGestureSub;
   late final VoidCallback _settingsListener;
   double? _scaleStartFontSize;
-
-  List<TabChipOption>? _pendingTabOptions;
-  bool _optionsScheduled = false;
 
   @override
   void initState() {
@@ -329,28 +329,7 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
       ),
     ];
 
-    final controller = widget.optionsController;
-    if (controller == null) {
-      return;
-    }
-    _pendingTabOptions = options;
-    if (_optionsScheduled) {
-      return;
-    }
-    _optionsScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _optionsScheduled = false;
-      final pending = _pendingTabOptions;
-      if (pending == null) {
-        return;
-      }
-      _pendingTabOptions = null;
-      if (controller is CompositeTabOptionsController) {
-        controller.updateBase(pending);
-      } else {
-        controller.update(pending);
-      }
-    });
+    queueTabOptions(widget.optionsController, options, useBase: true);
   }
 
   @override
@@ -371,7 +350,7 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab> {
     final matchColor = colorScheme.primaryContainer.withValues(alpha: 0.28);
     final activeMatchColor = colorScheme.primary.withValues(alpha: 0.45);
     return Padding(
-      padding: const EdgeInsets.all(8),
+      padding: context.appTheme.spacing.all(2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

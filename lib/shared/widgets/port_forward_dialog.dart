@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/services/logging/app_logger.dart';
 
+import '../theme/app_theme.dart';
+
 typedef PortValidator = Future<bool> Function(int port);
 
 Future<List<PortForwardRequest>?> showPortForwardDialog({
@@ -89,6 +91,7 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final spacing = context.appTheme.spacing;
     final maxWidth = size.width * 0.9;
     final dialogWidth = size.width * 0.9;
     final maxHeight = size.height * 0.8;
@@ -118,10 +121,10 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
                     'Active forwards',
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
-                  const SizedBox(height: 6),
+                  SizedBox(height: spacing.base * 1.5),
                   Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                    spacing: spacing.md,
+                    runSpacing: spacing.md,
                     children: _activeForwards
                         .map(
                           (f) => Chip(
@@ -133,12 +136,12 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
                         )
                         .toList(),
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: spacing.lg),
                 ],
                 Column(
                   children: [
                     _buildTableHeader(),
-                    const Divider(height: 12),
+                    Divider(height: spacing.lg),
                     ConstrainedBox(
                       constraints: BoxConstraints(maxHeight: maxHeight * 0.7),
                       child: SingleChildScrollView(
@@ -151,7 +154,7 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
                                 for (var i = 0; i < _requests.length; i++) ...[
                                   _buildRow(i, _requests[i]),
                                   if (i != _requests.length - 1)
-                                    const Divider(height: 12),
+                                    Divider(height: spacing.lg),
                                 ],
                               ],
                             ),
@@ -174,10 +177,10 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
         FilledButton(
           onPressed: _checking ? null : _submit,
           child: _checking
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+              ? SizedBox(
+                  width: spacing.xl,
+                  height: spacing.xl,
+                  child: const CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Text('Apply'),
         ),
@@ -186,11 +189,12 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
   }
 
   Widget _buildTableHeader() {
+    final spacing = context.appTheme.spacing;
     final textStyle = Theme.of(
       context,
     ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: EdgeInsets.symmetric(horizontal: spacing.lg),
       child: Row(
         children: [
           _SortableHeader(
@@ -227,7 +231,7 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
             direction: _sortDirectionFor(_SortKey.status),
             textStyle: textStyle,
           ),
-          const SizedBox(width: 48),
+          SizedBox(width: spacing.xl * 3),
         ],
       ),
     );
@@ -235,11 +239,12 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
 
   Widget _buildRow(int index, PortForwardRequest req) {
     final scheme = Theme.of(context).colorScheme;
+    final spacing = context.appTheme.spacing;
     final serviceLabel = req.label ?? '';
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(spacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -273,7 +278,7 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
                   ),
                 ),
                 SizedBox(
-                  width: 20,
+                  width: spacing.base * 5,
                   child: const Icon(Icons.arrow_forward, size: 16),
                 ),
                 Expanded(
@@ -301,9 +306,9 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
                     },
                   ),
                 ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8),
-                  child: Icon(Icons.swap_horiz, size: 18),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: spacing.md),
+                  child: const Icon(Icons.swap_horiz, size: 18),
                 ),
                 SizedBox(
                   width: 200,
@@ -689,6 +694,7 @@ class _SortableHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     final icon = switch (direction) {
       _SortDirection.asc => Icons.arrow_upward,
       _SortDirection.desc => Icons.arrow_downward,
@@ -698,14 +704,14 @@ class _SortableHeader extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(label, style: textStyle),
-        if (icon != null) ...[const SizedBox(width: 4), Icon(icon, size: 14)],
+        if (icon != null) ...[SizedBox(width: spacing.sm), Icon(icon, size: spacing.base * 3.5)],
       ],
     );
 
     final child = InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: EdgeInsets.symmetric(vertical: spacing.sm),
         child: Align(alignment: Alignment.centerLeft, child: labelWidget),
       ),
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:cwatch/services/ssh/remote_command_logging.dart';
+import 'package:cwatch/shared/theme/app_theme.dart';
 
 class DebugLogsTab extends StatelessWidget {
   const DebugLogsTab({
@@ -17,11 +18,12 @@ class DebugLogsTab extends StatelessWidget {
     return AnimatedBuilder(
       animation: logController,
       builder: (context, _) {
+        final spacing = context.appTheme.spacing;
         final events = logController.events;
         if (events.isEmpty) {
           return Center(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(spacing.base * 6),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -30,7 +32,7 @@ class DebugLogsTab extends StatelessWidget {
                     size: 48,
                     color: Theme.of(context).colorScheme.primary,
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: spacing.lg),
                   Text(
                     debugEnabled
                         ? 'No SSH activity logged yet.'
@@ -46,7 +48,7 @@ class DebugLogsTab extends StatelessWidget {
         return Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: spacing.inset(horizontal: 3, vertical: 2),
               child: Row(
                 children: [
                   Icon(
@@ -54,7 +56,7 @@ class DebugLogsTab extends StatelessWidget {
                     size: 18,
                     color: Theme.of(context).colorScheme.primary,
                   ),
-                  const SizedBox(width: 6),
+                  SizedBox(width: spacing.base * 1.5),
                   Text(
                     debugEnabled
                         ? 'Debug logging is ON'
@@ -73,9 +75,10 @@ class DebugLogsTab extends StatelessWidget {
             const Divider(height: 1),
             Expanded(
               child: ListView.separated(
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(spacing.lg),
                 itemCount: events.length,
-                separatorBuilder: (context, _) => const SizedBox(height: 10),
+                separatorBuilder: (context, _) =>
+                    SizedBox(height: spacing.base * 2.5),
                 itemBuilder: (context, index) {
                   final event = events[index];
                   return _LogEntryCard(event: event);
@@ -96,6 +99,7 @@ class _LogEntryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     final scheme = Theme.of(context).colorScheme;
     final verificationStatus = event.verificationPassed == null
         ? 'No verification run'
@@ -109,7 +113,7 @@ class _LogEntryCard extends StatelessWidget {
     return Card(
       elevation: 0.5,
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(spacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -126,13 +130,13 @@ class _LogEntryCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: spacing.md),
             SelectableText(
               'Command: ${event.command}',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             if (event.output.isNotEmpty) ...[
-              const SizedBox(height: 6),
+              SizedBox(height: spacing.base * 1.5),
               SelectableText(
                 'Output:\n${event.output}',
                 style: Theme.of(context).textTheme.bodySmall,
@@ -140,7 +144,7 @@ class _LogEntryCard extends StatelessWidget {
             ],
             if (event.verificationCommand != null ||
                 event.verificationOutput != null) ...[
-              const SizedBox(height: 6),
+              SizedBox(height: spacing.base * 1.5),
               SelectableText(
                 'Check: ${event.verificationCommand ?? 'n/a'}',
                 style: Theme.of(context).textTheme.bodySmall,
@@ -151,7 +155,7 @@ class _LogEntryCard extends StatelessWidget {
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
             ],
-            const SizedBox(height: 6),
+            SizedBox(height: spacing.base * 1.5),
             Text(
               verificationStatus,
               style: Theme.of(

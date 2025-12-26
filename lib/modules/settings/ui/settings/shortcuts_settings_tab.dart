@@ -5,6 +5,7 @@ import 'package:cwatch/models/app_settings.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_binding.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_definition.dart';
+import 'package:cwatch/shared/theme/app_theme.dart';
 import 'settings_section.dart';
 
 class ShortcutsSettingsTab extends StatelessWidget {
@@ -19,8 +20,9 @@ class ShortcutsSettingsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      padding: spacing.inset(horizontal: 1.5, vertical: 1),
       children: [
         ...ShortcutCategory.values.map(
           (category) => ShortcutCategorySection(
@@ -92,6 +94,7 @@ class ShortcutCategorySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     final definitions = ShortcutCatalog.byCategory(category).toList();
     return SettingsSection(
       title: _title,
@@ -103,7 +106,7 @@ class ShortcutCategorySection extends StatelessWidget {
             'Configure key bindings. Leave a field empty to use the default.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: spacing.lg),
           if (definitions.isEmpty)
             Text(
               'No shortcuts available for this section yet.',

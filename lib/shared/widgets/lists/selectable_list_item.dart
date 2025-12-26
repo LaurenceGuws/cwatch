@@ -90,8 +90,8 @@ class _SelectableListItemState extends State<SelectableListItem> {
           hoverColor: Colors.transparent,
           child: Container(
             padding: EdgeInsets.symmetric(
-              horizontal: widget.horizontalPadding ?? spacing.base * 0.6,
-              vertical: spacing.base * 0.9,
+              horizontal: widget.horizontalPadding ?? spacing.sm,
+              vertical: spacing.sm,
             ),
             decoration: const BoxDecoration(borderRadius: BorderRadius.zero),
             child: Row(
@@ -99,7 +99,7 @@ class _SelectableListItemState extends State<SelectableListItem> {
               children: [
                 if (widget.leading != null) ...[
                   widget.leading!,
-                  SizedBox(width: spacing.base * 2.5),
+                  SizedBox(width: spacing.lg),
                 ],
                 Expanded(
                   child: Column(
@@ -114,8 +114,8 @@ class _SelectableListItemState extends State<SelectableListItem> {
                                   ?.copyWith(
                                     color: foreground,
                                     fontWeight: widget.selected
-                                        ? FontWeight.w700
-                                        : FontWeight.w600,
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
                                   ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -141,7 +141,7 @@ class _SelectableListItemState extends State<SelectableListItem> {
                   ),
                 ),
                 if (widget.busy) ...[
-                  SizedBox(width: spacing.base),
+                  SizedBox(width: spacing.md),
                   SizedBox(
                     width: 16,
                     height: 16,
@@ -152,7 +152,7 @@ class _SelectableListItemState extends State<SelectableListItem> {
                   ),
                 ],
                 if (widget.trailing != null) ...[
-                  SizedBox(width: spacing.base),
+                  SizedBox(width: spacing.md),
                   widget.trailing!,
                 ],
               ],

@@ -9,9 +9,11 @@ import 'package:cwatch/models/docker_container_stat.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/modules/docker/services/docker_client_service.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
+import 'package:cwatch/shared/mixins/tab_options_mixin.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
+import 'package:cwatch/shared/widgets/standard_empty_state.dart';
 import '../engine_tab.dart';
 import '../docker_tab_factory.dart';
 
@@ -41,7 +43,8 @@ class DockerResources extends StatefulWidget {
   State<DockerResources> createState() => _DockerResourcesState();
 }
 
-class _DockerResourcesState extends State<DockerResources> {
+class _DockerResourcesState extends State<DockerResources>
+    with TabOptionsMixin {
   Timer? _poller;
   bool _loading = true;
   String? _error;
@@ -77,23 +80,18 @@ class _DockerResourcesState extends State<DockerResources> {
     }
     _tabOptionsRegistered = true;
     final icons = _icons;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || widget.optionsController == null) {
-        return;
-      }
-      widget.optionsController!.update([
-        TabChipOption(
-          label: 'Open `docker stats`',
-          icon: NerdIcon.terminal.data,
-          onSelected: _openStatsTab,
-        ),
-        TabChipOption(
-          label: 'Refresh',
-          icon: icons.refresh,
-          onSelected: _refreshStats,
-        ),
-      ]);
-    });
+    queueTabOptions(widget.optionsController, [
+      TabChipOption(
+        label: 'Open `docker stats`',
+        icon: NerdIcon.terminal.data,
+        onSelected: _openStatsTab,
+      ),
+      TabChipOption(
+        label: 'Refresh',
+        icon: icons.refresh,
+        onSelected: _refreshStats,
+      ),
+    ]);
   }
 
   @override
@@ -123,25 +121,28 @@ class _DockerResourcesState extends State<DockerResources> {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return Padding(
-      padding: const EdgeInsets.all(8),
+      padding: EdgeInsets.all(spacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 8),
+          SizedBox(height: spacing.md),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
                 ? Center(child: Text('Failed to load stats: $_error'))
                 : _stats.isEmpty
-                ? const Center(child: Text('No container stats found.'))
+                ? const StandardEmptyState(
+                    message: 'No container stats found.',
+                  )
                 : LayoutBuilder(
                     builder: (context, constraints) {
                       return ListView(
                         children: [
                           _buildCharts(constraints.maxWidth),
-                          const SizedBox(height: 16),
+                          SizedBox(height: spacing.xl),
                           _buildContainerTable(constraints.maxWidth),
                         ],
                       );
@@ -154,6 +155,7 @@ class _DockerResourcesState extends State<DockerResources> {
   }
 
   Widget _buildCharts(double maxCardWidth) {
+    final spacing = context.appTheme.spacing;
     final memUsageScaled = _scaleForBytes(
       _seriesFromMap(_memUsageHistoryByContainer),
     );
@@ -199,10 +201,10 @@ class _DockerResourcesState extends State<DockerResources> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Resource trends', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
+        SizedBox(height: spacing.md),
         ...charts.map(
           (chart) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: EdgeInsets.only(bottom: spacing.lg),
             child: _lineChartCard(
               title: chart.title,
               subtitle: chart.subtitle,
@@ -217,11 +219,12 @@ class _DockerResourcesState extends State<DockerResources> {
   }
 
   Widget _buildContainerTable(double maxCardWidth) {
+    final spacing = context.appTheme.spacing;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Container stats', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
+        SizedBox(height: spacing.md),
         Card(
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -504,27 +507,28 @@ class _DockerResourcesState extends State<DockerResources> {
     required double maxWidth,
     String? unitSuffix,
   }) {
+    final spacing = context.appTheme.spacing;
     final hasPoints = series.any((s) => s.values.isNotEmpty);
     return SizedBox(
       width: maxWidth,
       child: Card(
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(spacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title, style: Theme.of(context).textTheme.titleSmall),
-              const SizedBox(height: 2),
+              SizedBox(height: spacing.xs),
               Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: 8),
+              SizedBox(height: spacing.md),
               Wrap(
-                spacing: 12,
-                runSpacing: 4,
+                spacing: spacing.lg,
+                runSpacing: spacing.sm,
                 children: series
                     .map((s) => _ChartLegend(label: s.label, color: s.color))
                     .toList(),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: spacing.md),
               SizedBox(
                 height: 240,
                 child: hasPoints
@@ -571,6 +575,9 @@ class _DockerResourcesState extends State<DockerResources> {
         .map((s) => (s.values.length - 1).toDouble())
         .fold<double>(0, math.max);
     final gridColor = _dockerTheme.chartGrid.withValues(alpha: 0.15);
+    final tooltipBackground = _dockerTheme.chartGridAlt.withValues(alpha: 0.9);
+    final tooltipBorderColor =
+        _dockerTheme.chartGrid.withValues(alpha: 0.6);
     return LineChartData(
       minY: 0,
       maxY: maxY,
@@ -621,6 +628,8 @@ class _DockerResourcesState extends State<DockerResources> {
         touchTooltipData: LineTouchTooltipData(
           fitInsideVertically: true,
           fitInsideHorizontally: true,
+          getTooltipColor: (_) => tooltipBackground,
+          tooltipBorder: BorderSide(color: tooltipBorderColor),
           getTooltipItems: (touchedSpots) => touchedSpots
               .map(
                 (spot) => LineTooltipItem(
@@ -720,6 +729,7 @@ class _ChartLegend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -728,10 +738,10 @@ class _ChartLegend extends StatelessWidget {
           height: 12,
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(spacing.sm),
           ),
         ),
-        const SizedBox(width: 6),
+        SizedBox(width: spacing.base * 1.5),
         Text(label, style: Theme.of(context).textTheme.labelMedium),
       ],
     );

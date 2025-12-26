@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:cwatch/shared/theme/app_theme.dart';
 import 'settings_section.dart';
 
 /// Docker settings tab widget
@@ -16,14 +17,15 @@ class DockerSettingsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: spacing.inset(horizontal: 2, vertical: 1),
       children: [
         SettingsSection(
           title: 'Docker',
           description: 'Docker integrations are enabled by default.',
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: EdgeInsets.symmetric(vertical: spacing.md),
             child: TextFormField(
               key: ValueKey(logsTail),
               initialValue: logsTail.toString(),
@@ -54,15 +56,16 @@ class KubernetesSettingsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: spacing.inset(horizontal: 2, vertical: 1),
       children: [
         SettingsSection(
           title: 'Kubernetes',
           description: 'Kubernetes discovery runs automatically.',
-          child: const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text('No Kubernetes settings to configure yet.'),
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: spacing.md),
+            child: const Text('No Kubernetes settings to configure yet.'),
           ),
         ),
       ],

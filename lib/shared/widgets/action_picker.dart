@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import 'lists/section_list.dart';
-import 'lists/section_list_item.dart';
+import 'lists/selectable_list_item.dart';
 
 class ActionOption<T> {
   const ActionOption({
@@ -37,7 +37,7 @@ class ActionPicker {
             child: SectionList(
               children: List.generate(options.length, (index) {
                 final option = options[index];
-                return SectionListItem(
+                return SelectableListItem(
                   stripeIndex: index,
                   title: option.title,
                   subtitle: option.subtitle,

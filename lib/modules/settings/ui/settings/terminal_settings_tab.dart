@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cwatch/models/app_settings.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_definition.dart';
+import 'package:cwatch/shared/theme/app_theme.dart';
 import 'shortcuts_settings_tab.dart';
 import 'terminal_settings_section.dart';
 
@@ -46,8 +47,9 @@ class TerminalSettingsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      padding: spacing.inset(horizontal: 1.5, vertical: 1),
       children: [
         TerminalSettingsSection(
           fontFamily: fontFamily,
