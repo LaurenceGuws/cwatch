@@ -24,6 +24,7 @@ import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/shared/widgets/port_forward_dialog.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
+import 'package:cwatch/shared/widgets/dialog_keyboard_shortcuts.dart';
 import 'package:cwatch/core/navigation/tab_navigation_registry.dart';
 import 'package:cwatch/core/navigation/command_palette_registry.dart';
 import 'package:cwatch/core/tabs/tab_bar_visibility.dart';
@@ -1052,25 +1053,29 @@ class _ServersListState extends State<ServersList> {
     try {
       newName = await showDialog<String>(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Rename tab'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: const InputDecoration(labelText: 'Tab name'),
-            onSubmitted: (value) => Navigator.of(context).pop(value),
+        builder: (context) => DialogKeyboardShortcuts(
+          onCancel: () => Navigator.of(context).pop(),
+          onConfirm: () => Navigator.of(context).pop(controller.text.trim()),
+          child: AlertDialog(
+            title: const Text('Rename tab'),
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Tab name'),
+              onSubmitted: (value) => Navigator.of(context).pop(value),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(controller.text.trim()),
+                child: const Text('Save'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(controller.text.trim()),
-              child: const Text('Save'),
-            ),
-          ],
         ),
       );
     } finally {

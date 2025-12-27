@@ -10,6 +10,7 @@ import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
 import '../../../../../services/ssh/builtin/builtin_ssh_key_service.dart';
 import '../../../../../shared/theme/app_theme.dart';
+import '../../../../../shared/widgets/dialog_keyboard_shortcuts.dart';
 import 'ssh_auth_handler.dart';
 
 class TrashTab extends StatefulWidget {
@@ -231,24 +232,28 @@ class _TrashTabState extends State<TrashTab> {
     final result = await showDialog<String>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text('Unlock key $keyId'),
-          content: TextField(
-            controller: controller,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: 'Password'),
+        return DialogKeyboardShortcuts(
+          onCancel: () => Navigator.of(context).pop(null),
+          onConfirm: () => Navigator.of(context).pop(controller.text.trim()),
+          child: AlertDialog(
+            title: Text('Unlock key $keyId'),
+            content: TextField(
+              controller: controller,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Password'),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(null),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(controller.text.trim()),
+                child: const Text('Unlock'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(null),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(controller.text.trim()),
-              child: const Text('Unlock'),
-            ),
-          ],
         );
       },
     );
@@ -285,24 +290,28 @@ class _TrashTabState extends State<TrashTab> {
     final result = await showDialog<String>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text('Passphrase for $host ($path)'),
-          content: TextField(
-            controller: controller,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: 'Passphrase'),
+        return DialogKeyboardShortcuts(
+          onCancel: () => Navigator.of(context).pop(null),
+          onConfirm: () => Navigator.of(context).pop(controller.text.trim()),
+          child: AlertDialog(
+            title: Text('Passphrase for $host ($path)'),
+            content: TextField(
+              controller: controller,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Passphrase'),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(null),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(controller.text.trim()),
+                child: const Text('Submit'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(null),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(controller.text.trim()),
-              child: const Text('Submit'),
-            ),
-          ],
         );
       },
     );

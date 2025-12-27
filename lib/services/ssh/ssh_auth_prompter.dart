@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'builtin/builtin_ssh_key_service.dart';
 import 'ssh_auth_coordinator.dart';
 import '../../shared/theme/app_theme.dart';
+import '../../shared/widgets/dialog_keyboard_shortcuts.dart';
 
 /// UI helpers that adapt unlock/passphrase prompts into an [SshAuthCoordinator]
 /// so backend services can handle retries without leaking implementation
@@ -128,48 +129,52 @@ class _SshUnlockDialogState extends State<_SshUnlockDialog> {
   @override
   Widget build(BuildContext context) {
     final spacing = context.appTheme.spacing;
-    return AlertDialog(
-      title: Text('Unlock ${widget.request.keyLabel ?? 'key'}'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('Host: ${widget.request.hostName}'),
-          if (widget.request.storageEncrypted) ...[
-            SizedBox(height: spacing.base * 1.5),
-            const Text('Storage password required.'),
-          ],
-          SizedBox(height: spacing.md),
-          TextField(
-            controller: _controller,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: 'Password'),
-            enabled: !_loading,
-          ),
-          if (_errorText != null) ...[
+    return DialogKeyboardShortcuts(
+      onCancel: _loading ? null : () => Navigator.of(context).pop(false),
+      onConfirm: _loading ? null : _attemptUnlock,
+      child: AlertDialog(
+        title: Text('Unlock ${widget.request.keyLabel ?? 'key'}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Host: ${widget.request.hostName}'),
+            if (widget.request.storageEncrypted) ...[
+              SizedBox(height: spacing.base * 1.5),
+              const Text('Storage password required.'),
+            ],
             SizedBox(height: spacing.md),
-            Text(
-              _errorText!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            TextField(
+              controller: _controller,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Password'),
+              enabled: !_loading,
             ),
+            if (_errorText != null) ...[
+              SizedBox(height: spacing.md),
+              Text(
+                _errorText!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
           ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: _loading ? null : () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: _loading ? null : _attemptUnlock,
+            child: _loading
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Unlock'),
+          ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: _loading ? null : () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: _loading ? null : _attemptUnlock,
-          child: _loading
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Unlock'),
-        ),
-      ],
     );
   }
 }
@@ -211,50 +216,54 @@ class _SshPassphraseDialogState extends State<_SshPassphraseDialog> {
   @override
   Widget build(BuildContext context) {
     final spacing = context.appTheme.spacing;
-    return AlertDialog(
-      title: Text(
-        widget.request.kind == SshPassphraseKind.identityFile
-            ? 'Identity passphrase required'
-            : 'Key passphrase required',
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('Host: ${widget.request.hostName}'),
-          SizedBox(height: spacing.md),
-          Text(widget.request.targetLabel),
-          SizedBox(height: spacing.md),
-          TextField(
-            controller: _controller,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: 'Passphrase'),
-            enabled: !_loading,
-          ),
-          if (_errorText != null) ...[
+    return DialogKeyboardShortcuts(
+      onCancel: _loading ? null : () => Navigator.of(context).pop(),
+      onConfirm: _loading ? null : _submit,
+      child: AlertDialog(
+        title: Text(
+          widget.request.kind == SshPassphraseKind.identityFile
+              ? 'Identity passphrase required'
+              : 'Key passphrase required',
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Host: ${widget.request.hostName}'),
             SizedBox(height: spacing.md),
-            Text(
-              _errorText!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            Text(widget.request.targetLabel),
+            SizedBox(height: spacing.md),
+            TextField(
+              controller: _controller,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Passphrase'),
+              enabled: !_loading,
             ),
+            if (_errorText != null) ...[
+              SizedBox(height: spacing.md),
+              Text(
+                _errorText!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
           ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: _loading ? null : () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: _loading ? null : _submit,
+            child: _loading
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Submit'),
+          ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: _loading ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: _loading ? null : _submit,
-          child: _loading
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Submit'),
-        ),
-      ],
     );
   }
 }

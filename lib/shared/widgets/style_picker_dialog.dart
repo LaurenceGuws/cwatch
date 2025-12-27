@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import 'dialog_keyboard_shortcuts.dart';
 
 class StyleOption {
   const StyleOption({required this.key, required this.label});
@@ -120,163 +121,169 @@ class _StylePickerDialogState extends State<_StylePickerDialog> {
     final spacing = context.appTheme.spacing;
     final visible = _visible;
 
-    return Dialog(
-      insetPadding: EdgeInsets.all(spacing.md),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(2),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        width: 520,
-        height: 460,
-        child: Column(
-          children: [
-            Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: spacing.lg,
-                vertical: spacing.md,
-              ),
-              color: scheme.surfaceContainerHigh,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      widget.title,
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '${visible.length}',
-                    style: textTheme.labelMedium?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                spacing.md,
-                spacing.base * 2,
-                spacing.md,
-                spacing.sm,
-              ),
-              child: TextField(
-                controller: _searchController,
-                focusNode: _searchFocusNode,
-                decoration: InputDecoration(
-                  hintText: 'Search themes',
-                  prefixIcon: Icon(Icons.search, size: spacing.base * 4.5),
-                  isDense: true,
-                  contentPadding: EdgeInsets.all(spacing.md),
+    return DialogKeyboardShortcuts(
+      onCancel: () => Navigator.of(context).pop(null),
+      onConfirm: _apply,
+      child: Dialog(
+        insetPadding: EdgeInsets.all(spacing.md),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(2),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: SizedBox(
+          width: 520,
+          height: 460,
+          child: Column(
+            children: [
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: spacing.lg,
+                  vertical: spacing.md,
                 ),
-              ),
-            ),
-            Expanded(
-              child: Scrollbar(
-                child: ListView.separated(
-                  padding: EdgeInsets.fromLTRB(
-                    spacing.md,
-                    spacing.sm,
-                    spacing.md,
-                    spacing.md,
-                  ),
-                  itemCount: visible.length,
-                  separatorBuilder: (context, index) =>
-                      SizedBox(height: spacing.base * 1.5),
-                  itemBuilder: (context, index) {
-                    final option = visible[index];
-                    final selected = option.key == _current;
-                    final bg = selected
-                        ? scheme.secondaryContainer
-                        : scheme.surface;
-                    final borderColor = selected
-                        ? scheme.primary
-                        : scheme.outlineVariant;
-                    return InkWell(
-                      onTap: () => _select(option.key),
-                      onDoubleTap: () => _select(option.key, apply: true),
-                      child: Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: spacing.md,
-                          vertical: spacing.base * 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: bg,
-                          border: Border.all(color: borderColor),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(
-                              selected
-                                  ? Icons.check_circle
-                                  : Icons.circle_outlined,
-                              size: spacing.base * 4.5,
-                              color: selected ? scheme.primary : scheme.outline,
-                            ),
-                            SizedBox(width: spacing.base * 2.5),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    option.label,
-                                    style: textTheme.bodyMedium?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  SizedBox(height: spacing.xs),
-                                  Text(
-                                    option.key,
-                                    style: textTheme.labelSmall?.copyWith(
-                                      color: scheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-            Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: spacing.md,
-                vertical: spacing.base * 2,
-              ),
-              decoration: BoxDecoration(
                 color: scheme.surfaceContainerHigh,
-                border: Border(top: BorderSide(color: scheme.outlineVariant)),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _current,
-                      style: textTheme.labelSmall?.copyWith(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.title,
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${visible.length}',
+                      style: textTheme.labelMedium?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(null),
-                    child: const Text('Cancel'),
-                  ),
-                  SizedBox(width: spacing.md),
-                  FilledButton(onPressed: _apply, child: const Text('Apply')),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  spacing.md,
+                  spacing.base * 2,
+                  spacing.md,
+                  spacing.sm,
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  focusNode: _searchFocusNode,
+                  decoration: InputDecoration(
+                    hintText: 'Search themes',
+                    prefixIcon: Icon(Icons.search, size: spacing.base * 4.5),
+                    isDense: true,
+                    contentPadding: EdgeInsets.all(spacing.md),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Scrollbar(
+                  child: ListView.separated(
+                    padding: EdgeInsets.fromLTRB(
+                      spacing.md,
+                      spacing.sm,
+                      spacing.md,
+                      spacing.md,
+                    ),
+                    itemCount: visible.length,
+                    separatorBuilder: (context, index) =>
+                        SizedBox(height: spacing.base * 1.5),
+                    itemBuilder: (context, index) {
+                      final option = visible[index];
+                      final selected = option.key == _current;
+                      final bg = selected
+                          ? scheme.secondaryContainer
+                          : scheme.surface;
+                      final borderColor = selected
+                          ? scheme.primary
+                          : scheme.outlineVariant;
+                      return InkWell(
+                        onTap: () => _select(option.key),
+                        onDoubleTap: () => _select(option.key, apply: true),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: spacing.md,
+                            vertical: spacing.base * 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: bg,
+                            border: Border.all(color: borderColor),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                selected
+                                    ? Icons.check_circle
+                                    : Icons.circle_outlined,
+                                size: spacing.base * 4.5,
+                                color: selected
+                                    ? scheme.primary
+                                    : scheme.outline,
+                              ),
+                              SizedBox(width: spacing.base * 2.5),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      option.label,
+                                      style: textTheme.bodyMedium?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    SizedBox(height: spacing.xs),
+                                    Text(
+                                      option.key,
+                                      style: textTheme.labelSmall?.copyWith(
+                                        color: scheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: spacing.md,
+                  vertical: spacing.base * 2,
+                ),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHigh,
+                  border: Border(top: BorderSide(color: scheme.outlineVariant)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _current,
+                        style: textTheme.labelSmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(null),
+                      child: const Text('Cancel'),
+                    ),
+                    SizedBox(width: spacing.md),
+                    FilledButton(onPressed: _apply, child: const Text('Apply')),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

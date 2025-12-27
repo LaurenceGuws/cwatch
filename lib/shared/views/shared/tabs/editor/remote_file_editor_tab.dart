@@ -14,14 +14,13 @@ import '../../../../../shared/shortcuts/shortcut_service.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../theme/nerd_fonts.dart';
 import '../../../../mixins/tab_options_mixin.dart';
-import '../../../../widgets/inline_search_bar.dart';
+import '../../../../widgets/dialog_keyboard_shortcuts.dart';
 import '../tab_chip.dart';
 import 'remote_file_editor/code_editor_view.dart';
 import 'remote_file_editor/editor_state.dart';
 import 'remote_file_editor/editor_theme_utils.dart';
 import 'remote_file_editor/file_info_dialog.dart';
 import 'remote_file_editor/language_detection.dart';
-import 'remote_file_editor/plain_pager_view.dart';
 import 'remote_file_editor/theme_picker.dart';
 
 class RemoteFileEditorTab extends StatefulWidget {
@@ -53,12 +52,8 @@ class RemoteFileEditorTab extends StatefulWidget {
 class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
     with TabOptionsMixin {
   late final EditorState _state;
-  final GlobalKey<PlainPagerViewState> _plainViewerKey =
-      GlobalKey<PlainPagerViewState>();
   ShortcutSubscription? _shortcutSub;
-  ShortcutSubscription? _pagerShortcutSub;
   GestureSubscription? _gestureSub;
-  GestureSubscription? _pagerGestureSub;
   late final VoidCallback _settingsListener;
   double? _scaleStartFontSize;
 
@@ -70,14 +65,7 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
             path: widget.path,
             initialContent: widget.initialContent,
             settingsController: widget.settingsController,
-          )
-          ..addListener(_handleStateChanged)
-          ..registerPagerScroller((line) async {
-            final viewer = _plainViewerKey.currentState;
-            if (viewer != null) {
-              await viewer.scrollToLine(line);
-            }
-          });
+          )..addListener(_handleStateChanged);
     _settingsListener = _configureInputMode;
     widget.settingsController.addListener(_settingsListener);
     _configureInputMode();
@@ -87,12 +75,9 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
   @override
   void dispose() {
     _shortcutSub?.dispose();
-    _pagerShortcutSub?.dispose();
     _gestureSub?.dispose();
-    _pagerGestureSub?.dispose();
     widget.settingsController.removeListener(_settingsListener);
     _state.removeListener(_handleStateChanged);
-    _state.unregisterPagerScroller();
     _state.dispose();
     super.dispose();
   }
@@ -144,13 +129,12 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
     if (!inputMode.enableShortcuts) {
       _shortcutSub?.dispose();
       _shortcutSub = null;
-      _pagerShortcutSub?.dispose();
-      _pagerShortcutSub = null;
       return;
     }
-    if (_shortcutSub != null && _pagerShortcutSub != null) return;
+    if (_shortcutSub != null) {
+      return;
+    }
     _shortcutSub?.dispose();
-    _pagerShortcutSub?.dispose();
     _registerShortcuts();
   }
 
@@ -158,8 +142,6 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
     if (!inputMode.enableGestures) {
       _gestureSub?.dispose();
       _gestureSub = null;
-      _pagerGestureSub?.dispose();
-      _pagerGestureSub = null;
       return;
     }
     _gestureSub ??= GestureService.instance.registerScope(
@@ -173,19 +155,6 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
         },
       },
       focusNode: _state.editorFocusNode,
-      priority: 5,
-    );
-    _pagerGestureSub ??= GestureService.instance.registerScope(
-      id: 'editor_pager_gestures',
-      handlers: {
-        Gestures.editorPinchZoom: (invocation) {
-          final next = invocation.payloadAs<double>();
-          if (next != null) {
-            unawaited(_setEditorFontSize(next));
-          }
-        },
-      },
-      focusNode: _state.plainViewerFocusNode,
       priority: 5,
     );
   }
@@ -231,38 +200,48 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Select language'),
-          content: SizedBox(
-            width: 360,
-            child: DropdownButtonFormField<String>(
-              initialValue: selected,
-              isExpanded: true,
-              hint: const Text('Auto-detect'),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('Auto-detect')),
-                ...languages.map(
-                  (key) => DropdownMenuItem(value: key, child: Text(key)),
-                ),
-              ],
-              onChanged: (value) {
-                selected = value;
-              },
+        return DialogKeyboardShortcuts(
+          onCancel: () => Navigator.of(dialogContext).pop(),
+          onConfirm: () {
+            _state.setLanguageByKey(selected);
+            Navigator.of(dialogContext).pop();
+          },
+          child: AlertDialog(
+            title: const Text('Select language'),
+            content: SizedBox(
+              width: 360,
+              child: DropdownButtonFormField<String>(
+                initialValue: selected,
+                isExpanded: true,
+                hint: const Text('Auto-detect'),
+                items: [
+                  const DropdownMenuItem(
+                    value: null,
+                    child: Text('Auto-detect'),
+                  ),
+                  ...languages.map(
+                    (key) => DropdownMenuItem(value: key, child: Text(key)),
+                  ),
+                ],
+                onChanged: (value) {
+                  selected = value;
+                },
+              ),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  _state.setLanguageByKey(selected);
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Apply'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                _state.setLanguageByKey(selected);
-                Navigator.of(dialogContext).pop();
-              },
-              child: const Text('Apply'),
-            ),
-          ],
         );
       },
     );
@@ -277,32 +256,10 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
         onSelected: _handleSave,
       ),
       TabChipOption(
-        label: _state.searchVisible ? 'Hide search' : 'Find',
-        icon: Icons.search,
-        onSelected: _state.toggleSearchBar,
-      ),
-      TabChipOption(
-        label: _state.pagerMode ? 'Use editor' : 'Use pager',
-        icon: Icons.view_headline,
-        color: _state.pagerMode ? Colors.amber : null,
-        onSelected: _state.togglePagerMode,
-      ),
-      if (_state.pagerMode)
-        TabChipOption(
-          label: _state.showPagerControls
-              ? 'Hide pager controls'
-              : 'Show pager controls',
-          icon: Icons.view_headline,
-          onSelected: _state.togglePagerControls,
-        ),
-      TabChipOption(
         label: _state.highlightEnabled
             ? 'Disable highlighting'
             : 'Enable highlighting',
         icon: Icons.speed,
-        color: _state.pagerMode && _state.highlightEnabled
-            ? Colors.amber
-            : null,
         onSelected: _state.toggleHighlighting,
       ),
       TabChipOption(
@@ -341,63 +298,27 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
       settings.inputModePreference,
       defaultTargetPlatform,
     );
-    final usePlainViewer = _state.usePagerView;
     final baseTextStyle = TextStyle(
       fontFamily: NerdFonts.effectiveFamily(settings.editorFontFamily),
       fontSize: settings.editorFontSize.clamp(8, 32).toDouble(),
       height: settings.editorLineHeight.clamp(1.0, 2.0).toDouble(),
     );
-    final matchColor = colorScheme.primaryContainer.withValues(alpha: 0.28);
-    final activeMatchColor = colorScheme.primary.withValues(alpha: 0.45);
+    final spacing = context.appTheme.spacing;
     return Padding(
-      padding: context.appTheme.spacing.all(2),
+      padding: spacing.inset(horizontal: 2, vertical: 1),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (_state.searchVisible)
-            InlineSearchBar(
-              controller: _state.searchController,
-              onSubmit: (value) => _state.performSearch(value, forward: true),
-              onPrev: () => _state.performSearch(
-                _state.searchController.text,
-                forward: false,
-              ),
-              onNext: () => _state.performSearch(
-                _state.searchController.text,
-                forward: true,
-              ),
-              onClose: _state.toggleSearchBar,
-            ),
           Expanded(
             child: _wrapWithGestures(
-              usePlainViewer
-                  ? PlainPagerView(
-                      key: _plainViewerKey,
-                      text: _state.controller.fullText,
-                      style: baseTextStyle,
-                      focusNode: _state.plainViewerFocusNode,
-                      showLineNumbers: _state.showLineNumbers,
-                      showControls: _state.showPagerControls,
-                      matchLines: _state.searchMatchLines,
-                      matches: _state.searchMatches,
-                      activeMatchIndex: _state.activeMatch,
-                      matchColor: matchColor,
-                      activeMatchColor: activeMatchColor,
-                      onRegisterScrollToLine: _state.registerPagerScroller,
-                    )
-                  : CodeEditorView(
-                      controller: _state.controller,
-                      focusNode: _state.editorFocusNode,
-                      baseTextStyle: baseTextStyle,
-                      themeStyles: theme,
-                      showLineNumbers: _state.showLineNumbers,
-                      highlightEnabled: _state.highlightEnabled,
-                      lineCount: _state.searchLineCount,
-                      matchLines: _state.searchMatchLines,
-                      activeLine: _state.activeMatchLine,
-                      matchColor: matchColor,
-                      activeMatchColor: activeMatchColor,
-                    ),
+              CodeEditorView(
+                controller: _state.controller,
+                focusNode: _state.editorFocusNode,
+                baseTextStyle: baseTextStyle,
+                themeStyles: theme,
+                showLineNumbers: _state.showLineNumbers,
+                highlightEnabled: _state.highlightEnabled,
+              ),
               inputMode,
             ),
           ),
@@ -440,13 +361,6 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
       id: 'editor',
       handlers: handlers,
       focusNode: _state.editorFocusNode,
-      priority: 5,
-      consumeOnHandle: false,
-    );
-    _pagerShortcutSub = ShortcutService.instance.registerScope(
-      id: 'editor_pager',
-      handlers: handlers,
-      focusNode: _state.plainViewerFocusNode,
       priority: 5,
       consumeOnHandle: false,
     );

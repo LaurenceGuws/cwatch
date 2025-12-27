@@ -5,6 +5,7 @@ import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/services/logging/app_logger.dart';
 
 import '../theme/app_theme.dart';
+import 'dialog_keyboard_shortcuts.dart';
 
 typedef PortValidator = Future<bool> Function(int port);
 
@@ -96,95 +97,99 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
     final dialogWidth = size.width * 0.9;
     final maxHeight = size.height * 0.8;
     final tableMinWidth = maxWidth < 720 ? 720.0 : maxWidth;
-    return AlertDialog(
-      title: Text(widget.title),
-      insetPadding: EdgeInsets.symmetric(
-        horizontal: spacing.xl,
-        vertical: spacing.lg,
-      ),
-      content: SizedBox(
-        width: dialogWidth,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minWidth: dialogWidth,
-            maxWidth: maxWidth,
-            maxHeight: maxHeight,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(),
-                if (_activeForwards.isNotEmpty) ...[
-                  Text(
-                    'Active forwards',
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                  SizedBox(height: spacing.base * 1.5),
-                  Wrap(
-                    spacing: spacing.md,
-                    runSpacing: spacing.md,
-                    children: _activeForwards
-                        .map(
-                          (f) => Chip(
-                            avatar: const Icon(Icons.link, size: 16),
-                            label: Text(
-                              '${f.host.name}: ${f.requests.map((r) => '${r.localPort}->${r.remotePort}').join(', ')}',
+    return DialogKeyboardShortcuts(
+      onCancel: _checking ? null : () => Navigator.of(context).pop(),
+      onConfirm: _checking ? null : _submit,
+      child: AlertDialog(
+        title: Text(widget.title),
+        insetPadding: EdgeInsets.symmetric(
+          horizontal: spacing.xl,
+          vertical: spacing.lg,
+        ),
+        content: SizedBox(
+          width: dialogWidth,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minWidth: dialogWidth,
+              maxWidth: maxWidth,
+              maxHeight: maxHeight,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(),
+                  if (_activeForwards.isNotEmpty) ...[
+                    Text(
+                      'Active forwards',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    SizedBox(height: spacing.base * 1.5),
+                    Wrap(
+                      spacing: spacing.md,
+                      runSpacing: spacing.md,
+                      children: _activeForwards
+                          .map(
+                            (f) => Chip(
+                              avatar: const Icon(Icons.link, size: 16),
+                              label: Text(
+                                '${f.host.name}: ${f.requests.map((r) => '${r.localPort}->${r.remotePort}').join(', ')}',
+                              ),
                             ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                  SizedBox(height: spacing.lg),
-                ],
-                Column(
-                  children: [
-                    _buildTableHeader(),
-                    Divider(height: spacing.lg),
-                    ConstrainedBox(
-                      constraints: BoxConstraints(maxHeight: maxHeight * 0.7),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: SizedBox(
-                          width: tableMinWidth,
-                          child: SingleChildScrollView(
-                            child: Column(
-                              children: [
-                                for (var i = 0; i < _requests.length; i++) ...[
-                                  _buildRow(i, _requests[i]),
-                                  if (i != _requests.length - 1)
-                                    Divider(height: spacing.lg),
+                          )
+                          .toList(),
+                    ),
+                    SizedBox(height: spacing.lg),
+                  ],
+                  Column(
+                    children: [
+                      _buildTableHeader(),
+                      Divider(height: spacing.lg),
+                      ConstrainedBox(
+                        constraints: BoxConstraints(maxHeight: maxHeight * 0.7),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: SizedBox(
+                            width: tableMinWidth,
+                            child: SingleChildScrollView(
+                              child: Column(
+                                children: [
+                                  for (var i = 0; i < _requests.length; i++) ...[
+                                    _buildRow(i, _requests[i]),
+                                    if (i != _requests.length - 1)
+                                      Divider(height: spacing.lg),
+                                  ],
                                 ],
-                              ],
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
+        actions: [
+          TextButton(
+            onPressed: _checking ? null : () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: _checking ? null : _submit,
+            child: _checking
+                ? SizedBox(
+                    width: spacing.xl,
+                    height: spacing.xl,
+                    child: const CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Apply'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: _checking ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: _checking ? null : _submit,
-          child: _checking
-              ? SizedBox(
-                  width: spacing.xl,
-                  height: spacing.xl,
-                  child: const CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Apply'),
-        ),
-      ],
     );
   }
 

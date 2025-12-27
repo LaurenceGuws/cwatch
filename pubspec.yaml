@@ -62,6 +62,8 @@ dependencies:
 dependency_overrides:
   xterm:
     path: packages/xterm_patched
+  flutter_code_editor:
+    path: packages/flutter_code_editor_patched
 
 dev_dependencies:
   flutter_test:

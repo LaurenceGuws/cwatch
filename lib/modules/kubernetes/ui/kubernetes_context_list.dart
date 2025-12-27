@@ -13,6 +13,7 @@ import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/widgets/data_table/structured_data_table.dart';
+import 'package:cwatch/shared/widgets/dialog_keyboard_shortcuts.dart';
 import 'package:cwatch/shared/widgets/distro_leading_slot.dart';
 import 'package:cwatch/shared/widgets/lists/section_list.dart';
 import 'package:cwatch/shared/views/shared/tabs/file_explorer/external_app_launcher.dart';
@@ -1017,25 +1018,30 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     try {
       newName = await showDialog<String>(
         context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Rename tab'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: const InputDecoration(labelText: 'Tab name'),
-            onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
+        builder: (dialogContext) => DialogKeyboardShortcuts(
+          onCancel: () => Navigator.of(dialogContext).pop(),
+          onConfirm: () =>
+              Navigator.of(dialogContext).pop(controller.text.trim()),
+          child: AlertDialog(
+            title: const Text('Rename tab'),
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Tab name'),
+              onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () =>
+                    Navigator.of(dialogContext).pop(controller.text.trim()),
+                child: const Text('Save'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.of(dialogContext).pop(controller.text.trim()),
-              child: const Text('Save'),
-            ),
-          ],
         ),
       );
     } finally {

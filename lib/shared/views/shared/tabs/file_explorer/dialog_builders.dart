@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../../models/remote_file_entry.dart';
 import '../../../../../models/ssh_host.dart';
 import '../../../../theme/nerd_fonts.dart';
+import '../../../../widgets/dialog_keyboard_shortcuts.dart';
 import 'path_utils.dart';
 
 /// Builders for file explorer dialogs
@@ -16,24 +17,29 @@ class DialogBuilders {
     final controller = TextEditingController(text: entry.name);
     return showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Rename'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'New name'),
-          onSubmitted: (value) => Navigator.of(context).pop(value),
+      builder: (context) => DialogKeyboardShortcuts(
+        onCancel: () => Navigator.of(context).pop(),
+        onConfirm: () => Navigator.of(context).pop(controller.text.trim()),
+        child: AlertDialog(
+          title: const Text('Rename'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(labelText: 'New name'),
+            onSubmitted: (value) => Navigator.of(context).pop(value),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.of(context).pop(controller.text.trim()),
+              child: const Text('Save'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-            child: const Text('Save'),
-          ),
-        ],
       ),
     );
   }
@@ -49,27 +55,32 @@ class DialogBuilders {
     );
     return showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Move entry'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Destination path',
-            helperText: 'Provide absolute path to new location',
+      builder: (context) => DialogKeyboardShortcuts(
+        onCancel: () => Navigator.of(context).pop(),
+        onConfirm: () => Navigator.of(context).pop(controller.text.trim()),
+        child: AlertDialog(
+          title: const Text('Move entry'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Destination path',
+              helperText: 'Provide absolute path to new location',
+            ),
+            onSubmitted: (value) => Navigator.of(context).pop(value),
           ),
-          onSubmitted: (value) => Navigator.of(context).pop(value),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.of(context).pop(controller.text.trim()),
+              child: const Text('Move'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-            child: const Text('Move'),
-          ),
-        ],
       ),
     );
   }
@@ -83,27 +94,31 @@ class DialogBuilders {
   ) async {
     return showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          permanent
-              ? 'Delete ${entry.name} permanently?'
-              : 'Move ${entry.name} to trash?',
-        ),
-        content: Text(
-          permanent
-              ? 'This will permanently delete ${entry.name} from ${host.name}.'
-              : 'A backup will be stored locally so you can restore it later.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+      builder: (context) => DialogKeyboardShortcuts(
+        onCancel: () => Navigator.of(context).pop(false),
+        onConfirm: () => Navigator.of(context).pop(true),
+        child: AlertDialog(
+          title: Text(
+            permanent
+                ? 'Delete ${entry.name} permanently?'
+                : 'Move ${entry.name} to trash?',
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(permanent ? 'Delete' : 'Move to trash'),
+          content: Text(
+            permanent
+                ? 'This will permanently delete ${entry.name} from ${host.name}.'
+                : 'A backup will be stored locally so you can restore it later.',
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(permanent ? 'Delete' : 'Move to trash'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -117,27 +132,31 @@ class DialogBuilders {
   ) async {
     return showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          permanent
-              ? 'Delete $count items permanently?'
-              : 'Move $count items to trash?',
-        ),
-        content: Text(
-          permanent
-              ? 'This will permanently delete $count items from ${host.name}.'
-              : 'Backups will be stored locally so you can restore them later.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+      builder: (context) => DialogKeyboardShortcuts(
+        onCancel: () => Navigator.of(context).pop(false),
+        onConfirm: () => Navigator.of(context).pop(true),
+        child: AlertDialog(
+          title: Text(
+            permanent
+                ? 'Delete $count items permanently?'
+                : 'Move $count items to trash?',
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(permanent ? 'Delete' : 'Move to trash'),
+          content: Text(
+            permanent
+                ? 'This will permanently delete $count items from ${host.name}.'
+                : 'Backups will be stored locally so you can restore them later.',
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(permanent ? 'Delete' : 'Move to trash'),
+            ),
+          ],
+        ),
       ),
     );
   }

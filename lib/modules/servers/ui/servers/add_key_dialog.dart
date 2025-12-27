@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
+import 'package:cwatch/shared/widgets/dialog_keyboard_shortcuts.dart';
 
 /// Dialog for adding an SSH key
 class AddKeyDialog extends StatefulWidget {
@@ -140,98 +141,102 @@ class _AddKeyDialogState extends State<AddKeyDialog> {
   @override
   Widget build(BuildContext context) {
     final spacing = context.appTheme.spacing;
-    return AlertDialog(
-      title: const Text(
-        'Add SSH Key',
-        overflow: TextOverflow.visible,
-        softWrap: true,
-      ),
-      contentPadding: EdgeInsets.fromLTRB(
-        spacing.base * 6,
-        spacing.base * 5,
-        spacing.base * 6,
-        spacing.base * 6,
-      ),
-      content: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: 500,
-          maxHeight: MediaQuery.of(context).size.height * 0.8,
+    return DialogKeyboardShortcuts(
+      onCancel: () => Navigator.of(context).pop(),
+      onConfirm: _isSaving ? null : _handleAddKey,
+      child: AlertDialog(
+        title: const Text(
+          'Add SSH Key',
+          overflow: TextOverflow.visible,
+          softWrap: true,
         ),
-        child: SizedBox(
-          width: MediaQuery.of(context).size.width * 0.8,
-          child: Form(
-            key: _formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextFormField(
-                    controller: _labelController,
-                    decoration: const InputDecoration(labelText: 'Key label'),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Label is required';
-                      }
-                      return null;
-                    },
-                    autofocus: true,
-                  ),
-                  SizedBox(height: spacing.xl),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _keyController,
-                          decoration: InputDecoration(
-                            labelText: 'Private key (PEM format)',
-                            helperText: _selectedFilePath != null
-                                ? 'Selected: ${_selectedFilePath!.split('/').last}'
-                                : null,
-                          ),
-                          maxLines: null,
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Key is required';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.folder_open),
-                        tooltip: 'Select key file',
-                        onPressed: _pickKeyFile,
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: spacing.xl),
-                  TextFormField(
-                    controller: _passwordController,
-                    decoration: const InputDecoration(
-                      labelText: 'Encryption password (optional)',
-                      helperText:
-                          'If provided, the key will be encrypted in storage. '
-                          'Leave empty to store unencrypted keys as plaintext.',
+        contentPadding: EdgeInsets.fromLTRB(
+          spacing.base * 6,
+          spacing.base * 5,
+          spacing.base * 6,
+          spacing.base * 6,
+        ),
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 500,
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
+          ),
+          child: SizedBox(
+            width: MediaQuery.of(context).size.width * 0.8,
+            child: Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextFormField(
+                      controller: _labelController,
+                      decoration: const InputDecoration(labelText: 'Key label'),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Label is required';
+                        }
+                        return null;
+                      },
+                      autofocus: true,
                     ),
-                    obscureText: true,
-                  ),
-                ],
+                    SizedBox(height: spacing.xl),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _keyController,
+                            decoration: InputDecoration(
+                              labelText: 'Private key (PEM format)',
+                              helperText: _selectedFilePath != null
+                                  ? 'Selected: ${_selectedFilePath!.split('/').last}'
+                                  : null,
+                            ),
+                            maxLines: null,
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Key is required';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.folder_open),
+                          tooltip: 'Select key file',
+                          onPressed: _pickKeyFile,
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: spacing.xl),
+                    TextFormField(
+                      controller: _passwordController,
+                      decoration: const InputDecoration(
+                        labelText: 'Encryption password (optional)',
+                        helperText:
+                            'If provided, the key will be encrypted in storage. '
+                            'Leave empty to store unencrypted keys as plaintext.',
+                      ),
+                      obscureText: true,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: _isSaving ? null : _handleAddKey,
+            child: Text(_isSaving ? 'Saving...' : 'Add'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: _isSaving ? null : _handleAddKey,
-          child: Text(_isSaving ? 'Saving...' : 'Add'),
-        ),
-      ],
     );
   }
 
@@ -240,28 +245,32 @@ class _AddKeyDialogState extends State<AddKeyDialog> {
       context: context,
       builder: (context) {
         final controller = TextEditingController();
-        return AlertDialog(
-          title: Text(title),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            obscureText: true,
-            decoration: InputDecoration(
-              labelText: 'Key passphrase',
-              helperText: helper,
+        return DialogKeyboardShortcuts(
+          onCancel: () => Navigator.of(context).pop(null),
+          onConfirm: () => Navigator.of(context).pop(controller.text.trim()),
+          child: AlertDialog(
+            title: Text(title),
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              obscureText: true,
+              decoration: InputDecoration(
+                labelText: 'Key passphrase',
+                helperText: helper,
+              ),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(null),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(controller.text.trim()),
+                child: const Text('Continue'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(null),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(controller.text.trim()),
-              child: const Text('Continue'),
-            ),
-          ],
         );
       },
     );

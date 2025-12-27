@@ -11,6 +11,7 @@ import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_entry.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/widgets/form_spacer.dart';
+import 'package:cwatch/shared/widgets/dialog_keyboard_shortcuts.dart';
 
 /// Built-in SSH settings widget for managing SSH keys
 class BuiltInSshSettings extends StatefulWidget {
@@ -156,52 +157,56 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       context: context,
       builder: (context) {
         final spacing = context.appTheme.spacing;
-        return AlertDialog(
-          title: Text(
-            isRequired ? 'Key passphrase required' : 'Key validation needed',
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                isRequired
-                    ? 'This key is encrypted with a passphrase. '
-                          'Please provide the passphrase to validate the key can be decrypted.'
-                    : 'The key could not be parsed. It may be encrypted with a passphrase, '
-                          'or it may be unsupported. Please try providing a passphrase if the key is encrypted.',
-              ),
-              SizedBox(height: spacing.xl),
-              TextField(
-                controller: controller,
-                autofocus: true,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: 'Key passphrase',
-                  helperText: isRequired
-                      ? 'This will not be stored, only used for validation.'
-                      : 'Leave empty if the key is not encrypted. '
-                            'This will not be stored, only used for validation.',
+        return DialogKeyboardShortcuts(
+          onCancel: () => Navigator.of(context).pop(null),
+          onConfirm: () => Navigator.of(context).pop(controller.text.trim()),
+          child: AlertDialog(
+            title: Text(
+              isRequired ? 'Key passphrase required' : 'Key validation needed',
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isRequired
+                      ? 'This key is encrypted with a passphrase. '
+                            'Please provide the passphrase to validate the key can be decrypted.'
+                      : 'The key could not be parsed. It may be encrypted with a passphrase, '
+                            'or it may be unsupported. Please try providing a passphrase if the key is encrypted.',
                 ),
+                SizedBox(height: spacing.xl),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: 'Key passphrase',
+                    helperText: isRequired
+                        ? 'This will not be stored, only used for validation.'
+                        : 'Leave empty if the key is not encrypted. '
+                              'This will not be stored, only used for validation.',
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              if (!isRequired)
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(''),
+                  child: const Text('Try without passphrase'),
+                ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(null),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(controller.text.trim()),
+                child: const Text('Validate'),
               ),
             ],
           ),
-          actions: [
-            if (!isRequired)
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(''),
-                child: const Text('Try without passphrase'),
-              ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(null),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(controller.text.trim()),
-              child: const Text('Validate'),
-            ),
-          ],
         );
       },
     );
@@ -255,28 +260,32 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) {
-          return AlertDialog(
-            title: const Text('Key in use'),
-            content: Text(
-              'This key is currently assigned to ${hostsUsingKey.length} '
-              'host${hostsUsingKey.length == 1 ? '' : 's'}: '
-              '${hostsUsingKey.join(', ')}.\n\n'
-              'Deleting this key will remove it from these hosts. Continue?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
+          return DialogKeyboardShortcuts(
+            onCancel: () => Navigator.of(context).pop(false),
+            onConfirm: () => Navigator.of(context).pop(true),
+            child: AlertDialog(
+              title: const Text('Key in use'),
+              content: Text(
+                'This key is currently assigned to ${hostsUsingKey.length} '
+                'host${hostsUsingKey.length == 1 ? '' : 's'}: '
+                '${hostsUsingKey.join(', ')}.\n\n'
+                'Deleting this key will remove it from these hosts. Continue?',
               ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.error,
-                  foregroundColor: Theme.of(context).colorScheme.onError,
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
                 ),
-                child: const Text('Delete'),
-              ),
-            ],
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.error,
+                    foregroundColor: Theme.of(context).colorScheme.onError,
+                  ),
+                  child: const Text('Delete'),
+                ),
+              ],
+            ),
           );
         },
       );
@@ -336,25 +345,29 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
     return showDialog<String>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Unlock key'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: 'Password'),
+        return DialogKeyboardShortcuts(
+          onCancel: () => Navigator.of(context).pop(null),
+          onConfirm: () => Navigator.of(context).pop(controller.text.trim()),
+          child: AlertDialog(
+            title: const Text('Unlock key'),
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Password'),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(null),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(controller.text.trim()),
+                child: const Text('Unlock'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(null),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(controller.text.trim()),
-              child: const Text('Unlock'),
-            ),
-          ],
         );
       },
     );

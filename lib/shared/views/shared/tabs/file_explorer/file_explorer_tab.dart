@@ -14,6 +14,7 @@ import '../../../../../models/ssh_host.dart';
 import '../../../../../services/logging/app_logger.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../../services/filesystem/explorer_trash_manager.dart';
+import '../../../../widgets/dialog_keyboard_shortcuts.dart';
 import 'context_menu_builder.dart';
 import 'dialog_builders.dart';
 import 'explorer_clipboard.dart';
@@ -694,27 +695,31 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     final count = entries.length;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          deletePermanently
-              ? 'Delete $count items permanently?'
-              : 'Move $count items to trash?',
-        ),
-        content: Text(
-          deletePermanently
-              ? 'This will permanently delete $count items from ${widget.host.name}.'
-              : 'Backups will be stored locally so you can restore them later.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+      builder: (context) => DialogKeyboardShortcuts(
+        onCancel: () => Navigator.of(context).pop(false),
+        onConfirm: () => Navigator.of(context).pop(true),
+        child: AlertDialog(
+          title: Text(
+            deletePermanently
+                ? 'Delete $count items permanently?'
+                : 'Move $count items to trash?',
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(deletePermanently ? 'Delete' : 'Move to trash'),
+          content: Text(
+            deletePermanently
+                ? 'This will permanently delete $count items from ${widget.host.name}.'
+                : 'Backups will be stored locally so you can restore them later.',
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(deletePermanently ? 'Delete' : 'Move to trash'),
+            ),
+          ],
+        ),
       ),
     );
     if (confirmed != true) {

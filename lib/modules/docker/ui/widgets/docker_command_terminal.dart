@@ -20,6 +20,7 @@ import 'package:cwatch/shared/shortcuts/shortcut_service.dart';
 import 'package:cwatch/shared/shortcuts/input_mode_resolver.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
+import 'package:cwatch/shared/widgets/dialog_keyboard_shortcuts.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 import 'package:cwatch/shared/views/shared/tabs/terminal/terminal_theme_presets.dart';
 
@@ -831,76 +832,81 @@ class _ComposeLogsTerminalState extends State<ComposeLogsTerminal> {
         return StatefulBuilder(
           builder: (context, setState) {
             final spacing = context.appTheme.spacing;
-            return AlertDialog(
-              title: const Text('Filter services'),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      spacing: spacing.base * 1.5,
-                      runSpacing: spacing.base * 1.5,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        if (serviceItems.isEmpty)
-                          const Text('No services detected')
-                        else
-                          ...serviceItems.map(
-                            (service) => FilterChip(
-                              label: Text(service),
-                              selected: dialogSelected.contains(service),
-                              onSelected: (value) => setState(() {
-                                if (value) {
-                                  dialogSelected.add(service);
-                                } else {
-                                  dialogSelected.remove(service);
-                                }
-                              }),
+            return DialogKeyboardShortcuts(
+              onCancel: () => Navigator.of(dialogContext).pop(false),
+              onConfirm: () => Navigator.of(dialogContext).pop(true),
+              child: AlertDialog(
+                title: const Text('Filter services'),
+                content: SizedBox(
+                  width: double.maxFinite,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: spacing.base * 1.5,
+                        runSpacing: spacing.base * 1.5,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (serviceItems.isEmpty)
+                            const Text('No services detected')
+                          else
+                            ...serviceItems.map(
+                              (service) => FilterChip(
+                                label: Text(service),
+                                selected: dialogSelected.contains(service),
+                                onSelected: (value) => setState(() {
+                                  if (value) {
+                                    dialogSelected.add(service);
+                                  } else {
+                                    dialogSelected.remove(service);
+                                  }
+                                }),
+                              ),
+                            ),
+                        ],
+                      ),
+                      SizedBox(height: spacing.lg),
+                      Row(
+                        children: [
+                          const Text('Exclude selected'),
+                          Switch(
+                            value: dialogExcludeSelection,
+                            onChanged: (value) => setState(
+                              () => dialogExcludeSelection = value,
                             ),
                           ),
-                      ],
-                    ),
-                    SizedBox(height: spacing.lg),
-                    Row(
-                      children: [
-                        const Text('Exclude selected'),
-                        Switch(
-                          value: dialogExcludeSelection,
-                          onChanged: (value) =>
-                              setState(() => dialogExcludeSelection = value),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        TextButton(
-                          onPressed: () => setState(
-                            () => dialogSelected.addAll(serviceItems),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          TextButton(
+                            onPressed: () => setState(
+                              () => dialogSelected.addAll(serviceItems),
+                            ),
+                            child: const Text('Select all'),
                           ),
-                          child: const Text('Select all'),
-                        ),
-                        TextButton(
-                          onPressed: () =>
-                              setState(() => dialogSelected.clear()),
-                          child: const Text('Clear'),
-                        ),
-                      ],
-                    ),
-                  ],
+                          TextButton(
+                            onPressed: () =>
+                                setState(() => dialogSelected.clear()),
+                            child: const Text('Clear'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(false),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(true),
+                    child: const Text('Apply'),
+                  ),
+                ],
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(false),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(true),
-                  child: const Text('Apply'),
-                ),
-              ],
             );
           },
         );

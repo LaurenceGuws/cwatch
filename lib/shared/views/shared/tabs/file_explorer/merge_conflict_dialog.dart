@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../theme/app_theme.dart';
 import '../../../../theme/nerd_fonts.dart';
+import '../../../../widgets/dialog_keyboard_shortcuts.dart';
 
 class MergeConflictDialog extends StatefulWidget {
   const MergeConflictDialog({
@@ -53,79 +54,83 @@ class _MergeConflictDialogState extends State<MergeConflictDialog> {
     final diffHeight = size.height * 0.4;
     final mergedHeight = size.height * 0.3;
 
-    return AlertDialog(
-      title: Text('Resolve conflicts for ${widget.remotePath}'),
-      contentPadding: EdgeInsets.fromLTRB(
-        spacing.base * 6,
-        spacing.base * 5,
-        spacing.base * 6,
-        spacing.sm,
-      ),
-      content: SizedBox(
-        width: width,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Remote file changed while you edited locally. Review differences and provide the merged result.',
-            ),
-            SizedBox(height: spacing.xl),
-            SizedBox(
-              height: diffHeight,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _DiffPane(
-                      title: 'Remote (server)',
-                      lines: _remoteDiffLines,
-                      controller: _remoteController,
-                    ),
-                  ),
-                  VerticalDivider(width: spacing.xl),
-                  Expanded(
-                    child: _DiffPane(
-                      title: 'Local (cached)',
-                      lines: _localDiffLines,
-                      controller: _localController,
-                    ),
-                  ),
-                ],
+    return DialogKeyboardShortcuts(
+      onCancel: () => Navigator.of(context).pop<String?>(null),
+      onConfirm: () => Navigator.of(context).pop(_mergedController.text),
+      child: AlertDialog(
+        title: Text('Resolve conflicts for ${widget.remotePath}'),
+        contentPadding: EdgeInsets.fromLTRB(
+          spacing.base * 6,
+          spacing.base * 5,
+          spacing.base * 6,
+          spacing.sm,
+        ),
+        content: SizedBox(
+          width: width,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Remote file changed while you edited locally. Review differences and provide the merged result.',
               ),
-            ),
-            SizedBox(height: spacing.xl),
-            SizedBox(
-              height: mergedHeight,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Merged result'),
-                  SizedBox(height: spacing.md),
-                  Expanded(
-                    child: TextField(
-                      controller: _mergedController,
-                      maxLines: null,
-                      expands: true,
-                      decoration: const InputDecoration(),
-                      style: const TextStyle(fontFamily: 'monospace'),
+              SizedBox(height: spacing.xl),
+              SizedBox(
+                height: diffHeight,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _DiffPane(
+                        title: 'Remote (server)',
+                        lines: _remoteDiffLines,
+                        controller: _remoteController,
+                      ),
                     ),
-                  ),
-                ],
+                    VerticalDivider(width: spacing.xl),
+                    Expanded(
+                      child: _DiffPane(
+                        title: 'Local (cached)',
+                        lines: _localDiffLines,
+                        controller: _localController,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+              SizedBox(height: spacing.xl),
+              SizedBox(
+                height: mergedHeight,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Merged result'),
+                    SizedBox(height: spacing.md),
+                    Expanded(
+                      child: TextField(
+                        controller: _mergedController,
+                        maxLines: null,
+                        expands: true,
+                        decoration: const InputDecoration(),
+                        style: const TextStyle(fontFamily: 'monospace'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop<String?>(null),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.of(context).pop(_mergedController.text),
+            icon: Icon(NerdIcon.checkCircle.data),
+            label: const Text('Apply Merge'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop<String?>(null),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton.icon(
-          onPressed: () => Navigator.of(context).pop(_mergedController.text),
-          icon: Icon(NerdIcon.checkCircle.data),
-          label: const Text('Apply Merge'),
-        ),
-      ],
     );
   }
 

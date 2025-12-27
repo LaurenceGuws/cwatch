@@ -14,6 +14,7 @@ import 'package:cwatch/services/filesystem/explorer_trash_manager.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
+import 'package:cwatch/shared/widgets/dialog_keyboard_shortcuts.dart';
 import 'package:cwatch/core/models/tab_state.dart';
 import 'package:cwatch/core/tabs/tab_host.dart';
 import 'package:cwatch/core/tabs/tab_view_registry.dart';
@@ -453,25 +454,29 @@ class _DockerViewState extends State<DockerView> {
     try {
       newName = await showDialog<String>(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Rename tab'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: const InputDecoration(labelText: 'Tab name'),
-            onSubmitted: (value) => Navigator.of(context).pop(value),
+        builder: (context) => DialogKeyboardShortcuts(
+          onCancel: () => Navigator.of(context).pop(),
+          onConfirm: () => Navigator.of(context).pop(controller.text.trim()),
+          child: AlertDialog(
+            title: const Text('Rename tab'),
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Tab name'),
+              onSubmitted: (value) => Navigator.of(context).pop(value),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(controller.text.trim()),
+                child: const Text('Save'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(controller.text.trim()),
-              child: const Text('Save'),
-            ),
-          ],
         ),
       );
     } finally {
