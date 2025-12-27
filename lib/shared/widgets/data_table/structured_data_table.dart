@@ -2101,7 +2101,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
                 ),
                 clipBehavior: Clip.hardEdge,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(1),
+                  borderRadius: BorderRadius.circular(2),
                   border: border,
                 ),
                 child: Column(
@@ -2166,7 +2166,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
                 color: Theme.of(
                   context,
                 ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(2),
                 border: Border.all(
                   color: Theme.of(context).colorScheme.outlineVariant,
                 ),
@@ -2313,13 +2313,13 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
             if (hasBoundedHeight)
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.only(right: 14),
+                  padding: EdgeInsets.only(right: spacing.lg),
                   child: _buildBody(surface, columnWidths),
                 ),
               )
             else
               Padding(
-                padding: const EdgeInsets.only(right: 14),
+                padding: EdgeInsets.only(right: spacing.lg),
                 child: _buildBody(surface, columnWidths),
               ),
           ],
@@ -2342,7 +2342,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
             thumbVisibility: false,
             trackVisibility: false,
             thickness: verticalScrollbarWidth,
-            radius: const Radius.circular(6),
+            radius: const Radius.circular(2),
             scrollbarOrientation: ScrollbarOrientation.right,
             padding: EdgeInsets.only(
               bottom: widget.verticalScrollbarBottomInset,

@@ -760,13 +760,12 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       );
     }
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.only(bottom: context.appTheme.spacing.md),
       child: DropdownButtonFormField<String?>(
         initialValue: mapping,
         isExpanded: true,
         decoration: InputDecoration(
           labelText: host.name,
-          border: const OutlineInputBorder(),
         ),
         items: keyItems,
         onChanged: (value) => _updateHostBinding(host.name, value),

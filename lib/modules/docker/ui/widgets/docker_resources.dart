@@ -738,7 +738,7 @@ class _ChartLegend extends StatelessWidget {
           height: 12,
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(spacing.sm),
+            borderRadius: BorderRadius.circular(2),
           ),
         ),
         SizedBox(width: spacing.base * 1.5),

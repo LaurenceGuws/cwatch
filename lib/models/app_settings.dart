@@ -21,6 +21,7 @@ class AppSettings {
     this.windowUseSystemDecorations = true,
     this.appFontFamily,
     this.appThemeKey = 'blue-grey',
+    this.uiDensity = AppUiDensity.compact,
     this.inputModePreference = InputModePreference.auto,
     this.sshClientBackend = SshClientBackend.platform,
     this.builtinSshHostKeyBindings = const {},
@@ -64,6 +65,7 @@ class AppSettings {
   final bool windowUseSystemDecorations;
   final String? appFontFamily;
   final String appThemeKey;
+  final AppUiDensity uiDensity;
   final InputModePreference inputModePreference;
   final SshClientBackend sshClientBackend;
   final Map<String, String> builtinSshHostKeyBindings;
@@ -109,6 +111,7 @@ class AppSettings {
     bool? windowUseSystemDecorations,
     String? appFontFamily,
     String? appThemeKey,
+    AppUiDensity? uiDensity,
     InputModePreference? inputModePreference,
     SshClientBackend? sshClientBackend,
     Map<String, String>? builtinSshHostKeyBindings,
@@ -155,6 +158,7 @@ class AppSettings {
           windowUseSystemDecorations ?? this.windowUseSystemDecorations,
       appFontFamily: appFontFamily ?? this.appFontFamily,
       appThemeKey: appThemeKey ?? this.appThemeKey,
+      uiDensity: uiDensity ?? this.uiDensity,
       inputModePreference: inputModePreference ?? this.inputModePreference,
       sshClientBackend: sshClientBackend ?? this.sshClientBackend,
       builtinSshHostKeyBindings:
@@ -233,6 +237,7 @@ class AppSettings {
           json['windowUseSystemDecorations'] as bool? ?? true,
       appFontFamily: json['appFontFamily'] as String?,
       appThemeKey: json['appThemeKey'] as String? ?? 'blue-grey',
+      uiDensity: AppUiDensityParsing.fromJson(json['uiDensity'] as String?),
       inputModePreference: InputModePreferenceParsing.fromJson(
         json['inputModePreference'] as String?,
       ),
@@ -348,6 +353,7 @@ class AppSettings {
       'windowUseSystemDecorations': windowUseSystemDecorations,
       if (appFontFamily != null) 'appFontFamily': appFontFamily,
       'appThemeKey': appThemeKey,
+      'uiDensity': uiDensity.name,
       'inputModePreference': inputModePreference.name,
       'sshClientBackend': sshClientBackend.name,
       'builtinSshHostKeyBindings': builtinSshHostKeyBindings,
@@ -386,5 +392,19 @@ class AppSettings {
     if (value < 0) return 0;
     if (value > 5000) return 5000;
     return value;
+  }
+}
+
+enum AppUiDensity { compact, comfy }
+
+class AppUiDensityParsing {
+  static AppUiDensity fromJson(String? value) {
+    switch (value) {
+      case 'comfy':
+        return AppUiDensity.comfy;
+      case 'compact':
+      default:
+        return AppUiDensity.compact;
+    }
   }
 }

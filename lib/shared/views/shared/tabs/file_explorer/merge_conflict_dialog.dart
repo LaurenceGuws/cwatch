@@ -105,9 +105,7 @@ class _MergeConflictDialogState extends State<MergeConflictDialog> {
                       controller: _mergedController,
                       maxLines: null,
                       expands: true,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                      ),
+                      decoration: const InputDecoration(),
                       style: const TextStyle(fontFamily: 'monospace'),
                     ),
                   ),
@@ -201,7 +199,7 @@ class _DiffPane extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(2),
             ),
             child: Scrollbar(
               controller: controller,

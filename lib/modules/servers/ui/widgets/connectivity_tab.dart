@@ -146,7 +146,7 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
         if (_loading)
           Center(
             child: Padding(
-              padding: EdgeInsets.all(spacing.base * 8),
+              padding: EdgeInsets.all(spacing.xl),
               child: const CircularProgressIndicator(),
             ),
           )
@@ -538,7 +538,7 @@ class _StatCard extends StatelessWidget {
                   height: 32,
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(2),
                   ),
                   child: Icon(
                     display.icon,

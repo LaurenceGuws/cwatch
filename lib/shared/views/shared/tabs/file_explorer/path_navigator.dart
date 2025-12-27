@@ -51,7 +51,7 @@ class _PathNavigatorState extends State<PathNavigator> {
       onPressed: (index) {
         widget.onShowBreadcrumbsChanged?.call(index == 0);
       },
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(2),
       constraints: const BoxConstraints(minWidth: 36, minHeight: 32),
       children: const [
         Icon(Icons.alt_route, size: 16),
@@ -78,7 +78,7 @@ class _PathNavigatorState extends State<PathNavigator> {
       padding: spacing.inset(horizontal: 1.5, vertical: 1),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(2),
         border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Row(

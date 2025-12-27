@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:cwatch/models/app_settings.dart';
 import '../../services/settings/app_settings_controller.dart';
 import '../../services/ssh/terminal_session.dart';
 import '../../services/window/window_chrome_service.dart';
@@ -40,6 +41,8 @@ class _CwatchAppState extends State<CwatchApp> {
       builder: (context, _) {
         final settings = widget.settingsController.settings;
         final appFontFamily = settings.appFontFamily;
+        final baseRadius = BorderRadius.circular(2);
+        final spacingBase = settings.uiDensity == AppUiDensity.comfy ? 5.0 : 4.0;
         final seed = _seedForKey(settings.appThemeKey);
         final lightScheme = ColorScheme.fromSeed(
           seedColor: seed,
@@ -52,16 +55,38 @@ class _CwatchAppState extends State<CwatchApp> {
         final lightTokens = AppThemeTokens.light(
           lightScheme,
           fontFamily: appFontFamily,
+          surfaceRadius: baseRadius,
+          spacingBase: spacingBase,
         );
         final darkTokens = AppThemeTokens.dark(
           darkScheme,
           fontFamily: appFontFamily,
+          surfaceRadius: baseRadius,
+          spacingBase: spacingBase,
         );
         return MaterialApp(
           title: 'CWatch',
           themeMode: settings.themeMode,
-          theme: _buildTheme(lightScheme, lightTokens, appFontFamily),
-          darkTheme: _buildTheme(darkScheme, darkTokens, appFontFamily),
+          theme: _buildTheme(
+            lightScheme,
+            lightTokens,
+            appFontFamily,
+            baseRadius: baseRadius,
+            visualDensity:
+                settings.uiDensity == AppUiDensity.comfy
+                    ? VisualDensity.standard
+                    : VisualDensity.compact,
+          ),
+          darkTheme: _buildTheme(
+            darkScheme,
+            darkTokens,
+            appFontFamily,
+            baseRadius: baseRadius,
+            visualDensity:
+                settings.uiDensity == AppUiDensity.comfy
+                    ? VisualDensity.standard
+                    : VisualDensity.compact,
+          ),
           builder: (context, child) {
             final mediaQuery = MediaQuery.of(context);
             final zoom = settings.zoomFactor.clamp(0.8, 1.5).toDouble();
@@ -80,13 +105,16 @@ class _CwatchAppState extends State<CwatchApp> {
     ColorScheme scheme,
     AppThemeTokens tokens,
     String? fontFamily,
+    {
+      required BorderRadius baseRadius,
+      required VisualDensity visualDensity,
+    }
   ) {
-    final baseRadius = BorderRadius.circular(2);
     return ThemeData(
       colorScheme: scheme,
       useMaterial3: true,
       fontFamily: fontFamily,
-      visualDensity: VisualDensity.compact,
+      visualDensity: visualDensity,
       scaffoldBackgroundColor: scheme.surface,
       cardTheme: CardThemeData(
         elevation: 0.5,
@@ -123,6 +151,26 @@ class _CwatchAppState extends State<CwatchApp> {
         ),
         contentPadding: tokens.spacing.inset(horizontal: 2, vertical: 1.5),
       ),
+      dialogTheme: DialogThemeData(
+        shape: RoundedRectangleBorder(borderRadius: baseRadius),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        shape: RoundedRectangleBorder(borderRadius: baseRadius),
+      ),
+      menuTheme: MenuThemeData(
+        style: MenuStyle(
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: baseRadius),
+          ),
+        ),
+      ),
+      dropdownMenuTheme: DropdownMenuThemeData(
+        menuStyle: MenuStyle(
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: baseRadius),
+          ),
+        ),
+      ),
       scrollbarTheme: ScrollbarThemeData(
         radius: const Radius.circular(2),
         thickness: WidgetStateProperty.all(4),
@@ -135,6 +183,41 @@ class _CwatchAppState extends State<CwatchApp> {
         elevation: 0,
         backgroundColor: scheme.primary,
         foregroundColor: scheme.onPrimary,
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: ButtonStyle(
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: baseRadius),
+          ),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ButtonStyle(
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: baseRadius),
+          ),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: ButtonStyle(
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: baseRadius),
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: ButtonStyle(
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: baseRadius),
+          ),
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: ButtonStyle(
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: baseRadius),
+          ),
+        ),
       ),
       extensions: [tokens],
     );

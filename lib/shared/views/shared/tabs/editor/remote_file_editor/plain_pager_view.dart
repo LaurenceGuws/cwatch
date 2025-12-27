@@ -174,7 +174,7 @@ class PlainPagerViewState extends State<PlainPagerView> {
               padding: spacing.inset(horizontal: 2, vertical: 1),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(2),
                 border: Border.all(color: Theme.of(context).dividerColor),
               ),
               child: Row(
@@ -221,7 +221,7 @@ class PlainPagerViewState extends State<PlainPagerView> {
                       controller: _scrollController,
                       child: SingleChildScrollView(
                         controller: _scrollController,
-                        padding: EdgeInsets.only(right: spacing.base * 3.5),
+                        padding: EdgeInsets.only(right: spacing.lg),
                         child: Stack(
                           children: [
                             Positioned.fill(

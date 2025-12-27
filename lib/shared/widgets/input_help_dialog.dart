@@ -111,6 +111,7 @@ Future<void> showInputHelpDialog(
   }
 
   Widget buildScopeTile(_ScopeSummary scope) {
+    final spacing = context.appTheme.spacing;
     final shortcutLabels = scope.shortcuts
         .map(describeBinding)
         .map((label) => Chip(label: Text(label)))
@@ -120,7 +121,7 @@ Future<void> showInputHelpDialog(
         .map((label) => Chip(label: Text(label)))
         .toList();
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: EdgeInsets.symmetric(vertical: spacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -129,12 +130,20 @@ Future<void> showInputHelpDialog(
             style: Theme.of(context).textTheme.titleSmall,
           ),
           if (shortcutLabels.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Wrap(spacing: 8, runSpacing: 8, children: shortcutLabels),
+            SizedBox(height: spacing.base * 1.5),
+            Wrap(
+              spacing: spacing.md,
+              runSpacing: spacing.md,
+              children: shortcutLabels,
+            ),
           ],
           if (gestureLabels.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Wrap(spacing: 8, runSpacing: 8, children: gestureLabels),
+            SizedBox(height: spacing.base * 1.5),
+            Wrap(
+              spacing: spacing.md,
+              runSpacing: spacing.md,
+              children: gestureLabels,
+            ),
           ],
         ],
       ),

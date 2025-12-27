@@ -33,7 +33,7 @@ class SectionList extends StatelessWidget {
           if (title != null || trailing != null)
             Padding(
               padding: EdgeInsets.symmetric(
-                horizontal: spacing.base * 1.5,
+                horizontal: spacing.base,
                 vertical: spacing.xs,
               ),
               child: Row(

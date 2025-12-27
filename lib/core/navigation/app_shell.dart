@@ -1237,7 +1237,7 @@ class _NavigationButtonState extends State<_NavigationButton> {
     );
 
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: spacing.base * 1.5),
+      padding: EdgeInsets.symmetric(vertical: spacing.sm),
       child: MouseRegion(
         onEnter: (_) => _setHovering(true),
         onExit: (_) => _setHovering(false),

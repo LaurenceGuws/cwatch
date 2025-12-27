@@ -80,9 +80,9 @@ class _EnginePickerState extends State<EnginePicker> {
           future: widget.contextsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator()),
+              return Padding(
+                padding: EdgeInsets.all(spacing.xl),
+                child: const Center(child: CircularProgressIndicator()),
               );
             }
             if (snapshot.hasError) {
@@ -362,9 +362,9 @@ class RemoteHostList extends StatelessWidget {
       primaryDoubleClickOpensContextMenu: true,
       refreshListenable: settingsController,
       onRowContextMenu: (status, anchor) => onOpenHost(status.host, anchor),
-      emptyState: const Padding(
-        padding: EdgeInsets.all(16),
-        child: Text('No Docker-ready remote hosts found.'),
+      emptyState: Padding(
+        padding: EdgeInsets.all(context.appTheme.spacing.xl),
+        child: const Text('No Docker-ready remote hosts found.'),
       ),
     );
   }
@@ -475,22 +475,26 @@ class EngineButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final spacing = context.appTheme.spacing;
     final bg = selected
         ? scheme.primary.withValues(alpha: 0.1)
         : scheme.surfaceContainerHighest;
     final borderColor = selected ? scheme.primary : scheme.outlineVariant;
     return Material(
       color: bg,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(2),
       child: InkWell(
         onDoubleTap: onDoubleTap,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(2),
         child: Container(
           width: 200,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: EdgeInsets.symmetric(
+            horizontal: spacing.base * 3,
+            vertical: spacing.base * 2.5,
+          ),
           decoration: BoxDecoration(
             border: Border.all(color: borderColor),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(2),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

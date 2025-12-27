@@ -59,18 +59,22 @@ class StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final spacing = context.appTheme.spacing;
     return SizedBox(
       width: 140,
       child: Card(
         color: scheme.surfaceContainerHighest,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: EdgeInsets.symmetric(
+            horizontal: spacing.base * 3,
+            vertical: spacing.base * 2.5,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(label, style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: 4),
+              SizedBox(height: spacing.sm),
               Text(
                 value,
                 style: Theme.of(
@@ -92,8 +96,12 @@ class EmptyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return Card(
-      child: Padding(padding: const EdgeInsets.all(12), child: Text(message)),
+      child: Padding(
+        padding: EdgeInsets.all(spacing.lg),
+        child: Text(message),
+      ),
     );
   }
 }
@@ -156,7 +164,7 @@ class _ContainerPeekState extends State<ContainerPeek> {
         final sectionColor = _sectionBackgroundForIndex(context, index);
 
         return Padding(
-          padding: EdgeInsets.only(bottom: spacing.base * 1.5),
+          padding: EdgeInsets.only(bottom: spacing.sm),
           child: SectionList(
             title: project,
             backgroundColor: sectionColor,
@@ -589,7 +597,7 @@ class ContainerList extends StatelessWidget {
         });
 
         return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
+          padding: EdgeInsets.only(bottom: context.appTheme.spacing.md),
           child: SectionList(children: [header, ...rows]),
         );
       }).toList(),
@@ -682,7 +690,7 @@ class _ImagePeekState extends State<ImagePeek> {
         final collapsed = _collapsed.contains(repo);
         final sectionColor = _sectionBackgroundForIndex(context, index);
         return Padding(
-          padding: EdgeInsets.only(bottom: spacing.base * 1.5),
+          padding: EdgeInsets.only(bottom: spacing.sm),
           child: SectionList(
             title: repo,
             backgroundColor: sectionColor,
@@ -833,6 +841,7 @@ class ImageList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     if (images.isEmpty) {
       return const EmptyCard(message: 'No images found.');
     }
@@ -850,7 +859,7 @@ class ImageList extends StatelessWidget {
         final iconPadding = context.appTheme.spacing.base * 0.5;
         final iconColor = colorForDistro(slug, context.appTheme);
         return Padding(
-          padding: const EdgeInsets.only(bottom: 6),
+          padding: EdgeInsets.only(bottom: spacing.sm),
           child: SelectableListItem(
             stripeIndex: index,
             selected: isSelected,
@@ -942,7 +951,7 @@ class _NetworkListState extends State<NetworkList> {
         final collapsed = _collapsed.contains(group);
         final sectionColor = _sectionBackgroundForIndex(context, index);
         return Padding(
-          padding: EdgeInsets.only(bottom: spacing.base * 1.5),
+          padding: EdgeInsets.only(bottom: spacing.sm),
           child: SectionList(
             title: group,
             backgroundColor: sectionColor,
@@ -1118,7 +1127,7 @@ class _VolumeListState extends State<VolumeList> {
         final collapsed = _collapsed.contains(group);
         final sectionColor = _sectionBackgroundForIndex(context, index);
         return Padding(
-          padding: EdgeInsets.only(bottom: spacing.base * 1.5),
+          padding: EdgeInsets.only(bottom: spacing.sm),
           child: SectionList(
             title: group,
             backgroundColor: sectionColor,

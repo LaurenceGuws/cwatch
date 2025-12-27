@@ -142,7 +142,7 @@ class WindowsDragSource implements DesktopDragSource {
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromLTWH(0, 0, size.toDouble(), size.toDouble()),
-        const Radius.circular(4),
+        const Radius.circular(2),
       ),
       paint,
     );
@@ -253,7 +253,7 @@ class LinuxDragSource implements DesktopDragSource {
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromLTWH(0, 0, size.toDouble(), size.toDouble()),
-        const Radius.circular(4),
+        const Radius.circular(2),
       ),
       paint,
     );

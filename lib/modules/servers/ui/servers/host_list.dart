@@ -103,7 +103,7 @@ class _HostListState extends State<HostList> {
       final sectionColor = _sectionBackgroundForIndex(context, index);
       final collapsed = _isCollapsed(source);
       return Padding(
-        padding: EdgeInsets.only(bottom: spacing.base * 1.5),
+        padding: EdgeInsets.only(bottom: spacing.sm),
         child: SectionList(
           backgroundColor: sectionColor,
           title: _getSourceDisplayName(source),

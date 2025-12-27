@@ -13,12 +13,12 @@ import 'package:cwatch/modules/docker/services/docker_client_service.dart';
 import 'package:cwatch/modules/docker/ui/docker_tab_factory.dart';
 import 'package:cwatch/modules/docker/ui/engine_tab.dart';
 import 'package:cwatch/shared/widgets/port_forward_dialog.dart';
+import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/services/ssh/ssh_auth_prompter.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
-import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/services/logging/app_logger.dart';
 import 'docker_overview_controller.dart';
@@ -836,6 +836,7 @@ class DockerOverviewMenus {
     await showDialog<void>(
       context: context,
       builder: (context) {
+        final spacing = context.appTheme.spacing;
         return AlertDialog(
           title: Text(title),
           content: Column(
@@ -844,7 +845,7 @@ class DockerOverviewMenus {
             children: details.entries
                 .map(
                   (entry) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
+                    padding: EdgeInsets.only(bottom: spacing.md),
                     child: Row(
                       children: [
                         SizedBox(

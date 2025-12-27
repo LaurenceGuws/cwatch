@@ -26,6 +26,8 @@ class GeneralSettingsTab extends StatelessWidget {
     required this.onAppFontFamilyChanged,
     required this.appThemeKey,
     required this.onAppThemeChanged,
+    required this.uiDensity,
+    required this.onUiDensityChanged,
     required this.inputModePreference,
     required this.onInputModePreferenceChanged,
   });
@@ -42,6 +44,8 @@ class GeneralSettingsTab extends StatelessWidget {
   final ValueChanged<String> onAppFontFamilyChanged;
   final String appThemeKey;
   final ValueChanged<String> onAppThemeChanged;
+  final AppUiDensity uiDensity;
+  final ValueChanged<AppUiDensity> onUiDensityChanged;
   final InputModePreference inputModePreference;
   final ValueChanged<InputModePreference> onInputModePreferenceChanged;
 
@@ -108,6 +112,24 @@ class GeneralSettingsTab extends StatelessWidget {
                 ],
                 onChanged: (value) {
                   if (value != null) onAppThemeChanged(value);
+                },
+              ),
+              const FormSpacer(),
+              DropdownButtonFormField<AppUiDensity>(
+                decoration: const InputDecoration(labelText: 'Density'),
+                initialValue: uiDensity,
+                items: const [
+                  DropdownMenuItem(
+                    value: AppUiDensity.compact,
+                    child: Text('Compact'),
+                  ),
+                  DropdownMenuItem(
+                    value: AppUiDensity.comfy,
+                    child: Text('Comfy'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value != null) onUiDensityChanged(value);
                 },
               ),
             ],

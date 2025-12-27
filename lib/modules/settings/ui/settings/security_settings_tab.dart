@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:cwatch/shared/theme/app_theme.dart';
 import 'settings_section.dart';
 
 /// Security settings tab widget
@@ -23,8 +24,12 @@ class SecuritySettingsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      padding: EdgeInsets.symmetric(
+        horizontal: spacing.base * 6,
+        vertical: spacing.base * 5,
+      ),
       children: [
         SettingsSection(
           title: 'Access Controls',

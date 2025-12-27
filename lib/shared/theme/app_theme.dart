@@ -24,17 +24,23 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
   final AppDockerTokens docker;
   final DistroColors distroColors;
 
-  factory AppThemeTokens.light(ColorScheme scheme, {String? fontFamily}) {
+  factory AppThemeTokens.light(
+    ColorScheme scheme, {
+    String? fontFamily,
+    BorderRadius? surfaceRadius,
+    double? spacingBase,
+  }) {
     final baseTheme = ThemeData(
       colorScheme: scheme,
       useMaterial3: true,
       fontFamily: fontFamily,
     );
+    final radius = surfaceRadius ?? BorderRadius.circular(2);
     return AppThemeTokens(
-      spacing: const AppSpacing(),
+      spacing: AppSpacing(base: spacingBase ?? 4),
       tabChip: AppTabChipTokens.fromScheme(scheme),
       list: AppListTokens.fromScheme(scheme),
-      section: AppSectionTokens.fromScheme(scheme),
+      section: AppSectionTokens.fromScheme(scheme, surfaceRadius: radius),
       typography: AppTypographyTokens.fromTextTheme(baseTheme.textTheme),
       icons: AppIcons.nerd(),
       docker: AppDockerTokens.fromScheme(scheme),
@@ -42,17 +48,23 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
     );
   }
 
-  factory AppThemeTokens.dark(ColorScheme scheme, {String? fontFamily}) {
+  factory AppThemeTokens.dark(
+    ColorScheme scheme, {
+    String? fontFamily,
+    BorderRadius? surfaceRadius,
+    double? spacingBase,
+  }) {
     final baseTheme = ThemeData(
       colorScheme: scheme,
       useMaterial3: true,
       fontFamily: fontFamily,
     );
+    final radius = surfaceRadius ?? BorderRadius.circular(2);
     return AppThemeTokens(
-      spacing: const AppSpacing(),
+      spacing: AppSpacing(base: spacingBase ?? 4),
       tabChip: AppTabChipTokens.fromScheme(scheme),
       list: AppListTokens.fromScheme(scheme),
-      section: AppSectionTokens.fromScheme(scheme),
+      section: AppSectionTokens.fromScheme(scheme, surfaceRadius: radius),
       typography: AppTypographyTokens.fromTextTheme(baseTheme.textTheme),
       icons: AppIcons.nerd(),
       docker: AppDockerTokens.fromScheme(scheme),
@@ -514,15 +526,18 @@ class AppSectionTokens {
 
   BorderRadius get cardRadius => surface.radius;
 
-  factory AppSectionTokens.fromScheme(ColorScheme scheme) {
+  factory AppSectionTokens.fromScheme(
+    ColorScheme scheme, {
+    required BorderRadius surfaceRadius,
+  }) {
     return AppSectionTokens(
       toolbarBackground: scheme.surface,
       divider: scheme.outlineVariant,
       surface: AppSurfaceStyle(
         background: scheme.surfaceContainerHigh,
         borderColor: scheme.outlineVariant.withValues(alpha: 0.6),
-        radius: BorderRadius.circular(2),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        radius: surfaceRadius,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         margin: EdgeInsets.zero,
         elevation: 0.5,
       ),

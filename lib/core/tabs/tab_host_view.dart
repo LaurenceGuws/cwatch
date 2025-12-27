@@ -372,7 +372,7 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
                           interactive: true,
                           scrollbarOrientation: ScrollbarOrientation.bottom,
                           notificationPredicate: (_) => true,
-                          radius: const Radius.circular(3),
+                          radius: const Radius.circular(2),
                           thumbColor: Theme.of(context).colorScheme.primary
                               .withValues(alpha: activeThumb ? 0.9 : 0.0),
                           trackColor:

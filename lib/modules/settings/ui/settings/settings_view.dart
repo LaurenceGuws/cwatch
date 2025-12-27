@@ -178,6 +178,13 @@ class _SettingsViewState extends State<SettingsView>
                                 (current) =>
                                     current.copyWith(appThemeKey: value),
                               ),
+                          uiDensity: settings.uiDensity,
+                          onUiDensityChanged: (value) =>
+                              widget.controller.update(
+                                (current) => current.copyWith(
+                                  uiDensity: value,
+                                ),
+                              ),
                           inputModePreference: settings.inputModePreference,
                           onInputModePreferenceChanged: (value) =>
                               widget.controller.update(

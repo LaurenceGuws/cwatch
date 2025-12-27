@@ -47,9 +47,9 @@ class _SettingsSectionState extends State<SettingsSection> {
     final spacing = context.appTheme.spacing;
 
     return Card(
-      margin: EdgeInsets.only(bottom: spacing.md),
+      margin: EdgeInsets.only(bottom: spacing.sm),
       child: Padding(
-        padding: EdgeInsets.all(spacing.md),
+        padding: EdgeInsets.all(spacing.sm),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -93,7 +93,7 @@ class _SettingsSectionState extends State<SettingsSection> {
             ),
             if (_expanded) ...[
               SizedBox(height: spacing.sm),
-              Divider(height: spacing.lg),
+              Divider(height: spacing.md),
               widget.child,
             ],
           ],

@@ -95,7 +95,6 @@ class ShortcutCategorySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final spacing = context.appTheme.spacing;
     final definitions = ShortcutCatalog.byCategory(category).toList();
     return SettingsSection(
       title: _title,
@@ -177,9 +176,10 @@ class _ShortcutRowState extends State<_ShortcutRow> {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     final helpStyle = Theme.of(context).textTheme.bodySmall;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: EdgeInsets.symmetric(vertical: spacing.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -198,7 +198,7 @@ class _ShortcutRowState extends State<_ShortcutRow> {
             ],
           ),
           Text(widget.definition.description, style: helpStyle),
-          const SizedBox(height: 6),
+          SizedBox(height: spacing.sm),
           TextField(
             controller: _textController,
             focusNode: _focusNode,

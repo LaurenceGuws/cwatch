@@ -42,7 +42,7 @@ class _LegendChip extends StatelessWidget {
       padding: spacing.inset(horizontal: 2, vertical: 1),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(2),
         border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Row(
@@ -236,7 +236,7 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
       body = const Center(child: Text('No resource metrics available.'));
     } else {
       body = ListView(
-        padding: EdgeInsets.all(spacing.base * 1.5),
+        padding: EdgeInsets.all(spacing.sm),
         children: [
           _buildSummary(snapshot),
           SizedBox(height: spacing.base * 1.5),
@@ -313,7 +313,7 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
               child: Card(
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(2),
                   side: BorderSide(color: scheme.outlineVariant),
                 ),
                 child: Padding(
@@ -504,7 +504,7 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(2),
         side: BorderSide(color: scheme.outlineVariant),
       ),
       child: SingleChildScrollView(
@@ -562,7 +562,7 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(2),
         side: BorderSide(color: scheme.outlineVariant),
       ),
       child: SingleChildScrollView(
@@ -708,11 +708,11 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
       return Card(
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(2),
           side: BorderSide(color: scheme.outlineVariant),
         ),
         child: Padding(
-          padding: EdgeInsets.all(spacing.base * 1.25),
+          padding: EdgeInsets.all(spacing.sm),
           child: Row(
             children: [
               Icon(Icons.show_chart, color: scheme.onSurfaceVariant),
@@ -736,11 +736,11 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(2),
         side: BorderSide(color: scheme.outlineVariant),
       ),
       child: Padding(
-        padding: EdgeInsets.all(spacing.base * 1.25),
+        padding: EdgeInsets.all(spacing.sm),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

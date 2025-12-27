@@ -127,7 +127,7 @@ class _ProcessTreeViewState extends State<ProcessTreeView> {
                       color: Theme.of(
                         context,
                       ).colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(2),
                     ),
                     child: SizedBox(
                       height: height,

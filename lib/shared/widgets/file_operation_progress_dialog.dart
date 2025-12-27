@@ -291,7 +291,7 @@ class _FileOperationProgressDialogState
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     border: Border.all(color: Theme.of(context).dividerColor),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(2),
                   ),
                   child: ListView.separated(
                     itemCount: controller.items.length,

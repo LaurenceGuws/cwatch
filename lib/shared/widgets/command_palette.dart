@@ -96,8 +96,8 @@ class _CommandPaletteState extends State<CommandPalette> {
     return Dialog(
       elevation: 10,
       insetPadding: EdgeInsets.symmetric(
-        horizontal: appTheme.spacing.base * 12,
-        vertical: appTheme.spacing.base * 6,
+        horizontal: appTheme.spacing.base * 8,
+        vertical: appTheme.spacing.base * 4,
       ),
       backgroundColor: scheme.surface.withValues(alpha: 0.98),
       shape: RoundedRectangleBorder(
@@ -131,7 +131,7 @@ class _CommandPaletteState extends State<CommandPalette> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Padding(
-                padding: appTheme.spacing.inset(horizontal: 4, vertical: 3),
+                padding: appTheme.spacing.inset(horizontal: 3, vertical: 2),
                 child: TextField(
                   controller: _controller,
                   focusNode: _focusNode,
@@ -149,7 +149,7 @@ class _CommandPaletteState extends State<CommandPalette> {
                 child: filtered.isEmpty
                     ? Center(
                         child: Padding(
-                          padding: EdgeInsets.all(appTheme.spacing.xl * 1.5),
+                          padding: EdgeInsets.all(appTheme.spacing.xl),
                           child: Text(
                             'No commands match your search.',
                             style: Theme.of(context).textTheme.bodyMedium,
@@ -188,7 +188,7 @@ class _CommandPaletteState extends State<CommandPalette> {
                               ),
                               decoration: BoxDecoration(
                                 color: scheme.surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(2),
                               ),
                               child: Text(
                                 entry.category,

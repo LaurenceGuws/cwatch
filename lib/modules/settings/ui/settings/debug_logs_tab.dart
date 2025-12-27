@@ -24,7 +24,7 @@ class DebugLogsTab extends StatelessWidget {
         if (events.isEmpty) {
           return Center(
             child: Padding(
-              padding: EdgeInsets.all(spacing.base * 6),
+              padding: EdgeInsets.all(spacing.xl),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -57,7 +57,7 @@ class DebugLogsTab extends StatelessWidget {
                     size: 18,
                     color: Theme.of(context).colorScheme.primary,
                   ),
-                  SizedBox(width: spacing.base * 1.5),
+                  SizedBox(width: spacing.sm),
                   Text(
                     debugEnabled
                         ? 'Debug logging is ON'
@@ -79,7 +79,7 @@ class DebugLogsTab extends StatelessWidget {
                 padding: EdgeInsets.all(spacing.lg),
                 itemCount: events.length,
                 separatorBuilder: (context, _) =>
-                    SizedBox(height: spacing.base * 2.5),
+                    SizedBox(height: spacing.lg),
                 itemBuilder: (context, index) {
                   final event = events[index];
                   return _LogEntryCard(event: event);

@@ -27,7 +27,7 @@ class InlineSearchBar extends StatelessWidget {
       margin: EdgeInsets.only(bottom: spacing.md),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(spacing.md),
+        borderRadius: BorderRadius.circular(2),
         border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Row(

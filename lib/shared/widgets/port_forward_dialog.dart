@@ -99,8 +99,8 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
     return AlertDialog(
       title: Text(widget.title),
       insetPadding: EdgeInsets.symmetric(
-        horizontal: size.width * 0.05,
-        vertical: size.height * 0.05,
+        horizontal: spacing.xl,
+        vertical: spacing.lg,
       ),
       content: SizedBox(
         width: dialogWidth,

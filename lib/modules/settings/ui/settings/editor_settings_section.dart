@@ -60,7 +60,6 @@ class _EditorSettingsSectionState extends State<EditorSettingsSection> {
 
   @override
   Widget build(BuildContext context) {
-    final spacing = context.appTheme.spacing;
     return SettingsSection(
       title: 'Appearance',
       description:
@@ -258,10 +257,11 @@ class _GroupLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return Align(
       alignment: Alignment.centerLeft,
       child: Padding(
-        padding: const EdgeInsets.only(bottom: 8),
+        padding: EdgeInsets.only(bottom: spacing.md),
         child: Text(
           text,
           style: Theme.of(

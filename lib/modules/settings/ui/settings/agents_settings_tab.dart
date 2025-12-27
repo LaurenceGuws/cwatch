@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:cwatch/shared/theme/app_theme.dart';
 import 'settings_section.dart';
 
 /// Agents settings tab widget
@@ -21,8 +22,12 @@ class AgentsSettingsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: EdgeInsets.symmetric(
+        horizontal: spacing.base * 3,
+        vertical: spacing.base * 2.5,
+      ),
       children: [
         SettingsSection(
           title: 'Agent Fleet',

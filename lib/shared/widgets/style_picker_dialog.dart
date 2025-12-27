@@ -121,9 +121,9 @@ class _StylePickerDialogState extends State<_StylePickerDialog> {
     final visible = _visible;
 
     return Dialog(
-      insetPadding: EdgeInsets.all(spacing.lg),
+      insetPadding: EdgeInsets.all(spacing.md),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(spacing.base * 1.5),
+        borderRadius: BorderRadius.circular(2),
       ),
       clipBehavior: Clip.antiAlias,
       child: SizedBox(
@@ -133,8 +133,8 @@ class _StylePickerDialogState extends State<_StylePickerDialog> {
           children: [
             Container(
               padding: EdgeInsets.symmetric(
-                horizontal: spacing.xl,
-                vertical: spacing.lg,
+                horizontal: spacing.lg,
+                vertical: spacing.md,
               ),
               color: scheme.surfaceContainerHigh,
               child: Row(
@@ -158,10 +158,10 @@ class _StylePickerDialogState extends State<_StylePickerDialog> {
             ),
             Padding(
               padding: EdgeInsets.fromLTRB(
-                spacing.lg,
-                spacing.base * 2.5,
-                spacing.lg,
                 spacing.md,
+                spacing.base * 2,
+                spacing.md,
+                spacing.sm,
               ),
               child: TextField(
                 controller: _searchController,
@@ -170,7 +170,7 @@ class _StylePickerDialogState extends State<_StylePickerDialog> {
                   hintText: 'Search themes',
                   prefixIcon: Icon(Icons.search, size: spacing.base * 4.5),
                   isDense: true,
-                  contentPadding: EdgeInsets.all(spacing.base * 2.5),
+                  contentPadding: EdgeInsets.all(spacing.md),
                 ),
               ),
             ),
@@ -178,10 +178,10 @@ class _StylePickerDialogState extends State<_StylePickerDialog> {
               child: Scrollbar(
                 child: ListView.separated(
                   padding: EdgeInsets.fromLTRB(
-                    spacing.lg,
+                    spacing.md,
                     spacing.sm,
-                    spacing.lg,
-                    spacing.lg,
+                    spacing.md,
+                    spacing.md,
                   ),
                   itemCount: visible.length,
                   separatorBuilder: (context, index) =>
@@ -200,13 +200,13 @@ class _StylePickerDialogState extends State<_StylePickerDialog> {
                       onDoubleTap: () => _select(option.key, apply: true),
                       child: Container(
                         padding: EdgeInsets.symmetric(
-                          horizontal: spacing.lg,
-                          vertical: spacing.base * 2.5,
+                          horizontal: spacing.md,
+                          vertical: spacing.base * 2,
                         ),
                         decoration: BoxDecoration(
                           color: bg,
                           border: Border.all(color: borderColor),
-                          borderRadius: BorderRadius.circular(spacing.sm),
+                          borderRadius: BorderRadius.circular(2),
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -249,8 +249,8 @@ class _StylePickerDialogState extends State<_StylePickerDialog> {
             ),
             Container(
               padding: EdgeInsets.symmetric(
-                horizontal: spacing.lg,
-                vertical: spacing.base * 2.5,
+                horizontal: spacing.md,
+                vertical: spacing.base * 2,
               ),
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerHigh,

@@ -97,7 +97,7 @@ class GaugeRow extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         ClipRRect(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(2),
           child: LinearProgressIndicator(
             value: percent.clamp(0.0, 1.0),
             minHeight: 8,
@@ -177,7 +177,7 @@ class UsedFreeBar extends StatelessWidget {
         Container(
           height: 10,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(2),
             color: usedColor.withValues(alpha: 0.15),
           ),
         ),
@@ -186,7 +186,7 @@ class UsedFreeBar extends StatelessWidget {
           child: Container(
             height: 10,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(2),
               color: usedColor,
             ),
           ),
@@ -212,11 +212,15 @@ class IoMetric extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme.onSurfaceVariant;
+    final spacing = context.appTheme.spacing;
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        padding: EdgeInsets.symmetric(
+          vertical: spacing.md,
+          horizontal: spacing.base * 3,
+        ),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(2),
           color: Theme.of(
             context,
           ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
@@ -227,7 +231,7 @@ class IoMetric extends StatelessWidget {
             Row(
               children: [
                 Icon(icon, size: 14, color: color),
-                const SizedBox(width: 4),
+                SizedBox(width: spacing.xs),
                 Text(label, style: Theme.of(context).textTheme.bodySmall),
               ],
             ),

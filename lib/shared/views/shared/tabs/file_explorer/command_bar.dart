@@ -40,7 +40,7 @@ class _CommandBarState extends State<CommandBar> {
       padding: spacing.all(2),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(spacing.md),
+        borderRadius: BorderRadius.circular(2),
         border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Row(

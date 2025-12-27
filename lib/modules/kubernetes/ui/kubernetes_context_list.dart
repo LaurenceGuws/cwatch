@@ -484,7 +484,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
             final collapsed = _isConfigCollapsed(configPath);
             final sectionColor = _sectionBackgroundForIndex(context, index);
             return Padding(
-              padding: EdgeInsets.only(bottom: spacing.base * 1.5),
+              padding: EdgeInsets.only(bottom: spacing.sm),
               child: SectionList(
                 title: path.basename(configPath),
                 backgroundColor: sectionColor,
@@ -741,7 +741,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                   ),
                   decoration: BoxDecoration(
                     color: scheme.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(2),
                   ),
                   child: Text(
                     'Current',
@@ -757,7 +757,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
           Card(
             margin: EdgeInsets.zero,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(2),
             ),
             child: Padding(
               padding: EdgeInsets.symmetric(
@@ -815,7 +815,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: context.appTheme.spacing.base * 1.5),
+      padding: EdgeInsets.symmetric(vertical: context.appTheme.spacing.sm),
       child: Row(
         children: [
           SizedBox(

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'package:cwatch/shared/views/shared/tabs/terminal/terminal_theme_presets.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
+import 'package:cwatch/shared/views/shared/tabs/terminal/terminal_theme_presets.dart';
 import 'package:cwatch/shared/widgets/form_spacer.dart';
 
 import 'settings_section.dart';
@@ -71,7 +71,6 @@ class _TerminalSettingsSectionState extends State<TerminalSettingsSection> {
 
   @override
   Widget build(BuildContext context) {
-    final spacing = context.appTheme.spacing;
     return SettingsSection(
       title: 'Appearance',
       description:
@@ -273,10 +272,11 @@ class _GroupLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     return Align(
       alignment: Alignment.centerLeft,
       child: Padding(
-        padding: const EdgeInsets.only(bottom: 8),
+        padding: EdgeInsets.only(bottom: spacing.md),
         child: Text(
           text,
           style: Theme.of(
