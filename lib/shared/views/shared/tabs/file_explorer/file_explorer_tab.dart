@@ -150,6 +150,10 @@ class _FileExplorerTabState extends State<FileExplorerTab>
         ? DropTarget(
             enable: true,
             onDragEntered: (_) {
+              if (_controller.isOsDragActive ||
+                  _controller.isSelfDragTarget(_controller.currentPath)) {
+                return;
+              }
               AppLogger.d(
                 'Drop entered ${_controller.currentPath}',
                 tag: 'Explorer',
@@ -159,11 +163,19 @@ class _FileExplorerTabState extends State<FileExplorerTab>
               }
             },
             onDragUpdated: (details) {
+              if (_controller.isOsDragActive ||
+                  _controller.isSelfDragTarget(_controller.currentPath)) {
+                return;
+              }
               if (!_dropHover) {
                 setState(() => _dropHover = true);
               }
             },
             onDragExited: (_) {
+              if (_controller.isOsDragActive ||
+                  _controller.isSelfDragTarget(_controller.currentPath)) {
+                return;
+              }
               AppLogger.d(
                 'Drop exited ${_controller.currentPath}',
                 tag: 'Explorer',
@@ -173,6 +185,16 @@ class _FileExplorerTabState extends State<FileExplorerTab>
               }
             },
             onDragDone: (details) async {
+              if (_controller.isSelfDragDrop(
+                paths: details.files.map((file) => file.path).toList(),
+                targetDirectory: _controller.currentPath,
+              )) {
+                AppLogger.d(
+                  'Drop ignored: source and target match',
+                  tag: 'Explorer',
+                );
+                return;
+              }
               AppLogger.d(
                 'Drop done ${details.files.length} files at '
                 '${details.localPosition}',

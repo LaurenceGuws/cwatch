@@ -1,4 +1,8 @@
 import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 
 import '../../../../../models/explorer_context.dart';
 import '../../../../../models/remote_file_entry.dart';
@@ -21,9 +25,6 @@ import 'path_loading_service.dart';
 import 'path_utils.dart';
 import 'selection_controller.dart';
 import 'ssh_auth_handler.dart';
-import 'package:flutter/material.dart';
-import 'dart:io';
-import 'package:path/path.dart' as p;
 
 /// ChangeNotifier that centralizes File Explorer state and lifecycle wiring.
 class FileExplorerController extends ChangeNotifier {
@@ -64,6 +65,14 @@ class FileExplorerController extends ChangeNotifier {
   late final ClipboardOperationsHandler clipboardHandler;
   late final SshAuthHandler _sshAuthHandler;
   final DesktopDragSource? dragSource = createDesktopDragSource();
+  bool _osDragActive = false;
+  String? _activeDragTempDir;
+  String? _activeDragSourcePath;
+  String? _lastDragTempDir;
+  String? _lastDragSourcePath;
+  DateTime? _lastDragExpiresAt;
+
+  bool get isOsDragActive => _osDragActive;
 
   late final VoidCallback _clipboardListener;
   late final VoidCallback _cutEventListener;
@@ -327,6 +336,44 @@ class FileExplorerController extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool isSelfDragDrop({
+    required List<String> paths,
+    required String targetDirectory,
+  }) {
+    final now = DateTime.now();
+    final expiry = _lastDragExpiresAt;
+    if (expiry != null && now.isAfter(expiry)) {
+      _lastDragTempDir = null;
+      _lastDragSourcePath = null;
+      _lastDragExpiresAt = null;
+    }
+    final tempDir = _activeDragTempDir ?? _lastDragTempDir;
+    final sourcePath = _activeDragSourcePath ?? _lastDragSourcePath;
+    if (tempDir == null || sourcePath == null) {
+      return false;
+    }
+    if (targetDirectory != sourcePath) {
+      return false;
+    }
+    return paths.isNotEmpty &&
+        paths.every((path) => p.isWithin(tempDir, path) || path == tempDir);
+  }
+
+  bool isSelfDragTarget(String targetDirectory) {
+    final now = DateTime.now();
+    final expiry = _lastDragExpiresAt;
+    if (expiry != null && now.isAfter(expiry)) {
+      _lastDragTempDir = null;
+      _lastDragSourcePath = null;
+      _lastDragExpiresAt = null;
+    }
+    final sourcePath = _activeDragSourcePath ?? _lastDragSourcePath;
+    if (sourcePath == null) {
+      return false;
+    }
+    return targetDirectory == sourcePath;
+  }
+
   @override
   void dispose() {
     if (_initialized) {
@@ -355,15 +402,21 @@ class FileExplorerController extends ChangeNotifier {
     if (entriesToDrag.isEmpty) {
       return;
     }
+    _osDragActive = true;
     final tempDir = await Directory.systemTemp.createTemp('cwatch-drag-');
-    final staged = <DragLocalItem>[];
-    for (final entry in entriesToDrag) {
-      final remotePath = PathUtils.joinPath(currentPath, entry.name);
-      final localTarget = p.join(tempDir.path, entry.name);
-      try {
-        await runShell(
-          () => shellService.downloadPath(
-            host: host,
+    _activeDragTempDir = tempDir.path;
+    _activeDragSourcePath = currentPath;
+    _lastDragTempDir = tempDir.path;
+    _lastDragSourcePath = currentPath;
+    _lastDragExpiresAt = DateTime.now().add(const Duration(minutes: 2));
+    try {
+      final staged = <DragLocalItem>[];
+      final downloads = <RemotePathDownload>[];
+      for (final entry in entriesToDrag) {
+        final remotePath = PathUtils.joinPath(currentPath, entry.name);
+        final localTarget = p.join(tempDir.path, entry.name);
+        downloads.add(
+          RemotePathDownload(
             remotePath: remotePath,
             localDestination: tempDir.path,
             recursive: entry.isDirectory,
@@ -377,42 +430,64 @@ class FileExplorerController extends ChangeNotifier {
             remotePath: remotePath,
           ),
         );
-      } catch (error) {
-        AppLogger.w(
-          'Failed to stage $remotePath for drag',
-          tag: 'Explorer',
-          error: error,
-        );
       }
-    }
-    if (staged.isEmpty) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Nothing to drag')));
+      await runShell(
+        () => shellService.downloadPaths(
+          host: host,
+          downloads: downloads,
+          onError: (download, error) {
+            AppLogger.w(
+              'Failed to stage ${download.remotePath} for drag',
+              tag: 'Explorer',
+              error: error,
+            );
+          },
+        ),
+      );
+      staged.removeWhere((item) {
+        if (item.isDirectory) {
+          return !Directory(item.localPath).existsSync();
+        }
+        return !File(item.localPath).existsSync();
+      });
+      if (staged.isEmpty) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Nothing to drag')));
+        }
+        return;
       }
-      return;
+      if (!context.mounted) {
+        return;
+      }
+      await source.startDrag(
+        context: context,
+        globalPosition: globalPosition,
+        items: staged,
+      );
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Drag started. Drop to copy/move.')),
+      );
+    } finally {
+      _osDragActive = false;
+      _activeDragTempDir = null;
+      _activeDragSourcePath = null;
+      // Cleanup temp dir later.
+      Future<void>.delayed(const Duration(minutes: 2), () async {
+        try {
+          await tempDir.delete(recursive: true);
+        } catch (_) {}
+        if (_lastDragTempDir == tempDir.path) {
+          _lastDragTempDir = null;
+          _lastDragSourcePath = null;
+          _lastDragExpiresAt = null;
+        }
+      });
     }
-    if (!context.mounted) {
-      return;
-    }
-    await source.startDrag(
-      context: context,
-      globalPosition: globalPosition,
-      items: staged,
-    );
-    if (!context.mounted) {
-      return;
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Drag started. Drop to copy/move.')),
-    );
-    // Cleanup temp dir later.
-    Future<void>.delayed(const Duration(minutes: 2), () async {
-      try {
-        await tempDir.delete(recursive: true);
-      } catch (_) {}
-    });
   }
 }
 

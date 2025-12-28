@@ -77,6 +77,7 @@ class FileEntryList extends StatefulWidget {
 
 class _FileEntryListState extends State<FileEntryList> {
   final Map<int, Offset> _pointerDownPositions = {};
+  final Map<int, bool> _pointerDownOnSelected = {};
   final Set<int> _draggedPointers = {};
 
   String _remotePath(RemoteFileEntry entry) {
@@ -112,6 +113,7 @@ class _FileEntryListState extends State<FileEntryList> {
     PointerDownEvent event,
   ) {
     _pointerDownPositions[event.pointer] = event.position;
+    _pointerDownOnSelected[event.pointer] = _isSelected(entry);
     _draggedPointers.remove(event.pointer);
     widget.onEntryPointerDown(event, widget.entries, index, _remotePath(entry));
   }
@@ -137,6 +139,9 @@ class _FileEntryListState extends State<FileEntryList> {
     if (origin == null) {
       return;
     }
+    if (_pointerDownOnSelected[event.pointer] != true) {
+      return;
+    }
     final delta = (event.position - origin).distance;
     if (delta <= 6) {
       return;
@@ -151,6 +156,7 @@ class _FileEntryListState extends State<FileEntryList> {
     PointerUpEvent event,
   ) {
     _pointerDownPositions.remove(event.pointer);
+    _pointerDownOnSelected.remove(event.pointer);
     _draggedPointers.remove(event.pointer);
     widget.onStopDragSelection();
   }
@@ -161,6 +167,7 @@ class _FileEntryListState extends State<FileEntryList> {
     PointerCancelEvent event,
   ) {
     _pointerDownPositions.remove(event.pointer);
+    _pointerDownOnSelected.remove(event.pointer);
     _draggedPointers.remove(event.pointer);
     widget.onStopDragSelection();
   }
@@ -381,6 +388,7 @@ class _FileEntryTileState extends State<FileEntryTile> {
   DateTime? _tapDownTime;
   bool _hasMoved = false;
   bool _dragStarted = false;
+  bool _pointerDownOnSelected = false;
 
   void _handleLongPress() {
     // Show context menu on long press for touch devices
@@ -449,6 +457,7 @@ class _FileEntryTileState extends State<FileEntryTile> {
         onPointerDown: (event) {
           widget.onPointerDown(event);
           _dragStarted = false;
+          _pointerDownOnSelected = widget.selected;
           // Track touch down for tap detection
           if (event.kind == PointerDeviceKind.touch) {
             _tapDownPosition = event.position;
@@ -462,6 +471,7 @@ class _FileEntryTileState extends State<FileEntryTile> {
           final down = _tapDownPosition;
           if (down != null &&
               !_dragStarted &&
+              _pointerDownOnSelected &&
               event.kind == PointerDeviceKind.mouse &&
               (event.buttons & kPrimaryMouseButton) != 0) {
             final delta = (event.position - down).distance;
@@ -481,6 +491,7 @@ class _FileEntryTileState extends State<FileEntryTile> {
         onPointerUp: (event) {
           widget.onStopDragSelection();
           _dragStarted = false;
+          _pointerDownOnSelected = false;
           if (event.kind == PointerDeviceKind.touch &&
               !_hasMoved &&
               _tapDownTime != null &&
@@ -503,6 +514,7 @@ class _FileEntryTileState extends State<FileEntryTile> {
           _tapDownTime = null;
           _hasMoved = false;
           _dragStarted = false;
+          _pointerDownOnSelected = false;
         },
         child: SelectableListItem(
           stripeIndex: widget.stripeIndex,

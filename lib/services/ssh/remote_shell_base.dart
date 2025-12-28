@@ -23,6 +23,20 @@ class TerminalSessionOptions {
   final int pixelHeight;
 }
 
+class RemotePathDownload {
+  const RemotePathDownload({
+    required this.remotePath,
+    required this.localDestination,
+    this.recursive = false,
+    this.onBytes,
+  });
+
+  final String remotePath;
+  final String localDestination;
+  final bool recursive;
+  final void Function(int bytesTransferred)? onBytes;
+}
+
 /// Base contract for remote shell operations used across modules.
 abstract class RemoteShellService with RemotePathUtils {
   const RemoteShellService({this.debugMode = false, this.observer});
@@ -130,6 +144,33 @@ abstract class RemoteShellService with RemotePathUtils {
     void Function(int bytesTransferred)? onBytes,
     RunTimeoutHandler? onTimeout,
   });
+
+  Future<void> downloadPaths({
+    required SshHost host,
+    required List<RemotePathDownload> downloads,
+    Duration timeout = const Duration(minutes: 2),
+    void Function(RemotePathDownload download, Object error)? onError,
+    RunTimeoutHandler? onTimeout,
+  }) async {
+    for (final download in downloads) {
+      try {
+        await downloadPath(
+          host: host,
+          remotePath: download.remotePath,
+          localDestination: download.localDestination,
+          recursive: download.recursive,
+          timeout: timeout,
+          onBytes: download.onBytes,
+          onTimeout: onTimeout,
+        );
+      } catch (error) {
+        if (onError == null) {
+          rethrow;
+        }
+        onError(download, error);
+      }
+    }
+  }
 
   Future<void> uploadPath({
     required SshHost host,

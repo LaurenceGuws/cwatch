@@ -56,6 +56,65 @@ class BuiltInSftpTransfer with RemotePathUtils {
     );
   }
 
+  Future<void> downloadPaths({
+    required SshHost host,
+    required List<RemotePathDownload> downloads,
+    Duration timeout = const Duration(minutes: 2),
+    void Function(RemotePathDownload download, Object error)? onError,
+    RunTimeoutHandler? onTimeout,
+  }) async {
+    if (downloads.isEmpty) {
+      return;
+    }
+    for (final download in downloads) {
+      final destinationDir = Directory(download.localDestination);
+      await destinationDir.create(recursive: true);
+    }
+    await _clientManager.withSftp(
+      host,
+      (sftp) async {
+        for (final download in downloads) {
+          try {
+            final sanitized = sanitizePath(download.remotePath);
+            final destinationDir = Directory(download.localDestination);
+            final attrs = await _stat(sftp, sanitized);
+            if (attrs.isDirectory) {
+              if (!download.recursive) {
+                throw Exception(
+                  'Remote path is a directory; enable recursion.',
+                );
+              }
+              await _downloadDirectory(
+                sftp,
+                sanitized,
+                destinationDir.path,
+                onBytes: download.onBytes,
+              );
+              continue;
+            }
+            final localTarget = p.join(
+              destinationDir.path,
+              p.basename(sanitized),
+            );
+            await _downloadFile(
+              sftp,
+              sanitized,
+              localTarget,
+              onBytes: download.onBytes,
+            );
+          } catch (error) {
+            if (onError == null) {
+              rethrow;
+            }
+            onError(download, error);
+          }
+        }
+      },
+      timeout: timeout,
+      onTimeout: onTimeout,
+    );
+  }
+
   Future<void> uploadPath({
     required SshHost host,
     required String localPath,

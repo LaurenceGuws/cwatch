@@ -321,6 +321,23 @@ class BuiltInRemoteShellService extends RemoteShellService {
   }
 
   @override
+  Future<void> downloadPaths({
+    required SshHost host,
+    required List<RemotePathDownload> downloads,
+    Duration timeout = const Duration(minutes: 2),
+    void Function(RemotePathDownload download, Object error)? onError,
+    RunTimeoutHandler? onTimeout,
+  }) {
+    return _sftpTransfer.downloadPaths(
+      host: host,
+      downloads: downloads,
+      timeout: timeout,
+      onError: onError,
+      onTimeout: onTimeout,
+    );
+  }
+
+  @override
   Future<void> uploadPath({
     required SshHost host,
     required String localPath,
