@@ -228,7 +228,7 @@ class FileExplorerController extends ChangeNotifier {
     pathHistory.add(currentPath);
     selectionController.clearSelection();
     for (final entry in result.entries!) {
-      if (entry.name != '.' && entry.name != '..') {
+      if (entry.isDirectory && entry.name != '.' && entry.name != '..') {
         pathHistory.add(PathUtils.joinPath(currentPath, entry.name));
       }
     }
@@ -259,7 +259,7 @@ class FileExplorerController extends ChangeNotifier {
       ..clear()
       ..addAll(result.entries!);
     for (final entry in result.entries!) {
-      if (entry.name != '.' && entry.name != '..') {
+      if (entry.isDirectory && entry.name != '.' && entry.name != '..') {
         pathHistory.add(PathUtils.joinPath(currentPath, entry.name));
       }
     }
@@ -355,7 +355,7 @@ class FileExplorerController extends ChangeNotifier {
           await _pathLoadingService.listPath(target, currentPath: currentPath);
       pathHistory.add(target);
       for (final entry in entries) {
-        if (entry.name != '.' && entry.name != '..') {
+        if (entry.isDirectory && entry.name != '.' && entry.name != '..') {
           pathHistory.add(PathUtils.joinPath(target, entry.name));
         }
       }
