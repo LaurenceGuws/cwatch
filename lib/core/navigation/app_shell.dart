@@ -9,6 +9,7 @@ import '../../models/app_settings.dart';
 import '../../models/ssh_host.dart';
 import '../../modules/docker/view.dart';
 import '../../modules/kubernetes/view.dart';
+import '../../modules/sandbox/view.dart';
 import '../../modules/servers/view.dart';
 import '../../modules/settings/view.dart';
 import '../../modules/wsl/view.dart';
@@ -624,6 +625,7 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
         shellFactory: _shellFactory,
       ),
       KubernetesModule(settingsController: widget.settingsController),
+      const SandboxModule(),
       SettingsModule(
         controller: widget.settingsController,
         hostsFuture: _hostsFuture,

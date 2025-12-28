@@ -5,6 +5,7 @@ import '../../../../../models/remote_file_entry.dart';
 import '../../../../../models/ssh_host.dart';
 import '../../../../../services/filesystem/explorer_trash_manager.dart';
 import '../../../../../services/logging/app_logger.dart';
+import '../../../../../services/settings/app_settings_controller.dart';
 import '../../../../../services/ssh/remote_editor_cache.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 import 'clipboard_operations_handler.dart';
@@ -30,6 +31,7 @@ class FileExplorerController extends ChangeNotifier {
     required this.host,
     required this.explorerContext,
     required this.shellService,
+    required this.settingsController,
     required this.trashManager,
     required this.promptMergeDialog,
     this.initialPath,
@@ -40,6 +42,7 @@ class FileExplorerController extends ChangeNotifier {
   final SshHost host;
   final ExplorerContext explorerContext;
   final RemoteShellService shellService;
+  final AppSettingsController settingsController;
   final ExplorerTrashManager trashManager;
   final String? initialPath;
   final ValueChanged<String>? onPathChanged;
@@ -97,6 +100,7 @@ class FileExplorerController extends ChangeNotifier {
     fileOpsService = FileOperationsService(
       shellService: shellService,
       host: host,
+      settingsController: settingsController,
       trashManager: trashManager,
       runShellWrapper: _runShell,
       explorerContext: explorerContext,

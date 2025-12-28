@@ -166,6 +166,7 @@ class ServerTabFactory {
           host: tab.host,
           explorerContext: explorerContext,
           shellService: shellServiceForHost(tab.host),
+          settingsController: settingsController,
           trashManager: trashManager,
           initialPath: tab.explorerPath,
           onPathChanged: onExplorerPathChanged,

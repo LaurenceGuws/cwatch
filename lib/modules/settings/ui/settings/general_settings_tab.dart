@@ -154,6 +154,48 @@ class GeneralSettingsTab extends StatelessWidget {
           ),
         ),
         SettingsSection(
+          title: 'Transfers',
+          description:
+              'Limit how many files can upload or download at the same time.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Concurrent uploads: ${settings.fileTransferUploadConcurrency}',
+              ),
+              Slider(
+                value: settings.fileTransferUploadConcurrency.toDouble(),
+                min: 1,
+                max: 15,
+                divisions: 14,
+                label: '${settings.fileTransferUploadConcurrency}',
+                onChanged: (value) => settingsController.update(
+                  (current) => current.copyWith(
+                    fileTransferUploadConcurrency: value.round(),
+                  ),
+                ),
+              ),
+              const FormSpacer(),
+              Text(
+                'Concurrent downloads: '
+                '${settings.fileTransferDownloadConcurrency}',
+              ),
+              Slider(
+                value: settings.fileTransferDownloadConcurrency.toDouble(),
+                min: 1,
+                max: 15,
+                divisions: 14,
+                label: '${settings.fileTransferDownloadConcurrency}',
+                onChanged: (value) => settingsController.update(
+                  (current) => current.copyWith(
+                    fileTransferDownloadConcurrency: value.round(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SettingsSection(
           title: 'Input mode',
           description:
               'Choose whether gestures, keyboard shortcuts, or both are active.',

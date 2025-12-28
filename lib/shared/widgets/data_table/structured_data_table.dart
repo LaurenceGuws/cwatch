@@ -7,7 +7,6 @@ import 'package:flutter/services.dart';
 import 'package:cwatch/services/logging/app_logger.dart';
 
 import '../../theme/app_theme.dart';
-import '../../theme/nerd_fonts.dart';
 import '../lists/selectable_list_controller.dart';
 
 /// Declarative column definition for [StructuredDataTable].
@@ -262,8 +261,9 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
   bool _cellEditMode = false;
   int? _marqueePointer;
   bool _isMarqueeSelecting = false;
+  int? _rowDragAnchorIndex;
+  int? _rowDragPointer;
   StructuredDataCellCoordinate? _hoveredCell;
-  int? _hoveredHeaderIndex;
   final GlobalKey _bodyKey = GlobalKey();
   int? _touchDragPointer;
   bool _isTouchDragging = false;
@@ -274,6 +274,19 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
   bool _scrollToRowScheduled = false;
   int? _pendingScrollToColumn;
   bool _scrollToColumnScheduled = false;
+
+  void _setMarqueeSelecting(bool value) {
+    if (_isMarqueeSelecting == value) return;
+    setState(() => _isMarqueeSelecting = value);
+  }
+
+  void _setRowDragAnchor(int? rowIndex, int? pointer) {
+    if (_rowDragAnchorIndex == rowIndex && _rowDragPointer == pointer) return;
+    setState(() {
+      _rowDragAnchorIndex = rowIndex;
+      _rowDragPointer = pointer;
+    });
+  }
 
   List<T> get _visibleRows {
     final filtered = _applySearch(widget.rows);
@@ -1852,76 +1865,44 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           );
 
           final canReorder = _columns.length > 1;
-          const dragHandleWidth = 28.0;
-          final dragHandleInsetRight = hasSpacing
-              ? spacing.xs + (handleWidth / 2)
-              : (handleWidth / 2) + spacing.sm;
-          final dragHandle = SizedBox(
-            width: dragHandleWidth,
-            child: Opacity(
-              opacity: canReorder && _hoveredHeaderIndex == index ? 1 : 0,
-              child: _HeaderDragHandle(
-                enabled: canReorder,
-                data: index,
-                feedback: dragFeedback,
-                activeColor: scheme.primary,
-                inactiveColor: scheme.onSurfaceVariant.withValues(alpha: 0.7),
-              ),
-            ),
-          );
+          final draggableHeader = canReorder
+              ? Draggable<int>(
+                  data: index,
+                  axis: Axis.horizontal,
+                  feedback: dragFeedback,
+                  child: headerInteractive,
+                )
+              : headerInteractive;
 
-          final target = MouseRegion(
-            onEnter: (_) => setState(() => _hoveredHeaderIndex = index),
-            onExit: (_) {
-              if (_hoveredHeaderIndex == index) {
-                setState(() => _hoveredHeaderIndex = null);
-              }
-            },
-            child: DragTarget<int>(
-              hitTestBehavior: HitTestBehavior.deferToChild,
-              onWillAcceptWithDetails: (details) => details.data != index,
-              onAcceptWithDetails: (details) => reorderFrom(details.data),
-              builder: (context, candidateData, rejectedData) {
-                final highlight = candidateData.isNotEmpty;
-                return DecoratedBox(
-                  decoration: BoxDecoration(
-                    border: highlight
-                        ? Border(
-                            bottom: BorderSide(
-                              color: scheme.primary.withValues(alpha: 0.7),
-                              width: 2,
-                            ),
-                          )
-                        : null,
-                  ),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      border: Border(
-                        right: index == _columns.length - 1
-                            ? BorderSide.none
-                            : separatorSide,
-                      ),
-                    ),
-                    child: Stack(
-                      children: [
-                        Padding(
-                          padding: EdgeInsets.only(
-                            right: dragHandleWidth + dragHandleInsetRight,
+          final target = DragTarget<int>(
+            hitTestBehavior: HitTestBehavior.deferToChild,
+            onWillAcceptWithDetails: (details) => details.data != index,
+            onAcceptWithDetails: (details) => reorderFrom(details.data),
+            builder: (context, candidateData, rejectedData) {
+              final highlight = candidateData.isNotEmpty;
+              return DecoratedBox(
+                decoration: BoxDecoration(
+                  border: highlight
+                      ? Border(
+                          bottom: BorderSide(
+                            color: scheme.primary.withValues(alpha: 0.7),
+                            width: 2,
                           ),
-                          child: headerInteractive,
-                        ),
-                        Positioned(
-                          right: dragHandleInsetRight,
-                          top: 0,
-                          bottom: 0,
-                          child: dragHandle,
-                        ),
-                      ],
+                        )
+                      : null,
+                ),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      right: index == _columns.length - 1
+                          ? BorderSide.none
+                          : separatorSide,
                     ),
                   ),
-                );
-              },
-            ),
+                  child: draggableHeader,
+                ),
+              );
+            },
           );
 
           final cell = SizedBox(
@@ -2007,7 +1988,10 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
     Offset? tapPosition;
 
     final allowRowDrag =
-        !widget.cellSelectionEnabled && widget.rowDragPayloadBuilder != null;
+        !widget.cellSelectionEnabled &&
+        widget.rowDragPayloadBuilder != null &&
+        !_isMarqueeSelecting &&
+        _rowDragAnchorIndex == index;
     final rowContent = Material(
       color: background,
       child: Listener(
@@ -2188,6 +2172,9 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           _selectSingle(index);
         }
       },
+      onDragEnd: (_) => _setRowDragAnchor(null, null),
+      onDraggableCanceled: (_, _) => _setRowDragAnchor(null, null),
+      onDragCompleted: () => _setRowDragAnchor(null, null),
       child: rowContent,
     );
   }
@@ -2416,7 +2403,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
             if (event.kind != PointerDeviceKind.mouse) return;
             if ((event.buttons & kPrimaryButton) == 0) return;
             _marqueePointer = event.pointer;
-            _isMarqueeSelecting = true;
+            _setMarqueeSelecting(true);
             _beginMarqueeSelection(event.localPosition);
           },
           onPointerMove: (event) {
@@ -2437,7 +2424,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
             }
             if (_marqueePointer == event.pointer) {
               _marqueePointer = null;
-              _isMarqueeSelecting = false;
+              _setMarqueeSelecting(false);
             }
           },
           onPointerCancel: (event) {
@@ -2447,7 +2434,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
             }
             if (_marqueePointer == event.pointer) {
               _marqueePointer = null;
-              _isMarqueeSelecting = false;
+              _setMarqueeSelecting(false);
             }
           },
           child: Container(key: _bodyKey, child: listView),
@@ -2490,15 +2477,16 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
         if ((event.buttons & kPrimaryButton) == 0) return;
         final rowIndex = _rowIndexForOffset(event.localPosition);
         if (rowIndex == null) return;
-        final canDragRows = widget.rowDragPayloadBuilder != null;
         final isShift = HardwareKeyboard.instance.isShiftPressed;
-        if (canDragRows &&
-            _listController.selectedIndices.contains(rowIndex) &&
-            !isShift) {
+        final hasSelection = _listController.selectedIndices.isNotEmpty;
+        final isSelected = _listController.selectedIndices.contains(rowIndex);
+        if (hasSelection && isSelected && !isShift) {
+          _setRowDragAnchor(rowIndex, event.pointer);
           return;
         }
+        _setRowDragAnchor(null, null);
         _marqueePointer = event.pointer;
-        _isMarqueeSelecting = true;
+        _setMarqueeSelecting(true);
         if (isShift) {
           _listController.extendSelection(rowIndex);
         } else {
@@ -2515,86 +2503,22 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       onPointerUp: (event) {
         if (_marqueePointer == event.pointer) {
           _marqueePointer = null;
-          _isMarqueeSelecting = false;
+          _setMarqueeSelecting(false);
+        }
+        if (_rowDragPointer == event.pointer) {
+          _setRowDragAnchor(null, null);
         }
       },
       onPointerCancel: (event) {
         if (_marqueePointer == event.pointer) {
           _marqueePointer = null;
-          _isMarqueeSelecting = false;
+          _setMarqueeSelecting(false);
+        }
+        if (_rowDragPointer == event.pointer) {
+          _setRowDragAnchor(null, null);
         }
       },
       child: keyboardWrapped,
-    );
-  }
-}
-
-class _HeaderDragHandle extends StatefulWidget {
-  const _HeaderDragHandle({
-    required this.enabled,
-    required this.data,
-    required this.feedback,
-    required this.activeColor,
-    required this.inactiveColor,
-  });
-
-  final bool enabled;
-  final int data;
-  final Widget feedback;
-  final Color activeColor;
-  final Color inactiveColor;
-
-  @override
-  State<_HeaderDragHandle> createState() => _HeaderDragHandleState();
-}
-
-class _HeaderDragHandleState extends State<_HeaderDragHandle> {
-  bool _dragActive = false;
-
-  void _setActive(bool value) {
-    if (_dragActive == value) return;
-    setState(() => _dragActive = value);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final icon = _dragActive ? NerdIcon.dragSelect.data : NerdIcon.drag.data;
-    final color = _dragActive ? widget.activeColor : widget.inactiveColor;
-    final handle = Align(
-      alignment: Alignment.centerRight,
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: context.appTheme.spacing.xs,
-          right: context.appTheme.spacing.sm,
-        ),
-        child: Icon(icon, size: 16, color: color),
-      ),
-    );
-
-    return MouseRegion(
-      cursor: widget.enabled ? SystemMouseCursors.grab : MouseCursor.defer,
-      child: IgnorePointer(
-        ignoring: !widget.enabled,
-        child: Opacity(
-          opacity: widget.enabled ? 1.0 : 0.0,
-          child: Listener(
-            behavior: HitTestBehavior.opaque,
-            onPointerDown: (_) => _setActive(true),
-            onPointerUp: (_) => _setActive(false),
-            onPointerCancel: (_) => _setActive(false),
-            child: Draggable<int>(
-              data: widget.data,
-              axis: Axis.horizontal,
-              feedback: widget.feedback,
-              onDragStarted: () => _setActive(true),
-              onDragEnd: (_) => _setActive(false),
-              onDraggableCanceled: (_, _) => _setActive(false),
-              onDragCompleted: () => _setActive(false),
-              child: handle,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

@@ -21,6 +21,7 @@ class BuiltInSftpTransfer with RemotePathUtils {
     required String localDestination,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    void Function(int bytesTransferred)? onBytes,
     RunTimeoutHandler? onTimeout,
   }) async {
     final sanitized = sanitizePath(remotePath);
@@ -34,11 +35,21 @@ class BuiltInSftpTransfer with RemotePathUtils {
           if (!recursive) {
             throw Exception('Remote path is a directory; enable recursion.');
           }
-          await _downloadDirectory(sftp, sanitized, destinationDir.path);
+          await _downloadDirectory(
+            sftp,
+            sanitized,
+            destinationDir.path,
+            onBytes: onBytes,
+          );
           return;
         }
         final localTarget = p.join(destinationDir.path, p.basename(sanitized));
-        await _downloadFile(sftp, sanitized, localTarget);
+        await _downloadFile(
+          sftp,
+          sanitized,
+          localTarget,
+          onBytes: onBytes,
+        );
       },
       timeout: timeout,
       onTimeout: onTimeout,
@@ -121,15 +132,23 @@ class BuiltInSftpTransfer with RemotePathUtils {
   Future<void> _downloadFile(
     SftpClient sftp,
     String remotePath,
-    String localPath,
+    String localPath, {
+    void Function(int bytesTransferred)? onBytes,
+  }
   ) async {
     final file = await sftp.open(remotePath);
+    final targetFile = File(localPath);
+    await targetFile.create(recursive: true);
+    final sink = targetFile.openWrite();
     try {
-      final contents = await file.readBytes();
-      final targetFile = File(localPath);
-      await targetFile.create(recursive: true);
-      await targetFile.writeAsBytes(contents, flush: true);
+      await for (final chunk in file.read()) {
+        if (chunk.isEmpty) continue;
+        sink.add(chunk);
+        onBytes?.call(chunk.length);
+      }
+      await sink.flush();
     } finally {
+      await sink.close();
       await file.close();
     }
   }
@@ -137,7 +156,9 @@ class BuiltInSftpTransfer with RemotePathUtils {
   Future<void> _downloadDirectory(
     SftpClient sftp,
     String remotePath,
-    String localDestination,
+    String localDestination, {
+    void Function(int bytesTransferred)? onBytes,
+  }
   ) async {
     final target = p.join(localDestination, p.basename(remotePath));
     final dir = Directory(target);
@@ -150,9 +171,19 @@ class BuiltInSftpTransfer with RemotePathUtils {
       final childRemote = _joinPath(remotePath, entry.filename);
       final childLocal = p.join(target, entry.filename);
       if (entry.attr.isDirectory) {
-        await _downloadDirectory(sftp, childRemote, target);
+        await _downloadDirectory(
+          sftp,
+          childRemote,
+          target,
+          onBytes: onBytes,
+        );
       } else {
-        await _downloadFile(sftp, childRemote, childLocal);
+        await _downloadFile(
+          sftp,
+          childRemote,
+          childLocal,
+          onBytes: onBytes,
+        );
       }
     }
   }

@@ -51,6 +51,8 @@ class AppSettings {
     this.terminalPaddingY = 10,
     this.terminalThemeDark = 'dracula',
     this.terminalThemeLight = 'solarized-light',
+    this.fileTransferUploadConcurrency = 2,
+    this.fileTransferDownloadConcurrency = 2,
   });
 
   final ThemeMode themeMode;
@@ -95,6 +97,8 @@ class AppSettings {
   final double terminalPaddingY;
   final String terminalThemeDark;
   final String terminalThemeLight;
+  final int fileTransferUploadConcurrency;
+  final int fileTransferDownloadConcurrency;
 
   int get dockerLogsTailClamped => _sanitizeTailLines(dockerLogsTail);
 
@@ -141,6 +145,8 @@ class AppSettings {
     double? terminalPaddingY,
     String? terminalThemeDark,
     String? terminalThemeLight,
+    int? fileTransferUploadConcurrency,
+    int? fileTransferDownloadConcurrency,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -192,6 +198,13 @@ class AppSettings {
       terminalPaddingY: terminalPaddingY ?? this.terminalPaddingY,
       terminalThemeDark: terminalThemeDark ?? this.terminalThemeDark,
       terminalThemeLight: terminalThemeLight ?? this.terminalThemeLight,
+      fileTransferUploadConcurrency: _sanitizeTransferConcurrency(
+        fileTransferUploadConcurrency ?? this.fileTransferUploadConcurrency,
+      ),
+      fileTransferDownloadConcurrency: _sanitizeTransferConcurrency(
+        fileTransferDownloadConcurrency ??
+            this.fileTransferDownloadConcurrency,
+      ),
     );
   }
 
@@ -333,6 +346,12 @@ class AppSettings {
       terminalThemeDark: json['terminalThemeDark'] as String? ?? 'dracula',
       terminalThemeLight:
           json['terminalThemeLight'] as String? ?? 'solarized-light',
+      fileTransferUploadConcurrency: _sanitizeTransferConcurrency(
+        (json['fileTransferUploadConcurrency'] as num?)?.toInt() ?? 2,
+      ),
+      fileTransferDownloadConcurrency: _sanitizeTransferConcurrency(
+        (json['fileTransferDownloadConcurrency'] as num?)?.toInt() ?? 2,
+      ),
       dockerLogsTail: _sanitizeTailLines(
         (json['dockerLogsTail'] as num?)?.toInt() ?? 200,
       ),
@@ -385,12 +404,20 @@ class AppSettings {
       'terminalPaddingY': terminalPaddingY,
       'terminalThemeDark': terminalThemeDark,
       'terminalThemeLight': terminalThemeLight,
+      'fileTransferUploadConcurrency': fileTransferUploadConcurrency,
+      'fileTransferDownloadConcurrency': fileTransferDownloadConcurrency,
     };
   }
 
   static int _sanitizeTailLines(int value) {
     if (value < 0) return 0;
     if (value > 5000) return 5000;
+    return value;
+  }
+
+  static int _sanitizeTransferConcurrency(int value) {
+    if (value < 1) return 1;
+    if (value > 15) return 15;
     return value;
   }
 }

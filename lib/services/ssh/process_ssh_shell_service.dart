@@ -311,6 +311,7 @@ class ProcessRemoteShellService extends RemoteShellService {
     required String localDestination,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    void Function(int bytesTransferred)? onBytes,
     RunTimeoutHandler? onTimeout,
   }) async {
     final normalizedSource = sanitizePath(remotePath);
@@ -340,6 +341,7 @@ class ProcessRemoteShellService extends RemoteShellService {
     required String remoteDestination,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    void Function(int bytesTransferred)? onBytes,
     RunTimeoutHandler? onTimeout,
   }) async {
     final normalizedDest = sanitizePath(remoteDestination);

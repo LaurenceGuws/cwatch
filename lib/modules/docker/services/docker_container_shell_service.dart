@@ -165,6 +165,7 @@ class DockerContainerShellService extends RemoteShellService {
     required String localDestination,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    void Function(int bytesTransferred)? onBytes,
     RunTimeoutHandler? onTimeout,
   }) async {
     final tempDir = await _makeTempDir(timeout: timeout);
@@ -182,6 +183,7 @@ class DockerContainerShellService extends RemoteShellService {
         localDestination: localDestination,
         recursive: recursive,
         timeout: timeout,
+        onBytes: onBytes,
         onTimeout: onTimeout,
       );
     } finally {
@@ -196,6 +198,7 @@ class DockerContainerShellService extends RemoteShellService {
     required String remoteDestination,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    void Function(int bytesTransferred)? onBytes,
     RunTimeoutHandler? onTimeout,
   }) async {
     final tempDir = await _makeTempDir(timeout: timeout);
@@ -207,6 +210,7 @@ class DockerContainerShellService extends RemoteShellService {
         remoteDestination: tempDest,
         recursive: recursive,
         timeout: timeout,
+        onBytes: onBytes,
         onTimeout: onTimeout,
       );
       await baseShell.runCommand(
@@ -409,6 +413,7 @@ class LocalDockerContainerShellService extends RemoteShellService {
     required String localDestination,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    void Function(int bytesTransferred)? onBytes,
     RunTimeoutHandler? onTimeout,
   }) async {
     await _runDocker([
@@ -425,6 +430,7 @@ class LocalDockerContainerShellService extends RemoteShellService {
     required String remoteDestination,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    void Function(int bytesTransferred)? onBytes,
     RunTimeoutHandler? onTimeout,
   }) {
     return _runDocker([

@@ -306,6 +306,7 @@ class BuiltInRemoteShellService extends RemoteShellService {
     required String localDestination,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    void Function(int bytesTransferred)? onBytes,
     RunTimeoutHandler? onTimeout,
   }) {
     return _sftpTransfer.downloadPath(
@@ -314,6 +315,7 @@ class BuiltInRemoteShellService extends RemoteShellService {
       localDestination: localDestination,
       recursive: recursive,
       timeout: timeout,
+      onBytes: onBytes,
       onTimeout: onTimeout,
     );
   }

@@ -127,6 +127,7 @@ abstract class RemoteShellService with RemotePathUtils {
     required String localDestination,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    void Function(int bytesTransferred)? onBytes,
     RunTimeoutHandler? onTimeout,
   });
 
@@ -136,6 +137,7 @@ abstract class RemoteShellService with RemotePathUtils {
     required String remoteDestination,
     bool recursive = false,
     Duration timeout = const Duration(minutes: 2),
+    void Function(int bytesTransferred)? onBytes,
     RunTimeoutHandler? onTimeout,
   });
 

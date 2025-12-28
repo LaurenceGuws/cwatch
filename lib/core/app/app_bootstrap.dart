@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-
 import 'package:cwatch/models/app_settings.dart';
+import 'package:cwatch/services/logging/app_logger.dart';
 import '../../services/settings/app_settings_controller.dart';
 import '../../services/ssh/terminal_session.dart';
 import '../../services/window/window_chrome_service.dart';
@@ -16,6 +16,12 @@ Future<void> runAppBootstrap() async {
   await LocalPtySession.cleanupStaleSessions();
   final settingsController = AppSettingsController();
   await settingsController.load();
+  AppLogger.configure(
+    minLevel:
+        settingsController.settings.debugMode
+            ? LogLevel.debug
+            : LogLevel.warning,
+  );
   await ensureThemeExamples();
   await loadAssetTerminalThemes();
   await reloadUserTerminalThemes();

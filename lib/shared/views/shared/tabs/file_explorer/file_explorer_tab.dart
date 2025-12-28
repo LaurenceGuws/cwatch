@@ -12,6 +12,7 @@ import '../../../../../models/explorer_context.dart';
 import '../../../../../models/remote_file_entry.dart';
 import '../../../../../models/ssh_host.dart';
 import '../../../../../services/logging/app_logger.dart';
+import '../../../../../services/settings/app_settings_controller.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../../services/filesystem/explorer_trash_manager.dart';
 import '../../../../widgets/dialog_keyboard_shortcuts.dart';
@@ -32,6 +33,7 @@ class FileExplorerTab extends StatefulWidget {
     required this.host,
     required this.explorerContext,
     required this.shellService,
+    required this.settingsController,
     required this.trashManager,
     required this.onOpenTrash,
     this.onOpenEditorTab,
@@ -44,6 +46,7 @@ class FileExplorerTab extends StatefulWidget {
   final SshHost host;
   final ExplorerContext explorerContext;
   final RemoteShellService shellService;
+  final AppSettingsController settingsController;
   final ExplorerTrashManager trashManager;
   final ValueChanged<ExplorerContext> onOpenTrash;
   final Future<void> Function(String path, String initialContent)?
@@ -72,6 +75,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       host: widget.host,
       explorerContext: widget.explorerContext,
       shellService: widget.shellService,
+      settingsController: widget.settingsController,
       trashManager: widget.trashManager,
       onOpenEditorTab: widget.onOpenEditorTab,
       onPathChanged: widget.onPathChanged,
@@ -100,6 +104,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
         host: widget.host,
         explorerContext: widget.explorerContext,
         shellService: widget.shellService,
+        settingsController: widget.settingsController,
         trashManager: widget.trashManager,
         onOpenEditorTab: widget.onOpenEditorTab,
         onPathChanged: widget.onPathChanged,

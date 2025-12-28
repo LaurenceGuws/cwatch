@@ -153,6 +153,7 @@ class DockerTabFactory {
         host: host,
         explorerContext: explorerContext,
         shellService: shellService,
+        settingsController: settingsController,
         trashManager: trashManager,
         initialPath: initialPath,
         onPathChanged: onPathChanged,

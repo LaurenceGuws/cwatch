@@ -132,7 +132,7 @@ class _TabChipState extends State<TabChip> {
         (defaultTargetPlatform == TargetPlatform.windows ||
             defaultTargetPlatform == TargetPlatform.macOS ||
             defaultTargetPlatform == TargetPlatform.linux);
-    final showActions = !isDesktop || _hovering;
+    final showHoverActions = !isDesktop || _hovering;
     final appTheme = context.appTheme;
     final colorScheme = Theme.of(context).colorScheme;
     final spacing = appTheme.spacing;
@@ -197,7 +197,7 @@ class _TabChipState extends State<TabChip> {
       bottom: 0,
     );
 
-    return MouseRegion(
+    final tabContent = MouseRegion(
       onEnter: (_) => _setHovering(true),
       onExit: (_) => _setHovering(false),
       child: GestureDetector(
@@ -235,27 +235,6 @@ class _TabChipState extends State<TabChip> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        AnimatedCrossFade(
-                          duration: const Duration(milliseconds: 140),
-                          firstCurve: Curves.easeOutCubic,
-                          secondCurve: Curves.easeOutCubic,
-                          sizeCurve: Curves.easeOutCubic,
-                          crossFadeState: showActions
-                              ? CrossFadeState.showSecond
-                              : CrossFadeState.showFirst,
-                          firstChild: const SizedBox(width: 0, height: 0),
-                          secondChild: _TabChipDragAction(
-                            hoverColor: primaryActionHover,
-                            dragIndex: widget.dragIndex,
-                            width: actionWidth,
-                            height: actionHeight,
-                            color: primaryActionColor,
-                            inactiveColor: primaryActionColor.withValues(
-                              alpha: 0.55,
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: showActions ? spacing.xs : 0),
                         Flexible(
                           child: InkWell(
                             onTap: widget.onSelect,
@@ -288,48 +267,38 @@ class _TabChipState extends State<TabChip> {
                             ),
                           ),
                         ),
-                        SizedBox(width: showActions ? spacing.xs : 0),
-                        AnimatedCrossFade(
-                          duration: const Duration(milliseconds: 140),
-                          firstCurve: Curves.easeOutCubic,
-                          secondCurve: Curves.easeOutCubic,
-                          sizeCurve: Curves.easeOutCubic,
-                          crossFadeState: showActions
-                              ? CrossFadeState.showSecond
-                              : CrossFadeState.showFirst,
-                          firstChild: const SizedBox(width: 0, height: 0),
-                          secondChild: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (!isDesktop) ...[
-                                _buildOptionsButton(
-                                  primaryActionColor,
-                                  primaryActionHover,
-                                  menuOptions,
-                                ),
-                                SizedBox(width: spacing.xs),
-                              ],
-                              _TabChipAction(
-                                hoverColor: closeHover,
-                                onTap: widget.closable
-                                    ? () => _handleClose(context)
-                                    : null,
-                                child: SizedBox(
-                                  width: actionWidth,
-                                  height: actionHeight,
-                                  child: Center(
-                                    child: Icon(
-                                      NerdIcon.close.data,
-                                      size: 16,
-                                      color: widget.closable
-                                          ? closeColor
-                                          : closeColor.withValues(alpha: 0.4),
-                                    ),
+                        SizedBox(width: spacing.xs),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (!isDesktop && showHoverActions) ...[
+                              _buildOptionsButton(
+                                primaryActionColor,
+                                primaryActionHover,
+                                menuOptions,
+                              ),
+                              SizedBox(width: spacing.xs),
+                            ],
+                            _TabChipAction(
+                              hoverColor: closeHover,
+                              onTap: widget.closable
+                                  ? () => _handleClose(context)
+                                  : null,
+                              child: SizedBox(
+                                width: actionWidth,
+                                height: actionHeight,
+                                child: Center(
+                                  child: Icon(
+                                    NerdIcon.close.data,
+                                    size: 16,
+                                    color: widget.closable
+                                        ? closeColor
+                                        : closeColor.withValues(alpha: 0.4),
                                   ),
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -365,6 +334,15 @@ class _TabChipState extends State<TabChip> {
           ),
         ),
       ),
+    );
+
+    if (widget.dragIndex == null) {
+      return tabContent;
+    }
+
+    return ReorderableDragStartListener(
+      index: widget.dragIndex!,
+      child: tabContent,
     );
   }
 
@@ -549,91 +527,6 @@ class _TabChipActionState extends State<_TabChipAction> {
   void _setHovering(bool value) {
     if (_hovering == value) return;
     setState(() => _hovering = value);
-  }
-}
-
-class _TabChipDragAction extends StatefulWidget {
-  const _TabChipDragAction({
-    required this.dragIndex,
-    required this.hoverColor,
-    required this.width,
-    required this.height,
-    required this.color,
-    required this.inactiveColor,
-  });
-
-  final int? dragIndex;
-  final Color hoverColor;
-  final double width;
-  final double height;
-  final Color color;
-  final Color inactiveColor;
-
-  @override
-  State<_TabChipDragAction> createState() => _TabChipDragActionState();
-}
-
-class _TabChipDragActionState extends State<_TabChipDragAction> {
-  bool _dragActive = false;
-
-  Widget get _handle => _TabChipAction(
-    hoverColor: widget.hoverColor,
-    child: _DragHandle(
-      width: widget.width,
-      height: widget.height,
-      color: widget.color,
-      inactiveColor: widget.inactiveColor,
-      active: _dragActive,
-    ),
-  );
-
-  @override
-  Widget build(BuildContext context) {
-    if (widget.dragIndex == null) {
-      return _handle;
-    }
-    return Listener(
-      behavior: HitTestBehavior.opaque,
-      onPointerDown: (_) => _setDragActive(true),
-      onPointerUp: (_) => _setDragActive(false),
-      onPointerCancel: (_) => _setDragActive(false),
-      child: ReorderableDragStartListener(
-        index: widget.dragIndex!,
-        child: _handle,
-      ),
-    );
-  }
-
-  void _setDragActive(bool value) {
-    if (_dragActive == value) return;
-    setState(() => _dragActive = value);
-  }
-}
-
-class _DragHandle extends StatelessWidget {
-  const _DragHandle({
-    required this.width,
-    required this.height,
-    required this.color,
-    required this.inactiveColor,
-    required this.active,
-  });
-
-  final double width;
-  final double height;
-  final Color color;
-  final Color inactiveColor;
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) {
-    final icon = active ? NerdIcon.dragSelect.data : NerdIcon.drag.data;
-    final iconColor = active ? color : inactiveColor;
-    return SizedBox(
-      width: width,
-      height: height,
-      child: Center(child: Icon(icon, size: 16, color: iconColor)),
-    );
   }
 }
 
