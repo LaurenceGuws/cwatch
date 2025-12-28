@@ -84,6 +84,8 @@ class FileExplorerController extends ChangeNotifier {
   final Set<String> refreshingPaths = {};
   final Set<String> pathHistory = {'/'};
   final Set<String> _prefetchedPaths = {};
+  bool searchActive = false;
+  String searchQuery = '';
 
   String currentPath = '/';
   bool loading = true;
@@ -195,7 +197,15 @@ class FileExplorerController extends ChangeNotifier {
     await loadPath(targetPath);
   }
 
-  Future<void> loadPath(String path, {bool forceReload = false}) async {
+  Future<void> loadPath(
+    String path, {
+    bool forceReload = false,
+    bool keepSearchActive = false,
+  }) async {
+    if (searchActive && !keepSearchActive) {
+      searchActive = false;
+      searchQuery = '';
+    }
     final result = await _pathLoadingService.loadPath(
       path,
       currentPath,
@@ -275,6 +285,66 @@ class FileExplorerController extends ChangeNotifier {
         notifyListeners();
       }
     }
+  }
+
+  Future<void> setSearchActive(bool value) async {
+    if (searchActive == value) {
+      return;
+    }
+    searchActive = value;
+    searchQuery = '';
+    if (!searchActive) {
+      await loadPath(currentPath, forceReload: true);
+      return;
+    }
+    notifyListeners();
+  }
+
+  Future<void> searchCurrentPath(String query) async {
+    if (!searchActive) {
+      return;
+    }
+    searchQuery = query;
+    if (query.trim().isEmpty) {
+      await loadPath(
+        currentPath,
+        forceReload: true,
+        keepSearchActive: true,
+      );
+      return;
+    }
+    loading = true;
+    error = null;
+    notifyListeners();
+
+    final result = await _pathLoadingService.searchPath(
+      currentPath,
+      query,
+      currentPath: currentPath,
+    );
+    if (result.error != null) {
+      loading = false;
+      error = result.error;
+      notifyListeners();
+      return;
+    }
+    if (result.entries == null) {
+      return;
+    }
+    entries
+      ..clear()
+      ..addAll(result.entries!);
+    selectionController.clearSelection();
+    loading = false;
+    notifyListeners();
+  }
+
+  void setSearchQuery(String query) {
+    if (searchQuery == query) {
+      return;
+    }
+    searchQuery = query;
+    notifyListeners();
   }
 
   List<RemoteFileEntry> currentSortedEntries() {

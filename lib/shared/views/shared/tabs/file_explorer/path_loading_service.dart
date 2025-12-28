@@ -76,6 +76,22 @@ class PathLoadingService {
     return entries.where((e) => e.name != '.' && e.name != '..').toList();
   }
 
+  Future<PathSearchResult> searchPath(
+    String basePath,
+    String query, {
+    String? currentPath,
+  }) async {
+    final target = PathUtils.normalizePath(basePath, currentPath: currentPath);
+    try {
+      final entries = await runShellWrapper(
+        () => shellService.searchPaths(host, target, query),
+      );
+      return PathSearchResult.success(target: target, entries: entries);
+    } catch (error) {
+      return PathSearchResult.error(target: target, error: error.toString());
+    }
+  }
+
   /// Refresh entries for current path (soft refresh)
   Future<PathRefreshResult> refreshPath(
     String currentPath,
@@ -190,4 +206,16 @@ class PathRefreshResult {
   final List<RemoteFileEntry>? allEntries;
   final String? error;
   final bool skipped;
+}
+
+class PathSearchResult {
+  PathSearchResult.success({required this.target, required this.entries})
+    : error = null;
+
+  PathSearchResult.error({required this.target, required this.error})
+    : entries = null;
+
+  final String target;
+  final List<RemoteFileEntry>? entries;
+  final String? error;
 }

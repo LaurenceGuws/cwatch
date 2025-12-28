@@ -80,6 +80,14 @@ abstract class RemoteShellService with RemotePathUtils {
     RunTimeoutHandler? onTimeout,
   });
 
+  Future<List<RemoteFileEntry>> searchPaths(
+    SshHost host,
+    String basePath,
+    String query, {
+    Duration timeout = const Duration(seconds: 15),
+    RunTimeoutHandler? onTimeout,
+  });
+
   Future<String> homeDirectory(
     SshHost host, {
     Duration timeout = const Duration(seconds: 5),

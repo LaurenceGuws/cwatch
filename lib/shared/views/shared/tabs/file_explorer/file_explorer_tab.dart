@@ -249,6 +249,15 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       onShowBreadcrumbsChanged: _controller.setShowBreadcrumbs,
       onNavigateToSubdirectory: () => _showNavigateToSubdirectoryDialog(),
       onPrefetchPath: _controller.prefetchPath,
+      searchActive: _controller.searchActive,
+      searchQuery: _controller.searchQuery,
+      onSearchActiveChanged: (value) {
+        unawaited(_controller.setSearchActive(value));
+      },
+      onSearchQueryChanged: _controller.setSearchQuery,
+      onSearchSubmitted: (query) {
+        unawaited(_controller.searchCurrentPath(query));
+      },
     );
   }
 

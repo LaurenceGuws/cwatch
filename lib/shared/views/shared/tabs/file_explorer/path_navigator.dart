@@ -14,6 +14,11 @@ class PathNavigator extends StatefulWidget {
     this.onShowBreadcrumbsChanged,
     this.onNavigateToSubdirectory,
     this.onPrefetchPath,
+    required this.searchActive,
+    required this.searchQuery,
+    this.onSearchActiveChanged,
+    this.onSearchQueryChanged,
+    this.onSearchSubmitted,
   });
 
   final String currentPath;
@@ -23,6 +28,11 @@ class PathNavigator extends StatefulWidget {
   final ValueChanged<bool>? onShowBreadcrumbsChanged;
   final VoidCallback? onNavigateToSubdirectory;
   final ValueChanged<String>? onPrefetchPath;
+  final bool searchActive;
+  final String searchQuery;
+  final ValueChanged<bool>? onSearchActiveChanged;
+  final ValueChanged<String>? onSearchQueryChanged;
+  final ValueChanged<String>? onSearchSubmitted;
 
   @override
   State<PathNavigator> createState() => _PathNavigatorState();
@@ -30,6 +40,7 @@ class PathNavigator extends StatefulWidget {
 
 class _PathNavigatorState extends State<PathNavigator> {
   TextEditingController? _pathFieldController;
+  TextEditingController? _searchController;
 
   @override
   void didUpdateWidget(PathNavigator oldWidget) {
@@ -37,11 +48,16 @@ class _PathNavigatorState extends State<PathNavigator> {
     if (oldWidget.currentPath != widget.currentPath) {
       _pathFieldController?.text = widget.currentPath;
     }
+    if (oldWidget.searchQuery != widget.searchQuery &&
+        _searchController?.text != widget.searchQuery) {
+      _searchController?.text = widget.searchQuery;
+    }
   }
 
   @override
   void dispose() {
     _pathFieldController?.dispose();
+    _searchController?.dispose();
     super.dispose();
   }
 
@@ -78,6 +94,35 @@ class _PathNavigatorState extends State<PathNavigator> {
             onPrefetchPath: widget.onPrefetchPath,
           );
 
+    final body = widget.searchActive
+        ? TextField(
+            controller: _searchController ??=
+                TextEditingController(text: widget.searchQuery),
+            decoration: InputDecoration(
+              hintText: 'Search files and folders',
+              prefixIcon: IconButton(
+                icon: const Icon(Icons.search, size: 16),
+                tooltip: 'Search',
+                onPressed: () {
+                  final query = _searchController?.text ?? widget.searchQuery;
+                  widget.onSearchSubmitted?.call(query);
+                },
+              ),
+              prefixIconConstraints: const BoxConstraints(
+                minWidth: 36,
+                minHeight: 32,
+              ),
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(
+                vertical: spacing.xs,
+                horizontal: spacing.sm,
+              ),
+            ),
+            onChanged: widget.onSearchQueryChanged,
+            onSubmitted: (value) => widget.onSearchSubmitted?.call(value),
+          )
+        : content;
+
     return Container(
       padding: spacing.inset(horizontal: 1, vertical: 0.5),
       decoration: BoxDecoration(
@@ -89,7 +134,23 @@ class _PathNavigatorState extends State<PathNavigator> {
         children: [
           toggle,
           SizedBox(width: spacing.md),
-          Expanded(child: content),
+          Expanded(child: body),
+          SizedBox(width: spacing.sm),
+          IconButton(
+            icon: Icon(
+              widget.searchActive ? Icons.close : Icons.search,
+              size: 16,
+            ),
+            tooltip: widget.searchActive ? 'Close search' : 'Search',
+            onPressed: () {
+              widget.onSearchActiveChanged?.call(!widget.searchActive);
+            },
+            style: IconButton.styleFrom(
+              padding: EdgeInsets.all(spacing.xs),
+              minimumSize: const Size(28, 28),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
         ],
       ),
     );

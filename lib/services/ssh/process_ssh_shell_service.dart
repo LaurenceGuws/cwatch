@@ -56,6 +56,62 @@ class ProcessRemoteShellService extends RemoteShellService {
   }
 
   @override
+  Future<List<RemoteFileEntry>> searchPaths(
+    SshHost host,
+    String basePath,
+    String query, {
+    Duration timeout = const Duration(seconds: 15),
+    RunTimeoutHandler? onTimeout,
+  }) async {
+    final sanitizedPath = sanitizePath(basePath);
+    final escapedQuery = escapeSingleQuotes(query.trim());
+    final pattern = escapedQuery.isEmpty ? '*' : '*$escapedQuery*';
+    final commandBase = "cd '${escapeSingleQuotes(sanitizedPath)}' &&";
+    final dirsCommand =
+        "$commandBase find . -type d -name '$pattern' -print 2>/dev/null || true";
+    final filesCommand =
+        "$commandBase find . -type f -name '$pattern' -print 2>/dev/null || true";
+    final dirsRun = await _runner.runSsh(
+      host,
+      dirsCommand,
+      timeout: timeout,
+      onSshError: _handleSshError,
+      onTimeout: onTimeout,
+    );
+    final filesRun = await _runner.runSsh(
+      host,
+      filesCommand,
+      timeout: timeout,
+      onSshError: _handleSshError,
+      onTimeout: onTimeout,
+    );
+    final entries = <RemoteFileEntry>[];
+    final now = DateTime.now();
+    void addEntries(String output, {required bool isDirectory}) {
+      for (final line in const LineSplitter().convert(output)) {
+        if (line.isEmpty || line == '.' || line == './') {
+          continue;
+        }
+        final name = line.startsWith('./') ? line.substring(2) : line;
+        if (name.isEmpty) {
+          continue;
+        }
+        entries.add(
+          RemoteFileEntry(
+            name: name,
+            isDirectory: isDirectory,
+            sizeBytes: 0,
+            modified: now,
+          ),
+        );
+      }
+    }
+    addEntries(dirsRun.stdout, isDirectory: true);
+    addEntries(filesRun.stdout, isDirectory: false);
+    return entries;
+  }
+
+  @override
   Future<String> homeDirectory(
     SshHost host, {
     Duration timeout = const Duration(seconds: 5),
