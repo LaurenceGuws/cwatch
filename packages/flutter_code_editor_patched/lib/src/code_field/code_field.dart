@@ -603,7 +603,7 @@ class _CodeFieldState extends State<CodeField> {
 
   OverlayEntry _buildSearchOverlay() {
     final colorScheme = Theme.of(context).colorScheme;
-    final borderColor = _getTextColorFromTheme() ?? colorScheme.onBackground;
+    final borderColor = _getTextColorFromTheme() ?? colorScheme.onSurface;
     return OverlayEntry(
       builder: (context) {
         return Positioned(
