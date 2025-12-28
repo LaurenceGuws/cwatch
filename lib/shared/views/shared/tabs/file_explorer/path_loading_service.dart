@@ -66,6 +66,16 @@ class PathLoadingService {
     }
   }
 
+  Future<List<RemoteFileEntry>> listPath(
+    String path, {
+    String? currentPath,
+  }) async {
+    final target = PathUtils.normalizePath(path, currentPath: currentPath);
+    final entries =
+        await runShellWrapper(() => shellService.listDirectory(host, target));
+    return entries.where((e) => e.name != '.' && e.name != '..').toList();
+  }
+
   /// Refresh entries for current path (soft refresh)
   Future<PathRefreshResult> refreshPath(
     String currentPath,

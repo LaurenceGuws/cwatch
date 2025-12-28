@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../theme/nerd_fonts.dart';
+import 'path_utils.dart';
 
 /// Widget for navigating file paths with breadcrumbs or text input
 class PathNavigator extends StatefulWidget {
@@ -12,6 +13,7 @@ class PathNavigator extends StatefulWidget {
     this.showBreadcrumbs = true,
     this.onShowBreadcrumbsChanged,
     this.onNavigateToSubdirectory,
+    this.onPrefetchPath,
   });
 
   final String currentPath;
@@ -20,6 +22,7 @@ class PathNavigator extends StatefulWidget {
   final bool showBreadcrumbs;
   final ValueChanged<bool>? onShowBreadcrumbsChanged;
   final VoidCallback? onNavigateToSubdirectory;
+  final ValueChanged<String>? onPrefetchPath;
 
   @override
   State<PathNavigator> createState() => _PathNavigatorState();
@@ -72,10 +75,11 @@ class _PathNavigatorState extends State<PathNavigator> {
             controllerCallback: (controller) {
               _pathFieldController = controller;
             },
+            onPrefetchPath: widget.onPrefetchPath,
           );
 
     return Container(
-      padding: spacing.inset(horizontal: 1.5, vertical: 1),
+      padding: spacing.inset(horizontal: 1, vertical: 0.5),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(2),
@@ -136,6 +140,9 @@ class _BreadcrumbsView extends StatelessWidget {
             onPathChanged('/');
           }
         },
+        visualDensity: VisualDensity.compact,
+        padding: EdgeInsets.symmetric(horizontal: spacing.xs),
+        labelPadding: EdgeInsets.symmetric(horizontal: spacing.xs),
       ),
     ];
 
@@ -157,6 +164,9 @@ class _BreadcrumbsView extends StatelessWidget {
             onPressed: () {
               onPathChanged(normalizedRunningPath);
             },
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.symmetric(horizontal: spacing.xs),
+            labelPadding: EdgeInsets.symmetric(horizontal: spacing.xs),
           ),
         ),
       );
@@ -170,8 +180,8 @@ class _BreadcrumbsView extends StatelessWidget {
         tooltip: 'Navigate to subdirectory',
         onPressed: onNavigateToSubdirectory,
         style: IconButton.styleFrom(
-          padding: EdgeInsets.all(spacing.sm),
-          minimumSize: const Size(32, 32),
+          padding: EdgeInsets.all(spacing.xs),
+          minimumSize: const Size(28, 28),
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
       ),
@@ -180,14 +190,14 @@ class _BreadcrumbsView extends StatelessWidget {
     final spacedChips = <Widget>[];
     for (final chip in chips) {
       if (spacedChips.isNotEmpty) {
-        spacedChips.add(SizedBox(width: spacing.sm));
+        spacedChips.add(SizedBox(width: spacing.xs));
       }
       spacedChips.add(chip);
     }
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: EdgeInsets.symmetric(vertical: spacing.xs),
+      padding: EdgeInsets.symmetric(vertical: spacing.xs * 0.5),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: spacedChips,
@@ -200,44 +210,130 @@ class _BreadcrumbsView extends StatelessWidget {
   }
 }
 
-class _PathFieldView extends StatelessWidget {
+class _PathFieldView extends StatefulWidget {
   const _PathFieldView({
     required this.currentPath,
     required this.pathHistory,
     required this.onPathChanged,
     required this.controllerCallback,
+    this.onPrefetchPath,
   });
 
   final String currentPath;
   final Set<String> pathHistory;
   final ValueChanged<String> onPathChanged;
   final ValueChanged<TextEditingController> controllerCallback;
+  final ValueChanged<String>? onPrefetchPath;
+
+  @override
+  State<_PathFieldView> createState() => _PathFieldViewState();
+}
+
+class _PathFieldViewState extends State<_PathFieldView> {
+  String? _lastBasePath;
+  TextEditingController? _controller;
+  FocusNode? _focusNode;
+  int _lastHistoryLength = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastHistoryLength = widget.pathHistory.length;
+  }
+
+  @override
+  void didUpdateWidget(covariant _PathFieldView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.currentPath != widget.currentPath) {
+      _lastBasePath = null;
+    }
+    if (widget.pathHistory.length != _lastHistoryLength) {
+      _lastHistoryLength = widget.pathHistory.length;
+      _refreshOptionsIfNeeded();
+    }
+  }
+
+  _PathSuggestion _buildSuggestion(String basePrefix, String entryName) {
+    final replacement = basePrefix.isEmpty ? entryName : '$basePrefix$entryName';
+    return _PathSuggestion(
+      name: entryName,
+      replacement: replacement,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Autocomplete<String>(
+    final spacing = context.appTheme.spacing;
+    return Autocomplete<_PathSuggestion>(
       optionsBuilder: (textEditingValue) {
-        final query = textEditingValue.text;
-        if (query.isEmpty) {
-          return pathHistory;
+        final input = textEditingValue.text.trim();
+        final lastSlashIndex = input.lastIndexOf('/');
+        final basePrefix = lastSlashIndex == -1
+            ? ''
+            : input.substring(0, lastSlashIndex + 1);
+        final query = lastSlashIndex == -1
+            ? input
+            : input.substring(lastSlashIndex + 1);
+        final basePath = basePrefix.isEmpty
+            ? widget.currentPath
+            : PathUtils.normalizePath(basePrefix, currentPath: widget.currentPath);
+        final normalizedBasePath =
+            PathUtils.normalizePath(basePath, currentPath: widget.currentPath);
+        final prefix =
+            normalizedBasePath == '/' ? '/' : '$normalizedBasePath/';
+        final childNames = <String>{};
+        for (final path in widget.pathHistory) {
+          final normalized = PathUtils.normalizePath(path);
+          if (normalized == normalizedBasePath || !normalized.startsWith(prefix)) {
+            continue;
+          }
+          final remainder = normalized.substring(prefix.length);
+          if (remainder.isEmpty) {
+            continue;
+          }
+          final child = remainder.split('/').first;
+          if (child.isNotEmpty) {
+            childNames.add(child);
+          }
         }
-        return pathHistory.where((path) => path.startsWith(query));
+        if (normalizedBasePath != '/') {
+          childNames.add('..');
+        }
+        return childNames
+            .where((name) => query.isEmpty || name.startsWith(query))
+            .map((name) => _buildSuggestion(basePrefix, name))
+            .toList();
       },
-      initialValue: TextEditingValue(text: currentPath),
+      displayStringForOption: (option) => option.replacement,
+      initialValue: TextEditingValue(text: widget.currentPath),
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-        controllerCallback(controller);
-        controller.text = currentPath;
+        widget.controllerCallback(controller);
+        _controller = controller;
+        _focusNode = focusNode;
         return TextField(
           controller: controller,
           focusNode: focusNode,
           decoration: InputDecoration(
-            labelText: 'Path',
-            prefixIcon: Icon(NerdIcon.folder.data),
+            prefixIcon: Icon(NerdIcon.folder.data, size: 16),
+            prefixIconConstraints: const BoxConstraints(
+              minWidth: 36,
+              minHeight: 32,
+            ),
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(
+              vertical: spacing.xs,
+              horizontal: spacing.sm,
+            ),
           ),
-          onSubmitted: (value) => onPathChanged(value),
+          onSubmitted: (value) => widget.onPathChanged(
+            PathUtils.normalizePath(value, currentPath: widget.currentPath),
+          ),
+          onChanged: _handleInputChange,
         );
       },
-      onSelected: (value) => onPathChanged(value),
+      onSelected: (value) => widget.onPathChanged(
+        PathUtils.normalizePath(value.replacement, currentPath: widget.currentPath),
+      ),
       optionsViewBuilder: (context, onSelected, options) {
         return Align(
           alignment: Alignment.topLeft,
@@ -250,7 +346,7 @@ class _PathFieldView extends StatelessWidget {
                 children: options
                     .map(
                       (option) => ListTile(
-                        title: Text(option),
+                        title: Text(option.name),
                         onTap: () => onSelected(option),
                       ),
                     )
@@ -262,4 +358,56 @@ class _PathFieldView extends StatelessWidget {
       },
     );
   }
+
+  void _handleInputChange(String value) {
+    if (widget.onPrefetchPath == null) {
+      return;
+    }
+    final input = value.trim();
+    final lastSlashIndex = input.lastIndexOf('/');
+    final basePrefix = lastSlashIndex == -1
+        ? ''
+        : input.substring(0, lastSlashIndex + 1);
+    final basePath = basePrefix.isEmpty
+        ? widget.currentPath
+        : PathUtils.normalizePath(basePrefix, currentPath: widget.currentPath);
+    final normalizedBasePath =
+        PathUtils.normalizePath(basePath, currentPath: widget.currentPath);
+    if (_lastBasePath == normalizedBasePath) {
+      return;
+    }
+    _lastBasePath = normalizedBasePath;
+    widget.onPrefetchPath?.call(normalizedBasePath);
+  }
+
+  void _refreshOptionsIfNeeded() {
+    final controller = _controller;
+    final focusNode = _focusNode;
+    if (controller == null || focusNode?.hasFocus != true) {
+      return;
+    }
+    final text = controller.text;
+    if (text.isEmpty || !text.contains('/')) {
+      return;
+    }
+    final selection = controller.selection;
+    controller.value = controller.value.copyWith(
+      text: '$text ',
+      selection: selection,
+    );
+    controller.value = controller.value.copyWith(
+      text: text,
+      selection: selection,
+    );
+  }
+}
+
+class _PathSuggestion {
+  const _PathSuggestion({
+    required this.name,
+    required this.replacement,
+  });
+
+  final String name;
+  final String replacement;
 }

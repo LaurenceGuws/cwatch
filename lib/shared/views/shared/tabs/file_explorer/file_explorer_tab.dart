@@ -248,6 +248,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       showBreadcrumbs: _controller.showBreadcrumbs,
       onShowBreadcrumbsChanged: _controller.setShowBreadcrumbs,
       onNavigateToSubdirectory: () => _showNavigateToSubdirectoryDialog(),
+      onPrefetchPath: _controller.prefetchPath,
     );
   }
 

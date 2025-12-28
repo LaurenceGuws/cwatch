@@ -83,6 +83,7 @@ class FileExplorerController extends ChangeNotifier {
   final Set<String> syncingPaths = {};
   final Set<String> refreshingPaths = {};
   final Set<String> pathHistory = {'/'};
+  final Set<String> _prefetchedPaths = {};
 
   String currentPath = '/';
   bool loading = true;
@@ -227,7 +228,7 @@ class FileExplorerController extends ChangeNotifier {
     pathHistory.add(currentPath);
     selectionController.clearSelection();
     for (final entry in result.entries!) {
-      if (entry.isDirectory && entry.name != '..') {
+      if (entry.name != '.' && entry.name != '..') {
         pathHistory.add(PathUtils.joinPath(currentPath, entry.name));
       }
     }
@@ -258,7 +259,7 @@ class FileExplorerController extends ChangeNotifier {
       ..clear()
       ..addAll(result.entries!);
     for (final entry in result.entries!) {
-      if (entry.isDirectory && entry.name != '..') {
+      if (entry.name != '.' && entry.name != '..') {
         pathHistory.add(PathUtils.joinPath(currentPath, entry.name));
       }
     }
@@ -334,6 +335,32 @@ class FileExplorerController extends ChangeNotifier {
 
   void markNeedsBuild() {
     notifyListeners();
+  }
+
+  void prefetchPath(String path) {
+    unawaited(_prefetchPath(path));
+  }
+
+  Future<void> _prefetchPath(String path) async {
+    if (path.trim().isEmpty) {
+      return;
+    }
+    final target = PathUtils.normalizePath(path, currentPath: currentPath);
+    if (_prefetchedPaths.contains(target)) {
+      return;
+    }
+    _prefetchedPaths.add(target);
+    try {
+      final entries =
+          await _pathLoadingService.listPath(target, currentPath: currentPath);
+      pathHistory.add(target);
+      for (final entry in entries) {
+        if (entry.name != '.' && entry.name != '..') {
+          pathHistory.add(PathUtils.joinPath(target, entry.name));
+        }
+      }
+      notifyListeners();
+    } catch (_) {}
   }
 
   bool isSelfDragDrop({
