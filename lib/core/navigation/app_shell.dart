@@ -625,7 +625,7 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
         shellFactory: _shellFactory,
       ),
       KubernetesModule(settingsController: widget.settingsController),
-      const SandboxModule(),
+      SandboxModule(settingsController: widget.settingsController),
       SettingsModule(
         controller: widget.settingsController,
         hostsFuture: _hostsFuture,

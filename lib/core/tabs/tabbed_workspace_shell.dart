@@ -18,6 +18,7 @@ class TabbedWorkspaceShell<T> extends StatelessWidget {
     this.onAddTab,
     this.onReorder,
     this.showTabBar,
+    this.enableWindowDrag = true,
   });
 
   final TabHostController<T> controller;
@@ -29,6 +30,7 @@ class TabbedWorkspaceShell<T> extends StatelessWidget {
   final ValueListenable<bool>? showTabBar;
   final Widget Function(BuildContext context, int index, T tab) buildChip;
   final Widget Function(T tab) buildBody;
+  final bool enableWindowDrag;
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +41,7 @@ class TabbedWorkspaceShell<T> extends StatelessWidget {
       onAddTab: onAddTab,
       onReorder: onReorder,
       showTabBar: showTabBar,
+      enableWindowDrag: enableWindowDrag,
       buildChip: buildChip,
       buildBody: (tab) => registry.widgetFor(tab, () => buildBody(tab)),
       tabId: registry.tabId,

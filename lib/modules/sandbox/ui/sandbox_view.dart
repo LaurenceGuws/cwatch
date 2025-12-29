@@ -4,13 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 
 import 'package:cwatch/shared/theme/app_theme.dart';
+import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/widgets/section_nav_bar.dart';
 
 class SandboxView extends StatelessWidget {
-  const SandboxView({super.key, this.leading});
+  const SandboxView({super.key, this.leading, required this.settingsController});
 
   final Widget? leading;
+  final AppSettingsController settingsController;
 
   @override
   Widget build(BuildContext context) {
@@ -21,6 +23,8 @@ class SandboxView extends StatelessWidget {
           title: 'Sandbox',
           tabs: const [],
           leading: leading,
+          enableWindowDrag:
+              !settingsController.settings.windowUseSystemDecorations,
         ),
         Expanded(
           child: Stack(

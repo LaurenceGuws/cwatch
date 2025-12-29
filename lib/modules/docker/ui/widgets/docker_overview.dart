@@ -246,7 +246,8 @@ class _DockerOverviewState extends State<DockerOverview>
           tabIcons: _tabIcons,
           controller: _tabController,
           showTitle: false,
-          enableWindowDrag: false,
+          enableWindowDrag:
+              !widget.settingsController.settings.windowUseSystemDecorations,
         ),
         Expanded(
           child: Padding(

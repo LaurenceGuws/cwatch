@@ -22,6 +22,7 @@ class TabHostView<T> extends StatefulWidget {
     this.onAddTab,
     this.tabBarHeight = 36,
     this.showTabBar,
+    this.enableWindowDrag = true,
   });
 
   final TabHostController<T> controller;
@@ -33,6 +34,7 @@ class TabHostView<T> extends StatefulWidget {
   final VoidCallback? onAddTab;
   final double tabBarHeight;
   final ValueListenable<bool>? showTabBar;
+  final bool enableWindowDrag;
 
   @override
   State<TabHostView<T>> createState() => _TabHostViewState<T>();
@@ -97,6 +99,7 @@ class _TabHostViewState<T> extends State<TabHostView<T>> {
       onAddTab: widget.onAddTab,
       onReorder: widget.onReorder,
       buildChip: widget.buildChip,
+      enableWindowDrag: widget.enableWindowDrag,
     );
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -136,6 +139,7 @@ class _TabBarRow<T> extends StatefulWidget {
     this.leading,
     this.onAddTab,
     this.onReorder,
+    this.enableWindowDrag = true,
   });
 
   final List<T> tabs;
@@ -144,6 +148,7 @@ class _TabBarRow<T> extends StatefulWidget {
   final VoidCallback? onAddTab;
   final void Function(int oldIndex, int newIndex)? onReorder;
   final Widget Function(BuildContext context, int index, T tab) buildChip;
+  final bool enableWindowDrag;
 
   @override
   State<_TabBarRow<T>> createState() => _TabBarRowState<T>();
@@ -295,10 +300,11 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
         (defaultTargetPlatform == TargetPlatform.windows ||
             defaultTargetPlatform == TargetPlatform.macOS ||
             defaultTargetPlatform == TargetPlatform.linux);
-    final rightInset = useCustomChrome
+    final bool enableDrag = useCustomChrome && widget.enableWindowDrag;
+    final rightInset = enableDrag
         ? WindowControlsConstants.totalWidth
         : 0.0;
-    final dragGutterWidth = useCustomChrome
+    final dragGutterWidth = enableDrag
         ? WindowControlsConstants.dragRegionWidth
         : 0.0;
     // Match window controls height (32px) when custom chrome is enabled to eliminate dead space
@@ -361,12 +367,12 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
                   Positioned.fill(
                     child: Stack(
                       children: [
-                        if (useCustomChrome)
-                          const Positioned.fill(
-                            child: WindowDragRegion(
-                              child: SizedBox.expand(),
-                            ),
+                      if (enableDrag)
+                        const Positioned.fill(
+                          child: WindowDragRegion(
+                            child: SizedBox.expand(),
                           ),
+                        ),
                         ClipRect(
                           child: SizedBox(
                             height: effectiveTabBarHeight,

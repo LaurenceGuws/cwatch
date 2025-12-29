@@ -160,6 +160,8 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
               registry: _tabRegistry,
               tabBarHeight: 36,
               showTabBar: TabBarVisibilityController.instance,
+              enableWindowDrag:
+                  !widget.settingsController.settings.windowUseSystemDecorations,
               leading: widget.leading != null
                   ? Padding(
                       padding: EdgeInsets.symmetric(
