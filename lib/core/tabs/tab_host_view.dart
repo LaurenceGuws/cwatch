@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'tab_host.dart';
 import '../navigation/window_controls_constants.dart';
 import '../../shared/theme/app_theme.dart';
+import '../../shared/widgets/window_drag_region.dart';
 
 /// Simple wrapper that renders a tab bar and content stack using a
 /// TabHostController. Modules supply a tab list, chip builder, and body builder.
@@ -297,6 +298,9 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
     final rightInset = useCustomChrome
         ? WindowControlsConstants.totalWidth
         : 0.0;
+    final dragGutterWidth = useCustomChrome
+        ? WindowControlsConstants.dragRegionWidth
+        : 0.0;
     // Match window controls height (32px) when custom chrome is enabled to eliminate dead space
     final effectiveHeight = useCustomChrome
         ? WindowControlsConstants.height
@@ -317,7 +321,7 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
 
     return Container(
       height: effectiveHeight,
-      padding: EdgeInsets.zero,
+      padding: EdgeInsets.only(right: rightInset),
       // Keep background spanning the full width, but inset content so it doesn't sit
       // underneath the native window buttons when custom chrome is active.
       decoration: BoxDecoration(
@@ -334,8 +338,9 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
         children: [
           // Leading button stays at normal position (not translated)
           if (leading != null) leading,
-          // Buffer between sidebar button and first tab
-          if (leading != null) SizedBox(width: spacing.base * 1.5),
+          // Match the SectionNavBar spacing when using custom chrome.
+          if (leading != null && !useCustomChrome)
+            SizedBox(width: spacing.base * 1.5),
           // Tab content area - clip to prevent overflow into button space
           Expanded(
             child: MouseRegion(
@@ -353,115 +358,133 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
               },
               child: Stack(
                 children: [
-                  ClipRect(
-                    child: SizedBox(
-                      height: effectiveTabBarHeight,
-                      child: Padding(
-                        padding: EdgeInsets.only(
-                          left: 0,
-                          right:
-                              (showPinnedAddButton ? overlayButtonSize : 0) +
-                              rightInset,
-                          bottom: 0,
-                        ),
-                        child: RawScrollbar(
-                          controller: _scrollController,
-                          thumbVisibility: showThumb,
-                          trackVisibility: showScrollbar,
-                          thickness: 6,
-                          interactive: true,
-                          scrollbarOrientation: ScrollbarOrientation.bottom,
-                          notificationPredicate: (_) => true,
-                          radius: const Radius.circular(2),
-                          thumbColor: Theme.of(context).colorScheme.primary
-                              .withValues(alpha: activeThumb ? 0.9 : 0.0),
-                          trackColor:
-                              Theme.of(context).colorScheme.onSurface
-                                  .withValues(alpha: 0.08),
-                          child: Padding(
-                            padding: EdgeInsets.only(bottom: bottomSpacing),
-                            child:
-                                NotificationListener<ScrollMetricsNotification>(
-                                  onNotification: (notification) =>
-                                      _handleMetrics(notification.metrics),
-                                  child:
-                                      NotificationListener<ScrollNotification>(
-                                        onNotification: _handleScrollActivity,
-                                        child: ReorderableListView.builder(
-                                          scrollController: _scrollController,
-                                          scrollDirection: Axis.horizontal,
-                                          primary: false,
-                                          physics:
-                                              const ClampingScrollPhysics(),
-                                          buildDefaultDragHandles: false,
-                                          onReorder: onReorder != null
-                                              ? (oldIndex, newIndex) {
-                                                  final cappedIndex =
-                                                      newIndex > tabs.length
-                                                      ? tabs.length
-                                                      : newIndex;
-                                                  onReorder(
-                                                    oldIndex,
-                                                    cappedIndex,
-                                                  );
-                                                }
-                                              : (oldIndex, newIndex) {},
-                                          itemCount:
-                                              tabs.length +
+                  Positioned.fill(
+                    child: Stack(
+                      children: [
+                        if (useCustomChrome)
+                          const Positioned.fill(
+                            child: WindowDragRegion(
+                              child: SizedBox.expand(),
+                            ),
+                          ),
+                        ClipRect(
+                          child: SizedBox(
+                            height: effectiveTabBarHeight,
+                            child: Padding(
+                            padding: EdgeInsets.only(
+                              left: 0,
+                              right:
+                                  (showPinnedAddButton ? overlayButtonSize : 0),
+                              bottom: 0,
+                            ),
+                              child: RawScrollbar(
+                                controller: _scrollController,
+                                thumbVisibility: showThumb,
+                                trackVisibility: showScrollbar,
+                                thickness: 6,
+                                interactive: true,
+                                scrollbarOrientation:
+                                    ScrollbarOrientation.bottom,
+                                notificationPredicate: (_) => true,
+                                radius: const Radius.circular(2),
+                                thumbColor: Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withValues(
+                                      alpha: activeThumb ? 0.9 : 0.0,
+                                    ),
+                                trackColor: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withValues(alpha: 0.08),
+                                child: Padding(
+                                  padding: EdgeInsets.only(
+                                    bottom: bottomSpacing,
+                                  ),
+                                  child: NotificationListener<
+                                      ScrollMetricsNotification>(
+                                    onNotification: (notification) =>
+                                        _handleMetrics(notification.metrics),
+                                    child:
+                                        NotificationListener<ScrollNotification>(
+                                      onNotification: _handleScrollActivity,
+                                      child: ReorderableListView.builder(
+                                        scrollController: _scrollController,
+                                        scrollDirection: Axis.horizontal,
+                                        primary: false,
+                                        shrinkWrap: true,
+                                        physics: const ClampingScrollPhysics(),
+                                        buildDefaultDragHandles: false,
+                                        onReorder: onReorder != null
+                                            ? (oldIndex, newIndex) {
+                                                final cappedIndex =
+                                                    newIndex > tabs.length
+                                                    ? tabs.length
+                                                    : newIndex;
+                                                onReorder(
+                                                  oldIndex,
+                                                  cappedIndex,
+                                                );
+                                              }
+                                            : (oldIndex, newIndex) {},
+                                        itemCount:
+                                            tabs.length +
+                                            (hasAddTab && !showPinnedAddButton
+                                                ? 1
+                                                : 0) +
+                                            (showHoverActionReserve ? 1 : 0),
+                                        itemBuilder: (context, index) {
+                                          final inlineAddIndex = tabs.length;
+                                          final reserveIndex =
+                                              inlineAddIndex +
                                               (hasAddTab && !showPinnedAddButton
                                                   ? 1
-                                                  : 0) +
-                                              (showHoverActionReserve ? 1 : 0),
-                                          itemBuilder: (context, index) {
-                                            final inlineAddIndex = tabs.length;
-                                            final reserveIndex =
-                                                inlineAddIndex +
-                                                (hasAddTab &&
-                                                        !showPinnedAddButton
-                                                    ? 1
-                                                    : 0);
-                                            if (hasAddTab &&
-                                                !showPinnedAddButton &&
-                                                index == inlineAddIndex) {
-                                              return KeyedSubtree(
-                                                key: const ValueKey(
-                                                  'tab-bar-add-inline',
-                                                ),
-                                                child: _InlineAddButton(
-                                                  size: overlayButtonSize,
-                                                  enabled: !showPinnedAddButton,
-                                                  onTap: onAddTab,
-                                                ),
-                                              );
-                                            }
-                                            if (showHoverActionReserve &&
-                                                index == reserveIndex) {
-                                              return KeyedSubtree(
-                                                key: const ValueKey(
-                                                  'tab-bar-hover-reserve',
-                                                ),
-                                                child: SizedBox(
-                                                  width: hoverActionReserve,
-                                                ),
-                                              );
-                                            }
-                                            return buildChip(
-                                              context,
-                                              index,
-                                              tabs[index],
+                                                  : 0);
+                                          if (hasAddTab &&
+                                              !showPinnedAddButton &&
+                                              index == inlineAddIndex) {
+                                            return KeyedSubtree(
+                                              key: const ValueKey(
+                                                'tab-bar-add-inline',
+                                              ),
+                                              child: _InlineAddButton(
+                                                size: overlayButtonSize,
+                                                enabled: !showPinnedAddButton,
+                                                onTap: onAddTab,
+                                              ),
                                             );
-                                          },
-                                        ),
+                                          }
+                                          if (showHoverActionReserve &&
+                                              index == reserveIndex) {
+                                            return KeyedSubtree(
+                                              key: const ValueKey(
+                                                'tab-bar-hover-reserve',
+                                              ),
+                                              child: SizedBox(
+                                                width: hoverActionReserve,
+                                              ),
+                                            );
+                                          }
+                                          return buildChip(
+                                            context,
+                                            index,
+                                            tabs[index],
+                                          );
+                                        },
                                       ),
+                                    ),
+                                  ),
                                 ),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
                   if (showPinnedAddButton)
                     Positioned(
-                      right: rightInset,
+                      right: dragGutterWidth,
                       top: 0,
                       bottom: 0,
                       child: KeyedSubtree(

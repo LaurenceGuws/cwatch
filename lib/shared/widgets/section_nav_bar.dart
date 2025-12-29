@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/navigation/window_controls_constants.dart';
+import 'window_drag_region.dart';
 
 /// Tab data for SectionNavBar
 class SectionTab {
@@ -21,6 +22,7 @@ class SectionNavBar extends StatelessWidget {
     this.leading,
     this.trailing,
     this.tabIcons,
+    this.enableWindowDrag = true,
   });
 
   final String title;
@@ -30,6 +32,7 @@ class SectionNavBar extends StatelessWidget {
   final Widget? leading;
   final Widget? trailing;
   final List<IconData>? tabIcons;
+  final bool enableWindowDrag;
 
   @override
   Widget build(BuildContext context) {
@@ -45,8 +48,11 @@ class SectionNavBar extends StatelessWidget {
         (defaultTargetPlatform == TargetPlatform.windows ||
             defaultTargetPlatform == TargetPlatform.macOS ||
             defaultTargetPlatform == TargetPlatform.linux);
-    final rightPadding = useCustomChrome
+    final rightPadding = useCustomChrome && enableWindowDrag
         ? WindowControlsConstants.totalWidth
+        : 0.0;
+    final dragGutterWidth = useCustomChrome && enableWindowDrag
+        ? WindowControlsConstants.dragRegionWidth
         : 0.0;
     // Match window controls height (32px) when custom chrome is enabled to eliminate dead space
     final tabBarHeight = useCustomChrome
@@ -60,51 +66,74 @@ class SectionNavBar extends StatelessWidget {
       color: Theme.of(context).colorScheme.surface,
       child: SafeArea(
         bottom: false,
-        child: Padding(
-          padding: EdgeInsets.only(
-            left: compact ? 8 : 16,
-            right: (compact ? 8 : 16) + rightPadding,
-            top: verticalPadding,
-            bottom: verticalPadding,
-          ),
-          child: Row(
-            children: [
-              if (leading != null) ...[
-                leading!,
-                if (showTitle && title.isNotEmpty) const SizedBox(width: 8),
-              ],
-              if (showTitle && title.isNotEmpty)
-                Text(title, style: Theme.of(context).textTheme.titleLarge),
-              if (hasTabs)
-                Flexible(
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: SizedBox(
-                      height: tabBarHeight,
-                      child: TabBar(
-                        isScrollable: true,
-                        tabAlignment: TabAlignment.start,
-                        padding: EdgeInsets.zero,
-                        controller: controller,
-                        tabs:
-                            showIconsOnly &&
-                                tabIcons != null &&
-                                tabIcons!.length == tabs.length
-                            ? _buildIconTabs(context, tabs, tabIcons!)
-                            : tabs,
-                        labelColor: Theme.of(context).colorScheme.primary,
-                        unselectedLabelColor: Theme.of(
-                          context,
-                        ).colorScheme.onSurfaceVariant,
-                      ),
+        child: Stack(
+          children: [
+            if (useCustomChrome && enableWindowDrag)
+              Positioned(
+                left: 0,
+                top: 0,
+                right: rightPadding,
+                bottom: 0,
+                child: const WindowDragRegion(child: SizedBox.expand()),
+              ),
+            Padding(
+              padding: EdgeInsets.only(
+                left: useCustomChrome ? 0 : (compact ? 8 : 16),
+                right: useCustomChrome
+                    ? rightPadding + dragGutterWidth
+                    : (compact ? 8 : 16) + rightPadding + dragGutterWidth,
+                top: verticalPadding,
+                bottom: verticalPadding,
+              ),
+              child: Row(
+                children: [
+                  if (leading != null) ...[
+                    leading!,
+                    if (showTitle && title.isNotEmpty)
+                      const SizedBox(width: 8),
+                  ],
+                  if (showTitle && title.isNotEmpty)
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleLarge,
                     ),
-                  ),
-                )
-              else
-                const Spacer(),
-              if (trailing != null) ...[const SizedBox(width: 8), trailing!],
-            ],
-          ),
+                  if (hasTabs)
+                    Flexible(
+                      fit: FlexFit.loose,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: IntrinsicWidth(
+                          child: SizedBox(
+                            height: tabBarHeight,
+                            child: TabBar(
+                              isScrollable: true,
+                              tabAlignment: TabAlignment.start,
+                              padding: EdgeInsets.zero,
+                              controller: controller,
+                              tabs:
+                                  showIconsOnly &&
+                                      tabIcons != null &&
+                                      tabIcons!.length == tabs.length
+                                  ? _buildIconTabs(context, tabs, tabIcons!)
+                                  : tabs,
+                              labelColor:
+                                  Theme.of(context).colorScheme.primary,
+                              unselectedLabelColor: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    const Spacer(),
+                  if (trailing != null)
+                    ...[const SizedBox(width: 8), trailing!],
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

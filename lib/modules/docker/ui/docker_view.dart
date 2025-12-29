@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import 'package:cwatch/models/docker_context.dart';
 import 'package:cwatch/models/ssh_host.dart';
@@ -271,108 +272,116 @@ class _DockerViewState extends State<DockerView> {
   @override
   Widget build(BuildContext context) {
     final spacing = context.appTheme.spacing;
-    return Padding(
-      padding: spacing.inset(horizontal: 1.5, vertical: 1),
-      child: Column(
-        children: [
-          Expanded(
-            child: Material(
-              color: context.appTheme.section.toolbarBackground,
-              child: TabbedWorkspaceShell<EngineTab>(
-                controller: _tabController,
-                registry: _tabRegistry,
-                tabBarHeight: 36,
-                showTabBar: TabBarVisibilityController.instance,
-                leading: widget.leading != null
-                    ? Padding(
-                        padding: EdgeInsets.symmetric(horizontal: spacing.sm),
-                        child: SizedBox(
-                          height: 36,
-                          child: Center(child: widget.leading),
-                        ),
-                      )
-                    : null,
-                onReorder: (oldIndex, newIndex) {
-                  final selectedTabId = _tabs.isEmpty
-                      ? null
-                      : _tabs[_selectedIndex].id;
-                  if (oldIndex < newIndex) newIndex -= 1;
-                  _tabController.reorder(oldIndex, newIndex);
-                  if (selectedTabId != null) {
-                    final newIndexOfSelected = _tabs.indexWhere(
-                      (tab) => tab.id == selectedTabId,
-                    );
-                    _tabController.select(
-                      newIndexOfSelected.clamp(0, _tabs.length - 1),
-                    );
-                  }
-                  _persistWorkspace();
-                },
-                onAddTab: _addEnginePickerTab,
-                buildChip: (context, index, tab) {
-                  final optionsController = tab.optionsController;
-                  final state = tab.workspaceState is TabState
-                      ? tab.workspaceState as TabState
-                      : null;
-                  final isPicker =
-                      tab.isPicker || state?.kind == DockerTabKind.picker.name;
-                  final canDrag = tab.canDrag && !isPicker;
-                  final canRename = tab.canRename && !isPicker;
-                  final closeWarning = _isCommandWorkspace(tab.workspaceState)
-                      ? const TabCloseWarning(
-                          title: 'Disconnect session?',
-                          message:
-                              'Closing this tab will end the running shell/command.',
-                          confirmLabel: 'Close tab',
-                        )
-                      : null;
-                  Widget buildTab(List<TabChipOption> options) {
-                    return TabChip(
-                      host: SshHost(
-                        name: tab.label,
-                        hostname: '',
-                        port: 0,
-                        available: true,
+    return Column(
+      children: [
+        Expanded(
+          child: Material(
+            color: context.appTheme.section.toolbarBackground,
+            child: TabbedWorkspaceShell<EngineTab>(
+              controller: _tabController,
+              registry: _tabRegistry,
+              tabBarHeight: 36,
+              showTabBar: TabBarVisibilityController.instance,
+              leading: widget.leading != null
+                  ? Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal:
+                            (!kIsWeb &&
+                                    (defaultTargetPlatform ==
+                                            TargetPlatform.windows ||
+                                        defaultTargetPlatform ==
+                                            TargetPlatform.macOS ||
+                                        defaultTargetPlatform ==
+                                            TargetPlatform.linux))
+                                ? 0
+                                : spacing.sm,
                       ),
-                      title: tab.title,
-                      label: tab.label,
-                      icon: tab.icon,
-                      selected: index == _selectedIndex,
-                      onSelect: () {
-                        _tabController.select(index);
-                        _persistWorkspace();
-                      },
-                      onClose: () => _closeTab(index),
-                      closable: true,
-                      onRename: canRename ? () => _renameTab(index) : null,
-                      dragIndex: canDrag ? index : null,
-                      options: options,
-                      closeWarning: closeWarning,
-                    );
-                  }
-
-                  if (optionsController == null) {
-                    return KeyedSubtree(
-                      key: ValueKey(tab.id),
-                      child: buildTab(const []),
-                    );
-                  }
-                  return ValueListenableBuilder<List<TabChipOption>>(
-                    key: ValueKey(tab.id),
-                    valueListenable: optionsController,
-                    builder: (context, options, _) => buildTab(options),
+                      child: SizedBox(
+                        height: 36,
+                        child: Center(child: widget.leading),
+                      ),
+                    )
+                  : null,
+              onReorder: (oldIndex, newIndex) {
+                final selectedTabId = _tabs.isEmpty
+                    ? null
+                    : _tabs[_selectedIndex].id;
+                if (oldIndex < newIndex) newIndex -= 1;
+                _tabController.reorder(oldIndex, newIndex);
+                if (selectedTabId != null) {
+                  final newIndexOfSelected = _tabs.indexWhere(
+                    (tab) => tab.id == selectedTabId,
                   );
-                },
-                buildBody: (tab) => tab.body,
-              ),
+                  _tabController.select(
+                    newIndexOfSelected.clamp(0, _tabs.length - 1),
+                  );
+                }
+                _persistWorkspace();
+              },
+              onAddTab: _addEnginePickerTab,
+              buildChip: (context, index, tab) {
+                final optionsController = tab.optionsController;
+                final state = tab.workspaceState is TabState
+                    ? tab.workspaceState as TabState
+                    : null;
+                final isPicker =
+                    tab.isPicker || state?.kind == DockerTabKind.picker.name;
+                final canDrag = tab.canDrag && !isPicker;
+                final canRename = tab.canRename && !isPicker;
+                final closeWarning = _isCommandWorkspace(tab.workspaceState)
+                    ? const TabCloseWarning(
+                        title: 'Disconnect session?',
+                        message:
+                            'Closing this tab will end the running shell/command.',
+                        confirmLabel: 'Close tab',
+                      )
+                    : null;
+                Widget buildTab(List<TabChipOption> options) {
+                  return TabChip(
+                    host: SshHost(
+                      name: tab.label,
+                      hostname: '',
+                      port: 0,
+                      available: true,
+                    ),
+                    title: tab.title,
+                    label: tab.label,
+                    icon: tab.icon,
+                    selected: index == _selectedIndex,
+                    onSelect: () {
+                      _tabController.select(index);
+                      _persistWorkspace();
+                    },
+                    onClose: () => _closeTab(index),
+                    closable: true,
+                    onRename: canRename ? () => _renameTab(index) : null,
+                    dragIndex: canDrag ? index : null,
+                    options: options,
+                    closeWarning: closeWarning,
+                  );
+                }
+
+                if (optionsController == null) {
+                  return KeyedSubtree(
+                    key: ValueKey(tab.id),
+                    child: buildTab(const []),
+                  );
+                }
+                return ValueListenableBuilder<List<TabChipOption>>(
+                  key: ValueKey(tab.id),
+                  valueListenable: optionsController,
+                  builder: (context, options, _) => buildTab(options),
+                );
+              },
+              buildBody: (tab) => tab.body,
             ),
           ),
-          Padding(
-            padding: context.appTheme.spacing.inset(horizontal: 2, vertical: 0),
-            child: Divider(height: 1, color: context.appTheme.section.divider),
-          ),
-        ],
-      ),
+        ),
+        Padding(
+          padding: context.appTheme.spacing.inset(horizontal: 2, vertical: 0),
+          child: Divider(height: 1, color: context.appTheme.section.divider),
+        ),
+      ],
     );
   }
 

@@ -15,7 +15,7 @@ class WslModule extends ShellModuleView {
   String get label => 'WSL';
 
   @override
-  NerdIcon get icon => NerdIcon.terminal;
+  NerdIcon get icon => NerdIcon.penguin;
 
   @override
   Widget build(BuildContext context, Widget leading) {

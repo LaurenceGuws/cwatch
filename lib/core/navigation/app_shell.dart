@@ -1009,8 +1009,8 @@ class _CaptionButtonState extends State<_CaptionButton> {
           behavior: HitTestBehavior.opaque,
           onTap: widget.onPressed,
           child: Container(
-            width: 46,
-            height: 32,
+            width: WindowControlsConstants.buttonWidth,
+            height: WindowControlsConstants.height,
             color: _hovering ? hoverColor : Colors.transparent,
             child: Icon(widget.icon, size: 18, color: iconColor),
           ),
@@ -1206,6 +1206,8 @@ class _NavigationButtonState extends State<_NavigationButton> {
         : Colors.transparent;
 
     final iconWidget = Icon(widget.icon.data, size: 30, color: iconColor);
+    final iconPadding =
+        widget.vertical ? const EdgeInsets.only(right: 4) : EdgeInsets.zero;
 
     final buttonWidth = widget.vertical ? _Sidebar.width : double.infinity;
     final button = InkWell(
@@ -1220,7 +1222,14 @@ class _NavigationButtonState extends State<_NavigationButton> {
             ? Row(
                 children: [
                   Container(width: 4, height: 56, color: indicatorColor),
-                  Expanded(child: Center(child: iconWidget)),
+                  Expanded(
+                    child: Center(
+                      child: Padding(
+                        padding: iconPadding,
+                        child: iconWidget,
+                      ),
+                    ),
+                  ),
                 ],
               )
             : Column(

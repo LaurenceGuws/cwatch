@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 
@@ -149,65 +150,71 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   Widget build(BuildContext context) {
     final appTheme = context.appTheme;
     final spacing = appTheme.spacing;
-    return Padding(
-      padding: spacing.inset(horizontal: 1.5, vertical: 1),
-      child: Column(
-        children: [
-          Expanded(
-            child: Material(
-              color: appTheme.section.toolbarBackground,
-              child: TabbedWorkspaceShell<KubernetesTab>(
-                controller: _tabController,
-                registry: _tabRegistry,
-                tabBarHeight: 36,
-                showTabBar: TabBarVisibilityController.instance,
-                leading: widget.leading != null
-                    ? Padding(
-                        padding: EdgeInsets.symmetric(horizontal: spacing.sm),
-                        child: SizedBox(
-                          height: 36,
-                          child: Center(child: widget.leading),
-                        ),
-                      )
-                    : null,
-                onReorder: _handleTabReorder,
-                onAddTab: _startEmptyTab,
-                buildChip: (context, index, tab) {
-                  return ValueListenableBuilder<List<TabChipOption>>(
-                    key: ValueKey(tab.id),
-                    valueListenable: tab.optionsController ?? _emptyOptions,
-                    builder: (context, options, _) {
-                      return TabChip(
-                        host: tab.host,
-                        title: tab.title,
-                        label: tab.label,
-                        icon: tab.icon,
-                        selected: index == _tabController.selectedIndex,
-                        onSelect: () {
-                          _tabController.select(index);
-                          _persistWorkspace();
-                        },
-                        onClose: () => _closeTab(index),
-                        onRename: tab.canRename
-                            ? () => _renameTab(index)
-                            : null,
-                        options: options,
-                        closable: tab.closable,
-                        dragIndex: tab.canDrag ? index : null,
-                      );
-                    },
-                  );
-                },
-                buildBody: (tab) => tab.body,
-              ),
+    return Column(
+      children: [
+        Expanded(
+          child: Material(
+            color: appTheme.section.toolbarBackground,
+            child: TabbedWorkspaceShell<KubernetesTab>(
+              controller: _tabController,
+              registry: _tabRegistry,
+              tabBarHeight: 36,
+              showTabBar: TabBarVisibilityController.instance,
+              leading: widget.leading != null
+                  ? Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal:
+                            (!kIsWeb &&
+                                    (defaultTargetPlatform ==
+                                            TargetPlatform.windows ||
+                                        defaultTargetPlatform ==
+                                            TargetPlatform.macOS ||
+                                        defaultTargetPlatform ==
+                                            TargetPlatform.linux))
+                                ? 0
+                                : spacing.sm,
+                      ),
+                      child: SizedBox(
+                        height: 36,
+                        child: Center(child: widget.leading),
+                      ),
+                    )
+                  : null,
+              onReorder: _handleTabReorder,
+              onAddTab: _startEmptyTab,
+              buildChip: (context, index, tab) {
+                return ValueListenableBuilder<List<TabChipOption>>(
+                  key: ValueKey(tab.id),
+                  valueListenable: tab.optionsController ?? _emptyOptions,
+                  builder: (context, options, _) {
+                    return TabChip(
+                      host: tab.host,
+                      title: tab.title,
+                      label: tab.label,
+                      icon: tab.icon,
+                      selected: index == _tabController.selectedIndex,
+                      onSelect: () {
+                        _tabController.select(index);
+                        _persistWorkspace();
+                      },
+                      onClose: () => _closeTab(index),
+                      onRename: tab.canRename ? () => _renameTab(index) : null,
+                      options: options,
+                      closable: tab.closable,
+                      dragIndex: tab.canDrag ? index : null,
+                    );
+                  },
+                );
+              },
+              buildBody: (tab) => tab.body,
             ),
           ),
-          Padding(
-            padding: appTheme.spacing.inset(horizontal: 2, vertical: 0),
-            child: Divider(height: 1, color: appTheme.section.divider),
-          ),
-        ],
-      ),
+        ),
+        Padding(
+          padding: appTheme.spacing.inset(horizontal: 2, vertical: 0),
+          child: Divider(height: 1, color: appTheme.section.divider),
+        ),
+      ],
     );
   }
 

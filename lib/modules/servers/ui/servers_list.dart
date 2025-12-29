@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import 'package:cwatch/core/tabs/tab_host.dart';
 import 'package:cwatch/models/custom_ssh_host.dart';
@@ -373,15 +374,11 @@ class _ServersListState extends State<ServersList> {
 
   @override
   Widget build(BuildContext context) {
-    final spacing = context.appTheme.spacing;
     final workspace = _tabs.isEmpty
         ? _buildHostSelection(onHostActivate: _startActionFlowForHost)
         : _buildTabWorkspace();
 
-    return Padding(
-      padding: spacing.inset(horizontal: 1.5, vertical: 1),
-      child: workspace,
-    );
+    return workspace;
   }
 
   Widget _buildHostSelection({
@@ -512,7 +509,18 @@ class _ServersListState extends State<ServersList> {
               showTabBar: TabBarVisibilityController.instance,
               leading: widget.leading != null
                   ? Padding(
-                      padding: EdgeInsets.symmetric(horizontal: spacing.sm),
+                      padding: EdgeInsets.symmetric(
+                        horizontal:
+                            (!kIsWeb &&
+                                    (defaultTargetPlatform ==
+                                            TargetPlatform.windows ||
+                                        defaultTargetPlatform ==
+                                            TargetPlatform.macOS ||
+                                        defaultTargetPlatform ==
+                                            TargetPlatform.linux))
+                                ? 0
+                                : spacing.sm,
+                      ),
                       child: SizedBox(
                         height: 36,
                         child: Center(child: widget.leading),
