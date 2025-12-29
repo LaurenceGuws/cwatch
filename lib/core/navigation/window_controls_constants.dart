@@ -3,10 +3,11 @@
 class WindowControlsConstants {
   WindowControlsConstants._();
 
-  static const double height = 30;
-  static const double buttonWidth = 44;
+  static const double height = 32;
+  static const double buttonWidth = 46;
   static const double totalWidth = buttonWidth * 3;
   static const double dragRegionWidth = 32;
+  static const double tabBarHeight = 36;
 }
 
 

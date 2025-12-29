@@ -690,13 +690,6 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
         Widget? navigationBar;
         Alignment navigationAlignment = Alignment.centerLeft;
         EdgeInsets contentPadding = EdgeInsets.zero;
-        if (useCustomChrome) {
-          contentPadding =
-              contentPadding +
-              EdgeInsets.only(
-                top: _WindowControls.height + spacing.base * 1.5,
-              );
-        }
         if (showSidebar) {
           switch (_sidebarPlacement) {
             case _SidebarPlacement.dynamic:
@@ -925,14 +918,11 @@ class _WindowControls extends StatefulWidget {
 class _WindowControlsState extends State<_WindowControls> {
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    // Match the tab bar background color to prevent lines showing through
-    final toolbarColor = colorScheme.surfaceContainerHighest.withValues(
-      alpha: 0.38,
-    );
+    final toolbarColor = context.appTheme.section.toolbarBackground;
 
     return Container(
       color: toolbarColor,
+      padding: const EdgeInsets.only(right: 4),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onPanStart: (_) => widget.onDrag(),
@@ -1299,7 +1289,9 @@ class _SidebarMenuButtonState extends State<_SidebarMenuButton> {
         (defaultTargetPlatform == TargetPlatform.windows ||
             defaultTargetPlatform == TargetPlatform.macOS ||
             defaultTargetPlatform == TargetPlatform.linux);
-    final buttonSize = useCustomChrome ? WindowControlsConstants.height : 48.0;
+    final buttonSize = useCustomChrome
+        ? WindowControlsConstants.tabBarHeight
+        : 48.0;
 
     final colorScheme = Theme.of(context).colorScheme;
     // Use the same hover color as tab chips

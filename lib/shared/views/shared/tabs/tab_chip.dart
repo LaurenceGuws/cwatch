@@ -292,8 +292,12 @@ class _TabChipState extends State<TabChip> {
                                     NerdIcon.close.data,
                                     size: 16,
                                     color: widget.closable
-                                        ? closeColor
-                                        : closeColor.withValues(alpha: 0.4),
+                                        ? (widget.selected
+                                            ? closeColor
+                                            : (_hovering
+                                                ? closeColor
+                                                : foreground))
+                                        : foreground.withValues(alpha: 0.4),
                                   ),
                                 ),
                               ),

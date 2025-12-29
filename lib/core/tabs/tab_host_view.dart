@@ -309,15 +309,16 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
         : 0.0;
     // Match window controls height (32px) when custom chrome is enabled to eliminate dead space
     final effectiveHeight = useCustomChrome
-        ? WindowControlsConstants.height
+        ? WindowControlsConstants.tabBarHeight
         : tabBarHeight + 2;
     final effectiveTabBarHeight = useCustomChrome
-        ? WindowControlsConstants.height
+        ? WindowControlsConstants.tabBarHeight
         : tabBarHeight;
 
     final overlayButtonSize = effectiveTabBarHeight;
     final bool showScrollbar = _hasOverflow;
     final double bottomSpacing = showScrollbar ? spacing.md : 0.0;
+    final double scrollbarInset = bottomSpacing;
     final double hoverActionReserve =
         showScrollbar ? spacing.base * 12 : 0.0;
     final bool showHoverActionReserve = showScrollbar;
@@ -325,9 +326,18 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
     final bool showThumb = showScrollbar;
     final bool showPinnedAddButton = hasAddTab && _hasOverflow;
 
+    final iconSize = Theme.of(context).iconTheme.size ?? 24.0;
+    final topInset = useCustomChrome
+        ? (WindowControlsConstants.height - iconSize).clamp(0.0, 6.0) / 2
+        : 0.0;
+
     return Container(
-      height: effectiveHeight,
-      padding: EdgeInsets.only(right: rightInset),
+      height: effectiveHeight + scrollbarInset,
+      padding: EdgeInsets.only(
+        top: topInset,
+        bottom: topInset,
+        right: rightInset,
+      ),
       // Keep background spanning the full width, but inset content so it doesn't sit
       // underneath the native window buttons when custom chrome is active.
       decoration: BoxDecoration(
@@ -375,7 +385,7 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
                         ),
                         ClipRect(
                           child: SizedBox(
-                            height: effectiveTabBarHeight,
+                            height: effectiveTabBarHeight + scrollbarInset,
                             child: Padding(
                             padding: EdgeInsets.only(
                               left: 0,

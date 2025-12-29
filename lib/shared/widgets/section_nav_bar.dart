@@ -56,7 +56,7 @@ class SectionNavBar extends StatelessWidget {
         : 0.0;
     // Match window controls height (32px) when custom chrome is enabled to eliminate dead space
     final tabBarHeight = useCustomChrome
-        ? WindowControlsConstants.height
+        ? WindowControlsConstants.tabBarHeight
         : 42.0;
     // Reduce vertical padding when custom chrome is enabled to match button height
     final verticalPadding = useCustomChrome ? 0.0 : (compact ? 6.0 : 8.0);
@@ -150,7 +150,9 @@ class SectionNavBar extends StatelessWidget {
         (defaultTargetPlatform == TargetPlatform.windows ||
             defaultTargetPlatform == TargetPlatform.macOS ||
             defaultTargetPlatform == TargetPlatform.linux);
-    final tabHeight = useCustomChrome ? WindowControlsConstants.height : 42.0;
+    final tabHeight = useCustomChrome
+        ? WindowControlsConstants.tabBarHeight
+        : 42.0;
 
     return List.generate(tabs.length, (index) {
       final tab = tabs[index];

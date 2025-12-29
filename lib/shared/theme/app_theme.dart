@@ -444,7 +444,7 @@ class AppTabChipTokens {
       unselectedBorder: scheme.outlineVariant,
       borderRadius: BorderRadius.circular(2),
       horizontalPadding: 0.4,
-      verticalPadding: 0.05,
+      verticalPadding: 0.12,
     );
   }
 
