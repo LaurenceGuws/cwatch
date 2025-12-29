@@ -84,6 +84,11 @@ abstract class RemoteShellService with RemotePathUtils {
     SshHost host,
     String basePath,
     String query, {
+    String? includePattern,
+    String? excludePattern,
+    bool matchCase = false,
+    bool matchWholeWord = false,
+    bool searchContents = false,
     Duration timeout = const Duration(seconds: 15),
     RunTimeoutHandler? onTimeout,
   });

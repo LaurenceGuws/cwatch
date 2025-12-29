@@ -19,6 +19,16 @@ class PathNavigator extends StatefulWidget {
     this.onSearchActiveChanged,
     this.onSearchQueryChanged,
     this.onSearchSubmitted,
+    required this.searchInclude,
+    required this.searchExclude,
+    required this.searchMatchCase,
+    required this.searchMatchWholeWord,
+    required this.searchContents,
+    this.onSearchIncludeChanged,
+    this.onSearchExcludeChanged,
+    this.onSearchMatchCaseChanged,
+    this.onSearchMatchWholeWordChanged,
+    this.onSearchContentsChanged,
   });
 
   final String currentPath;
@@ -33,6 +43,16 @@ class PathNavigator extends StatefulWidget {
   final ValueChanged<bool>? onSearchActiveChanged;
   final ValueChanged<String>? onSearchQueryChanged;
   final ValueChanged<String>? onSearchSubmitted;
+  final String searchInclude;
+  final String searchExclude;
+  final bool searchMatchCase;
+  final bool searchMatchWholeWord;
+  final bool searchContents;
+  final ValueChanged<String>? onSearchIncludeChanged;
+  final ValueChanged<String>? onSearchExcludeChanged;
+  final VoidCallback? onSearchMatchCaseChanged;
+  final VoidCallback? onSearchMatchWholeWordChanged;
+  final ValueChanged<bool>? onSearchContentsChanged;
 
   @override
   State<PathNavigator> createState() => _PathNavigatorState();
@@ -40,7 +60,6 @@ class PathNavigator extends StatefulWidget {
 
 class _PathNavigatorState extends State<PathNavigator> {
   TextEditingController? _pathFieldController;
-  TextEditingController? _searchController;
 
   @override
   void didUpdateWidget(PathNavigator oldWidget) {
@@ -48,16 +67,11 @@ class _PathNavigatorState extends State<PathNavigator> {
     if (oldWidget.currentPath != widget.currentPath) {
       _pathFieldController?.text = widget.currentPath;
     }
-    if (oldWidget.searchQuery != widget.searchQuery &&
-        _searchController?.text != widget.searchQuery) {
-      _searchController?.text = widget.searchQuery;
-    }
   }
 
   @override
   void dispose() {
     _pathFieldController?.dispose();
-    _searchController?.dispose();
     super.dispose();
   }
 
@@ -94,65 +108,59 @@ class _PathNavigatorState extends State<PathNavigator> {
             onPrefetchPath: widget.onPrefetchPath,
           );
 
-    final body = widget.searchActive
-        ? TextField(
-            controller: _searchController ??=
-                TextEditingController(text: widget.searchQuery),
-            decoration: InputDecoration(
-              hintText: 'Search files and folders',
-              prefixIcon: IconButton(
-                icon: const Icon(Icons.search, size: 16),
-                tooltip: 'Search',
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: spacing.inset(horizontal: 1, vertical: 0.5),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(2),
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+          ),
+          child: Row(
+            children: [
+              toggle,
+              SizedBox(width: spacing.md),
+              Expanded(child: content),
+              SizedBox(width: spacing.sm),
+              IconButton(
+                icon: Icon(
+                  widget.searchActive ? Icons.close : Icons.search,
+                  size: 16,
+                ),
+                tooltip: widget.searchActive ? 'Close search' : 'Search',
                 onPressed: () {
-                  final query = _searchController?.text ?? widget.searchQuery;
-                  widget.onSearchSubmitted?.call(query);
+                  widget.onSearchActiveChanged?.call(!widget.searchActive);
                 },
+                style: IconButton.styleFrom(
+                  padding: EdgeInsets.all(spacing.xs),
+                  minimumSize: const Size(28, 28),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
               ),
-              prefixIconConstraints: const BoxConstraints(
-                minWidth: 36,
-                minHeight: 32,
-              ),
-              isDense: true,
-              contentPadding: EdgeInsets.symmetric(
-                vertical: spacing.xs,
-                horizontal: spacing.sm,
-              ),
-            ),
-            onChanged: widget.onSearchQueryChanged,
-            onSubmitted: (value) => widget.onSearchSubmitted?.call(value),
-          )
-        : content;
-
-    return Container(
-      padding: spacing.inset(horizontal: 1, vertical: 0.5),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(2),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Row(
-        children: [
-          toggle,
-          SizedBox(width: spacing.md),
-          Expanded(child: body),
-          SizedBox(width: spacing.sm),
-          IconButton(
-            icon: Icon(
-              widget.searchActive ? Icons.close : Icons.search,
-              size: 16,
-            ),
-            tooltip: widget.searchActive ? 'Close search' : 'Search',
-            onPressed: () {
-              widget.onSearchActiveChanged?.call(!widget.searchActive);
-            },
-            style: IconButton.styleFrom(
-              padding: EdgeInsets.all(spacing.xs),
-              minimumSize: const Size(28, 28),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
+            ],
+          ),
+        ),
+        if (widget.searchActive) ...[
+          SizedBox(height: spacing.sm),
+          _SearchPanel(
+            query: widget.searchQuery,
+            include: widget.searchInclude,
+            exclude: widget.searchExclude,
+            matchCase: widget.searchMatchCase,
+            matchWholeWord: widget.searchMatchWholeWord,
+            searchContents: widget.searchContents,
+            onQueryChanged: widget.onSearchQueryChanged,
+            onSearchSubmitted: widget.onSearchSubmitted,
+            onIncludeChanged: widget.onSearchIncludeChanged,
+            onExcludeChanged: widget.onSearchExcludeChanged,
+            onMatchCaseToggled: widget.onSearchMatchCaseChanged,
+            onMatchWholeWordToggled: widget.onSearchMatchWholeWordChanged,
+            onSearchContentsChanged: widget.onSearchContentsChanged,
           ),
         ],
-      ),
+      ],
     );
   }
 }
@@ -471,4 +479,227 @@ class _PathSuggestion {
 
   final String name;
   final String replacement;
+}
+
+class _SearchPanel extends StatefulWidget {
+  const _SearchPanel({
+    required this.query,
+    required this.include,
+    required this.exclude,
+    required this.matchCase,
+    required this.matchWholeWord,
+    required this.searchContents,
+    required this.onQueryChanged,
+    required this.onSearchSubmitted,
+    required this.onIncludeChanged,
+    required this.onExcludeChanged,
+    required this.onMatchCaseToggled,
+    required this.onMatchWholeWordToggled,
+    required this.onSearchContentsChanged,
+  });
+
+  final String query;
+  final String include;
+  final String exclude;
+  final bool matchCase;
+  final bool matchWholeWord;
+  final bool searchContents;
+  final ValueChanged<String>? onQueryChanged;
+  final ValueChanged<String>? onSearchSubmitted;
+  final ValueChanged<String>? onIncludeChanged;
+  final ValueChanged<String>? onExcludeChanged;
+  final VoidCallback? onMatchCaseToggled;
+  final VoidCallback? onMatchWholeWordToggled;
+  final ValueChanged<bool>? onSearchContentsChanged;
+
+  @override
+  State<_SearchPanel> createState() => _SearchPanelState();
+}
+
+class _SearchPanelState extends State<_SearchPanel> {
+  late final TextEditingController _queryController;
+  late final TextEditingController _includeController;
+  late final TextEditingController _excludeController;
+  bool _searchOptionsOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _queryController = TextEditingController(text: widget.query);
+    _includeController = TextEditingController(text: widget.include);
+    _excludeController = TextEditingController(text: widget.exclude);
+  }
+
+  @override
+  void didUpdateWidget(covariant _SearchPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.query != widget.query && _queryController.text != widget.query) {
+      _queryController.text = widget.query;
+    }
+    if (oldWidget.include != widget.include &&
+        _includeController.text != widget.include) {
+      _includeController.text = widget.include;
+    }
+    if (oldWidget.exclude != widget.exclude &&
+        _excludeController.text != widget.exclude) {
+      _excludeController.text = widget.exclude;
+    }
+  }
+
+  @override
+  void dispose() {
+    _queryController.dispose();
+    _includeController.dispose();
+    _excludeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
+    final theme = Theme.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: spacing.xs,
+              runSpacing: spacing.xs,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.search, size: 16),
+                  tooltip: 'Search',
+                  onPressed: () {
+                    widget.onSearchSubmitted?.call(_queryController.text);
+                  },
+                  style: IconButton.styleFrom(
+                    padding: EdgeInsets.all(spacing.xs),
+                    minimumSize: const Size(28, 28),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+                ToggleButtons(
+                  isSelected: [_searchOptionsOpen],
+                  onPressed: (_) {
+                    setState(() {
+                      _searchOptionsOpen = !_searchOptionsOpen;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(2),
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  children: [
+                    Tooltip(
+                      message: _searchOptionsOpen
+                          ? 'Hide search options'
+                          : 'Show search options',
+                      waitDuration: const Duration(milliseconds: 400),
+                      child: Icon(
+                        _searchOptionsOpen ? Icons.expand_less : Icons.expand_more,
+                        size: 16,
+                      ),
+                    ),
+                  ],
+                ),
+                ToggleButtons(
+                  isSelected: [!widget.searchContents, widget.searchContents],
+                  onPressed: (index) {
+                    widget.onSearchContentsChanged?.call(index == 1);
+                  },
+                  borderRadius: BorderRadius.circular(2),
+                  constraints: const BoxConstraints(minWidth: 56, minHeight: 28),
+                  children: const [
+                    Tooltip(
+                      message: 'Find by name',
+                      waitDuration: Duration(milliseconds: 400),
+                      child: Text('Name'),
+                    ),
+                    Tooltip(
+                      message: 'Grep by content',
+                      waitDuration: Duration(milliseconds: 400),
+                      child: Text('Content'),
+                    ),
+                  ],
+                ),
+                ToggleButtons(
+                  isSelected: [widget.matchWholeWord, widget.matchCase],
+                  onPressed: (index) {
+                    if (index == 0) {
+                      widget.onMatchWholeWordToggled?.call();
+                    } else {
+                      widget.onMatchCaseToggled?.call();
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(2),
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  children: const [
+                    Tooltip(
+                      message: 'Match whole word',
+                      waitDuration: Duration(milliseconds: 400),
+                      child: Icon(Icons.text_fields, size: 16),
+                    ),
+                    Tooltip(
+                      message: 'Match case',
+                      waitDuration: Duration(milliseconds: 400),
+                      child: Icon(Icons.title, size: 16),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            SizedBox(height: spacing.md),
+            TextField(
+              controller: _queryController,
+              decoration: InputDecoration(
+                labelText: 'Search',
+                floatingLabelBehavior: FloatingLabelBehavior.always,
+                hintText: 'Search files and folders',
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(
+                  vertical: spacing.xs,
+                  horizontal: spacing.sm,
+                ),
+              ),
+              onChanged: widget.onQueryChanged,
+              onSubmitted: (value) => widget.onSearchSubmitted?.call(value),
+            ),
+          ],
+          ),
+        if (_searchOptionsOpen) ...[
+          SizedBox(height: spacing.md),
+          TextField(
+            controller: _includeController,
+            decoration: InputDecoration(
+              labelText: 'Include',
+              floatingLabelBehavior: FloatingLabelBehavior.always,
+              hintText: 'comma-separated patterns',
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(
+                vertical: spacing.xs,
+                horizontal: spacing.sm,
+              ),
+            ),
+            onChanged: widget.onIncludeChanged,
+          ),
+          SizedBox(height: spacing.md),
+          TextField(
+            controller: _excludeController,
+            decoration: InputDecoration(
+              labelText: 'Exclude',
+              floatingLabelBehavior: FloatingLabelBehavior.always,
+              hintText: 'comma-separated patterns',
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(
+                vertical: spacing.xs,
+                horizontal: spacing.sm,
+              ),
+            ),
+            onChanged: widget.onExcludeChanged,
+          ),
+        ],
+      ],
+    );
+  }
 }

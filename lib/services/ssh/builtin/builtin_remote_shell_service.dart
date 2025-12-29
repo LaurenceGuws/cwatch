@@ -81,29 +81,94 @@ class BuiltInRemoteShellService extends RemoteShellService {
     SshHost host,
     String basePath,
     String query, {
+    String? includePattern,
+    String? excludePattern,
+    bool matchCase = false,
+    bool matchWholeWord = false,
+    bool searchContents = false,
     Duration timeout = const Duration(seconds: 15),
     RunTimeoutHandler? onTimeout,
   }) async {
+    final effectiveTimeout =
+        searchContents ? const Duration(minutes: 2) : timeout;
     final sanitized = sanitizePath(basePath);
     final escapedQuery = escapeSingleQuotes(query.trim());
-    final pattern = escapedQuery.isEmpty ? '*' : '*$escapedQuery*';
+    final pattern = escapedQuery.isEmpty
+        ? '*'
+        : (matchWholeWord ? escapedQuery : '*$escapedQuery*');
+    final nameFlag = matchCase ? '-name' : '-iname';
+    String buildPredicate(String typeFlag, {required bool includeName}) {
+      final predicates = <String>['-type $typeFlag'];
+      if (includeName) {
+        predicates.add("$nameFlag '$pattern'");
+      }
+      final include = _buildPatternClause(
+        includePattern,
+        nameFlag: nameFlag,
+        basePath: sanitized,
+        allowDeepNameMatch: false,
+      );
+      if (include.isNotEmpty) {
+        predicates.add('-a \\( $include \\)');
+      }
+      final exclude = _buildPatternClause(
+        excludePattern,
+        nameFlag: nameFlag,
+        basePath: sanitized,
+        allowDeepNameMatch: true,
+      );
+      if (exclude.isNotEmpty) {
+        predicates.add('-a ! \\( $exclude \\)');
+      }
+      return predicates.join(' ');
+    }
     final commandBase = "cd '${escapeSingleQuotes(sanitized)}' &&";
-    final dirsCommand =
-        "$commandBase find . -type d -name '$pattern' -print 2>/dev/null || true";
-    final filesCommand =
-        "$commandBase find . -type f -name '$pattern' -print 2>/dev/null || true";
-    final dirOutput = await _clientManager.runCommand(
-      host,
-      dirsCommand,
-      timeout: timeout,
-      onTimeout: onTimeout,
-    );
-    final fileOutput = await _clientManager.runCommand(
-      host,
-      filesCommand,
-      timeout: timeout,
-      onTimeout: onTimeout,
-    );
+    String commandLog;
+    String dirOutput;
+    String fileOutput;
+    if (searchContents) {
+      final grepFlags = <String>[
+        '-l',
+        if (!matchCase) '-i',
+        if (matchWholeWord) '-w',
+      ].join(' ');
+      final excludePrune = _buildPruneClause(
+        excludePattern,
+        nameFlag: nameFlag,
+        basePath: sanitized,
+      );
+      final prunePrefix = excludePrune.isEmpty
+          ? ''
+          : "\\( -type d \\( $excludePrune \\) -prune \\) -o ";
+      final filesCommand =
+          "$commandBase find . $prunePrefix\\( ${buildPredicate('f', includeName: false)} \\) -exec grep $grepFlags -- '$escapedQuery' {} + 2>/dev/null || true";
+      dirOutput = '';
+      fileOutput = await _clientManager.runCommand(
+        host,
+        filesCommand,
+        timeout: effectiveTimeout,
+        onTimeout: onTimeout,
+      );
+      commandLog = filesCommand;
+    } else {
+      final dirsCommand =
+          "$commandBase find . ${buildPredicate('d', includeName: true)} -print 2>/dev/null || true";
+      final filesCommand =
+          "$commandBase find . ${buildPredicate('f', includeName: true)} -print 2>/dev/null || true";
+      dirOutput = await _clientManager.runCommand(
+        host,
+        dirsCommand,
+        timeout: effectiveTimeout,
+        onTimeout: onTimeout,
+      );
+      fileOutput = await _clientManager.runCommand(
+        host,
+        filesCommand,
+        timeout: effectiveTimeout,
+        onTimeout: onTimeout,
+      );
+      commandLog = '$dirsCommand\n$filesCommand';
+    }
     final entries = <RemoteFileEntry>[];
     final now = DateTime.now();
     void addEntries(String output, {required bool isDirectory}) {
@@ -130,7 +195,7 @@ class BuiltInRemoteShellService extends RemoteShellService {
     emitDebugEvent(
       host: host,
       operation: 'searchPaths',
-      command: '$dirsCommand\n$filesCommand',
+      command: commandLog,
       output: '${dirOutput.trimRight()}\n${fileOutput.trimRight()}',
     );
     return entries;
@@ -503,6 +568,116 @@ class BuiltInRemoteShellService extends RemoteShellService {
       client?.close();
       rethrow;
     }
+  }
+
+  String _buildPatternClause(
+    String? rawPatterns, {
+    required String nameFlag,
+    required String basePath,
+    required bool allowDeepNameMatch,
+  }) {
+    final patterns = rawPatterns
+        ?.split(',')
+        .map((pattern) => pattern.trim())
+        .where((pattern) => pattern.isNotEmpty)
+        .toList();
+    if (patterns == null || patterns.isEmpty) {
+      return '';
+    }
+    final clauses = <String>[];
+    for (final pattern in patterns) {
+      final normalizedPattern = _normalizePathPattern(pattern, basePath);
+      if (normalizedPattern.contains('/')) {
+        final normalized = normalizedPattern;
+        final hadTrailingSlash = normalized.endsWith('/');
+        final trimmed = hadTrailingSlash
+            ? normalized.substring(0, normalized.length - 1)
+            : normalized;
+        final hasGlob =
+            trimmed.contains('*') || trimmed.contains('?') || trimmed.contains('[');
+        if (hasGlob) {
+          clauses.add("-path '${escapeSingleQuotes(trimmed)}'");
+        } else if (hadTrailingSlash) {
+          clauses.add("-path '${escapeSingleQuotes('$trimmed/*')}'");
+        } else {
+          clauses.add("-path '${escapeSingleQuotes(trimmed)}'");
+          clauses.add("-path '${escapeSingleQuotes('$trimmed/*')}'");
+        }
+      } else {
+        final escaped = escapeSingleQuotes(normalizedPattern);
+        if (allowDeepNameMatch) {
+          clauses.add("$nameFlag '$escaped'");
+          clauses.add("-path './$escaped'");
+          clauses.add("-path './$escaped/*'");
+          clauses.add("-path './*/$escaped/*'");
+        } else {
+          clauses.add("-path './$escaped'");
+          clauses.add("-path './$escaped/*'");
+        }
+      }
+    }
+    return clauses.join(' -o ');
+  }
+
+  String _buildPruneClause(
+    String? rawPatterns, {
+    required String nameFlag,
+    required String basePath,
+  }) {
+    final patterns = rawPatterns
+        ?.split(',')
+        .map((pattern) => pattern.trim())
+        .where((pattern) => pattern.isNotEmpty)
+        .toList();
+    if (patterns == null || patterns.isEmpty) {
+      return '';
+    }
+    final clauses = <String>[];
+    for (final pattern in patterns) {
+      final normalizedPattern = _normalizePathPattern(pattern, basePath);
+      if (normalizedPattern.contains('/')) {
+        final normalized = normalizedPattern;
+        final trimmed = normalized.endsWith('/')
+            ? normalized.substring(0, normalized.length - 1)
+            : normalized;
+        final hasGlob =
+            trimmed.contains('*') || trimmed.contains('?') || trimmed.contains('[');
+        if (hasGlob) {
+          clauses.add("-path '${escapeSingleQuotes(trimmed)}'");
+        } else {
+          clauses.add("-path '${escapeSingleQuotes(trimmed)}'");
+          clauses.add("-path '${escapeSingleQuotes('$trimmed/*')}'");
+        }
+      } else {
+        final escaped = escapeSingleQuotes(normalizedPattern);
+        clauses.add("$nameFlag '$escaped'");
+      }
+    }
+    return clauses.join(' -o ');
+  }
+
+  String _normalizePathPattern(String pattern, String basePath) {
+    var normalized = pattern.trim();
+    if (!normalized.contains('/')) {
+      return normalized;
+    }
+    if (normalized.startsWith(basePath)) {
+      normalized = normalized.substring(basePath.length);
+    }
+    if (normalized.startsWith('/')) {
+      normalized = normalized.substring(1);
+    }
+    if (normalized.isEmpty) {
+      return '.';
+    }
+    if (!normalized.startsWith('./') &&
+        !normalized.startsWith('/') &&
+        normalized.contains('/')) {
+      normalized = './$normalized';
+    } else if (normalized.contains('/') && normalized.startsWith('/')) {
+      normalized = '.${normalized}';
+    }
+    return normalized;
   }
 
   String? getActiveBuiltInKeyId(SshHost host) {

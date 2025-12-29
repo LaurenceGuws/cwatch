@@ -227,16 +227,37 @@ class _FileExplorerTabState extends State<FileExplorerTab>
           )
         : contentCard;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: EdgeInsets.only(bottom: spacing.md),
-          child: _buildPathNavigator(context),
+    return Shortcuts(
+      shortcuts: const {
+        SingleActivator(LogicalKeyboardKey.keyF, control: true):
+            _ToggleSearchIntent(),
+        SingleActivator(LogicalKeyboardKey.keyF, meta: true):
+            _ToggleSearchIntent(),
+      },
+      child: Actions(
+        actions: {
+          _ToggleSearchIntent: CallbackAction<_ToggleSearchIntent>(
+            onInvoke: (_) {
+              unawaited(_controller.setSearchActive(!_controller.searchActive));
+              return null;
+            },
+          ),
+        },
+        child: Focus(
+          autofocus: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.only(bottom: spacing.md),
+                child: _buildPathNavigator(context),
+              ),
+              SizedBox(height: spacing.lg),
+              Expanded(child: dropWrapped),
+            ],
+          ),
         ),
-        SizedBox(height: spacing.lg),
-        Expanded(child: dropWrapped),
-      ],
+      ),
     );
   }
 
@@ -258,6 +279,16 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       onSearchSubmitted: (query) {
         unawaited(_controller.searchCurrentPath(query));
       },
+      searchInclude: _controller.searchInclude,
+      searchExclude: _controller.searchExclude,
+      searchMatchCase: _controller.searchMatchCase,
+      searchMatchWholeWord: _controller.searchMatchWholeWord,
+      onSearchIncludeChanged: _controller.setSearchInclude,
+      onSearchExcludeChanged: _controller.setSearchExclude,
+      onSearchMatchCaseChanged: _controller.toggleSearchMatchCase,
+      onSearchMatchWholeWordChanged: _controller.toggleSearchMatchWholeWord,
+      searchContents: _controller.searchContents,
+      onSearchContentsChanged: _controller.setSearchContents,
     );
   }
 
@@ -871,4 +902,8 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     }
     queueTabOptions(controller, options, useBase: true);
   }
+}
+
+class _ToggleSearchIntent extends Intent {
+  const _ToggleSearchIntent();
 }

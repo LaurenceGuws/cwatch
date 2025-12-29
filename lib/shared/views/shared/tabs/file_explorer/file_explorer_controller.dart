@@ -86,6 +86,11 @@ class FileExplorerController extends ChangeNotifier {
   final Set<String> _prefetchedPaths = {};
   bool searchActive = false;
   String searchQuery = '';
+  String searchInclude = '';
+  String searchExclude = '';
+  bool searchMatchCase = false;
+  bool searchMatchWholeWord = false;
+  bool searchContents = false;
 
   String currentPath = '/';
   bool loading = true;
@@ -294,6 +299,9 @@ class FileExplorerController extends ChangeNotifier {
     searchActive = value;
     searchQuery = '';
     if (!searchActive) {
+      searchContents = false;
+    }
+    if (!searchActive) {
       await loadPath(currentPath, forceReload: true);
       return;
     }
@@ -321,6 +329,11 @@ class FileExplorerController extends ChangeNotifier {
       currentPath,
       query,
       currentPath: currentPath,
+      includePattern: searchInclude,
+      excludePattern: searchExclude,
+      matchCase: searchMatchCase,
+      matchWholeWord: searchMatchWholeWord,
+      searchContents: searchContents,
     );
     if (result.error != null) {
       loading = false;
@@ -344,6 +357,40 @@ class FileExplorerController extends ChangeNotifier {
       return;
     }
     searchQuery = query;
+    notifyListeners();
+  }
+
+  void setSearchInclude(String value) {
+    if (searchInclude == value) {
+      return;
+    }
+    searchInclude = value;
+    notifyListeners();
+  }
+
+  void setSearchExclude(String value) {
+    if (searchExclude == value) {
+      return;
+    }
+    searchExclude = value;
+    notifyListeners();
+  }
+
+  void toggleSearchMatchCase() {
+    searchMatchCase = !searchMatchCase;
+    notifyListeners();
+  }
+
+  void toggleSearchMatchWholeWord() {
+    searchMatchWholeWord = !searchMatchWholeWord;
+    notifyListeners();
+  }
+
+  void setSearchContents(bool value) {
+    if (searchContents == value) {
+      return;
+    }
+    searchContents = value;
     notifyListeners();
   }
 

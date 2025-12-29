@@ -1,5 +1,6 @@
 import '../../../../../models/remote_file_entry.dart';
 import '../../../../../models/ssh_host.dart';
+import '../../../../../services/logging/app_logger.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../../services/ssh/remote_editor_cache.dart';
 import 'path_utils.dart';
@@ -80,14 +81,41 @@ class PathLoadingService {
     String basePath,
     String query, {
     String? currentPath,
+    String? includePattern,
+    String? excludePattern,
+    bool matchCase = false,
+    bool matchWholeWord = false,
+    bool searchContents = false,
   }) async {
     final target = PathUtils.normalizePath(basePath, currentPath: currentPath);
     try {
       final entries = await runShellWrapper(
-        () => shellService.searchPaths(host, target, query),
+        () => shellService.searchPaths(
+          host,
+          target,
+          query,
+          includePattern: includePattern,
+          excludePattern: excludePattern,
+          matchCase: matchCase,
+          matchWholeWord: matchWholeWord,
+          searchContents: searchContents,
+        ),
+      );
+      final hitNames =
+          entries.map((entry) => entry.name).take(50).join(', ');
+      AppLogger.d(
+        'Search hits (${entries.length}) base="$target" query="$query" '
+        'include="${includePattern ?? ''}" exclude="${excludePattern ?? ''}" '
+        'contents=$searchContents: $hitNames',
+        tag: 'ExplorerSearch',
       );
       return PathSearchResult.success(target: target, entries: entries);
     } catch (error) {
+      AppLogger.w(
+        'Search failed base="$target" query="$query": $error',
+        tag: 'ExplorerSearch',
+        error: error,
+      );
       return PathSearchResult.error(target: target, error: error.toString());
     }
   }
