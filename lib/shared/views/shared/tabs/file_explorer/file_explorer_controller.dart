@@ -91,6 +91,8 @@ class FileExplorerController extends ChangeNotifier {
   bool searchMatchCase = false;
   bool searchMatchWholeWord = false;
   bool searchContents = false;
+  int _searchGeneration = 0;
+  RemoteCommandCancellation? _searchCancellation;
 
   String currentPath = '/';
   bool loading = true;
@@ -321,9 +323,27 @@ class FileExplorerController extends ChangeNotifier {
       );
       return;
     }
+    _searchCancellation?.cancel();
+    _searchCancellation = RemoteCommandCancellation();
     loading = true;
     error = null;
+    entries.clear();
+    selectionController.clearSelection();
     notifyListeners();
+
+    final generation = ++_searchGeneration;
+    final streamedKeys = <String>{};
+    void handleEntry(RemoteFileEntry entry) {
+      if (generation != _searchGeneration) {
+        return;
+      }
+      final key = '${entry.isDirectory ? 'd' : 'f'}:${entry.name}';
+      if (!streamedKeys.add(key)) {
+        return;
+      }
+      entries.add(entry);
+      notifyListeners();
+    }
 
     final result = await _pathLoadingService.searchPath(
       currentPath,
@@ -334,7 +354,13 @@ class FileExplorerController extends ChangeNotifier {
       matchCase: searchMatchCase,
       matchWholeWord: searchMatchWholeWord,
       searchContents: searchContents,
+      onEntry: handleEntry,
+      cancellation: _searchCancellation,
     );
+    if (generation != _searchGeneration) {
+      return;
+    }
+    _searchCancellation = null;
     if (result.error != null) {
       loading = false;
       error = result.error;
@@ -347,7 +373,6 @@ class FileExplorerController extends ChangeNotifier {
     entries
       ..clear()
       ..addAll(result.entries!);
-    selectionController.clearSelection();
     loading = false;
     notifyListeners();
   }
@@ -357,6 +382,18 @@ class FileExplorerController extends ChangeNotifier {
       return;
     }
     searchQuery = query;
+    notifyListeners();
+  }
+
+  void cancelSearch() {
+    if (!loading) {
+      return;
+    }
+    _searchCancellation?.cancel();
+    _searchCancellation = null;
+    _searchGeneration++;
+    loading = false;
+    error = null;
     notifyListeners();
   }
 

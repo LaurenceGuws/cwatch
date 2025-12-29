@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -46,11 +47,14 @@ class DockerContainerShellService extends RemoteShellService {
     bool matchCase = false,
     bool matchWholeWord = false,
     bool searchContents = false,
-    Duration timeout = const Duration(seconds: 15),
+    void Function(RemoteFileEntry entry)? onEntry,
+    RemoteCommandCancellation? cancellation,
+    Duration timeout = const Duration(seconds: 30),
     RunTimeoutHandler? onTimeout,
   }) async {
-    final effectiveTimeout =
-        searchContents ? const Duration(minutes: 2) : timeout;
+    final effectiveTimeout = searchContents
+        ? const Duration(minutes: 2)
+        : timeout;
     final sanitized = sanitizePath(basePath);
     final escapedQuery = escapeSingleQuotes(query.trim());
     final pattern = escapedQuery.isEmpty
@@ -82,9 +86,32 @@ class DockerContainerShellService extends RemoteShellService {
       }
       return predicates.join(' ');
     }
+
     final commandBase = "cd '${escapeSingleQuotes(sanitized)}' &&";
     String dirOutput;
     String fileOutput;
+    final entries = <RemoteFileEntry>[];
+    final now = DateTime.now();
+    void addEntries(String output, {required bool isDirectory}) {
+      for (final line in const LineSplitter().convert(output)) {
+        if (line.isEmpty || line == '.' || line == './') {
+          continue;
+        }
+        final name = line.startsWith('./') ? line.substring(2) : line;
+        if (name.isEmpty) {
+          continue;
+        }
+        final entry = RemoteFileEntry(
+          name: name,
+          isDirectory: isDirectory,
+          sizeBytes: 0,
+          modified: now,
+        );
+        entries.add(entry);
+        onEntry?.call(entry);
+      }
+    }
+
     if (searchContents) {
       final grepFlags = <String>[
         '-l',
@@ -102,53 +129,50 @@ class DockerContainerShellService extends RemoteShellService {
       final filesCommand =
           "$commandBase find . $prunePrefix\\( ${buildPredicate('f', includeName: false)} \\) -exec grep $grepFlags -- '$escapedQuery' {} + 2>/dev/null || true";
       dirOutput = '';
-      fileOutput = await runCommand(
+      fileOutput = await runCommandStreaming(
         host,
         filesCommand,
         timeout: effectiveTimeout,
         onTimeout: onTimeout,
+        cancellation: cancellation,
+        onStdoutLine: (line) {
+          addEntries(line, isDirectory: false);
+        },
       );
     } else {
+      final printFlag =
+          onEntry != null ? "-exec printf '%s\\n' {} \\;" : '-print';
       final dirsCommand =
-          "$commandBase find . ${buildPredicate('d', includeName: true)} -print 2>/dev/null || true";
+          "$commandBase find . ${buildPredicate('d', includeName: true)} $printFlag 2>/dev/null || true";
       final filesCommand =
-          "$commandBase find . ${buildPredicate('f', includeName: true)} -print 2>/dev/null || true";
-      dirOutput = await runCommand(
+          "$commandBase find . ${buildPredicate('f', includeName: true)} $printFlag 2>/dev/null || true";
+      final dirFuture = runCommandStreaming(
         host,
         dirsCommand,
         timeout: effectiveTimeout,
         onTimeout: onTimeout,
+        cancellation: cancellation,
+        onStdoutLine: (line) {
+          addEntries(line, isDirectory: true);
+        },
       );
-      fileOutput = await runCommand(
+      final fileFuture = runCommandStreaming(
         host,
         filesCommand,
         timeout: effectiveTimeout,
         onTimeout: onTimeout,
+        cancellation: cancellation,
+        onStdoutLine: (line) {
+          addEntries(line, isDirectory: false);
+        },
       );
+      final outputs = await Future.wait([dirFuture, fileFuture]);
+      dirOutput = outputs[0];
+      fileOutput = outputs[1];
     }
-    final entries = <RemoteFileEntry>[];
-    final now = DateTime.now();
-    void addEntries(String output, {required bool isDirectory}) {
-      for (final line in const LineSplitter().convert(output)) {
-        if (line.isEmpty || line == '.' || line == './') {
-          continue;
-        }
-        final name = line.startsWith('./') ? line.substring(2) : line;
-        if (name.isEmpty) {
-          continue;
-        }
-        entries.add(
-          RemoteFileEntry(
-            name: name,
-            isDirectory: isDirectory,
-            sizeBytes: 0,
-            modified: now,
-          ),
-        );
-      }
+    if (searchContents) {
+      addEntries(dirOutput, isDirectory: true);
     }
-    addEntries(dirOutput, isDirectory: true);
-    addEntries(fileOutput, isDirectory: false);
     return entries;
   }
 
@@ -171,7 +195,7 @@ class DockerContainerShellService extends RemoteShellService {
   Future<String> readFile(
     SshHost host,
     String path, {
-    Duration timeout = const Duration(seconds: 15),
+    Duration timeout = const Duration(seconds: 30),
     RunTimeoutHandler? onTimeout,
   }) {
     return runCommand(
@@ -187,7 +211,7 @@ class DockerContainerShellService extends RemoteShellService {
     SshHost host,
     String path,
     String contents, {
-    Duration timeout = const Duration(seconds: 15),
+    Duration timeout = const Duration(seconds: 30),
     RunTimeoutHandler? onTimeout,
   }) async {
     final tempDir = await _makeTempDir(timeout: timeout);
@@ -359,6 +383,29 @@ class DockerContainerShellService extends RemoteShellService {
   }
 
   @override
+  Future<String> runCommandStreaming(
+    SshHost host,
+    String command, {
+    Duration timeout = const Duration(seconds: 10),
+    RunTimeoutHandler? onTimeout,
+    RemoteCommandCancellation? cancellation,
+    void Function(String line)? onStdoutLine,
+    void Function(String line)? onStderrLine,
+  }) {
+    final wrapped =
+        'docker exec $containerId sh -lc ${_escapeSingleCommand(command)}';
+    return baseShell.runCommandStreaming(
+      this.host,
+      wrapped,
+      timeout: timeout,
+      onTimeout: onTimeout,
+      cancellation: cancellation,
+      onStdoutLine: onStdoutLine,
+      onStderrLine: onStderrLine,
+    );
+  }
+
+  @override
   Future<TerminalSession> createTerminalSession(
     SshHost host, {
     required TerminalSessionOptions options,
@@ -430,11 +477,14 @@ class LocalDockerContainerShellService extends RemoteShellService {
     bool matchCase = false,
     bool matchWholeWord = false,
     bool searchContents = false,
-    Duration timeout = const Duration(seconds: 15),
+    void Function(RemoteFileEntry entry)? onEntry,
+    RemoteCommandCancellation? cancellation,
+    Duration timeout = const Duration(seconds: 30),
     RunTimeoutHandler? onTimeout,
   }) async {
-    final effectiveTimeout =
-        searchContents ? const Duration(minutes: 2) : timeout;
+    final effectiveTimeout = searchContents
+        ? const Duration(minutes: 2)
+        : timeout;
     final sanitized = sanitizePath(basePath);
     final escapedQuery = escapeSingleQuotes(query.trim());
     final pattern = escapedQuery.isEmpty
@@ -466,9 +516,32 @@ class LocalDockerContainerShellService extends RemoteShellService {
       }
       return predicates.join(' ');
     }
+
     final commandBase = "cd '${escapeSingleQuotes(sanitized)}' &&";
     String dirOutput;
     String fileOutput;
+    final entries = <RemoteFileEntry>[];
+    final now = DateTime.now();
+    void addEntries(String output, {required bool isDirectory}) {
+      for (final line in const LineSplitter().convert(output)) {
+        if (line.isEmpty || line == '.' || line == './') {
+          continue;
+        }
+        final name = line.startsWith('./') ? line.substring(2) : line;
+        if (name.isEmpty) {
+          continue;
+        }
+        final entry = RemoteFileEntry(
+          name: name,
+          isDirectory: isDirectory,
+          sizeBytes: 0,
+          modified: now,
+        );
+        entries.add(entry);
+        onEntry?.call(entry);
+      }
+    }
+
     if (searchContents) {
       final grepFlags = <String>[
         '-l',
@@ -486,38 +559,50 @@ class LocalDockerContainerShellService extends RemoteShellService {
       final filesCommand =
           "$commandBase find . $prunePrefix\\( ${buildPredicate('f', includeName: false)} \\) -exec grep $grepFlags -- '$escapedQuery' {} + 2>/dev/null || true";
       dirOutput = '';
-      fileOutput = await runCommand(host, filesCommand, timeout: effectiveTimeout);
+      fileOutput = await runCommandStreaming(
+        host,
+        filesCommand,
+        timeout: effectiveTimeout,
+        onTimeout: onTimeout,
+        cancellation: cancellation,
+        onStdoutLine: (line) {
+          addEntries(line, isDirectory: false);
+        },
+      );
     } else {
+      final printFlag =
+          onEntry != null ? "-exec printf '%s\\n' {} \\;" : '-print';
       final dirsCommand =
-          "$commandBase find . ${buildPredicate('d', includeName: true)} -print 2>/dev/null || true";
+          "$commandBase find . ${buildPredicate('d', includeName: true)} $printFlag 2>/dev/null || true";
       final filesCommand =
-          "$commandBase find . ${buildPredicate('f', includeName: true)} -print 2>/dev/null || true";
-      dirOutput = await runCommand(host, dirsCommand, timeout: effectiveTimeout);
-      fileOutput = await runCommand(host, filesCommand, timeout: effectiveTimeout);
+          "$commandBase find . ${buildPredicate('f', includeName: true)} $printFlag 2>/dev/null || true";
+      final dirFuture = runCommandStreaming(
+        host,
+        dirsCommand,
+        timeout: effectiveTimeout,
+        onTimeout: onTimeout,
+        cancellation: cancellation,
+        onStdoutLine: (line) {
+          addEntries(line, isDirectory: true);
+        },
+      );
+      final fileFuture = runCommandStreaming(
+        host,
+        filesCommand,
+        timeout: effectiveTimeout,
+        onTimeout: onTimeout,
+        cancellation: cancellation,
+        onStdoutLine: (line) {
+          addEntries(line, isDirectory: false);
+        },
+      );
+      final outputs = await Future.wait([dirFuture, fileFuture]);
+      dirOutput = outputs[0];
+      fileOutput = outputs[1];
     }
-    final entries = <RemoteFileEntry>[];
-    final now = DateTime.now();
-    void addEntries(String output, {required bool isDirectory}) {
-      for (final line in const LineSplitter().convert(output)) {
-        if (line.isEmpty || line == '.' || line == './') {
-          continue;
-        }
-        final name = line.startsWith('./') ? line.substring(2) : line;
-        if (name.isEmpty) {
-          continue;
-        }
-        entries.add(
-          RemoteFileEntry(
-            name: name,
-            isDirectory: isDirectory,
-            sizeBytes: 0,
-            modified: now,
-          ),
-        );
-      }
+    if (searchContents) {
+      addEntries(dirOutput, isDirectory: true);
     }
-    addEntries(dirOutput, isDirectory: true);
-    addEntries(fileOutput, isDirectory: false);
     return entries;
   }
 
@@ -676,6 +761,27 @@ class LocalDockerContainerShellService extends RemoteShellService {
   }
 
   @override
+  Future<String> runCommandStreaming(
+    SshHost host,
+    String command, {
+    Duration timeout = const Duration(seconds: 10),
+    RunTimeoutHandler? onTimeout,
+    RemoteCommandCancellation? cancellation,
+    void Function(String line)? onStdoutLine,
+    void Function(String line)? onStderrLine,
+  }) async {
+    return _runDockerStreaming(
+      host,
+      ['exec', containerId, 'sh', '-lc', command],
+      timeout: timeout,
+      onTimeout: onTimeout,
+      cancellation: cancellation,
+      onStdoutLine: onStdoutLine,
+      onStderrLine: onStderrLine,
+    );
+  }
+
+  @override
   Future<TerminalSession> createTerminalSession(
     SshHost host, {
     required TerminalSessionOptions options,
@@ -701,6 +807,111 @@ class LocalDockerContainerShellService extends RemoteShellService {
       );
     }
     return (result.stdout as String? ?? '').trimRight();
+  }
+
+  Future<String> _runDockerStreaming(
+    SshHost host,
+    List<String> args, {
+    Duration timeout = const Duration(seconds: 10),
+    RunTimeoutHandler? onTimeout,
+    RemoteCommandCancellation? cancellation,
+    void Function(String line)? onStdoutLine,
+    void Function(String line)? onStderrLine,
+  }) async {
+    final commandArgs = <String>[];
+    if (contextName?.trim().isNotEmpty == true) {
+      commandArgs.addAll(['--context', contextName!.trim()]);
+    }
+    commandArgs.addAll(args);
+    final process = await Process.start('docker', commandArgs);
+    final stdoutBuffer = StringBuffer();
+    final stderrBuffer = StringBuffer();
+    var stdoutRemainder = '';
+    var stderrRemainder = '';
+
+    Future<void> handleStream(
+      Stream<List<int>> stream,
+      StringBuffer buffer,
+      void Function(String line)? onLine,
+      void Function(String value) setRemainder,
+      String Function() getRemainder,
+    ) async {
+      await stream.transform(const Utf8Decoder(allowMalformed: true)).forEach((
+        chunk,
+      ) {
+        buffer.write(chunk);
+        if (onLine == null) {
+          return;
+        }
+        final combined = getRemainder() + chunk;
+        final parts = combined.split('\n');
+        setRemainder(parts.removeLast());
+        for (final line in parts) {
+          onLine(line);
+        }
+      });
+      if (onLine != null) {
+        final remainder = getRemainder();
+        if (remainder.isNotEmpty) {
+          onLine(remainder);
+        }
+      }
+    }
+
+    if (cancellation?.isCancelled == true) {
+      process.kill();
+      throw const RemoteCommandCancelled();
+    }
+    cancellation?.onCancel(() {
+      process.kill();
+    });
+    final stdoutFuture = handleStream(
+      process.stdout,
+      stdoutBuffer,
+      onStdoutLine,
+      (value) => stdoutRemainder = value,
+      () => stdoutRemainder,
+    );
+    final stderrFuture = handleStream(
+      process.stderr,
+      stderrBuffer,
+      onStderrLine,
+      (value) => stderrRemainder = value,
+      () => stderrRemainder,
+    );
+
+    final stopwatch = Stopwatch()..start();
+    var nextTimeout = timeout;
+    while (true) {
+      try {
+        final exitCode = await process.exitCode.timeout(nextTimeout);
+        await Future.wait([stdoutFuture, stderrFuture]);
+        if (exitCode != 0) {
+          throw Exception(
+            'docker ${args.join(' ')} failed: ${stderrBuffer.toString().trim()}',
+          );
+        }
+        return stdoutBuffer.toString().trimRight();
+      } on TimeoutException {
+        final resolution = onTimeout != null
+            ? await onTimeout(
+                TimeoutContext(
+                  host: host,
+                  commandDescription: 'docker ${args.join(' ')}',
+                  elapsed: stopwatch.elapsed,
+                ),
+              )
+            : const TimeoutResolution.kill();
+        if (resolution.shouldKill) {
+          process.kill();
+          throw TimeoutException(
+            'docker command timed out after ${stopwatch.elapsed.inSeconds}s',
+            stopwatch.elapsed,
+          );
+        }
+        nextTimeout = resolution.extendBy ?? timeout;
+      }
+    }
   }
 
   String _escape(String path) => "'${path.replaceAll("'", "\\'")}'";
@@ -731,7 +942,9 @@ String _buildPatternClause(
           ? normalized.substring(0, normalized.length - 1)
           : normalized;
       final hasGlob =
-          trimmed.contains('*') || trimmed.contains('?') || trimmed.contains('[');
+          trimmed.contains('*') ||
+          trimmed.contains('?') ||
+          trimmed.contains('[');
       if (hasGlob) {
         clauses.add("-path '${trimmed.replaceAll("'", r"'\''")}'");
       } else if (hadTrailingSlash) {
@@ -778,7 +991,9 @@ String _buildPruneClause(
           ? normalized.substring(0, normalized.length - 1)
           : normalized;
       final hasGlob =
-          trimmed.contains('*') || trimmed.contains('?') || trimmed.contains('[');
+          trimmed.contains('*') ||
+          trimmed.contains('?') ||
+          trimmed.contains('[');
       if (hasGlob) {
         clauses.add("-path '${trimmed.replaceAll("'", r"'\''")}'");
       } else {
@@ -812,7 +1027,7 @@ String _normalizePathPattern(String pattern, String basePath) {
       normalized.contains('/')) {
     normalized = './$normalized';
   } else if (normalized.contains('/') && normalized.startsWith('/')) {
-    normalized = '.${normalized}';
+    normalized = '.$normalized';
   }
   return normalized;
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:dartssh2/dartssh2.dart';
@@ -102,6 +103,114 @@ class BuiltInSshClientManager {
       );
     });
     final output = utf8.decode(bytes, allowMalformed: true);
+    logBuiltInSsh(
+      'Command on ${host.name} completed. Output length=${output.length}',
+    );
+    return output;
+  }
+
+  Future<String> runCommandStreaming(
+    SshHost host,
+    String command, {
+    Duration timeout = const Duration(seconds: 10),
+    RunTimeoutHandler? onTimeout,
+    RemoteCommandCancellation? cancellation,
+    void Function(String line)? onStdoutLine,
+    void Function(String line)? onStderrLine,
+  }) async {
+    final safeCommand = _prependNoHistory(command);
+    logBuiltInSsh('Running command on ${host.name}: $safeCommand');
+    final stdoutBuffer = StringBuffer();
+    final stderrBuffer = StringBuffer();
+    var stdoutRemainder = '';
+    var stderrRemainder = '';
+
+    Future<void> handleStream(
+      Stream<Uint8List> stream,
+      StringBuffer buffer,
+      void Function(String line)? onLine,
+      void Function(String value) setRemainder,
+      String Function() getRemainder,
+      void Function() onDone,
+    ) async {
+      await stream
+          .cast<List<int>>()
+          .transform(const Utf8Decoder(allowMalformed: true))
+          .forEach((chunk) {
+        buffer.write(chunk);
+        if (onLine == null) {
+          return;
+        }
+        final combined = getRemainder() + chunk;
+        final parts = combined.split('\n');
+        setRemainder(parts.removeLast());
+        for (final line in parts) {
+          onLine(line);
+        }
+      });
+      if (onLine != null) {
+        final remainder = getRemainder();
+        if (remainder.isNotEmpty) {
+          onLine(remainder);
+        }
+      }
+      onDone();
+    }
+
+    final bytes = await _withClient(host, (client) async {
+      final session = await client.execute(safeCommand);
+      if (cancellation?.isCancelled == true) {
+        session.close();
+        throw const RemoteCommandCancelled();
+      }
+      cancellation?.onCancel(() {
+        try {
+          session.close();
+        } catch (_) {}
+        try {
+          client.close();
+        } catch (_) {}
+      });
+      final stdoutDone = Completer<void>();
+      final stderrDone = Completer<void>();
+      unawaited(
+        handleStream(
+          session.stdout,
+          stdoutBuffer,
+          onStdoutLine,
+          (value) => stdoutRemainder = value,
+          () => stdoutRemainder,
+          stdoutDone.complete,
+        ),
+      );
+      unawaited(
+        handleStream(
+          session.stderr,
+          stderrBuffer,
+          onStderrLine,
+          (value) => stderrRemainder = value,
+          () => stderrRemainder,
+          stderrDone.complete,
+        ),
+      );
+      await _waitWithTimeout(
+        future: Future.wait([session.done, stdoutDone.future, stderrDone.future]),
+        timeout: timeout,
+        host: host,
+        commandDescription: safeCommand,
+        onTimeout: onTimeout,
+        onKill: () {
+          try {
+            session.close();
+          } catch (_) {}
+          try {
+            client.close();
+          } catch (_) {}
+        },
+      );
+      return stdoutBuffer.toString();
+    });
+    final output = bytes;
     logBuiltInSsh(
       'Command on ${host.name} completed. Output length=${output.length}',
     );

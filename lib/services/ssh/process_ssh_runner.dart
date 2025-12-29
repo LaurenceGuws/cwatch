@@ -80,6 +80,119 @@ class ProcessSshRunner {
     );
   }
 
+  Future<RunResult> runProcessStreaming(
+    List<String> command, {
+    Duration timeout = const Duration(seconds: 10),
+    SshHost? hostForErrors,
+    void Function(SshHost host, ProcessResult result)? onSshError,
+    RunTimeoutHandler? onTimeout,
+    RemoteCommandCancellation? cancellation,
+    void Function(String line)? onStdoutLine,
+    void Function(String line)? onStderrLine,
+  }) async {
+    final hostLabel = hostForErrors?.name ?? 'local';
+    _logProcess('Running command on $hostLabel: ${command.join(' ')}');
+    final process = await Process.start(
+      command.first,
+      command.skip(1).toList(),
+      environment: {...Platform.environment, ..._historySanitizedEnv},
+      runInShell: false,
+    );
+    final stdoutBuffer = StringBuffer();
+    final stderrBuffer = StringBuffer();
+    var stdoutRemainder = '';
+    var stderrRemainder = '';
+
+    Future<void> handleStream(
+      Stream<List<int>> stream,
+      StringBuffer buffer,
+      void Function(String line)? onLine,
+      void Function(String value) setRemainder,
+      String Function() getRemainder,
+    ) async {
+      await stream
+          .transform(const Utf8Decoder(allowMalformed: true))
+          .forEach((chunk) {
+        buffer.write(chunk);
+        if (onLine == null) {
+          return;
+        }
+        final combined = getRemainder() + chunk;
+        final parts = combined.split('\n');
+        setRemainder(parts.removeLast());
+        for (final line in parts) {
+          onLine(line);
+        }
+      });
+      if (onLine != null) {
+        final remainder = getRemainder();
+        if (remainder.isNotEmpty) {
+          onLine(remainder);
+        }
+      }
+    }
+
+    if (cancellation?.isCancelled == true) {
+      process.kill();
+      throw const RemoteCommandCancelled();
+    }
+    cancellation?.onCancel(() {
+      process.kill();
+    });
+    final stdoutFuture = handleStream(
+      process.stdout,
+      stdoutBuffer,
+      onStdoutLine,
+      (value) => stdoutRemainder = value,
+      () => stdoutRemainder,
+    );
+    final stderrFuture = handleStream(
+      process.stderr,
+      stderrBuffer,
+      onStderrLine,
+      (value) => stderrRemainder = value,
+      () => stderrRemainder,
+    );
+
+    final stopwatch = Stopwatch()..start();
+    final exitCode = await _waitForExit(
+      process,
+      timeout: timeout,
+      hostForErrors: hostForErrors,
+      onTimeout: onTimeout,
+      elapsed: () => stopwatch.elapsed,
+      commandDescription: command.join(' '),
+    );
+    await Future.wait([stdoutFuture, stderrFuture]);
+    final stdoutStr = stdoutBuffer.toString();
+    final stderrStr = stderrBuffer.toString();
+    final processResult = ProcessResult(
+      process.pid,
+      exitCode,
+      stdoutStr,
+      stderrStr,
+    );
+    if (exitCode != 0) {
+      if (hostForErrors != null &&
+          (command.first.contains('ssh') ||
+              command.contains('ssh') ||
+              command.first.contains('scp') ||
+              command.contains('scp'))) {
+        onSshError?.call(hostForErrors, processResult);
+      }
+      throw Exception(stderrStr.isNotEmpty ? stderrStr : stdoutStr);
+    }
+    final commandString = command.join(' ');
+    _logProcess(
+      'Command on $hostLabel completed. Output length=${stdoutStr.length}',
+    );
+    return RunResult(
+      command: commandString,
+      stdout: stdoutStr,
+      stderr: stderrStr,
+    );
+  }
+
   Future<int> _waitForExit(
     Process process, {
     required Duration timeout,
@@ -137,6 +250,30 @@ class ProcessSshRunner {
       hostForErrors: host,
       onSshError: onSshError,
       onTimeout: onTimeout,
+    );
+  }
+
+  Future<RunResult> runSshStreaming(
+    SshHost host,
+    String command, {
+    Duration timeout = const Duration(seconds: 10),
+    void Function(SshHost host, ProcessResult result)? onSshError,
+    RunTimeoutHandler? onTimeout,
+    String? knownHostsPath,
+    RemoteCommandCancellation? cancellation,
+    void Function(String line)? onStdoutLine,
+    void Function(String line)? onStderrLine,
+  }) {
+    final sanitizedCommand = _prependNoHistory(command);
+    return runProcessStreaming(
+      buildSshCommand(host, sanitizedCommand, knownHostsPath: knownHostsPath),
+      timeout: timeout,
+      hostForErrors: host,
+      onSshError: onSshError,
+      onTimeout: onTimeout,
+      cancellation: cancellation,
+      onStdoutLine: onStdoutLine,
+      onStderrLine: onStderrLine,
     );
   }
 

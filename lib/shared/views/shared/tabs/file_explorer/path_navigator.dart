@@ -16,9 +16,11 @@ class PathNavigator extends StatefulWidget {
     this.onPrefetchPath,
     required this.searchActive,
     required this.searchQuery,
+    this.searchInProgress = false,
     this.onSearchActiveChanged,
     this.onSearchQueryChanged,
     this.onSearchSubmitted,
+    this.onSearchCancelled,
     required this.searchInclude,
     required this.searchExclude,
     required this.searchMatchCase,
@@ -40,9 +42,11 @@ class PathNavigator extends StatefulWidget {
   final ValueChanged<String>? onPrefetchPath;
   final bool searchActive;
   final String searchQuery;
+  final bool searchInProgress;
   final ValueChanged<bool>? onSearchActiveChanged;
   final ValueChanged<String>? onSearchQueryChanged;
   final ValueChanged<String>? onSearchSubmitted;
+  final VoidCallback? onSearchCancelled;
   final String searchInclude;
   final String searchExclude;
   final bool searchMatchCase;
@@ -60,12 +64,16 @@ class PathNavigator extends StatefulWidget {
 
 class _PathNavigatorState extends State<PathNavigator> {
   TextEditingController? _pathFieldController;
+  bool _searchExpanded = true;
 
   @override
   void didUpdateWidget(PathNavigator oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.currentPath != widget.currentPath) {
       _pathFieldController?.text = widget.currentPath;
+    }
+    if (!oldWidget.searchActive && widget.searchActive) {
+      _searchExpanded = true;
     }
   }
 
@@ -123,41 +131,81 @@ class _PathNavigatorState extends State<PathNavigator> {
               toggle,
               SizedBox(width: spacing.md),
               Expanded(child: content),
-              SizedBox(width: spacing.sm),
-              IconButton(
-                icon: Icon(
-                  widget.searchActive ? Icons.close : Icons.search,
-                  size: 16,
-                ),
-                tooltip: widget.searchActive ? 'Close search' : 'Search',
-                onPressed: () {
-                  widget.onSearchActiveChanged?.call(!widget.searchActive);
-                },
-                style: IconButton.styleFrom(
-                  padding: EdgeInsets.all(spacing.xs),
-                  minimumSize: const Size(28, 28),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-              ),
             ],
           ),
         ),
         if (widget.searchActive) ...[
           SizedBox(height: spacing.sm),
-          _SearchPanel(
-            query: widget.searchQuery,
-            include: widget.searchInclude,
-            exclude: widget.searchExclude,
-            matchCase: widget.searchMatchCase,
-            matchWholeWord: widget.searchMatchWholeWord,
-            searchContents: widget.searchContents,
-            onQueryChanged: widget.onSearchQueryChanged,
-            onSearchSubmitted: widget.onSearchSubmitted,
-            onIncludeChanged: widget.onSearchIncludeChanged,
-            onExcludeChanged: widget.onSearchExcludeChanged,
-            onMatchCaseToggled: widget.onSearchMatchCaseChanged,
-            onMatchWholeWordToggled: widget.onSearchMatchWholeWordChanged,
-            onSearchContentsChanged: widget.onSearchContentsChanged,
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: Padding(
+              padding: spacing.inset(horizontal: 1, vertical: 0.75),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  InkWell(
+                    onTap: () {
+                      setState(() => _searchExpanded = !_searchExpanded);
+                    },
+                    child: Row(
+                      children: [
+                        Icon(Icons.search, size: 16, color: theme.hintColor),
+                        SizedBox(width: spacing.xs),
+                        const Text('Search'),
+                        const Spacer(),
+                        if (widget.searchInProgress) ...[
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                          SizedBox(width: spacing.xs),
+                          IconButton(
+                            icon: const Icon(Icons.close, size: 16),
+                            tooltip: 'Stop search',
+                            onPressed: widget.onSearchCancelled,
+                            style: IconButton.styleFrom(
+                              padding: EdgeInsets.all(spacing.xs),
+                              minimumSize: const Size(28, 28),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ),
+                        ],
+                        Icon(
+                          _searchExpanded
+                              ? Icons.expand_less
+                              : Icons.expand_more,
+                          size: 16,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_searchExpanded) ...[
+                    SizedBox(height: spacing.md),
+                    _SearchPanel(
+                      query: widget.searchQuery,
+                      include: widget.searchInclude,
+                      exclude: widget.searchExclude,
+                      matchCase: widget.searchMatchCase,
+                      matchWholeWord: widget.searchMatchWholeWord,
+                      searchContents: widget.searchContents,
+                      searchInProgress: widget.searchInProgress,
+                      onSearchCancelled: widget.onSearchCancelled,
+                      onQueryChanged: widget.onSearchQueryChanged,
+                      onSearchSubmitted: widget.onSearchSubmitted,
+                      onIncludeChanged: widget.onSearchIncludeChanged,
+                      onExcludeChanged: widget.onSearchExcludeChanged,
+                      onMatchCaseToggled: widget.onSearchMatchCaseChanged,
+                      onMatchWholeWordToggled: widget.onSearchMatchWholeWordChanged,
+                      onSearchContentsChanged: widget.onSearchContentsChanged,
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
         ],
       ],
@@ -489,6 +537,8 @@ class _SearchPanel extends StatefulWidget {
     required this.matchCase,
     required this.matchWholeWord,
     required this.searchContents,
+    required this.searchInProgress,
+    this.onSearchCancelled,
     required this.onQueryChanged,
     required this.onSearchSubmitted,
     required this.onIncludeChanged,
@@ -504,6 +554,8 @@ class _SearchPanel extends StatefulWidget {
   final bool matchCase;
   final bool matchWholeWord;
   final bool searchContents;
+  final bool searchInProgress;
+  final VoidCallback? onSearchCancelled;
   final ValueChanged<String>? onQueryChanged;
   final ValueChanged<String>? onSearchSubmitted;
   final ValueChanged<String>? onIncludeChanged;
@@ -569,18 +621,38 @@ class _SearchPanelState extends State<_SearchPanel> {
               runSpacing: spacing.xs,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                IconButton(
-                  icon: const Icon(Icons.search, size: 16),
-                  tooltip: 'Search',
-                  onPressed: () {
-                    widget.onSearchSubmitted?.call(_queryController.text);
-                  },
-                  style: IconButton.styleFrom(
-                    padding: EdgeInsets.all(spacing.xs),
-                    minimumSize: const Size(28, 28),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                if (widget.searchInProgress) ...[
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: theme.colorScheme.primary,
+                    ),
                   ),
-                ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 16),
+                    tooltip: 'Stop search',
+                    onPressed: widget.onSearchCancelled,
+                    style: IconButton.styleFrom(
+                      padding: EdgeInsets.all(spacing.xs),
+                      minimumSize: const Size(28, 28),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ] else
+                  IconButton(
+                    icon: const Icon(Icons.search, size: 16),
+                    tooltip: 'Search',
+                    onPressed: () {
+                      widget.onSearchSubmitted?.call(_queryController.text);
+                    },
+                    style: IconButton.styleFrom(
+                      padding: EdgeInsets.all(spacing.xs),
+                      minimumSize: const Size(28, 28),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
                 ToggleButtons(
                   isSelected: [_searchOptionsOpen],
                   onPressed: (_) {

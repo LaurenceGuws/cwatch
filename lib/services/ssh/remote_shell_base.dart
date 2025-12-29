@@ -23,6 +23,8 @@ class TerminalSessionOptions {
   final int pixelHeight;
 }
 
+typedef VoidCallback = void Function();
+
 class RemotePathDownload {
   const RemotePathDownload({
     required this.remotePath,
@@ -89,7 +91,9 @@ abstract class RemoteShellService with RemotePathUtils {
     bool matchCase = false,
     bool matchWholeWord = false,
     bool searchContents = false,
-    Duration timeout = const Duration(seconds: 15),
+    void Function(RemoteFileEntry entry)? onEntry,
+    RemoteCommandCancellation? cancellation,
+    Duration timeout = const Duration(seconds: 30),
     RunTimeoutHandler? onTimeout,
   });
 
@@ -202,6 +206,35 @@ abstract class RemoteShellService with RemotePathUtils {
     RunTimeoutHandler? onTimeout,
   });
 
+  Future<String> runCommandStreaming(
+    SshHost host,
+    String command, {
+    Duration timeout = const Duration(seconds: 10),
+    RunTimeoutHandler? onTimeout,
+    RemoteCommandCancellation? cancellation,
+    void Function(String line)? onStdoutLine,
+    void Function(String line)? onStderrLine,
+  }) async {
+    if (cancellation?.isCancelled == true) {
+      throw const RemoteCommandCancelled();
+    }
+    final output = await runCommand(
+      host,
+      command,
+      timeout: timeout,
+      onTimeout: onTimeout,
+    );
+    if (cancellation?.isCancelled == true) {
+      throw const RemoteCommandCancelled();
+    }
+    if (onStdoutLine != null) {
+      for (final line in const LineSplitter().convert(output)) {
+        onStdoutLine(line);
+      }
+    }
+    return output;
+  }
+
   Future<TerminalSession> createTerminalSession(
     SshHost host, {
     required TerminalSessionOptions options,
@@ -260,6 +293,38 @@ class RunResult {
   final String command;
   final String stdout;
   final String stderr;
+}
+
+class RemoteCommandCancellation {
+  bool _cancelled = false;
+  final List<VoidCallback> _handlers = [];
+
+  bool get isCancelled => _cancelled;
+
+  void cancel() {
+    if (_cancelled) {
+      return;
+    }
+    _cancelled = true;
+    for (final handler in List<VoidCallback>.from(_handlers)) {
+      handler();
+    }
+  }
+
+  void onCancel(VoidCallback handler) {
+    if (_cancelled) {
+      handler();
+      return;
+    }
+    _handlers.add(handler);
+  }
+}
+
+class RemoteCommandCancelled implements Exception {
+  const RemoteCommandCancelled();
+
+  @override
+  String toString() => 'RemoteCommandCancelled';
 }
 
 /// Describes how a long-running command should behave when it hits a timeout

@@ -67,6 +67,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
   final FocusNode _listFocusNode = FocusNode(debugLabel: 'file-explorer-list');
   final ScrollController _scrollController = ScrollController();
   bool _dropHover = false;
+  String? _lastTimeoutNotification;
 
   @override
   void initState() {
@@ -137,12 +138,42 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     final spacing = context.appTheme.spacing;
     final dropOverlayColor =
         context.appTheme.list.selectedBackground.withValues(alpha: 0.35);
+    final errorMessage = _controller.error;
+    final isTimeoutError = _isTimeoutError(errorMessage);
+    if (isTimeoutError &&
+        errorMessage != null &&
+        errorMessage != _lastTimeoutNotification) {
+      _lastTimeoutNotification = errorMessage;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
+      });
+    }
+    final showStreamingResults =
+        _controller.loading &&
+        _controller.searchActive &&
+        _controller.searchQuery.trim().isNotEmpty;
     final contentCard = Card(
       clipBehavior: Clip.antiAlias,
-      child: _controller.loading
+      child: errorMessage != null && !isTimeoutError
+          ? Center(child: Text(errorMessage))
+          : showStreamingResults
+          ? Stack(
+              fit: StackFit.expand,
+              children: [
+                _buildEntriesList(),
+                const Align(
+                  alignment: Alignment.topCenter,
+                  child: LinearProgressIndicator(),
+                ),
+              ],
+            )
+          : _controller.loading
           ? const Center(child: CircularProgressIndicator())
-          : _controller.error != null
-          ? Center(child: Text(_controller.error!))
           : _buildEntriesList(),
     );
 
@@ -279,6 +310,11 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       onSearchSubmitted: (query) {
         unawaited(_controller.searchCurrentPath(query));
       },
+      searchInProgress:
+          _controller.loading &&
+          _controller.searchActive &&
+          _controller.searchQuery.trim().isNotEmpty,
+      onSearchCancelled: _controller.cancelSearch,
       searchInclude: _controller.searchInclude,
       searchExclude: _controller.searchExclude,
       searchMatchCase: _controller.searchMatchCase,
@@ -409,6 +445,14 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       joinPath: PathUtils.joinPath,
     );
     return list;
+  }
+
+  bool _isTimeoutError(String? message) {
+    if (message == null || message.isEmpty) {
+      return false;
+    }
+    return message.contains('TimeoutException') ||
+        message.toLowerCase().contains('timed out');
   }
 
   Future<void> _loadPath(String path, {bool forceReload = false}) async {
@@ -875,6 +919,17 @@ class _FileExplorerTabState extends State<FileExplorerTab>
         label: 'Upload files…',
         icon: Icons.upload_file,
         onSelected: () => _handleUploadFiles(_controller.currentPath),
+      ),
+    );
+    options.add(
+      TabChipOption(
+        label: _controller.searchActive ? 'Hide search' : 'Show search',
+        icon: _controller.searchActive ? Icons.search_off : Icons.search,
+        onSelected: () {
+          unawaited(
+            _controller.setSearchActive(!_controller.searchActive),
+          );
+        },
       ),
     );
     options.add(

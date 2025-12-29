@@ -86,6 +86,8 @@ class PathLoadingService {
     bool matchCase = false,
     bool matchWholeWord = false,
     bool searchContents = false,
+    void Function(RemoteFileEntry entry)? onEntry,
+    RemoteCommandCancellation? cancellation,
   }) async {
     final target = PathUtils.normalizePath(basePath, currentPath: currentPath);
     try {
@@ -99,6 +101,8 @@ class PathLoadingService {
           matchCase: matchCase,
           matchWholeWord: matchWholeWord,
           searchContents: searchContents,
+          onEntry: onEntry,
+          cancellation: cancellation,
         ),
       );
       final hitNames =
