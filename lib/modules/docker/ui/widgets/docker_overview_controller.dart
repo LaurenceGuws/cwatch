@@ -7,6 +7,7 @@ import 'package:cwatch/models/docker_container.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/modules/docker/services/docker_client_service.dart';
 import 'package:cwatch/modules/docker/services/docker_engine_service.dart';
+import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 
 /// Controller that owns Docker overview snapshot/loading state and selection.
@@ -72,7 +73,13 @@ class DockerOverviewController extends ChangeNotifier {
   }) async {
     try {
       return await operation();
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Docker retry operation failed',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!retry) rethrow;
       await Future.delayed(const Duration(milliseconds: 350));
       return operation();

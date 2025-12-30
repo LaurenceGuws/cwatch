@@ -5,6 +5,7 @@ import 'package:cwatch/models/docker_image.dart';
 import 'package:cwatch/models/docker_network.dart';
 import 'package:cwatch/models/docker_volume.dart';
 import 'package:cwatch/models/ssh_host.dart';
+import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 
 import 'docker_client_service.dart';
@@ -133,7 +134,13 @@ class DockerEngineService {
             ),
           );
         }
-      } catch (_) {
+      } catch (error, stackTrace) {
+        AppLogger.w(
+          'Failed to parse remote docker container entry',
+          tag: 'Docker',
+          error: error,
+          stackTrace: stackTrace,
+        );
         continue;
       }
     }
@@ -180,7 +187,13 @@ class DockerEngineService {
             ),
           );
         }
-      } catch (_) {
+      } catch (error, stackTrace) {
+        AppLogger.w(
+          'Failed to parse remote docker image entry',
+          tag: 'Docker',
+          error: error,
+          stackTrace: stackTrace,
+        );
         continue;
       }
     }
@@ -204,7 +217,13 @@ class DockerEngineService {
             ),
           );
         }
-      } catch (_) {
+      } catch (error, stackTrace) {
+        AppLogger.w(
+          'Failed to parse remote docker network entry',
+          tag: 'Docker',
+          error: error,
+          stackTrace: stackTrace,
+        );
         continue;
       }
     }
@@ -229,7 +248,13 @@ class DockerEngineService {
             ),
           );
         }
-      } catch (_) {
+      } catch (error, stackTrace) {
+        AppLogger.w(
+          'Failed to parse remote docker volume entry',
+          tag: 'Docker',
+          error: error,
+          stackTrace: stackTrace,
+        );
         continue;
       }
     }
@@ -264,12 +289,24 @@ class DockerEngineService {
               }
             }
           }
-        } catch (_) {
+        } catch (error, stackTrace) {
+          AppLogger.w(
+            'Failed to parse remote docker volume size entry',
+            tag: 'Docker',
+            error: error,
+            stackTrace: stackTrace,
+          );
           continue;
         }
       }
       return map;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to fetch remote docker volume sizes',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return const {};
     }
   }

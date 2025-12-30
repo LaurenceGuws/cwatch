@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:cwatch/core/models/tab_state.dart';
+import '../services/logging/app_logger.dart';
 
 enum DockerTabKind {
   picker,
@@ -114,8 +115,13 @@ class DockerWorkspaceState {
       if (entry is! Map<String, dynamic>) continue;
       try {
         tabs.add(TabState.fromJson(entry));
-      } catch (_) {
-        // Skip malformed tabs.
+      } catch (error, stackTrace) {
+        AppLogger.w(
+          'Failed to parse docker workspace tab',
+          tag: 'Workspace',
+          error: error,
+          stackTrace: stackTrace,
+        );
       }
     }
     final selected = (json['selectedIndex'] as num?)?.toInt() ?? 0;

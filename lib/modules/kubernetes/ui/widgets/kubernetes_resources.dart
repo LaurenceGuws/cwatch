@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 import 'package:cwatch/services/kubernetes/kubectl_service.dart';
+import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
@@ -199,7 +200,13 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
         _error = null;
         _recordHistory(snapshot);
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppLogger.w(
+        'Failed to load Kubernetes resources',
+        tag: 'Kubernetes',
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (!mounted) return;
       setState(() {
         _error = e.toString();

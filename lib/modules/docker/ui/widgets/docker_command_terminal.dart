@@ -11,6 +11,7 @@ import 'package:cwatch/models/input_mode_preference.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
+import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/shared/gestures/gesture_activators.dart';
 import 'package:cwatch/shared/gestures/gesture_service.dart';
 import 'package:cwatch/shared/shell/local_shell.dart';
@@ -669,7 +670,13 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   String _safeSelectionText(BufferRange selection) {
     try {
       return _terminal.buffer.getText(selection);
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to read terminal selection text',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return '';
     }
   }

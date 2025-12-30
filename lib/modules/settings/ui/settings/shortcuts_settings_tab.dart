@@ -70,6 +70,8 @@ class ShortcutCategorySection extends StatelessWidget {
         return 'Docker';
       case ShortcutCategory.grid:
         return 'Grid';
+      case ShortcutCategory.explorer:
+        return 'Explorer';
     }
   }
 
@@ -90,6 +92,8 @@ class ShortcutCategorySection extends StatelessWidget {
         return 'Docker and container shortcuts.';
       case ShortcutCategory.grid:
         return 'Spreadsheet-style navigation and selection.';
+      case ShortcutCategory.explorer:
+        return 'File explorer shortcuts.';
     }
   }
 

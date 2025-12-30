@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'builtin/builtin_ssh_key_service.dart';
 import 'ssh_auth_coordinator.dart';
+import '../logging/app_logger.dart';
 import '../../shared/theme/app_theme.dart';
 import '../../shared/widgets/dialog_keyboard_shortcuts.dart';
 
@@ -117,7 +118,13 @@ class _SshUnlockDialogState extends State<_SshUnlockDialog> {
           _loading = false;
         });
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppLogger.w(
+        'Failed to unlock key via UI prompt',
+        tag: 'SSH',
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (!mounted) return;
       setState(() {
         _errorText = 'Failed to unlock: $e';

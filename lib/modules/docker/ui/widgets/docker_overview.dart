@@ -11,6 +11,7 @@ import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/modules/docker/services/docker_client_service.dart';
 import 'package:cwatch/modules/docker/services/docker_engine_service.dart';
 import 'package:cwatch/services/filesystem/explorer_trash_manager.dart';
+import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
@@ -225,7 +226,13 @@ class _DockerOverviewState extends State<DockerOverview>
         context,
       ).showSnackBar(const SnackBar(content: Text('Prune completed.')));
       _refresh();
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Docker prune failed',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -963,7 +970,13 @@ class _DockerOverviewState extends State<DockerOverview>
         id: container.id,
         context: widget.contextName,
       );
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to load container start time for ${container.name}',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return null;
     }
   }
@@ -980,7 +993,13 @@ class _DockerOverviewState extends State<DockerOverview>
           .where((c) => c.composeProject != project)
           .toList();
       _controller.updateCachedContainers([...others, ...updatedProject]);
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to sync compose project $project',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,

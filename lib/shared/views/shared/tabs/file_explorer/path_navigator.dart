@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../theme/nerd_fonts.dart';
+import 'path_search_panel.dart';
 import 'path_utils.dart';
 
 /// Widget for navigating file paths with breadcrumbs or text input
@@ -34,6 +35,9 @@ class PathNavigator extends StatefulWidget {
     this.onSearchMatchCaseChanged,
     this.onSearchMatchWholeWordChanged,
     this.onSearchContentsChanged,
+    this.showRowHeightControl = false,
+    this.rowHeight = 36,
+    this.onRowHeightChanged,
   });
 
   final String currentPath;
@@ -60,6 +64,9 @@ class PathNavigator extends StatefulWidget {
   final VoidCallback? onSearchMatchCaseChanged;
   final VoidCallback? onSearchMatchWholeWordChanged;
   final ValueChanged<bool>? onSearchContentsChanged;
+  final bool showRowHeightControl;
+  final double rowHeight;
+  final ValueChanged<double>? onRowHeightChanged;
 
   @override
   State<PathNavigator> createState() => _PathNavigatorState();
@@ -168,71 +175,80 @@ class _PathNavigatorState extends State<PathNavigator> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  InkWell(
-                    onTap: () {
-                      setState(() => _searchExpanded = !_searchExpanded);
+                  PathSearchPanel(
+                    query: widget.searchQuery,
+                    include: widget.searchInclude,
+                    exclude: widget.searchExclude,
+                    matchCase: widget.searchMatchCase,
+                    matchWholeWord: widget.searchMatchWholeWord,
+                    searchContents: widget.searchContents,
+                    searchExpanded: _searchExpanded,
+                    searchInProgress: widget.searchInProgress,
+                    onSearchCancelled: widget.onSearchCancelled,
+                    onSearchExpandedChanged: (next) {
+                      setState(() => _searchExpanded = next);
                     },
-                    child: Row(
-                      children: [
-                        Icon(Icons.search, size: 16, color: theme.hintColor),
-                        SizedBox(width: spacing.xs),
-                        const Text('Search'),
-                        const Spacer(),
-                        if (widget.searchInProgress) ...[
-                          SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: theme.colorScheme.primary,
-                            ),
-                          ),
-                          SizedBox(width: spacing.xs),
-                          IconButton(
-                            icon: const Icon(Icons.close, size: 16),
-                            tooltip: 'Stop search',
-                            onPressed: widget.onSearchCancelled,
-                            style: IconButton.styleFrom(
-                              padding: EdgeInsets.all(spacing.xs),
-                              minimumSize: const Size(28, 28),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                          ),
-                        ],
-                        Icon(
-                          _searchExpanded
-                              ? Icons.expand_less
-                              : Icons.expand_more,
-                          size: 16,
-                        ),
-                      ],
-                    ),
+                    onQueryChanged: widget.onSearchQueryChanged,
+                    onSearchSubmitted: widget.onSearchSubmitted,
+                    onIncludeChanged: widget.onSearchIncludeChanged,
+                    onExcludeChanged: widget.onSearchExcludeChanged,
+                    onMatchCaseToggled: widget.onSearchMatchCaseChanged,
+                    onMatchWholeWordToggled: widget.onSearchMatchWholeWordChanged,
+                    onSearchContentsChanged: widget.onSearchContentsChanged,
                   ),
-                  if (_searchExpanded) ...[
-                    SizedBox(height: spacing.md),
-                    _SearchPanel(
-                      query: widget.searchQuery,
-                      include: widget.searchInclude,
-                      exclude: widget.searchExclude,
-                      matchCase: widget.searchMatchCase,
-                      matchWholeWord: widget.searchMatchWholeWord,
-                      searchContents: widget.searchContents,
-                      searchInProgress: widget.searchInProgress,
-                      onSearchCancelled: widget.onSearchCancelled,
-                      onQueryChanged: widget.onSearchQueryChanged,
-                      onSearchSubmitted: widget.onSearchSubmitted,
-                      onIncludeChanged: widget.onSearchIncludeChanged,
-                      onExcludeChanged: widget.onSearchExcludeChanged,
-                      onMatchCaseToggled: widget.onSearchMatchCaseChanged,
-                      onMatchWholeWordToggled: widget.onSearchMatchWholeWordChanged,
-                      onSearchContentsChanged: widget.onSearchContentsChanged,
-                    ),
-                  ],
                 ],
               ),
             ),
           ),
         ],
+        if (widget.showRowHeightControl) ...[
+          SizedBox(height: spacing.sm),
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: Padding(
+              padding: spacing.inset(horizontal: 1, vertical: 0.5),
+              child: _RowHeightSlider(
+                rowHeight: widget.rowHeight,
+                onChanged: widget.onRowHeightChanged,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _RowHeightSlider extends StatelessWidget {
+  const _RowHeightSlider({
+    required this.rowHeight,
+    required this.onChanged,
+  });
+
+  final double rowHeight;
+  final ValueChanged<double>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final valueLabel = rowHeight.toStringAsFixed(0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Row height', style: Theme.of(context).textTheme.bodyMedium),
+            Text(valueLabel),
+          ],
+        ),
+        Slider(
+          value: rowHeight.clamp(24, 88).toDouble(),
+          min: 24,
+          max: 88,
+          divisions: 16,
+          label: valueLabel,
+          onChanged: onChanged,
+        ),
       ],
     );
   }
@@ -526,6 +542,7 @@ class _BreadcrumbMenuButtonBody extends StatefulWidget {
 class _BreadcrumbMenuButtonBodyState extends State<_BreadcrumbMenuButtonBody> {
   bool _loading = false;
   bool _openWhenReady = false;
+  bool _menuOpen = false;
 
   @override
   void didUpdateWidget(covariant _BreadcrumbMenuButtonBody oldWidget) {
@@ -544,10 +561,10 @@ class _BreadcrumbMenuButtonBodyState extends State<_BreadcrumbMenuButtonBody> {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: const BorderRadius.horizontal(right: Radius.circular(6)),
+      borderRadius: const BorderRadius.horizontal(right: Radius.circular(4)),
       onTap: () => _handleTap(context),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 24, minWidth: 24),
+        constraints: const BoxConstraints(minHeight: 24, minWidth: 8),
         child: Center(
           child: _loading
               ? SizedBox(
@@ -559,7 +576,7 @@ class _BreadcrumbMenuButtonBodyState extends State<_BreadcrumbMenuButtonBody> {
                   ),
                 )
               : Icon(
-                  Icons.chevron_right,
+                  _menuOpen ? Icons.expand_more : Icons.chevron_right,
                   size: 18,
                   color: widget.iconColor,
                 ),
@@ -599,6 +616,9 @@ class _BreadcrumbMenuButtonBodyState extends State<_BreadcrumbMenuButtonBody> {
     if (children.isEmpty) {
       return;
     }
+    if (!_menuOpen) {
+      setState(() => _menuOpen = true);
+    }
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final renderBox = context.findRenderObject() as RenderBox;
     final target = renderBox.localToGlobal(Offset.zero, ancestor: overlay);
@@ -627,6 +647,9 @@ class _BreadcrumbMenuButtonBodyState extends State<_BreadcrumbMenuButtonBody> {
           )
           .toList(),
     ).then((value) {
+      if (mounted && _menuOpen) {
+        setState(() => _menuOpen = false);
+      }
       if (value == null) {
         return;
       }
@@ -724,7 +747,9 @@ class _BreadcrumbButtonState extends State<_BreadcrumbButton> {
                         right: Radius.circular(6),
                       ),
                     ),
-                    padding: EdgeInsets.symmetric(horizontal: spacing.xs),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: spacing.xs * 0.25,
+                    ),
                     child: widget.suffix!,
                   ),
                 ),
@@ -1015,251 +1040,4 @@ class _PathSuggestion {
 
   final String name;
   final String replacement;
-}
-
-class _SearchPanel extends StatefulWidget {
-  const _SearchPanel({
-    required this.query,
-    required this.include,
-    required this.exclude,
-    required this.matchCase,
-    required this.matchWholeWord,
-    required this.searchContents,
-    required this.searchInProgress,
-    this.onSearchCancelled,
-    required this.onQueryChanged,
-    required this.onSearchSubmitted,
-    required this.onIncludeChanged,
-    required this.onExcludeChanged,
-    required this.onMatchCaseToggled,
-    required this.onMatchWholeWordToggled,
-    required this.onSearchContentsChanged,
-  });
-
-  final String query;
-  final String include;
-  final String exclude;
-  final bool matchCase;
-  final bool matchWholeWord;
-  final bool searchContents;
-  final bool searchInProgress;
-  final VoidCallback? onSearchCancelled;
-  final ValueChanged<String>? onQueryChanged;
-  final ValueChanged<String>? onSearchSubmitted;
-  final ValueChanged<String>? onIncludeChanged;
-  final ValueChanged<String>? onExcludeChanged;
-  final VoidCallback? onMatchCaseToggled;
-  final VoidCallback? onMatchWholeWordToggled;
-  final ValueChanged<bool>? onSearchContentsChanged;
-
-  @override
-  State<_SearchPanel> createState() => _SearchPanelState();
-}
-
-class _SearchPanelState extends State<_SearchPanel> {
-  late final TextEditingController _queryController;
-  late final TextEditingController _includeController;
-  late final TextEditingController _excludeController;
-  bool _searchOptionsOpen = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _queryController = TextEditingController(text: widget.query);
-    _includeController = TextEditingController(text: widget.include);
-    _excludeController = TextEditingController(text: widget.exclude);
-  }
-
-  @override
-  void didUpdateWidget(covariant _SearchPanel oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.query != widget.query && _queryController.text != widget.query) {
-      _queryController.text = widget.query;
-    }
-    if (oldWidget.include != widget.include &&
-        _includeController.text != widget.include) {
-      _includeController.text = widget.include;
-    }
-    if (oldWidget.exclude != widget.exclude &&
-        _excludeController.text != widget.exclude) {
-      _excludeController.text = widget.exclude;
-    }
-  }
-
-  @override
-  void dispose() {
-    _queryController.dispose();
-    _includeController.dispose();
-    _excludeController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final spacing = context.appTheme.spacing;
-    final theme = Theme.of(context);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Wrap(
-              spacing: spacing.xs,
-              runSpacing: spacing.xs,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                if (widget.searchInProgress) ...[
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 16),
-                    tooltip: 'Stop search',
-                    onPressed: widget.onSearchCancelled,
-                    style: IconButton.styleFrom(
-                      padding: EdgeInsets.all(spacing.xs),
-                      minimumSize: const Size(28, 28),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
-                ] else
-                  IconButton(
-                    icon: const Icon(Icons.search, size: 16),
-                    tooltip: 'Search',
-                    onPressed: () {
-                      widget.onSearchSubmitted?.call(_queryController.text);
-                    },
-                    style: IconButton.styleFrom(
-                      padding: EdgeInsets.all(spacing.xs),
-                      minimumSize: const Size(28, 28),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
-                ToggleButtons(
-                  isSelected: [_searchOptionsOpen],
-                  onPressed: (_) {
-                    setState(() {
-                      _searchOptionsOpen = !_searchOptionsOpen;
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(2),
-                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                  children: [
-                    Tooltip(
-                      message: _searchOptionsOpen
-                          ? 'Hide search options'
-                          : 'Show search options',
-                      waitDuration: const Duration(milliseconds: 400),
-                      child: Icon(
-                        _searchOptionsOpen ? Icons.expand_less : Icons.expand_more,
-                        size: 16,
-                      ),
-                    ),
-                  ],
-                ),
-                ToggleButtons(
-                  isSelected: [!widget.searchContents, widget.searchContents],
-                  onPressed: (index) {
-                    widget.onSearchContentsChanged?.call(index == 1);
-                  },
-                  borderRadius: BorderRadius.circular(2),
-                  constraints: const BoxConstraints(minWidth: 56, minHeight: 28),
-                  children: const [
-                    Tooltip(
-                      message: 'Find by name',
-                      waitDuration: Duration(milliseconds: 400),
-                      child: Text('Name'),
-                    ),
-                    Tooltip(
-                      message: 'Grep by content',
-                      waitDuration: Duration(milliseconds: 400),
-                      child: Text('Content'),
-                    ),
-                  ],
-                ),
-                ToggleButtons(
-                  isSelected: [widget.matchWholeWord, widget.matchCase],
-                  onPressed: (index) {
-                    if (index == 0) {
-                      widget.onMatchWholeWordToggled?.call();
-                    } else {
-                      widget.onMatchCaseToggled?.call();
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(2),
-                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                  children: const [
-                    Tooltip(
-                      message: 'Match whole word',
-                      waitDuration: Duration(milliseconds: 400),
-                      child: Icon(Icons.text_fields, size: 16),
-                    ),
-                    Tooltip(
-                      message: 'Match case',
-                      waitDuration: Duration(milliseconds: 400),
-                      child: Icon(Icons.title, size: 16),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            SizedBox(height: spacing.md),
-            TextField(
-              controller: _queryController,
-              decoration: InputDecoration(
-                labelText: 'Search',
-                floatingLabelBehavior: FloatingLabelBehavior.always,
-                hintText: 'Search files and folders',
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(
-                  vertical: spacing.xs,
-                  horizontal: spacing.sm,
-                ),
-              ),
-              onChanged: widget.onQueryChanged,
-              onSubmitted: (value) => widget.onSearchSubmitted?.call(value),
-            ),
-          ],
-          ),
-        if (_searchOptionsOpen) ...[
-          SizedBox(height: spacing.md),
-          TextField(
-            controller: _includeController,
-            decoration: InputDecoration(
-              labelText: 'Include',
-              floatingLabelBehavior: FloatingLabelBehavior.always,
-              hintText: 'comma-separated patterns',
-              isDense: true,
-              contentPadding: EdgeInsets.symmetric(
-                vertical: spacing.xs,
-                horizontal: spacing.sm,
-              ),
-            ),
-            onChanged: widget.onIncludeChanged,
-          ),
-          SizedBox(height: spacing.md),
-          TextField(
-            controller: _excludeController,
-            decoration: InputDecoration(
-              labelText: 'Exclude',
-              floatingLabelBehavior: FloatingLabelBehavior.always,
-              hintText: 'comma-separated patterns',
-              isDense: true,
-              contentPadding: EdgeInsets.symmetric(
-                vertical: spacing.xs,
-                horizontal: spacing.sm,
-              ),
-            ),
-            onChanged: widget.onExcludeChanged,
-          ),
-        ],
-      ],
-    );
-  }
 }

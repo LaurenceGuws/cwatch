@@ -172,6 +172,7 @@ class StructuredDataTable<T> extends StatefulWidget {
     this.onFillHandleCopy,
     this.rowDragPayloadBuilder,
     this.rowDragFeedbackBuilder,
+    this.fitColumnsToWidth = false,
   }) : assert(columns.isNotEmpty, 'At least one column is required');
 
   final List<T> rows;
@@ -235,6 +236,7 @@ class StructuredDataTable<T> extends StatefulWidget {
   final Object Function(T row, List<T> selectedRows)? rowDragPayloadBuilder;
   final Widget Function(BuildContext context, T row, List<T> selectedRows)?
   rowDragFeedbackBuilder;
+  final bool fitColumnsToWidth;
 
   @override
   State<StructuredDataTable<T>> createState() => _StructuredDataTableState<T>();
@@ -248,6 +250,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
   late final bool _ownsVerticalController;
   late final bool _ownsHorizontalController;
   static const double _defaultMinFlexColumnWidth = 300;
+  static const double _defaultMinFitColumnWidth = 80;
   late List<StructuredDataColumn<T>> _columns;
   late List<double?> _columnWidthOverrides;
   int? _sortColumnIndex;
@@ -274,6 +277,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
   bool _scrollToRowScheduled = false;
   int? _pendingScrollToColumn;
   bool _scrollToColumnScheduled = false;
+  double _lastContentWidth = 0.0;
 
   void _setMarqueeSelecting(bool value) {
     if (_isMarqueeSelecting == value) return;
@@ -430,12 +434,13 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
     final paddingWidth = measure(paddingChar, cellStyle);
 
     final target = maxWidth + paddingWidth + (column.autoFitExtraWidth ?? 0);
-    final minWidth = max(_defaultMinFlexColumnWidth, column.minWidth ?? 0);
+    final minWidth = max(_minColumnWidth, column.minWidth ?? 0);
+    final maxAllowed = _maxWidthForColumn(index);
 
     _autoFitCache[index] = maxWidth;
 
     setState(() {
-      _columnWidthOverrides[index] = max(minWidth, target);
+      _columnWidthOverrides[index] = _clampWidth(target, minWidth, maxAllowed);
     });
   }
 
@@ -445,6 +450,45 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
         columnWidths.fold<double>(0, (sum, width) => sum + width) +
         totalGaps * gapWidth;
     return totalWidth.ceilToDouble();
+  }
+
+  double _minWidthForColumn(int index, {required bool respectOverride}) {
+    final column = _columns[index];
+    final override = index < _columnWidthOverrides.length
+        ? _columnWidthOverrides[index]
+        : null;
+    if (respectOverride && override != null) {
+      return max(column.minWidth ?? 0, override);
+    }
+    if (respectOverride && column.width != null) {
+      return max(column.minWidth ?? 0, column.width!);
+    }
+    return max(_minColumnWidth, column.minWidth ?? 0);
+  }
+
+  double _clampWidth(double target, double minWidth, double maxWidth) {
+    if (!maxWidth.isFinite) return max(minWidth, target);
+    if (maxWidth <= minWidth) return minWidth;
+    return target.clamp(minWidth, maxWidth);
+  }
+
+  double _maxWidthForColumn(int index) {
+    if (!widget.fitColumnsToWidth) return double.infinity;
+    if (_lastContentWidth <= 0) return double.infinity;
+    var otherMinTotal = 0.0;
+    for (var i = 0; i < _columns.length; i++) {
+      if (i == index) continue;
+      otherMinTotal += _minWidthForColumn(i, respectOverride: true);
+    }
+    final minWidth = _minWidthForColumn(index, respectOverride: false);
+    final maxAllowed = _lastContentWidth - otherMinTotal;
+    return max(minWidth, maxAllowed);
+  }
+
+  double get _minColumnWidth {
+    return widget.fitColumnsToWidth
+        ? _defaultMinFitColumnWidth
+        : _defaultMinFlexColumnWidth;
   }
 
   void _handleExternalRefresh() {
@@ -1731,11 +1775,14 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
                 _columnWidthOverrides[index] ??
                 column.width ??
                 columnWidths[index];
-            final minWidth = max(
-              _defaultMinFlexColumnWidth,
-              column.minWidth ?? 0,
+            final minWidth = max(_minColumnWidth, column.minWidth ?? 0);
+            final maxWidth = _maxWidthForColumn(index);
+            final target = current + delta;
+            _columnWidthOverrides[index] = _clampWidth(
+              target,
+              minWidth,
+              maxWidth,
             );
-            _columnWidthOverrides[index] = max(minWidth, current + delta);
           });
         },
         onAutoFit: () => _autoFitColumn(index),
@@ -2181,6 +2228,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
 
   List<double> _computeColumnWidths(double availableWidth) {
     final flexIndices = <int>[];
+    final effectiveFlexes = List<int>.filled(_columns.length, 0);
     var totalFlex = 0;
     var fixedWidth = 0.0;
     for (var i = 0; i < _columns.length; i++) {
@@ -2188,17 +2236,26 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       final override = i < _columnWidthOverrides.length
           ? _columnWidthOverrides[i]
           : null;
-      final isFixed = override != null || column.width != null || column.flex == 0;
+      final maxAllowed = _maxWidthForColumn(i);
+      final hasExplicitWidth = override != null || column.width != null;
+      var effectiveFlex = column.flex;
+      if (widget.fitColumnsToWidth && effectiveFlex == 0 && !hasExplicitWidth) {
+        effectiveFlex = 1;
+      }
+      effectiveFlexes[i] = effectiveFlex;
+      final isFixed = hasExplicitWidth || effectiveFlex == 0;
       if (!isFixed) {
         flexIndices.add(i);
-        totalFlex += column.flex;
+        totalFlex += effectiveFlex;
       } else {
-        if (override != null || column.width != null) {
+        if (hasExplicitWidth) {
           final target = override ?? column.width ?? 0.0;
-          fixedWidth += max(column.minWidth ?? 0, target);
+          final minWidth = max(column.minWidth ?? 0, target);
+          fixedWidth += _clampWidth(minWidth, minWidth, maxAllowed);
         } else {
           // flex == 0, use minWidth or default
-          fixedWidth += max(_defaultMinFlexColumnWidth, column.minWidth ?? 0);
+          final minWidth = max(_minColumnWidth, column.minWidth ?? 0);
+          fixedWidth += _clampWidth(minWidth, minWidth, maxAllowed);
         }
       }
     }
@@ -2206,34 +2263,54 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
     final minFlexWidth = flexIndices.fold<double>(
       0,
       (sum, index) =>
-          sum + max(_defaultMinFlexColumnWidth, _columns[index].minWidth ?? 0),
+          sum + max(_minColumnWidth, _columns[index].minWidth ?? 0),
     );
     final remainingForFlex = max(availableWidth - fixedWidth, minFlexWidth);
     final widths = <double>[];
 
     for (var i = 0; i < _columns.length; i++) {
       final column = _columns[i];
+      final effectiveFlex = effectiveFlexes[i];
       final override = i < _columnWidthOverrides.length
           ? _columnWidthOverrides[i]
           : null;
+      final maxAllowed = _maxWidthForColumn(i);
       if (override != null) {
-        widths.add(max(column.minWidth ?? 0, override));
+        final minWidth = max(column.minWidth ?? 0, override);
+        widths.add(_clampWidth(minWidth, minWidth, maxAllowed));
         continue;
       }
       if (column.width != null) {
-        widths.add(max(column.minWidth ?? 0, column.width!));
+        final minWidth = max(column.minWidth ?? 0, column.width!);
+        widths.add(_clampWidth(minWidth, minWidth, maxAllowed));
         continue;
       }
-      if (column.flex == 0) {
+      if (effectiveFlex == 0) {
         // Non-flexing column, use minWidth or default
-        widths.add(max(_defaultMinFlexColumnWidth, column.minWidth ?? 0));
+        widths.add(max(_minColumnWidth, column.minWidth ?? 0));
         continue;
       }
-      final flexShare = totalFlex == 0 ? remainingForFlex : remainingForFlex / totalFlex;
-      final target = totalFlex == 0 ? remainingForFlex : flexShare * column.flex;
+      final flexShare = totalFlex == 0
+          ? remainingForFlex
+          : remainingForFlex / totalFlex;
+      final target =
+          totalFlex == 0 ? remainingForFlex : flexShare * effectiveFlex;
       widths.add(
-        max(_defaultMinFlexColumnWidth, max(column.minWidth ?? 0, target)),
+        max(_minColumnWidth, max(column.minWidth ?? 0, target)),
       );
+    }
+    if (widget.fitColumnsToWidth && widths.isNotEmpty) {
+      final totalWidth = widths.fold<double>(0, (sum, width) => sum + width);
+      if (totalWidth < availableWidth) {
+        final extra = availableWidth - totalWidth;
+        final targetIndex = _columns.length - 1;
+        final maxAllowed = _maxWidthForColumn(targetIndex);
+        widths[targetIndex] = _clampWidth(
+          widths[targetIndex] + extra,
+          widths[targetIndex],
+          maxAllowed,
+        );
+      }
     }
     return widths;
   }
@@ -2270,7 +2347,6 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           0.0,
           constraints.maxWidth - verticalScrollbarSpace,
         );
-        final columnWidths = _computeColumnWidths(availableWidth);
         final spacing = context.appTheme.spacing;
         final basePadding = spacing.base;
         final headerPaddingX = widget.cellSelectionEnabled
@@ -2280,6 +2356,15 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
             ? spacing.base + spacing.xs
             : spacing.base * 1.2 + spacing.xs;
         final gapWidth = widget.cellSelectionEnabled ? 0.0 : spacing.base * 1.5;
+        final totalGaps = max(0, _columns.length - 1);
+        final availableContentWidth = max(
+          0.0,
+          availableWidth -
+              (2 * max(headerPaddingX, rowPaddingX)) -
+              (gapWidth * totalGaps),
+        );
+        _lastContentWidth = availableContentWidth;
+        final columnWidths = _computeColumnWidths(availableContentWidth);
         _lastColumnWidths = columnWidths;
         _lastGapWidth = gapWidth;
         _lastRowPaddingX = rowPaddingX;

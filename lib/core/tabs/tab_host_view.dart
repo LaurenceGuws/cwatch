@@ -7,6 +7,7 @@ import 'tab_host.dart';
 import '../navigation/window_controls_constants.dart';
 import '../../shared/theme/app_theme.dart';
 import '../../shared/widgets/window_drag_region.dart';
+import '../../services/logging/app_logger.dart';
 
 /// Simple wrapper that renders a tab bar and content stack using a
 /// TabHostController. Modules supply a tab list, chip builder, and body builder.
@@ -235,10 +236,11 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
         _scrollController.jumpTo(0);
       }
       if (kDebugMode) {
-        debugPrint(
-          '[TabHostView] overflow=${next ? 'on' : 'off'} '
+        AppLogger.d(
+          'overflow=${next ? 'on' : 'off'} '
           'scrollbar=${next ? 'visible' : 'hidden'} '
           'pinnedAdd=${widget.onAddTab != null && next ? 'on' : 'off'}',
+          tag: 'TabHostView',
         );
       }
       setState(() => _hasOverflow = next);

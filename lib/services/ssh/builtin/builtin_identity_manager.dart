@@ -59,7 +59,7 @@ class BuiltInSshIdentityManager {
       }
       final entry = await vault.keyStore.loadEntry(keyId);
       if (entry == null) {
-        logBuiltInSsh(
+        logBuiltInSshWarning(
           'Key $keyId bound to ${host.name} no longer exists. '
           'Skipping unlock and continuing.',
         );
@@ -70,8 +70,10 @@ class BuiltInSshIdentityManager {
         try {
           await vault.unlock(keyId, null);
           return;
-        } catch (_) {
-          // Fall through to prompt
+        } catch (error) {
+          logBuiltInSsh(
+            'Failed to unlock built-in key $keyId without passphrase: $error',
+          );
         }
       }
       if (promptUnlock != null) {
@@ -116,9 +118,16 @@ class BuiltInSshIdentityManager {
           error: error,
         );
       } on UnsupportedError catch (error) {
-        logBuiltInSsh('Unsupported cipher in identity $identityPath: $error');
+        logBuiltInSshWarning(
+          'Unsupported cipher in identity $identityPath',
+          error: error,
+        );
         continue;
       } on ArgumentError catch (error) {
+        logBuiltInSshWarning(
+          'Error parsing identity $identityPath',
+          error: error,
+        );
         if (error.message == 'passphrase is required for encrypted key') {
           throw BuiltInSshIdentityPassphraseRequired(
             hostName: host.name,
@@ -128,6 +137,10 @@ class BuiltInSshIdentityManager {
         }
         rethrow;
       } on StateError catch (error) {
+        logBuiltInSshWarning(
+          'Error parsing identity $identityPath',
+          error: error,
+        );
         if (error.message.contains('encrypted')) {
           throw BuiltInSshIdentityPassphraseRequired(
             hostName: host.name,
@@ -136,7 +149,11 @@ class BuiltInSshIdentityManager {
           );
         }
         rethrow;
-      } catch (_) {
+      } catch (error) {
+        logBuiltInSshWarning(
+          'Failed to load identity $identityPath',
+          error: error,
+        );
         continue;
       }
     }
@@ -145,7 +162,7 @@ class BuiltInSshIdentityManager {
     if (keyId != null) {
       final entry = await vault.keyStore.loadEntry(keyId);
       if (entry == null) {
-        logBuiltInSsh(
+        logBuiltInSshWarning(
           'Key $keyId bound to ${host.name} no longer exists. '
           'This binding should be removed from settings.',
         );
@@ -160,7 +177,11 @@ class BuiltInSshIdentityManager {
         if (!needsPassword) {
           try {
             await vault.unlock(keyId, null);
-          } catch (_) {}
+          } catch (error) {
+            logBuiltInSsh(
+              'Failed to unlock built-in key $keyId without passphrase: $error',
+            );
+          }
         }
         if (!vault.isUnlocked(keyId) && promptUnlock != null) {
           final unlockedViaPrompt = await promptUnlock!(
@@ -194,6 +215,10 @@ class BuiltInSshIdentityManager {
               : SSHKeyPair.fromPem(pem, passphrase),
         );
       } on SSHKeyDecryptError catch (error) {
+        logBuiltInSshWarning(
+          'Passphrase required for built-in key $keyId',
+          error: error,
+        );
         final label = vault.getUnlockedEntry(keyId)?.label;
         throw BuiltInSshKeyPassphraseRequired(
           hostName: host.name,
@@ -203,6 +228,10 @@ class BuiltInSshIdentityManager {
         );
       } on UnsupportedError catch (error) {
         final label = vault.getUnlockedEntry(keyId)?.label;
+        logBuiltInSshWarning(
+          'Unsupported cipher for built-in key $keyId',
+          error: error,
+        );
         throw BuiltInSshKeyUnsupportedCipher(
           hostName: host.name,
           keyId: keyId,
@@ -210,6 +239,10 @@ class BuiltInSshIdentityManager {
           error: error,
         );
       } on ArgumentError catch (error) {
+        logBuiltInSshWarning(
+          'Error parsing built-in key $keyId',
+          error: error,
+        );
         if (error.message == 'passphrase is required for encrypted key') {
           final label = vault.getUnlockedEntry(keyId)?.label;
           throw BuiltInSshKeyPassphraseRequired(
@@ -221,6 +254,10 @@ class BuiltInSshIdentityManager {
         }
         rethrow;
       } on StateError catch (error) {
+        logBuiltInSshWarning(
+          'Error parsing built-in key $keyId',
+          error: error,
+        );
         if (error.message.contains('encrypted')) {
           final label = vault.getUnlockedEntry(keyId)?.label;
           throw BuiltInSshKeyPassphraseRequired(

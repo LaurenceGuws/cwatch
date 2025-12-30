@@ -219,7 +219,13 @@ done'
           SnackBar(content: Text('Container ${action}ed successfully.')),
         );
       }
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to $action container ${container.name}',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -273,7 +279,13 @@ done'
         SnackBar(content: Text('Compose $action executed for $project.')),
       );
       await onSynced();
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to run compose $action for $project',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -364,7 +376,13 @@ done'
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Forwarding $summary via SSH.')));
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to create port forward for ${container.name}',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -496,7 +514,13 @@ done'
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Forwarding $summary for $project.')),
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to create compose port forward for $project',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -741,7 +765,13 @@ done'
           );
         },
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to load docker logs for ${container.name.isNotEmpty ? container.name : container.id}',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!context.mounted) return;
       await showDialog<void>(
         context: context,

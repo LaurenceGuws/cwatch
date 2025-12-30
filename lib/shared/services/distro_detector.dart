@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cwatch/shared/theme/distro_icons.dart';
+import '../../services/logging/app_logger.dart';
 
 typedef DistroCommandRunner =
     Future<String> Function(String command, {Duration? timeout});
@@ -50,7 +51,13 @@ class DistroDetector {
       return result;
     } on TimeoutException {
       return null;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to read /etc/os-release',
+        tag: 'Distro',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return null;
     }
   }
@@ -62,7 +69,13 @@ class DistroDetector {
       return trimmed.isEmpty ? null : trimmed;
     } on TimeoutException {
       return null;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to run uname',
+        tag: 'Distro',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return null;
     }
   }

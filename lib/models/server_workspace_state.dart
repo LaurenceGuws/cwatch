@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:cwatch/core/models/tab_state.dart';
+import '../services/logging/app_logger.dart';
 
 class ServerWorkspaceState {
   const ServerWorkspaceState({required this.tabs, this.selectedIndex = 0});
@@ -24,8 +25,13 @@ class ServerWorkspaceState {
       }
       try {
         tabs.add(TabState.fromJson(entry));
-      } catch (_) {
-        // Skip malformed tab entries
+      } catch (error, stackTrace) {
+        AppLogger.w(
+          'Failed to parse server workspace tab',
+          tag: 'Workspace',
+          error: error,
+          stackTrace: stackTrace,
+        );
       }
     }
     final selected = (json['selectedIndex'] as num?)?.toInt() ?? 0;

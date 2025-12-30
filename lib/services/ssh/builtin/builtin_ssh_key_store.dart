@@ -50,8 +50,13 @@ class BuiltInSshKeyStore {
         if (jsonMap is Map<String, dynamic>) {
           entries.add(BuiltInSshKeyEntry.fromJson(jsonMap));
         }
-      } catch (_) {
-        continue;
+      } catch (error, stackTrace) {
+        AppLogger.w(
+          'Failed to read SSH key metadata from ${entity.path}',
+          tag: 'BuiltInSSHKeyStore',
+          error: error,
+          stackTrace: stackTrace,
+        );
       }
     }
     return entries;
@@ -95,13 +100,14 @@ class BuiltInSshKeyStore {
       } else {
         rethrow;
       }
-    } catch (_) {
-      // If parsing fails for other reasons, assume unencrypted
-      keyIsEncrypted = false;
-      AppLogger.d(
-        'Key "$label" (id=$id) assumed unencrypted (parsing failed for other reason)',
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to parse SSH key "$label" (id=$id); assuming unencrypted',
         tag: 'BuiltInSSHKeyStore',
+        error: error,
+        stackTrace: stackTrace,
       );
+      keyIsEncrypted = false;
     }
 
     final entry = await buildEntry(

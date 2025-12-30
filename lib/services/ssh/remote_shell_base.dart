@@ -180,10 +180,22 @@ abstract class RemoteShellService with RemotePathUtils {
           onBytes: download.onBytes,
           onTimeout: onTimeout,
         );
-      } catch (error) {
+      } catch (error, stackTrace) {
         if (onError == null) {
+          AppLogger.w(
+            'Failed to download ${download.remotePath}',
+            tag: 'SSH',
+            error: error,
+            stackTrace: stackTrace,
+          );
           rethrow;
         }
+        AppLogger.w(
+          'Failed to download ${download.remotePath}',
+          tag: 'SSH',
+          error: error,
+          stackTrace: stackTrace,
+        );
         onError(download, error);
       }
     }

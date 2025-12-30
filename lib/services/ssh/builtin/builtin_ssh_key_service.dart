@@ -6,6 +6,7 @@ import 'builtin_ssh_key_entry.dart';
 import 'builtin_ssh_key_store.dart';
 import 'builtin_ssh_vault.dart';
 import 'builtin_remote_shell_service.dart';
+import '../../logging/app_logger.dart';
 import '../remote_command_logging.dart';
 import '../known_hosts_store.dart';
 import '../ssh_auth_coordinator.dart';
@@ -77,7 +78,13 @@ class BuiltInSshKeyService {
         status: BuiltInSshKeyAddStatus.success,
         entry: entry,
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to add built-in SSH key "$label"',
+        tag: 'BuiltInSSHKey',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return BuiltInSshKeyAddResult(
         status: BuiltInSshKeyAddStatus.invalid,
         message: error.toString(),
@@ -118,7 +125,13 @@ class BuiltInSshKeyService {
         status: BuiltInSshKeyUnlockStatus.incorrectPassword,
         message: 'Incorrect password for that key.',
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to unlock built-in SSH key $keyId',
+        tag: 'BuiltInSSHKey',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return BuiltInSshKeyUnlockResult(
         status: BuiltInSshKeyUnlockStatus.failed,
         message: error.toString(),
@@ -186,6 +199,11 @@ class BuiltInSshKeyService {
       SSHKeyPair.fromPem(pem, trimmedPassphrase);
       return const _KeyValidationResult.valid();
     } on ArgumentError catch (error) {
+      AppLogger.w(
+        'Error validating SSH key PEM',
+        tag: 'BuiltInSSHKey',
+        error: error,
+      );
       if (error.message == 'passphrase is required for encrypted key') {
         if (trimmedPassphrase == null) {
           return const _KeyValidationResult.needsPassphrase(
@@ -198,6 +216,11 @@ class BuiltInSshKeyService {
       }
       return _KeyValidationResult.invalid(error.toString());
     } on StateError catch (error) {
+      AppLogger.w(
+        'Error validating SSH key PEM',
+        tag: 'BuiltInSSHKey',
+        error: error,
+      );
       if (error.message.contains('encrypted')) {
         if (trimmedPassphrase == null) {
           return const _KeyValidationResult.needsPassphrase(
@@ -212,10 +235,21 @@ class BuiltInSshKeyService {
     } on SSHKeyDecryptError {
       return const _KeyValidationResult.invalid('Invalid passphrase.');
     } on UnsupportedError catch (error) {
+      AppLogger.w(
+        'Unsupported SSH key format',
+        tag: 'BuiltInSSHKey',
+        error: error,
+      );
       return _KeyValidationResult.invalid(
         'Unsupported key cipher or format: ${error.message}',
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to validate SSH key PEM',
+        tag: 'BuiltInSSHKey',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return _KeyValidationResult.invalid(error.toString());
     }
   }

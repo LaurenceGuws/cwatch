@@ -1,6 +1,14 @@
 import 'shortcut_actions.dart';
 
-enum ShortcutCategory { global, terminal, tabs, editor, docker, grid }
+enum ShortcutCategory {
+  global,
+  terminal,
+  tabs,
+  editor,
+  docker,
+  grid,
+  explorer,
+}
 
 class ShortcutDefinition {
   const ShortcutDefinition({
@@ -257,6 +265,27 @@ class ShortcutCatalog {
       description: 'Select all cells.',
       category: ShortcutCategory.grid,
       defaultBinding: 'ctrl+a',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.explorerSearch,
+      label: 'Search',
+      description: 'Toggle the explorer search panel.',
+      category: ShortcutCategory.explorer,
+      defaultBinding: 'ctrl+f',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.explorerZoomIn,
+      label: 'Zoom in',
+      description: 'Increase explorer row height.',
+      category: ShortcutCategory.explorer,
+      defaultBinding: 'ctrl+=',
+    ),
+    ShortcutDefinition(
+      id: ShortcutActions.explorerZoomOut,
+      label: 'Zoom out',
+      description: 'Decrease explorer row height.',
+      category: ShortcutCategory.explorer,
+      defaultBinding: 'ctrl+-',
     ),
   ];
 

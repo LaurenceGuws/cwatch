@@ -9,6 +9,7 @@ import 'package:desktop_drop/desktop_drop.dart';
 import '../../../../../shared/mixins/tab_options_mixin.dart';
 import '../../../../../shared/theme/app_theme.dart';
 import '../../../../../models/explorer_context.dart';
+import '../../../../../models/app_settings.dart';
 import '../../../../../models/remote_file_entry.dart';
 import '../../../../../models/ssh_host.dart';
 import '../../../../../services/logging/app_logger.dart';
@@ -16,6 +17,9 @@ import '../../../../../services/settings/app_settings_controller.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../../services/filesystem/explorer_trash_manager.dart';
 import '../../../../widgets/dialog_keyboard_shortcuts.dart';
+import '../../../../shortcuts/input_mode_resolver.dart';
+import '../../../../shortcuts/shortcut_actions.dart';
+import '../../../../shortcuts/shortcut_resolver.dart';
 import 'context_menu_builder.dart';
 import 'dialog_builders.dart';
 import 'explorer_clipboard.dart';
@@ -258,38 +262,76 @@ class _FileExplorerTabState extends State<FileExplorerTab>
           )
         : contentCard;
 
-    return Shortcuts(
-      shortcuts: const {
-        SingleActivator(LogicalKeyboardKey.keyF, control: true):
-            _ToggleSearchIntent(),
-        SingleActivator(LogicalKeyboardKey.keyF, meta: true):
-            _ToggleSearchIntent(),
+    final actions = Actions(
+      actions: {
+        _ToggleSearchIntent: CallbackAction<_ToggleSearchIntent>(
+          onInvoke: (_) {
+            unawaited(_controller.setSearchActive(!_controller.searchActive));
+            return null;
+          },
+        ),
+        _ZoomInIntent: CallbackAction<_ZoomInIntent>(
+          onInvoke: (_) {
+            _adjustRowHeight(4);
+            return null;
+          },
+        ),
+        _ZoomOutIntent: CallbackAction<_ZoomOutIntent>(
+          onInvoke: (_) {
+            _adjustRowHeight(-4);
+            return null;
+          },
+        ),
       },
-      child: Actions(
-        actions: {
-          _ToggleSearchIntent: CallbackAction<_ToggleSearchIntent>(
-            onInvoke: (_) {
-              unawaited(_controller.setSearchActive(!_controller.searchActive));
-              return null;
-            },
-          ),
-        },
-        child: Focus(
-          autofocus: true,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: EdgeInsets.only(bottom: spacing.md),
-                child: _buildPathNavigator(context),
-              ),
-              SizedBox(height: spacing.lg),
-              Expanded(child: dropWrapped),
-            ],
-          ),
+      child: Focus(
+        autofocus: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.only(bottom: spacing.sm),
+              child: _buildPathNavigator(context),
+            ),
+            Expanded(child: dropWrapped),
+          ],
         ),
       ),
     );
+
+    final shortcuts = _explorerShortcuts(widget.settingsController.settings);
+    if (shortcuts.isEmpty) {
+      return actions;
+    }
+    return Shortcuts(shortcuts: shortcuts, child: actions);
+  }
+
+  void _adjustRowHeight(double delta) {
+    final next = _controller.rowHeight + delta;
+    _controller.setRowHeight(next);
+  }
+
+  Map<ShortcutActivator, Intent> _explorerShortcuts(AppSettings settings) {
+    final inputMode = resolveInputMode(
+      settings.inputModePreference,
+      defaultTargetPlatform,
+    );
+    if (!inputMode.enableShortcuts) {
+      return const {};
+    }
+    final resolver = ShortcutResolver(settings);
+    final map = <ShortcutActivator, Intent>{};
+
+    void add(String id, Intent intent) {
+      final binding = resolver.bindingFor(id);
+      if (binding == null) return;
+      map[binding.toActivator()] = intent;
+    }
+
+    add(ShortcutActions.explorerSearch, const _ToggleSearchIntent());
+    add(ShortcutActions.explorerZoomIn, const _ZoomInIntent());
+    add(ShortcutActions.explorerZoomOut, const _ZoomOutIntent());
+
+    return map;
   }
 
   Widget _buildPathNavigator(BuildContext context) {
@@ -325,6 +367,9 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       onSearchMatchWholeWordChanged: _controller.toggleSearchMatchWholeWord,
       searchContents: _controller.searchContents,
       onSearchContentsChanged: _controller.setSearchContents,
+      showRowHeightControl: _controller.showRowHeightControl,
+      rowHeight: _controller.rowHeight,
+      onRowHeightChanged: _controller.setRowHeight,
     );
   }
 
@@ -337,6 +382,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       syncingPaths: _controller.syncingPaths,
       refreshingPaths: _controller.refreshingPaths,
       localEdits: _controller.localEdits,
+      rowHeight: _controller.rowHeight,
       scrollController: _scrollController,
       focusNode: _listFocusNode,
       onEntryDoubleTap: _handleEntryDoubleTap,
@@ -689,7 +735,13 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Renamed ${entry.name} to $trimmed')),
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to rename ${entry.name}',
+        tag: 'Explorer',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (error is CancelledExplorerOperation) return;
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -727,7 +779,13 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Moved ${entry.name} to $normalized')),
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to move ${entry.name}',
+        tag: 'Explorer',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (error is CancelledExplorerOperation) return;
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -934,6 +992,21 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     );
     options.add(
       TabChipOption(
+        label: _controller.showRowHeightControl
+            ? 'Hide row zoom'
+            : 'Show row zoom',
+        icon: _controller.showRowHeightControl
+            ? Icons.zoom_out_map
+            : Icons.zoom_in_map,
+        onSelected: () {
+          _controller.setShowRowHeightControl(
+            !_controller.showRowHeightControl,
+          );
+        },
+      ),
+    );
+    options.add(
+      TabChipOption(
         label: 'Upload folder…',
         icon: Icons.folder,
         onSelected: () => _handleUploadFolder(_controller.currentPath),
@@ -961,4 +1034,12 @@ class _FileExplorerTabState extends State<FileExplorerTab>
 
 class _ToggleSearchIntent extends Intent {
   const _ToggleSearchIntent();
+}
+
+class _ZoomInIntent extends Intent {
+  const _ZoomInIntent();
+}
+
+class _ZoomOutIntent extends Intent {
+  const _ZoomOutIntent();
 }

@@ -35,4 +35,7 @@ class ShortcutActions {
   static const gridSelectRow = 'grid.selectRow';
   static const gridSelectColumn = 'grid.selectColumn';
   static const gridSelectAll = 'grid.selectAll';
+  static const explorerSearch = 'explorer.search';
+  static const explorerZoomIn = 'explorer.zoomIn';
+  static const explorerZoomOut = 'explorer.zoomOut';
 }

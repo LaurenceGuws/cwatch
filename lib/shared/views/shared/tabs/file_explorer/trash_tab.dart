@@ -94,12 +94,22 @@ class _TrashTabState extends State<TrashTab> {
       try {
         return await action();
       } on BuiltInSshKeyLockedException catch (error) {
+        AppLogger.w(
+          'Built-in key locked for ${error.hostName}',
+          tag: 'Trash',
+          error: error,
+        );
         final unlocked = await _promptUnlock(error.keyId);
         if (!unlocked) {
           throw const SshUnlockCancelled();
         }
         continue;
       } on BuiltInSshKeyPassphraseRequired catch (error) {
+        AppLogger.w(
+          'Passphrase required for built-in key ${error.keyId}',
+          tag: 'Trash',
+          error: error,
+        );
         final keyLabel = error.keyLabel ?? error.keyId;
         final passphrase = await _awaitPassphraseInput(
           error.hostName,
@@ -119,6 +129,11 @@ class _TrashTabState extends State<TrashTab> {
         }
         continue;
       } on BuiltInSshKeyUnsupportedCipher catch (error) {
+        AppLogger.w(
+          'Unsupported cipher for built-in key ${error.keyId}',
+          tag: 'Trash',
+          error: error,
+        );
         final keyLabel = error.keyLabel ?? error.keyId;
         final detail = error.error.message ?? error.error.toString();
         if (mounted) {
@@ -132,6 +147,11 @@ class _TrashTabState extends State<TrashTab> {
         }
         rethrow;
       } on BuiltInSshIdentityPassphraseRequired catch (error) {
+        AppLogger.w(
+          'Passphrase required for identity ${error.identityPath}',
+          tag: 'Trash',
+          error: error,
+        );
         final passphrase = await _awaitPassphraseInput(
           error.hostName,
           error.identityPath,
@@ -152,6 +172,11 @@ class _TrashTabState extends State<TrashTab> {
         }
         continue;
       } on BuiltInSshAuthenticationFailed catch (error) {
+        AppLogger.w(
+          'SSH authentication failed for ${error.hostName}',
+          tag: 'Trash',
+          error: error,
+        );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -276,6 +301,12 @@ class _TrashTabState extends State<TrashTab> {
         final result = await _promptPassphrase(host, path);
         completer.complete(result);
       } catch (error, stackTrace) {
+        AppLogger.w(
+          'Failed to prompt passphrase for $key',
+          tag: 'Trash',
+          error: error,
+          stackTrace: stackTrace,
+        );
         completer.completeError(error, stackTrace);
       } finally {
         _pendingPassphrasePrompts.remove(key);

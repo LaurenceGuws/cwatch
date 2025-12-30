@@ -609,6 +609,10 @@ class BuiltInRemoteShellService extends RemoteShellService {
         columns: options.columns > 0 ? options.columns : 80,
       );
     } catch (error) {
+      logBuiltInSshWarning(
+        'Failed to start built-in terminal session for ${host.name}',
+        error: error,
+      );
       client?.close();
       rethrow;
     }

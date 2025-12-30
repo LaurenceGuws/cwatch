@@ -39,7 +39,13 @@ class DeleteOperationsHandler {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Deleted ${entry.name} permanently')),
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to delete ${entry.name} permanently',
+        tag: 'Explorer',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -74,7 +80,13 @@ class DeleteOperationsHandler {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Moved ${entry.name} to trash')));
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to move ${entry.name} to trash',
+        tag: 'Explorer',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (recorded != null) {
         await trashManager.deleteEntry(recorded, notify: false);
       }

@@ -10,6 +10,7 @@ import 'package:super_drag_and_drop/src/into_raw.dart';
 import 'package:super_native_extensions/raw_drag_drop.dart'
     show DragContext, TargetedWidgetSnapshot, WidgetSnapshot;
 
+import '../../../../../services/logging/app_logger.dart';
 import 'drag_types.dart';
 
 /// Platform interface for starting OS-native drag sessions.
@@ -99,7 +100,13 @@ class WindowsDragSource implements DesktopDragSource {
         position: globalPosition,
       );
       return const DragStartResult(started: true);
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to start desktop drag session',
+        tag: 'Explorer',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return DragStartResult(started: false, error: error.toString());
     }
   }
@@ -210,7 +217,13 @@ class LinuxDragSource implements DesktopDragSource {
         position: globalPosition,
       );
       return const DragStartResult(started: true);
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to start desktop drag session',
+        tag: 'Explorer',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return DragStartResult(started: false, error: error.toString());
     }
   }

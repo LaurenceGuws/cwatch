@@ -690,6 +690,13 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
         Widget? navigationBar;
         Alignment navigationAlignment = Alignment.centerLeft;
         EdgeInsets contentPadding = EdgeInsets.zero;
+        if (useCustomChrome) {
+          contentPadding =
+              contentPadding +
+              EdgeInsets.only(
+                top: _WindowControls.height + spacing.base * 1.5,
+              );
+        }
         if (showSidebar) {
           switch (_sidebarPlacement) {
             case _SidebarPlacement.dynamic:
@@ -713,7 +720,9 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
                   onShowOptions: showOptions,
                 );
                 navigationAlignment = Alignment.centerLeft;
-                contentPadding = const EdgeInsets.only(left: _Sidebar.width);
+                contentPadding = EdgeInsets.only(
+                  left: _Sidebar.width + spacing.xs,
+                );
               }
               break;
             case _SidebarPlacement.left:
@@ -725,7 +734,9 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
                 onShowOptions: showOptions,
               );
               navigationAlignment = Alignment.centerLeft;
-              contentPadding = const EdgeInsets.only(left: _Sidebar.width);
+              contentPadding = EdgeInsets.only(
+                left: _Sidebar.width + spacing.xs,
+              );
               break;
             case _SidebarPlacement.right:
               navigationBar = _Sidebar(
@@ -737,7 +748,9 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
                 onShowOptions: showOptions,
               );
               navigationAlignment = Alignment.centerRight;
-              contentPadding = const EdgeInsets.only(right: _Sidebar.width);
+              contentPadding = EdgeInsets.only(
+                right: _Sidebar.width + spacing.xs,
+              );
               break;
             case _SidebarPlacement.bottom:
               navigationBar = _BottomNavBar(
@@ -1049,6 +1062,9 @@ class _Sidebar extends StatelessWidget {
     );
     final content = Container(
       width: width,
+      margin: alignRight
+          ? EdgeInsets.only(left: spacing.xs)
+          : EdgeInsets.only(right: spacing.xs),
       decoration: decoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,

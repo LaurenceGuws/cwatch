@@ -212,7 +212,13 @@ class _DockerViewState extends State<DockerView> {
   Future<List<DockerContext>> _loadContexts() async {
     try {
       return await _docker.listContexts();
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to load docker contexts',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return const <DockerContext>[];
     }
   }
@@ -272,118 +278,121 @@ class _DockerViewState extends State<DockerView> {
   @override
   Widget build(BuildContext context) {
     final spacing = context.appTheme.spacing;
-    return Column(
-      children: [
-        Expanded(
-          child: Material(
-            color: context.appTheme.section.toolbarBackground,
-            child: TabbedWorkspaceShell<EngineTab>(
-              controller: _tabController,
-              registry: _tabRegistry,
-              tabBarHeight: 36,
-              showTabBar: TabBarVisibilityController.instance,
-              enableWindowDrag:
-                  !widget.settingsController.settings.windowUseSystemDecorations,
-              leading: widget.leading != null
-                  ? Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal:
-                            (!kIsWeb &&
-                                    (defaultTargetPlatform ==
-                                            TargetPlatform.windows ||
-                                        defaultTargetPlatform ==
-                                            TargetPlatform.macOS ||
-                                        defaultTargetPlatform ==
-                                            TargetPlatform.linux))
-                                ? 0
-                                : spacing.sm,
-                      ),
-                      child: SizedBox(
-                        height: 36,
-                        child: Center(child: widget.leading),
-                      ),
-                    )
-                  : null,
-              onReorder: (oldIndex, newIndex) {
-                final selectedTabId = _tabs.isEmpty
-                    ? null
-                    : _tabs[_selectedIndex].id;
-                if (oldIndex < newIndex) newIndex -= 1;
-                _tabController.reorder(oldIndex, newIndex);
-                if (selectedTabId != null) {
-                  final newIndexOfSelected = _tabs.indexWhere(
-                    (tab) => tab.id == selectedTabId,
-                  );
-                  _tabController.select(
-                    newIndexOfSelected.clamp(0, _tabs.length - 1),
-                  );
-                }
-                _persistWorkspace();
-              },
-              onAddTab: _addEnginePickerTab,
-              buildChip: (context, index, tab) {
-                final optionsController = tab.optionsController;
-                final state = tab.workspaceState is TabState
-                    ? tab.workspaceState as TabState
-                    : null;
-                final isPicker =
-                    tab.isPicker || state?.kind == DockerTabKind.picker.name;
-                final canDrag = tab.canDrag && !isPicker;
-                final canRename = tab.canRename && !isPicker;
-                final closeWarning = _isCommandWorkspace(tab.workspaceState)
-                    ? const TabCloseWarning(
-                        title: 'Disconnect session?',
-                        message:
-                            'Closing this tab will end the running shell/command.',
-                        confirmLabel: 'Close tab',
+    return Padding(
+      padding: spacing.inset(horizontal: 1.5, vertical: 1),
+      child: Column(
+        children: [
+          Expanded(
+            child: Material(
+              color: context.appTheme.section.toolbarBackground,
+              child: TabbedWorkspaceShell<EngineTab>(
+                controller: _tabController,
+                registry: _tabRegistry,
+                tabBarHeight: 36,
+                showTabBar: TabBarVisibilityController.instance,
+                enableWindowDrag:
+                    !widget.settingsController.settings.windowUseSystemDecorations,
+                leading: widget.leading != null
+                    ? Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal:
+                              (!kIsWeb &&
+                                      (defaultTargetPlatform ==
+                                              TargetPlatform.windows ||
+                                          defaultTargetPlatform ==
+                                              TargetPlatform.macOS ||
+                                          defaultTargetPlatform ==
+                                              TargetPlatform.linux))
+                                  ? 0
+                                  : spacing.sm,
+                        ),
+                        child: SizedBox(
+                          height: 36,
+                          child: Center(child: widget.leading),
+                        ),
                       )
-                    : null;
-                Widget buildTab(List<TabChipOption> options) {
-                  return TabChip(
-                    host: SshHost(
-                      name: tab.label,
-                      hostname: '',
-                      port: 0,
-                      available: true,
-                    ),
-                    title: tab.title,
-                    label: tab.label,
-                    icon: tab.icon,
-                    selected: index == _selectedIndex,
-                    onSelect: () {
-                      _tabController.select(index);
-                      _persistWorkspace();
-                    },
-                    onClose: () => _closeTab(index),
-                    closable: true,
-                    onRename: canRename ? () => _renameTab(index) : null,
-                    dragIndex: canDrag ? index : null,
-                    options: options,
-                    closeWarning: closeWarning,
-                  );
-                }
+                    : null,
+                onReorder: (oldIndex, newIndex) {
+                  final selectedTabId = _tabs.isEmpty
+                      ? null
+                      : _tabs[_selectedIndex].id;
+                  if (oldIndex < newIndex) newIndex -= 1;
+                  _tabController.reorder(oldIndex, newIndex);
+                  if (selectedTabId != null) {
+                    final newIndexOfSelected = _tabs.indexWhere(
+                      (tab) => tab.id == selectedTabId,
+                    );
+                    _tabController.select(
+                      newIndexOfSelected.clamp(0, _tabs.length - 1),
+                    );
+                  }
+                  _persistWorkspace();
+                },
+                onAddTab: _addEnginePickerTab,
+                buildChip: (context, index, tab) {
+                  final optionsController = tab.optionsController;
+                  final state = tab.workspaceState is TabState
+                      ? tab.workspaceState as TabState
+                      : null;
+                  final isPicker =
+                      tab.isPicker || state?.kind == DockerTabKind.picker.name;
+                  final canDrag = tab.canDrag && !isPicker;
+                  final canRename = tab.canRename && !isPicker;
+                  final closeWarning = _isCommandWorkspace(tab.workspaceState)
+                      ? const TabCloseWarning(
+                          title: 'Disconnect session?',
+                          message:
+                              'Closing this tab will end the running shell/command.',
+                          confirmLabel: 'Close tab',
+                        )
+                      : null;
+                  Widget buildTab(List<TabChipOption> options) {
+                    return TabChip(
+                      host: SshHost(
+                        name: tab.label,
+                        hostname: '',
+                        port: 0,
+                        available: true,
+                      ),
+                      title: tab.title,
+                      label: tab.label,
+                      icon: tab.icon,
+                      selected: index == _selectedIndex,
+                      onSelect: () {
+                        _tabController.select(index);
+                        _persistWorkspace();
+                      },
+                      onClose: () => _closeTab(index),
+                      closable: true,
+                      onRename: canRename ? () => _renameTab(index) : null,
+                      dragIndex: canDrag ? index : null,
+                      options: options,
+                      closeWarning: closeWarning,
+                    );
+                  }
 
-                if (optionsController == null) {
-                  return KeyedSubtree(
+                  if (optionsController == null) {
+                    return KeyedSubtree(
+                      key: ValueKey(tab.id),
+                      child: buildTab(const []),
+                    );
+                  }
+                  return ValueListenableBuilder<List<TabChipOption>>(
                     key: ValueKey(tab.id),
-                    child: buildTab(const []),
+                    valueListenable: optionsController,
+                    builder: (context, options, _) => buildTab(options),
                   );
-                }
-                return ValueListenableBuilder<List<TabChipOption>>(
-                  key: ValueKey(tab.id),
-                  valueListenable: optionsController,
-                  builder: (context, options, _) => buildTab(options),
-                );
-              },
-              buildBody: (tab) => tab.body,
+                },
+                buildBody: (tab) => tab.body,
+              ),
             ),
           ),
-        ),
-        Padding(
-          padding: context.appTheme.spacing.inset(horizontal: 2, vertical: 0),
-          child: Divider(height: 1, color: context.appTheme.section.divider),
-        ),
-      ],
+          Padding(
+            padding: context.appTheme.spacing.inset(horizontal: 2, vertical: 0),
+            child: Divider(height: 1, color: context.appTheme.section.divider),
+          ),
+        ],
+      ),
     );
   }
 
@@ -651,7 +660,13 @@ class _DockerViewState extends State<DockerView> {
     List<SshHost> hosts;
     try {
       hosts = await widget.hostsFuture;
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to load SSH hosts for docker status scan',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
       throw Exception('Failed to load SSH hosts: $error');
     }
     if (!mounted || hosts.isEmpty) {
@@ -921,7 +936,13 @@ class _DockerViewState extends State<DockerView> {
     try {
       hosts = await widget.hostsFuture;
       workspace = widget.settingsController.settings.dockerWorkspace;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to load docker workspace state',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
       workspace = widget.settingsController.settings.dockerWorkspace;
     }
     if (!mounted) return;

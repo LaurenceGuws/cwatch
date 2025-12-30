@@ -387,7 +387,13 @@ class FileOperationsService {
           ),
         ),
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Download operation failed',
+        tag: 'Explorer',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!context.mounted) return;
       progressController.dismiss();
       ScaffoldMessenger.of(
@@ -548,7 +554,13 @@ class FileOperationsService {
           ),
         );
       }
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Upload operation failed',
+        tag: 'Explorer',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!context.mounted) return;
       progressController.dismiss();
       if (!context.mounted) return;
@@ -729,7 +741,13 @@ class FileOperationsService {
           ),
         );
       }
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Directory upload failed',
+        tag: 'Explorer',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!context.mounted) return;
       if (Navigator.of(context, rootNavigator: true).canPop()) {
         Navigator.of(context, rootNavigator: true).pop();
@@ -946,7 +964,13 @@ class FileOperationsService {
         try {
           final stat = await FileStat.stat(file.path!);
           size = stat.size;
-        } catch (_) {
+        } catch (error, stackTrace) {
+          AppLogger.w(
+            'Failed to stat file ${file.path}',
+            tag: 'Explorer',
+            error: error,
+            stackTrace: stackTrace,
+          );
           size = 0;
         }
       } else if (file.bytes != null) {
@@ -978,7 +1002,13 @@ class FileOperationsService {
         try {
           final stat = await entity.stat();
           size = stat.size;
-        } catch (_) {
+        } catch (error, stackTrace) {
+          AppLogger.w(
+            'Failed to stat file ${entity.path}',
+            tag: 'Explorer',
+            error: error,
+            stackTrace: stackTrace,
+          );
           size = 0;
         }
         items.add(
@@ -988,8 +1018,13 @@ class FileOperationsService {
           ),
         );
       }
-    } catch (_) {
-      // Counting errors are logged during upload; ignore here.
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to enumerate directory $directoryPath',
+        tag: 'Explorer',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
     if (!hasFiles) {
       items.add(FileOperationItem(label: directoryName, sizeBytes: 0));
@@ -1009,7 +1044,13 @@ class FileOperationsService {
         try {
           final stat = await FileStat.stat(path);
           size = stat.size;
-        } catch (_) {
+        } catch (error, stackTrace) {
+          AppLogger.w(
+            'Failed to stat dropped path $path',
+            tag: 'Explorer',
+            error: error,
+            stackTrace: stackTrace,
+          );
           size = 0;
         }
         items.add(FileOperationItem(label: name, sizeBytes: size));
@@ -1233,8 +1274,13 @@ class FileOperationsService {
     } finally {
       try {
         await tempDir.delete(recursive: true);
-      } catch (_) {
-        // Ignore cleanup failures.
+      } catch (error, stackTrace) {
+        AppLogger.w(
+          'Failed to clean up temp directory ${tempDir.path}',
+          tag: 'Explorer',
+          error: error,
+          stackTrace: stackTrace,
+        );
       }
     }
   }

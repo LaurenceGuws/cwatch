@@ -46,6 +46,7 @@ class FileEntryList extends StatefulWidget {
     required this.onClearCachedCopy,
     this.onStartOsDrag,
     required this.joinPath,
+    this.rowHeight = 36,
   });
 
   final List<RemoteFileEntry> entries;
@@ -70,6 +71,7 @@ class FileEntryList extends StatefulWidget {
   final ValueChanged<LocalFileSession> onClearCachedCopy;
   final ValueChanged<Offset>? onStartOsDrag;
   final String Function(String, String) joinPath;
+  final double rowHeight;
 
   @override
   State<FileEntryList> createState() => _FileEntryListState();
@@ -184,22 +186,33 @@ class _FileEntryListState extends State<FileEntryList> {
     return [
       StructuredDataColumn<RemoteFileEntry>(
         label: 'Name',
+        flex: 3,
         autoFitText: (entry) => entry.name,
         cellBuilder: _buildNameCell,
       ),
       StructuredDataColumn<RemoteFileEntry>(
+        label: 'Type',
+        flex: 1,
+        autoFitText: _secondaryLabel,
+        cellBuilder: (context, entry) => Text(_secondaryLabel(entry)),
+      ),
+      StructuredDataColumn<RemoteFileEntry>(
         label: 'Size',
+        flex: 1,
         alignment: Alignment.centerRight,
         autoFitText: _sizeLabel,
         cellBuilder: (context, entry) => Text(_sizeLabel(entry)),
       ),
       StructuredDataColumn<RemoteFileEntry>(
         label: 'Modified',
+        flex: 2,
+        alignment: Alignment.center,
         autoFitText: _modifiedLabel,
         cellBuilder: (context, entry) => Text(_modifiedLabel(entry)),
       ),
       StructuredDataColumn<RemoteFileEntry>(
         label: 'Actions',
+        flex: 2,
         alignment: Alignment.centerRight,
         minWidth: 140,
         autoFitText: (_) => 'Actions',
@@ -225,26 +238,12 @@ class _FileEntryListState extends State<FileEntryList> {
         Icon(icon, color: iconColor),
         SizedBox(width: spacing.md),
         Expanded(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                entry.name,
-                style: Theme.of(context).textTheme.titleMedium,
-                textHeightBehavior: compactTextHeight,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              Text(
-                _secondaryLabel(entry),
-                style: Theme.of(context).textTheme.bodySmall,
-                textHeightBehavior: compactTextHeight,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+          child: Text(
+            entry.name,
+            style: Theme.of(context).textTheme.titleMedium,
+            textHeightBehavior: compactTextHeight,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
@@ -262,11 +261,18 @@ class _FileEntryListState extends State<FileEntryList> {
     final remotePath = session.remotePath;
     final syncing = widget.syncingPaths.contains(remotePath);
     final refreshing = widget.refreshingPaths.contains(remotePath);
+    const iconButtonConstraints = BoxConstraints.tightFor(width: 28, height: 28);
+    const iconButtonPadding = EdgeInsets.zero;
     return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton(
           tooltip: 'Push local changes to server',
+          padding: iconButtonPadding,
+          constraints: iconButtonConstraints,
+          iconSize: 18,
           icon: syncing
               ? const SizedBox(
                   width: 16,
@@ -278,6 +284,9 @@ class _FileEntryListState extends State<FileEntryList> {
         ),
         IconButton(
           tooltip: 'Refresh cache from server',
+          padding: iconButtonPadding,
+          constraints: iconButtonConstraints,
+          iconSize: 18,
           icon: refreshing
               ? const SizedBox(
                   width: 16,
@@ -291,6 +300,9 @@ class _FileEntryListState extends State<FileEntryList> {
         ),
         IconButton(
           tooltip: 'Clear cached copy',
+          padding: iconButtonPadding,
+          constraints: iconButtonConstraints,
+          iconSize: 18,
           icon: Icon(NerdIcon.delete.data),
           onPressed: () => widget.onClearCachedCopy(session),
         ),
@@ -311,7 +323,9 @@ class _FileEntryListState extends State<FileEntryList> {
         child: StructuredDataTable<RemoteFileEntry>(
           rows: widget.entries,
           columns: _columns(context),
-          rowHeight: 64,
+          fitColumnsToWidth: true,
+          headerHeight: 28,
+          rowHeight: widget.rowHeight,
           shrinkToContent: false,
           useZebraStripes: false,
           surfaceBackgroundColor: context.appTheme.section.surface.background,

@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'package:yaml/yaml.dart';
 
+import '../logging/app_logger.dart';
+
 class KubeconfigContext {
   const KubeconfigContext({
     required this.name,
@@ -85,8 +87,13 @@ class KubeconfigService {
       if (doc is YamlMap) {
         return _PathAndDocument(path: expanded, map: doc);
       }
-    } catch (_) {
-      // ignore parse errors
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to parse kubeconfig at $expanded',
+        tag: 'Kubeconfig',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
     return _PathAndDocument(path: expanded, map: null);
   }

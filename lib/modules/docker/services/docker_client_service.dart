@@ -49,7 +49,13 @@ class DockerClientService {
       final output = (result.stdout as String?) ?? '';
       _log('Contexts output length=${output.length}');
       return _parseJsonLines(output);
-    } on ProcessException catch (error) {
+    } on ProcessException catch (error, stackTrace) {
+      AppLogger.w(
+        'Docker CLI not available while listing contexts',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
       throw Exception('Docker CLI not available: ${error.message}');
     } on TimeoutException {
       throw Exception('Timed out while listing Docker contexts.');
@@ -67,8 +73,13 @@ class DockerClientService {
         if (decoded is Map<String, dynamic>) {
           contexts.add(_fromMap(decoded));
         }
-      } catch (_) {
-        // Skip malformed lines
+      } catch (error, stackTrace) {
+        AppLogger.w(
+          'Failed to parse docker context line',
+          tag: 'Docker',
+          error: error,
+          stackTrace: stackTrace,
+        );
         continue;
       }
     }
@@ -152,7 +163,13 @@ class DockerClientService {
       final output = (result.stdout as String?) ?? '';
       _log('Containers output length=${output.length}');
       return _parseContainerLines(output);
-    } on ProcessException catch (error) {
+    } on ProcessException catch (error, stackTrace) {
+      AppLogger.w(
+        'Docker CLI not available while listing containers',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
       throw Exception('Docker CLI not available: ${error.message}');
     } on TimeoutException {
       throw Exception('Timed out while listing containers.');
@@ -168,7 +185,13 @@ class DockerClientService {
         if (decoded is Map<String, dynamic>) {
           items.add(_containerFromMap(decoded));
         }
-      } catch (_) {
+      } catch (error, stackTrace) {
+        AppLogger.w(
+          'Failed to parse docker container line',
+          tag: 'Docker',
+          error: error,
+          stackTrace: stackTrace,
+        );
         continue;
       }
     }
@@ -237,7 +260,13 @@ class DockerClientService {
       }
 
       return (result.stdout as String?) ?? '';
-    } on ProcessException catch (error) {
+    } on ProcessException catch (error, stackTrace) {
+      AppLogger.w(
+        'Docker CLI not available while running exec',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
       throw Exception('Docker CLI not available: ${error.message}');
     } on TimeoutException {
       throw Exception('Timed out while running docker exec.');
@@ -282,7 +311,13 @@ class DockerClientService {
       final output = (result.stdout as String?) ?? '';
       _log('Images output length=${output.length}');
       return _parseImageLines(output);
-    } on ProcessException catch (error) {
+    } on ProcessException catch (error, stackTrace) {
+      AppLogger.w(
+        'Docker CLI not available while listing images',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
       throw Exception('Docker CLI not available: ${error.message}');
     } on TimeoutException {
       throw Exception('Timed out while listing images.');
@@ -298,7 +333,13 @@ class DockerClientService {
         if (decoded is Map<String, dynamic>) {
           items.add(_imageFromMap(decoded));
         }
-      } catch (_) {
+      } catch (error, stackTrace) {
+        AppLogger.w(
+          'Failed to parse docker image line',
+          tag: 'Docker',
+          error: error,
+          stackTrace: stackTrace,
+        );
         continue;
       }
     }
@@ -372,7 +413,13 @@ class DockerClientService {
             ),
           );
         }
-      } catch (_) {
+      } catch (error, stackTrace) {
+        AppLogger.w(
+          'Failed to parse docker network line',
+          tag: 'Docker',
+          error: error,
+          stackTrace: stackTrace,
+        );
         continue;
       }
     }
@@ -569,7 +616,13 @@ class DockerClientService {
             ),
           );
         }
-      } catch (_) {
+      } catch (error, stackTrace) {
+        AppLogger.w(
+          'Failed to parse docker volume line',
+          tag: 'Docker',
+          error: error,
+          stackTrace: stackTrace,
+        );
         continue;
       }
     }
@@ -597,7 +650,13 @@ class DockerClientService {
             ),
           );
         }
-      } catch (_) {
+      } catch (error, stackTrace) {
+        AppLogger.w(
+          'Failed to parse docker stats line',
+          tag: 'Docker',
+          error: error,
+          stackTrace: stackTrace,
+        );
         continue;
       }
     }
@@ -659,12 +718,24 @@ class DockerClientService {
               }
             }
           }
-        } catch (_) {
+        } catch (error, stackTrace) {
+          AppLogger.w(
+            'Failed to parse docker volume size entry',
+            tag: 'Docker',
+            error: error,
+            stackTrace: stackTrace,
+          );
           continue;
         }
       }
       return map;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to fetch docker volume sizes',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return const {};
     }
   }

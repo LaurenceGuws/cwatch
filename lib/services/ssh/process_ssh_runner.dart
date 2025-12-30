@@ -219,10 +219,23 @@ class ProcessSshRunner {
           process.kill();
           try {
             await process.exitCode.timeout(const Duration(seconds: 2));
-          } catch (_) {
+          } catch (error, stackTrace) {
+            AppLogger.w(
+              'Timed out waiting for process exit after kill',
+              tag: 'ProcessSSH',
+              error: error,
+              stackTrace: stackTrace,
+            );
             try {
               process.kill(ProcessSignal.sigkill);
-            } catch (_) {}
+            } catch (error, stackTrace) {
+              AppLogger.w(
+                'Failed to force-kill process',
+                tag: 'ProcessSSH',
+                error: error,
+                stackTrace: stackTrace,
+              );
+            }
           }
           throw TimeoutException(
             'Command timed out after ${elapsed().inSeconds}s',

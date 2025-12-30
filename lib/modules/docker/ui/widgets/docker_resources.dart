@@ -8,6 +8,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:cwatch/models/docker_container_stat.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/modules/docker/services/docker_client_service.dart';
+import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/shared/mixins/tab_options_mixin.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
@@ -368,7 +369,13 @@ class _DockerResourcesState extends State<DockerResources>
             ),
           );
         }
-      } catch (_) {
+      } catch (error, stackTrace) {
+        AppLogger.w(
+          'Failed to parse docker stats line',
+          tag: 'Docker',
+          error: error,
+          stackTrace: stackTrace,
+        );
         continue;
       }
     }
@@ -441,7 +448,13 @@ class _DockerResourcesState extends State<DockerResources>
         }
         _applySort();
       });
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to refresh docker stats',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
       setState(() {
         _error = error.toString();
         _loading = false;

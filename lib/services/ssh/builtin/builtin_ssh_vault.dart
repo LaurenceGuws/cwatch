@@ -5,6 +5,7 @@ import 'package:dartssh2/dartssh2.dart';
 
 import 'builtin_ssh_key_entry.dart';
 import 'builtin_ssh_key_store.dart';
+import '../../logging/app_logger.dart';
 
 class BuiltInSshVault extends ChangeNotifier {
   BuiltInSshVault({required this.keyStore});
@@ -50,7 +51,13 @@ class BuiltInSshVault extends ChangeNotifier {
     SSHKeyPair keyPair;
     try {
       keyPair = SSHKeyPair.fromPem(pem).first;
-    } on ArgumentError catch (e) {
+    } on ArgumentError catch (e, stackTrace) {
+      AppLogger.w(
+        'Error parsing SSH key $keyId',
+        tag: 'BuiltInSSHVault',
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (e.message == 'passphrase is required for encrypted key') {
         // Key has passphrase - store the encrypted PEM as-is
         // The passphrase will be requested when the key is actually used
@@ -60,7 +67,13 @@ class BuiltInSshVault extends ChangeNotifier {
         return;
       }
       rethrow;
-    } on StateError catch (e) {
+    } on StateError catch (e, stackTrace) {
+      AppLogger.w(
+        'Error parsing SSH key $keyId',
+        tag: 'BuiltInSSHVault',
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (e.message.contains('encrypted')) {
         // Key has passphrase - store the encrypted PEM as-is
         _unlocked[keyId] = Uint8List.fromList(utf8.encode(pem));

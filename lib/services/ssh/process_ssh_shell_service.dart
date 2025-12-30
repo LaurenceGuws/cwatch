@@ -214,7 +214,13 @@ class ProcessRemoteShellService extends RemoteShellService {
       );
       final output = run.stdout.trim();
       return output.isEmpty ? '/' : output;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to resolve home directory for ${host.name}',
+        tag: 'ProcessSSH',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return '/';
     }
   }

@@ -17,8 +17,9 @@ class ShortcutBinding {
   final bool meta;
 
   static ShortcutBinding? tryParse(String? input) {
-    final value = input?.trim().toLowerCase();
+    var value = input?.trim().toLowerCase();
     if (value == null || value.isEmpty) return null;
+    value = value.replaceAll('++', '+plus');
 
     final parts = value
         .split('+')
@@ -298,7 +299,7 @@ class ShortcutBinding {
     if (key == LogicalKeyboardKey.home) return 'home';
     if (key == LogicalKeyboardKey.end) return 'end';
     if (key == LogicalKeyboardKey.equal) {
-      return shifted ? '+' : '=';
+      return shifted ? 'plus' : '=';
     }
     if (key == LogicalKeyboardKey.minus) {
       return shifted ? '_' : '-';

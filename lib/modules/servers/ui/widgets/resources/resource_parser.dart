@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:cwatch/models/ssh_host.dart';
+import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_remote_shell_service.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'resource_models.dart';
@@ -345,9 +346,21 @@ echo "\$disk_stats_after"
         timeout: timeout,
       );
       return output.trim();
-    } on BuiltInSshKeyLockedException catch (error) {
+    } on BuiltInSshKeyLockedException catch (error, stackTrace) {
+      AppLogger.w(
+        'SSH key locked for ${host.name}',
+        tag: 'Resources',
+        error: error,
+        stackTrace: stackTrace,
+      );
       throw Exception('SSH key locked for ${host.name}: ${error.keyId}');
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'SSH command failed for ${host.name}',
+        tag: 'Resources',
+        error: error,
+        stackTrace: stackTrace,
+      );
       throw Exception('SSH command failed: $error');
     }
   }

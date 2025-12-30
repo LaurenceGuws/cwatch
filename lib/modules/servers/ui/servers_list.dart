@@ -12,6 +12,7 @@ import 'package:cwatch/models/server_action.dart';
 import 'package:cwatch/models/server_workspace_state.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/services/filesystem/explorer_trash_manager.dart';
+import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/services/ssh/remote_command_logging.dart';
@@ -253,7 +254,13 @@ class _ServersListState extends State<ServersList> {
       );
       socket.destroy();
       return true;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to check availability for ${host.name}',
+        tag: 'Servers',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return false;
     }
   }
@@ -374,11 +381,15 @@ class _ServersListState extends State<ServersList> {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
     final workspace = _tabs.isEmpty
         ? _buildHostSelection(onHostActivate: _startActionFlowForHost)
         : _buildTabWorkspace();
 
-    return workspace;
+    return Padding(
+      padding: spacing.inset(horizontal: 1.5, vertical: 1),
+      child: workspace,
+    );
   }
 
   Widget _buildHostSelection({
@@ -894,7 +905,13 @@ class _ServersListState extends State<ServersList> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Forwarding $summary for ${host.name}.')),
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to start port forwarding for ${host.name}',
+        tag: 'Servers',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,

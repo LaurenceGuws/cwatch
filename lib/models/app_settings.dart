@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/logging/app_logger.dart';
 import 'custom_ssh_host.dart';
 import 'docker_workspace_state.dart';
 import 'server_workspace_state.dart';
@@ -53,6 +54,8 @@ class AppSettings {
     this.terminalThemeLight = 'solarized-light',
     this.fileTransferUploadConcurrency = 2,
     this.fileTransferDownloadConcurrency = 2,
+    this.explorerRowHeight = 36,
+    this.explorerShowBreadcrumbs = true,
   });
 
   final ThemeMode themeMode;
@@ -99,6 +102,8 @@ class AppSettings {
   final String terminalThemeLight;
   final int fileTransferUploadConcurrency;
   final int fileTransferDownloadConcurrency;
+  final double explorerRowHeight;
+  final bool explorerShowBreadcrumbs;
 
   int get dockerLogsTailClamped => _sanitizeTailLines(dockerLogsTail);
 
@@ -147,6 +152,8 @@ class AppSettings {
     String? terminalThemeLight,
     int? fileTransferUploadConcurrency,
     int? fileTransferDownloadConcurrency,
+    double? explorerRowHeight,
+    bool? explorerShowBreadcrumbs,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -205,6 +212,11 @@ class AppSettings {
         fileTransferDownloadConcurrency ??
             this.fileTransferDownloadConcurrency,
       ),
+      explorerRowHeight: _sanitizeExplorerRowHeight(
+        explorerRowHeight ?? this.explorerRowHeight,
+      ),
+      explorerShowBreadcrumbs:
+          explorerShowBreadcrumbs ?? this.explorerShowBreadcrumbs,
     );
   }
 
@@ -302,7 +314,13 @@ class AppSettings {
         if (raw is Map<String, dynamic>) {
           try {
             return KubernetesWorkspaceState.fromJson(raw);
-          } catch (_) {
+          } catch (error, stackTrace) {
+            AppLogger.w(
+              'Failed to parse kubernetes workspace state',
+              tag: 'Settings',
+              error: error,
+              stackTrace: stackTrace,
+            );
             return null;
           }
         }
@@ -330,7 +348,13 @@ class AppSettings {
         if (raw is Map<String, dynamic>) {
           try {
             return DockerWorkspaceState.fromJson(raw);
-          } catch (_) {
+          } catch (error, stackTrace) {
+            AppLogger.w(
+              'Failed to parse docker workspace state',
+              tag: 'Settings',
+              error: error,
+              stackTrace: stackTrace,
+            );
             return null;
           }
         }
@@ -355,6 +379,11 @@ class AppSettings {
       dockerLogsTail: _sanitizeTailLines(
         (json['dockerLogsTail'] as num?)?.toInt() ?? 200,
       ),
+      explorerRowHeight: _sanitizeExplorerRowHeight(
+        (json['explorerRowHeight'] as num?)?.toDouble() ?? 36,
+      ),
+      explorerShowBreadcrumbs:
+          json['explorerShowBreadcrumbs'] as bool? ?? true,
     );
   }
 
@@ -406,6 +435,8 @@ class AppSettings {
       'terminalThemeLight': terminalThemeLight,
       'fileTransferUploadConcurrency': fileTransferUploadConcurrency,
       'fileTransferDownloadConcurrency': fileTransferDownloadConcurrency,
+      'explorerRowHeight': explorerRowHeight,
+      'explorerShowBreadcrumbs': explorerShowBreadcrumbs,
     };
   }
 
@@ -418,6 +449,12 @@ class AppSettings {
   static int _sanitizeTransferConcurrency(int value) {
     if (value < 1) return 1;
     if (value > 15) return 15;
+    return value;
+  }
+
+  static double _sanitizeExplorerRowHeight(double value) {
+    if (value < 24) return 24;
+    if (value > 88) return 88;
     return value;
   }
 }

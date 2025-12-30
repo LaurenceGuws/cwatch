@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:cwatch/core/tabs/tab_host.dart';
 import 'package:cwatch/core/tabs/tab_host_view.dart';
 import 'package:cwatch/core/tabs/tab_view_registry.dart';
+import 'package:cwatch/shared/theme/app_theme.dart';
 
 /// Reusable shell that wires up a tab host with a shared tab view registry.
 class TabbedWorkspaceShell<T> extends StatelessWidget {
@@ -34,17 +35,21 @@ class TabbedWorkspaceShell<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TabHostView<T>(
-      controller: controller,
-      tabBarHeight: tabBarHeight,
-      leading: leading,
-      onAddTab: onAddTab,
-      onReorder: onReorder,
-      showTabBar: showTabBar,
-      enableWindowDrag: enableWindowDrag,
-      buildChip: buildChip,
-      buildBody: (tab) => registry.widgetFor(tab, () => buildBody(tab)),
-      tabId: registry.tabId,
+    final spacing = context.appTheme.spacing;
+    return Padding(
+      padding: EdgeInsets.only(right: spacing.xs * 0.25),
+      child: TabHostView<T>(
+        controller: controller,
+        tabBarHeight: tabBarHeight,
+        leading: leading,
+        onAddTab: onAddTab,
+        onReorder: onReorder,
+        showTabBar: showTabBar,
+        enableWindowDrag: enableWindowDrag,
+        buildChip: buildChip,
+        buildBody: (tab) => registry.widgetFor(tab, () => buildBody(tab)),
+        tabId: registry.tabId,
+      ),
     );
   }
 }

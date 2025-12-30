@@ -10,6 +10,7 @@ import '../../../../../models/ssh_host.dart';
 import '../../../../../services/filesystem/explorer_trash_manager.dart';
 import '../../../../../services/logging/app_logger.dart';
 import '../../../../../services/settings/app_settings_controller.dart';
+import '../../../../../models/app_settings.dart';
 import '../../../../../services/ssh/remote_editor_cache.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 import 'clipboard_operations_handler.dart';
@@ -91,6 +92,8 @@ class FileExplorerController extends ChangeNotifier {
   bool searchMatchCase = false;
   bool searchMatchWholeWord = false;
   bool searchContents = false;
+  bool showRowHeightControl = false;
+  double rowHeight = 36;
   int _searchGeneration = 0;
   RemoteCommandCancellation? _searchCancellation;
 
@@ -99,8 +102,60 @@ class FileExplorerController extends ChangeNotifier {
   String? error;
   bool showBreadcrumbs = true;
   bool _initialized = false;
+  late final VoidCallback _settingsListener;
+
+  void setShowRowHeightControl(bool value) {
+    if (showRowHeightControl == value) return;
+    showRowHeightControl = value;
+    notifyListeners();
+  }
+
+  void setShowBreadcrumbs(bool value) {
+    if (showBreadcrumbs == value) return;
+    showBreadcrumbs = value;
+    settingsController.update(
+      (current) => current.copyWith(explorerShowBreadcrumbs: value),
+    );
+    notifyListeners();
+  }
+
+  void setRowHeight(double value) {
+    final next = _sanitizeRowHeight(value);
+    if (rowHeight == next) return;
+    rowHeight = next;
+    settingsController.update(
+      (current) => current.copyWith(explorerRowHeight: next),
+    );
+    notifyListeners();
+  }
+
+  void _syncFromSettings(AppSettings settings) {
+    final nextRowHeight = _sanitizeRowHeight(settings.explorerRowHeight);
+    final nextShowBreadcrumbs = settings.explorerShowBreadcrumbs;
+    var changed = false;
+    if (rowHeight != nextRowHeight) {
+      rowHeight = nextRowHeight;
+      changed = true;
+    }
+    if (showBreadcrumbs != nextShowBreadcrumbs) {
+      showBreadcrumbs = nextShowBreadcrumbs;
+      changed = true;
+    }
+    if (changed) {
+      notifyListeners();
+    }
+  }
+
+  double _sanitizeRowHeight(double value) {
+    if (value < 24) return 24;
+    if (value > 88) return 88;
+    return value;
+  }
 
   Future<void> initialize(BuildContext context) async {
+    _settingsListener = () => _syncFromSettings(settingsController.settings);
+    settingsController.addListener(_settingsListener);
+    _syncFromSettings(settingsController.settings);
     _sshAuthHandler = SshAuthHandler(
       shellService: shellService,
       context: context,
@@ -482,11 +537,6 @@ class FileExplorerController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setShowBreadcrumbs(bool value) {
-    showBreadcrumbs = value;
-    notifyListeners();
-  }
-
   void markNeedsBuild() {
     notifyListeners();
   }
@@ -514,7 +564,14 @@ class FileExplorerController extends ChangeNotifier {
         }
       }
       notifyListeners();
-    } catch (_) {}
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to prefetch path $path',
+        tag: 'Explorer',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   bool isSelfDragDrop({
@@ -558,6 +615,7 @@ class FileExplorerController extends ChangeNotifier {
   @override
   void dispose() {
     if (_initialized) {
+      settingsController.removeListener(_settingsListener);
       ExplorerClipboard.listenable.removeListener(_clipboardListener);
       ExplorerClipboard.cutEvents.removeListener(_cutEventListener);
       trashManager.restoreEvents.removeListener(_trashRestoreListener);
@@ -661,7 +719,14 @@ class FileExplorerController extends ChangeNotifier {
       Future<void>.delayed(const Duration(minutes: 2), () async {
         try {
           await tempDir.delete(recursive: true);
-        } catch (_) {}
+        } catch (error, stackTrace) {
+          AppLogger.w(
+            'Failed to delete temp drag directory ${tempDir.path}',
+            tag: 'Explorer',
+            error: error,
+            stackTrace: stackTrace,
+          );
+        }
         if (_lastDragTempDir == tempDir.path) {
           _lastDragTempDir = null;
           _lastDragSourcePath = null;

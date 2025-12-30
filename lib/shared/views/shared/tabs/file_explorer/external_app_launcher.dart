@@ -86,14 +86,26 @@ class ExternalAppLauncher {
               await Process.start(editorPath, [sourcePath]);
               return;
             }
-          } catch (_) {
+          } catch (error, stackTrace) {
+            AppLogger.w(
+              'Failed to probe editor $editor',
+              tag: 'ExternalApp',
+              error: error,
+              stackTrace: stackTrace,
+            );
             continue;
           }
         }
         // Last resort: xdg-open
         await Process.start('xdg-open', [sourcePath]);
       }
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to launch external editor',
+        tag: 'ExternalApp',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

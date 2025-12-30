@@ -103,6 +103,10 @@ class BuiltInSftpTransfer with RemotePathUtils {
               onBytes: download.onBytes,
             );
           } catch (error) {
+            logBuiltInSshWarning(
+              'Failed to download ${download.remotePath} from ${host.name}',
+              error: error,
+            );
             if (onError == null) {
               rethrow;
             }
@@ -270,7 +274,10 @@ class BuiltInSftpTransfer with RemotePathUtils {
         onBytes?.call(data.length);
       }
     } catch (e) {
-      logBuiltInSsh('Error streaming $remotePath: $e');
+      logBuiltInSshWarning(
+        'Error streaming $remotePath',
+        error: e,
+      );
       rethrow;
     } finally {
       await file.close();
@@ -295,7 +302,10 @@ class BuiltInSftpTransfer with RemotePathUtils {
       await file.writeBytes(data, offset: 0);
       logBuiltInSsh('Successfully wrote ${bytes.length} bytes to $remotePath');
     } catch (e) {
-      logBuiltInSsh('Error writing bytes to $remotePath: $e');
+      logBuiltInSshWarning(
+        'Error writing bytes to $remotePath',
+        error: e,
+      );
       rethrow;
     } finally {
       await file.close();
@@ -336,8 +346,11 @@ class BuiltInSftpTransfer with RemotePathUtils {
       if (exists) continue;
       try {
         await sftp.mkdir(current);
-      } catch (_) {
-        // ignore if creation fails
+      } catch (error) {
+        logBuiltInSshWarning(
+          'Failed to create remote directory $current',
+          error: error,
+        );
       }
     }
   }
@@ -354,6 +367,10 @@ class BuiltInSftpTransfer with RemotePathUtils {
       if (error.code == SftpStatusCode.noSuchFile) {
         return false;
       }
+      logBuiltInSshWarning(
+        'Failed to stat remote path $path',
+        error: error,
+      );
       rethrow;
     }
   }

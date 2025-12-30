@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:cwatch/models/ssh_client_backend.dart';
+import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/models/ssh_host.dart';
@@ -242,7 +243,13 @@ class _ServersSettingsTabState extends State<ServersSettingsTab> {
       final target = File(p.join(targetDir.path, fileName));
       await target.writeAsBytes(bytes, flush: true);
       return target.path;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to persist SSH config ${file.name}',
+        tag: 'Settings',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return null;
     }
   }

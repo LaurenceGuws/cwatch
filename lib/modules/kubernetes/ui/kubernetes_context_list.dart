@@ -10,6 +10,7 @@ import 'package:cwatch/core/tabs/tab_host.dart';
 import 'package:cwatch/models/kubernetes_workspace_state.dart';
 import 'package:cwatch/services/kubernetes/kubectl_service.dart';
 import 'package:cwatch/services/kubernetes/kubeconfig_service.dart';
+import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
@@ -150,73 +151,76 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   Widget build(BuildContext context) {
     final appTheme = context.appTheme;
     final spacing = appTheme.spacing;
-    return Column(
-      children: [
-        Expanded(
-          child: Material(
-            color: appTheme.section.toolbarBackground,
-            child: TabbedWorkspaceShell<KubernetesTab>(
-              controller: _tabController,
-              registry: _tabRegistry,
-              tabBarHeight: 36,
-              showTabBar: TabBarVisibilityController.instance,
-              enableWindowDrag:
-                  !widget.settingsController.settings.windowUseSystemDecorations,
-              leading: widget.leading != null
-                  ? Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal:
-                            (!kIsWeb &&
-                                    (defaultTargetPlatform ==
-                                            TargetPlatform.windows ||
-                                        defaultTargetPlatform ==
-                                            TargetPlatform.macOS ||
-                                        defaultTargetPlatform ==
-                                            TargetPlatform.linux))
-                                ? 0
-                                : spacing.sm,
-                      ),
-                      child: SizedBox(
-                        height: 36,
-                        child: Center(child: widget.leading),
-                      ),
-                    )
-                  : null,
-              onReorder: _handleTabReorder,
-              onAddTab: _startEmptyTab,
-              buildChip: (context, index, tab) {
-                return ValueListenableBuilder<List<TabChipOption>>(
-                  key: ValueKey(tab.id),
-                  valueListenable: tab.optionsController ?? _emptyOptions,
-                  builder: (context, options, _) {
-                    return TabChip(
-                      host: tab.host,
-                      title: tab.title,
-                      label: tab.label,
-                      icon: tab.icon,
-                      selected: index == _tabController.selectedIndex,
-                      onSelect: () {
-                        _tabController.select(index);
-                        _persistWorkspace();
-                      },
-                      onClose: () => _closeTab(index),
-                      onRename: tab.canRename ? () => _renameTab(index) : null,
-                      options: options,
-                      closable: tab.closable,
-                      dragIndex: tab.canDrag ? index : null,
-                    );
-                  },
-                );
-              },
-              buildBody: (tab) => tab.body,
+    return Padding(
+      padding: spacing.inset(horizontal: 1.5, vertical: 1),
+      child: Column(
+        children: [
+          Expanded(
+            child: Material(
+              color: appTheme.section.toolbarBackground,
+              child: TabbedWorkspaceShell<KubernetesTab>(
+                controller: _tabController,
+                registry: _tabRegistry,
+                tabBarHeight: 36,
+                showTabBar: TabBarVisibilityController.instance,
+                enableWindowDrag:
+                    !widget.settingsController.settings.windowUseSystemDecorations,
+                leading: widget.leading != null
+                    ? Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal:
+                              (!kIsWeb &&
+                                      (defaultTargetPlatform ==
+                                              TargetPlatform.windows ||
+                                          defaultTargetPlatform ==
+                                              TargetPlatform.macOS ||
+                                          defaultTargetPlatform ==
+                                              TargetPlatform.linux))
+                                  ? 0
+                                  : spacing.sm,
+                        ),
+                        child: SizedBox(
+                          height: 36,
+                          child: Center(child: widget.leading),
+                        ),
+                      )
+                    : null,
+                onReorder: _handleTabReorder,
+                onAddTab: _startEmptyTab,
+                buildChip: (context, index, tab) {
+                  return ValueListenableBuilder<List<TabChipOption>>(
+                    key: ValueKey(tab.id),
+                    valueListenable: tab.optionsController ?? _emptyOptions,
+                    builder: (context, options, _) {
+                      return TabChip(
+                        host: tab.host,
+                        title: tab.title,
+                        label: tab.label,
+                        icon: tab.icon,
+                        selected: index == _tabController.selectedIndex,
+                        onSelect: () {
+                          _tabController.select(index);
+                          _persistWorkspace();
+                        },
+                        onClose: () => _closeTab(index),
+                        onRename: tab.canRename ? () => _renameTab(index) : null,
+                        options: options,
+                        closable: tab.closable,
+                        dragIndex: tab.canDrag ? index : null,
+                      );
+                    },
+                  );
+                },
+                buildBody: (tab) => tab.body,
+              ),
             ),
           ),
-        ),
-        Padding(
-          padding: appTheme.spacing.inset(horizontal: 2, vertical: 0),
-          child: Divider(height: 1, color: appTheme.section.divider),
-        ),
-      ],
+          Padding(
+            padding: appTheme.spacing.inset(horizontal: 2, vertical: 0),
+            child: Divider(height: 1, color: appTheme.section.divider),
+          ),
+        ],
+      ),
     );
   }
 
@@ -276,7 +280,13 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     List<KubeconfigContext> contexts;
     try {
       contexts = await (_contextsFuture ?? _loadContexts());
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to restore Kubernetes contexts',
+        tag: 'Kubernetes',
+        error: error,
+        stackTrace: stackTrace,
+      );
       contexts = const [];
     }
     if (!mounted) {

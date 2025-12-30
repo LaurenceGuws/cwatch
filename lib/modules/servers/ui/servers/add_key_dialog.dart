@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/widgets/dialog_keyboard_shortcuts.dart';
@@ -126,7 +127,13 @@ class _AddKeyDialogState extends State<AddKeyDialog> {
       final entry = addResult.entry;
       if (!mounted) return;
       Navigator.of(context).pop(entry);
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to add SSH key from dialog',
+        tag: 'Servers',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,

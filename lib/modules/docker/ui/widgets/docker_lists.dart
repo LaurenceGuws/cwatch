@@ -774,11 +774,13 @@ class _ImagePeekState extends State<ImagePeek> {
       ),
       StructuredDataColumn<DockerImage>(
         label: 'Size',
+        alignment: Alignment.centerRight,
         autoFitText: (image) => image.size,
         cellBuilder: (context, image) => Text(image.size),
       ),
       StructuredDataColumn<DockerImage>(
         label: 'Created',
+        alignment: Alignment.center,
         autoFitText: _createdLabel,
         cellBuilder: (context, image) => Text(_createdLabel(image)),
       ),
@@ -1238,6 +1240,7 @@ class _VolumeListState extends State<VolumeList> {
       ),
       StructuredDataColumn<DockerVolume>(
         label: 'Size',
+        alignment: Alignment.centerRight,
         autoFitText: (volume) => _valueOrDash(volume.size),
         cellBuilder: (context, volume) => Text(_valueOrDash(volume.size)),
       ),

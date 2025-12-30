@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import '../../models/explorer_context.dart';
 import '../../models/ssh_host.dart';
+import '../logging/app_logger.dart';
 import '../ssh/remote_shell_service.dart';
 
 class ExplorerTrashManager {
@@ -106,8 +107,13 @@ class ExplorerTrashManager {
             entries.add(entry);
           }
         }
-      } catch (_) {
-        continue;
+      } catch (error, stackTrace) {
+        AppLogger.w(
+          'Failed to read trash metadata from ${metaFile.path}',
+          tag: 'Trash',
+          error: error,
+          stackTrace: stackTrace,
+        );
       }
     }
     return entries;

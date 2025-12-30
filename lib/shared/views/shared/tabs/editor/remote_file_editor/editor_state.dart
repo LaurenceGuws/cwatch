@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:highlight/highlight_core.dart';
 
+import '../../../../../../services/logging/app_logger.dart';
 import '../../../../../../services/settings/app_settings_controller.dart';
 import 'language_detection.dart';
 
@@ -95,7 +96,13 @@ class EditorState extends ChangeNotifier {
       _normalizedInitialContent = _normalizeLineEndings(contentToSave);
       _dirty = false;
       return true;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to save editor content for $path',
+        tag: 'Editor',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return false;
     } finally {
       _saving = false;

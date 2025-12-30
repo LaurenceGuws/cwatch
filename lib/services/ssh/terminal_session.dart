@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:flutter_pty/flutter_pty.dart';
 import 'package:path/path.dart' as p;
 
+import '../logging/app_logger.dart';
+
 /// Minimal PTY-backed terminal session interface.
 abstract class TerminalSession {
   Stream<Uint8List> get output;
@@ -59,8 +61,13 @@ class LocalPtySession implements TerminalSession {
   void kill() {
     try {
       _pty.kill();
-    } catch (_) {
-      // ignore
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to kill PTY session',
+        tag: 'Terminal',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
     _registry.unregister(_pty.pid);
   }
@@ -84,7 +91,13 @@ class _LocalPtyRegistry {
       final raw = await _pidFile.readAsString();
       final parts = raw.split(',').where((p) => p.isNotEmpty);
       return parts.map((p) => int.tryParse(p)).whereType<int>().toSet();
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to read PTY registry',
+        tag: 'Terminal',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return {};
     }
   }
@@ -93,8 +106,13 @@ class _LocalPtyRegistry {
     try {
       await _pidFile.parent.create(recursive: true);
       await _pidFile.writeAsString(pids.join(','));
-    } catch (_) {
-      // ignore persistence errors; registry is best-effort
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to persist PTY registry',
+        tag: 'Terminal',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 

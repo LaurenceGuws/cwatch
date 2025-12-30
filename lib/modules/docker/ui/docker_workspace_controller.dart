@@ -337,8 +337,13 @@ class DockerWorkspaceController {
     List<SshHost> hosts = const [];
     try {
       hosts = await hostsFuture;
-    } catch (_) {
-      // ignore; fall back to placeholders below
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to load SSH hosts for cached docker endpoints',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
     final resolved = endpointCache.applyToHosts(readyNames.toList(), hosts);
     return resolved
@@ -362,7 +367,13 @@ class DockerWorkspaceController {
     List<SshHost> hosts;
     try {
       hosts = await hostsFuture;
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to load SSH hosts for docker discovery',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
       throw Exception('Failed to load SSH hosts: $error');
     }
     if (hosts.isEmpty) {

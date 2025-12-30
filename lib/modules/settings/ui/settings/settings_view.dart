@@ -15,6 +15,7 @@ import 'general_settings_tab.dart';
 import 'servers_settings_tab.dart';
 import 'editor_settings_tab.dart';
 import 'terminal_settings_tab.dart';
+import 'explorer_settings_tab.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({
@@ -47,6 +48,7 @@ class _SettingsViewState extends State<SettingsView>
 
   static const _tabs = [
     Tab(text: 'General'),
+    Tab(text: 'Explorer'),
     Tab(text: 'Servers'),
     Tab(text: 'Docker'),
     Tab(text: 'Kubernetes'),
@@ -57,6 +59,7 @@ class _SettingsViewState extends State<SettingsView>
 
   static final _tabIcons = [
     Icons.settings_outlined, // General
+    Icons.folder_open, // Explorer
     Icons.storage, // Servers
     NerdIcon.docker.data, // Docker
     NerdIcon.kubernetes.data, // Kubernetes
@@ -194,6 +197,10 @@ class _SettingsViewState extends State<SettingsView>
                                   inputModePreference: value,
                                 ),
                               ),
+                        ),
+                        ExplorerSettingsTab(
+                          settings: settings,
+                          settingsController: widget.controller,
                         ),
                         ServersSettingsTab(
                           key: const ValueKey('servers_settings_tab'),

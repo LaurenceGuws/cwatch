@@ -8,6 +8,7 @@ import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_client_manager.dart';
 import 'package:cwatch/models/ssh_client_backend.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
+import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/services/ssh/process_ssh_runner.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/ssh/ssh_auth_coordinator.dart';
@@ -83,26 +84,50 @@ class ActivePortForward {
           in acceptSubscriptions ?? const <StreamSubscription<Socket>>[]) {
         try {
           await sub.cancel();
-        } catch (_) {}
+        } catch (error, stackTrace) {
+          AppLogger.w(
+            'Failed to cancel port forward listener',
+            tag: 'PortForward',
+            error: error,
+            stackTrace: stackTrace,
+          );
+        }
       }
       for (final socket in sockets ?? const <ServerSocket>[]) {
         try {
           await socket.close();
-        } catch (_) {}
+        } catch (error, stackTrace) {
+          AppLogger.w(
+            'Failed to close port forward socket',
+            tag: 'PortForward',
+            error: error,
+            stackTrace: stackTrace,
+          );
+        }
       }
       for (final channel in channels ?? const <SSHForwardChannel>[]) {
         try {
           await channel.close();
           await channel.done;
-        } catch (_) {
-          // ignore
+        } catch (error, stackTrace) {
+          AppLogger.w(
+            'Failed to close SSH forward channel',
+            tag: 'PortForward',
+            error: error,
+            stackTrace: stackTrace,
+          );
         }
       }
       try {
         client?.close();
         await client?.done;
-      } catch (_) {
-        // ignore
+      } catch (error, stackTrace) {
+        AppLogger.w(
+          'Failed to close SSH client for port forward',
+          tag: 'PortForward',
+          error: error,
+          stackTrace: stackTrace,
+        );
       }
       exitCode ??= 0;
     }
@@ -164,7 +189,13 @@ class PortForwardService extends ChangeNotifier {
       );
       await socket.close();
       return true;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to bind IPv4 loopback on port $port',
+        tag: 'PortForward',
+        error: error,
+        stackTrace: stackTrace,
+      );
       try {
         final socket = await ServerSocket.bind(
           InternetAddress.loopbackIPv6,
@@ -172,7 +203,13 @@ class PortForwardService extends ChangeNotifier {
         );
         await socket.close();
         return true;
-      } catch (_) {
+      } catch (error, stackTrace) {
+        AppLogger.w(
+          'Failed to bind IPv6 loopback on port $port',
+          tag: 'PortForward',
+          error: error,
+          stackTrace: stackTrace,
+        );
         return false;
       }
     }
@@ -195,7 +232,13 @@ class PortForwardService extends ChangeNotifier {
   Future<ServerSocket> _bindLoopback(int port, {bool allowIpv6 = false}) async {
     try {
       return await ServerSocket.bind(InternetAddress.loopbackIPv4, port);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to bind loopback for port $port',
+        tag: 'PortForward',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!allowIpv6) rethrow;
       return ServerSocket.bind(InternetAddress.loopbackIPv6, port);
     }
@@ -256,23 +299,64 @@ class PortForwardService extends ChangeNotifier {
             final toLocal = channel.stream.cast<List<int>>().pipe(localSocket);
             final toRemote = localSocket.cast<List<int>>().pipe(channel.sink);
             unawaited(
-              toLocal.catchError((_) {}).whenComplete(() {
+              toLocal.catchError((error, stackTrace) {
+                AppLogger.w(
+                  'Port forward local stream error',
+                  tag: 'PortForward',
+                  error: error,
+                  stackTrace: stackTrace,
+                );
+              }).whenComplete(() {
                 try {
                   localSocket.destroy();
-                } catch (_) {}
+                } catch (error, stackTrace) {
+                  AppLogger.w(
+                    'Failed to destroy local socket',
+                    tag: 'PortForward',
+                    error: error,
+                    stackTrace: stackTrace,
+                  );
+                }
               }),
             );
             unawaited(
-              toRemote.catchError((_) {}).whenComplete(() async {
+              toRemote.catchError((error, stackTrace) {
+                AppLogger.w(
+                  'Port forward remote stream error',
+                  tag: 'PortForward',
+                  error: error,
+                  stackTrace: stackTrace,
+                );
+              }).whenComplete(() async {
                 try {
                   await channel.sink.close();
-                } catch (_) {}
+                } catch (error, stackTrace) {
+                  AppLogger.w(
+                    'Failed to close SSH forward sink',
+                    tag: 'PortForward',
+                    error: error,
+                    stackTrace: stackTrace,
+                  );
+                }
               }),
             );
-          } catch (error) {
+          } catch (error, stackTrace) {
+            AppLogger.w(
+              'Failed to open SSH port forward to ${req.remoteHost}:${req.remotePort}',
+              tag: 'PortForward',
+              error: error,
+              stackTrace: stackTrace,
+            );
             try {
               localSocket.destroy();
-            } catch (_) {}
+            } catch (error, stackTrace) {
+              AppLogger.w(
+                'Failed to destroy local socket after forward error',
+                tag: 'PortForward',
+                error: error,
+                stackTrace: stackTrace,
+              );
+            }
           }
         });
         acceptSubscriptions.add(sub);
@@ -297,18 +381,37 @@ class PortForwardService extends ChangeNotifier {
           for (final sub in acceptSubscriptions) {
             try {
               await sub.cancel();
-            } catch (_) {}
+            } catch (error, stackTrace) {
+              AppLogger.w(
+                'Failed to cancel port forward listener',
+                tag: 'PortForward',
+                error: error,
+                stackTrace: stackTrace,
+              );
+            }
           }
           for (final socket in sockets) {
             try {
               await socket.close();
-            } catch (_) {}
+            } catch (error, stackTrace) {
+              AppLogger.w(
+                'Failed to close port forward socket',
+                tag: 'PortForward',
+                error: error,
+                stackTrace: stackTrace,
+              );
+            }
           }
           try {
             client.close();
             await client.done;
-          } catch (_) {
-            // ignore
+          } catch (error, stackTrace) {
+            AppLogger.w(
+              'Failed to close SSH client during forward shutdown',
+              tag: 'PortForward',
+              error: error,
+              stackTrace: stackTrace,
+            );
           }
         },
       );
@@ -418,8 +521,13 @@ class PortForwardService extends ChangeNotifier {
           await stopAll();
         });
         _signalSubscriptions.add(sub);
-      } catch (_) {
-        // Some signals are not available on all platforms; ignore.
+      } catch (error, stackTrace) {
+        AppLogger.w(
+          'Failed to register signal handler',
+          tag: 'PortForward',
+          error: error,
+          stackTrace: stackTrace,
+        );
       }
     }
   }

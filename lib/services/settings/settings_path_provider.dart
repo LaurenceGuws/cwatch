@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../logging/app_logger.dart';
+
 class SettingsPathProvider {
   const SettingsPathProvider();
 
@@ -17,8 +19,13 @@ class SettingsPathProvider {
       try {
         final dir = await getApplicationSupportDirectory();
         return dir.path;
-      } catch (_) {
-        // Fall back to legacy paths below.
+      } catch (error, stackTrace) {
+        AppLogger.w(
+          'Failed to resolve application support directory',
+          tag: 'Settings',
+          error: error,
+          stackTrace: stackTrace,
+        );
       }
     }
 

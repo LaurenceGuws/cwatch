@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../../../models/remote_file_entry.dart';
 import '../../../../../models/ssh_host.dart';
+import '../../../../../services/logging/app_logger.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../../services/ssh/remote_editor_cache.dart';
 import 'file_entry_list.dart';
@@ -59,7 +60,13 @@ class FileEditingService {
           ),
         ),
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to open editor for $path',
+        tag: 'Explorer',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!context.mounted) {
         return;
       }
@@ -108,7 +115,13 @@ class FileEditingService {
         ),
       );
       return localSession;
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to open local copy of $remotePath',
+        tag: 'Explorer',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!context.mounted) {
         return null;
       }
@@ -182,7 +195,13 @@ class FileEditingService {
           }
         }
       }
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to sync local edit for ${session.remotePath}',
+        tag: 'Explorer',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
@@ -224,7 +243,13 @@ class FileEditingService {
           SnackBar(content: Text('Cache refreshed for ${session.remotePath}')),
         );
       }
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to refresh cache for ${session.remotePath}',
+        tag: 'Explorer',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to refresh cache: $error')),

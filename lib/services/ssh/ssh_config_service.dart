@@ -2,6 +2,7 @@ import 'dart:io';
 
 import '../../models/custom_ssh_host.dart';
 import '../../models/ssh_host.dart';
+import '../logging/app_logger.dart';
 import 'config_sources/config_source.dart';
 
 class SshConfigParser {
@@ -106,7 +107,13 @@ class SshConfigParser {
   Future<String> _canonicalize(File file) async {
     try {
       return await file.resolveSymbolicLinks();
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to resolve SSH config path ${file.path}',
+        tag: 'SSHConfig',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return file.path;
     }
   }
@@ -302,7 +309,12 @@ class SshConfigService {
       );
       socket.destroy();
       return true;
-    } catch (_) {
+    } catch (error) {
+      AppLogger.w(
+        'Failed to check SSH availability for $host:$port',
+        tag: 'SSH',
+        error: error,
+      );
       return false;
     }
   }
@@ -314,7 +326,13 @@ class SshConfigService {
         final file = File(path);
         final canonical = await file.resolveSymbolicLinks();
         resolved.add(canonical);
-      } catch (_) {
+      } catch (error, stackTrace) {
+        AppLogger.w(
+          'Failed to canonicalize SSH config path $path',
+          tag: 'SSHConfig',
+          error: error,
+          stackTrace: stackTrace,
+        );
         resolved.add(path);
       }
     }

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../../models/app_settings.dart';
+import '../logging/app_logger.dart';
 import 'settings_path_provider.dart';
 
 class SettingsStorage {
@@ -24,8 +25,13 @@ class SettingsStorage {
       if (jsonMap is Map<String, dynamic>) {
         return AppSettings.fromJson(jsonMap);
       }
-    } catch (_) {
-      // Ignore and fall back to defaults below.
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to load settings; falling back to defaults',
+        tag: 'Settings',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
     return const AppSettings();
   }
@@ -56,8 +62,13 @@ class SettingsStorage {
         await target.parent.create(recursive: true);
         await legacyFile.copy(target.path);
         return true;
-      } catch (_) {
-        // Best-effort migration; continue to next path.
+      } catch (error, stackTrace) {
+        AppLogger.w(
+          'Failed to migrate legacy settings from $legacyPath',
+          tag: 'Settings',
+          error: error,
+          stackTrace: stackTrace,
+        );
       }
     }
     return false;

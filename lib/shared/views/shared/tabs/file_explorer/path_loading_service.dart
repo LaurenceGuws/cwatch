@@ -62,7 +62,13 @@ class PathLoadingService {
         entries: filteredEntries,
         allEntries: entries,
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to load path $target',
+        tag: 'Explorer',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return PathLoadResult.error(target: target, error: error.toString());
     }
   }
@@ -160,7 +166,13 @@ class PathLoadingService {
         entries: filteredEntries,
         allEntries: entries,
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to refresh path $currentPath',
+        tag: 'Explorer',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return PathRefreshResult.error(error: error.toString());
     }
   }

@@ -65,15 +65,15 @@ class BuiltInSshClientManager {
     if (exitCodeMatch != null) {
       final exitCode = int.tryParse(exitCodeMatch.group(1) ?? '') ?? -1;
       if (exitCode != 0) {
-        logBuiltInSsh(
-          'Command failed on ${host.name} with exit code: $exitCode',
+        logBuiltInSshWarning(
+          'Command failed on ${host.name} with exit code $exitCode',
         );
         throw Exception('Command failed with exit code $exitCode');
       }
       logBuiltInSsh('Command on ${host.name} completed successfully');
     } else {
-      logBuiltInSsh(
-        'Warning: Could not parse exit code for command on ${host.name}',
+      logBuiltInSshWarning(
+        'Could not parse exit code for command on ${host.name}',
       );
     }
     return RunResult(command: command, stdout: output, stderr: '');
@@ -98,7 +98,12 @@ class BuiltInSshClientManager {
         onKill: () {
           try {
             client.close();
-          } catch (_) {}
+          } catch (error) {
+            logBuiltInSshWarning(
+              'Failed to close SSH client on kill',
+              error: error,
+            );
+          }
         },
       );
     });
@@ -166,10 +171,20 @@ class BuiltInSshClientManager {
       cancellation?.onCancel(() {
         try {
           session.close();
-        } catch (_) {}
+        } catch (error) {
+          logBuiltInSshWarning(
+            'Failed to close SSH session on cancel',
+            error: error,
+          );
+        }
         try {
           client.close();
-        } catch (_) {}
+        } catch (error) {
+          logBuiltInSshWarning(
+            'Failed to close SSH client on cancel',
+            error: error,
+          );
+        }
       });
       final stdoutDone = Completer<void>();
       final stderrDone = Completer<void>();
@@ -202,10 +217,20 @@ class BuiltInSshClientManager {
         onKill: () {
           try {
             session.close();
-          } catch (_) {}
+          } catch (error) {
+            logBuiltInSshWarning(
+              'Failed to close SSH session on kill',
+              error: error,
+            );
+          }
           try {
             client.close();
-          } catch (_) {}
+          } catch (error) {
+            logBuiltInSshWarning(
+              'Failed to close SSH client on kill',
+              error: error,
+            );
+          }
         },
       );
       return stdoutBuffer.toString();
@@ -235,10 +260,20 @@ class BuiltInSshClientManager {
           onKill: () {
             try {
               sftp.close();
-            } catch (_) {}
+            } catch (error) {
+              logBuiltInSshWarning(
+                'Failed to close SFTP client on kill',
+                error: error,
+              );
+            }
             try {
               client.close();
-            } catch (_) {}
+            } catch (error) {
+              logBuiltInSshWarning(
+                'Failed to close SSH client on kill',
+                error: error,
+              );
+            }
           },
         );
       } finally {
@@ -268,8 +303,11 @@ class BuiltInSshClientManager {
         client?.close();
         try {
           await client?.done;
-        } catch (_) {
-          // Ignore errors during cleanup
+        } catch (error) {
+          logBuiltInSshWarning(
+            'Failed waiting for SSH client to close',
+            error: error,
+          );
         }
       }
     });
@@ -281,15 +319,25 @@ class BuiltInSshClientManager {
       try {
         return await action();
       } on SSHAuthFailError catch (error) {
-        logBuiltInSsh('Authentication failed for ${host.name}: $error');
+        logBuiltInSshWarning(
+          'Authentication failed for ${host.name}',
+          error: error,
+        );
         throw BuiltInSshAuthenticationFailed(
           hostName: host.name,
           message: error.toString(),
         );
       } on SSHStateError catch (error) {
-        logBuiltInSsh('SSH state error for ${host.name}: $error');
+        logBuiltInSshWarning(
+          'SSH state error for ${host.name}',
+          error: error,
+        );
         throw Exception('SSH connection failed for ${host.name}: $error');
       } catch (e) {
+        logBuiltInSshWarning(
+          'SSH operation failed for ${host.name}',
+          error: e,
+        );
         if (e is BuiltInSshKeyLockedException) {
           if (retries > 2) rethrow;
           final unlocked = await _handleLockedKey(e);
@@ -315,7 +363,10 @@ class BuiltInSshClientManager {
             e is BuiltInSshAuthenticationFailed) {
           rethrow;
         }
-        logBuiltInSsh('Error in SSH operation for ${host.name}: $e');
+        logBuiltInSshWarning(
+          'Error in SSH operation for ${host.name}',
+          error: e,
+        );
         throw Exception('SSH operation failed for ${host.name}: $e');
       }
     }
@@ -443,7 +494,11 @@ class BuiltInSshClientManager {
       if (!vault.isUnlocked(error.keyId) && result.password != null) {
         try {
           await vault.unlock(error.keyId, result.password);
-        } catch (_) {
+        } catch (e) {
+          logBuiltInSshWarning(
+            'Failed to unlock built-in key ${error.keyId}',
+            error: e,
+          );
           return false;
         }
       }

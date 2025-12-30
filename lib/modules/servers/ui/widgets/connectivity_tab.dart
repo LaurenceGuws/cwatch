@@ -415,7 +415,13 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
       }
       final output = (result.stdout as String?)?.trim();
       return (output == null || output.isEmpty) ? null : output;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to run connectivity probe command',
+        tag: 'Connectivity',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return null;
     }
   }

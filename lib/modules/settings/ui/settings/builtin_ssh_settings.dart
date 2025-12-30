@@ -138,7 +138,13 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
         context,
       ).showSnackBar(const SnackBar(content: Text('Key added to the vault.')));
       _refreshKeys();
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to add built-in SSH key',
+        tag: 'Settings',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -617,7 +623,13 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       });
       if (!context.mounted) return;
       _showSnack(context, 'Loaded key from ${file.name}');
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to load SSH key file ${file.name}',
+        tag: 'Settings',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!context.mounted) return;
       _showSnack(context, 'Failed to read key: $error');
     }
@@ -725,7 +737,13 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
         const SnackBar(content: Text('Key encrypted successfully.')),
       );
       _refreshKeys();
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to encrypt stored SSH key $keyId',
+        tag: 'Settings',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
