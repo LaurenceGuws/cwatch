@@ -7,7 +7,6 @@ import 'builtin_ssh_key_store.dart';
 import 'builtin_ssh_vault.dart';
 import 'builtin_remote_shell_service.dart';
 import '../../logging/app_logger.dart';
-import '../remote_command_logging.dart';
 import '../known_hosts_store.dart';
 import '../ssh_auth_coordinator.dart';
 

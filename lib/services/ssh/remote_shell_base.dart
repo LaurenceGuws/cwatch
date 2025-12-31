@@ -5,7 +5,6 @@ import 'package:meta/meta.dart';
 import '../../models/remote_file_entry.dart';
 import '../../models/ssh_host.dart';
 import '../logging/app_logger.dart';
-import 'remote_command_logging.dart';
 import 'terminal_session.dart';
 import 'remote_path_utils.dart';
 
@@ -58,6 +57,7 @@ abstract class RemoteShellService with RemotePathUtils {
     }
     observer?.call(
       RemoteCommandDebugEvent(
+        source: 'ssh',
         host: host,
         operation: operation,
         command: command,

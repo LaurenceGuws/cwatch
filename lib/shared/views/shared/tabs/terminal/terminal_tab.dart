@@ -11,6 +11,7 @@ import '../../../../../models/ssh_host.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
 import '../../../../../services/settings/app_settings_controller.dart';
+import '../../../../../services/logging/app_logger.dart';
 import '../../../../../shared/shortcuts/shortcut_actions.dart';
 import '../../../../../shared/shortcuts/shortcut_resolver.dart';
 import '../../../../../shared/shortcuts/shortcut_service.dart';
@@ -160,7 +161,12 @@ class _TerminalTabState extends State<TerminalTab> {
       });
     } catch (error, stack) {
       _pty?.kill();
-      debugPrint('Terminal session failed: $error\n$stack');
+      AppLogger.w(
+        'Terminal session failed',
+        tag: 'Terminal',
+        error: error,
+        stackTrace: stack,
+      );
       if (!mounted) {
         return;
       }

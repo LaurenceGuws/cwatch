@@ -29,13 +29,11 @@ class DockerClientService {
   }) async {
     _log('Listing contexts');
     try {
-      final result = await processRunner(
-        'docker',
+      final result = await _runDockerProcess(
         ['context', 'ls', '--format', '{{json .}}'],
-        stdoutEncoding: utf8,
-        stderrEncoding: utf8,
-        runInShell: false,
-      ).timeout(timeout);
+        timeout: timeout,
+        operation: 'list contexts',
+      );
 
       if (result.exitCode != 0) {
         final stderr = (result.stderr as String?)?.trim();
@@ -143,13 +141,11 @@ class DockerClientService {
     ];
 
     try {
-      final result = await processRunner(
-        'docker',
+      final result = await _runDockerProcess(
         args,
-        stdoutEncoding: utf8,
-        stderrEncoding: utf8,
-        runInShell: false,
-      ).timeout(timeout);
+        timeout: timeout,
+        operation: 'list containers',
+      );
 
       if (result.exitCode != 0) {
         final stderr = (result.stderr as String?)?.trim();
@@ -242,13 +238,11 @@ class DockerClientService {
   }) async {
     final args = ['exec', '-i', containerId, 'sh', '-c', command];
     try {
-      final result = await processRunner(
-        'docker',
+      final result = await _runDockerProcess(
         args,
-        stdoutEncoding: utf8,
-        stderrEncoding: utf8,
-        runInShell: false,
-      ).timeout(timeout);
+        timeout: timeout,
+        operation: 'exec',
+      );
 
       if (result.exitCode != 0) {
         final stderr = (result.stderr as String?)?.trim();
@@ -291,13 +285,11 @@ class DockerClientService {
     ];
 
     try {
-      final result = await processRunner(
-        'docker',
+      final result = await _runDockerProcess(
         args,
-        stdoutEncoding: utf8,
-        stderrEncoding: utf8,
-        runInShell: false,
-      ).timeout(timeout);
+        timeout: timeout,
+        operation: 'list images',
+      );
 
       if (result.exitCode != 0) {
         final stderr = (result.stderr as String?)?.trim();
@@ -377,13 +369,11 @@ class DockerClientService {
       '--format',
       '{{json .}}',
     ];
-    final result = await processRunner(
-      'docker',
+    final result = await _runDockerProcess(
       args,
-      stdoutEncoding: utf8,
-      stderrEncoding: utf8,
-      runInShell: false,
-    ).timeout(timeout);
+      timeout: timeout,
+      operation: 'list networks',
+    );
     if (result.exitCode != 0) {
       final stderr = (result.stderr as String?)?.trim();
       throw Exception(
@@ -442,13 +432,11 @@ class DockerClientService {
       '--format',
       '{{json .}}',
     ];
-    final result = await processRunner(
-      'docker',
+    final result = await _runDockerProcess(
       args,
-      stdoutEncoding: utf8,
-      stderrEncoding: utf8,
-      runInShell: false,
-    ).timeout(timeout);
+      timeout: timeout,
+      operation: 'list volumes',
+    );
     if (result.exitCode != 0) {
       final stderr = (result.stderr as String?)?.trim();
       throw Exception(
@@ -522,13 +510,11 @@ class DockerClientService {
       id,
     ];
     _log('Inspecting start time for $id');
-    final result = await processRunner(
-      'docker',
+    final result = await _runDockerProcess(
       args,
-      stdoutEncoding: utf8,
-      stderrEncoding: utf8,
-      runInShell: false,
-    ).timeout(timeout);
+      timeout: timeout,
+      operation: 'inspect',
+    );
     if (result.exitCode != 0) {
       final stderr = (result.stderr as String?)?.trim();
       throw Exception(
@@ -580,13 +566,11 @@ class DockerClientService {
       '--format',
       '{{json .}}',
     ];
-    final result = await processRunner(
-      'docker',
+    final result = await _runDockerProcess(
       args,
-      stdoutEncoding: utf8,
-      stderrEncoding: utf8,
-      runInShell: false,
-    ).timeout(timeout);
+      timeout: timeout,
+      operation: 'list stats',
+    );
     if (result.exitCode != 0) {
       final stderr = (result.stderr as String?)?.trim();
       throw Exception(
@@ -667,6 +651,56 @@ class DockerClientService {
     AppLogger.d(message, tag: 'ProcessDocker');
   }
 
+  Future<ProcessResult> _runDockerProcess(
+    List<String> args, {
+    required Duration timeout,
+    String operation = 'run',
+  }) async {
+    final command = 'docker ${args.join(' ')}';
+    try {
+      final result = await processRunner(
+        'docker',
+        args,
+        stdoutEncoding: utf8,
+        stderrEncoding: utf8,
+        runInShell: false,
+      ).timeout(timeout);
+      final stdout = result.stdout?.toString() ?? '';
+      final stderr = result.stderr?.toString() ?? '';
+      AppLogger.logRemoteCommand(
+        source: 'docker',
+        operation: operation,
+        command: command,
+        output: result.exitCode == 0 ? stdout : stderr,
+      );
+      return result;
+    } on TimeoutException {
+      AppLogger.logRemoteCommand(
+        source: 'docker',
+        operation: operation,
+        command: command,
+        output: 'Timed out after ${timeout.inSeconds}s',
+      );
+      rethrow;
+    } on ProcessException catch (error) {
+      AppLogger.logRemoteCommand(
+        source: 'docker',
+        operation: operation,
+        command: command,
+        output: 'Process error: ${error.message}',
+      );
+      rethrow;
+    } catch (error) {
+      AppLogger.logRemoteCommand(
+        source: 'docker',
+        operation: operation,
+        command: command,
+        output: 'Error: $error',
+      );
+      rethrow;
+    }
+  }
+
   String? _volumeSizeOrNull(String? raw) {
     final value = raw?.trim() ?? '';
     if (value.isEmpty || value.toUpperCase() == 'N/A') return null;
@@ -689,13 +723,11 @@ class DockerClientService {
         '--format',
         '{{json .}}',
       ];
-      final result = await processRunner(
-        'docker',
+      final result = await _runDockerProcess(
         args,
-        stdoutEncoding: utf8,
-        stderrEncoding: utf8,
-        runInShell: false,
-      ).timeout(timeout);
+        timeout: timeout,
+        operation: 'system df',
+      );
       if (result.exitCode != 0) {
         return const {};
       }
@@ -784,13 +816,11 @@ class DockerClientService {
       ...args,
     ];
     _log('Running $op: docker ${fullArgs.join(' ')}');
-    final result = await processRunner(
-      'docker',
+    final result = await _runDockerProcess(
       fullArgs,
-      stdoutEncoding: utf8,
-      stderrEncoding: utf8,
-      runInShell: false,
-    ).timeout(timeout);
+      timeout: timeout,
+      operation: op,
+    );
     if (result.exitCode != 0) {
       final stderr = (result.stderr as String?)?.trim();
       throw Exception(

@@ -88,6 +88,12 @@ class KubectlService {
       stopwatch.stop();
       if (result.exitCode != 0) {
         final stderr = result.stderr?.toString().trim();
+        AppLogger.logRemoteCommand(
+          source: 'kubectl',
+          operation: 'run',
+          command: display,
+          output: stderr ?? '',
+        );
         final message = (stderr != null && stderr.isNotEmpty)
             ? stderr
             : 'kubectl exited with code ${result.exitCode}';
@@ -98,6 +104,12 @@ class KubectlService {
         );
         throw Exception(message);
       }
+      AppLogger.logRemoteCommand(
+        source: 'kubectl',
+        operation: 'run',
+        command: display,
+        output: result.stdout?.toString() ?? '',
+      );
       AppLogger.d(
         'Finished $display in ${stopwatch.elapsedMilliseconds}ms',
         tag: tag,
@@ -105,6 +117,12 @@ class KubectlService {
       return result.stdout?.toString() ?? '';
     } on TimeoutException {
       stopwatch.stop();
+      AppLogger.logRemoteCommand(
+        source: 'kubectl',
+        operation: 'run',
+        command: display,
+        output: 'Timed out after ${stopwatch.elapsedMilliseconds}ms',
+      );
       AppLogger.w(
         'Timed out $display after ${stopwatch.elapsedMilliseconds}ms',
         tag: tag,
@@ -112,6 +130,12 @@ class KubectlService {
       throw Exception('kubectl timed out');
     } catch (e) {
       stopwatch.stop();
+      AppLogger.logRemoteCommand(
+        source: 'kubectl',
+        operation: 'run',
+        command: display,
+        output: 'Error: $e',
+      );
       AppLogger.e(
         'Error running $display after ${stopwatch.elapsedMilliseconds}ms',
         tag: tag,

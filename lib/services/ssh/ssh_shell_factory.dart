@@ -4,10 +4,10 @@ import '../../models/ssh_client_backend.dart';
 import '../settings/app_settings_controller.dart';
 import 'builtin/builtin_ssh_key_service.dart';
 import 'known_hosts_store.dart';
-import 'remote_command_logging.dart';
 import 'remote_shell_service.dart';
 import 'ssh_auth_coordinator.dart';
 import '../../models/app_settings.dart';
+import '../logging/app_logger.dart';
 
 class SshShellFactory {
   SshShellFactory({
@@ -18,7 +18,7 @@ class SshShellFactory {
     RemoteCommandObserver? observer,
   }) : knownHostsStore = knownHostsStore ?? const KnownHostsStore(),
        authCoordinator = authCoordinator ?? const SshAuthCoordinator(),
-       _defaultObserver = observer;
+       _defaultObserver = observer ?? AppLogger.remoteCommandObserver;
 
   final AppSettingsController settingsController;
   final BuiltInSshKeyService keyService;

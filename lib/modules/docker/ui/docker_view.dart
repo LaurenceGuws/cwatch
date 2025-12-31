@@ -7,7 +7,6 @@ import 'package:cwatch/models/docker_context.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/modules/docker/services/docker_client_service.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
-import 'package:cwatch/services/ssh/remote_command_logging.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/services/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
@@ -42,7 +41,6 @@ class DockerView extends StatefulWidget {
     required this.hostsFuture,
     required this.settingsController,
     required this.keyService,
-    required this.commandLog,
     required this.shellFactory,
   });
 
@@ -51,7 +49,6 @@ class DockerView extends StatefulWidget {
   final Future<List<SshHost>> hostsFuture;
   final AppSettingsController settingsController;
   final BuiltInSshKeyService keyService;
-  final RemoteCommandLogController commandLog;
   final SshShellFactory shellFactory;
 
   @override

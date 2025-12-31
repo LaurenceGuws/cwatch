@@ -7,7 +7,6 @@ import 'package:cwatch/services/filesystem/explorer_trash_manager.dart';
 import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
-import 'package:cwatch/services/ssh/remote_command_logging.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 
 import 'server_tab_factory.dart';
@@ -17,7 +16,6 @@ class ServerWorkspaceController {
   ServerWorkspaceController({
     required this.settingsController,
     required this.keyService,
-    required this.commandLog,
     required Future<List<SshHost>> Function() hostsLoader,
     required this.trashManager,
     required RemoteShellService Function(SshHost host) shellServiceForHost,
@@ -41,7 +39,6 @@ class ServerWorkspaceController {
 
   final AppSettingsController settingsController;
   final BuiltInSshKeyService keyService;
-  final RemoteCommandLogController commandLog;
   final ExplorerTrashManager trashManager;
   final Future<List<SshHost>> Function() _hostsLoader;
 

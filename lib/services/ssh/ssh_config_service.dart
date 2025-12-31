@@ -243,10 +243,7 @@ class SshConfigService {
   final List<String> _additionalEntryPoints;
   final List<String> _disabledEntryPoints;
 
-  Future<List<SshHost>> loadHosts({
-    bool checkAvailability = true,
-    bool logFailures = false,
-  }) async {
+  Future<List<SshHost>> loadHosts({bool checkAvailability = true}) async {
     final visited = <String>{};
     final hostsWithSource = <({ParsedHost host, String source})>[];
     final entryPoints = <String>{
@@ -287,11 +284,7 @@ class SshConfigService {
     return Future.wait(
       hostsWithSource.map((entry) async {
         final online = checkAvailability
-            ? await _checkAvailability(
-                entry.host.hostname,
-                entry.host.port,
-                logFailures: logFailures,
-              )
+            ? await _checkAvailability(entry.host.hostname, entry.host.port)
             : true;
         return SshHost(
           name: entry.host.name,
@@ -306,11 +299,7 @@ class SshConfigService {
     );
   }
 
-  Future<bool> _checkAvailability(
-    String host,
-    int port, {
-    required bool logFailures,
-  }) async {
+  Future<bool> _checkAvailability(String host, int port) async {
     try {
       final socket = await Socket.connect(
         host,
@@ -320,13 +309,6 @@ class SshConfigService {
       socket.destroy();
       return true;
     } catch (error) {
-      if (logFailures) {
-        AppLogger.w(
-          'Failed to check SSH availability for $host:$port',
-          tag: 'SSH',
-          error: error,
-        );
-      }
       return false;
     }
   }

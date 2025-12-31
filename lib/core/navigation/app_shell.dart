@@ -13,12 +13,12 @@ import '../../modules/kubernetes/view.dart';
 import '../../modules/sandbox/view.dart';
 import '../../modules/servers/view.dart';
 import '../../modules/settings/view.dart';
+import '../../modules/debug_logs/view.dart';
 import '../../modules/wsl/view.dart';
 import '../../services/settings/app_settings_controller.dart';
 import '../../services/ssh/builtin/builtin_ssh_key_store.dart';
 import '../../services/ssh/builtin/builtin_ssh_key_service.dart';
 import '../../services/ssh/builtin/builtin_ssh_vault.dart';
-import '../../services/ssh/remote_command_logging.dart';
 import '../../services/ssh/ssh_shell_factory.dart';
 import '../../services/ssh/ssh_auth_prompter.dart';
 import '../../services/ssh/ssh_auth_coordinator.dart';
@@ -67,7 +67,6 @@ class _HomeShellState extends State<HomeShell>
   late final BuiltInSshVault _builtInVault;
   late final BuiltInSshKeyService _builtInKeyService;
   late final SshAuthCoordinator _authCoordinator;
-  late final RemoteCommandLogController _commandLog;
   late final SshShellFactory _shellFactory;
   String? _hostsSettingsSignature;
   _SidebarPlacement _sidebarPlacement = _SidebarPlacement.dynamic;
@@ -88,7 +87,6 @@ class _HomeShellState extends State<HomeShell>
   @override
   void initState() {
     super.initState();
-    _commandLog = RemoteCommandLogController();
     _builtInKeyStore = BuiltInSshKeyStore();
     _builtInVault = BuiltInSshVault(keyStore: _builtInKeyStore);
     _builtInKeyService = BuiltInSshKeyService(
@@ -105,7 +103,6 @@ class _HomeShellState extends State<HomeShell>
       settingsController: widget.settingsController,
       keyService: _builtInKeyService,
       authCoordinator: _authCoordinator,
-      observer: _commandLog.add,
     );
     _refreshHosts();
     _moduleRegistry = ModuleRegistry(_buildModules());
@@ -118,6 +115,9 @@ class _HomeShellState extends State<HomeShell>
     _settingsListener = _handleSettingsChanged;
     widget.settingsController.addListener(_settingsListener);
     ShortcutService.instance.updateSettings(widget.settingsController.settings);
+    AppLogger.configureRemoteCommandLogging(
+      enabled: widget.settingsController.settings.debugMode,
+    );
     _gestureDetectorFactory = GestureDetectorFactory();
     _configureInputMode(widget.settingsController.settings);
     _syncWindowState();
@@ -148,7 +148,6 @@ class _HomeShellState extends State<HomeShell>
     if (_supportsCustomChrome) {
       trayManager.removeListener(this);
     }
-    _commandLog.dispose();
     _moduleRegistry.removeListener(_handleModulesChanged);
     widget.settingsController.removeListener(_settingsListener);
     _globalShortcutSub?.dispose();
@@ -208,6 +207,7 @@ class _HomeShellState extends State<HomeShell>
   }
 
   void _applyShellSettings(AppSettings settings) {
+    AppLogger.configureRemoteCommandLogging(enabled: settings.debugMode);
     _selectedDestination =
         _destinationFromName(settings.shellDestination) ?? _selectedDestination;
     _sidebarCollapsed = settings.shellSidebarCollapsed;
@@ -642,7 +642,6 @@ class _HomeShellState extends State<HomeShell>
         hostsFuture: _hostsFuture,
         settingsController: widget.settingsController,
         keyService: _builtInKeyService,
-        commandLog: _commandLog,
         shellFactory: _shellFactory,
       ),
     ];
@@ -654,16 +653,15 @@ class _HomeShellState extends State<HomeShell>
         hostsFuture: _hostsFuture,
         settingsController: widget.settingsController,
         keyService: _builtInKeyService,
-        commandLog: _commandLog,
         shellFactory: _shellFactory,
       ),
       KubernetesModule(settingsController: widget.settingsController),
       SandboxModule(settingsController: widget.settingsController),
+      DebugLogsModule(settingsController: widget.settingsController),
       SettingsModule(
         controller: widget.settingsController,
         hostsFuture: _hostsFuture,
         keyService: _builtInKeyService,
-        commandLog: _commandLog,
         shellFactory: _shellFactory,
       ),
     ]);

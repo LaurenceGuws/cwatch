@@ -182,7 +182,12 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
       setState(() => _connecting = false);
       _updateTabOptions();
     } catch (error, stack) {
-      debugPrint('DockerCommandTerminal failed: $error\n$stack');
+      AppLogger.w(
+        'Docker command terminal failed',
+        tag: 'DockerTerminal',
+        error: error,
+        stackTrace: stack,
+      );
       setState(() {
         _connecting = false;
         _error = error.toString();

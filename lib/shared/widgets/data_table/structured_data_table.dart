@@ -161,6 +161,7 @@ class StructuredDataTable<T> extends StatefulWidget {
 
     this.rowHeight = 60,
     this.headerHeight = 38,
+    this.autoRowHeight = false,
     this.shrinkToContent = false,
     this.primaryDoubleClickOpensContextMenu = true,
     this.verticalScrollbarBottomInset = 0,
@@ -173,7 +174,14 @@ class StructuredDataTable<T> extends StatefulWidget {
     this.rowDragPayloadBuilder,
     this.rowDragFeedbackBuilder,
     this.fitColumnsToWidth = false,
-  }) : assert(columns.isNotEmpty, 'At least one column is required');
+  }) : assert(columns.isNotEmpty, 'At least one column is required'),
+       assert(
+         !autoRowHeight ||
+             (!cellSelectionEnabled &&
+                 !rowSelectionEnabled &&
+                 !enableKeyboardNavigation),
+         'autoRowHeight requires selection and keyboard navigation to be off.',
+       );
 
   final List<T> rows;
   final List<StructuredDataColumn<T>> columns;
@@ -220,6 +228,7 @@ class StructuredDataTable<T> extends StatefulWidget {
   final bool allowMultiSelect;
   final double rowHeight;
   final double headerHeight;
+  final bool autoRowHeight;
   final bool shrinkToContent;
   final bool primaryDoubleClickOpensContextMenu;
   final double verticalScrollbarBottomInset;
@@ -1692,6 +1701,9 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
         ),
         child: aligned,
       );
+      final cellContent = widget.autoRowHeight
+          ? cellBody
+          : SizedBox.expand(child: cellBody);
       final interactiveCell = isBodyCell && widget.cellSelectionEnabled
           ? Listener(
               behavior: HitTestBehavior.translucent,
@@ -1731,11 +1743,11 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
                     );
                     _enterCellEditMode(coordinate);
                   },
-                  child: SizedBox.expand(child: cellBody),
+                  child: cellContent,
                 ),
               ),
             )
-          : SizedBox.expand(child: cellBody);
+          : cellContent;
       final cell = SizedBox(width: columnWidths[i], child: interactiveCell);
       cells.add(cell);
       if (i != _columns.length - 1) {
@@ -2122,8 +2134,10 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
               overlayColor: overlayColor,
               onTap: () {},
               child: Container(
-                height: widget.rowHeight,
-                constraints: BoxConstraints(minHeight: widget.rowHeight),
+                height: widget.autoRowHeight ? null : widget.rowHeight,
+                constraints: widget.autoRowHeight
+                    ? const BoxConstraints()
+                    : BoxConstraints(minHeight: widget.rowHeight),
                 padding: EdgeInsets.symmetric(
                   horizontal: widget.cellSelectionEnabled
                       ? spacing.base
@@ -2136,16 +2150,17 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
                   border: border,
                 ),
                 child: Column(
-                  mainAxisSize: MainAxisSize.max,
+                  mainAxisSize:
+                      widget.autoRowHeight ? MainAxisSize.min : MainAxisSize.max,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Align(
+                    if (widget.autoRowHeight)
+                      Align(
                         alignment: Alignment.centerLeft,
                         child: SizedBox(
                           width: rowContentWidth,
                           child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               ..._buildRowCells(
                                 context,
@@ -2157,8 +2172,28 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
                             ],
                           ),
                         ),
+                      )
+                    else
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: SizedBox(
+                            width: rowContentWidth,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                ..._buildRowCells(
+                                  context,
+                                  row: row,
+                                  header: false,
+                                  columnWidths: columnWidths,
+                                  rowIndex: index,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -2456,8 +2491,9 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
         shrinkWrap: widget.shrinkToContent,
         primary: false,
         physics: const ClampingScrollPhysics(),
-        itemExtent: widget.rowHeight + 1,
-        cacheExtent: (widget.rowHeight + 1) * 20,
+        itemExtent: widget.autoRowHeight ? null : widget.rowHeight + 1,
+        cacheExtent:
+            widget.autoRowHeight ? null : (widget.rowHeight + 1) * 20,
         itemCount: _visibleRows.length,
         itemBuilder: (context, index) => Column(
           children: [

@@ -43,9 +43,10 @@ class ExplorerTrashManager {
     required bool isDirectory,
     bool notify = true,
   }) async {
-    debugPrint(
-      '[Trash] Downloading ${isDirectory ? 'directory' : 'file'} '
+    AppLogger.d(
+      'Downloading ${isDirectory ? 'directory' : 'file'} '
       '$remotePath from host ${host.name} to local trash',
+      tag: 'Trash',
     );
     final id = DateTime.now().microsecondsSinceEpoch.toString();
     final entryDir = Directory(p.join(_baseDir.path, id));
@@ -56,7 +57,10 @@ class ExplorerTrashManager {
       localDestination: entryDir.path,
       recursive: isDirectory,
     );
-    debugPrint('[Trash] Stored trash entry $id for host ${host.name}');
+    AppLogger.d(
+      'Stored trash entry $id for host ${host.name}',
+      tag: 'Trash',
+    );
     final payloadName = p.basename(remotePath);
     final payloadPath = p.join(entryDir.path, payloadName);
     final sizeBytes = await _computeSize(payloadPath);
@@ -134,8 +138,9 @@ class ExplorerTrashManager {
     required RemoteShellService shellService,
     SshHost? hostOverride,
   }) async {
-    debugPrint(
-      '[Trash] Restoring ${entry.remotePath} to host ${entry.host.name}',
+    AppLogger.d(
+      'Restoring ${entry.remotePath} to host ${entry.host.name}',
+      tag: 'Trash',
     );
     final targetHost = hostOverride ?? entry.host;
     await shellService.uploadPath(
@@ -144,8 +149,9 @@ class ExplorerTrashManager {
       remoteDestination: entry.remotePath,
       recursive: entry.isDirectory,
     );
-    debugPrint(
-      '[Trash] Restore completed for ${entry.remotePath} on host ${entry.host.name}',
+    AppLogger.d(
+      'Restore completed for ${entry.remotePath} on host ${entry.host.name}',
+      tag: 'Trash',
     );
     _restoreNotifier.value = TrashRestoreEvent(
       hostName: entry.host.name,

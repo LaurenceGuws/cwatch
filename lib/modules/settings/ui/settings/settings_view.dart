@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'package:cwatch/models/ssh_host.dart';
-import 'package:cwatch/services/ssh/remote_command_logging.dart';
 import 'package:cwatch/services/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
@@ -10,7 +9,6 @@ import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/core/navigation/tab_navigation_registry.dart';
 import 'package:cwatch/core/navigation/command_palette_registry.dart';
 import 'container_settings_tabs.dart';
-import 'debug_logs_tab.dart';
 import 'general_settings_tab.dart';
 import 'servers_settings_tab.dart';
 import 'editor_settings_tab.dart';
@@ -22,7 +20,6 @@ class SettingsView extends StatefulWidget {
     required this.controller,
     required this.hostsFuture,
     required this.keyService,
-    required this.commandLog,
     required this.shellFactory,
     this.leading,
     super.key,
@@ -31,7 +28,6 @@ class SettingsView extends StatefulWidget {
   final AppSettingsController controller;
   final Future<List<SshHost>> hostsFuture;
   final BuiltInSshKeyService keyService;
-  final RemoteCommandLogController commandLog;
   final SshShellFactory shellFactory;
   final Widget? leading;
 
@@ -52,7 +48,6 @@ class _SettingsViewState extends State<SettingsView>
     Tab(text: 'Servers'),
     Tab(text: 'Docker'),
     Tab(text: 'Kubernetes'),
-    Tab(text: 'Debug Logs'),
     Tab(text: 'Terminal'),
     Tab(text: 'Editor'),
   ];
@@ -63,7 +58,6 @@ class _SettingsViewState extends State<SettingsView>
     Icons.storage, // Servers
     NerdIcon.docker.data, // Docker
     NerdIcon.kubernetes.data, // Kubernetes
-    Icons.bug_report_outlined, // Debug Logs
     Icons.terminal, // Terminal
     Icons.code, // Editor
   ];
@@ -217,10 +211,6 @@ class _SettingsViewState extends State<SettingsView>
                               ),
                         ),
                         KubernetesSettingsTab(),
-                        DebugLogsTab(
-                          logController: widget.commandLog,
-                          debugEnabled: settings.debugMode,
-                        ),
                         TerminalSettingsTab(
                           settings: settings,
                           settingsController: widget.controller,

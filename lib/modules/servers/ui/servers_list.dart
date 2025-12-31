@@ -12,10 +12,8 @@ import 'package:cwatch/models/server_action.dart';
 import 'package:cwatch/models/server_workspace_state.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/services/filesystem/explorer_trash_manager.dart';
-import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
-import 'package:cwatch/services/ssh/remote_command_logging.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/services/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/services/ssh/ssh_config_service.dart';
@@ -51,7 +49,6 @@ class ServersList extends StatefulWidget {
     required this.hostsFuture,
     required this.settingsController,
     required this.keyService,
-    required this.commandLog,
     required this.shellFactory,
     this.leading,
   });
@@ -60,7 +57,6 @@ class ServersList extends StatefulWidget {
   final Future<List<SshHost>> hostsFuture;
   final AppSettingsController settingsController;
   final BuiltInSshKeyService keyService;
-  final RemoteCommandLogController commandLog;
   final SshShellFactory shellFactory;
   final Widget? leading;
 
@@ -99,9 +95,7 @@ class _ServersListState extends State<ServersList> {
       customHosts: settings.customSshHosts,
       additionalEntryPoints: settings.customSshConfigPaths,
       disabledEntryPoints: settings.disabledSshConfigPaths,
-    ).loadHosts(
-      logFailures: settings.debugMode,
-    );
+    ).loadHosts();
     _lastHosts = hosts;
     return hosts;
   }
@@ -257,14 +251,6 @@ class _ServersListState extends State<ServersList> {
       socket.destroy();
       return true;
     } catch (error, stackTrace) {
-      if (widget.settingsController.settings.debugMode) {
-        AppLogger.w(
-          'Failed to check availability for ${host.name}',
-          tag: 'Servers',
-          error: error,
-          stackTrace: stackTrace,
-        );
-      }
       return false;
     }
   }
@@ -305,7 +291,6 @@ class _ServersListState extends State<ServersList> {
     _workspaceController = ServerWorkspaceController(
       settingsController: widget.settingsController,
       keyService: widget.keyService,
-      commandLog: widget.commandLog,
       hostsLoader: _loadHosts,
       trashManager: _trashManager,
       shellServiceForHost: _shellServiceForHost,

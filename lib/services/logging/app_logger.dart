@@ -1,4 +1,8 @@
+import 'dart:collection';
+
 import 'package:flutter/foundation.dart';
+
+import '../../models/ssh_host.dart';
 
 enum LogLevel { debug, info, warning, error }
 
@@ -49,6 +53,45 @@ class AppLogger {
     stackTrace: stackTrace,
   );
 
+  static final RemoteCommandLogController remoteCommandLog =
+      RemoteCommandLogController();
+
+  static bool _remoteCommandLoggingEnabled = false;
+
+  static bool get remoteCommandLoggingEnabled =>
+      _remoteCommandLoggingEnabled;
+
+  static void configureRemoteCommandLogging({required bool enabled}) {
+    _remoteCommandLoggingEnabled = enabled;
+  }
+
+  static RemoteCommandObserver get remoteCommandObserver =>
+      _addRemoteCommand;
+
+  static void logRemoteCommand({
+    required String source,
+    required String operation,
+    required String command,
+    required String output,
+    SshHost? host,
+    String? verificationCommand,
+    String? verificationOutput,
+    bool? verificationPassed,
+  }) {
+    _addRemoteCommand(
+      RemoteCommandDebugEvent(
+        source: source,
+        host: host,
+        operation: operation,
+        command: command,
+        output: output,
+        verificationCommand: verificationCommand,
+        verificationOutput: verificationOutput,
+        verificationPassed: verificationPassed,
+      ),
+    );
+  }
+
   void log(
     LogLevel level,
     String message, {
@@ -97,4 +140,65 @@ class AppLogger {
         return '\x1B[31m'; // red
     }
   }
+}
+
+typedef RemoteCommandObserver = void Function(RemoteCommandDebugEvent event);
+
+class RemoteCommandDebugEvent {
+  RemoteCommandDebugEvent({
+    required this.source,
+    required this.host,
+    required this.operation,
+    required this.command,
+    required this.output,
+    DateTime? timestamp,
+    this.verificationCommand,
+    this.verificationOutput,
+    this.verificationPassed,
+  }) : timestamp = timestamp ?? DateTime.now();
+
+  final String source;
+  final SshHost? host;
+  final String operation;
+  final String command;
+  final String output;
+  final DateTime timestamp;
+  final String? verificationCommand;
+  final String? verificationOutput;
+  final bool? verificationPassed;
+}
+
+class RemoteCommandLogController extends ChangeNotifier {
+  RemoteCommandLogController({this.maxEntries = 200});
+
+  final int maxEntries;
+  final List<RemoteCommandDebugEvent> _events = [];
+
+  UnmodifiableListView<RemoteCommandDebugEvent> get events =>
+      UnmodifiableListView(_events);
+
+  bool get isEmpty => _events.isEmpty;
+
+  void add(RemoteCommandDebugEvent event) {
+    _events.insert(0, event);
+    if (_events.length > maxEntries) {
+      _events.removeRange(maxEntries, _events.length);
+    }
+    notifyListeners();
+  }
+
+  void clear() {
+    if (_events.isEmpty) {
+      return;
+    }
+    _events.clear();
+    notifyListeners();
+  }
+}
+
+void _addRemoteCommand(RemoteCommandDebugEvent event) {
+  if (!AppLogger._remoteCommandLoggingEnabled) {
+    return;
+  }
+  AppLogger.remoteCommandLog.add(event);
 }

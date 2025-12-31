@@ -51,7 +51,12 @@ class ProcessRemoteShellService extends RemoteShellService {
       onSshError: _handleSshError,
       onTimeout: onTimeout,
     );
-
+    emitDebugEvent(
+      host: host,
+      operation: 'listDirectory',
+      command: run.command,
+      output: run.stdout.trimRight(),
+    );
     return parseLsOutput(run.stdout);
   }
 
@@ -213,6 +218,12 @@ class ProcessRemoteShellService extends RemoteShellService {
         onTimeout: onTimeout,
       );
       final output = run.stdout.trim();
+      emitDebugEvent(
+        host: host,
+        operation: 'homeDirectory',
+        command: run.command,
+        output: output,
+      );
       return output.isEmpty ? '/' : output;
     } catch (error, stackTrace) {
       AppLogger.w(

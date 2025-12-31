@@ -65,6 +65,12 @@ class BuiltInRemoteShellService extends RemoteShellService {
       timeout: timeout,
       onTimeout: onTimeout,
     );
+    emitDebugEvent(
+      host: host,
+      operation: 'listDirectory',
+      command: command,
+      output: output.trimRight(),
+    );
     logBuiltInSsh(
       'listDirectory output for ${host.name}:$path (length=${output.length})',
     );
@@ -237,6 +243,12 @@ class BuiltInRemoteShellService extends RemoteShellService {
       onTimeout: onTimeout,
     );
     final trimmed = output.trim();
+    emitDebugEvent(
+      host: host,
+      operation: 'homeDirectory',
+      command: 'echo \$HOME',
+      output: trimmed,
+    );
     return trimmed.isEmpty ? '/' : trimmed;
   }
 
