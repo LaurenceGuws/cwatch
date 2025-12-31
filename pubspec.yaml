@@ -51,6 +51,7 @@ dependencies:
   super_native_extensions: ^0.9.1
   super_clipboard: ^0.9.1
   window_manager: ^0.5.1
+  tray_manager: ^0.2.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -96,6 +97,8 @@ flutter:
     - assets/themes/terminal/
     - assets/themes/editor/
     - assets/themes/app/
+    - assets/media/
+    - assets/media/tray/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

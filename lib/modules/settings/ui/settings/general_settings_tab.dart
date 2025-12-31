@@ -254,17 +254,33 @@ class GeneralSettingsTab extends StatelessWidget {
             title: 'Desktop window',
             description:
                 'Control native window decorations (title bar and buttons).',
-            child: SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Use system window decorations'),
-              subtitle: const Text(
-                'Turn off to use a custom/frameless window (where supported). Requires app restart.',
-              ),
-              value: settings.windowUseSystemDecorations,
-              onChanged: (value) => settingsController.update(
-                (current) =>
-                    current.copyWith(windowUseSystemDecorations: value),
-              ),
+            child: Column(
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Use system window decorations'),
+                  subtitle: const Text(
+                    'Turn off to use a custom/frameless window (where supported). Requires app restart.',
+                  ),
+                  value: settings.windowUseSystemDecorations,
+                  onChanged: (value) => settingsController.update(
+                    (current) =>
+                        current.copyWith(windowUseSystemDecorations: value),
+                  ),
+                ),
+                const FormSpacer(),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Close to tray'),
+                  subtitle: const Text(
+                    'Closing the window hides the app in the system tray.',
+                  ),
+                  value: settings.closeToTray,
+                  onChanged: (value) => settingsController.update(
+                    (current) => current.copyWith(closeToTray: value),
+                  ),
+                ),
+              ],
             ),
           ),
         ShortcutCategorySection(

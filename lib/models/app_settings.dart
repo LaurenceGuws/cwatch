@@ -20,6 +20,7 @@ class AppSettings {
     this.shellSidebarCollapsed = false,
     this.shellSidebarPlacement = 'dynamic',
     this.windowUseSystemDecorations = true,
+    this.closeToTray = false,
     this.appFontFamily,
     this.appThemeKey = 'blue-grey',
     this.uiDensity = AppUiDensity.compact,
@@ -68,6 +69,7 @@ class AppSettings {
   final bool shellSidebarCollapsed;
   final String? shellSidebarPlacement;
   final bool windowUseSystemDecorations;
+  final bool closeToTray;
   final String? appFontFamily;
   final String appThemeKey;
   final AppUiDensity uiDensity;
@@ -118,6 +120,7 @@ class AppSettings {
     bool? shellSidebarCollapsed,
     String? shellSidebarPlacement,
     bool? windowUseSystemDecorations,
+    bool? closeToTray,
     String? appFontFamily,
     String? appThemeKey,
     AppUiDensity? uiDensity,
@@ -169,6 +172,7 @@ class AppSettings {
           shellSidebarPlacement ?? this.shellSidebarPlacement,
       windowUseSystemDecorations:
           windowUseSystemDecorations ?? this.windowUseSystemDecorations,
+      closeToTray: closeToTray ?? this.closeToTray,
       appFontFamily: appFontFamily ?? this.appFontFamily,
       appThemeKey: appThemeKey ?? this.appThemeKey,
       uiDensity: uiDensity ?? this.uiDensity,
@@ -260,6 +264,7 @@ class AppSettings {
           json['shellSidebarPlacement'] as String? ?? 'dynamic',
       windowUseSystemDecorations:
           json['windowUseSystemDecorations'] as bool? ?? true,
+      closeToTray: json['closeToTray'] as bool? ?? false,
       appFontFamily: json['appFontFamily'] as String?,
       appThemeKey: json['appThemeKey'] as String? ?? 'blue-grey',
       uiDensity: AppUiDensityParsing.fromJson(json['uiDensity'] as String?),
@@ -399,6 +404,7 @@ class AppSettings {
       'shellSidebarCollapsed': shellSidebarCollapsed,
       'shellSidebarPlacement': shellSidebarPlacement,
       'windowUseSystemDecorations': windowUseSystemDecorations,
+      'closeToTray': closeToTray,
       if (appFontFamily != null) 'appFontFamily': appFontFamily,
       'appThemeKey': appThemeKey,
       'uiDensity': uiDensity.name,

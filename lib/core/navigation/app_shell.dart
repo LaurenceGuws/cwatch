@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:tray_manager/tray_manager.dart';
 
 import '../../models/app_settings.dart';
 import '../../models/ssh_host.dart';
@@ -34,6 +35,7 @@ import '../../shared/widgets/command_palette.dart';
 import 'command_palette_registry.dart';
 import '../tabs/tab_bar_visibility.dart';
 import '../../services/window/window_chrome_service.dart';
+import '../../services/window/tray_service.dart';
 import '../../services/logging/app_logger.dart';
 import 'gesture_detector_factory.dart';
 import 'tab_navigation_registry.dart';
@@ -50,7 +52,8 @@ class HomeShell extends StatefulWidget {
   State<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> with WindowListener {
+class _HomeShellState extends State<HomeShell>
+    with WindowListener, TrayListener {
   late Future<List<SshHost>> _hostsFuture;
   String _selectedDestination = 'servers';
   bool _sidebarCollapsed = false;
@@ -58,6 +61,7 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
   bool _paletteOpen = false;
   late final GestureDetectorFactory _gestureDetectorFactory;
   late final WindowChromeService _windowChrome;
+  late final TrayService _trayService;
   late final VoidCallback _settingsListener;
   late final BuiltInSshKeyStore _builtInKeyStore;
   late final BuiltInSshVault _builtInVault;
@@ -73,6 +77,7 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
   GestureSubscription? _globalGestureSub;
   double? _scaleStartZoom;
   bool _isWindowMaximized = false;
+  bool _closeToTrayEnabled = false;
 
   bool get _supportsCustomChrome =>
       !kIsWeb &&
@@ -95,6 +100,7 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
       keyService: _builtInKeyService,
     );
     _windowChrome = WindowChromeService();
+    _trayService = TrayService();
     _shellFactory = SshShellFactory(
       settingsController: widget.settingsController,
       keyService: _builtInKeyService,
@@ -115,6 +121,10 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
     _gestureDetectorFactory = GestureDetectorFactory();
     _configureInputMode(widget.settingsController.settings);
     _syncWindowState();
+    if (_supportsCustomChrome) {
+      trayManager.addListener(this);
+      unawaited(_configureCloseToTray(widget.settingsController.settings));
+    }
   }
 
   ShortcutSubscription? _globalShortcutSub;
@@ -135,6 +145,9 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
   @override
   void dispose() {
     windowManager.removeListener(this);
+    if (_supportsCustomChrome) {
+      trayManager.removeListener(this);
+    }
     _commandLog.dispose();
     _moduleRegistry.removeListener(_handleModulesChanged);
     widget.settingsController.removeListener(_settingsListener);
@@ -191,6 +204,7 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
       });
     }
     unawaited(_windowChrome.apply(widget.settingsController.settings));
+    unawaited(_configureCloseToTray(widget.settingsController.settings));
   }
 
   void _applyShellSettings(AppSettings settings) {
@@ -199,7 +213,26 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
     _sidebarCollapsed = settings.shellSidebarCollapsed;
     _sidebarPlacement = _placementFromString(settings.shellSidebarPlacement);
     unawaited(_windowChrome.apply(settings));
+    unawaited(_configureCloseToTray(settings));
     _configureInputMode(settings);
+  }
+
+  Future<void> _configureCloseToTray(AppSettings settings) async {
+    if (!_supportsCustomChrome) {
+      return;
+    }
+    final enable = settings.closeToTray;
+    if (_closeToTrayEnabled == enable) {
+      return;
+    }
+    _closeToTrayEnabled = enable;
+    await windowManager.setPreventClose(enable);
+    if (enable) {
+      await _trayService.ensureInitialized();
+    } else {
+      await windowManager.setSkipTaskbar(false);
+      await _trayService.destroy();
+    }
   }
 
   Future<void> _changeAppZoom(double delta) async {
@@ -892,7 +925,28 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
 
   Future<void> _closeWindow() async {
     if (!_supportsCustomChrome) return;
+    if (widget.settingsController.settings.closeToTray) {
+      await _hideToTray();
+      return;
+    }
     await windowManager.close();
+  }
+
+  Future<void> _hideToTray() async {
+    await _trayService.ensureInitialized();
+    await windowManager.hide();
+    await windowManager.setSkipTaskbar(true);
+  }
+
+  Future<void> _showFromTray() async {
+    await windowManager.setSkipTaskbar(false);
+    await windowManager.show();
+    await windowManager.focus();
+  }
+
+  Future<void> _quitFromTray() async {
+    await _trayService.destroy();
+    await windowManager.destroy();
   }
 
   @override
@@ -903,6 +957,44 @@ class _HomeShellState extends State<HomeShell> with WindowListener {
   @override
   void onWindowUnmaximize() {
     if (mounted) setState(() => _isWindowMaximized = false);
+  }
+
+  @override
+  void onWindowClose() {
+    if (!_supportsCustomChrome) {
+      return;
+    }
+    if (!widget.settingsController.settings.closeToTray) {
+      unawaited(windowManager.destroy());
+      return;
+    }
+    unawaited(_hideToTray());
+  }
+
+  @override
+  void onTrayIconMouseDown() {
+    unawaited(_showFromTray());
+  }
+
+  @override
+  void onTrayMenuItemClick(MenuItem menuItem) {
+    switch (menuItem.key) {
+      case 'show':
+        unawaited(_showFromTray());
+        break;
+      case 'quit':
+        unawaited(_quitFromTray());
+        break;
+      case 'icon-32':
+      case 'icon-64':
+      case 'icon-128':
+      case 'icon-256':
+      case 'icon-512':
+      case 'icon-768':
+      case 'icon-1024':
+        unawaited(_trayService.setIconChoiceByKey(menuItem.key ?? ''));
+        break;
+    }
   }
 }
 
