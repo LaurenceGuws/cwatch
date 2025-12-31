@@ -139,7 +139,7 @@ class _HomeShellState extends State<HomeShell>
       customHosts: customHosts,
       additionalEntryPoints: customConfigs,
       disabledEntryPoints: disabledConfigs,
-    ).loadHosts();
+    ).loadHosts(checkAvailability: false);
   }
 
   @override

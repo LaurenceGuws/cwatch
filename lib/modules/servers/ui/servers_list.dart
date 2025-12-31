@@ -99,7 +99,9 @@ class _ServersListState extends State<ServersList> {
       customHosts: settings.customSshHosts,
       additionalEntryPoints: settings.customSshConfigPaths,
       disabledEntryPoints: settings.disabledSshConfigPaths,
-    ).loadHosts();
+    ).loadHosts(
+      logFailures: settings.debugMode,
+    );
     _lastHosts = hosts;
     return hosts;
   }
@@ -255,12 +257,14 @@ class _ServersListState extends State<ServersList> {
       socket.destroy();
       return true;
     } catch (error, stackTrace) {
-      AppLogger.w(
-        'Failed to check availability for ${host.name}',
-        tag: 'Servers',
-        error: error,
-        stackTrace: stackTrace,
-      );
+      if (widget.settingsController.settings.debugMode) {
+        AppLogger.w(
+          'Failed to check availability for ${host.name}',
+          tag: 'Servers',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
       return false;
     }
   }
