@@ -12,7 +12,7 @@ class ExternalAppLauncher {
   static Future<void> launch(String path) async {
     final preferred = await _resolveEditorCommand();
     if (preferred != null) {
-      AppLogger.d(
+      AppLogger().debug(
         'Launching preferred editor command: $preferred $path',
         tag: 'ExternalApp',
       );
@@ -21,13 +21,13 @@ class ExternalAppLauncher {
     }
 
     if (Platform.isMacOS) {
-      AppLogger.d('Launching open $path', tag: 'ExternalApp');
+      AppLogger().debug('Launching open $path', tag: 'ExternalApp');
       await Process.start('open', [path]);
     } else if (Platform.isWindows) {
-      AppLogger.d('Launching cmd /c start $path', tag: 'ExternalApp');
+      AppLogger().debug('Launching cmd /c start $path', tag: 'ExternalApp');
       await Process.start('cmd', ['/c', 'start', '', path]);
     } else {
-      AppLogger.d('Launching xdg-open $path', tag: 'ExternalApp');
+      AppLogger().debug('Launching xdg-open $path', tag: 'ExternalApp');
       await Process.start('xdg-open', [path]);
     }
   }
@@ -87,7 +87,7 @@ class ExternalAppLauncher {
               return;
             }
           } catch (error, stackTrace) {
-            AppLogger.w(
+            AppLogger().warn(
               'Failed to probe editor $editor',
               tag: 'ExternalApp',
               error: error,
@@ -100,7 +100,7 @@ class ExternalAppLauncher {
         await Process.start('xdg-open', [sourcePath]);
       }
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to launch external editor',
         tag: 'ExternalApp',
         error: error,
@@ -130,7 +130,7 @@ class ExternalAppLauncher {
     }
     final executable = await _findExecutable(parts.first);
     if (executable == null) {
-      AppLogger.d(
+      AppLogger().debug(
         'EDITOR command not found: ${parts.first}',
         tag: 'ExternalApp',
       );
@@ -147,7 +147,7 @@ class ExternalAppLauncher {
     final whichCmd = Platform.isWindows ? 'where' : 'which';
     final result = await Process.run(whichCmd, [command]);
     if (result.exitCode != 0) {
-      AppLogger.w(
+      AppLogger().warn(
         '$whichCmd $command failed',
         tag: 'ExternalApp',
         error: result.stderr,

@@ -52,7 +52,7 @@ class BuiltInSshVault extends ChangeNotifier {
     try {
       keyPair = SSHKeyPair.fromPem(pem).first;
     } on ArgumentError catch (e, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Error parsing SSH key $keyId',
         tag: 'BuiltInSSHVault',
         error: e,
@@ -68,7 +68,7 @@ class BuiltInSshVault extends ChangeNotifier {
       }
       rethrow;
     } on StateError catch (e, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Error parsing SSH key $keyId',
         tag: 'BuiltInSSHVault',
         error: e,

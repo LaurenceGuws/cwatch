@@ -108,7 +108,7 @@ class SshConfigParser {
     try {
       return await file.resolveSymbolicLinks();
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to resolve SSH config path ${file.path}',
         tag: 'SSHConfig',
         error: error,
@@ -321,7 +321,7 @@ class SshConfigService {
         final canonical = await file.resolveSymbolicLinks();
         resolved.add(canonical);
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to canonicalize SSH config path $path',
           tag: 'SSHConfig',
           error: error,

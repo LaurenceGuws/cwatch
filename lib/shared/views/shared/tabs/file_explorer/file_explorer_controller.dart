@@ -565,7 +565,7 @@ class FileExplorerController extends ChangeNotifier {
       }
       notifyListeners();
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to prefetch path $path',
         tag: 'Explorer',
         error: error,
@@ -675,7 +675,7 @@ class FileExplorerController extends ChangeNotifier {
           host: host,
           downloads: downloads,
           onError: (download, error) {
-            AppLogger.w(
+            AppLogger().warn(
               'Failed to stage ${download.remotePath} for drag',
               tag: 'Explorer',
               error: error,
@@ -720,7 +720,7 @@ class FileExplorerController extends ChangeNotifier {
         try {
           await tempDir.delete(recursive: true);
         } catch (error, stackTrace) {
-          AppLogger.w(
+          AppLogger().warn(
             'Failed to delete temp drag directory ${tempDir.path}',
             tag: 'Explorer',
             error: error,

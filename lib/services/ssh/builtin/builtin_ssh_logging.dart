@@ -1,7 +1,7 @@
 import '../../logging/app_logger.dart';
 
 void logBuiltInSsh(String message) {
-  AppLogger.d(message, tag: 'BuiltInSSH');
+  AppLogger().debug(message, tag: 'BuiltInSSH');
 }
 
 void logBuiltInSshWarning(
@@ -9,7 +9,7 @@ void logBuiltInSshWarning(
   Object? error,
   StackTrace? stackTrace,
 }) {
-  AppLogger.w(
+  AppLogger().warn(
     message,
     tag: 'BuiltInSSH',
     error: error,

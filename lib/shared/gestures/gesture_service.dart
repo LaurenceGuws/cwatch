@@ -44,13 +44,13 @@ class GestureService {
     );
     _scopes.add(scope);
     _sortScopes();
-    AppLogger.d(
+    AppLogger().debug(
       'registered gesture scope="$id" priority=$priority activators=${handlers.keys.join(', ')}',
       tag: 'Gestures',
     );
     return GestureSubscription(() {
       _scopes.remove(scope);
-      AppLogger.d('disposed gesture scope="$id"', tag: 'Gestures');
+      AppLogger().debug('disposed gesture scope="$id"', tag: 'Gestures');
     });
   }
 
@@ -60,14 +60,14 @@ class GestureService {
       final handler = scope.handlerFor(activator);
       if (handler != null) {
         handler(GestureInvocation(activator: activator, payload: payload));
-        AppLogger.d(
+        AppLogger().debug(
           'handled gesture ${activator.toString()} in scope="${scope.id}"',
           tag: 'Gestures',
         );
         return true;
       }
     }
-    AppLogger.d(
+    AppLogger().debug(
       'no gesture handler for ${activator.toString()}',
       tag: 'Gestures',
     );

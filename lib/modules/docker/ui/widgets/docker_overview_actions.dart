@@ -220,7 +220,7 @@ done'
         );
       }
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to $action container ${container.name}',
         tag: 'Docker',
         error: error,
@@ -280,7 +280,7 @@ done'
       );
       await onSynced();
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to run compose $action for $project',
         tag: 'Docker',
         error: error,
@@ -333,7 +333,7 @@ done'
       final local = existing.remotePort == port && existing.localPort > 0
           ? existing.localPort
           : await portForwardService.suggestLocalPort(port);
-      AppLogger.d(
+      AppLogger().debug(
         'Forward default for ${container.id}: remote=$port local=$local '
         '(existingMatch=${existing.remotePort == port && existing.localPort > 0})',
         tag: 'PortForward',
@@ -377,7 +377,7 @@ done'
         context,
       ).showSnackBar(SnackBar(content: Text('Forwarding $summary via SSH.')));
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to create port forward for ${container.name}',
         tag: 'Docker',
         error: error,
@@ -468,7 +468,7 @@ done'
           ? existing.localPort
           : await _pickLocalPort(reservedLocals, port);
       reservedLocals.add(local);
-      AppLogger.d(
+      AppLogger().debug(
         'Compose $project forward default: remote=$port local=$local '
         '(existingMatch=${existing.remotePort == port && existing.localPort > 0})',
         tag: 'PortForward',
@@ -515,7 +515,7 @@ done'
         SnackBar(content: Text('Forwarding $summary for $project.')),
       );
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to create compose port forward for $project',
         tag: 'Docker',
         error: error,
@@ -766,7 +766,7 @@ done'
         },
       );
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to load docker logs for ${container.name.isNotEmpty ? container.name : container.id}',
         tag: 'Docker',
         error: error,

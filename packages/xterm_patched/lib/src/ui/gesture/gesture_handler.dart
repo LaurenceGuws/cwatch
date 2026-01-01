@@ -182,7 +182,7 @@ class _TerminalGestureHandlerState extends State<TerminalGestureHandler> {
   void onLongPressStart(LongPressStartDetails details) {
     terminalView.longPressActive = true;
     if (terminalView.suppressLongPress) {
-      AppLogger.d(
+      AppLogger().debug(
         'longPressStart suppressed at global=${details.globalPosition} local=${details.localPosition}',
         tag: 'TerminalGestureHandler',
       );

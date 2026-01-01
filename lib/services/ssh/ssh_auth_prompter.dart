@@ -119,7 +119,7 @@ class _SshUnlockDialogState extends State<_SshUnlockDialog> {
         });
       }
     } catch (e, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to unlock key via UI prompt',
         tag: 'SSH',
         error: e,

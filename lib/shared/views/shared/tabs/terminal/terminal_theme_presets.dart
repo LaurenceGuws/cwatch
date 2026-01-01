@@ -310,7 +310,7 @@ Future<void> loadAssetTerminalThemes() async {
             .toList()
           ..sort();
     if (assetPaths.isEmpty) {
-      AppLogger.w(
+      AppLogger().warn(
         'No bundled terminal themes found in asset manifest.',
         tag: 'TerminalTheme',
       );
@@ -323,7 +323,7 @@ Future<void> loadAssetTerminalThemes() async {
       try {
         parsed = _parseThemeContent(content: content, basename: basename);
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to parse bundled theme ${p.basename(assetPath)}',
           tag: 'TerminalTheme',
           error: error,
@@ -337,7 +337,7 @@ Future<void> loadAssetTerminalThemes() async {
       }
     }
   } catch (error, stackTrace) {
-    AppLogger.w(
+    AppLogger().warn(
       'Failed to load bundled terminal themes',
       tag: 'TerminalTheme',
       error: error,
@@ -470,7 +470,7 @@ Future<List<_ParsedTerminalTheme>> _parseThemeFile(File file) async {
     final content = await file.readAsString();
     return _parseThemeContent(content: content, basename: basename);
   } catch (error, stackTrace) {
-    AppLogger.w(
+    AppLogger().warn(
       'Failed to load theme ${p.basename(file.path)}',
       tag: 'TerminalTheme',
       error: error,
@@ -497,7 +497,7 @@ List<_ParsedTerminalTheme> _parseThemeContent({
         .where((key) => !colorTable.containsKey(key))
         .toList();
     if (missing.isNotEmpty) {
-      AppLogger.w(
+      AppLogger().warn(
         'Theme $basename${entry.keySuffix} missing keys: '
         '${missing.join(', ')}',
         tag: 'TerminalTheme',
@@ -539,7 +539,7 @@ List<_ParsedTerminalTheme> _parseThemeContent({
         .map((entry) => entry.key)
         .toList();
     if (invalid.isNotEmpty) {
-      AppLogger.w(
+      AppLogger().warn(
         'Theme $basename${entry.keySuffix} has invalid colors: '
         '${invalid.join(', ')}',
         tag: 'TerminalTheme',

@@ -197,6 +197,9 @@ class _DockerOverviewState extends State<DockerOverview>
         unawaited(
           _containerDistroManager.ensureDistroForContainer(
             container,
+            contextName: widget.contextName,
+            remoteHost: widget.remoteHost,
+            shellService: widget.shellService,
             force: !wasRunning,
           ),
         );
@@ -227,7 +230,7 @@ class _DockerOverviewState extends State<DockerOverview>
       ).showSnackBar(const SnackBar(content: Text('Prune completed.')));
       _refresh();
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Docker prune failed',
         tag: 'Docker',
         error: error,
@@ -971,7 +974,7 @@ class _DockerOverviewState extends State<DockerOverview>
         context: widget.contextName,
       );
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to load container start time for ${container.name}',
         tag: 'Docker',
         error: error,
@@ -994,7 +997,7 @@ class _DockerOverviewState extends State<DockerOverview>
           .toList();
       _controller.updateCachedContainers([...others, ...updatedProject]);
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to sync compose project $project',
         tag: 'Docker',
         error: error,

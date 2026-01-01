@@ -88,7 +88,7 @@ class KubeconfigService {
         return _PathAndDocument(path: expanded, map: doc);
       }
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to parse kubeconfig at $expanded',
         tag: 'Kubeconfig',
         error: error,

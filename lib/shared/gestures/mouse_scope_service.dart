@@ -36,13 +36,13 @@ class MouseScopeService {
     );
     _scopes.add(scope);
     _sort();
-    AppLogger.d(
+    AppLogger().debug(
       'registered mouse scope="$id" priority=$priority',
       tag: 'Mouse',
     );
     return MouseScopeSubscription(() {
       _scopes.remove(scope);
-      AppLogger.d('disposed mouse scope="$id"', tag: 'Mouse');
+      AppLogger().debug('disposed mouse scope="$id"', tag: 'Mouse');
     });
   }
 

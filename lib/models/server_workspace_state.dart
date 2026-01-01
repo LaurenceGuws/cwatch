@@ -26,7 +26,7 @@ class ServerWorkspaceState {
       try {
         tabs.add(TabState.fromJson(entry));
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to parse server workspace tab',
           tag: 'Workspace',
           error: error,

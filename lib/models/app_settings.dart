@@ -320,7 +320,7 @@ class AppSettings {
           try {
             return KubernetesWorkspaceState.fromJson(raw);
           } catch (error, stackTrace) {
-            AppLogger.w(
+            AppLogger().warn(
               'Failed to parse kubernetes workspace state',
               tag: 'Settings',
               error: error,
@@ -354,7 +354,7 @@ class AppSettings {
           try {
             return DockerWorkspaceState.fromJson(raw);
           } catch (error, stackTrace) {
-            AppLogger.w(
+            AppLogger().warn(
               'Failed to parse docker workspace state',
               tag: 'Settings',
               error: error,

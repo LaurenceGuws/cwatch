@@ -63,7 +63,7 @@ class PathLoadingService {
         allEntries: entries,
       );
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to load path $target',
         tag: 'Explorer',
         error: error,
@@ -113,7 +113,7 @@ class PathLoadingService {
       );
       final hitNames =
           entries.map((entry) => entry.name).take(50).join(', ');
-      AppLogger.d(
+      AppLogger().debug(
         'Search hits (${entries.length}) base="$target" query="$query" '
         'include="${includePattern ?? ''}" exclude="${excludePattern ?? ''}" '
         'contents=$searchContents: $hitNames',
@@ -121,7 +121,7 @@ class PathLoadingService {
       );
       return PathSearchResult.success(target: target, entries: entries);
     } catch (error) {
-      AppLogger.w(
+      AppLogger().warn(
         'Search failed base="$target" query="$query": $error',
         tag: 'ExplorerSearch',
         error: error,
@@ -167,7 +167,7 @@ class PathLoadingService {
         allEntries: entries,
       );
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to refresh path $currentPath',
         tag: 'Explorer',
         error: error,

@@ -50,7 +50,7 @@ class _ResourcesTabState extends State<ResourcesTab> {
       shellService: widget.shellService,
       sampleWindowSeconds: _sampleWindowSeconds,
     );
-    AppLogger.d('Loading resources for ${widget.host.name}', tag: 'Resources');
+    AppLogger().debug('Loading resources for ${widget.host.name}', tag: 'Resources');
     _loadResources();
   }
 
@@ -98,10 +98,10 @@ class _ResourcesTabState extends State<ResourcesTab> {
         _historyManager.appendNetIn(snapshot.netInMbps);
         _historyManager.appendNetOut(snapshot.netOutMbps);
       });
-      AppLogger.d('Resources loaded for ${widget.host.name}', tag: 'Resources');
+      AppLogger().debug('Resources loaded for ${widget.host.name}', tag: 'Resources');
       _startPolling();
     } catch (error) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to load resources for ${widget.host.name}',
         tag: 'Resources',
         error: error,
@@ -153,12 +153,12 @@ class _ResourcesTabState extends State<ResourcesTab> {
         _historyManager.appendNetIn(snapshot.netInMbps);
         _historyManager.appendNetOut(snapshot.netOutMbps);
       });
-      AppLogger.d(
+      AppLogger().debug(
         'Resources refreshed for ${widget.host.name}',
         tag: 'Resources',
       );
     } catch (error) {
-      AppLogger.w(
+      AppLogger().warn(
         'Resource refresh failed for ${widget.host.name}',
         tag: 'Resources',
         error: error,

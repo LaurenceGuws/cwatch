@@ -347,7 +347,7 @@ echo "\$disk_stats_after"
       );
       return output.trim();
     } on BuiltInSshKeyLockedException catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'SSH key locked for ${host.name}',
         tag: 'Resources',
         error: error,
@@ -355,7 +355,7 @@ echo "\$disk_stats_after"
       );
       throw Exception('SSH key locked for ${host.name}: ${error.keyId}');
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'SSH command failed for ${host.name}',
         tag: 'Resources',
         error: error,

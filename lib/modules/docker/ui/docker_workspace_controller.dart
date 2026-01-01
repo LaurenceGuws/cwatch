@@ -338,7 +338,7 @@ class DockerWorkspaceController {
     try {
       hosts = await hostsFuture;
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to load SSH hosts for cached docker endpoints',
         tag: 'Docker',
         error: error,
@@ -368,7 +368,7 @@ class DockerWorkspaceController {
     try {
       hosts = await hostsFuture;
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to load SSH hosts for docker discovery',
         tag: 'Docker',
         error: error,
@@ -394,7 +394,7 @@ class DockerWorkspaceController {
       try {
         results[current] = await probeHost(host);
       } catch (error) {
-        AppLogger.w(
+        AppLogger().warn(
           'Docker scan failed for ${host.name}: $error',
           tag: 'Docker',
         );

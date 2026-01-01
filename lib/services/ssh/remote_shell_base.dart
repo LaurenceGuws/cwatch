@@ -55,20 +55,20 @@ abstract class RemoteShellService with RemotePathUtils {
     if (!debugMode) {
       return;
     }
-    observer?.call(
-      RemoteCommandDebugEvent(
-        source: 'ssh',
-        host: host,
+    AppLogger.remote(source: 'ssh', host: host).debug(
+      operation,
+      remote: RemoteCommandDetails(
         operation: operation,
         command: command,
         output: output.trim(),
+        contextLabel: host.name,
         verificationCommand: verification?.command,
         verificationOutput: verification?.output.trim(),
         verificationPassed: verification?.passed,
       ),
     );
     if (verification?.passed == false) {
-      AppLogger.w(
+      AppLogger().warn(
         'Verification failed for $operation on ${host.name}',
         tag: 'SSH DEBUG',
       );
@@ -182,7 +182,7 @@ abstract class RemoteShellService with RemotePathUtils {
         );
       } catch (error, stackTrace) {
         if (onError == null) {
-          AppLogger.w(
+          AppLogger().warn(
             'Failed to download ${download.remotePath}',
             tag: 'SSH',
             error: error,
@@ -190,7 +190,7 @@ abstract class RemoteShellService with RemotePathUtils {
           );
           rethrow;
         }
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to download ${download.remotePath}',
           tag: 'SSH',
           error: error,

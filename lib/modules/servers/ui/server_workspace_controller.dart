@@ -49,7 +49,7 @@ class ServerWorkspaceController {
     try {
       return await _hostsLoader();
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to load SSH hosts for workspace',
         tag: 'Servers',
         error: error,

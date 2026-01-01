@@ -544,7 +544,7 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
     );
     if (active) {
       if (_statusToken[index] != token) return;
-      AppLogger.d(
+      AppLogger().debug(
         'Status update idx=$index remote=$remotePort local=$localPort -> active',
         tag: 'PortForward',
       );
@@ -554,7 +554,7 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
     final available = await widget.portValidator(localPort);
     if (_statusToken[index] != token) return;
     final nextStatus = available ? _StatusLabel.inactive : _StatusLabel.busy;
-    AppLogger.d(
+    AppLogger().debug(
       'Status update idx=$index remote=$remotePort local=$localPort -> '
       '${nextStatus == _StatusLabel.inactive ? 'inactive' : 'busy'}',
       tag: 'PortForward',

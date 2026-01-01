@@ -201,7 +201,7 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
         _recordHistory(snapshot);
       });
     } catch (e, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to load Kubernetes resources',
         tag: 'Kubernetes',
         error: e,

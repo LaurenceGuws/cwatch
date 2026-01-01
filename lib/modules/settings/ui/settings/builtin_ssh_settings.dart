@@ -76,7 +76,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
     }
 
     setState(() => _isSaving = true);
-    AppLogger.d('Adding built-in key "$label"', tag: 'Settings');
+    AppLogger().debug('Adding built-in key "$label"', tag: 'Settings');
     try {
       final addResult = await widget.keyService.addKey(
         label: label,
@@ -139,7 +139,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       ).showSnackBar(const SnackBar(content: Text('Key added to the vault.')));
       _refreshKeys();
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to add built-in SSH key',
         tag: 'Settings',
         error: error,
@@ -228,7 +228,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
         return;
       }
     }
-    AppLogger.d('Unlocking built-in key $keyId', tag: 'Settings');
+    AppLogger().debug('Unlocking built-in key $keyId', tag: 'Settings');
     final result = await widget.keyService.unlock(keyId, password: password);
     if (!mounted) return;
     switch (result.status) {
@@ -304,7 +304,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       final updatedBindings = Map<String, String>.from(bindings);
       for (final hostName in hostsUsingKey) {
         updatedBindings.remove(hostName);
-        AppLogger.d('Removed key binding for host $hostName', tag: 'Settings');
+        AppLogger().debug('Removed key binding for host $hostName', tag: 'Settings');
       }
       widget.controller.update(
         (current) =>
@@ -312,7 +312,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       );
     }
 
-    AppLogger.d('Removing built-in key $keyId', tag: 'Settings');
+    AppLogger().debug('Removing built-in key $keyId', tag: 'Settings');
     await widget.keyService.deleteKey(keyId);
     if (!mounted) return;
     ScaffoldMessenger.of(
@@ -323,7 +323,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
 
   void _clearUnlocked() {
     widget.keyService.lockAll();
-    AppLogger.d('Cleared unlocked built-in keys from memory', tag: 'Settings');
+    AppLogger().debug('Cleared unlocked built-in keys from memory', tag: 'Settings');
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Unlocked keys cleared from memory.')),
     );
@@ -337,7 +337,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
     } else {
       updated[hostName] = keyId;
     }
-    AppLogger.d(
+    AppLogger().debug(
       'Host $hostName now uses ${keyId ?? 'platform default'} for SSH.',
       tag: 'Settings',
     );
@@ -624,7 +624,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       if (!context.mounted) return;
       _showSnack(context, 'Loaded key from ${file.name}');
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to load SSH key file ${file.name}',
         tag: 'Settings',
         error: error,
@@ -738,7 +738,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       );
       _refreshKeys();
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to encrypt stored SSH key $keyId',
         tag: 'Settings',
         error: error,

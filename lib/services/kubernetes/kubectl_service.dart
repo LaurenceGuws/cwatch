@@ -77,9 +77,23 @@ class KubectlService {
 
   Future<String> _runKubectl(List<String> args) async {
     final tag = 'Kubectl';
+    final logger = AppLogger.remote(
+      tag: tag,
+      source: 'kubectl',
+    );
+    final localLogger = AppLogger(tag: tag);
+    final contextLabel = _contextLabelFromArgs(args);
     final stopwatch = Stopwatch()..start();
     final display = 'kubectl ${args.join(' ')}';
-    AppLogger.d('Running $display', tag: tag);
+    logger.debug(
+      'Running $display',
+      remote: RemoteCommandDetails(
+        operation: 'run',
+        command: display,
+        output: '',
+        contextLabel: contextLabel,
+      ),
+    );
     try {
       final result = await Process.run(
         'kubectl',
@@ -88,62 +102,70 @@ class KubectlService {
       stopwatch.stop();
       if (result.exitCode != 0) {
         final stderr = result.stderr?.toString().trim();
-        AppLogger.logRemoteCommand(
-          source: 'kubectl',
-          operation: 'run',
-          command: display,
-          output: stderr ?? '',
+        logger.warn(
+          'kubectl exited with code ${result.exitCode}',
+          remote: RemoteCommandDetails(
+            operation: 'run',
+            command: display,
+            output: stderr ?? '',
+            contextLabel: contextLabel,
+          ),
         );
         final message = (stderr != null && stderr.isNotEmpty)
             ? stderr
             : 'kubectl exited with code ${result.exitCode}';
-        AppLogger.w(
+        localLogger.warn(
           'Failed $display in ${stopwatch.elapsedMilliseconds}ms',
-          tag: tag,
           error: message,
         );
         throw Exception(message);
       }
-      AppLogger.logRemoteCommand(
-        source: 'kubectl',
-        operation: 'run',
-        command: display,
-        output: result.stdout?.toString() ?? '',
-      );
-      AppLogger.d(
+      logger.debug(
         'Finished $display in ${stopwatch.elapsedMilliseconds}ms',
-        tag: tag,
+        remote: RemoteCommandDetails(
+          operation: 'run',
+          command: display,
+          output: result.stdout?.toString() ?? '',
+          contextLabel: contextLabel,
+        ),
       );
       return result.stdout?.toString() ?? '';
     } on TimeoutException {
       stopwatch.stop();
-      AppLogger.logRemoteCommand(
-        source: 'kubectl',
-        operation: 'run',
-        command: display,
-        output: 'Timed out after ${stopwatch.elapsedMilliseconds}ms',
-      );
-      AppLogger.w(
+      logger.warn(
         'Timed out $display after ${stopwatch.elapsedMilliseconds}ms',
-        tag: tag,
+        remote: RemoteCommandDetails(
+          operation: 'run',
+          command: display,
+          output: 'Timed out after ${stopwatch.elapsedMilliseconds}ms',
+          contextLabel: contextLabel,
+        ),
       );
       throw Exception('kubectl timed out');
     } catch (e) {
       stopwatch.stop();
-      AppLogger.logRemoteCommand(
-        source: 'kubectl',
-        operation: 'run',
-        command: display,
-        output: 'Error: $e',
-      );
-      AppLogger.e(
+      logger.error(
         'Error running $display after ${stopwatch.elapsedMilliseconds}ms',
-        tag: tag,
         error: e,
+        remote: RemoteCommandDetails(
+          operation: 'run',
+          command: display,
+          output: 'Error: $e',
+          contextLabel: contextLabel,
+        ),
       );
       if (e is Exception) rethrow;
       throw Exception('Failed to run kubectl: $e');
     }
+  }
+
+  String _contextLabelFromArgs(List<String> args) {
+    final contextIndex = args.indexOf('--context');
+    if (contextIndex != -1 && contextIndex + 1 < args.length) {
+      final value = args[contextIndex + 1].trim();
+      if (value.isNotEmpty) return value;
+    }
+    return 'default';
   }
 
   List<KubeNodeStat> _parseNodeStats(String output) {

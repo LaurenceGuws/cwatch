@@ -61,7 +61,7 @@ class FileEditingService {
         ),
       );
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to open editor for $path',
         tag: 'Explorer',
         error: error,
@@ -116,7 +116,7 @@ class FileEditingService {
       );
       return localSession;
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to open local copy of $remotePath',
         tag: 'Explorer',
         error: error,
@@ -196,7 +196,7 @@ class FileEditingService {
         }
       }
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to sync local edit for ${session.remotePath}',
         tag: 'Explorer',
         error: error,
@@ -244,7 +244,7 @@ class FileEditingService {
         );
       }
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to refresh cache for ${session.remotePath}',
         tag: 'Explorer',
         error: error,

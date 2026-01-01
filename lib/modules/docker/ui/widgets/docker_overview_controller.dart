@@ -74,7 +74,7 @@ class DockerOverviewController extends ChangeNotifier {
     try {
       return await operation();
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Docker retry operation failed',
         tag: 'Docker',
         error: error,

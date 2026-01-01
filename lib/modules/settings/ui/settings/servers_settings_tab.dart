@@ -244,7 +244,7 @@ class _ServersSettingsTabState extends State<ServersSettingsTab> {
       await target.writeAsBytes(bytes, flush: true);
       return target.path;
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to persist SSH config ${file.name}',
         tag: 'Settings',
         error: error,

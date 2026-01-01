@@ -220,7 +220,7 @@ class ProcessSshRunner {
           try {
             await process.exitCode.timeout(const Duration(seconds: 2));
           } catch (error, stackTrace) {
-            AppLogger.w(
+            AppLogger().warn(
               'Timed out waiting for process exit after kill',
               tag: 'ProcessSSH',
               error: error,
@@ -229,7 +229,7 @@ class ProcessSshRunner {
             try {
               process.kill(ProcessSignal.sigkill);
             } catch (error, stackTrace) {
-              AppLogger.w(
+              AppLogger().warn(
                 'Failed to force-kill process',
                 tag: 'ProcessSSH',
                 error: error,
@@ -370,5 +370,5 @@ class ProcessSshRunner {
 }
 
 void _logProcess(String message) {
-  AppLogger.d(message, tag: 'ProcessSSH');
+  AppLogger().debug(message, tag: 'ProcessSSH');
 }

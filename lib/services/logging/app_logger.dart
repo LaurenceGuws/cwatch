@@ -4,53 +4,129 @@ import 'package:flutter/foundation.dart';
 
 import '../../models/ssh_host.dart';
 
-enum LogLevel { debug, info, warning, error }
+enum LogLevel { trace, debug, info, warning, error, critical }
 
 /// Lightweight logger to control console output across app.
 /// Defaults to Debug level in debug builds and Warning in release.
 class AppLogger {
-  AppLogger._(this.minLevel);
+  AppLogger({this.tag})
+      : remoteService = false,
+        source = null,
+        host = null;
+
+  AppLogger.remote({
+    this.tag,
+    required String source,
+    this.host,
+  }) : remoteService = true,
+       source = source {
+    assert(source.isNotEmpty, 'Remote logger requires a non-empty source.');
+  }
+
+  final String? tag;
+  final bool remoteService;
+  final String? source;
+  final SshHost? host;
 
   static final LogLevel _defaultLevel = kDebugMode
       ? LogLevel.debug
       : LogLevel.warning;
-  static AppLogger _instance = AppLogger._(_defaultLevel);
-
-  final LogLevel minLevel;
+  static LogLevel _minLevel = _defaultLevel;
 
   static void configure({LogLevel? minLevel}) {
     if (minLevel != null) {
-      _instance = AppLogger._(minLevel);
+      _minLevel = minLevel;
     }
   }
 
-  static void d(String message, {String? tag}) =>
-      _instance.log(LogLevel.debug, message, tag: tag);
-  static void i(String message, {String? tag}) =>
-      _instance.log(LogLevel.info, message, tag: tag);
-  static void w(
+  void trace(
     String message, {
     String? tag,
     Object? error,
     StackTrace? stackTrace,
-  }) => _instance.log(
+    RemoteCommandDetails? remote,
+  }) => _log(
+    LogLevel.trace,
+    message,
+    tag: tag,
+    error: error,
+    stackTrace: stackTrace,
+    remote: remote,
+  );
+
+  void debug(
+    String message, {
+    String? tag,
+    Object? error,
+    StackTrace? stackTrace,
+    RemoteCommandDetails? remote,
+  }) => _log(
+    LogLevel.debug,
+    message,
+    tag: tag,
+    error: error,
+    stackTrace: stackTrace,
+    remote: remote,
+  );
+
+  void info(
+    String message, {
+    String? tag,
+    Object? error,
+    StackTrace? stackTrace,
+    RemoteCommandDetails? remote,
+  }) => _log(
+    LogLevel.info,
+    message,
+    tag: tag,
+    error: error,
+    stackTrace: stackTrace,
+    remote: remote,
+  );
+
+  void warn(
+    String message, {
+    String? tag,
+    Object? error,
+    StackTrace? stackTrace,
+    RemoteCommandDetails? remote,
+  }) => _log(
     LogLevel.warning,
     message,
     tag: tag,
     error: error,
     stackTrace: stackTrace,
+    remote: remote,
   );
-  static void e(
+
+  void error(
     String message, {
     String? tag,
     Object? error,
     StackTrace? stackTrace,
-  }) => _instance.log(
+    RemoteCommandDetails? remote,
+  }) => _log(
     LogLevel.error,
     message,
     tag: tag,
     error: error,
     stackTrace: stackTrace,
+    remote: remote,
+  );
+
+  void critical(
+    String message, {
+    String? tag,
+    Object? error,
+    StackTrace? stackTrace,
+    RemoteCommandDetails? remote,
+  }) => _log(
+    LogLevel.critical,
+    message,
+    tag: tag,
+    error: error,
+    stackTrace: stackTrace,
+    remote: remote,
   );
 
   static final RemoteCommandLogController remoteCommandLog =
@@ -68,38 +144,15 @@ class AppLogger {
   static RemoteCommandObserver get remoteCommandObserver =>
       _addRemoteCommand;
 
-  static void logRemoteCommand({
-    required String source,
-    required String operation,
-    required String command,
-    required String output,
-    SshHost? host,
-    String? verificationCommand,
-    String? verificationOutput,
-    bool? verificationPassed,
-  }) {
-    _addRemoteCommand(
-      RemoteCommandDebugEvent(
-        source: source,
-        host: host,
-        operation: operation,
-        command: command,
-        output: output,
-        verificationCommand: verificationCommand,
-        verificationOutput: verificationOutput,
-        verificationPassed: verificationPassed,
-      ),
-    );
-  }
-
-  void log(
+  void _log(
     LogLevel level,
     String message, {
     String? tag,
     Object? error,
     StackTrace? stackTrace,
+    RemoteCommandDetails? remote,
   }) {
-    if (level.index < minLevel.index) {
+    if (level.index < _minLevel.index) {
       return;
     }
     final buffer = StringBuffer();
@@ -107,8 +160,9 @@ class AppLogger {
     final color = _colorFor(level);
     final reset = '\x1B[0m';
     buffer.write('$color$now ');
-    if (tag != null && tag.isNotEmpty) {
-      buffer.write('[$tag] ');
+    final label = tag ?? this.tag;
+    if (label != null && label.isNotEmpty) {
+      buffer.write('[$label] ');
     }
     buffer.write(message);
     if (error != null && level != LogLevel.error) {
@@ -119,6 +173,13 @@ class AppLogger {
     if (error != null && stackTrace != null) {
       debugPrint('$color$stackTrace$reset');
     }
+    _logRemoteIfNeeded(
+      level,
+      message,
+      error: error,
+      stackTrace: stackTrace,
+      remote: remote,
+    );
   }
 
   String _formatNow() {
@@ -130,6 +191,8 @@ class AppLogger {
 
   String _colorFor(LogLevel level) {
     switch (level) {
+      case LogLevel.trace:
+        return '\x1B[90m'; // gray
       case LogLevel.debug:
         return '\x1B[34m'; // blue
       case LogLevel.info:
@@ -138,30 +201,111 @@ class AppLogger {
         return '\x1B[33m'; // yellow
       case LogLevel.error:
         return '\x1B[31m'; // red
+      case LogLevel.critical:
+        return '\x1B[35m'; // magenta
+    }
+  }
+
+  void _logRemoteIfNeeded(
+    LogLevel level,
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+    RemoteCommandDetails? remote,
+  }) {
+    if (!remoteService || !_remoteCommandLoggingEnabled) {
+      return;
+    }
+    if (remote == null) {
+      assert(false, 'Remote logger requires RemoteCommandDetails.');
+      return;
+    }
+    if (remote.operation.isEmpty ||
+        remote.command.isEmpty ||
+        remote.contextLabel.isEmpty) {
+      assert(
+        false,
+        'Remote logger requires non-empty operation, command, and context.',
+      );
+      return;
+    }
+    final resolvedSource = source ?? tag ?? 'app';
+    final output =
+        remote.output.isNotEmpty ? remote.output : (error?.toString() ?? '');
+    _addRemoteCommand(
+      RemoteCommandDebugEvent(
+        level: level,
+        source: resolvedSource,
+        host: host,
+        operation: remote.operation,
+        command: remote.command,
+        output: output,
+        contextLabel: remote.contextLabel,
+        verificationCommand: remote.verificationCommand,
+        verificationOutput: remote.verificationOutput,
+        verificationPassed: remote.verificationPassed,
+      ),
+    );
+    if (error != null && stackTrace != null) {
+      _addRemoteCommand(
+        RemoteCommandDebugEvent(
+          level: level,
+          source: resolvedSource,
+          host: host,
+          operation: 'Stack trace',
+          command: '',
+          output: stackTrace.toString(),
+          contextLabel: remote.contextLabel,
+        ),
+      );
     }
   }
 }
 
 typedef RemoteCommandObserver = void Function(RemoteCommandDebugEvent event);
 
+class RemoteCommandDetails {
+  const RemoteCommandDetails({
+    required this.operation,
+    required this.command,
+    required this.output,
+    required this.contextLabel,
+    this.verificationCommand,
+    this.verificationOutput,
+    this.verificationPassed,
+  });
+
+  final String operation;
+  final String command;
+  final String output;
+  final String contextLabel;
+  final String? verificationCommand;
+  final String? verificationOutput;
+  final bool? verificationPassed;
+}
+
 class RemoteCommandDebugEvent {
   RemoteCommandDebugEvent({
+    this.level = LogLevel.debug,
     required this.source,
     required this.host,
     required this.operation,
     required this.command,
     required this.output,
+    required this.contextLabel,
     DateTime? timestamp,
     this.verificationCommand,
     this.verificationOutput,
     this.verificationPassed,
   }) : timestamp = timestamp ?? DateTime.now();
 
+  final LogLevel level;
   final String source;
   final SshHost? host;
   final String operation;
   final String command;
   final String output;
+  final String contextLabel;
   final DateTime timestamp;
   final String? verificationCommand;
   final String? verificationOutput;

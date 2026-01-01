@@ -97,7 +97,7 @@ class EditorState extends ChangeNotifier {
       _dirty = false;
       return true;
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to save editor content for $path',
         tag: 'Editor',
         error: error,

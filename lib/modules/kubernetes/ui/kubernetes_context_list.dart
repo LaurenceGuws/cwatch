@@ -281,7 +281,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     try {
       contexts = await (_contextsFuture ?? _loadContexts());
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to restore Kubernetes contexts',
         tag: 'Kubernetes',
         error: error,

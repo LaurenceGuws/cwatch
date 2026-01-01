@@ -48,7 +48,7 @@ class DockerClientService {
       _log('Contexts output length=${output.length}');
       return _parseJsonLines(output);
     } on ProcessException catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Docker CLI not available while listing contexts',
         tag: 'Docker',
         error: error,
@@ -72,7 +72,7 @@ class DockerClientService {
           contexts.add(_fromMap(decoded));
         }
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to parse docker context line',
           tag: 'Docker',
           error: error,
@@ -145,6 +145,7 @@ class DockerClientService {
         args,
         timeout: timeout,
         operation: 'list containers',
+        contextLabel: dockerHost ?? context,
       );
 
       if (result.exitCode != 0) {
@@ -160,7 +161,7 @@ class DockerClientService {
       _log('Containers output length=${output.length}');
       return _parseContainerLines(output);
     } on ProcessException catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Docker CLI not available while listing containers',
         tag: 'Docker',
         error: error,
@@ -182,7 +183,7 @@ class DockerClientService {
           items.add(_containerFromMap(decoded));
         }
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to parse docker container line',
           tag: 'Docker',
           error: error,
@@ -234,14 +235,27 @@ class DockerClientService {
   Future<String> execInContainer(
     String containerId,
     String command, {
+    String? context,
     Duration timeout = const Duration(seconds: 6),
   }) async {
-    final args = ['exec', '-i', containerId, 'sh', '-c', command];
+    final args = <String>[
+      if (context != null && context.trim().isNotEmpty) ...[
+        '--context',
+        context.trim(),
+      ],
+      'exec',
+      '-i',
+      containerId,
+      'sh',
+      '-c',
+      command,
+    ];
     try {
       final result = await _runDockerProcess(
         args,
         timeout: timeout,
         operation: 'exec',
+        contextLabel: context,
       );
 
       if (result.exitCode != 0) {
@@ -255,7 +269,7 @@ class DockerClientService {
 
       return (result.stdout as String?) ?? '';
     } on ProcessException catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Docker CLI not available while running exec',
         tag: 'Docker',
         error: error,
@@ -289,6 +303,7 @@ class DockerClientService {
         args,
         timeout: timeout,
         operation: 'list images',
+        contextLabel: context,
       );
 
       if (result.exitCode != 0) {
@@ -304,7 +319,7 @@ class DockerClientService {
       _log('Images output length=${output.length}');
       return _parseImageLines(output);
     } on ProcessException catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Docker CLI not available while listing images',
         tag: 'Docker',
         error: error,
@@ -326,7 +341,7 @@ class DockerClientService {
           items.add(_imageFromMap(decoded));
         }
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to parse docker image line',
           tag: 'Docker',
           error: error,
@@ -373,6 +388,7 @@ class DockerClientService {
       args,
       timeout: timeout,
       operation: 'list networks',
+      contextLabel: context,
     );
     if (result.exitCode != 0) {
       final stderr = (result.stderr as String?)?.trim();
@@ -404,7 +420,7 @@ class DockerClientService {
           );
         }
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to parse docker network line',
           tag: 'Docker',
           error: error,
@@ -436,6 +452,7 @@ class DockerClientService {
       args,
       timeout: timeout,
       operation: 'list volumes',
+      contextLabel: context,
     );
     if (result.exitCode != 0) {
       final stderr = (result.stderr as String?)?.trim();
@@ -514,6 +531,7 @@ class DockerClientService {
       args,
       timeout: timeout,
       operation: 'inspect',
+      contextLabel: context,
     );
     if (result.exitCode != 0) {
       final stderr = (result.stderr as String?)?.trim();
@@ -601,7 +619,7 @@ class DockerClientService {
           );
         }
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to parse docker volume line',
           tag: 'Docker',
           error: error,
@@ -635,7 +653,7 @@ class DockerClientService {
           );
         }
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to parse docker stats line',
           tag: 'Docker',
           error: error,
@@ -648,15 +666,21 @@ class DockerClientService {
   }
 
   void _log(String message) {
-    AppLogger.d(message, tag: 'ProcessDocker');
+    AppLogger().debug(message, tag: 'ProcessDocker');
   }
 
   Future<ProcessResult> _runDockerProcess(
     List<String> args, {
     required Duration timeout,
     String operation = 'run',
+    String? contextLabel,
   }) async {
+    final logger = AppLogger.remote(
+      tag: 'Docker',
+      source: 'docker',
+    );
     final command = 'docker ${args.join(' ')}';
+    final resolvedContext = contextLabel ?? _contextLabelFromArgs(args);
     try {
       final result = await processRunner(
         'docker',
@@ -667,38 +691,79 @@ class DockerClientService {
       ).timeout(timeout);
       final stdout = result.stdout?.toString() ?? '';
       final stderr = result.stderr?.toString() ?? '';
-      AppLogger.logRemoteCommand(
-        source: 'docker',
-        operation: operation,
-        command: command,
-        output: result.exitCode == 0 ? stdout : stderr,
-      );
+      final output = result.exitCode == 0 ? stdout : stderr;
+      if (result.exitCode == 0) {
+        logger.debug(
+          'Completed $command',
+          remote: RemoteCommandDetails(
+            operation: operation,
+            command: command,
+            output: output,
+            contextLabel: resolvedContext,
+          ),
+        );
+      } else {
+        logger.warn(
+          'Command failed: $command',
+          remote: RemoteCommandDetails(
+            operation: operation,
+            command: command,
+            output: output,
+            contextLabel: resolvedContext,
+          ),
+        );
+      }
       return result;
     } on TimeoutException {
-      AppLogger.logRemoteCommand(
-        source: 'docker',
-        operation: operation,
-        command: command,
-        output: 'Timed out after ${timeout.inSeconds}s',
+      logger.warn(
+        'Timed out $command after ${timeout.inSeconds}s',
+        remote: RemoteCommandDetails(
+          operation: operation,
+          command: command,
+          output: 'Timed out after ${timeout.inSeconds}s',
+          contextLabel: resolvedContext,
+        ),
       );
       rethrow;
     } on ProcessException catch (error) {
-      AppLogger.logRemoteCommand(
-        source: 'docker',
-        operation: operation,
-        command: command,
-        output: 'Process error: ${error.message}',
+      logger.error(
+        'Process error running $command',
+        error: error,
+        remote: RemoteCommandDetails(
+          operation: operation,
+          command: command,
+          output: 'Process error: ${error.message}',
+          contextLabel: resolvedContext,
+        ),
       );
       rethrow;
     } catch (error) {
-      AppLogger.logRemoteCommand(
-        source: 'docker',
-        operation: operation,
-        command: command,
-        output: 'Error: $error',
+      logger.error(
+        'Error running $command',
+        error: error,
+        remote: RemoteCommandDetails(
+          operation: operation,
+          command: command,
+          output: 'Error: $error',
+          contextLabel: resolvedContext,
+        ),
       );
       rethrow;
     }
+  }
+
+  String _contextLabelFromArgs(List<String> args) {
+    final contextIndex = args.indexOf('--context');
+    if (contextIndex != -1 && contextIndex + 1 < args.length) {
+      final value = args[contextIndex + 1].trim();
+      if (value.isNotEmpty) return value;
+    }
+    final hostIndex = args.indexOf('--host');
+    if (hostIndex != -1 && hostIndex + 1 < args.length) {
+      final value = args[hostIndex + 1].trim();
+      if (value.isNotEmpty) return value;
+    }
+    return 'default';
   }
 
   String? _volumeSizeOrNull(String? raw) {
@@ -727,6 +792,7 @@ class DockerClientService {
         args,
         timeout: timeout,
         operation: 'system df',
+        contextLabel: context,
       );
       if (result.exitCode != 0) {
         return const {};
@@ -751,7 +817,7 @@ class DockerClientService {
             }
           }
         } catch (error, stackTrace) {
-          AppLogger.w(
+          AppLogger().warn(
             'Failed to parse docker volume size entry',
             tag: 'Docker',
             error: error,
@@ -762,7 +828,7 @@ class DockerClientService {
       }
       return map;
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to fetch docker volume sizes',
         tag: 'Docker',
         error: error,
@@ -820,6 +886,7 @@ class DockerClientService {
       fullArgs,
       timeout: timeout,
       operation: op,
+      contextLabel: context,
     );
     if (result.exitCode != 0) {
       final stderr = (result.stderr as String?)?.trim();

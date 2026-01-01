@@ -502,7 +502,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
 
   void _handleExternalRefresh() {
     if (!mounted) return;
-    AppLogger.d(
+    AppLogger().debug(
       'StructuredDataTable refreshListenable fired: '
       'rows=${widget.rows.length} visible=${_visibleRows.length}',
       tag: 'StructuredDataTable',

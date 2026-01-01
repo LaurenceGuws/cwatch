@@ -236,7 +236,7 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
         _scrollController.jumpTo(0);
       }
       if (kDebugMode) {
-        AppLogger.d(
+        AppLogger().debug(
           'overflow=${next ? 'on' : 'off'} '
           'scrollbar=${next ? 'visible' : 'hidden'} '
           'pinnedAdd=${widget.onAddTab != null && next ? 'on' : 'off'}',

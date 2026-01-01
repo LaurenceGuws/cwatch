@@ -161,7 +161,7 @@ class _TerminalTabState extends State<TerminalTab> {
       });
     } catch (error, stack) {
       _pty?.kill();
-      AppLogger.w(
+      AppLogger().warn(
         'Terminal session failed',
         tag: 'Terminal',
         error: error,

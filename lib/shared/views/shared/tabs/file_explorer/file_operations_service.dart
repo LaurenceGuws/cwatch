@@ -186,7 +186,7 @@ class FileOperationsService {
         }
       } catch (error) {
         failCount++;
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to paste ${clipboard.displayName}',
           tag: 'Explorer',
           error: error,
@@ -267,7 +267,7 @@ class FileOperationsService {
             selectedDirectory = downloadsDir.path;
           }
         } catch (e) {
-          AppLogger.w(
+          AppLogger().warn(
             'Failed to get Android storage directory',
             tag: 'Explorer',
             error: e,
@@ -363,7 +363,7 @@ class FileOperationsService {
           } catch (error) {
             if (!context.mounted) return;
             progressController.markFailed(index);
-            AppLogger.w(
+            AppLogger().warn(
               'Failed to download ${entry.label}',
               tag: 'Explorer',
               error: error,
@@ -388,7 +388,7 @@ class FileOperationsService {
         ),
       );
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Download operation failed',
         tag: 'Explorer',
         error: error,
@@ -494,7 +494,7 @@ class FileOperationsService {
 
             if (isDirectory) {
               failCount++;
-              AppLogger.w(
+              AppLogger().warn(
                 'Skipping directory in file upload: ${file.path}',
                 tag: 'Explorer',
               );
@@ -515,12 +515,12 @@ class FileOperationsService {
             if (!context.mounted) return;
             failCount++;
             progressController.markFailed(i);
-            AppLogger.w(
+            AppLogger().warn(
               'Failed to upload $fileName',
               tag: 'Explorer',
               error: error,
             );
-            AppLogger.d(
+            AppLogger().debug(
               'File details: path=${file.path}, name=${file.name}, bytes=${file.bytes?.length ?? 0}',
               tag: 'Explorer',
             );
@@ -555,7 +555,7 @@ class FileOperationsService {
         );
       }
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Upload operation failed',
         tag: 'Explorer',
         error: error,
@@ -622,7 +622,7 @@ class FileOperationsService {
       } catch (error) {
         if (!context.mounted) return;
         failCount++;
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to prepare remote directory for $directoryName',
           tag: 'Explorer',
           error: error,
@@ -687,7 +687,7 @@ class FileOperationsService {
               if (entry.itemIndex != -1) {
                 progressController.markFailed(entry.itemIndex);
               }
-              AppLogger.w(
+              AppLogger().warn(
                 'Failed to upload ${entry.remotePath}',
                 tag: 'Explorer',
                 error: error,
@@ -703,7 +703,7 @@ class FileOperationsService {
           successCount++;
         } catch (error) {
           failCount++;
-          AppLogger.w(
+          AppLogger().warn(
             'Failed to create empty folder $directoryName',
             tag: 'Explorer',
             error: error,
@@ -742,7 +742,7 @@ class FileOperationsService {
         );
       }
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Directory upload failed',
         tag: 'Explorer',
         error: error,
@@ -858,7 +858,7 @@ class FileOperationsService {
           }
         } catch (error) {
           failCount++;
-          AppLogger.w(
+          AppLogger().warn(
             'Failed to upload dropped path $localPath',
             tag: 'Explorer',
             error: error,
@@ -932,7 +932,7 @@ class FileOperationsService {
           }
         }
       } catch (error) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to count files in $directory',
           tag: 'Explorer',
           error: error,
@@ -965,7 +965,7 @@ class FileOperationsService {
           final stat = await FileStat.stat(file.path!);
           size = stat.size;
         } catch (error, stackTrace) {
-          AppLogger.w(
+          AppLogger().warn(
             'Failed to stat file ${file.path}',
             tag: 'Explorer',
             error: error,
@@ -1003,7 +1003,7 @@ class FileOperationsService {
           final stat = await entity.stat();
           size = stat.size;
         } catch (error, stackTrace) {
-          AppLogger.w(
+          AppLogger().warn(
             'Failed to stat file ${entity.path}',
             tag: 'Explorer',
             error: error,
@@ -1019,7 +1019,7 @@ class FileOperationsService {
         );
       }
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to enumerate directory $directoryPath',
         tag: 'Explorer',
         error: error,
@@ -1045,7 +1045,7 @@ class FileOperationsService {
           final stat = await FileStat.stat(path);
           size = stat.size;
         } catch (error, stackTrace) {
-          AppLogger.w(
+          AppLogger().warn(
             'Failed to stat dropped path $path',
             tag: 'Explorer',
             error: error,
@@ -1147,7 +1147,7 @@ class FileOperationsService {
         );
       }
     } catch (error) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to read directory $directoryPath',
         tag: 'Explorer',
         error: error,
@@ -1237,7 +1237,7 @@ class FileOperationsService {
           .where((entry) => entry.name != '.' && entry.name != '..')
           .toList();
     } catch (error) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to list $remotePath',
         tag: 'Explorer',
         error: error,
@@ -1275,7 +1275,7 @@ class FileOperationsService {
       try {
         await tempDir.delete(recursive: true);
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to clean up temp directory ${tempDir.path}',
           tag: 'Explorer',
           error: error,

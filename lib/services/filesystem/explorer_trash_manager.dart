@@ -43,7 +43,7 @@ class ExplorerTrashManager {
     required bool isDirectory,
     bool notify = true,
   }) async {
-    AppLogger.d(
+    AppLogger().debug(
       'Downloading ${isDirectory ? 'directory' : 'file'} '
       '$remotePath from host ${host.name} to local trash',
       tag: 'Trash',
@@ -57,7 +57,7 @@ class ExplorerTrashManager {
       localDestination: entryDir.path,
       recursive: isDirectory,
     );
-    AppLogger.d(
+    AppLogger().debug(
       'Stored trash entry $id for host ${host.name}',
       tag: 'Trash',
     );
@@ -112,7 +112,7 @@ class ExplorerTrashManager {
           }
         }
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to read trash metadata from ${metaFile.path}',
           tag: 'Trash',
           error: error,
@@ -138,7 +138,7 @@ class ExplorerTrashManager {
     required RemoteShellService shellService,
     SshHost? hostOverride,
   }) async {
-    AppLogger.d(
+    AppLogger().debug(
       'Restoring ${entry.remotePath} to host ${entry.host.name}',
       tag: 'Trash',
     );
@@ -149,7 +149,7 @@ class ExplorerTrashManager {
       remoteDestination: entry.remotePath,
       recursive: entry.isDirectory,
     );
-    AppLogger.d(
+    AppLogger().debug(
       'Restore completed for ${entry.remotePath} on host ${entry.host.name}',
       tag: 'Trash',
     );

@@ -370,7 +370,7 @@ class _DockerResourcesState extends State<DockerResources>
           );
         }
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to parse docker stats line',
           tag: 'Docker',
           error: error,
@@ -449,7 +449,7 @@ class _DockerResourcesState extends State<DockerResources>
         _applySort();
       });
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to refresh docker stats',
         tag: 'Docker',
         error: error,

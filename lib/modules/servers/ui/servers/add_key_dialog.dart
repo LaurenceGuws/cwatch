@@ -128,7 +128,7 @@ class _AddKeyDialogState extends State<AddKeyDialog> {
       if (!mounted) return;
       Navigator.of(context).pop(entry);
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to add SSH key from dialog',
         tag: 'Servers',
         error: error,

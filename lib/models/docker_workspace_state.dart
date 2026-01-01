@@ -116,7 +116,7 @@ class DockerWorkspaceState {
       try {
         tabs.add(TabState.fromJson(entry));
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to parse docker workspace tab',
           tag: 'Workspace',
           error: error,

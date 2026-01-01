@@ -27,7 +27,7 @@ class KubernetesWorkspaceState {
       try {
         tabs.add(TabState.fromJson(entry));
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to parse kubernetes workspace tab',
           tag: 'Workspace',
           error: error,

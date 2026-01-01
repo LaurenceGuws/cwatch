@@ -210,7 +210,7 @@ class _DockerViewState extends State<DockerView> {
     try {
       return await _docker.listContexts();
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to load docker contexts',
         tag: 'Docker',
         error: error,
@@ -658,7 +658,7 @@ class _DockerViewState extends State<DockerView> {
     try {
       hosts = await widget.hostsFuture;
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to load SSH hosts for docker status scan',
         tag: 'Docker',
         error: error,
@@ -752,7 +752,7 @@ class _DockerViewState extends State<DockerView> {
             : trimmed.split('\n').first,
       );
     } catch (error, stack) {
-      AppLogger.w(
+      AppLogger().warn(
         'Docker probe failed for ${host.name}: $error',
         tag: 'Docker',
         stackTrace: stack,
@@ -934,7 +934,7 @@ class _DockerViewState extends State<DockerView> {
       hosts = await widget.hostsFuture;
       workspace = widget.settingsController.settings.dockerWorkspace;
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to load docker workspace state',
         tag: 'Docker',
         error: error,

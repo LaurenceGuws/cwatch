@@ -52,7 +52,7 @@ class DistroDetector {
     } on TimeoutException {
       return null;
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to read /etc/os-release',
         tag: 'Distro',
         error: error,
@@ -70,7 +70,7 @@ class DistroDetector {
     } on TimeoutException {
       return null;
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to run uname',
         tag: 'Distro',
         error: error,

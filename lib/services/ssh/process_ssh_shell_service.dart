@@ -44,20 +44,34 @@ class ProcessRemoteShellService extends RemoteShellService {
     final sanitizedPath = sanitizePath(path);
     final lsCommand =
         "cd '${escapeSingleQuotes(sanitizedPath)}' && ls -al --time-style=+%Y-%m-%dT%H:%M:%S";
-    final run = await _runner.runSsh(
-      host,
-      lsCommand,
-      timeout: timeout,
-      onSshError: _handleSshError,
-      onTimeout: onTimeout,
-    );
-    emitDebugEvent(
-      host: host,
-      operation: 'listDirectory',
-      command: run.command,
-      output: run.stdout.trimRight(),
-    );
-    return parseLsOutput(run.stdout);
+    try {
+      final run = await _runner.runSsh(
+        host,
+        lsCommand,
+        timeout: timeout,
+        onSshError: _handleSshError,
+        onTimeout: onTimeout,
+      );
+      emitDebugEvent(
+        host: host,
+        operation: 'listDirectory',
+        command: run.command,
+        output: run.stdout.trimRight(),
+      );
+      return parseLsOutput(run.stdout);
+    } catch (error) {
+      AppLogger.remote(source: 'ssh', host: host).warn(
+        'listDirectory failed',
+        error: error,
+        remote: RemoteCommandDetails(
+          operation: 'listDirectory',
+          command: lsCommand,
+          output: 'Error: $error',
+          contextLabel: host.name,
+        ),
+      );
+      rethrow;
+    }
   }
 
   @override
@@ -226,7 +240,17 @@ class ProcessRemoteShellService extends RemoteShellService {
       );
       return output.isEmpty ? '/' : output;
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger.remote(source: 'ssh', host: host).warn(
+        'homeDirectory failed',
+        error: error,
+        remote: RemoteCommandDetails(
+          operation: 'homeDirectory',
+          command: 'echo \$HOME',
+          output: 'Error: $error',
+          contextLabel: host.name,
+        ),
+      );
+      AppLogger().warn(
         'Failed to resolve home directory for ${host.name}',
         tag: 'ProcessSSH',
         error: error,
@@ -557,6 +581,12 @@ class ProcessRemoteShellService extends RemoteShellService {
       onSshError: _handleSshError,
       onTimeout: onTimeout,
     );
+    emitDebugEvent(
+      host: host,
+      operation: 'runCommand',
+      command: run.command,
+      output: run.stdout,
+    );
     _logProcess(
       'Command on ${host.name} completed. Output length=${run.stdout.length}',
     );
@@ -584,6 +614,12 @@ class ProcessRemoteShellService extends RemoteShellService {
       onStdoutLine: onStdoutLine,
       onStderrLine: onStderrLine,
     );
+    emitDebugEvent(
+      host: host,
+      operation: 'runCommandStreaming',
+      command: run.command,
+      output: run.stdout,
+    );
     _logProcess(
       'Command on ${host.name} completed. Output length=${run.stdout.length}',
     );
@@ -603,7 +639,7 @@ class ProcessRemoteShellService extends RemoteShellService {
       if (Platform.isWindows) {
         final sshArgs = _runner.buildSshArgumentsForTerminal(host).join(' ');
         final commandLine = 'ssh $sshArgs';
-        AppLogger.d(
+        AppLogger().debug(
           'Starting system SSH via cmd.exe /c "$commandLine"',
           tag: 'ProcessSSH',
         );
@@ -616,7 +652,7 @@ class ProcessRemoteShellService extends RemoteShellService {
         );
       } else {
         final args = _runner.buildSshArgumentsForTerminal(host);
-        AppLogger.d(
+        AppLogger().debug(
           'Starting system SSH via ssh ${args.join(' ')}',
           tag: 'ProcessSSH',
         );
@@ -630,7 +666,7 @@ class ProcessRemoteShellService extends RemoteShellService {
       }
       unawaited(
         session.exitCode.then(
-          (code) => AppLogger.d(
+          (code) => AppLogger().debug(
             'System SSH session for ${host.name} exited with code $code',
             tag: 'ProcessSSH',
           ),
@@ -638,7 +674,7 @@ class ProcessRemoteShellService extends RemoteShellService {
       );
       return session;
     } catch (error, stack) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to start system SSH session for ${host.name}: $error',
         tag: 'ProcessSSH',
         error: error,
@@ -852,5 +888,5 @@ class ProcessRemoteShellService extends RemoteShellService {
 }
 
 void _logProcess(String message) {
-  AppLogger.d(message, tag: 'ProcessSSH');
+  AppLogger().debug(message, tag: 'ProcessSSH');
 }

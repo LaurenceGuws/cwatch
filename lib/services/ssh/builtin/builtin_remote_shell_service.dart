@@ -569,13 +569,20 @@ class BuiltInRemoteShellService extends RemoteShellService {
     String command, {
     Duration timeout = const Duration(seconds: 10),
     RunTimeoutHandler? onTimeout,
-  }) {
-    return _clientManager.runCommand(
+  }) async {
+    final output = await _clientManager.runCommand(
       host,
       command,
       timeout: timeout,
       onTimeout: onTimeout,
     );
+    emitDebugEvent(
+      host: host,
+      operation: 'runCommand',
+      command: command,
+      output: output,
+    );
+    return output;
   }
 
   @override
@@ -587,8 +594,8 @@ class BuiltInRemoteShellService extends RemoteShellService {
     RemoteCommandCancellation? cancellation,
     void Function(String line)? onStdoutLine,
     void Function(String line)? onStderrLine,
-  }) {
-    return _clientManager.runCommandStreaming(
+  }) async {
+    final output = await _clientManager.runCommandStreaming(
       host,
       command,
       timeout: timeout,
@@ -597,6 +604,13 @@ class BuiltInRemoteShellService extends RemoteShellService {
       onStdoutLine: onStdoutLine,
       onStderrLine: onStderrLine,
     );
+    emitDebugEvent(
+      host: host,
+      operation: 'runCommandStreaming',
+      command: command,
+      output: output,
+    );
+    return output;
   }
 
   @override

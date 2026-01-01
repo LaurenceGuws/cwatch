@@ -88,7 +88,7 @@ Future<_AppThemeOverrides?> _loadAppThemeOverrides(Directory directory) async {
       appFontFamily: appFontFamily,
     );
   } catch (error, stackTrace) {
-    AppLogger.w(
+    AppLogger().warn(
       'Failed to parse app theme config: ${p.basename(file.path)}',
       tag: 'ThemeConfig',
       error: error,
@@ -121,7 +121,7 @@ Future<_EditorThemeOverrides?> _loadEditorThemeOverrides(
       themeKeyDark: resolvedDark,
     );
   } catch (error, stackTrace) {
-    AppLogger.w(
+    AppLogger().warn(
       'Failed to parse editor theme config: ${p.basename(file.path)}',
       tag: 'ThemeConfig',
       error: error,

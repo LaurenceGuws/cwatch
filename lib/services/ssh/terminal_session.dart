@@ -62,7 +62,7 @@ class LocalPtySession implements TerminalSession {
     try {
       _pty.kill();
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to kill PTY session',
         tag: 'Terminal',
         error: error,
@@ -92,7 +92,7 @@ class _LocalPtyRegistry {
       final parts = raw.split(',').where((p) => p.isNotEmpty);
       return parts.map((p) => int.tryParse(p)).whereType<int>().toSet();
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to read PTY registry',
         tag: 'Terminal',
         error: error,
@@ -107,7 +107,7 @@ class _LocalPtyRegistry {
       await _pidFile.parent.create(recursive: true);
       await _pidFile.writeAsString(pids.join(','));
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to persist PTY registry',
         tag: 'Terminal',
         error: error,

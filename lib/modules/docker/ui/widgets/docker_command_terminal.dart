@@ -182,7 +182,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
       setState(() => _connecting = false);
       _updateTabOptions();
     } catch (error, stack) {
-      AppLogger.w(
+      AppLogger().warn(
         'Docker command terminal failed',
         tag: 'DockerTerminal',
         error: error,
@@ -676,7 +676,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     try {
       return _terminal.buffer.getText(selection);
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to read terminal selection text',
         tag: 'Docker',
         error: error,

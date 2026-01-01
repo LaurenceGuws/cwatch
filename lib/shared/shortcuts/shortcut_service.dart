@@ -71,7 +71,7 @@ class ShortcutService {
     );
     _scopes.add(scope);
     _scopes.sort((a, b) => b.priority.compareTo(a.priority));
-    AppLogger.d(
+    AppLogger().debug(
       'registered scope="$id" priority=$priority bindings=${scope.bindingLabels.join(', ')}',
       tag: 'Shortcuts',
     );
@@ -84,7 +84,7 @@ class ShortcutService {
       if (node != null) {
         _detachNodeListener(node);
       }
-      AppLogger.d('disposed scope="$id"', tag: 'Shortcuts');
+      AppLogger().debug('disposed scope="$id"', tag: 'Shortcuts');
     });
   }
 
@@ -110,7 +110,7 @@ class ShortcutService {
     final shouldLog = isChord;
     if (shouldLog) {
       final label = binding.toConfigString();
-      AppLogger.d(
+      AppLogger().debug(
         'key=$label ctrl=${binding.control} shift=${binding.shift} alt=${binding.alt} meta=${binding.meta} keyId=${binding.key.keyId}',
         tag: 'Shortcuts',
       );
@@ -137,7 +137,7 @@ class ShortcutService {
     bool shouldLog,
   ) {
     if (shouldLog) {
-      AppLogger.d(
+      AppLogger().debug(
         '  scope=${scope.id} active=${scope.active} bindings=${scope.bindingLabels.join(', ')}',
         tag: 'Shortcuts',
       );
@@ -149,13 +149,13 @@ class ShortcutService {
     if (handler != null) {
       if (shouldLog) {
         final handledLabel = binding.toConfigString();
-        AppLogger.d('${scope.id} handled $handledLabel', tag: 'Shortcuts');
+        AppLogger().debug('${scope.id} handled $handledLabel', tag: 'Shortcuts');
       }
       handler();
       return scope.consumeOnHandle;
     }
     if (shouldLog) {
-      AppLogger.d(
+      AppLogger().debug(
         '  ${scope.id} no match (incoming keyId=${binding.key.keyId})',
         tag: 'Shortcuts',
       );
@@ -248,7 +248,7 @@ class _ShortcutScope {
       if (binding == null) continue;
       if (_resolved.containsKey(binding)) {
         final existing = _resolvedIds[binding] ?? 'unknown';
-        AppLogger.w(
+        AppLogger().warn(
           'Binding conflict in scope="$id": ${binding.toConfigString()} already used by "$existing", skipping "${entry.key}"',
           tag: 'Shortcuts',
         );
@@ -257,7 +257,7 @@ class _ShortcutScope {
       _resolved[binding] = entry.value;
       _resolvedIds[binding] = entry.key;
     }
-    AppLogger.d(
+    AppLogger().debug(
       '  rebuilt scope="$id" bindings=${bindingLabels.join(', ')}',
       tag: 'Shortcuts',
     );

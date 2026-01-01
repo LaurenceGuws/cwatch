@@ -40,7 +40,7 @@ class DeleteOperationsHandler {
         SnackBar(content: Text('Deleted ${entry.name} permanently')),
       );
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to delete ${entry.name} permanently',
         tag: 'Explorer',
         error: error,
@@ -81,7 +81,7 @@ class DeleteOperationsHandler {
         context,
       ).showSnackBar(SnackBar(content: Text('Moved ${entry.name} to trash')));
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to move ${entry.name} to trash',
         tag: 'Explorer',
         error: error,
@@ -113,7 +113,7 @@ class DeleteOperationsHandler {
         successCount++;
       } catch (error) {
         failCount++;
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to delete ${entry.name}',
           tag: 'Explorer',
           error: error,
@@ -161,7 +161,7 @@ class DeleteOperationsHandler {
         successCount++;
       } catch (error) {
         failCount++;
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to move ${entry.name} to trash',
           tag: 'Explorer',
           error: error,

@@ -94,7 +94,7 @@ class _TrashTabState extends State<TrashTab> {
       try {
         return await action();
       } on BuiltInSshKeyLockedException catch (error) {
-        AppLogger.w(
+        AppLogger().warn(
           'Built-in key locked for ${error.hostName}',
           tag: 'Trash',
           error: error,
@@ -105,7 +105,7 @@ class _TrashTabState extends State<TrashTab> {
         }
         continue;
       } on BuiltInSshKeyPassphraseRequired catch (error) {
-        AppLogger.w(
+        AppLogger().warn(
           'Passphrase required for built-in key ${error.keyId}',
           tag: 'Trash',
           error: error,
@@ -129,7 +129,7 @@ class _TrashTabState extends State<TrashTab> {
         }
         continue;
       } on BuiltInSshKeyUnsupportedCipher catch (error) {
-        AppLogger.w(
+        AppLogger().warn(
           'Unsupported cipher for built-in key ${error.keyId}',
           tag: 'Trash',
           error: error,
@@ -147,7 +147,7 @@ class _TrashTabState extends State<TrashTab> {
         }
         rethrow;
       } on BuiltInSshIdentityPassphraseRequired catch (error) {
-        AppLogger.w(
+        AppLogger().warn(
           'Passphrase required for identity ${error.identityPath}',
           tag: 'Trash',
           error: error,
@@ -172,7 +172,7 @@ class _TrashTabState extends State<TrashTab> {
         }
         continue;
       } on BuiltInSshAuthenticationFailed catch (error) {
-        AppLogger.w(
+        AppLogger().warn(
           'SSH authentication failed for ${error.hostName}',
           tag: 'Trash',
           error: error,
@@ -202,7 +202,7 @@ class _TrashTabState extends State<TrashTab> {
       return false;
     }
     _unlockInProgress = true;
-    AppLogger.d('Prompting unlock for key $keyId', tag: 'Trash');
+    AppLogger().debug('Prompting unlock for key $keyId', tag: 'Trash');
     try {
       final initial = await service.unlock(keyId, password: null);
       if (initial.status == BuiltInSshKeyUnlockStatus.unlocked) {
@@ -210,14 +210,14 @@ class _TrashTabState extends State<TrashTab> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Key unlocked for this session.')),
           );
-          AppLogger.d('Unlock succeeded for key $keyId', tag: 'Trash');
+          AppLogger().debug('Unlock succeeded for key $keyId', tag: 'Trash');
         }
         return true;
       }
       String? password;
       password = await _showUnlockDialog(keyId);
       if (password == null) {
-        AppLogger.d('Unlock cancelled for key $keyId', tag: 'Trash');
+        AppLogger().debug('Unlock cancelled for key $keyId', tag: 'Trash');
         return false;
       }
       final result = await service.unlock(keyId, password: password);
@@ -226,7 +226,7 @@ class _TrashTabState extends State<TrashTab> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Key unlocked for this session.')),
           );
-          AppLogger.d('Unlock succeeded for key $keyId', tag: 'Trash');
+          AppLogger().debug('Unlock succeeded for key $keyId', tag: 'Trash');
         }
         return true;
       }
@@ -236,7 +236,7 @@ class _TrashTabState extends State<TrashTab> {
           context,
         ).showSnackBar(SnackBar(content: Text(message)));
       }
-      AppLogger.w('Unlock failed for key $keyId: $message', tag: 'Trash');
+      AppLogger().warn('Unlock failed for key $keyId: $message', tag: 'Trash');
       return false;
     } catch (error) {
       if (mounted) {
@@ -244,11 +244,11 @@ class _TrashTabState extends State<TrashTab> {
           context,
         ).showSnackBar(SnackBar(content: Text('Failed to unlock key: $error')));
       }
-      AppLogger.w('Unlock failed for key $keyId', tag: 'Trash', error: error);
+      AppLogger().warn('Unlock failed for key $keyId', tag: 'Trash', error: error);
       return false;
     } finally {
       _unlockInProgress = false;
-      AppLogger.d('Unlock flow completed for key $keyId', tag: 'Trash');
+      AppLogger().debug('Unlock flow completed for key $keyId', tag: 'Trash');
     }
   }
 
@@ -290,18 +290,18 @@ class _TrashTabState extends State<TrashTab> {
     final key = '$host|$path';
     final existing = _pendingPassphrasePrompts[key];
     if (existing != null) {
-      AppLogger.d('Awaiting existing passphrase for $key', tag: 'Trash');
+      AppLogger().debug('Awaiting existing passphrase for $key', tag: 'Trash');
       return existing;
     }
     final completer = Completer<String?>();
     _pendingPassphrasePrompts[key] = completer.future;
     () async {
       try {
-        AppLogger.d('Prompting passphrase for $key', tag: 'Trash');
+        AppLogger().debug('Prompting passphrase for $key', tag: 'Trash');
         final result = await _promptPassphrase(host, path);
         completer.complete(result);
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to prompt passphrase for $key',
           tag: 'Trash',
           error: error,
@@ -310,7 +310,7 @@ class _TrashTabState extends State<TrashTab> {
         completer.completeError(error, stackTrace);
       } finally {
         _pendingPassphrasePrompts.remove(key);
-        AppLogger.d('Passphrase prompt completed for $key', tag: 'Trash');
+        AppLogger().debug('Passphrase prompt completed for $key', tag: 'Trash');
       }
     }();
     return completer.future;
@@ -439,7 +439,7 @@ class _TrashTabState extends State<TrashTab> {
   }
 
   Future<void> _restoreEntry(TrashedEntry entry) async {
-    AppLogger.d(
+    AppLogger().debug(
       'Trash restore requested for ${entry.remotePath} on host ${entry.host.name}',
       tag: 'Trash',
     );
@@ -455,7 +455,7 @@ class _TrashTabState extends State<TrashTab> {
           hostOverride: widget.context?.host,
         );
       });
-      AppLogger.d(
+      AppLogger().debug(
         'Trash restore succeeded for ${entry.remotePath} on host ${entry.host.name}',
         tag: 'Trash',
       );
@@ -467,7 +467,7 @@ class _TrashTabState extends State<TrashTab> {
       );
     } catch (error) {
       if (error is CancelledTrashOperation) return;
-      AppLogger.w(
+      AppLogger().warn(
         'Trash restore failed for ${entry.remotePath} on host ${entry.host.name}',
         tag: 'Trash',
         error: error,

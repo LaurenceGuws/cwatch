@@ -26,7 +26,7 @@ class SettingsStorage {
         return AppSettings.fromJson(jsonMap);
       }
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to load settings; falling back to defaults',
         tag: 'Settings',
         error: error,
@@ -63,7 +63,7 @@ class SettingsStorage {
         await legacyFile.copy(target.path);
         return true;
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to migrate legacy settings from $legacyPath',
           tag: 'Settings',
           error: error,

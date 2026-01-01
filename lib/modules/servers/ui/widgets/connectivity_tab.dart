@@ -36,7 +36,7 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
   @override
   void initState() {
     super.initState();
-    AppLogger.d(
+    AppLogger().debug(
       'Loading connectivity stats for ${widget.host.name}',
       tag: 'Connectivity',
     );
@@ -256,13 +256,13 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
           ..add(first);
         _loading = false;
       });
-      AppLogger.d(
+      AppLogger().debug(
         'Initial connectivity stats loaded for ${widget.host.name}',
         tag: 'Connectivity',
       );
       _startStreaming();
     } catch (error) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to load connectivity stats for ${widget.host.name}',
         tag: 'Connectivity',
         error: error,
@@ -289,12 +289,12 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
         _pushHistory(next);
         _refreshing = false;
       });
-      AppLogger.d(
+      AppLogger().debug(
         'Connectivity stats refreshed for ${widget.host.name}',
         tag: 'Connectivity',
       );
     } catch (error) {
-      AppLogger.w(
+      AppLogger().warn(
         'Refresh failed for ${widget.host.name}',
         tag: 'Connectivity',
         error: error,
@@ -416,7 +416,7 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
       final output = (result.stdout as String?)?.trim();
       return (output == null || output.isEmpty) ? null : output;
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to run connectivity probe command',
         tag: 'Connectivity',
         error: error,
@@ -470,7 +470,7 @@ class _ConnectivityTabState extends State<ConnectivityTab> {
         _error = null;
       });
     } catch (error) {
-      AppLogger.w(
+      AppLogger().warn(
         'Streaming tick failed for ${widget.host.name}',
         tag: 'Connectivity',
         error: error,

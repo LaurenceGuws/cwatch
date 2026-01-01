@@ -101,7 +101,7 @@ class WindowsDragSource implements DesktopDragSource {
       );
       return const DragStartResult(started: true);
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to start desktop drag session',
         tag: 'Explorer',
         error: error,
@@ -218,7 +218,7 @@ class LinuxDragSource implements DesktopDragSource {
       );
       return const DragStartResult(started: true);
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to start desktop drag session',
         tag: 'Explorer',
         error: error,

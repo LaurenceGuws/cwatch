@@ -658,13 +658,13 @@ class _ServersListState extends State<ServersList> {
     if (pathsChanged) {
       _customHostsSignature = nextCustomSignature;
       _pathsSignature = nextPathsSignature;
-      AppLogger.d('ServersList hosts updated', tag: 'ServersList');
+      AppLogger().debug('ServersList hosts updated', tag: 'ServersList');
       _hostsFuture = _loadHosts();
       _hostsFutureNotifier.value = _hostsFuture;
       _refreshHostSelectionTabs();
     } else if (customHostsChanged) {
       _customHostsSignature = nextCustomSignature;
-      AppLogger.d('ServersList custom hosts updated', tag: 'ServersList');
+      AppLogger().debug('ServersList custom hosts updated', tag: 'ServersList');
       _hostsFuture = _updateCustomHosts(
         widget.settingsController.settings.customSshHosts,
       );
@@ -678,7 +678,7 @@ class _ServersListState extends State<ServersList> {
 
   void _reloadServerListView() {
     if (!mounted) return;
-    AppLogger.d('ServersList manual reload', tag: 'ServersList');
+    AppLogger().debug('ServersList manual reload', tag: 'ServersList');
     _hostsFuture = _loadHosts();
     _hostsFutureNotifier.value = _hostsFuture;
     _hostAvailability.clear();
@@ -688,7 +688,7 @@ class _ServersListState extends State<ServersList> {
 
   void _reloadTabView(ServerTab tab) {
     if (!mounted) return;
-    AppLogger.d('ServersList tab view reload', tag: 'ServersList');
+    AppLogger().debug('ServersList tab view reload', tag: 'ServersList');
     _tabRegistry.remove(tab);
     _tabRegistry.widgetFor(tab, () => _buildTabWidget(tab));
   }
@@ -895,7 +895,7 @@ class _ServersListState extends State<ServersList> {
         SnackBar(content: Text('Forwarding $summary for ${host.name}.')),
       );
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to start port forwarding for ${host.name}',
         tag: 'Servers',
         error: error,

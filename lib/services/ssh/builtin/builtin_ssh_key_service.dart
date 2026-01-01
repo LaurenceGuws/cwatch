@@ -78,7 +78,7 @@ class BuiltInSshKeyService {
         entry: entry,
       );
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to add built-in SSH key "$label"',
         tag: 'BuiltInSSHKey',
         error: error,
@@ -125,7 +125,7 @@ class BuiltInSshKeyService {
         message: 'Incorrect password for that key.',
       );
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to unlock built-in SSH key $keyId',
         tag: 'BuiltInSSHKey',
         error: error,
@@ -198,7 +198,7 @@ class BuiltInSshKeyService {
       SSHKeyPair.fromPem(pem, trimmedPassphrase);
       return const _KeyValidationResult.valid();
     } on ArgumentError catch (error) {
-      AppLogger.w(
+      AppLogger().warn(
         'Error validating SSH key PEM',
         tag: 'BuiltInSSHKey',
         error: error,
@@ -215,7 +215,7 @@ class BuiltInSshKeyService {
       }
       return _KeyValidationResult.invalid(error.toString());
     } on StateError catch (error) {
-      AppLogger.w(
+      AppLogger().warn(
         'Error validating SSH key PEM',
         tag: 'BuiltInSSHKey',
         error: error,
@@ -234,7 +234,7 @@ class BuiltInSshKeyService {
     } on SSHKeyDecryptError {
       return const _KeyValidationResult.invalid('Invalid passphrase.');
     } on UnsupportedError catch (error) {
-      AppLogger.w(
+      AppLogger().warn(
         'Unsupported SSH key format',
         tag: 'BuiltInSSHKey',
         error: error,
@@ -243,7 +243,7 @@ class BuiltInSshKeyService {
         'Unsupported key cipher or format: ${error.message}',
       );
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to validate SSH key PEM',
         tag: 'BuiltInSSHKey',
         error: error,

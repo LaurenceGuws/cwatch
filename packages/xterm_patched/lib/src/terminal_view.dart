@@ -455,7 +455,7 @@ class TerminalViewState extends State<TerminalView> {
   void _onTapUp(TapUpDetails details) {
     final offset = renderTerminal.getCellOffset(details.localPosition);
     widget.onTapUp?.call(details, offset);
-    AppLogger.d(
+    AppLogger().debug(
       'tapUp: global=${details.globalPosition} local=${details.localPosition} '
       'kind=${details.kind} cursorOffset=${renderTerminal.cursorOffset}',
       tag: 'TerminalView',
@@ -501,7 +501,7 @@ class TerminalViewState extends State<TerminalView> {
       _suppressLongPress = false;
       _pendingHitboxFocus = false;
     }
-    AppLogger.d(
+    AppLogger().debug(
       'tapDown: global=${details.globalPosition} local=${details.localPosition} '
       'kind=$kind cursorOffset=${renderTerminal.cursorOffset} '
       'tapInHitbox=$_tapDownInFocusHitbox suppressLongPress=$_suppressLongPress',
@@ -570,7 +570,7 @@ class TerminalViewState extends State<TerminalView> {
       renderTerminal.size.width,
       height,
     );
-    AppLogger.d(
+    AppLogger().debug(
       'focus hitbox: cursorRect=$cursorRect hitbox=$hitbox '
       'localTap=$localPosition globalTap=$globalPosition '
       'tapDownHitbox=$_tapDownInFocusHitbox suppressLongPress=$_suppressLongPress',

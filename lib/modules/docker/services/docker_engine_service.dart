@@ -60,9 +60,11 @@ class DockerEngineService {
     RemoteShellService shell,
     SshHost host,
   ) async {
-    final output = await shell.runCommand(
+    final output = await _runRemoteDockerCommand(
+      shell,
       host,
       "docker ps -a --format '{{json .}}'",
+      operation: 'list containers',
       timeout: const Duration(seconds: 8),
     );
     return _parseContainers(output);
@@ -72,9 +74,11 @@ class DockerEngineService {
     RemoteShellService shell,
     SshHost host,
   ) async {
-    final output = await shell.runCommand(
+    final output = await _runRemoteDockerCommand(
+      shell,
       host,
       "docker images --format '{{json .}}'",
+      operation: 'list images',
       timeout: const Duration(seconds: 8),
     );
     return _parseImages(output);
@@ -84,9 +88,11 @@ class DockerEngineService {
     RemoteShellService shell,
     SshHost host,
   ) async {
-    final output = await shell.runCommand(
+    final output = await _runRemoteDockerCommand(
+      shell,
       host,
       "docker network ls --format '{{json .}}'",
+      operation: 'list networks',
       timeout: const Duration(seconds: 8),
     );
     return _parseNetworks(output);
@@ -96,9 +102,11 @@ class DockerEngineService {
     RemoteShellService shell,
     SshHost host,
   ) async {
-    final output = await shell.runCommand(
+    final output = await _runRemoteDockerCommand(
+      shell,
       host,
       "docker volume ls --format '{{json .}}'",
+      operation: 'list volumes',
       timeout: const Duration(seconds: 8),
     );
     final volumes = _parseVolumes(output);
@@ -135,7 +143,7 @@ class DockerEngineService {
           );
         }
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to parse remote docker container entry',
           tag: 'Docker',
           error: error,
@@ -188,7 +196,7 @@ class DockerEngineService {
           );
         }
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to parse remote docker image entry',
           tag: 'Docker',
           error: error,
@@ -218,7 +226,7 @@ class DockerEngineService {
           );
         }
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to parse remote docker network entry',
           tag: 'Docker',
           error: error,
@@ -249,7 +257,7 @@ class DockerEngineService {
           );
         }
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to parse remote docker volume entry',
           tag: 'Docker',
           error: error,
@@ -266,9 +274,11 @@ class DockerEngineService {
     SshHost host,
   ) async {
     try {
-      final output = await shell.runCommand(
+      final output = await _runRemoteDockerCommand(
+        shell,
         host,
         "docker system df -v --format '{{json .}}'",
+        operation: 'system df',
         timeout: const Duration(seconds: 8),
       );
       final map = <String, String>{};
@@ -290,7 +300,7 @@ class DockerEngineService {
             }
           }
         } catch (error, stackTrace) {
-          AppLogger.w(
+          AppLogger().warn(
             'Failed to parse remote docker volume size entry',
             tag: 'Docker',
             error: error,
@@ -301,13 +311,51 @@ class DockerEngineService {
       }
       return map;
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to fetch remote docker volume sizes',
         tag: 'Docker',
         error: error,
         stackTrace: stackTrace,
       );
       return const {};
+    }
+  }
+
+  Future<String> _runRemoteDockerCommand(
+    RemoteShellService shell,
+    SshHost host,
+    String command, {
+    required String operation,
+    required Duration timeout,
+  }) async {
+    final logger = AppLogger.remote(source: 'docker', host: host);
+    try {
+      final output = await shell.runCommand(
+        host,
+        command,
+        timeout: timeout,
+      );
+      logger.trace(
+        'Remote docker $operation',
+        remote: RemoteCommandDetails(
+          operation: operation,
+          command: command,
+          output: output.trim(),
+          contextLabel: host.name,
+        ),
+      );
+      return output;
+    } catch (error) {
+      logger.trace(
+        'Remote docker $operation failed',
+        remote: RemoteCommandDetails(
+          operation: operation,
+          command: command,
+          output: 'Error: $error',
+          contextLabel: host.name,
+        ),
+      );
+      rethrow;
     }
   }
 

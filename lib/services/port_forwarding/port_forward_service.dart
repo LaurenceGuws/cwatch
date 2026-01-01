@@ -85,7 +85,7 @@ class ActivePortForward {
         try {
           await sub.cancel();
         } catch (error, stackTrace) {
-          AppLogger.w(
+          AppLogger().warn(
             'Failed to cancel port forward listener',
             tag: 'PortForward',
             error: error,
@@ -97,7 +97,7 @@ class ActivePortForward {
         try {
           await socket.close();
         } catch (error, stackTrace) {
-          AppLogger.w(
+          AppLogger().warn(
             'Failed to close port forward socket',
             tag: 'PortForward',
             error: error,
@@ -110,7 +110,7 @@ class ActivePortForward {
           await channel.close();
           await channel.done;
         } catch (error, stackTrace) {
-          AppLogger.w(
+          AppLogger().warn(
             'Failed to close SSH forward channel',
             tag: 'PortForward',
             error: error,
@@ -122,7 +122,7 @@ class ActivePortForward {
         client?.close();
         await client?.done;
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to close SSH client for port forward',
           tag: 'PortForward',
           error: error,
@@ -190,7 +190,7 @@ class PortForwardService extends ChangeNotifier {
       await socket.close();
       return true;
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to bind IPv4 loopback on port $port',
         tag: 'PortForward',
         error: error,
@@ -204,7 +204,7 @@ class PortForwardService extends ChangeNotifier {
         await socket.close();
         return true;
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to bind IPv6 loopback on port $port',
           tag: 'PortForward',
           error: error,
@@ -233,7 +233,7 @@ class PortForwardService extends ChangeNotifier {
     try {
       return await ServerSocket.bind(InternetAddress.loopbackIPv4, port);
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to bind loopback for port $port',
         tag: 'PortForward',
         error: error,
@@ -300,7 +300,7 @@ class PortForwardService extends ChangeNotifier {
             final toRemote = localSocket.cast<List<int>>().pipe(channel.sink);
             unawaited(
               toLocal.catchError((error, stackTrace) {
-                AppLogger.w(
+                AppLogger().warn(
                   'Port forward local stream error',
                   tag: 'PortForward',
                   error: error,
@@ -310,7 +310,7 @@ class PortForwardService extends ChangeNotifier {
                 try {
                   localSocket.destroy();
                 } catch (error, stackTrace) {
-                  AppLogger.w(
+                  AppLogger().warn(
                     'Failed to destroy local socket',
                     tag: 'PortForward',
                     error: error,
@@ -321,7 +321,7 @@ class PortForwardService extends ChangeNotifier {
             );
             unawaited(
               toRemote.catchError((error, stackTrace) {
-                AppLogger.w(
+                AppLogger().warn(
                   'Port forward remote stream error',
                   tag: 'PortForward',
                   error: error,
@@ -331,7 +331,7 @@ class PortForwardService extends ChangeNotifier {
                 try {
                   await channel.sink.close();
                 } catch (error, stackTrace) {
-                  AppLogger.w(
+                  AppLogger().warn(
                     'Failed to close SSH forward sink',
                     tag: 'PortForward',
                     error: error,
@@ -341,7 +341,7 @@ class PortForwardService extends ChangeNotifier {
               }),
             );
           } catch (error, stackTrace) {
-            AppLogger.w(
+            AppLogger().warn(
               'Failed to open SSH port forward to ${req.remoteHost}:${req.remotePort}',
               tag: 'PortForward',
               error: error,
@@ -350,7 +350,7 @@ class PortForwardService extends ChangeNotifier {
             try {
               localSocket.destroy();
             } catch (error, stackTrace) {
-              AppLogger.w(
+              AppLogger().warn(
                 'Failed to destroy local socket after forward error',
                 tag: 'PortForward',
                 error: error,
@@ -382,7 +382,7 @@ class PortForwardService extends ChangeNotifier {
             try {
               await sub.cancel();
             } catch (error, stackTrace) {
-              AppLogger.w(
+              AppLogger().warn(
                 'Failed to cancel port forward listener',
                 tag: 'PortForward',
                 error: error,
@@ -394,7 +394,7 @@ class PortForwardService extends ChangeNotifier {
             try {
               await socket.close();
             } catch (error, stackTrace) {
-              AppLogger.w(
+              AppLogger().warn(
                 'Failed to close port forward socket',
                 tag: 'PortForward',
                 error: error,
@@ -406,7 +406,7 @@ class PortForwardService extends ChangeNotifier {
             client.close();
             await client.done;
           } catch (error, stackTrace) {
-            AppLogger.w(
+            AppLogger().warn(
               'Failed to close SSH client during forward shutdown',
               tag: 'PortForward',
               error: error,
@@ -522,7 +522,7 @@ class PortForwardService extends ChangeNotifier {
         });
         _signalSubscriptions.add(sub);
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to register signal handler',
           tag: 'PortForward',
           error: error,

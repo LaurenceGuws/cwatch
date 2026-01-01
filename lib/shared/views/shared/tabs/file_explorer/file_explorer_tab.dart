@@ -189,7 +189,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
                   _controller.isSelfDragTarget(_controller.currentPath)) {
                 return;
               }
-              AppLogger.d(
+              AppLogger().debug(
                 'Drop entered ${_controller.currentPath}',
                 tag: 'Explorer',
               );
@@ -211,7 +211,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
                   _controller.isSelfDragTarget(_controller.currentPath)) {
                 return;
               }
-              AppLogger.d(
+              AppLogger().debug(
                 'Drop exited ${_controller.currentPath}',
                 tag: 'Explorer',
               );
@@ -224,13 +224,13 @@ class _FileExplorerTabState extends State<FileExplorerTab>
                 paths: details.files.map((file) => file.path).toList(),
                 targetDirectory: _controller.currentPath,
               )) {
-                AppLogger.d(
+                AppLogger().debug(
                   'Drop ignored: source and target match',
                   tag: 'Explorer',
                 );
                 return;
               }
-              AppLogger.d(
+              AppLogger().debug(
                 'Drop done ${details.files.length} files at '
                 '${details.localPosition}',
                 tag: 'Explorer',
@@ -507,13 +507,13 @@ class _FileExplorerTabState extends State<FileExplorerTab>
 
   Future<void> _handleLocalDrop(DropDoneDetails details) async {
     if (details.files.isEmpty) {
-      AppLogger.d('Drop ignored: no files', tag: 'Explorer');
+      AppLogger().debug('Drop ignored: no files', tag: 'Explorer');
       return;
     }
     final paths = details.files
         .map((file) => file.path)
         .where((path) => path.isNotEmpty);
-    AppLogger.d(
+    AppLogger().debug(
       'Handling drop of ${details.files.length} items to '
       '${_controller.currentPath}: ${paths.join(', ')}',
       tag: 'Explorer',
@@ -736,7 +736,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
         SnackBar(content: Text('Renamed ${entry.name} to $trimmed')),
       );
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to rename ${entry.name}',
         tag: 'Explorer',
         error: error,
@@ -780,7 +780,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
         SnackBar(content: Text('Moved ${entry.name} to $normalized')),
       );
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to move ${entry.name}',
         tag: 'Explorer',
         error: error,

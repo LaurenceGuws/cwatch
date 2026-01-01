@@ -867,7 +867,7 @@ class _HomeShellState extends State<HomeShell>
   void _handleScaleStart(ScaleStartDetails details) {
     if (details.pointerCount < 2) return;
     _scaleStartZoom = widget.settingsController.settings.zoomFactor;
-    AppLogger.d(
+    AppLogger().debug(
       'Pinch zoom start at ${_scaleStartZoom?.toStringAsFixed(2) ?? 'unknown'}',
       tag: 'Gestures',
     );
@@ -889,7 +889,7 @@ class _HomeShellState extends State<HomeShell>
     if ((current - targetZoom).abs() < 0.005) {
       return;
     }
-    AppLogger.d(
+    AppLogger().debug(
       'Pinch zoom updated app zoom from ${current.toStringAsFixed(2)} '
       'to ${targetZoom.toStringAsFixed(2)}',
       tag: 'Gestures',

@@ -20,7 +20,7 @@ class SettingsPathProvider {
         final dir = await getApplicationSupportDirectory();
         return dir.path;
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to resolve application support directory',
           tag: 'Settings',
           error: error,

@@ -51,7 +51,7 @@ class BuiltInSshKeyStore {
           entries.add(BuiltInSshKeyEntry.fromJson(jsonMap));
         }
       } catch (error, stackTrace) {
-        AppLogger.w(
+        AppLogger().warn(
           'Failed to read SSH key metadata from ${entity.path}',
           tag: 'BuiltInSSHKeyStore',
           error: error,
@@ -76,14 +76,14 @@ class BuiltInSshKeyStore {
       // Try parsing without passphrase - if it fails, the key is encrypted
       SSHKeyPair.fromPem(keyText);
       keyIsEncrypted = false;
-      AppLogger.d(
+      AppLogger().debug(
         'Key "$label" (id=$id) is unencrypted (no passphrase)',
         tag: 'BuiltInSSHKeyStore',
       );
     } on ArgumentError catch (e) {
       if (e.message == 'passphrase is required for encrypted key') {
         keyIsEncrypted = true;
-        AppLogger.d(
+        AppLogger().debug(
           'Key "$label" (id=$id) is encrypted (has passphrase)',
           tag: 'BuiltInSSHKeyStore',
         );
@@ -93,7 +93,7 @@ class BuiltInSshKeyStore {
     } on StateError catch (e) {
       if (e.message.contains('encrypted')) {
         keyIsEncrypted = true;
-        AppLogger.d(
+        AppLogger().debug(
           'Key "$label" (id=$id) is encrypted (has passphrase)',
           tag: 'BuiltInSSHKeyStore',
         );
@@ -101,7 +101,7 @@ class BuiltInSshKeyStore {
         rethrow;
       }
     } catch (error, stackTrace) {
-      AppLogger.w(
+      AppLogger().warn(
         'Failed to parse SSH key "$label" (id=$id); assuming unencrypted',
         tag: 'BuiltInSSHKeyStore',
         error: error,
@@ -204,7 +204,7 @@ class BuiltInSshKeyStore {
 
     if (shouldEncryptStorage) {
       // Encrypt the key data for storage
-      AppLogger.d(
+      AppLogger().debug(
         'Encrypting storage for key "$label" (id=$id). '
         'Key itself is ${keyIsEncrypted ? "encrypted (has passphrase)" : "unencrypted"}.',
         tag: 'BuiltInSSHKeyStore',
@@ -232,7 +232,7 @@ class BuiltInSshKeyStore {
       );
     } else {
       // Store as plaintext (unencrypted)
-      AppLogger.d(
+      AppLogger().debug(
         'Storing key "$label" (id=$id) as plaintext (no storage encryption). '
         'Key itself is ${keyIsEncrypted ? "encrypted (has passphrase)" : "unencrypted"}.',
         tag: 'BuiltInSSHKeyStore',

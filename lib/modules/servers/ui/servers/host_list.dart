@@ -85,7 +85,7 @@ class _HostListState extends State<HostList> {
     final sources = grouped.keys.toList()..sort();
     if (_lastHostCount != widget.hosts.length) {
       _lastHostCount = widget.hosts.length;
-      AppLogger.d(
+      AppLogger().debug(
         'HostList rebuild: hosts=${widget.hosts.length}',
         tag: 'ServersList',
       );
