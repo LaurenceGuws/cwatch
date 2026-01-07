@@ -38,6 +38,7 @@ class PathNavigator extends StatefulWidget {
     this.showRowHeightControl = false,
     this.rowHeight = 36,
     this.onRowHeightChanged,
+    this.onShowMenu,
   });
 
   final String currentPath;
@@ -67,6 +68,12 @@ class PathNavigator extends StatefulWidget {
   final bool showRowHeightControl;
   final double rowHeight;
   final ValueChanged<double>? onRowHeightChanged;
+  final Future<String?> Function(
+    RelativeRect position,
+    List<PopupMenuEntry<String>> items,
+    BoxConstraints constraints,
+  )?
+  onShowMenu;
 
   @override
   State<PathNavigator> createState() => _PathNavigatorState();
@@ -135,6 +142,7 @@ class _PathNavigatorState extends State<PathNavigator> {
             pathHistory: widget.pathHistory,
             onPathChanged: widget.onPathChanged,
             onPrefetchPath: widget.onPrefetchPath,
+            onShowMenu: widget.onShowMenu,
           )
         : _PathFieldView(
             currentPath: widget.currentPath,
@@ -256,12 +264,19 @@ class _BreadcrumbsView extends StatefulWidget {
     required this.pathHistory,
     required this.onPathChanged,
     this.onPrefetchPath,
+    this.onShowMenu,
   });
 
   final String currentPath;
   final Set<String> pathHistory;
   final ValueChanged<String> onPathChanged;
   final ValueChanged<String>? onPrefetchPath;
+  final Future<String?> Function(
+    RelativeRect position,
+    List<PopupMenuEntry<String>> items,
+    BoxConstraints constraints,
+  )?
+  onShowMenu;
 
   @override
   State<_BreadcrumbsView> createState() => _BreadcrumbsViewState();
@@ -382,6 +397,7 @@ class _BreadcrumbsViewState extends State<_BreadcrumbsView> {
       getChildren: () => _childDirectoriesForPath(basePath),
       onPrefetchPath: onPrefetchPath,
       onPathChanged: widget.onPathChanged,
+      onShowMenu: widget.onShowMenu,
       isResolved: isResolved,
       onRequested: () => _markRequested(basePath),
     );
@@ -478,6 +494,7 @@ class _BreadcrumbMenuButton extends StatelessWidget {
     required this.getChildren,
     required this.onPrefetchPath,
     required this.onPathChanged,
+    this.onShowMenu,
     required this.isResolved,
     required this.onRequested,
   });
@@ -486,6 +503,12 @@ class _BreadcrumbMenuButton extends StatelessWidget {
   final List<String> Function() getChildren;
   final ValueChanged<String>? onPrefetchPath;
   final ValueChanged<String> onPathChanged;
+  final Future<String?> Function(
+    RelativeRect position,
+    List<PopupMenuEntry<String>> items,
+    BoxConstraints constraints,
+  )?
+  onShowMenu;
   final bool isResolved;
   final VoidCallback onRequested;
 
@@ -499,6 +522,7 @@ class _BreadcrumbMenuButton extends StatelessWidget {
       getChildren: getChildren,
       onPrefetchPath: onPrefetchPath,
       onPathChanged: onPathChanged,
+      onShowMenu: onShowMenu,
       iconColor: theme.colorScheme.outline,
       isResolved: isResolved,
       onRequested: onRequested,
@@ -513,6 +537,7 @@ class _BreadcrumbMenuButtonBody extends StatefulWidget {
     required this.getChildren,
     required this.onPrefetchPath,
     required this.onPathChanged,
+    this.onShowMenu,
     required this.iconColor,
     required this.isResolved,
     required this.onRequested,
@@ -523,6 +548,12 @@ class _BreadcrumbMenuButtonBody extends StatefulWidget {
   final List<String> Function() getChildren;
   final ValueChanged<String>? onPrefetchPath;
   final ValueChanged<String> onPathChanged;
+  final Future<String?> Function(
+    RelativeRect position,
+    List<PopupMenuEntry<String>> items,
+    BoxConstraints constraints,
+  )?
+  onShowMenu;
   final Color iconColor;
   final bool isResolved;
   final VoidCallback onRequested;
@@ -624,19 +655,25 @@ class _BreadcrumbMenuButtonBodyState extends State<_BreadcrumbMenuButtonBody> {
       overlay.size.width - target.dx - renderBox.size.width,
       overlay.size.height - bottomEdge,
     );
-    showMenu<String>(
-      context: context,
-      position: position,
-      constraints: BoxConstraints(
-        minWidth: renderBox.size.width,
-        maxHeight: maxHeight,
-      ),
-      items: children
-          .map(
-            (child) => PopupMenuItem<String>(value: child, child: Text(child)),
-          )
-          .toList(),
-    ).then((value) {
+    final items = children
+        .map(
+          (child) => PopupMenuItem<String>(value: child, child: Text(child)),
+        )
+        .toList();
+    final constraints = BoxConstraints(
+      minWidth: renderBox.size.width,
+      maxHeight: maxHeight,
+    );
+    final showMenuAction = widget.onShowMenu;
+    final menuFuture = showMenuAction != null
+        ? showMenuAction(position, items, constraints)
+        : showMenu<String>(
+            context: context,
+            position: position,
+            constraints: constraints,
+            items: items,
+          );
+    menuFuture.then((value) {
       if (mounted && _menuOpen) {
         setState(() => _menuOpen = false);
       }

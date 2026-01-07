@@ -12,6 +12,7 @@ import '../../../../../services/logging/app_logger.dart';
 import '../../../../../services/filesystem/explorer_trash_manager.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../../services/settings/app_settings_controller.dart';
+import 'explorer_ui_adapter.dart';
 import 'explorer_clipboard.dart';
 import '../../../../widgets/file_operation_progress_dialog.dart';
 
@@ -24,6 +25,7 @@ class FileOperationsService {
     required this.trashManager,
     required this.runShellWrapper,
     required this.explorerContext,
+    this.uiAdapter,
   }) : assert(explorerContext.host == host);
 
   final RemoteShellService shellService;
@@ -32,6 +34,7 @@ class FileOperationsService {
   final ExplorerContext explorerContext;
   final ExplorerTrashManager trashManager;
   final Future<T> Function<T>(Future<T> Function() action) runShellWrapper;
+  final ExplorerUiAdapter? uiAdapter;
   static const Duration _uploadTimeout = Duration(minutes: 20);
 
   int get _uploadConcurrency =>
@@ -213,22 +216,16 @@ class FileOperationsService {
     if (!context.mounted) return;
 
     if (failCount == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            successCount == 1
-                ? 'Pasted ${clipboardEntries.first.displayName}'
-                : 'Pasted $successCount item${successCount > 1 ? 's' : ''}',
-          ),
-        ),
+      _showSnackBar(
+        context,
+        successCount == 1
+            ? 'Pasted ${clipboardEntries.first.displayName}'
+            : 'Pasted $successCount item${successCount > 1 ? 's' : ''}',
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Pasted $successCount item${successCount > 1 ? 's' : ''}. $failCount failed.',
-          ),
-        ),
+      _showSnackBar(
+        context,
+        'Pasted $successCount item${successCount > 1 ? 's' : ''}. $failCount failed.',
       );
     }
   }
@@ -273,13 +270,8 @@ class FileOperationsService {
             error: e,
           );
           // Show error and return
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Failed to access download directory'),
-              ),
-            );
-          }
+          if (!context.mounted) return;
+          _showSnackBar(context, 'Failed to access download directory');
           return;
         }
       }
@@ -374,17 +366,12 @@ class FileOperationsService {
       if (!context.mounted) return;
       progressController.dismiss();
       if (progressController.cancelled) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Download cancelled')));
+        _showSnackBar(context, 'Download cancelled');
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Downloaded $successCount item${successCount == 1 ? '' : 's'}',
-          ),
-        ),
+      _showSnackBar(
+        context,
+        'Downloaded $successCount item${successCount == 1 ? '' : 's'}',
       );
     } catch (error, stackTrace) {
       AppLogger().warn(
@@ -395,9 +382,7 @@ class FileOperationsService {
       );
       if (!context.mounted) return;
       progressController.dismiss();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Download failed: $error')));
+      _showSnackBar(context, 'Download failed: $error');
     }
   }
 
@@ -426,11 +411,8 @@ class FileOperationsService {
     final files = resultFiles.where((f) => f.path != null).toList();
 
     if (files.isEmpty) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No valid files selected')),
-        );
-      }
+      if (!context.mounted) return;
+      _showSnackBar(context, 'No valid files selected');
       return;
     }
 
@@ -533,24 +515,16 @@ class FileOperationsService {
 
       if (!context.mounted) return;
       if (progressController.cancelled) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Upload cancelled')));
+        _showSnackBar(context, 'Upload cancelled');
       } else if (failCount == 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Uploaded $successCount item${successCount > 1 ? 's' : ''}',
-            ),
-          ),
+        _showSnackBar(
+          context,
+          'Uploaded $successCount item${successCount > 1 ? 's' : ''}',
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Uploaded $successCount item${successCount > 1 ? 's' : ''}. $failCount failed.',
-            ),
-          ),
+        _showSnackBar(
+          context,
+          'Uploaded $successCount item${successCount > 1 ? 's' : ''}. $failCount failed.',
         );
       }
     } catch (error, stackTrace) {
@@ -563,9 +537,7 @@ class FileOperationsService {
       if (!context.mounted) return;
       progressController.dismiss();
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Upload failed: $error')));
+      _showSnackBar(context, 'Upload failed: $error');
     }
   }
 
@@ -721,24 +693,16 @@ class FileOperationsService {
 
       if (!context.mounted) return;
       if (progressController.cancelled) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Upload cancelled')));
+        _showSnackBar(context, 'Upload cancelled');
       } else if (failCount == 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Uploaded ${directoryCounts.totalUnits} item${directoryCounts.totalUnits == 1 ? '' : 's'}',
-            ),
-          ),
+        _showSnackBar(
+          context,
+          'Uploaded ${directoryCounts.totalUnits} item${directoryCounts.totalUnits == 1 ? '' : 's'}',
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Uploaded $successCount item${successCount == 1 ? '' : 's'}. $failCount failed.',
-            ),
-          ),
+        _showSnackBar(
+          context,
+          'Uploaded $successCount item${successCount == 1 ? '' : 's'}. $failCount failed.',
         );
       }
     } catch (error, stackTrace) {
@@ -753,9 +717,7 @@ class FileOperationsService {
         Navigator.of(context, rootNavigator: true).pop();
       }
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Upload failed: $error')));
+      _showSnackBar(context, 'Upload failed: $error');
     }
   }
 
@@ -772,11 +734,7 @@ class FileOperationsService {
         .where((path) => path.isNotEmpty)
         .toList();
     if (toUpload.isEmpty) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No valid paths to upload')),
-        );
-      }
+      _showSnackBar(context, 'No valid paths to upload');
       return;
     }
 
@@ -887,28 +845,28 @@ class FileOperationsService {
     }
 
     if (progressController.cancelled) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Upload cancelled')));
+      _showSnackBar(context, 'Upload cancelled');
       return;
     }
     if (failCount == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Uploaded $successCount item${successCount == 1 ? '' : 's'}',
-          ),
-        ),
+      _showSnackBar(
+        context,
+        'Uploaded $successCount item${successCount == 1 ? '' : 's'}',
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Uploaded $successCount item${successCount == 1 ? '' : 's'}. $failCount failed.',
-          ),
-        ),
+      _showSnackBar(
+        context,
+        'Uploaded $successCount item${successCount == 1 ? '' : 's'}. $failCount failed.',
       );
     }
+  }
+
+  void _showSnackBar(BuildContext context, String message) {
+    uiAdapter?.showSnackBar(message);
+    if (!context.mounted || uiAdapter != null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   Future<_DirectoryCountResult> _countDirectoryEntries(

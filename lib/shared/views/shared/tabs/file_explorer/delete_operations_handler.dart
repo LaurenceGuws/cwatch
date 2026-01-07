@@ -6,6 +6,7 @@ import '../../../../../models/ssh_host.dart';
 import '../../../../../services/filesystem/explorer_trash_manager.dart';
 import '../../../../../services/logging/app_logger.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
+import 'explorer_ui_adapter.dart';
 import 'path_utils.dart';
 
 /// Handler for delete and trash operations
@@ -16,6 +17,7 @@ class DeleteOperationsHandler {
     required this.trashManager,
     required this.runShellWrapper,
     required this.explorerContext,
+    this.uiAdapter,
   });
 
   final RemoteShellService shellService;
@@ -23,6 +25,7 @@ class DeleteOperationsHandler {
   final ExplorerTrashManager trashManager;
   final Future<T> Function<T>(Future<T> Function() action) runShellWrapper;
   final ExplorerContext explorerContext;
+  final ExplorerUiAdapter? uiAdapter;
 
   /// Delete a single entry permanently
   Future<void> deletePermanently(
@@ -36,9 +39,7 @@ class DeleteOperationsHandler {
       await runShellWrapper(() => shellService.deletePath(host, path));
       await refreshPath();
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Deleted ${entry.name} permanently')),
-      );
+      _showSnackBar(context, 'Deleted ${entry.name} permanently');
     } catch (error, stackTrace) {
       AppLogger().warn(
         'Failed to delete ${entry.name} permanently',
@@ -47,9 +48,7 @@ class DeleteOperationsHandler {
         stackTrace: stackTrace,
       );
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to delete: $error')));
+      _showSnackBar(context, 'Failed to delete: $error');
     }
   }
 
@@ -77,9 +76,7 @@ class DeleteOperationsHandler {
       trashManager.notifyListeners();
       await refreshPath();
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Moved ${entry.name} to trash')));
+      _showSnackBar(context, 'Moved ${entry.name} to trash');
     } catch (error, stackTrace) {
       AppLogger().warn(
         'Failed to move ${entry.name} to trash',
@@ -91,9 +88,7 @@ class DeleteOperationsHandler {
         await trashManager.deleteEntry(recorded, notify: false);
       }
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to move to trash: $error')),
-      );
+      _showSnackBar(context, 'Failed to move to trash: $error');
     }
   }
 
@@ -123,14 +118,11 @@ class DeleteOperationsHandler {
     await refreshPath();
     if (!context.mounted) return;
     if (failCount == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Deleted $successCount items permanently')),
-      );
+      _showSnackBar(context, 'Deleted $successCount items permanently');
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Deleted $successCount items. $failCount failed.'),
-        ),
+      _showSnackBar(
+        context,
+        'Deleted $successCount items. $failCount failed.',
       );
     }
   }
@@ -172,17 +164,20 @@ class DeleteOperationsHandler {
     await refreshPath();
     if (!context.mounted) return;
     if (failCount == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Moved $successCount items to trash')),
-      );
+      _showSnackBar(context, 'Moved $successCount items to trash');
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Moved $successCount items to trash. $failCount failed.',
-          ),
-        ),
+      _showSnackBar(
+        context,
+        'Moved $successCount items to trash. $failCount failed.',
       );
     }
+  }
+
+  void _showSnackBar(BuildContext context, String message) {
+    uiAdapter?.showSnackBar(message);
+    if (!context.mounted || uiAdapter != null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 }

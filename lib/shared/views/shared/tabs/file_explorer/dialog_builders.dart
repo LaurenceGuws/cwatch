@@ -165,6 +165,7 @@ class DialogBuilders {
   static Future<String?> showNavigateToSubdirectoryDialog(
     BuildContext context,
     List<RemoteFileEntry> entries,
+    ValueChanged<String>? onMessage,
   ) async {
     final directories =
         entries
@@ -174,9 +175,12 @@ class DialogBuilders {
           ..sort();
 
     if (directories.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No subdirectories available')),
-      );
+      onMessage?.call('No subdirectories available');
+      if (onMessage == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No subdirectories available')),
+        );
+      }
       return null;
     }
 

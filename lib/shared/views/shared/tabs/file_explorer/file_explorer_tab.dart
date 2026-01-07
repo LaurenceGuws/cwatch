@@ -16,15 +16,13 @@ import '../../../../../services/logging/app_logger.dart';
 import '../../../../../services/settings/app_settings_controller.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../../services/filesystem/explorer_trash_manager.dart';
-import '../../../../widgets/dialog_keyboard_shortcuts.dart';
 import '../../../../shortcuts/input_mode_resolver.dart';
 import '../../../../shortcuts/shortcut_actions.dart';
 import '../../../../shortcuts/shortcut_resolver.dart';
 import 'context_menu_builder.dart';
-import 'dialog_builders.dart';
 import 'explorer_clipboard.dart';
 import 'file_explorer_controller.dart';
-import 'merge_conflict_dialog.dart';
+import 'explorer_ui_adapter.dart';
 import 'file_entry_list.dart';
 import 'selection_controller.dart';
 import 'package:cwatch/modules/settings/ui/settings/explorer_settings_controls.dart';
@@ -147,12 +145,18 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     _updateTabOptions();
   }
 
+  void _showSnackBar(String message) {
+    _uiAdapter.showSnackBar(message);
+  }
+
+  ExplorerUiAdapter get _uiAdapter => ExplorerUiAdapter(context: context);
+
   @override
   Widget build(BuildContext context) {
     final spacing = context.appTheme.spacing;
     final dropOverlayColor = context.appTheme.list.selectedBackground
         .withValues(alpha: 0.35);
-    final errorMessage = _controller.error;
+    final errorMessage = _controller.state.error;
     final isTimeoutError = _isTimeoutError(errorMessage);
     if (isTimeoutError &&
         errorMessage != null &&
@@ -162,15 +166,13 @@ class _FileExplorerTabState extends State<FileExplorerTab>
         if (!mounted) {
           return;
         }
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(errorMessage)));
+        _showSnackBar(errorMessage);
       });
     }
     final showStreamingResults =
-        _controller.loading &&
-        _controller.searchActive &&
-        _controller.searchQuery.trim().isNotEmpty;
+        _controller.state.loading &&
+        _controller.state.searchActive &&
+        _controller.state.searchQuery.trim().isNotEmpty;
     final contentCard = Card(
       clipBehavior: Clip.antiAlias,
       child: errorMessage != null && !isTimeoutError
@@ -186,7 +188,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
                 ),
               ],
             )
-          : _controller.loading
+          : _controller.state.loading
           ? const Center(child: CircularProgressIndicator())
           : _buildEntriesList(),
     );
@@ -276,7 +278,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       actions: {
         _ToggleSearchIntent: CallbackAction<_ToggleSearchIntent>(
           onInvoke: (_) {
-            unawaited(_controller.setSearchActive(!_controller.searchActive));
+            unawaited(_controller.setSearchActive(!_controller.state.searchActive));
             return null;
           },
         ),
@@ -329,7 +331,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
   }
 
   void _adjustRowHeight(double delta) {
-    final next = _controller.rowHeight + delta;
+    final next = _controller.state.rowHeight + delta;
     _controller.setRowHeight(next);
   }
 
@@ -360,14 +362,14 @@ class _FileExplorerTabState extends State<FileExplorerTab>
   Widget _buildPathNavigator(BuildContext context) {
     return PathNavigator(
       currentPath: _controller.currentPath,
-      pathHistory: _controller.pathHistory,
+      pathHistory: _controller.state.pathHistory,
       onPathChanged: (path) => _loadPath(path),
-      showBreadcrumbs: _controller.showBreadcrumbs,
+      showBreadcrumbs: _controller.state.showBreadcrumbs,
       onShowBreadcrumbsChanged: _controller.setShowBreadcrumbs,
       onNavigateToSubdirectory: () => _showNavigateToSubdirectoryDialog(),
       onPrefetchPath: _controller.prefetchPath,
-      searchActive: _controller.searchActive,
-      searchQuery: _controller.searchQuery,
+      searchActive: _controller.state.searchActive,
+      searchQuery: _controller.state.searchQuery,
       onSearchActiveChanged: (value) {
         unawaited(_controller.setSearchActive(value));
       },
@@ -376,23 +378,28 @@ class _FileExplorerTabState extends State<FileExplorerTab>
         unawaited(_controller.searchCurrentPath(query));
       },
       searchInProgress:
-          _controller.loading &&
-          _controller.searchActive &&
-          _controller.searchQuery.trim().isNotEmpty,
+          _controller.state.loading &&
+          _controller.state.searchActive &&
+          _controller.state.searchQuery.trim().isNotEmpty,
       onSearchCancelled: _controller.cancelSearch,
-      searchInclude: _controller.searchInclude,
-      searchExclude: _controller.searchExclude,
-      searchMatchCase: _controller.searchMatchCase,
-      searchMatchWholeWord: _controller.searchMatchWholeWord,
+      searchInclude: _controller.state.searchInclude,
+      searchExclude: _controller.state.searchExclude,
+      searchMatchCase: _controller.state.searchMatchCase,
+      searchMatchWholeWord: _controller.state.searchMatchWholeWord,
       onSearchIncludeChanged: _controller.setSearchInclude,
       onSearchExcludeChanged: _controller.setSearchExclude,
       onSearchMatchCaseChanged: _controller.toggleSearchMatchCase,
       onSearchMatchWholeWordChanged: _controller.toggleSearchMatchWholeWord,
-      searchContents: _controller.searchContents,
+      searchContents: _controller.state.searchContents,
       onSearchContentsChanged: _controller.setSearchContents,
-      showRowHeightControl: _controller.showRowHeightControl,
-      rowHeight: _controller.rowHeight,
+      showRowHeightControl: _controller.state.showRowHeightControl,
+      rowHeight: _controller.state.rowHeight,
       onRowHeightChanged: _controller.setRowHeight,
+      onShowMenu: (position, items, constraints) => _uiAdapter.showMenuAt(
+        position: position,
+        items: items,
+        constraints: constraints,
+      ),
     );
   }
 
@@ -402,10 +409,10 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       entries: sortedEntries,
       currentPath: _controller.currentPath,
       selectedPaths: _controller.selectionController.selectedPaths,
-      syncingPaths: _controller.syncingPaths,
-      refreshingPaths: _controller.refreshingPaths,
-      localEdits: _controller.localEdits,
-      rowHeight: _controller.rowHeight,
+      syncingPaths: _controller.state.syncingPaths,
+      refreshingPaths: _controller.state.refreshingPaths,
+      localEdits: _controller.state.localEdits,
+      rowHeight: _controller.state.rowHeight,
       scrollController: _scrollController,
       focusNode: _listFocusNode,
       onEntryDoubleTap: _handleEntryDoubleTap,
@@ -550,12 +557,8 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     );
     if (mounted) {
       final count = details.files.length;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Uploading $count dropped item${count == 1 ? '' : 's'} to ${_controller.currentPath}',
-          ),
-        ),
+      _showSnackBar(
+        'Uploading $count dropped item${count == 1 ? '' : 's'} to ${_controller.currentPath}',
       );
     }
   }
@@ -600,9 +603,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
         final path = PathUtils.joinPath(_controller.currentPath, e.name);
         await Clipboard.setData(ClipboardData(text: path));
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Copied $path')));
+          _showSnackBar('Copied $path');
         }
       },
       onOpenLocally: _openLocally,
@@ -644,18 +645,13 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       onUploadFiles: _handleUploadFiles,
       onUploadFolder: _handleUploadFolder,
       onOpenTerminal: widget.onOpenTerminalTab,
+      onMessage: _showSnackBar,
       joinPath: PathUtils.joinPath,
     );
 
     final menuItems = builder.buildEntryMenuItems(entry);
-    final action = await showMenu<ExplorerContextAction>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-        position.dx,
-        position.dy,
-        position.dx,
-        position.dy,
-      ),
+    final action = await _uiAdapter.showContextMenu<ExplorerContextAction>(
+      position: position,
       items: menuItems,
     );
 
@@ -732,7 +728,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
   }
 
   Future<void> _promptRename(RemoteFileEntry entry) async {
-    final newName = await DialogBuilders.showRenameDialog(context, entry);
+    final newName = await _uiAdapter.showRenameDialog(entry);
     if (newName == null) {
       return;
     }
@@ -755,9 +751,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       );
       await _refreshCurrentPath();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Renamed ${entry.name} to $trimmed')),
-      );
+      _showSnackBar('Renamed ${entry.name} to $trimmed');
     } catch (error, stackTrace) {
       AppLogger().warn(
         'Failed to rename ${entry.name}',
@@ -767,15 +761,12 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       );
       if (error is CancelledExplorerOperation) return;
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to rename: $error')));
+      _showSnackBar('Failed to rename: $error');
     }
   }
 
   Future<void> _promptMove(RemoteFileEntry entry) async {
-    final target = await DialogBuilders.showMoveDialog(
-      context,
+    final target = await _uiAdapter.showMoveDialog(
       entry,
       _controller.currentPath,
     );
@@ -799,9 +790,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       );
       await _refreshCurrentPath();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Moved ${entry.name} to $normalized')),
-      );
+      _showSnackBar('Moved ${entry.name} to $normalized');
     } catch (error, stackTrace) {
       AppLogger().warn(
         'Failed to move ${entry.name}',
@@ -811,9 +800,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       );
       if (error is CancelledExplorerOperation) return;
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to move: $error')));
+      _showSnackBar('Failed to move: $error');
     }
   }
 
@@ -822,8 +809,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     bool permanent = false,
   }) async {
     final deletePermanently = permanent || SelectionController.isShiftPressed();
-    final confirmed = await DialogBuilders.showDeleteDialog(
-      context,
+    final confirmed = await _uiAdapter.showDeleteDialog(
       entry,
       widget.host,
       deletePermanently,
@@ -886,34 +872,10 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     }
     final deletePermanently = permanent || SelectionController.isShiftPressed();
     final count = entries.length;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => DialogKeyboardShortcuts(
-        onCancel: () => Navigator.of(context).pop(false),
-        onConfirm: () => Navigator.of(context).pop(true),
-        child: AlertDialog(
-          title: Text(
-            deletePermanently
-                ? 'Delete $count items permanently?'
-                : 'Move $count items to trash?',
-          ),
-          content: Text(
-            deletePermanently
-                ? 'This will permanently delete $count items from ${widget.host.name}.'
-                : 'Backups will be stored locally so you can restore them later.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: Text(deletePermanently ? 'Delete' : 'Move to trash'),
-            ),
-          ],
-        ),
-      ),
+    final confirmed = await _uiAdapter.showMultiDeleteDialog(
+      count: count,
+      hostName: widget.host.name,
+      deletePermanently: deletePermanently,
     );
     if (confirmed != true) {
       return;
@@ -968,20 +930,16 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     required String local,
     required String remote,
   }) async {
-    return showDialog<String>(
-      context: context,
-      builder: (context) => MergeConflictDialog(
-        remotePath: remotePath,
-        local: local,
-        remote: remote,
-      ),
+    return _uiAdapter.showMergeConflictDialog(
+      remotePath: remotePath,
+      local: local,
+      remote: remote,
     );
   }
 
   Future<void> _showNavigateToSubdirectoryDialog() async {
-    final selected = await DialogBuilders.showNavigateToSubdirectoryDialog(
-      context,
-      _controller.entries,
+    final selected = await _uiAdapter.showNavigateToSubdirectoryDialog(
+      _controller.state.entries,
     );
     if (selected != null && mounted) {
       final targetPath = PathUtils.joinPath(_controller.currentPath, selected);
@@ -1004,10 +962,10 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     );
     options.add(
       TabChipOption(
-        label: _controller.searchActive ? 'Hide search' : 'Show search',
-        icon: _controller.searchActive ? Icons.search_off : Icons.search,
+        label: _controller.state.searchActive ? 'Hide search' : 'Show search',
+        icon: _controller.state.searchActive ? Icons.search_off : Icons.search,
         onSelected: () {
-          unawaited(_controller.setSearchActive(!_controller.searchActive));
+          unawaited(_controller.setSearchActive(!_controller.state.searchActive));
         },
       ),
     );

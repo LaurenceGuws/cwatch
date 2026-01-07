@@ -5,6 +5,7 @@ import '../../../../../models/ssh_host.dart';
 import '../../../../../services/logging/app_logger.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../../services/ssh/remote_editor_cache.dart';
+import 'explorer_ui_adapter.dart';
 import 'file_entry_list.dart';
 import 'path_utils.dart';
 
@@ -17,6 +18,7 @@ class FileEditingService {
     required this.runShellWrapper,
     required this.promptMergeDialog,
     required this.launchLocalApp,
+    this.uiAdapter,
     this.onOpenEditorTab,
   });
 
@@ -31,6 +33,7 @@ class FileEditingService {
   })
   promptMergeDialog;
   final Future<void> Function(String path) launchLocalApp;
+  final ExplorerUiAdapter? uiAdapter;
   final Future<void> Function(String path, String initialContent)?
   onOpenEditorTab;
 
@@ -53,12 +56,9 @@ class FileEditingService {
         await onOpenEditorTab!(path, contents);
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Inline editor unavailable. Open via editor tab instead.',
-          ),
-        ),
+      _showSnackBar(
+        context,
+        'Inline editor unavailable. Open via editor tab instead.',
       );
     } catch (error, stackTrace) {
       AppLogger().warn(
@@ -70,9 +70,7 @@ class FileEditingService {
       if (!context.mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to edit file: $error')));
+      _showSnackBar(context, 'Failed to edit file: $error');
     }
   }
 
@@ -107,12 +105,9 @@ class FileEditingService {
       if (!context.mounted) {
         return localSession;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Opened local copy: ${session.workingPath}. Edit then press Sync.',
-          ),
-        ),
+      _showSnackBar(
+        context,
+        'Opened local copy: ${session.workingPath}. Edit then press Sync.',
       );
       return localSession;
     } catch (error, stackTrace) {
@@ -125,9 +120,7 @@ class FileEditingService {
       if (!context.mounted) {
         return null;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to open locally: $error')));
+      _showSnackBar(context, 'Failed to open locally: $error');
       return null;
     }
   }
@@ -157,19 +150,17 @@ class FileEditingService {
         if (!context.mounted) {
           return;
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Synced ${session.remotePath} to remote host'),
-          ),
+        _showSnackBar(
+          context,
+          'Synced ${session.remotePath} to remote host',
         );
       } else if (localContents == baseContents) {
         await workingFile.writeAsString(remoteContents);
         await snapshotFile.writeAsString(remoteContents);
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Remote changes pulled for ${session.remotePath}'),
-            ),
+          _showSnackBar(
+            context,
+            'Remote changes pulled for ${session.remotePath}',
           );
         }
       } else {
@@ -187,10 +178,9 @@ class FileEditingService {
           session.lastSynced = DateTime.now();
           onSynced(session);
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Merged and synced ${session.remotePath}'),
-              ),
+            _showSnackBar(
+              context,
+              'Merged and synced ${session.remotePath}',
             );
           }
         }
@@ -203,9 +193,7 @@ class FileEditingService {
         stackTrace: stackTrace,
       );
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to sync: $error')));
+        _showSnackBar(context, 'Failed to sync: $error');
       }
     }
   }
@@ -239,8 +227,9 @@ class FileEditingService {
       await workingFile.writeAsString(nextWorking);
       await File(session.snapshotPath).writeAsString(remoteContents);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Cache refreshed for ${session.remotePath}')),
+        _showSnackBar(
+          context,
+          'Cache refreshed for ${session.remotePath}',
         );
       }
     } catch (error, stackTrace) {
@@ -251,9 +240,7 @@ class FileEditingService {
         stackTrace: stackTrace,
       );
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to refresh cache: $error')),
-        );
+        _showSnackBar(context, 'Failed to refresh cache: $error');
       }
     }
   }
@@ -267,8 +254,17 @@ class FileEditingService {
     if (!context.mounted) {
       return;
     }
+    _showSnackBar(
+      context,
+      'Cleared cached copy for ${session.remotePath}',
+    );
+  }
+
+  void _showSnackBar(BuildContext context, String message) {
+    uiAdapter?.showSnackBar(message);
+    if (!context.mounted || uiAdapter != null) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Cleared cached copy for ${session.remotePath}')),
+      SnackBar(content: Text(message)),
     );
   }
 

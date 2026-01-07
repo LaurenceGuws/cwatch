@@ -18,6 +18,9 @@ import 'delete_operations_handler.dart';
 import 'desktop_drag_source.dart';
 import 'drag_types.dart';
 import 'explorer_clipboard.dart';
+import 'explorer_ops.dart';
+import 'explorer_state.dart';
+import 'explorer_ui_adapter.dart';
 import 'external_app_launcher.dart';
 import 'file_editing_service.dart';
 import 'file_entry_list.dart';
@@ -58,13 +61,16 @@ class FileExplorerController extends ChangeNotifier {
   onOpenEditorTab;
 
   final RemoteEditorCache cache = RemoteEditorCache();
+  final ExplorerState state = ExplorerState();
   late final SelectionController selectionController;
   late final PathLoadingService _pathLoadingService;
+  late final ExplorerOps _ops;
   late final FileOperationsService fileOpsService;
   late final FileEditingService fileEditingService;
   late final DeleteOperationsHandler deleteHandler;
   late final ClipboardOperationsHandler clipboardHandler;
   late final SshAuthHandler _sshAuthHandler;
+  late final ExplorerUiAdapter _uiAdapter;
   final DesktopDragSource? dragSource = createDesktopDragSource();
   bool _osDragActive = false;
   String? _activeDragTempDir;
@@ -79,40 +85,20 @@ class FileExplorerController extends ChangeNotifier {
   late final VoidCallback _cutEventListener;
   late final VoidCallback _trashRestoreListener;
 
-  final List<RemoteFileEntry> entries = [];
-  final Map<String, LocalFileSession> localEdits = {};
-  final Set<String> syncingPaths = {};
-  final Set<String> refreshingPaths = {};
-  final Set<String> pathHistory = {'/'};
   final Set<String> _prefetchedPaths = {};
-  bool searchActive = false;
-  String searchQuery = '';
-  String searchInclude = '';
-  String searchExclude = '';
-  bool searchMatchCase = false;
-  bool searchMatchWholeWord = false;
-  bool searchContents = false;
-  bool showRowHeightControl = false;
-  double rowHeight = 36;
-  int _searchGeneration = 0;
-  RemoteCommandCancellation? _searchCancellation;
-
   String currentPath = '/';
-  bool loading = true;
-  String? error;
-  bool showBreadcrumbs = true;
   bool _initialized = false;
   late final VoidCallback _settingsListener;
 
   void setShowRowHeightControl(bool value) {
-    if (showRowHeightControl == value) return;
-    showRowHeightControl = value;
+    if (state.showRowHeightControl == value) return;
+    state.showRowHeightControl = value;
     notifyListeners();
   }
 
   void setShowBreadcrumbs(bool value) {
-    if (showBreadcrumbs == value) return;
-    showBreadcrumbs = value;
+    if (state.showBreadcrumbs == value) return;
+    state.showBreadcrumbs = value;
     settingsController.update(
       (current) => current.copyWith(explorerShowBreadcrumbs: value),
     );
@@ -121,8 +107,8 @@ class FileExplorerController extends ChangeNotifier {
 
   void setRowHeight(double value) {
     final next = _sanitizeRowHeight(value);
-    if (rowHeight == next) return;
-    rowHeight = next;
+    if (state.rowHeight == next) return;
+    state.rowHeight = next;
     settingsController.update(
       (current) => current.copyWith(explorerRowHeight: next),
     );
@@ -133,12 +119,12 @@ class FileExplorerController extends ChangeNotifier {
     final nextRowHeight = _sanitizeRowHeight(settings.explorerRowHeight);
     final nextShowBreadcrumbs = settings.explorerShowBreadcrumbs;
     var changed = false;
-    if (rowHeight != nextRowHeight) {
-      rowHeight = nextRowHeight;
+    if (state.rowHeight != nextRowHeight) {
+      state.rowHeight = nextRowHeight;
       changed = true;
     }
-    if (showBreadcrumbs != nextShowBreadcrumbs) {
-      showBreadcrumbs = nextShowBreadcrumbs;
+    if (state.showBreadcrumbs != nextShowBreadcrumbs) {
+      state.showBreadcrumbs = nextShowBreadcrumbs;
       changed = true;
     }
     if (changed) {
@@ -161,6 +147,7 @@ class FileExplorerController extends ChangeNotifier {
       context: context,
       host: host,
     );
+    _uiAdapter = ExplorerUiAdapter(context: context);
     selectionController = SelectionController(
       currentPath: currentPath,
       joinPath: PathUtils.joinPath,
@@ -171,6 +158,20 @@ class FileExplorerController extends ChangeNotifier {
       cache: cache,
       runShellWrapper: _runShell,
     );
+    _ops = ExplorerOps(
+      state: state,
+      pathLoadingService: _pathLoadingService,
+      selectionController: selectionController,
+      onPathChanged: onPathChanged,
+      notify: notifyListeners,
+    )..onPrefetchError = (path, error, stackTrace) {
+        AppLogger().warn(
+          'Failed to prefetch path $path',
+          tag: 'Explorer',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      };
     fileOpsService = FileOperationsService(
       shellService: shellService,
       host: host,
@@ -178,6 +179,7 @@ class FileExplorerController extends ChangeNotifier {
       trashManager: trashManager,
       runShellWrapper: _runShell,
       explorerContext: explorerContext,
+      uiAdapter: _uiAdapter,
     );
     fileEditingService = FileEditingService(
       shellService: shellService,
@@ -186,6 +188,7 @@ class FileExplorerController extends ChangeNotifier {
       runShellWrapper: _runShell,
       promptMergeDialog: promptMergeDialog,
       launchLocalApp: ExternalAppLauncher.launch,
+      uiAdapter: _uiAdapter,
       onOpenEditorTab: onOpenEditorTab,
     );
     deleteHandler = DeleteOperationsHandler(
@@ -194,12 +197,14 @@ class FileExplorerController extends ChangeNotifier {
       trashManager: trashManager,
       runShellWrapper: _runShell,
       explorerContext: explorerContext,
+      uiAdapter: _uiAdapter,
     );
     clipboardHandler = ClipboardOperationsHandler(
       host: host,
       currentPath: currentPath,
       explorerContext: explorerContext,
       shellService: shellService,
+      uiAdapter: _uiAdapter,
     );
     _clipboardListener = notifyListeners;
     _cutEventListener = () {
@@ -242,8 +247,8 @@ class FileExplorerController extends ChangeNotifier {
     final home = await _runShell(() => shellService.homeDirectory(host))
         .catchError((error) {
           if (error is CancelledExplorerOperation) {
-            loading = false;
-            error = 'Unlock cancelled';
+            state.loading = false;
+            state.error = 'Unlock cancelled';
             notifyListeners();
             return '';
           }
@@ -253,7 +258,7 @@ class FileExplorerController extends ChangeNotifier {
       return;
     }
     final targetPath = preferredPath ?? (home.isNotEmpty ? home : '/');
-    pathHistory
+    state.pathHistory
       ..clear()
       ..add(targetPath);
     await loadPath(targetPath);
@@ -264,233 +269,62 @@ class FileExplorerController extends ChangeNotifier {
     bool forceReload = false,
     bool keepSearchActive = false,
   }) async {
-    if (searchActive && !keepSearchActive) {
-      searchActive = false;
-      searchQuery = '';
-    }
-    final result = await _pathLoadingService.loadPath(
+    _ops.currentPath = currentPath;
+    await _ops.loadPath(
       path,
-      currentPath,
+      currentPath: currentPath,
       forceReload: forceReload,
-      isLoading: loading,
+      keepSearchActive: keepSearchActive,
     );
-    if (result.skipped) {
-      return;
-    }
-    loading = true;
-    error = null;
-    notifyListeners();
-
-    if (result.error != null) {
-      loading = false;
-      error = result.error;
-      notifyListeners();
-      return;
-    }
-    if (result.entries == null) {
-      return;
-    }
-    entries
-      ..clear()
-      ..addAll(result.entries!);
-    currentPath = result.target;
-    selectionController.currentPath = result.target;
-    clipboardHandler.currentPath = result.target;
-    loading = false;
-    pathHistory.add(currentPath);
-    selectionController.clearSelection();
-    for (final entry in result.entries!) {
-      if (entry.isDirectory && entry.name != '.' && entry.name != '..') {
-        pathHistory.add(PathUtils.joinPath(currentPath, entry.name));
-      }
-    }
-    onPathChanged?.call(currentPath);
-    notifyListeners();
-
-    if (result.allEntries != null) {
-      final updates = await _pathLoadingService.hydrateCachedSessions(
-        result.allEntries!,
-        result.target,
-      );
-      if (updates.isNotEmpty) {
-        localEdits.addAll(updates);
-        notifyListeners();
-      }
-    }
+    currentPath = _ops.currentPath;
+    clipboardHandler.currentPath = currentPath;
   }
 
   Future<void> refreshCurrentPath() async {
-    final result = await _pathLoadingService.refreshPath(currentPath, entries);
-    if (result.skipped || result.entries == null) {
-      return;
-    }
-    if (result.error != null) {
-      return;
-    }
-    entries
-      ..clear()
-      ..addAll(result.entries!);
-    for (final entry in result.entries!) {
-      if (entry.isDirectory && entry.name != '.' && entry.name != '..') {
-        pathHistory.add(PathUtils.joinPath(currentPath, entry.name));
-      }
-    }
-    notifyListeners();
-
-    if (result.allEntries != null) {
-      final updates = await _pathLoadingService.hydrateCachedSessions(
-        result.allEntries!,
-        currentPath,
-      );
-      if (updates.isNotEmpty) {
-        localEdits.addAll(updates);
-        notifyListeners();
-      }
-    }
+    _ops.currentPath = currentPath;
+    await _ops.refreshCurrentPath();
   }
 
   Future<void> setSearchActive(bool value) async {
-    if (searchActive == value) {
-      return;
-    }
-    searchActive = value;
-    searchQuery = '';
-    if (!searchActive) {
-      searchContents = false;
-    }
-    if (!searchActive) {
-      await loadPath(currentPath, forceReload: true);
-      return;
-    }
-    notifyListeners();
+    _ops.currentPath = currentPath;
+    await _ops.setSearchActive(value);
   }
 
   Future<void> searchCurrentPath(String query) async {
-    if (!searchActive) {
-      return;
-    }
-    searchQuery = query;
-    if (query.trim().isEmpty) {
-      await loadPath(currentPath, forceReload: true, keepSearchActive: true);
-      return;
-    }
-    _searchCancellation?.cancel();
-    _searchCancellation = RemoteCommandCancellation();
-    loading = true;
-    error = null;
-    entries.clear();
-    selectionController.clearSelection();
-    notifyListeners();
-
-    final generation = ++_searchGeneration;
-    final streamedKeys = <String>{};
-    void handleEntry(RemoteFileEntry entry) {
-      if (generation != _searchGeneration) {
-        return;
-      }
-      final key = '${entry.isDirectory ? 'd' : 'f'}:${entry.name}';
-      if (!streamedKeys.add(key)) {
-        return;
-      }
-      entries.add(entry);
-      notifyListeners();
-    }
-
-    final result = await _pathLoadingService.searchPath(
-      currentPath,
-      query,
-      currentPath: currentPath,
-      includePattern: searchInclude,
-      excludePattern: searchExclude,
-      matchCase: searchMatchCase,
-      matchWholeWord: searchMatchWholeWord,
-      searchContents: searchContents,
-      onEntry: handleEntry,
-      cancellation: _searchCancellation,
-    );
-    if (generation != _searchGeneration) {
-      return;
-    }
-    _searchCancellation = null;
-    if (result.error != null) {
-      loading = false;
-      error = result.error;
-      notifyListeners();
-      return;
-    }
-    if (result.entries == null) {
-      return;
-    }
-    entries
-      ..clear()
-      ..addAll(result.entries!);
-    loading = false;
-    notifyListeners();
+    _ops.currentPath = currentPath;
+    await _ops.searchCurrentPath(query);
   }
 
   void setSearchQuery(String query) {
-    if (searchQuery == query) {
-      return;
-    }
-    searchQuery = query;
-    notifyListeners();
+    _ops.setSearchQuery(query);
   }
 
   void cancelSearch() {
-    if (!loading) {
-      return;
-    }
-    _searchCancellation?.cancel();
-    _searchCancellation = null;
-    _searchGeneration++;
-    loading = false;
-    error = null;
-    notifyListeners();
+    _ops.cancelSearch();
   }
 
   void setSearchInclude(String value) {
-    if (searchInclude == value) {
-      return;
-    }
-    searchInclude = value;
-    notifyListeners();
+    _ops.setSearchInclude(value);
   }
 
   void setSearchExclude(String value) {
-    if (searchExclude == value) {
-      return;
-    }
-    searchExclude = value;
-    notifyListeners();
+    _ops.setSearchExclude(value);
   }
 
   void toggleSearchMatchCase() {
-    searchMatchCase = !searchMatchCase;
-    notifyListeners();
+    _ops.toggleSearchMatchCase();
   }
 
   void toggleSearchMatchWholeWord() {
-    searchMatchWholeWord = !searchMatchWholeWord;
-    notifyListeners();
+    _ops.toggleSearchMatchWholeWord();
   }
 
   void setSearchContents(bool value) {
-    if (searchContents == value) {
-      return;
-    }
-    searchContents = value;
-    notifyListeners();
+    _ops.setSearchContents(value);
   }
 
   List<RemoteFileEntry> currentSortedEntries() {
-    final sorted = [...entries];
-    sorted.sort((a, b) {
-      if (a.isDirectory == b.isDirectory) {
-        return a.name.compareTo(b.name);
-      }
-      return a.isDirectory ? -1 : 1;
-    });
-    return sorted;
+    return _ops.currentSortedEntries();
   }
 
   Future<T> runShell<T>(Future<T> Function() action) => _runShell(action);
@@ -505,31 +339,31 @@ class FileExplorerController extends ChangeNotifier {
 
   void markSyncing(String path, {required bool syncing}) {
     if (syncing) {
-      syncingPaths.add(path);
+      state.syncingPaths.add(path);
     } else {
-      syncingPaths.remove(path);
+      state.syncingPaths.remove(path);
     }
     notifyListeners();
   }
 
   void markRefreshing(String path, {required bool refreshing}) {
     if (refreshing) {
-      refreshingPaths.add(path);
+      state.refreshingPaths.add(path);
     } else {
-      refreshingPaths.remove(path);
+      state.refreshingPaths.remove(path);
     }
     notifyListeners();
   }
 
   void updateLocalEdit(LocalFileSession session) {
-    localEdits[session.remotePath] = session;
+    state.localEdits[session.remotePath] = session;
     notifyListeners();
   }
 
   void removeLocalEdit(LocalFileSession session) {
-    localEdits.remove(session.remotePath);
-    syncingPaths.remove(session.remotePath);
-    refreshingPaths.remove(session.remotePath);
+    state.localEdits.remove(session.remotePath);
+    state.syncingPaths.remove(session.remotePath);
+    state.refreshingPaths.remove(session.remotePath);
     notifyListeners();
   }
 
@@ -542,34 +376,12 @@ class FileExplorerController extends ChangeNotifier {
   }
 
   Future<void> _prefetchPath(String path) async {
-    if (path.trim().isEmpty) {
-      return;
-    }
-    final target = PathUtils.normalizePath(path, currentPath: currentPath);
-    if (_prefetchedPaths.contains(target)) {
-      return;
-    }
-    _prefetchedPaths.add(target);
-    try {
-      final entries = await _pathLoadingService.listPath(
-        target,
-        currentPath: currentPath,
-      );
-      pathHistory.add(target);
-      for (final entry in entries) {
-        if (entry.isDirectory && entry.name != '.' && entry.name != '..') {
-          pathHistory.add(PathUtils.joinPath(target, entry.name));
-        }
-      }
-      notifyListeners();
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Failed to prefetch path $path',
-        tag: 'Explorer',
-        error: error,
-        stackTrace: stackTrace,
-      );
-    }
+    _ops.currentPath = currentPath;
+    await _ops.prefetchPath(
+      path,
+      currentPath: currentPath,
+      prefetchedPaths: _prefetchedPaths,
+    );
   }
 
   bool isSelfDragDrop({
@@ -629,14 +441,11 @@ class FileExplorerController extends ChangeNotifier {
   }) async {
     final source = dragSource;
     if (source == null || !source.isSupported) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Drag-out not supported on this OS')),
-        );
-      }
+      _uiAdapter.showDragNotSupported();
       return;
     }
     if (entriesToDrag.isEmpty) {
+      _uiAdapter.showNothingToDrag();
       return;
     }
     _osDragActive = true;
@@ -688,11 +497,7 @@ class FileExplorerController extends ChangeNotifier {
         return !File(item.localPath).existsSync();
       });
       if (staged.isEmpty) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Nothing to drag')));
-        }
+        _uiAdapter.showNothingToDrag();
         return;
       }
       if (!context.mounted) {
@@ -706,9 +511,7 @@ class FileExplorerController extends ChangeNotifier {
       if (!context.mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Drag started. Drop to copy/move.')),
-      );
+      _uiAdapter.showDragStarted();
     } finally {
       _osDragActive = false;
       _activeDragTempDir = null;

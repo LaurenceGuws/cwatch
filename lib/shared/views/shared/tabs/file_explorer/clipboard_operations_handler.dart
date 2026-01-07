@@ -4,6 +4,7 @@ import '../../../../../models/explorer_context.dart';
 import '../../../../../models/remote_file_entry.dart';
 import '../../../../../models/ssh_host.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
+import 'explorer_ui_adapter.dart';
 import 'explorer_clipboard.dart';
 import 'path_utils.dart';
 
@@ -14,12 +15,14 @@ class ClipboardOperationsHandler {
     required this.currentPath,
     required this.explorerContext,
     required this.shellService,
+    this.uiAdapter,
   });
 
   final SshHost host;
   String currentPath;
   final ExplorerContext explorerContext;
   final RemoteShellService shellService;
+  final ExplorerUiAdapter? uiAdapter;
 
   /// Set clipboard entry for a single file/folder
   void setClipboardEntry(
@@ -38,14 +41,11 @@ class ClipboardOperationsHandler {
         shellService: shellService,
       ),
     );
-    ScaffoldMessenger.of(buildContext).showSnackBar(
-      SnackBar(
-        content: Text(
-          operation == ExplorerClipboardOperation.copy
-              ? 'Copied ${entry.name}'
-              : 'Cut ${entry.name}',
-        ),
-      ),
+    _showSnackBar(
+      buildContext,
+      operation == ExplorerClipboardOperation.copy
+          ? 'Copied ${entry.name}'
+          : 'Cut ${entry.name}',
     );
   }
 
@@ -71,19 +71,23 @@ class ClipboardOperationsHandler {
     }).toList();
 
     ExplorerClipboard.setEntries(clipboardEntries);
-    if (!buildContext.mounted) return;
-    ScaffoldMessenger.of(buildContext).showSnackBar(
-      SnackBar(
-        content: Text(
-          operation == ExplorerClipboardOperation.copy
-              ? entries.length == 1
-                    ? 'Copied ${entries.first.name}'
-                    : 'Copied ${entries.length} items'
-              : entries.length == 1
-              ? 'Cut ${entries.first.name}'
-              : 'Cut ${entries.length} items',
-        ),
-      ),
+    _showSnackBar(
+      buildContext,
+      operation == ExplorerClipboardOperation.copy
+          ? entries.length == 1
+                ? 'Copied ${entries.first.name}'
+                : 'Copied ${entries.length} items'
+          : entries.length == 1
+          ? 'Cut ${entries.first.name}'
+          : 'Cut ${entries.length} items',
+    );
+  }
+
+  void _showSnackBar(BuildContext context, String message) {
+    uiAdapter?.showSnackBar(message);
+    if (!context.mounted || uiAdapter != null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 }

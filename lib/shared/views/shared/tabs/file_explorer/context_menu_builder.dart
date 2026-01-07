@@ -24,6 +24,7 @@ class ContextMenuBuilder {
     required this.onUploadFiles,
     required this.onUploadFolder,
     this.onOpenTerminal,
+    this.onMessage,
     required this.joinPath,
   });
 
@@ -46,6 +47,7 @@ class ContextMenuBuilder {
   final ValueChanged<String>? onUploadFiles;
   final ValueChanged<String>? onUploadFolder;
   final ValueChanged<String>? onOpenTerminal;
+  final ValueChanged<String>? onMessage;
   final String Function(String, String) joinPath;
 
   static const _shortcutCopy = 'Ctrl+C';
@@ -251,11 +253,11 @@ class ContextMenuBuilder {
               .map((e) => joinPath(currentPath, e.name))
               .join('\n');
           await Clipboard.setData(ClipboardData(text: paths));
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Copied ${selectedEntries.length} paths')),
-            );
-          }
+          if (!context.mounted) return;
+          _showSnackBar(
+            context,
+            'Copied ${selectedEntries.length} paths',
+          );
         }
         break;
       case ExplorerContextAction.openLocally:
@@ -321,6 +323,14 @@ class ContextMenuBuilder {
         }
         break;
     }
+  }
+
+  void _showSnackBar(BuildContext context, String message) {
+    onMessage?.call(message);
+    if (!context.mounted || onMessage != null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 }
 

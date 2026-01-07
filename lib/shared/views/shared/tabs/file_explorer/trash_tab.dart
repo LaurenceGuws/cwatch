@@ -10,7 +10,7 @@ import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
 import '../../../../../services/ssh/builtin/builtin_ssh_key_service.dart';
 import '../../../../../shared/theme/app_theme.dart';
-import '../../../../../shared/widgets/dialog_keyboard_shortcuts.dart';
+import 'explorer_ui_adapter.dart';
 import 'ssh_auth_handler.dart';
 
 class TrashTab extends StatefulWidget {
@@ -78,6 +78,12 @@ class _TrashTabState extends State<TrashTab> {
   bool _unlockInProgress = false;
   final Map<String, Future<String?>> _pendingPassphrasePrompts = {};
 
+  void _showSnackBar(String message) {
+    ExplorerUiAdapter(context: context).showSnackBar(message);
+  }
+
+  ExplorerUiAdapter get _uiAdapter => ExplorerUiAdapter(context: context);
+
   Future<T> _runShell<T>(Future<T> Function() action) async {
     if (widget.keyService == null) {
       return action();
@@ -123,9 +129,7 @@ class _TrashTabState extends State<TrashTab> {
           service.setBuiltInKeyPassphrase(error.keyId, passphrase);
         }
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Passphrase stored for $keyLabel.')),
-          );
+          _showSnackBar('Passphrase stored for $keyLabel.');
         }
         continue;
       } on BuiltInSshKeyUnsupportedCipher catch (error) {
@@ -137,12 +141,8 @@ class _TrashTabState extends State<TrashTab> {
         final keyLabel = error.keyLabel ?? error.keyId;
         final detail = error.error.message ?? error.error.toString();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Key $keyLabel uses an unsupported cipher ($detail).',
-              ),
-            ),
+          _showSnackBar(
+            'Key $keyLabel uses an unsupported cipher ($detail).',
           );
         }
         rethrow;
@@ -164,11 +164,7 @@ class _TrashTabState extends State<TrashTab> {
           service.setIdentityPassphrase(error.identityPath, passphrase);
         }
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Passphrase stored for ${error.identityPath}.'),
-            ),
-          );
+          _showSnackBar('Passphrase stored for ${error.identityPath}.');
         }
         continue;
       } on BuiltInSshAuthenticationFailed catch (error) {
@@ -178,14 +174,9 @@ class _TrashTabState extends State<TrashTab> {
           error: error,
         );
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'SSH authentication failed for ${error.hostName}. '
-                'Check your key configuration in settings.',
-              ),
-              duration: const Duration(seconds: 5),
-            ),
+          _showSnackBar(
+            'SSH authentication failed for ${error.hostName}. '
+            'Check your key configuration in settings.',
           );
         }
         rethrow;
@@ -207,9 +198,7 @@ class _TrashTabState extends State<TrashTab> {
       final initial = await service.unlock(keyId, password: null);
       if (initial.status == BuiltInSshKeyUnlockStatus.unlocked) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Key unlocked for this session.')),
-          );
+          _showSnackBar('Key unlocked for this session.');
           AppLogger().debug('Unlock succeeded for key $keyId', tag: 'Trash');
         }
         return true;
@@ -223,26 +212,20 @@ class _TrashTabState extends State<TrashTab> {
       final result = await service.unlock(keyId, password: password);
       if (result.status == BuiltInSshKeyUnlockStatus.unlocked) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Key unlocked for this session.')),
-          );
+          _showSnackBar('Key unlocked for this session.');
           AppLogger().debug('Unlock succeeded for key $keyId', tag: 'Trash');
         }
         return true;
       }
       final message = result.message ?? 'Incorrect password for that key.';
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(message)));
+        _showSnackBar(message);
       }
       AppLogger().warn('Unlock failed for key $keyId: $message', tag: 'Trash');
       return false;
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to unlock key: $error')));
+        _showSnackBar('Failed to unlock key: $error');
       }
       AppLogger().warn(
         'Unlock failed for key $keyId',
@@ -257,37 +240,11 @@ class _TrashTabState extends State<TrashTab> {
   }
 
   Future<String?> _showUnlockDialog(String keyId) async {
-    final controller = TextEditingController();
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) {
-        return DialogKeyboardShortcuts(
-          onCancel: () => Navigator.of(context).pop(null),
-          onConfirm: () => Navigator.of(context).pop(controller.text.trim()),
-          child: AlertDialog(
-            title: Text('Unlock key $keyId'),
-            content: TextField(
-              controller: controller,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Password'),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(null),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () =>
-                    Navigator.of(context).pop(controller.text.trim()),
-                child: const Text('Unlock'),
-              ),
-            ],
-          ),
-        );
-      },
+    return _uiAdapter.showTextInputDialog(
+      title: 'Unlock key $keyId',
+      label: 'Password',
+      submitLabel: 'Unlock',
     );
-    controller.dispose();
-    return result?.isNotEmpty == true ? result : null;
   }
 
   Future<String?> _awaitPassphraseInput(String host, String path) {
@@ -321,37 +278,11 @@ class _TrashTabState extends State<TrashTab> {
   }
 
   Future<String?> _promptPassphrase(String host, String path) async {
-    final controller = TextEditingController();
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) {
-        return DialogKeyboardShortcuts(
-          onCancel: () => Navigator.of(context).pop(null),
-          onConfirm: () => Navigator.of(context).pop(controller.text.trim()),
-          child: AlertDialog(
-            title: Text('Passphrase for $host ($path)'),
-            content: TextField(
-              controller: controller,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Passphrase'),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(null),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () =>
-                    Navigator.of(context).pop(controller.text.trim()),
-                child: const Text('Submit'),
-              ),
-            ],
-          ),
-        );
-      },
+    return _uiAdapter.showTextInputDialog(
+      title: 'Passphrase for $host ($path)',
+      label: 'Passphrase',
+      submitLabel: 'Submit',
     );
-    controller.dispose();
-    return result?.isNotEmpty == true ? result : null;
   }
 
   @override
@@ -437,9 +368,7 @@ class _TrashTabState extends State<TrashTab> {
   Future<void> _deleteEntry(TrashedEntry entry) async {
     await widget.manager.deleteEntry(entry);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Deleted ${entry.displayName} permanently')),
-    );
+    _showSnackBar('Deleted ${entry.displayName} permanently');
   }
 
   Future<void> _restoreEntry(TrashedEntry entry) async {
@@ -464,10 +393,8 @@ class _TrashTabState extends State<TrashTab> {
         tag: 'Trash',
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Restored ${entry.displayName} to ${entry.remotePath}'),
-        ),
+      _showSnackBar(
+        'Restored ${entry.displayName} to ${entry.remotePath}',
       );
     } catch (error) {
       if (error is CancelledTrashOperation) return;
@@ -477,9 +404,7 @@ class _TrashTabState extends State<TrashTab> {
         error: error,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Restore failed: $error')));
+      _showSnackBar('Restore failed: $error');
     }
   }
 

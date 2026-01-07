@@ -36,6 +36,7 @@ class ExternalAppLauncher {
   static Future<void> openConfigFile(
     String sourcePath,
     BuildContext context,
+    {void Function(String)? onError}
   ) async {
     try {
       final editor = Platform.environment['EDITOR']?.trim();
@@ -106,6 +107,10 @@ class ExternalAppLauncher {
         error: error,
         stackTrace: stackTrace,
       );
+      if (onError != null) {
+        onError('Failed to open editor: $error');
+        return;
+      }
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
