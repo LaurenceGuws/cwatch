@@ -1,9 +1,14 @@
 #include "my_application.h"
 
+#include <limits.h>
+#include <unistd.h>
+
 #include <flutter_linux/flutter_linux.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
+#include <glib.h>
 
 #include "flutter/generated_plugin_registrant.h"
 
@@ -13,6 +18,23 @@ struct _MyApplication {
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
+
+static gchar* _resolve_asset_icon_path(const gchar* filename) {
+  gchar exe_path[PATH_MAX];
+  ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+  gchar* icon_path = nullptr;
+  if (len > 0) {
+    exe_path[len] = '\0';
+    gchar* bundle_dir = g_path_get_dirname(exe_path);
+    icon_path = g_build_filename(bundle_dir, "data", "flutter_assets",
+        "assets", "media", "tray", filename, nullptr);
+    g_free(bundle_dir);
+  } else {
+    icon_path = g_build_filename("data", "flutter_assets",
+        "assets", "media", "tray", filename, nullptr);
+  }
+  return icon_path;
+}
 
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView *view)
@@ -25,6 +47,22 @@ static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
+
+  gchar* icon_path = _resolve_asset_icon_path("logo_tray_256.png");
+  if (!g_file_test(icon_path, G_FILE_TEST_EXISTS)) {
+    g_warning("App icon missing at %s", icon_path);
+  } else {
+    g_autoptr(GError) icon_error = nullptr;
+    g_autoptr(GdkPixbuf) icon_pixbuf =
+        gdk_pixbuf_new_from_file(icon_path, &icon_error);
+    if (icon_pixbuf != nullptr) {
+      gtk_window_set_default_icon(icon_pixbuf);
+      gtk_window_set_icon(window, icon_pixbuf);
+    } else {
+      g_warning("Failed to load app icon: %s", icon_error->message);
+    }
+  }
+  g_free(icon_path);
 
   // Use a header bar when running in GNOME as this is the common style used
   // by applications and is the setup most users will be using (e.g. Ubuntu

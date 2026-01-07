@@ -676,21 +676,29 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
               message: entry.isEncrypted
                   ? 'Lock this key to remove it from memory'
                   : 'Plaintext storage is a security risk. Encrypt this key to protect it.',
-              child: ElevatedButton(
+              child: TextButton(
                 onPressed: entry.isEncrypted
                     ? () => _lockKey(entry.id)
                     : () => _encryptKey(entry.id),
-                style: ElevatedButton.styleFrom(
+                style: TextButton.styleFrom(
                   foregroundColor: entry.isEncrypted
                       ? null
                       : Colors.orange.shade700,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: Text(entry.isEncrypted ? 'Lock key' : 'Encrypt key'),
+                child: Text(entry.isEncrypted ? 'Lock' : 'Encrypt'),
               ),
             )
           else
-            ElevatedButton(
+            TextButton(
               onPressed: () => _unlockKey(entry.id),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
               child: const Text('Unlock'),
             ),
           IconButton(

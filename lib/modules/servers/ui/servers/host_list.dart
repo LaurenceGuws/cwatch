@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:cwatch/models/custom_ssh_host.dart';
 
 import 'package:cwatch/models/ssh_host.dart';
+import 'package:cwatch/modules/servers/ui/servers/add_server_dialog.dart';
+import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/distro_icons.dart';
@@ -23,6 +25,7 @@ class HostList extends StatefulWidget {
     required this.onSelect,
     required this.onActivate,
     required this.settingsController,
+    required this.keyService,
     required this.onHostsChanged,
     required this.onAddServer,
     this.onOpenConnectivity,
@@ -36,6 +39,7 @@ class HostList extends StatefulWidget {
   final ValueChanged<SshHost>? onSelect;
   final ValueChanged<SshHost>? onActivate;
   final AppSettingsController settingsController;
+  final BuiltInSshKeyService keyService;
   final VoidCallback onHostsChanged;
   final ValueChanged<List<String>> onAddServer;
   final ValueChanged<SshHost>? onOpenConnectivity;
@@ -306,6 +310,7 @@ class _HostListState extends State<HostList> {
       (item) => item is CustomSshHost || item.source == 'custom',
     );
     final singleSelection = selection.length == 1;
+    final isCustom = host.source == 'custom';
 
     return [
       StructuredDataMenuAction<SshHost>(
@@ -342,6 +347,38 @@ class _HostListState extends State<HostList> {
         enabled: singleSelection,
         onSelected: (_, primary) => widget.onOpenPortForward?.call(primary),
       ),
+      if (singleSelection && isCustom)
+        StructuredDataMenuAction<SshHost>(
+          label: 'Edit server',
+          icon: Icons.edit_outlined,
+          onSelected: (_, primary) async {
+            final customHost = widget.settingsController.settings.customSshHosts
+                .firstWhere((h) => h.name == primary.name);
+            final otherNames = widget.settingsController.settings.customSshHosts
+                .where((h) => h.name != primary.name)
+                .map((h) => h.name)
+                .toList();
+            final result = await showDialog<CustomSshHost>(
+              context: context,
+              builder: (context) => AddServerDialog(
+                initialHost: customHost,
+                keyService: widget.keyService,
+                existingNames: otherNames,
+              ),
+            );
+            if (result != null && mounted) {
+              final current = widget.settingsController.settings;
+              final updated = [...current.customSshHosts];
+              final idx = updated.indexWhere((h) => h.name == customHost.name);
+              if (idx != -1) {
+                updated[idx] = result;
+                widget.settingsController.update(
+                  (s) => s.copyWith(customSshHosts: updated),
+                );
+              }
+            }
+          },
+        ),
       StructuredDataMenuAction<SshHost>(
         label: 'Connectivity',
         icon: NerdIcon.accessPoint.data,

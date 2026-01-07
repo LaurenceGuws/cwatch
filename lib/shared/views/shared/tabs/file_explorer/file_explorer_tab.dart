@@ -27,9 +27,11 @@ import 'file_explorer_controller.dart';
 import 'merge_conflict_dialog.dart';
 import 'file_entry_list.dart';
 import 'selection_controller.dart';
+import 'package:cwatch/modules/settings/ui/settings/explorer_settings_controls.dart';
 import 'path_navigator.dart';
 import 'path_utils.dart';
 import '../tab_chip.dart';
+import '../settings/floating_settings_window.dart';
 
 class FileExplorerTab extends StatefulWidget {
   FileExplorerTab({
@@ -72,6 +74,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
   final ScrollController _scrollController = ScrollController();
   bool _dropHover = false;
   String? _lastTimeoutNotification;
+  bool _showSettings = false;
 
   @override
   void initState() {
@@ -135,6 +138,13 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     _listFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _toggleSettings() {
+    setState(() {
+      _showSettings = !_showSettings;
+    });
+    _updateTabOptions();
   }
 
   @override
@@ -285,14 +295,27 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       },
       child: Focus(
         autofocus: true,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            Padding(
-              padding: EdgeInsets.only(bottom: spacing.sm),
-              child: _buildPathNavigator(context),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(bottom: spacing.sm),
+                  child: _buildPathNavigator(context),
+                ),
+                Expanded(child: dropWrapped),
+              ],
             ),
-            Expanded(child: dropWrapped),
+            if (_showSettings)
+              FloatingSettingsWindow(
+                title: 'Explorer Settings',
+                onClose: _toggleSettings,
+                child: ExplorerSettingsControls(
+                  settings: widget.settingsController.settings,
+                  settingsController: widget.settingsController,
+                ),
+              ),
           ],
         ),
       ),
@@ -992,21 +1015,6 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     );
     options.add(
       TabChipOption(
-        label: _controller.showRowHeightControl
-            ? 'Hide row zoom'
-            : 'Show row zoom',
-        icon: _controller.showRowHeightControl
-            ? Icons.zoom_out_map
-            : Icons.zoom_in_map,
-        onSelected: () {
-          _controller.setShowRowHeightControl(
-            !_controller.showRowHeightControl,
-          );
-        },
-      ),
-    );
-    options.add(
-      TabChipOption(
         label: 'Upload folder…',
         icon: Icons.folder,
         onSelected: () => _handleUploadFolder(_controller.currentPath),
@@ -1028,6 +1036,13 @@ class _FileExplorerTabState extends State<FileExplorerTab>
         ),
       );
     }
+    options.add(
+      TabChipOption(
+        label: _showSettings ? 'Hide settings' : 'Settings',
+        icon: Icons.settings,
+        onSelected: _toggleSettings,
+      ),
+    );
     queueTabOptions(controller, options, useBase: true);
   }
 }

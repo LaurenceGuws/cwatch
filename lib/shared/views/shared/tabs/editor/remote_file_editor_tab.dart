@@ -14,8 +14,10 @@ import '../../../../../shared/shortcuts/shortcut_service.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../theme/nerd_fonts.dart';
 import '../../../../mixins/tab_options_mixin.dart';
+import 'package:cwatch/modules/settings/ui/settings/editor_settings_controls.dart';
 import '../../../../widgets/dialog_keyboard_shortcuts.dart';
 import '../tab_chip.dart';
+import '../settings/floating_settings_window.dart';
 import 'remote_file_editor/code_editor_view.dart';
 import 'remote_file_editor/editor_state.dart';
 import 'remote_file_editor/editor_theme_utils.dart';
@@ -56,6 +58,7 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
   GestureSubscription? _gestureSub;
   late final VoidCallback _settingsListener;
   double? _scaleStartFontSize;
+  bool _showSettings = false;
 
   @override
   void initState() {
@@ -256,37 +259,25 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
         onSelected: _handleSave,
       ),
       TabChipOption(
-        label: _state.highlightEnabled
-            ? 'Disable highlighting'
-            : 'Enable highlighting',
-        icon: Icons.speed,
-        onSelected: _state.toggleHighlighting,
-      ),
-      TabChipOption(
-        label: _state.showLineNumbers
-            ? 'Hide line numbers'
-            : 'Show line numbers',
-        icon: Icons.format_list_numbered,
-        onSelected: _state.toggleLineNumbers,
-      ),
-      TabChipOption(
         label: 'File info',
         icon: Icons.info_outline,
         onSelected: () => _showFileInfo(context),
       ),
       TabChipOption(
-        label: 'Theme',
-        icon: Icons.palette,
-        onSelected: () => _showThemeDialog(context),
-      ),
-      TabChipOption(
-        label: 'Language',
-        icon: Icons.code,
-        onSelected: () => _showLanguageDialog(context),
+        label: _showSettings ? 'Hide settings' : 'Settings',
+        icon: Icons.settings,
+        onSelected: _toggleSettings,
       ),
     ];
 
     queueTabOptions(widget.optionsController, options, useBase: true);
+  }
+
+  void _toggleSettings() {
+    setState(() {
+      _showSettings = !_showSettings;
+    });
+    _updateTabOptions();
   }
 
   @override
@@ -306,22 +297,75 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
     final spacing = context.appTheme.spacing;
     return Padding(
       padding: spacing.inset(horizontal: 2, vertical: 1),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Stack(
         children: [
-          Expanded(
-            child: _wrapWithGestures(
-              CodeEditorView(
-                controller: _state.controller,
-                focusNode: _state.editorFocusNode,
-                baseTextStyle: baseTextStyle,
-                themeStyles: theme,
-                showLineNumbers: _state.showLineNumbers,
-                highlightEnabled: _state.highlightEnabled,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _wrapWithGestures(
+                  CodeEditorView(
+                    controller: _state.controller,
+                    focusNode: _state.editorFocusNode,
+                    baseTextStyle: baseTextStyle,
+                    themeStyles: theme,
+                    showLineNumbers: _state.showLineNumbers,
+                    highlightEnabled: _state.highlightEnabled,
+                  ),
+                  inputMode,
+                ),
               ),
-              inputMode,
-            ),
+            ],
           ),
+          if (_showSettings)
+            FloatingSettingsWindow(
+              title: 'Editor Settings',
+              onClose: _toggleSettings,
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    title: const Text('Syntax Highlighting'),
+                    value: _state.highlightEnabled,
+                    onChanged: (_) => _state.toggleHighlighting(),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  SwitchListTile(
+                    title: const Text('Line Numbers'),
+                    value: _state.showLineNumbers,
+                    onChanged: (_) => _state.toggleLineNumbers(),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  const Divider(),
+                  EditorSettingsControls(
+                    fontFamily: settings.editorFontFamily,
+                    fontSize: settings.editorFontSize,
+                    lineHeight: settings.editorLineHeight,
+                    lightTheme: settings.editorThemeLight,
+                    darkTheme: settings.editorThemeDark,
+                    onFontFamilyChanged: (value) =>
+                        widget.settingsController.update(
+                          (s) => s.copyWith(editorFontFamily: value),
+                        ),
+                    onFontSizeChanged: (value) =>
+                        widget.settingsController.update(
+                          (s) => s.copyWith(editorFontSize: value),
+                        ),
+                    onLineHeightChanged: (value) =>
+                        widget.settingsController.update(
+                          (s) => s.copyWith(editorLineHeight: value),
+                        ),
+                    onLightThemeChanged: (value) =>
+                        widget.settingsController.update(
+                          (s) => s.copyWith(editorThemeLight: value),
+                        ),
+                    onDarkThemeChanged: (value) =>
+                        widget.settingsController.update(
+                          (s) => s.copyWith(editorThemeDark: value),
+                        ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

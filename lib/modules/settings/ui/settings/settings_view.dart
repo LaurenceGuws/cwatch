@@ -210,7 +210,10 @@ class _SettingsViewState extends State<SettingsView>
                                     current.copyWith(dockerLogsTail: value),
                               ),
                         ),
-                        KubernetesSettingsTab(),
+                        KubernetesSettingsTab(
+                          settings: settings,
+                          settingsController: widget.controller,
+                        ),
                         TerminalSettingsTab(
                           settings: settings,
                           settingsController: widget.controller,

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../models/app_settings.dart';
@@ -15,6 +16,7 @@ class WindowChromeService {
           defaultTargetPlatform == TargetPlatform.windows);
 
   bool _initialized = false;
+  bool _iconApplied = false;
 
   Future<void> ensureInitialized(AppSettings settings) async {
     if (_initialized || !_isDesktop) return;
@@ -27,6 +29,7 @@ class WindowChromeService {
     await windowManager.waitUntilReadyToShow(options, () async {
       await windowManager.show();
       await windowManager.focus();
+      await _applyAppIcon();
       _initialized = true;
     });
   }
@@ -49,5 +52,19 @@ class WindowChromeService {
         await windowManager.setAsFrameless();
       }
     }
+  }
+
+  Future<void> _applyAppIcon() async {
+    if (_iconApplied || !(Platform.isLinux || Platform.isWindows)) {
+      return;
+    }
+    const assetPath = 'assets/media/tray/logo_tray_256.png';
+    final bytes = await rootBundle.load(assetPath);
+    final iconFile = File(
+      '${Directory.systemTemp.path}/cwatch_app_icon_256.png',
+    );
+    await iconFile.writeAsBytes(bytes.buffer.asUint8List(), flush: true);
+    await windowManager.setIcon(iconFile.path);
+    _iconApplied = true;
   }
 }

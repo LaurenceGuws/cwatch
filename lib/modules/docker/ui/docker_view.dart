@@ -29,9 +29,11 @@ import 'widgets/docker_engine_picker.dart';
 import 'widgets/remote_scan_dialog.dart';
 import '../services/docker_container_shell_service.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
+import 'package:cwatch/shared/views/shared/tabs/settings/floating_settings_window.dart';
 import 'docker_tab_factory.dart';
 import 'docker_workspace_controller.dart';
 import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
+import 'package:cwatch/modules/settings/ui/settings/docker_settings_controls.dart';
 
 class DockerView extends StatefulWidget {
   const DockerView({
@@ -86,33 +88,81 @@ class _DockerViewState extends State<DockerView> {
       ValueNotifier<List<SshHost>>(const []);
   final ValueNotifier<List<RemoteDockerStatus>> _scanStatusesNotifier =
       ValueNotifier<List<RemoteDockerStatus>>(const []);
-  final ValueNotifier<bool> _scanningNotifier = ValueNotifier<bool>(false);
-  List<RemoteDockerStatus> _cachedReady = const [];
-
-  List<EngineTab> get _tabs => _tabController.tabs;
-  int get _selectedIndex => _tabController.selectedIndex;
-  void _replaceBaseTab(EngineTab tab) {
-    final selectedId = _tabs.isEmpty
-        ? null
-        : _tabs[_selectedIndex.clamp(0, _tabs.length - 1)].id;
-    if (_tabController.tabs.isEmpty) {
-      _tabController.addTab(tab);
-    } else {
-      _tabRegistry.remove(_tabController.tabs.first);
-      _tabController.replaceBaseTab(tab);
-    }
-    _tabRegistry.widgetFor(tab, () => tab.body);
-    if (selectedId != null) {
-      final restoredIndex = _tabs.indexWhere((t) => t.id == selectedId);
-      if (restoredIndex != -1) {
-        _tabController.select(restoredIndex);
+    final ValueNotifier<bool> _scanningNotifier = ValueNotifier<bool>(false);
+    List<RemoteDockerStatus> _cachedReady = const [];
+    bool _showListSettings = false;
+  
+      List<EngineTab> get _tabs => _tabController.tabs;
+      int get _selectedIndex => _tabController.selectedIndex;
+    
+            void _toggleListSettings() {
+    
+              setState(() {
+    
+                _showListSettings = !_showListSettings;
+    
+              });
+    
+              _refreshPickerTabs();
+    
+            }
+    
+      
+    
+        void _replaceBaseTab(EngineTab tab) {
+    
+          final selectedId = _tabs.isEmpty
+    
+              ? null
+    
+              : _tabs[_selectedIndex.clamp(0, _tabs.length - 1)].id;
+    
+          if (_tabController.tabs.isEmpty) {
+    
+            _tabController.addTab(tab);
+    
+          } else {
+    
+            _tabRegistry.remove(_tabController.tabs.first);
+    
+            _tabController.replaceBaseTab(tab);
+    
+          }
+    
+          _tabRegistry.widgetFor(tab, () => tab.body);
+    
+          if (selectedId != null) {
+    
+            final restoredIndex = _tabs.indexWhere((t) => t.id == selectedId);
+    
+            if (restoredIndex != -1) {
+    
+              _tabController.select(restoredIndex);
+    
+            }
+    
+          }
+    
+        }
+    
+      
+    
+        void _syncPickerOptions(EngineTab tab) {
+      final options = <TabChipOption>[
+        TabChipOption(
+          label: _showListSettings ? 'Hide list settings' : 'List settings',
+          icon: Icons.settings,
+          onSelected: _toggleListSettings,
+        ),
+      ];
+      final controller = tab.optionsController;
+      if (controller != null) {
+        controller.update(options);
       }
     }
-  }
-
-  @override
-  void initState() {
-    super.initState();
+  
+    @override
+    void initState() {    super.initState();
     _contextsFuture = _loadContexts();
     _tabController = TabHostController<EngineTab>(
       baseTabBuilder: () => _enginePickerTab(),
@@ -178,6 +228,7 @@ class _DockerViewState extends State<DockerView> {
 
   EngineTab _enginePickerTab({String? id}) {
     final tabId = id ?? _uniqueId();
+    final optionsController = TabOptionsController();
     final tab = EngineTab(
       id: tabId,
       title: 'Docker Engines',
@@ -186,20 +237,51 @@ class _DockerViewState extends State<DockerView> {
       canDrag: false,
       isPicker: true,
       workspaceState: TabState(id: tabId, kind: DockerTabKind.picker.name),
-      body: EnginePicker(
-        tabId: tabId,
-        contextsFuture: _contextsFuture,
-        cachedReady: _cachedReady,
-        remoteStatusFuture: _remoteStatusFuture,
-        remoteScanRequested: _remoteScanRequested,
-        onRefreshContexts: _refreshContexts,
-        onScanRemotes: _scanRemotes,
-        onOpenContext: (contextName, anchor) =>
-            _openContextDashboard(tabId, contextName, anchor),
-        onOpenHost: (host, anchor) => _openHostDashboard(tabId, host, anchor),
-        settingsController: widget.settingsController,
+      optionsController: optionsController,
+      body: Stack(
+        children: [
+          EnginePicker(
+            tabId: tabId,
+            contextsFuture: _contextsFuture,
+            cachedReady: _cachedReady,
+            remoteStatusFuture: _remoteStatusFuture,
+            remoteScanRequested: _remoteScanRequested,
+            onRefreshContexts: _refreshContexts,
+            onScanRemotes: _scanRemotes,
+            onOpenContext: (contextName, anchor) =>
+                _openContextDashboard(tabId, contextName, anchor),
+            onOpenHost: (host, anchor) =>
+                _openHostDashboard(tabId, host, anchor),
+            settingsController: widget.settingsController,
+          ),
+          if (_showListSettings)
+            FloatingSettingsWindow(
+              title: 'Docker List Settings',
+              onClose: _toggleListSettings,
+              child: Column(
+                children: [
+                  ListTile(
+                    title: const Text('Scan for remote engines'),
+                    leading: const Icon(Icons.radar),
+                    onTap: () {
+                      _scanRemotes();
+                      _toggleListSettings(); // Close settings after triggering scan
+                    },
+                  ),
+                  const Divider(),
+                  DockerSettingsControls(
+                    logsTail: widget.settingsController.settings.dockerLogsTail,
+                    onLogsTailChanged: (value) => widget.settingsController.update(
+                      (s) => s.copyWith(dockerLogsTail: value),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
+    _syncPickerOptions(tab);
     _tabStates[tab.id] = TabState(id: tab.id, kind: DockerTabKind.picker.name);
     return tab;
   }

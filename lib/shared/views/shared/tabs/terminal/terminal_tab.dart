@@ -19,8 +19,10 @@ import '../../../../../shared/shortcuts/input_mode_resolver.dart';
 import '../../../../../shared/gestures/gesture_activators.dart';
 import '../../../../../shared/gestures/gesture_service.dart';
 import '../../../../../shared/theme/app_theme.dart';
+import 'package:cwatch/modules/settings/ui/settings/terminal_settings_controls.dart';
 import '../../../../../shared/widgets/style_picker_dialog.dart';
 import '../../../../theme/nerd_fonts.dart';
+import '../settings/floating_settings_window.dart';
 import '../tab_chip.dart';
 import 'terminal_theme_presets.dart';
 
@@ -67,6 +69,7 @@ class _TerminalTabState extends State<TerminalTab> {
   ShortcutSubscription? _shortcutSub;
   GestureSubscription? _gestureSub;
   late final VoidCallback _settingsListener;
+  bool _showSettings = false;
 
   @override
   void initState() {
@@ -250,9 +253,9 @@ class _TerminalTabState extends State<TerminalTab> {
         onSelected: _startSession,
       ),
       TabChipOption(
-        label: 'Theme',
-        icon: Icons.palette,
-        onSelected: () => _showThemeDialog(context),
+        label: _showSettings ? 'Hide settings' : 'Settings',
+        icon: Icons.settings,
+        onSelected: _toggleSettings,
       ),
     ];
     final controller = widget.optionsController;
@@ -261,6 +264,13 @@ class _TerminalTabState extends State<TerminalTab> {
     } else {
       controller?.update(options);
     }
+  }
+
+  void _toggleSettings() {
+    setState(() {
+      _showSettings = !_showSettings;
+    });
+    _updateTabOptions();
   }
 
   Future<void> _showThemeDialog(BuildContext context) async {
@@ -495,60 +505,106 @@ class _TerminalTabState extends State<TerminalTab> {
                 ),
               );
             }
-            return SizedBox(
-              width: double.infinity,
-              child: Actions(
-                actions: {
-                  _OpenScrollbackIntent: CallbackAction<_OpenScrollbackIntent>(
-                    onInvoke: (intent) {
-                      _openScrollbackInEditor();
-                      return null;
+            return Stack(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: Actions(
+                    actions: {
+                      _OpenScrollbackIntent: CallbackAction<_OpenScrollbackIntent>(
+                        onInvoke: (intent) {
+                          _openScrollbackInEditor();
+                          return null;
+                        },
+                      ),
                     },
-                  ),
-                },
-                child: GestureDetector(
-                  onLongPressStart: inputMode.enableGestures
-                      ? (details) => _handleLongPress(details.globalPosition)
-                      : null,
-                  onTap: _isMobile ? _enableMobileFocus : null,
-                  onScaleStart: _isMobile
-                      ? (_) => _beginMobileGestureBlock()
-                      : null,
-                  onScaleEnd: _isMobile
-                      ? (_) => _endMobileGestureBlock()
-                      : null,
-                  child: TerminalView(
-                    _terminal,
-                    controller: _controller,
-                    focusNode: _focusNode,
-                    autofocus: !_isMobile,
-                    hardwareKeyboardOnly: !kIsWeb && !_isMobile,
-                    backgroundOpacity: 1,
-                    onKeyEvent: _handleTerminalKeyEvent,
-                    padding: EdgeInsets.symmetric(
-                      horizontal: settings.terminalPaddingX
-                          .clamp(0, 48)
-                          .toDouble(),
-                      vertical: settings.terminalPaddingY
-                          .clamp(0, 48)
-                          .toDouble(),
+                    child: GestureDetector(
+                      onLongPressStart: inputMode.enableGestures
+                          ? (details) => _handleLongPress(details.globalPosition)
+                          : null,
+                      onTap: _isMobile ? _enableMobileFocus : null,
+                      onScaleStart: _isMobile
+                          ? (_) => _beginMobileGestureBlock()
+                          : null,
+                      onScaleEnd: _isMobile
+                          ? (_) => _endMobileGestureBlock()
+                          : null,
+                      child: TerminalView(
+                        _terminal,
+                        controller: _controller,
+                        focusNode: _focusNode,
+                        autofocus: !_isMobile,
+                        hardwareKeyboardOnly: !kIsWeb && !_isMobile,
+                        backgroundOpacity: 1,
+                        onKeyEvent: _handleTerminalKeyEvent,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: settings.terminalPaddingX
+                              .clamp(0, 48)
+                              .toDouble(),
+                          vertical: settings.terminalPaddingY
+                              .clamp(0, 48)
+                              .toDouble(),
+                        ),
+                        alwaysShowCursor: true,
+                        deleteDetection:
+                            defaultTargetPlatform == TargetPlatform.android ||
+                            defaultTargetPlatform == TargetPlatform.iOS,
+                        textStyle: _textStyle(settings),
+                        theme: _terminalTheme(context, settings),
+                        minFontSize: 8,
+                        maxFontSize: 32,
+                        enablePinchZoom: inputMode.enableGestures,
+                        onFontSizeChange: _handlePinchZoom,
+                        shortcuts: _terminalShortcuts(settings),
+                        onSecondaryTapDown: (details, _) =>
+                            _showContextMenu(details.globalPosition),
+                      ),
                     ),
-                    alwaysShowCursor: true,
-                    deleteDetection:
-                        defaultTargetPlatform == TargetPlatform.android ||
-                        defaultTargetPlatform == TargetPlatform.iOS,
-                    textStyle: _textStyle(settings),
-                    theme: _terminalTheme(context, settings),
-                    minFontSize: 8,
-                    maxFontSize: 32,
-                    enablePinchZoom: inputMode.enableGestures,
-                    onFontSizeChange: _handlePinchZoom,
-                    shortcuts: _terminalShortcuts(settings),
-                    onSecondaryTapDown: (details, _) =>
-                        _showContextMenu(details.globalPosition),
                   ),
                 ),
-              ),
+                if (_showSettings)
+                  FloatingSettingsWindow(
+                    title: 'Terminal Settings',
+                    onClose: _toggleSettings,
+                    child: TerminalSettingsControls(
+                      fontFamily: settings.terminalFontFamily,
+                      fontSize: settings.terminalFontSize,
+                      lineHeight: settings.terminalLineHeight,
+                      paddingX: settings.terminalPaddingX,
+                      paddingY: settings.terminalPaddingY,
+                      darkTheme: settings.terminalThemeDark,
+                      lightTheme: settings.terminalThemeLight,
+                      onFontFamilyChanged: (value) =>
+                          widget.settingsController.update(
+                            (s) => s.copyWith(terminalFontFamily: value),
+                          ),
+                      onFontSizeChanged: (value) =>
+                          widget.settingsController.update(
+                            (s) => s.copyWith(terminalFontSize: value),
+                          ),
+                      onLineHeightChanged: (value) =>
+                          widget.settingsController.update(
+                            (s) => s.copyWith(terminalLineHeight: value),
+                          ),
+                      onPaddingXChanged: (value) =>
+                          widget.settingsController.update(
+                            (s) => s.copyWith(terminalPaddingX: value),
+                          ),
+                      onPaddingYChanged: (value) =>
+                          widget.settingsController.update(
+                            (s) => s.copyWith(terminalPaddingY: value),
+                          ),
+                      onDarkThemeChanged: (value) =>
+                          widget.settingsController.update(
+                            (s) => s.copyWith(terminalThemeDark: value),
+                          ),
+                      onLightThemeChanged: (value) =>
+                          widget.settingsController.update(
+                            (s) => s.copyWith(terminalThemeLight: value),
+                          ),
+                    ),
+                  ),
+              ],
             );
           },
         );

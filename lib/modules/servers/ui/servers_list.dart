@@ -41,6 +41,9 @@ import 'package:cwatch/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/core/widgets/keep_alive.dart';
 import 'package:cwatch/core/tabs/tabbed_workspace_shell.dart';
 import 'package:cwatch/modules/servers/services/host_distro_key.dart';
+import 'package:cwatch/shared/views/shared/tabs/settings/floating_settings_window.dart';
+import 'package:cwatch/modules/settings/ui/settings/server_list_settings_controls.dart';
+import 'package:cwatch/modules/settings/ui/settings/ssh_settings_controls.dart';
 
 class ServersList extends StatefulWidget {
   const ServersList({
@@ -88,6 +91,19 @@ class _ServersListState extends State<ServersList> {
   String _pathsSignature = '';
   // String _workspaceSignature = '';
   ServerTabFactory get _tabFactory => _workspaceController.tabFactory;
+  bool _showListSettings = false;
+
+  void _toggleListSettings() {
+    setState(() {
+      _showListSettings = !_showListSettings;
+    });
+    
+    final emptyTabs = _tabController.tabs.where((t) => t.action == ServerAction.empty);
+    for (final tab in emptyTabs) {
+      _syncTabOverlayOptions(tab);
+    }
+    _refreshHostSelectionTabs();
+  }
 
   Future<List<SshHost>> _loadHosts() async {
     final settings = widget.settingsController.settings;
@@ -385,7 +401,7 @@ class _ServersListState extends State<ServersList> {
     ValueChanged<SshHost>? onHostSelected,
     ValueChanged<SshHost>? onHostActivate,
   }) {
-    return ValueListenableBuilder<Future<List<SshHost>>>(
+    final selection = ValueListenableBuilder<Future<List<SshHost>>>(
       valueListenable: _hostsFutureNotifier,
       builder: (context, hostsFuture, _) {
         return FutureBuilder<List<SshHost>>(
@@ -409,6 +425,7 @@ class _ServersListState extends State<ServersList> {
               onSelect: onHostSelected,
               onActivate: onHostActivate ?? _startActionFlowForHost,
               settingsController: widget.settingsController,
+              keyService: widget.keyService,
               onOpenConnectivity: (host) =>
                   _addTab(host, ServerAction.connectivity),
               onOpenResources: (host) => _addTab(host, ServerAction.resources),
@@ -426,6 +443,35 @@ class _ServersListState extends State<ServersList> {
           },
         );
       },
+    );
+
+    if (!_showListSettings) {
+      return selection;
+    }
+
+    return Stack(
+      children: [
+        selection,
+        FloatingSettingsWindow(
+          title: 'Server List Settings',
+          onClose: _toggleListSettings,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ServerListSettingsControls(
+                settings: widget.settingsController.settings,
+                settingsController: widget.settingsController,
+              ),
+              const Divider(),
+              SshSettingsControls(
+                controller: widget.settingsController,
+                hostsFuture: _hostsFuture,
+                keyService: widget.keyService,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -713,6 +759,11 @@ class _ServersListState extends State<ServersList> {
         label: 'Reload server list',
         icon: NerdIcon.refresh.data,
         onSelected: _reloadServerListView,
+      ),
+      TabChipOption(
+        label: _showListSettings ? 'Hide list settings' : 'List settings',
+        icon: Icons.settings,
+        onSelected: _toggleListSettings,
       ),
     ]);
   }

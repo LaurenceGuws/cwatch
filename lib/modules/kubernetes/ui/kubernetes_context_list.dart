@@ -26,6 +26,8 @@ import 'package:cwatch/core/widgets/keep_alive.dart';
 import 'package:cwatch/core/navigation/tab_navigation_registry.dart';
 import 'package:cwatch/core/navigation/command_palette_registry.dart';
 import 'package:cwatch/core/tabs/tab_bar_visibility.dart';
+import 'package:cwatch/shared/views/shared/tabs/settings/floating_settings_window.dart';
+import 'package:cwatch/modules/settings/ui/settings/kubernetes_settings_controls.dart';
 import 'widgets/kubernetes_resources.dart';
 import 'kubernetes_tab.dart';
 import 'kubernetes_tab_factory.dart';
@@ -68,8 +70,22 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   late final TabNavigationHandle _tabNavigator;
   late final CommandPaletteHandle _commandPaletteHandle;
   final Map<String, bool> _collapsedByConfigPath = {};
+  bool _showListSettings = false;
 
   List<KubernetesTab> get _tabs => _tabController.tabs;
+
+  void _toggleListSettings() {
+    setState(() {
+      _showListSettings = !_showListSettings;
+    });
+    
+    final placeholders = _tabs.where((t) => t.context == null).toList();
+    for (final tab in placeholders) {
+      _syncTabOptions(tab);
+      _tabRegistry.remove(tab);
+      _tabRegistry.widgetFor(tab, () => tab.body);
+    }
+  }
 
   @override
   void initState() {
@@ -405,6 +421,22 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
           ),
         );
       }
+    } else {
+      // Placeholder tab options
+      options.add(
+        TabChipOption(
+          label: 'Refresh contexts',
+          icon: NerdIcon.refresh.data,
+          onSelected: _refreshContexts,
+        ),
+      );
+      options.add(
+        TabChipOption(
+          label: _showListSettings ? 'Hide list settings' : 'List settings',
+          icon: Icons.settings,
+          onSelected: _toggleListSettings,
+        ),
+      );
     }
     final controller = tab.optionsController;
     if (controller is CompositeTabOptionsController) {
@@ -452,7 +484,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   }
 
   Widget _buildContextSelection() {
-    return FutureBuilder<List<KubeconfigContext>>(
+    final list = FutureBuilder<List<KubeconfigContext>>(
       future: _contextsFuture,
       builder: (context, snapshot) {
         final spacing = context.appTheme.spacing;
@@ -566,6 +598,51 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
           },
         );
       },
+    );
+
+    if (!_showListSettings) {
+      return list;
+    }
+
+    return Stack(
+      children: [
+        list,
+        FloatingSettingsWindow(
+          title: 'Kubernetes List Settings',
+          onClose: _toggleListSettings,
+          child: Column(
+            children: [
+              ListTile(
+                title: const Text('Collapse all sections'),
+                onTap: () {
+                  setState(() {
+                    for (final path in _cachedContexts.map((c) => c.configPath).toSet()) {
+                      _collapsedByConfigPath[path] = true;
+                    }
+                  });
+                },
+                trailing: const Icon(Icons.expand_less),
+                contentPadding: EdgeInsets.zero,
+              ),
+              ListTile(
+                title: const Text('Expand all sections'),
+                onTap: () {
+                  setState(() {
+                    _collapsedByConfigPath.clear();
+                  });
+                },
+                trailing: const Icon(Icons.expand_more),
+                contentPadding: EdgeInsets.zero,
+              ),
+              const Divider(),
+              KubernetesSettingsControls(
+                settings: widget.settingsController.settings,
+                settingsController: widget.settingsController,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
