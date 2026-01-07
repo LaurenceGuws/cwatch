@@ -52,9 +52,15 @@ class _ServersSettingsTabState extends State<ServersSettingsTab> {
         SettingsSection(
           title: 'List View',
           description: 'Customize how servers are displayed in the list.',
-          child: ServerListSettingsControls(
-            settings: settings,
-            settingsController: widget.controller,
+          child: FutureBuilder<List<SshHost>>(
+            future: widget.hostsFuture,
+            builder: (context, snapshot) {
+              return ServerListSettingsControls(
+                settings: settings,
+                settingsController: widget.controller,
+                hosts: snapshot.data,
+              );
+            },
           ),
         ),
         SettingsSection(

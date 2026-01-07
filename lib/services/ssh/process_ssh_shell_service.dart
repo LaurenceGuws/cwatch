@@ -60,7 +60,7 @@ class ProcessRemoteShellService extends RemoteShellService {
       );
       return parseLsOutput(run.stdout);
     } catch (error) {
-      AppLogger.remote(source: 'ssh', host: host).warn(
+      AppLogger.remote(tag: 'SSH', source: 'ssh', host: host).warn(
         'listDirectory failed',
         error: error,
         remote: RemoteCommandDetails(
@@ -238,7 +238,7 @@ class ProcessRemoteShellService extends RemoteShellService {
       );
       return output.isEmpty ? '/' : output;
     } catch (error, stackTrace) {
-      AppLogger.remote(source: 'ssh', host: host).warn(
+      AppLogger.remote(tag: 'SSH', source: 'ssh', host: host).warn(
         'homeDirectory failed',
         error: error,
         remote: RemoteCommandDetails(

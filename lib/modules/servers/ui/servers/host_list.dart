@@ -28,6 +28,8 @@ class HostList extends StatefulWidget {
     required this.keyService,
     required this.onHostsChanged,
     required this.onAddServer,
+    required this.showDisabledServers,
+    required this.onToggleDisabledServersVisibility,
     this.onOpenConnectivity,
     this.onOpenResources,
     this.onOpenTerminal,
@@ -42,6 +44,8 @@ class HostList extends StatefulWidget {
   final BuiltInSshKeyService keyService;
   final VoidCallback onHostsChanged;
   final ValueChanged<List<String>> onAddServer;
+  final bool showDisabledServers;
+  final VoidCallback onToggleDisabledServersVisibility;
   final ValueChanged<SshHost>? onOpenConnectivity;
   final ValueChanged<SshHost>? onOpenResources;
   final ValueChanged<SshHost>? onOpenTerminal;
@@ -131,6 +135,10 @@ class _HostListState extends State<HostList> {
                     widget.onHostsChanged();
                     return;
                   }
+                  if (value == 'toggleDisabled') {
+                    widget.onToggleDisabledServersVisibility();
+                    return;
+                  }
                   if (value == 'editConfig') {
                     ExternalAppLauncher.openConfigFile(source, context);
                   }
@@ -139,6 +147,14 @@ class _HostListState extends State<HostList> {
                   const PopupMenuItem<String>(
                     value: 'reloadHosts',
                     child: Text('Reload server list'),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'toggleDisabled',
+                    child: Text(
+                      widget.showDisabledServers
+                          ? 'Hide disabled servers'
+                          : 'Show disabled servers',
+                    ),
                   ),
                   PopupMenuItem<String>(
                     value: 'editConfig',
@@ -171,7 +187,7 @@ class _HostListState extends State<HostList> {
     );
   }
 
-  String _hostSelectionKey(SshHost host) => hostDistroCacheKey(host);
+  String _hostSelectionKey(SshHost host) => hostDisableKey(host);
 
   void _syncSelection(List<SshHost> hosts, List<SshHost> selected) {
     final tableKeys = hosts.map(_hostSelectionKey).toSet();
@@ -185,6 +201,33 @@ class _HostListState extends State<HostList> {
         .where((host) => _selectedHostKeys.contains(_hostSelectionKey(host)))
         .toList();
     return selected.isEmpty ? [fallback] : selected;
+  }
+
+  Set<String> _disabledHostKeys() =>
+      widget.settingsController.settings.disabledServerHosts.toSet();
+
+  bool _matchesDisabledKey(SshHost host, Set<String> disabled) =>
+      disabled.any((key) => disabledKeyMatchesHost(key, host));
+
+  bool _isHostDisabled(SshHost host) =>
+      _matchesDisabledKey(host, _disabledHostKeys());
+
+  Future<void> _setHostsDisabled(List<SshHost> hosts, bool disabled) async {
+    final current = _disabledHostKeys();
+    final next = {...current}
+      ..removeWhere(
+        (key) => hosts.any((host) => disabledKeyMatchesHost(key, host)),
+      );
+    if (disabled) {
+      next.addAll(hosts.map(canonicalDisabledHostKey));
+    }
+    await widget.settingsController.update(
+      (settings) => settings.copyWith(disabledServerHosts: next.toList()),
+    );
+    AppLogger().debug(
+      '${disabled ? 'Disabled' : 'Enabled'} ${hosts.length} server(s)',
+      tag: 'ServersList',
+    );
   }
 
   Widget _buildHostTable(
@@ -202,7 +245,12 @@ class _HostListState extends State<HostList> {
       useZebraStripes: false,
       surfaceBackgroundColor: surfaceColor,
       onRowTap: (host) => widget.onSelect?.call(host),
-      onRowDoubleTap: (host) => widget.onActivate?.call(host),
+      onRowDoubleTap: (host) {
+        if (_isHostDisabled(host)) {
+          return;
+        }
+        widget.onActivate?.call(host);
+      },
       refreshListenable: widget.settingsController,
       rowContextMenuBuilder: _buildContextMenuActions,
       onSelectionChanged: (selectedRows) {
@@ -249,6 +297,7 @@ class _HostListState extends State<HostList> {
             .settings
             .serverDistroMap[hostDistroCacheKey(host)];
         final iconColor = colorForDistro(slug, context.appTheme);
+        final isDisabled = _isHostDisabled(host);
         return Row(
           children: [
             Tooltip(
@@ -273,11 +322,24 @@ class _HostListState extends State<HostList> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  Text(
-                    host.hostname,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(height: 1.0),
+                  Text.rich(
+                    TextSpan(
+                      text: host.hostname,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(height: 1.0),
+                      children: [
+                        if (isDisabled)
+                          TextSpan(
+                            text: ' · Disabled',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                  height: 1.0,
+                                ),
+                          ),
+                      ],
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -309,12 +371,14 @@ class _HostListState extends State<HostList> {
     );
     final singleSelection = selection.length == 1;
     final isCustom = host.source == 'custom';
+    final allDisabled = selection.isNotEmpty && selection.every(_isHostDisabled);
+    final selectionHasDisabled = selection.any(_isHostDisabled);
 
     return [
       StructuredDataMenuAction<SshHost>(
         label: 'Open terminal',
         icon: NerdIcon.terminal.data,
-        enabled: selection.isNotEmpty,
+        enabled: selection.isNotEmpty && !selectionHasDisabled,
         onSelected: (_, _) {
           for (final target in selection) {
             if (widget.onOpenTerminal != null) {
@@ -328,7 +392,7 @@ class _HostListState extends State<HostList> {
       StructuredDataMenuAction<SshHost>(
         label: 'Open file explorer',
         icon: NerdIcon.folderOpen.data,
-        enabled: selection.isNotEmpty,
+        enabled: selection.isNotEmpty && !selectionHasDisabled,
         onSelected: (_, _) {
           for (final target in selection) {
             if (widget.onOpenExplorer != null) {
@@ -342,7 +406,7 @@ class _HostListState extends State<HostList> {
       StructuredDataMenuAction<SshHost>(
         label: 'Port forwarding',
         icon: Icons.link,
-        enabled: singleSelection,
+        enabled: singleSelection && !selectionHasDisabled,
         onSelected: (_, primary) => widget.onOpenPortForward?.call(primary),
       ),
       if (singleSelection && isCustom)
@@ -380,7 +444,7 @@ class _HostListState extends State<HostList> {
       StructuredDataMenuAction<SshHost>(
         label: 'Connectivity',
         icon: NerdIcon.accessPoint.data,
-        enabled: selection.isNotEmpty,
+        enabled: selection.isNotEmpty && !selectionHasDisabled,
         onSelected: (_, _) {
           for (final target in selection) {
             widget.onOpenConnectivity?.call(target);
@@ -390,11 +454,19 @@ class _HostListState extends State<HostList> {
       StructuredDataMenuAction<SshHost>(
         label: 'Resources',
         icon: NerdIcon.database.data,
-        enabled: selection.isNotEmpty,
+        enabled: selection.isNotEmpty && !selectionHasDisabled,
         onSelected: (_, _) {
           for (final target in selection) {
             widget.onOpenResources?.call(target);
           }
+        },
+      ),
+      StructuredDataMenuAction<SshHost>(
+        label: allDisabled ? 'Enable server' : 'Disable server',
+        icon: allDisabled ? Icons.visibility : Icons.visibility_off,
+        enabled: selection.isNotEmpty,
+        onSelected: (_, _) async {
+          await _setHostsDisabled(selection, !allDisabled);
         },
       ),
       StructuredDataMenuAction<SshHost>(

@@ -4,6 +4,7 @@ import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/modules/servers/services/host_distro_key.dart';
 import 'package:cwatch/shared/services/distro_detector.dart';
+import 'package:cwatch/shared/services/host_shell_policy.dart';
 
 /// Responsible for deriving a lightweight distro ID for a remote host and
 /// persisting it so the UI can show a matching icon.
@@ -22,11 +23,25 @@ class HostDistroManager {
 
   bool hasCached(String key) => _cache.containsKey(key);
 
+  Set<String> _disabledHostKeys() =>
+      settingsController.settings.disabledServerHosts.toSet();
+
+  bool _isHostDisabled(SshHost host) {
+    final disabled = _disabledHostKeys();
+    return disabled.any((key) => disabledKeyMatchesHost(key, host));
+  }
+
   Future<void> ensureDistroForHost(
     SshHost host, {
     bool force = false,
     bool allowUnavailable = false,
   }) async {
+    if (isNoShellHost(host)) {
+      return;
+    }
+    if (_isHostDisabled(host)) {
+      return;
+    }
     if ((!allowUnavailable && !host.available) || host.hostname.isEmpty) {
       return;
     }
@@ -46,7 +61,11 @@ class HostDistroManager {
     try {
       AppLogger().debug('Detecting distro for ${host.name}', tag: 'Distro');
       final shell = shellFactory.forHost(host);
-      final remoteLogger = AppLogger.remote(source: 'ssh', host: host);
+      final remoteLogger = AppLogger.remote(
+        tag: 'Distro',
+        source: 'ssh',
+        host: host,
+      );
       final detector = DistroDetector((command, {timeout}) async {
         final effectiveTimeout = timeout ?? const Duration(seconds: 10);
         try {

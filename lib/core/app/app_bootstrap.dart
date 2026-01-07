@@ -18,7 +18,7 @@ Future<void> runAppBootstrap() async {
   await settingsController.load();
   AppLogger.configure(
     minLevel: settingsController.settings.debugMode
-        ? LogLevel.debug
+        ? LogLevel.trace
         : LogLevel.warning,
   );
   await ensureThemeExamples();

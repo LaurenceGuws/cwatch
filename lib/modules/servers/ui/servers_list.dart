@@ -44,6 +44,7 @@ import 'package:cwatch/modules/servers/services/host_distro_key.dart';
 import 'package:cwatch/shared/views/shared/tabs/settings/floating_settings_window.dart';
 import 'package:cwatch/modules/settings/ui/settings/server_list_settings_controls.dart';
 import 'package:cwatch/modules/settings/ui/settings/ssh_settings_controls.dart';
+import 'package:cwatch/shared/services/host_shell_policy.dart';
 
 class ServersList extends StatefulWidget {
   const ServersList({
@@ -89,9 +90,11 @@ class _ServersListState extends State<ServersList> {
   List<SshHost> _lastHosts = const [];
   String _customHostsSignature = '';
   String _pathsSignature = '';
+  String _disabledHostsSignature = '';
   // String _workspaceSignature = '';
   ServerTabFactory get _tabFactory => _workspaceController.tabFactory;
   bool _showListSettings = false;
+  bool _showDisabledServers = false;
 
   void _toggleListSettings() {
     setState(() {
@@ -356,6 +359,7 @@ class _ServersListState extends State<ServersList> {
     _tabController.addListener(_tabsListener);
     _customHostsSignature = _buildCustomHostsSignature();
     _pathsSignature = _buildPathsSignature();
+    _disabledHostsSignature = _buildDisabledHostsSignature();
     _settingsListener = _handleSettingsChanged;
     widget.settingsController.addListener(_settingsListener);
     _restoreWorkspace();
@@ -418,11 +422,21 @@ class _ServersListState extends State<ServersList> {
               return ErrorState(error: snapshot.error.toString());
             }
             final hosts = snapshot.data ?? cachedHosts;
-            final shellCapableHosts = hosts
-                .where((host) => !_isNoShellHost(host))
+            final disabledKeys = _disabledHostKeys();
+            final visibleHosts = _showDisabledServers
+                ? hosts
+                : hosts
+                    .where(
+                      (host) =>
+                          !_isHostDisabled(host, disabledKeys),
+                    )
+                    .toList();
+            final shellCapableHosts = visibleHosts
+                .where((host) => !isNoShellHost(host))
                 .toList();
             _trackHostDistroChecks(shellCapableHosts);
             return HostList(
+              key: ValueKey('host-list-${_showDisabledServers ? 'show' : 'hide'}'),
               hosts: shellCapableHosts,
               onSelect: onHostSelected,
               onActivate: onHostActivate ?? _startActionFlowForHost,
@@ -441,6 +455,15 @@ class _ServersListState extends State<ServersList> {
               },
               onAddServer: (existingNames) =>
                   _showAddServerDialog(context, existingNames),
+              showDisabledServers: _showDisabledServers,
+              onToggleDisabledServersVisibility: () {
+                setState(() => _showDisabledServers = !_showDisabledServers);
+                _refreshHostSelectionTabs();
+                AppLogger().debug(
+                  'Show disabled servers: $_showDisabledServers',
+                  tag: 'ServersList',
+                );
+              },
             );
           },
         );
@@ -463,6 +486,7 @@ class _ServersListState extends State<ServersList> {
               ServerListSettingsControls(
                 settings: widget.settingsController.settings,
                 settingsController: widget.settingsController,
+                hosts: _lastHosts,
               ),
               const Divider(),
               SshSettingsControls(
@@ -477,17 +501,18 @@ class _ServersListState extends State<ServersList> {
     );
   }
 
-  bool _isNoShellHost(SshHost host) {
-    final hostname = host.hostname.trim().toLowerCase();
-    return hostname == 'github.com' || hostname == 'bitbucket.org';
-  }
-
   void _trackHostDistroChecks(List<SshHost> hosts) {
     if (_didProbeHostDistro) {
       return;
     }
     _didProbeHostDistro = true;
     for (final host in hosts) {
+      if (isNoShellHost(host)) {
+        continue;
+      }
+      if (_isHostDisabled(host, _disabledHostKeys())) {
+        continue;
+      }
       final key = hostDistroCacheKey(host);
       final wasAvailable = _hostAvailability[key] ?? false;
       _hostAvailability[key] = host.available;
@@ -503,6 +528,12 @@ class _ServersListState extends State<ServersList> {
       }
     }
   }
+
+  Set<String> _disabledHostKeys() =>
+      widget.settingsController.settings.disabledServerHosts.toSet();
+
+  bool _isHostDisabled(SshHost host, Set<String> disabledKeys) =>
+      disabledKeys.any((key) => disabledKeyMatchesHost(key, host));
 
   void _openAddServerDialog() {
     final existingNames = _lastHosts.isNotEmpty
@@ -703,11 +734,14 @@ class _ServersListState extends State<ServersList> {
     }
     final nextCustomSignature = _buildCustomHostsSignature();
     final nextPathsSignature = _buildPathsSignature();
+    final nextDisabledSignature = _buildDisabledHostsSignature();
     final customHostsChanged = nextCustomSignature != _customHostsSignature;
     final pathsChanged = nextPathsSignature != _pathsSignature;
+    final disabledChanged = nextDisabledSignature != _disabledHostsSignature;
     if (pathsChanged) {
       _customHostsSignature = nextCustomSignature;
       _pathsSignature = nextPathsSignature;
+      _disabledHostsSignature = nextDisabledSignature;
       AppLogger().debug('ServersList hosts updated', tag: 'ServersList');
       _hostsFuture = _loadHosts();
       _hostsFutureNotifier.value = _hostsFuture;
@@ -719,11 +753,22 @@ class _ServersListState extends State<ServersList> {
         widget.settingsController.settings.customSshHosts,
       );
       _hostsFutureNotifier.value = _hostsFuture;
+    } else if (disabledChanged) {
+      _disabledHostsSignature = nextDisabledSignature;
+      _refreshHostSelectionTabs();
+      setState(() {});
     }
 
     _workspaceController.workspacePersistence.persistIfPending(
       _persistWorkspace,
     );
+  }
+
+  String _buildDisabledHostsSignature() {
+    final disabled = [
+      ...widget.settingsController.settings.disabledServerHosts,
+    ]..sort();
+    return disabled.join('|');
   }
 
   void _reloadServerListView() {

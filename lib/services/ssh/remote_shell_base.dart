@@ -55,7 +55,7 @@ abstract class RemoteShellService with RemotePathUtils {
     if (!debugMode) {
       return;
     }
-    AppLogger.remote(source: 'ssh', host: host).debug(
+    AppLogger.remote(tag: 'SSH', source: 'ssh', host: host).debug(
       operation,
       remote: RemoteCommandDetails(
         operation: operation,

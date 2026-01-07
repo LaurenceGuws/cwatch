@@ -30,6 +30,7 @@ class AppSettings {
     this.customSshHosts = const [],
     this.customSshConfigPaths = const [],
     this.disabledSshConfigPaths = const [],
+    this.disabledServerHosts = const [],
     this.serverDistroMap = const {},
     this.dockerDistroMap = const {},
     this.kubernetesConfigPaths = const [],
@@ -79,6 +80,7 @@ class AppSettings {
   final List<CustomSshHost> customSshHosts;
   final List<String> customSshConfigPaths;
   final List<String> disabledSshConfigPaths;
+  final List<String> disabledServerHosts;
   final Map<String, String> serverDistroMap;
   final Map<String, String> dockerDistroMap;
   final List<String> kubernetesConfigPaths;
@@ -130,6 +132,7 @@ class AppSettings {
     List<CustomSshHost>? customSshHosts,
     List<String>? customSshConfigPaths,
     List<String>? disabledSshConfigPaths,
+    List<String>? disabledServerHosts,
     Map<String, String>? serverDistroMap,
     Map<String, String>? dockerDistroMap,
     List<String>? kubernetesConfigPaths,
@@ -184,6 +187,7 @@ class AppSettings {
       customSshConfigPaths: customSshConfigPaths ?? this.customSshConfigPaths,
       disabledSshConfigPaths:
           disabledSshConfigPaths ?? this.disabledSshConfigPaths,
+      disabledServerHosts: disabledServerHosts ?? this.disabledServerHosts,
       serverDistroMap: serverDistroMap ?? this.serverDistroMap,
       dockerDistroMap: dockerDistroMap ?? this.dockerDistroMap,
       kubernetesConfigPaths:
@@ -288,6 +292,11 @@ class AppSettings {
           const [],
       disabledSshConfigPaths:
           (json['disabledSshConfigPaths'] as List<dynamic>?)
+              ?.whereType<String>()
+              .toList() ??
+          const [],
+      disabledServerHosts:
+          (json['disabledServerHosts'] as List<dynamic>?)
               ?.whereType<String>()
               .toList() ??
           const [],
@@ -412,6 +421,7 @@ class AppSettings {
       'customSshHosts': customSshHosts.map((h) => h.toJson()).toList(),
       'customSshConfigPaths': customSshConfigPaths,
       'disabledSshConfigPaths': disabledSshConfigPaths,
+      'disabledServerHosts': disabledServerHosts,
       'serverDistroMap': serverDistroMap,
       'dockerDistroMap': dockerDistroMap,
       'kubernetesConfigPaths': kubernetesConfigPaths,
