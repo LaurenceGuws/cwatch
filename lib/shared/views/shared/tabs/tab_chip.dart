@@ -293,10 +293,10 @@ class _TabChipState extends State<TabChip> {
                                     size: 16,
                                     color: widget.closable
                                         ? (widget.selected
-                                            ? closeColor
-                                            : (_hovering
-                                                ? closeColor
-                                                : foreground))
+                                              ? closeColor
+                                              : (_hovering
+                                                    ? closeColor
+                                                    : foreground))
                                         : foreground.withValues(alpha: 0.4),
                                   ),
                                 ),

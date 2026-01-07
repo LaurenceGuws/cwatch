@@ -1549,10 +1549,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
                   ),
                   const SizedBox(width: 10),
                   Flexible(
-                    child: Text(
-                      action.label,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    child: Text(action.label, overflow: TextOverflow.ellipsis),
                   ),
                 ],
               ),
@@ -2150,8 +2147,9 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
                   border: border,
                 ),
                 child: Column(
-                  mainAxisSize:
-                      widget.autoRowHeight ? MainAxisSize.min : MainAxisSize.max,
+                  mainAxisSize: widget.autoRowHeight
+                      ? MainAxisSize.min
+                      : MainAxisSize.max,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (widget.autoRowHeight)
@@ -2297,8 +2295,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
 
     final minFlexWidth = flexIndices.fold<double>(
       0,
-      (sum, index) =>
-          sum + max(_minColumnWidth, _columns[index].minWidth ?? 0),
+      (sum, index) => sum + max(_minColumnWidth, _columns[index].minWidth ?? 0),
     );
     final remainingForFlex = max(availableWidth - fixedWidth, minFlexWidth);
     final widths = <double>[];
@@ -2328,11 +2325,10 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
       final flexShare = totalFlex == 0
           ? remainingForFlex
           : remainingForFlex / totalFlex;
-      final target =
-          totalFlex == 0 ? remainingForFlex : flexShare * effectiveFlex;
-      widths.add(
-        max(_minColumnWidth, max(column.minWidth ?? 0, target)),
-      );
+      final target = totalFlex == 0
+          ? remainingForFlex
+          : flexShare * effectiveFlex;
+      widths.add(max(_minColumnWidth, max(column.minWidth ?? 0, target)));
     }
     if (widget.fitColumnsToWidth && widths.isNotEmpty) {
       final totalWidth = widths.fold<double>(0, (sum, width) => sum + width);
@@ -2444,26 +2440,26 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
           child: SizedBox(
             width: constraints.maxWidth,
             height: hasBoundedHeight ? constraints.maxHeight : null,
-          child: RawScrollbar(
-            controller: _verticalController,
-            thumbVisibility: false,
-            trackVisibility: false,
-            thickness: verticalScrollbarWidth,
-            radius: const Radius.circular(2),
-            scrollbarOrientation: ScrollbarOrientation.right,
-            padding: EdgeInsets.only(
-              bottom: widget.verticalScrollbarBottomInset,
+            child: RawScrollbar(
+              controller: _verticalController,
+              thumbVisibility: false,
+              trackVisibility: false,
+              thickness: verticalScrollbarWidth,
+              radius: const Radius.circular(2),
+              scrollbarOrientation: ScrollbarOrientation.right,
+              padding: EdgeInsets.only(
+                bottom: widget.verticalScrollbarBottomInset,
               ),
               notificationPredicate: (notification) =>
                   notification.metrics.axis == Axis.vertical,
-            child: Scrollbar(
-              controller: _horizontalController,
-              thumbVisibility: false,
-              trackVisibility: false,
-              scrollbarOrientation: ScrollbarOrientation.bottom,
-              thickness: horizontalScrollbarThickness,
-              notificationPredicate: (notification) =>
-                  notification.metrics.axis == Axis.horizontal,
+              child: Scrollbar(
+                controller: _horizontalController,
+                thumbVisibility: false,
+                trackVisibility: false,
+                scrollbarOrientation: ScrollbarOrientation.bottom,
+                thickness: horizontalScrollbarThickness,
+                notificationPredicate: (notification) =>
+                    notification.metrics.axis == Axis.horizontal,
                 child: SingleChildScrollView(
                   controller: _horizontalController,
                   scrollDirection: Axis.horizontal,
@@ -2492,8 +2488,7 @@ class _StructuredDataTableState<T> extends State<StructuredDataTable<T>> {
         primary: false,
         physics: const ClampingScrollPhysics(),
         itemExtent: widget.autoRowHeight ? null : widget.rowHeight + 1,
-        cacheExtent:
-            widget.autoRowHeight ? null : (widget.rowHeight + 1) * 20,
+        cacheExtent: widget.autoRowHeight ? null : (widget.rowHeight + 1) * 20,
         itemCount: _visibleRows.length,
         itemBuilder: (context, index) => Column(
           children: [

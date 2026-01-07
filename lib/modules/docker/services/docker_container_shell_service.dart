@@ -89,7 +89,6 @@ class DockerContainerShellService extends RemoteShellService {
 
     final commandBase = "cd '${escapeSingleQuotes(sanitized)}' &&";
     String dirOutput;
-    String fileOutput;
     final entries = <RemoteFileEntry>[];
     final now = DateTime.now();
     void addEntries(String output, {required bool isDirectory}) {
@@ -129,7 +128,7 @@ class DockerContainerShellService extends RemoteShellService {
       final filesCommand =
           "$commandBase find . $prunePrefix\\( ${buildPredicate('f', includeName: false)} \\) -exec grep $grepFlags -- '$escapedQuery' {} + 2>/dev/null || true";
       dirOutput = '';
-      fileOutput = await runCommandStreaming(
+      await runCommandStreaming(
         host,
         filesCommand,
         timeout: effectiveTimeout,
@@ -140,8 +139,9 @@ class DockerContainerShellService extends RemoteShellService {
         },
       );
     } else {
-      final printFlag =
-          onEntry != null ? "-exec printf '%s\\n' {} \\;" : '-print';
+      final printFlag = onEntry != null
+          ? "-exec printf '%s\\n' {} \\;"
+          : '-print';
       final dirsCommand =
           "$commandBase find . ${buildPredicate('d', includeName: true)} $printFlag 2>/dev/null || true";
       final filesCommand =
@@ -168,7 +168,6 @@ class DockerContainerShellService extends RemoteShellService {
       );
       final outputs = await Future.wait([dirFuture, fileFuture]);
       dirOutput = outputs[0];
-      fileOutput = outputs[1];
     }
     if (searchContents) {
       addEntries(dirOutput, isDirectory: true);
@@ -519,7 +518,6 @@ class LocalDockerContainerShellService extends RemoteShellService {
 
     final commandBase = "cd '${escapeSingleQuotes(sanitized)}' &&";
     String dirOutput;
-    String fileOutput;
     final entries = <RemoteFileEntry>[];
     final now = DateTime.now();
     void addEntries(String output, {required bool isDirectory}) {
@@ -559,7 +557,7 @@ class LocalDockerContainerShellService extends RemoteShellService {
       final filesCommand =
           "$commandBase find . $prunePrefix\\( ${buildPredicate('f', includeName: false)} \\) -exec grep $grepFlags -- '$escapedQuery' {} + 2>/dev/null || true";
       dirOutput = '';
-      fileOutput = await runCommandStreaming(
+      await runCommandStreaming(
         host,
         filesCommand,
         timeout: effectiveTimeout,
@@ -570,8 +568,9 @@ class LocalDockerContainerShellService extends RemoteShellService {
         },
       );
     } else {
-      final printFlag =
-          onEntry != null ? "-exec printf '%s\\n' {} \\;" : '-print';
+      final printFlag = onEntry != null
+          ? "-exec printf '%s\\n' {} \\;"
+          : '-print';
       final dirsCommand =
           "$commandBase find . ${buildPredicate('d', includeName: true)} $printFlag 2>/dev/null || true";
       final filesCommand =
@@ -598,7 +597,6 @@ class LocalDockerContainerShellService extends RemoteShellService {
       );
       final outputs = await Future.wait([dirFuture, fileFuture]);
       dirOutput = outputs[0];
-      fileOutput = outputs[1];
     }
     if (searchContents) {
       addEntries(dirOutput, isDirectory: true);

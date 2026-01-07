@@ -724,9 +724,7 @@ class _HomeShellState extends State<HomeShell>
         if (useCustomChrome) {
           contentPadding =
               contentPadding +
-              EdgeInsets.only(
-                top: _WindowControls.height + spacing.base * 1.5,
-              );
+              EdgeInsets.only(top: _WindowControls.height + spacing.base * 1.5);
         }
         if (showSidebar) {
           switch (_sidebarPlacement) {
@@ -1302,8 +1300,9 @@ class _NavigationButtonState extends State<_NavigationButton> {
         : Colors.transparent;
 
     final iconWidget = Icon(widget.icon.data, size: 30, color: iconColor);
-    final iconPadding =
-        widget.vertical ? const EdgeInsets.only(right: 4) : EdgeInsets.zero;
+    final iconPadding = widget.vertical
+        ? const EdgeInsets.only(right: 4)
+        : EdgeInsets.zero;
 
     final buttonWidth = widget.vertical ? _Sidebar.width : double.infinity;
     final button = InkWell(
@@ -1320,10 +1319,7 @@ class _NavigationButtonState extends State<_NavigationButton> {
                   Container(width: 4, height: 56, color: indicatorColor),
                   Expanded(
                     child: Center(
-                      child: Padding(
-                        padding: iconPadding,
-                        child: iconWidget,
-                      ),
+                      child: Padding(padding: iconPadding, child: iconWidget),
                     ),
                   ),
                 ],

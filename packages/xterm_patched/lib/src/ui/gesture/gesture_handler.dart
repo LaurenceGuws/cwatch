@@ -274,11 +274,11 @@ class _TerminalGestureHandlerState extends State<TerminalGestureHandler> {
     }
 
     renderTerminal.selectCharacters(
-      renderTerminal.getOffset(
-          _dragStartCell ??
-              renderTerminal
-                  .getCellOffset(_dragStartLocal ?? details.localPosition)),
-      renderTerminal.getOffset(renderTerminal.getCellOffset(details.localPosition)),
+      renderTerminal.getOffset(_dragStartCell ??
+          renderTerminal
+              .getCellOffset(_dragStartLocal ?? details.localPosition)),
+      renderTerminal
+          .getOffset(renderTerminal.getCellOffset(details.localPosition)),
     );
   }
 

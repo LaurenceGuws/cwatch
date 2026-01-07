@@ -32,11 +32,7 @@ class DebugLogsView extends StatelessWidget {
               leading: leading,
               enableWindowDrag: !settings.windowUseSystemDecorations,
             ),
-            Expanded(
-              child: _DebugLogsPanel(
-                debugEnabled: settings.debugMode,
-              ),
-            ),
+            Expanded(child: _DebugLogsPanel(debugEnabled: settings.debugMode)),
           ],
         );
       },
@@ -150,9 +146,8 @@ class _DebugLogsPanelState extends State<_DebugLogsPanel> {
                     label: '',
                     width: 44,
                     alignment: Alignment.topCenter,
-                    cellBuilder: (context, event) => _DetailsToggleCell(
-                      expanded: _expansionFor(event),
-                    ),
+                    cellBuilder: (context, event) =>
+                        _DetailsToggleCell(expanded: _expansionFor(event)),
                   ),
                   StructuredDataColumn<RemoteCommandDebugEvent>(
                     label: 'Level',
@@ -347,10 +342,7 @@ class _ActionCellState extends State<_ActionCell> {
       builder: (context, isExpanded, _) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            event.operation,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+          Text(event.operation, style: Theme.of(context).textTheme.bodySmall),
           if (isExpanded) ...[
             SizedBox(height: spacing.sm),
             if (event.command.isNotEmpty)
@@ -512,10 +504,7 @@ class _CollapsibleSection extends StatelessWidget {
                   color: scheme.primary,
                 ),
                 SizedBox(width: spacing.xs),
-                Text(
-                  label,
-                  style: Theme.of(context).textTheme.labelMedium,
-                ),
+                Text(label, style: Theme.of(context).textTheme.labelMedium),
               ],
             ),
           ),

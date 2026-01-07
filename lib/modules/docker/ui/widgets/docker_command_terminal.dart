@@ -884,9 +884,8 @@ class _ComposeLogsTerminalState extends State<ComposeLogsTerminal> {
                           const Text('Exclude selected'),
                           Switch(
                             value: dialogExcludeSelection,
-                            onChanged: (value) => setState(
-                              () => dialogExcludeSelection = value,
-                            ),
+                            onChanged: (value) =>
+                                setState(() => dialogExcludeSelection = value),
                           ),
                         ],
                       ),

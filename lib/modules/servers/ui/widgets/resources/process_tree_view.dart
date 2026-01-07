@@ -501,13 +501,13 @@ class ProcessTreeRow extends StatelessWidget {
               ),
             ),
             Expanded(
-          flex: _commandFlex,
-          child: Padding(
-            padding: EdgeInsets.only(left: spacing.sm),
-            child: Row(
-              children: [
-                if (row.isExpandable)
-                  GestureDetector(
+              flex: _commandFlex,
+              child: Padding(
+                padding: EdgeInsets.only(left: spacing.sm),
+                child: Row(
+                  children: [
+                    if (row.isExpandable)
+                      GestureDetector(
                         onTap: onToggleCollapse,
                         child: Icon(
                           row.isCollapsed
@@ -515,13 +515,13 @@ class ProcessTreeRow extends StatelessWidget {
                               : Icons.expand_more,
                           size: 16,
                           color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    )
-                  else
-                    SizedBox(width: spacing.xl),
-                if (prefix.isNotEmpty)
-                  Text(
-                    prefix,
+                        ),
+                      )
+                    else
+                      SizedBox(width: spacing.xl),
+                    if (prefix.isNotEmpty)
+                      Text(
+                        prefix,
                         style: textStyle?.copyWith(
                           color: theme.colorScheme.outline,
                         ),

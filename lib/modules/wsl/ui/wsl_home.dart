@@ -172,10 +172,7 @@ class _InfoCard extends StatelessWidget {
                 ),
                 SizedBox(height: spacing.md),
                 Text(message, style: theme.textTheme.bodyMedium),
-                if (action != null) ...[
-                  SizedBox(height: spacing.lg),
-                  action!,
-                ],
+                if (action != null) ...[SizedBox(height: spacing.lg), action!],
               ],
             ),
           ),

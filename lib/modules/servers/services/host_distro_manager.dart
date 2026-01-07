@@ -47,45 +47,49 @@ class HostDistroManager {
       AppLogger().debug('Detecting distro for ${host.name}', tag: 'Distro');
       final shell = shellFactory.forHost(host);
       final remoteLogger = AppLogger.remote(source: 'ssh', host: host);
-      final detector = DistroDetector(
-        (command, {timeout}) async {
-          final effectiveTimeout = timeout ?? const Duration(seconds: 10);
-          try {
-            final output = await shell.runCommand(
-              host,
-              command,
-              timeout: effectiveTimeout,
-            );
-            remoteLogger.trace(
-              'Distro probe',
-              remote: RemoteCommandDetails(
-                operation: 'distro probe',
-                command: command,
-                output: output.trim(),
-                contextLabel: host.name,
-              ),
-            );
-            return output;
-          } catch (error) {
-            remoteLogger.trace(
-              'Distro probe failed',
-              remote: RemoteCommandDetails(
-                operation: 'distro probe',
-                command: command,
-                output: 'Error: $error',
-                contextLabel: host.name,
-              ),
-            );
-            rethrow;
-          }
-        },
-      );
+      final detector = DistroDetector((command, {timeout}) async {
+        final effectiveTimeout = timeout ?? const Duration(seconds: 10);
+        try {
+          final output = await shell.runCommand(
+            host,
+            command,
+            timeout: effectiveTimeout,
+          );
+          remoteLogger.trace(
+            'Distro probe',
+            remote: RemoteCommandDetails(
+              operation: 'distro probe',
+              command: command,
+              output: output.trim(),
+              contextLabel: host.name,
+            ),
+          );
+          return output;
+        } catch (error) {
+          remoteLogger.trace(
+            'Distro probe failed',
+            remote: RemoteCommandDetails(
+              operation: 'distro probe',
+              command: command,
+              output: 'Error: $error',
+              contextLabel: host.name,
+            ),
+          );
+          rethrow;
+        }
+      });
       final slug = await detector.detect();
       if (slug == null) {
-        AppLogger().debug('Distro detection failed for ${host.name}', tag: 'Distro');
+        AppLogger().debug(
+          'Distro detection failed for ${host.name}',
+          tag: 'Distro',
+        );
         return;
       }
-      AppLogger().debug('Distro for ${host.name} resolved to $slug', tag: 'Distro');
+      AppLogger().debug(
+        'Distro for ${host.name} resolved to $slug',
+        tag: 'Distro',
+      );
       await settingsController.update(
         (settings) => settings.copyWith(
           serverDistroMap: {...settings.serverDistroMap, key: slug},

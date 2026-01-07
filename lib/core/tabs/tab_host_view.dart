@@ -303,9 +303,7 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
             defaultTargetPlatform == TargetPlatform.macOS ||
             defaultTargetPlatform == TargetPlatform.linux);
     final bool enableDrag = useCustomChrome && widget.enableWindowDrag;
-    final rightInset = enableDrag
-        ? WindowControlsConstants.totalWidth
-        : 0.0;
+    final rightInset = enableDrag ? WindowControlsConstants.totalWidth : 0.0;
     final dragGutterWidth = enableDrag
         ? WindowControlsConstants.dragRegionWidth
         : 0.0;
@@ -321,8 +319,7 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
     final bool showScrollbar = _hasOverflow;
     final double bottomSpacing = showScrollbar ? spacing.md : 0.0;
     final double scrollbarInset = bottomSpacing;
-    final double hoverActionReserve =
-        showScrollbar ? spacing.base * 12 : 0.0;
+    final double hoverActionReserve = showScrollbar ? spacing.base * 12 : 0.0;
     final bool showHoverActionReserve = showScrollbar;
     final bool activeThumb = showScrollbar && (_hoveringBar || _touchScrolling);
     final bool showThumb = showScrollbar;
@@ -379,22 +376,21 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
                   Positioned.fill(
                     child: Stack(
                       children: [
-                      if (enableDrag)
-                        const Positioned.fill(
-                          child: WindowDragRegion(
-                            child: SizedBox.expand(),
+                        if (enableDrag)
+                          const Positioned.fill(
+                            child: WindowDragRegion(child: SizedBox.expand()),
                           ),
-                        ),
                         ClipRect(
                           child: SizedBox(
                             height: effectiveTabBarHeight + scrollbarInset,
                             child: Padding(
-                            padding: EdgeInsets.only(
-                              left: 0,
-                              right:
-                                  (showPinnedAddButton ? overlayButtonSize : 0),
-                              bottom: 0,
-                            ),
+                              padding: EdgeInsets.only(
+                                left: 0,
+                                right: (showPinnedAddButton
+                                    ? overlayButtonSize
+                                    : 0),
+                                bottom: 0,
+                              ),
                               child: RawScrollbar(
                                 controller: _scrollController,
                                 thumbVisibility: showThumb,
@@ -408,90 +404,105 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
                                 thumbColor: Theme.of(context)
                                     .colorScheme
                                     .primary
-                                    .withValues(
-                                      alpha: activeThumb ? 0.9 : 0.0,
-                                    ),
-                                trackColor: Theme.of(context)
-                                    .colorScheme
-                                    .onSurface
-                                    .withValues(alpha: 0.08),
+                                    .withValues(alpha: activeThumb ? 0.9 : 0.0),
+                                trackColor: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.08),
                                 child: Padding(
                                   padding: EdgeInsets.only(
                                     bottom: bottomSpacing,
                                   ),
-                                  child: NotificationListener<
-                                      ScrollMetricsNotification>(
-                                    onNotification: (notification) =>
-                                        _handleMetrics(notification.metrics),
-                                    child:
-                                        NotificationListener<ScrollNotification>(
-                                      onNotification: _handleScrollActivity,
-                                      child: ReorderableListView.builder(
-                                        scrollController: _scrollController,
-                                        scrollDirection: Axis.horizontal,
-                                        primary: false,
-                                        shrinkWrap: true,
-                                        physics: const ClampingScrollPhysics(),
-                                        buildDefaultDragHandles: false,
-                                        onReorder: onReorder != null
-                                            ? (oldIndex, newIndex) {
-                                                final cappedIndex =
-                                                    newIndex > tabs.length
-                                                    ? tabs.length
-                                                    : newIndex;
-                                                onReorder(
-                                                  oldIndex,
-                                                  cappedIndex,
-                                                );
-                                              }
-                                            : (oldIndex, newIndex) {},
-                                        itemCount:
-                                            tabs.length +
-                                            (hasAddTab && !showPinnedAddButton
-                                                ? 1
-                                                : 0) +
-                                            (showHoverActionReserve ? 1 : 0),
-                                        itemBuilder: (context, index) {
-                                          final inlineAddIndex = tabs.length;
-                                          final reserveIndex =
-                                              inlineAddIndex +
-                                              (hasAddTab && !showPinnedAddButton
-                                                  ? 1
-                                                  : 0);
-                                          if (hasAddTab &&
-                                              !showPinnedAddButton &&
-                                              index == inlineAddIndex) {
-                                            return KeyedSubtree(
-                                              key: const ValueKey(
-                                                'tab-bar-add-inline',
+                                  child:
+                                      NotificationListener<
+                                        ScrollMetricsNotification
+                                      >(
+                                        onNotification: (notification) =>
+                                            _handleMetrics(
+                                              notification.metrics,
+                                            ),
+                                        child:
+                                            NotificationListener<
+                                              ScrollNotification
+                                            >(
+                                              onNotification:
+                                                  _handleScrollActivity,
+                                              child: ReorderableListView.builder(
+                                                scrollController:
+                                                    _scrollController,
+                                                scrollDirection:
+                                                    Axis.horizontal,
+                                                primary: false,
+                                                shrinkWrap: true,
+                                                physics:
+                                                    const ClampingScrollPhysics(),
+                                                buildDefaultDragHandles: false,
+                                                onReorder: onReorder != null
+                                                    ? (oldIndex, newIndex) {
+                                                        final cappedIndex =
+                                                            newIndex >
+                                                                tabs.length
+                                                            ? tabs.length
+                                                            : newIndex;
+                                                        onReorder(
+                                                          oldIndex,
+                                                          cappedIndex,
+                                                        );
+                                                      }
+                                                    : (oldIndex, newIndex) {},
+                                                itemCount:
+                                                    tabs.length +
+                                                    (hasAddTab &&
+                                                            !showPinnedAddButton
+                                                        ? 1
+                                                        : 0) +
+                                                    (showHoverActionReserve
+                                                        ? 1
+                                                        : 0),
+                                                itemBuilder: (context, index) {
+                                                  final inlineAddIndex =
+                                                      tabs.length;
+                                                  final reserveIndex =
+                                                      inlineAddIndex +
+                                                      (hasAddTab &&
+                                                              !showPinnedAddButton
+                                                          ? 1
+                                                          : 0);
+                                                  if (hasAddTab &&
+                                                      !showPinnedAddButton &&
+                                                      index == inlineAddIndex) {
+                                                    return KeyedSubtree(
+                                                      key: const ValueKey(
+                                                        'tab-bar-add-inline',
+                                                      ),
+                                                      child: _InlineAddButton(
+                                                        size: overlayButtonSize,
+                                                        enabled:
+                                                            !showPinnedAddButton,
+                                                        onTap: onAddTab,
+                                                      ),
+                                                    );
+                                                  }
+                                                  if (showHoverActionReserve &&
+                                                      index == reserveIndex) {
+                                                    return KeyedSubtree(
+                                                      key: const ValueKey(
+                                                        'tab-bar-hover-reserve',
+                                                      ),
+                                                      child: SizedBox(
+                                                        width:
+                                                            hoverActionReserve,
+                                                      ),
+                                                    );
+                                                  }
+                                                  return buildChip(
+                                                    context,
+                                                    index,
+                                                    tabs[index],
+                                                  );
+                                                },
                                               ),
-                                              child: _InlineAddButton(
-                                                size: overlayButtonSize,
-                                                enabled: !showPinnedAddButton,
-                                                onTap: onAddTab,
-                                              ),
-                                            );
-                                          }
-                                          if (showHoverActionReserve &&
-                                              index == reserveIndex) {
-                                            return KeyedSubtree(
-                                              key: const ValueKey(
-                                                'tab-bar-hover-reserve',
-                                              ),
-                                              child: SizedBox(
-                                                width: hoverActionReserve,
-                                              ),
-                                            );
-                                          }
-                                          return buildChip(
-                                            context,
-                                            index,
-                                            tabs[index],
-                                          );
-                                        },
+                                            ),
                                       ),
-                                    ),
-                                  ),
                                 ),
                               ),
                             ),

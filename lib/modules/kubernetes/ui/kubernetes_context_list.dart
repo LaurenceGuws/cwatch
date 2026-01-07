@@ -78,7 +78,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     setState(() {
       _showListSettings = !_showListSettings;
     });
-    
+
     final placeholders = _tabs.where((t) => t.context == null).toList();
     for (final tab in placeholders) {
       _syncTabOptions(tab);
@@ -179,21 +179,23 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                 registry: _tabRegistry,
                 tabBarHeight: 36,
                 showTabBar: TabBarVisibilityController.instance,
-                enableWindowDrag:
-                    !widget.settingsController.settings.windowUseSystemDecorations,
+                enableWindowDrag: !widget
+                    .settingsController
+                    .settings
+                    .windowUseSystemDecorations,
                 leading: widget.leading != null
                     ? Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal:
                               (!kIsWeb &&
-                                      (defaultTargetPlatform ==
-                                              TargetPlatform.windows ||
-                                          defaultTargetPlatform ==
-                                              TargetPlatform.macOS ||
-                                          defaultTargetPlatform ==
-                                              TargetPlatform.linux))
-                                  ? 0
-                                  : spacing.sm,
+                                  (defaultTargetPlatform ==
+                                          TargetPlatform.windows ||
+                                      defaultTargetPlatform ==
+                                          TargetPlatform.macOS ||
+                                      defaultTargetPlatform ==
+                                          TargetPlatform.linux))
+                              ? 0
+                              : spacing.sm,
                         ),
                         child: SizedBox(
                           height: 36,
@@ -219,7 +221,9 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                           _persistWorkspace();
                         },
                         onClose: () => _closeTab(index),
-                        onRename: tab.canRename ? () => _renameTab(index) : null,
+                        onRename: tab.canRename
+                            ? () => _renameTab(index)
+                            : null,
                         options: options,
                         closable: tab.closable,
                         dragIndex: tab.canDrag ? index : null,
@@ -616,7 +620,8 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                 title: const Text('Collapse all sections'),
                 onTap: () {
                   setState(() {
-                    for (final path in _cachedContexts.map((c) => c.configPath).toSet()) {
+                    for (final path
+                        in _cachedContexts.map((c) => c.configPath).toSet()) {
                       _collapsedByConfigPath[path] = true;
                     }
                   });

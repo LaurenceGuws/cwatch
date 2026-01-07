@@ -61,59 +61,56 @@ class ContainerDistroManager {
         'Detecting distro for container ${container.name} (${container.id})',
         tag: 'Distro',
       );
-      final detector = DistroDetector(
-        (command, {timeout}) async {
-          final effectiveTimeout = timeout ?? const Duration(seconds: 10);
-          if (remoteHost != null && shellService != null) {
-            final escaped = _escapeSingleQuotes(command);
-            final dockerCommand =
-                "docker exec -i ${container.id} sh -c '$escaped'";
-            return _runRemoteDockerExec(
-              remoteLogger: remoteLogger,
-              command: dockerCommand,
-              contextLabel: contextLabel,
-              timeout: effectiveTimeout,
-              runner: () => shellService.runCommand(
-                remoteHost,
-                dockerCommand,
-                timeout: effectiveTimeout,
-              ),
-            );
-          }
+      final detector = DistroDetector((command, {timeout}) async {
+        final effectiveTimeout = timeout ?? const Duration(seconds: 10);
+        if (remoteHost != null && shellService != null) {
           final escaped = _escapeSingleQuotes(command);
           final dockerCommand =
               "docker exec -i ${container.id} sh -c '$escaped'";
-          try {
-            final output = await docker.execInContainer(
-              container.id,
-              command,
-              context: contextName,
+          return _runRemoteDockerExec(
+            remoteLogger: remoteLogger,
+            command: dockerCommand,
+            contextLabel: contextLabel,
+            timeout: effectiveTimeout,
+            runner: () => shellService.runCommand(
+              remoteHost,
+              dockerCommand,
               timeout: effectiveTimeout,
-            );
-            remoteLogger.trace(
-              'Distro probe',
-              remote: RemoteCommandDetails(
-                operation: 'exec',
-                command: dockerCommand,
-                output: output,
-                contextLabel: contextLabel,
-              ),
-            );
-            return output;
-          } catch (error) {
-            remoteLogger.trace(
-              'Distro probe failed',
-              remote: RemoteCommandDetails(
-                operation: 'exec',
-                command: dockerCommand,
-                output: 'Error: $error',
-                contextLabel: contextLabel,
-              ),
-            );
-            rethrow;
-          }
-        },
-      );
+            ),
+          );
+        }
+        final escaped = _escapeSingleQuotes(command);
+        final dockerCommand = "docker exec -i ${container.id} sh -c '$escaped'";
+        try {
+          final output = await docker.execInContainer(
+            container.id,
+            command,
+            context: contextName,
+            timeout: effectiveTimeout,
+          );
+          remoteLogger.trace(
+            'Distro probe',
+            remote: RemoteCommandDetails(
+              operation: 'exec',
+              command: dockerCommand,
+              output: output,
+              contextLabel: contextLabel,
+            ),
+          );
+          return output;
+        } catch (error) {
+          remoteLogger.trace(
+            'Distro probe failed',
+            remote: RemoteCommandDetails(
+              operation: 'exec',
+              command: dockerCommand,
+              output: 'Error: $error',
+              contextLabel: contextLabel,
+            ),
+          );
+          rethrow;
+        }
+      });
       final slug = await detector.detect();
       if (slug == null) {
         AppLogger().debug(

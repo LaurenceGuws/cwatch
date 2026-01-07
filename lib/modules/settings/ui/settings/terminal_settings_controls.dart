@@ -3,8 +3,6 @@ import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/views/shared/tabs/terminal/terminal_theme_presets.dart';
 import 'package:cwatch/shared/widgets/form_spacer.dart';
 
-import 'settings_section.dart';
-
 class TerminalSettingsControls extends StatefulWidget {
   const TerminalSettingsControls({
     super.key,

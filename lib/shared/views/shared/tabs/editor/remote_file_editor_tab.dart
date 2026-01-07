@@ -15,7 +15,6 @@ import '../../../../theme/app_theme.dart';
 import '../../../../theme/nerd_fonts.dart';
 import '../../../../mixins/tab_options_mixin.dart';
 import 'package:cwatch/modules/settings/ui/settings/editor_settings_controls.dart';
-import '../../../../widgets/dialog_keyboard_shortcuts.dart';
 import '../tab_chip.dart';
 import '../settings/floating_settings_window.dart';
 import 'remote_file_editor/code_editor_view.dart';
@@ -23,7 +22,6 @@ import 'remote_file_editor/editor_state.dart';
 import 'remote_file_editor/editor_theme_utils.dart';
 import 'remote_file_editor/file_info_dialog.dart';
 import 'remote_file_editor/language_detection.dart';
-import 'remote_file_editor/theme_picker.dart';
 
 class RemoteFileEditorTab extends StatefulWidget {
   const RemoteFileEditorTab({
@@ -63,12 +61,11 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
   @override
   void initState() {
     super.initState();
-    _state =
-        EditorState(
-            path: widget.path,
-            initialContent: widget.initialContent,
-            settingsController: widget.settingsController,
-          )..addListener(_handleStateChanged);
+    _state = EditorState(
+      path: widget.path,
+      initialContent: widget.initialContent,
+      settingsController: widget.settingsController,
+    )..addListener(_handleStateChanged);
     _settingsListener = _configureInputMode;
     widget.settingsController.addListener(_settingsListener);
     _configureInputMode();
@@ -170,18 +167,6 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
     return editorThemeStyles(themeKey);
   }
 
-  Future<void> _showThemeDialog(BuildContext context) async {
-    final brightness = Theme.of(context).colorScheme.brightness;
-    final savedTheme = _state.savedThemeForBrightness(brightness);
-    await showEditorThemeDialog(
-      context: context,
-      brightness: brightness,
-      savedTheme: savedTheme,
-      onPreview: (key) => _state.saveThemeForBrightness(brightness, key),
-      onSelect: (key) => _state.saveThemeForBrightness(brightness, key),
-    );
-  }
-
   void _showFileInfo(BuildContext context) {
     final language = languageFromPath(widget.path);
     final parser = _state.controller.language?.runtimeType.toString();
@@ -192,61 +177,6 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
       language: language,
       parserName: parser,
       helperText: widget.helperText,
-    );
-  }
-
-  Future<void> _showLanguageDialog(BuildContext context) async {
-    final languages = availableLanguageKeys();
-    final currentKey = languageFromPath(widget.path);
-    String? selected = currentKey;
-
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return DialogKeyboardShortcuts(
-          onCancel: () => Navigator.of(dialogContext).pop(),
-          onConfirm: () {
-            _state.setLanguageByKey(selected);
-            Navigator.of(dialogContext).pop();
-          },
-          child: AlertDialog(
-            title: const Text('Select language'),
-            content: SizedBox(
-              width: 360,
-              child: DropdownButtonFormField<String>(
-                initialValue: selected,
-                isExpanded: true,
-                hint: const Text('Auto-detect'),
-                items: [
-                  const DropdownMenuItem(
-                    value: null,
-                    child: Text('Auto-detect'),
-                  ),
-                  ...languages.map(
-                    (key) => DropdownMenuItem(value: key, child: Text(key)),
-                  ),
-                ],
-                onChanged: (value) {
-                  selected = value;
-                },
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  _state.setLanguageByKey(selected);
-                  Navigator.of(dialogContext).pop();
-                },
-                child: const Text('Apply'),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 
@@ -342,26 +272,16 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
                     lineHeight: settings.editorLineHeight,
                     lightTheme: settings.editorThemeLight,
                     darkTheme: settings.editorThemeDark,
-                    onFontFamilyChanged: (value) =>
-                        widget.settingsController.update(
-                          (s) => s.copyWith(editorFontFamily: value),
-                        ),
-                    onFontSizeChanged: (value) =>
-                        widget.settingsController.update(
-                          (s) => s.copyWith(editorFontSize: value),
-                        ),
-                    onLineHeightChanged: (value) =>
-                        widget.settingsController.update(
-                          (s) => s.copyWith(editorLineHeight: value),
-                        ),
-                    onLightThemeChanged: (value) =>
-                        widget.settingsController.update(
-                          (s) => s.copyWith(editorThemeLight: value),
-                        ),
-                    onDarkThemeChanged: (value) =>
-                        widget.settingsController.update(
-                          (s) => s.copyWith(editorThemeDark: value),
-                        ),
+                    onFontFamilyChanged: (value) => widget.settingsController
+                        .update((s) => s.copyWith(editorFontFamily: value)),
+                    onFontSizeChanged: (value) => widget.settingsController
+                        .update((s) => s.copyWith(editorFontSize: value)),
+                    onLineHeightChanged: (value) => widget.settingsController
+                        .update((s) => s.copyWith(editorLineHeight: value)),
+                    onLightThemeChanged: (value) => widget.settingsController
+                        .update((s) => s.copyWith(editorThemeLight: value)),
+                    onDarkThemeChanged: (value) => widget.settingsController
+                        .update((s) => s.copyWith(editorThemeDark: value)),
                   ),
                 ],
               ),

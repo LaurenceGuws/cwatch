@@ -244,16 +244,16 @@ class TerminalViewState extends State<TerminalView> {
       if (oldWidget.scrollController == null) {
         _scrollController.dispose();
       }
-    _scrollController = widget.scrollController ?? ScrollController();
+      _scrollController = widget.scrollController ?? ScrollController();
+    }
+    _shortcutManager.shortcuts = widget.shortcuts ?? defaultTerminalShortcuts;
+    if (oldWidget.textStyle.fontSize != widget.textStyle.fontSize) {
+      _fontSize = widget.textStyle.fontSize.clamp(_minFontSize, _maxFontSize);
+    }
+    super.didUpdateWidget(oldWidget);
   }
-  _shortcutManager.shortcuts = widget.shortcuts ?? defaultTerminalShortcuts;
-  if (oldWidget.textStyle.fontSize != widget.textStyle.fontSize) {
-    _fontSize = widget.textStyle.fontSize.clamp(_minFontSize, _maxFontSize);
-  }
-  super.didUpdateWidget(oldWidget);
-}
 
-@override
+  @override
   void dispose() {
     if (widget.focusNode == null) {
       _focusNode.dispose();
@@ -346,7 +346,6 @@ class TerminalViewState extends State<TerminalView> {
       controller: _controller,
       child: child,
     );
-
 
     child = KeyboardVisibilty(
       onKeyboardShow: _onKeyboardShow,
@@ -560,9 +559,8 @@ class TerminalViewState extends State<TerminalView> {
     final localPosition = renderTerminal.globalToLocal(globalPosition);
     final cursorRect = renderTerminal.cursorOffset & renderTerminal.cellSize;
     final cellHeight = renderTerminal.cellSize.height;
-    final top = cursorRect.top - cellHeight < 0
-        ? 0.0
-        : cursorRect.top - cellHeight;
+    final top =
+        cursorRect.top - cellHeight < 0 ? 0.0 : cursorRect.top - cellHeight;
     final height = cellHeight * 3;
     final hitbox = Rect.fromLTWH(
       0,

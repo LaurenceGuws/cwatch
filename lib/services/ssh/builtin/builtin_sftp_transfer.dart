@@ -44,12 +44,7 @@ class BuiltInSftpTransfer with RemotePathUtils {
           return;
         }
         final localTarget = p.join(destinationDir.path, p.basename(sanitized));
-        await _downloadFile(
-          sftp,
-          sanitized,
-          localTarget,
-          onBytes: onBytes,
-        );
+        await _downloadFile(sftp, sanitized, localTarget, onBytes: onBytes);
       },
       timeout: timeout,
       onTimeout: onTimeout,
@@ -197,8 +192,7 @@ class BuiltInSftpTransfer with RemotePathUtils {
     String remotePath,
     String localPath, {
     void Function(int bytesTransferred)? onBytes,
-  }
-  ) async {
+  }) async {
     final file = await sftp.open(remotePath);
     final targetFile = File(localPath);
     await targetFile.create(recursive: true);
@@ -221,8 +215,7 @@ class BuiltInSftpTransfer with RemotePathUtils {
     String remotePath,
     String localDestination, {
     void Function(int bytesTransferred)? onBytes,
-  }
-  ) async {
+  }) async {
     final target = p.join(localDestination, p.basename(remotePath));
     final dir = Directory(target);
     await dir.create(recursive: true);
@@ -234,19 +227,9 @@ class BuiltInSftpTransfer with RemotePathUtils {
       final childRemote = _joinPath(remotePath, entry.filename);
       final childLocal = p.join(target, entry.filename);
       if (entry.attr.isDirectory) {
-        await _downloadDirectory(
-          sftp,
-          childRemote,
-          target,
-          onBytes: onBytes,
-        );
+        await _downloadDirectory(sftp, childRemote, target, onBytes: onBytes);
       } else {
-        await _downloadFile(
-          sftp,
-          childRemote,
-          childLocal,
-          onBytes: onBytes,
-        );
+        await _downloadFile(sftp, childRemote, childLocal, onBytes: onBytes);
       }
     }
   }
@@ -274,10 +257,7 @@ class BuiltInSftpTransfer with RemotePathUtils {
         onBytes?.call(data.length);
       }
     } catch (e) {
-      logBuiltInSshWarning(
-        'Error streaming $remotePath',
-        error: e,
-      );
+      logBuiltInSshWarning('Error streaming $remotePath', error: e);
       rethrow;
     } finally {
       await file.close();
@@ -302,10 +282,7 @@ class BuiltInSftpTransfer with RemotePathUtils {
       await file.writeBytes(data, offset: 0);
       logBuiltInSsh('Successfully wrote ${bytes.length} bytes to $remotePath');
     } catch (e) {
-      logBuiltInSshWarning(
-        'Error writing bytes to $remotePath',
-        error: e,
-      );
+      logBuiltInSshWarning('Error writing bytes to $remotePath', error: e);
       rethrow;
     } finally {
       await file.close();
@@ -367,10 +344,7 @@ class BuiltInSftpTransfer with RemotePathUtils {
       if (error.code == SftpStatusCode.noSuchFile) {
         return false;
       }
-      logBuiltInSshWarning(
-        'Failed to stat remote path $path',
-        error: error,
-      );
+      logBuiltInSshWarning('Failed to stat remote path $path', error: error);
       rethrow;
     }
   }

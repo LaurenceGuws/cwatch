@@ -37,10 +37,7 @@ class StandardEmptyState extends StatelessWidget {
             ),
             if (hasAction) ...[
               SizedBox(height: spacing.lg),
-              FilledButton(
-                onPressed: onAction,
-                child: Text(actionLabel!),
-              ),
+              FilledButton(onPressed: onAction, child: Text(actionLabel!)),
             ],
           ],
         ),

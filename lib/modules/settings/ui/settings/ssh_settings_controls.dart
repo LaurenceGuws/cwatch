@@ -69,9 +69,7 @@ class _SshSettingsControlsState extends State<SshSettingsControls> {
             },
             title: Row(
               children: [
-                const Expanded(
-                  child: Text('Use built-in SSH client'),
-                ),
+                const Expanded(child: Text('Use built-in SSH client')),
                 SizedBox(width: spacing.md),
                 const Tooltip(
                   message:

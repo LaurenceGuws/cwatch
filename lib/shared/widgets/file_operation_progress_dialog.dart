@@ -355,18 +355,19 @@ class _TransferToast extends StatelessWidget {
     final speed = controller.bytesPerSecond;
     final eta = controller.estimatedRemaining();
     final items = controller.items;
-    final activeItems = items
-        .where(
-          (item) =>
-              item.status == FileOperationStatus.pending ||
-              item.status == FileOperationStatus.inProgress,
-        )
-        .toList()
-      ..sort((a, b) {
-        final aActive = a.status == FileOperationStatus.inProgress ? 0 : 1;
-        final bActive = b.status == FileOperationStatus.inProgress ? 0 : 1;
-        return aActive.compareTo(bActive);
-      });
+    final activeItems =
+        items
+            .where(
+              (item) =>
+                  item.status == FileOperationStatus.pending ||
+                  item.status == FileOperationStatus.inProgress,
+            )
+            .toList()
+          ..sort((a, b) {
+            final aActive = a.status == FileOperationStatus.inProgress ? 0 : 1;
+            final bActive = b.status == FileOperationStatus.inProgress ? 0 : 1;
+            return aActive.compareTo(bActive);
+          });
     final doneItems = items
         .where(
           (item) =>
@@ -543,15 +544,10 @@ class _TransferToast extends StatelessWidget {
                           )
                         else
                           for (final item in activeItems) ...[
-                            _TransferItemRow(
-                              item: item,
-                            ),
+                            _TransferItemRow(item: item),
                             SizedBox(height: spacing.sm),
                           ],
-                        _SectionHeader(
-                          title: 'Done',
-                          count: doneItems.length,
-                        ),
+                        _SectionHeader(title: 'Done', count: doneItems.length),
                         if (doneItems.isEmpty)
                           Padding(
                             padding: EdgeInsets.only(
@@ -567,9 +563,7 @@ class _TransferToast extends StatelessWidget {
                           )
                         else
                           for (final item in doneItems) ...[
-                            _TransferItemRow(
-                              item: item,
-                            ),
+                            _TransferItemRow(item: item),
                             SizedBox(height: spacing.sm),
                           ],
                       ],
@@ -649,8 +643,7 @@ class _TransferItemRow extends StatelessWidget {
     final progressTrack = section.divider.withValues(alpha: 0.35);
     final isActive = item.status == FileOperationStatus.inProgress;
     final showProgress = isActive;
-    final progressValue =
-        item.sizeBytes > 0 && item.transferredBytes > 0
+    final progressValue = item.sizeBytes > 0 && item.transferredBytes > 0
         ? (item.transferredBytes / item.sizeBytes).clamp(0.0, 1.0)
         : null;
     return Column(

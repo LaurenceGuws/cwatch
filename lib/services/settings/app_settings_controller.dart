@@ -19,9 +19,7 @@ class AppSettingsController extends ChangeNotifier {
   Future<void> load() async {
     _settings = await _storage.load();
     _loaded = true;
-    AppLogger.configureRemoteCommandLogging(
-      enabled: _settings.debugMode,
-    );
+    AppLogger.configureRemoteCommandLogging(enabled: _settings.debugMode);
     notifyListeners();
   }
 
@@ -29,18 +27,14 @@ class AppSettingsController extends ChangeNotifier {
     AppSettings Function(AppSettings current) transform,
   ) async {
     _settings = transform(_settings);
-    AppLogger.configureRemoteCommandLogging(
-      enabled: _settings.debugMode,
-    );
+    AppLogger.configureRemoteCommandLogging(enabled: _settings.debugMode);
     notifyListeners();
     await _storage.save(_settings);
   }
 
   void applyOverrides(AppSettings Function(AppSettings current) transform) {
     _settings = transform(_settings);
-    AppLogger.configureRemoteCommandLogging(
-      enabled: _settings.debugMode,
-    );
+    AppLogger.configureRemoteCommandLogging(enabled: _settings.debugMode);
     notifyListeners();
   }
 }

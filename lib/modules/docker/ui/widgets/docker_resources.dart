@@ -135,9 +135,7 @@ class _DockerResourcesState extends State<DockerResources>
                 : _error != null
                 ? Center(child: Text('Failed to load stats: $_error'))
                 : _stats.isEmpty
-                ? const StandardEmptyState(
-                    message: 'No container stats found.',
-                  )
+                ? const StandardEmptyState(message: 'No container stats found.')
                 : LayoutBuilder(
                     builder: (context, constraints) {
                       return ListView(
@@ -589,8 +587,7 @@ class _DockerResourcesState extends State<DockerResources>
         .fold<double>(0, math.max);
     final gridColor = _dockerTheme.chartGrid.withValues(alpha: 0.15);
     final tooltipBackground = _dockerTheme.chartGridAlt.withValues(alpha: 0.9);
-    final tooltipBorderColor =
-        _dockerTheme.chartGrid.withValues(alpha: 0.6);
+    final tooltipBorderColor = _dockerTheme.chartGrid.withValues(alpha: 0.6);
     return LineChartData(
       minY: 0,
       maxY: maxY,

@@ -50,7 +50,10 @@ class _ResourcesTabState extends State<ResourcesTab> {
       shellService: widget.shellService,
       sampleWindowSeconds: _sampleWindowSeconds,
     );
-    AppLogger().debug('Loading resources for ${widget.host.name}', tag: 'Resources');
+    AppLogger().debug(
+      'Loading resources for ${widget.host.name}',
+      tag: 'Resources',
+    );
     _loadResources();
   }
 
@@ -98,7 +101,10 @@ class _ResourcesTabState extends State<ResourcesTab> {
         _historyManager.appendNetIn(snapshot.netInMbps);
         _historyManager.appendNetOut(snapshot.netOutMbps);
       });
-      AppLogger().debug('Resources loaded for ${widget.host.name}', tag: 'Resources');
+      AppLogger().debug(
+        'Resources loaded for ${widget.host.name}',
+        tag: 'Resources',
+      );
       _startPolling();
     } catch (error) {
       AppLogger().warn(

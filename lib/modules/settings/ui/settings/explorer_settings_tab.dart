@@ -24,7 +24,8 @@ class ExplorerSettingsTab extends StatelessWidget {
       children: [
         SettingsSection(
           title: 'View',
-          description: 'Adjust density and navigation defaults for explorer tabs.',
+          description:
+              'Adjust density and navigation defaults for explorer tabs.',
           child: ExplorerSettingsControls(
             settings: settings,
             settingsController: settingsController,

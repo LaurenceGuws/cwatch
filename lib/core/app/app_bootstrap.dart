@@ -17,10 +17,9 @@ Future<void> runAppBootstrap() async {
   final settingsController = AppSettingsController();
   await settingsController.load();
   AppLogger.configure(
-    minLevel:
-        settingsController.settings.debugMode
-            ? LogLevel.debug
-            : LogLevel.warning,
+    minLevel: settingsController.settings.debugMode
+        ? LogLevel.debug
+        : LogLevel.warning,
   );
   await ensureThemeExamples();
   await loadAssetTerminalThemes();
@@ -48,7 +47,9 @@ class _CwatchAppState extends State<CwatchApp> {
         final settings = widget.settingsController.settings;
         final appFontFamily = settings.appFontFamily;
         final baseRadius = BorderRadius.circular(2);
-        final spacingBase = settings.uiDensity == AppUiDensity.comfy ? 5.0 : 4.0;
+        final spacingBase = settings.uiDensity == AppUiDensity.comfy
+            ? 5.0
+            : 4.0;
         final seed = _seedForKey(settings.appThemeKey);
         final lightScheme = ColorScheme.fromSeed(
           seedColor: seed,
@@ -78,20 +79,18 @@ class _CwatchAppState extends State<CwatchApp> {
             lightTokens,
             appFontFamily,
             baseRadius: baseRadius,
-            visualDensity:
-                settings.uiDensity == AppUiDensity.comfy
-                    ? VisualDensity.standard
-                    : VisualDensity.compact,
+            visualDensity: settings.uiDensity == AppUiDensity.comfy
+                ? VisualDensity.standard
+                : VisualDensity.compact,
           ),
           darkTheme: _buildTheme(
             darkScheme,
             darkTokens,
             appFontFamily,
             baseRadius: baseRadius,
-            visualDensity:
-                settings.uiDensity == AppUiDensity.comfy
-                    ? VisualDensity.standard
-                    : VisualDensity.compact,
+            visualDensity: settings.uiDensity == AppUiDensity.comfy
+                ? VisualDensity.standard
+                : VisualDensity.compact,
           ),
           builder: (context, child) {
             final mediaQuery = MediaQuery.of(context);
@@ -110,12 +109,10 @@ class _CwatchAppState extends State<CwatchApp> {
   ThemeData _buildTheme(
     ColorScheme scheme,
     AppThemeTokens tokens,
-    String? fontFamily,
-    {
-      required BorderRadius baseRadius,
-      required VisualDensity visualDensity,
-    }
-  ) {
+    String? fontFamily, {
+    required BorderRadius baseRadius,
+    required VisualDensity visualDensity,
+  }) {
     return ThemeData(
       colorScheme: scheme,
       useMaterial3: true,

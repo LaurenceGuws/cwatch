@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/widgets/form_spacer.dart';
 
-import 'settings_section.dart';
-
 class EditorSettingsControls extends StatefulWidget {
   const EditorSettingsControls({
     super.key,

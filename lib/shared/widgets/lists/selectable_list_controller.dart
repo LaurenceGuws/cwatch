@@ -188,7 +188,8 @@ class _SelectableListKeyboardHandlerState
       return KeyEventResult.ignored;
     }
     final key = event.logicalKey;
-    final isHandledKey = key == LogicalKeyboardKey.arrowDown ||
+    final isHandledKey =
+        key == LogicalKeyboardKey.arrowDown ||
         key == LogicalKeyboardKey.arrowUp ||
         key == LogicalKeyboardKey.home ||
         key == LogicalKeyboardKey.end ||

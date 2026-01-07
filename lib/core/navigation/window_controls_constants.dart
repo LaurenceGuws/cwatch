@@ -9,6 +9,3 @@ class WindowControlsConstants {
   static const double dragRegionWidth = 32;
   static const double tabBarHeight = 36;
 }
-
-
-

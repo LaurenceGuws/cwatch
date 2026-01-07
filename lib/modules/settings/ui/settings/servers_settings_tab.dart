@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:cwatch/models/ssh_client_backend.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/models/ssh_host.dart';
@@ -60,8 +59,7 @@ class _ServersSettingsTabState extends State<ServersSettingsTab> {
         ),
         SettingsSection(
           title: 'SSH Client',
-          description:
-              'Select the SSH backend and manage configuration files.',
+          description: 'Select the SSH backend and manage configuration files.',
           child: SshSettingsControls(
             controller: widget.controller,
             hostsFuture: widget.hostsFuture,

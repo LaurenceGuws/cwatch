@@ -110,9 +110,9 @@ class ProcessSshRunner {
       void Function(String value) setRemainder,
       String Function() getRemainder,
     ) async {
-      await stream
-          .transform(const Utf8Decoder(allowMalformed: true))
-          .forEach((chunk) {
+      await stream.transform(const Utf8Decoder(allowMalformed: true)).forEach((
+        chunk,
+      ) {
         buffer.write(chunk);
         if (onLine == null) {
           return;

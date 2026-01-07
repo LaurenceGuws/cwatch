@@ -17,12 +17,14 @@ extension TextStyleExtension on TextStyle {
       return this;
     }
 
+    int channel(double value) => (value * 255).round().clamp(0, 255);
+    final alpha = (channel(clr.a) / 2).round().clamp(0, 255).toInt();
     return copyWith(
       color: Color.fromARGB(
-        clr.alpha ~/ 2,
-        clr.red,
-        clr.green,
-        clr.blue,
+        alpha,
+        channel(clr.r),
+        channel(clr.g),
+        channel(clr.b),
       ),
     );
   }

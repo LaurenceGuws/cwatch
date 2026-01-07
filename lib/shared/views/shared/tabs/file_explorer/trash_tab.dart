@@ -244,7 +244,11 @@ class _TrashTabState extends State<TrashTab> {
           context,
         ).showSnackBar(SnackBar(content: Text('Failed to unlock key: $error')));
       }
-      AppLogger().warn('Unlock failed for key $keyId', tag: 'Trash', error: error);
+      AppLogger().warn(
+        'Unlock failed for key $keyId',
+        tag: 'Trash',
+        error: error,
+      );
       return false;
     } finally {
       _unlockInProgress = false;

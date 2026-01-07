@@ -142,17 +142,17 @@ class BuiltInSshClientManager {
           .cast<List<int>>()
           .transform(const Utf8Decoder(allowMalformed: true))
           .forEach((chunk) {
-        buffer.write(chunk);
-        if (onLine == null) {
-          return;
-        }
-        final combined = getRemainder() + chunk;
-        final parts = combined.split('\n');
-        setRemainder(parts.removeLast());
-        for (final line in parts) {
-          onLine(line);
-        }
-      });
+            buffer.write(chunk);
+            if (onLine == null) {
+              return;
+            }
+            final combined = getRemainder() + chunk;
+            final parts = combined.split('\n');
+            setRemainder(parts.removeLast());
+            for (final line in parts) {
+              onLine(line);
+            }
+          });
       if (onLine != null) {
         final remainder = getRemainder();
         if (remainder.isNotEmpty) {
@@ -209,7 +209,11 @@ class BuiltInSshClientManager {
         ),
       );
       await _waitWithTimeout(
-        future: Future.wait([session.done, stdoutDone.future, stderrDone.future]),
+        future: Future.wait([
+          session.done,
+          stdoutDone.future,
+          stderrDone.future,
+        ]),
         timeout: timeout,
         host: host,
         commandDescription: safeCommand,
@@ -328,16 +332,10 @@ class BuiltInSshClientManager {
           message: error.toString(),
         );
       } on SSHStateError catch (error) {
-        logBuiltInSshWarning(
-          'SSH state error for ${host.name}',
-          error: error,
-        );
+        logBuiltInSshWarning('SSH state error for ${host.name}', error: error);
         throw Exception('SSH connection failed for ${host.name}: $error');
       } catch (e) {
-        logBuiltInSshWarning(
-          'SSH operation failed for ${host.name}',
-          error: e,
-        );
+        logBuiltInSshWarning('SSH operation failed for ${host.name}', error: e);
         if (e is BuiltInSshKeyLockedException) {
           if (retries > 2) rethrow;
           final unlocked = await _handleLockedKey(e);

@@ -299,46 +299,50 @@ class PortForwardService extends ChangeNotifier {
             final toLocal = channel.stream.cast<List<int>>().pipe(localSocket);
             final toRemote = localSocket.cast<List<int>>().pipe(channel.sink);
             unawaited(
-              toLocal.catchError((error, stackTrace) {
-                AppLogger().warn(
-                  'Port forward local stream error',
-                  tag: 'PortForward',
-                  error: error,
-                  stackTrace: stackTrace,
-                );
-              }).whenComplete(() {
-                try {
-                  localSocket.destroy();
-                } catch (error, stackTrace) {
-                  AppLogger().warn(
-                    'Failed to destroy local socket',
-                    tag: 'PortForward',
-                    error: error,
-                    stackTrace: stackTrace,
-                  );
-                }
-              }),
+              toLocal
+                  .catchError((error, stackTrace) {
+                    AppLogger().warn(
+                      'Port forward local stream error',
+                      tag: 'PortForward',
+                      error: error,
+                      stackTrace: stackTrace,
+                    );
+                  })
+                  .whenComplete(() {
+                    try {
+                      localSocket.destroy();
+                    } catch (error, stackTrace) {
+                      AppLogger().warn(
+                        'Failed to destroy local socket',
+                        tag: 'PortForward',
+                        error: error,
+                        stackTrace: stackTrace,
+                      );
+                    }
+                  }),
             );
             unawaited(
-              toRemote.catchError((error, stackTrace) {
-                AppLogger().warn(
-                  'Port forward remote stream error',
-                  tag: 'PortForward',
-                  error: error,
-                  stackTrace: stackTrace,
-                );
-              }).whenComplete(() async {
-                try {
-                  await channel.sink.close();
-                } catch (error, stackTrace) {
-                  AppLogger().warn(
-                    'Failed to close SSH forward sink',
-                    tag: 'PortForward',
-                    error: error,
-                    stackTrace: stackTrace,
-                  );
-                }
-              }),
+              toRemote
+                  .catchError((error, stackTrace) {
+                    AppLogger().warn(
+                      'Port forward remote stream error',
+                      tag: 'PortForward',
+                      error: error,
+                      stackTrace: stackTrace,
+                    );
+                  })
+                  .whenComplete(() async {
+                    try {
+                      await channel.sink.close();
+                    } catch (error, stackTrace) {
+                      AppLogger().warn(
+                        'Failed to close SSH forward sink',
+                        tag: 'PortForward',
+                        error: error,
+                        stackTrace: stackTrace,
+                      );
+                    }
+                  }),
             );
           } catch (error, stackTrace) {
             AppLogger().warn(

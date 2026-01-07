@@ -138,8 +138,7 @@ class _SettingsViewState extends State<SettingsView>
               controller: _tabController,
               showTitle: false,
               leading: widget.leading,
-              enableWindowDrag:
-                  !settings.windowUseSystemDecorations,
+              enableWindowDrag: !settings.windowUseSystemDecorations,
             ),
             Expanded(
               child: widget.controller.isLoaded
@@ -180,9 +179,7 @@ class _SettingsViewState extends State<SettingsView>
                           uiDensity: settings.uiDensity,
                           onUiDensityChanged: (value) =>
                               widget.controller.update(
-                                (current) => current.copyWith(
-                                  uiDensity: value,
-                                ),
+                                (current) => current.copyWith(uiDensity: value),
                               ),
                           inputModePreference: settings.inputModePreference,
                           onInputModePreferenceChanged: (value) =>

@@ -1,14 +1,6 @@
 import 'shortcut_actions.dart';
 
-enum ShortcutCategory {
-  global,
-  terminal,
-  tabs,
-  editor,
-  docker,
-  grid,
-  explorer,
-}
+enum ShortcutCategory { global, terminal, tabs, editor, docker, grid, explorer }
 
 class ShortcutDefinition {
   const ShortcutDefinition({

@@ -20,7 +20,6 @@ import '../../../../../shared/gestures/gesture_activators.dart';
 import '../../../../../shared/gestures/gesture_service.dart';
 import '../../../../../shared/theme/app_theme.dart';
 import 'package:cwatch/modules/settings/ui/settings/terminal_settings_controls.dart';
-import '../../../../../shared/widgets/style_picker_dialog.dart';
 import '../../../../theme/nerd_fonts.dart';
 import '../settings/floating_settings_window.dart';
 import '../tab_chip.dart';
@@ -273,54 +272,6 @@ class _TerminalTabState extends State<TerminalTab> {
     _updateTabOptions();
   }
 
-  Future<void> _showThemeDialog(BuildContext context) async {
-    await reloadUserTerminalThemes();
-    if (!context.mounted) {
-      return;
-    }
-    final brightness = Theme.of(context).colorScheme.brightness;
-    final settings = widget.settingsController.settings;
-    final savedTheme = brightness == Brightness.dark
-        ? settings.terminalThemeDark
-        : settings.terminalThemeLight;
-    final labels = terminalThemeLabelCatalog();
-    final initialKey = labels.containsKey(savedTheme)
-        ? savedTheme
-        : 'xterm-default';
-    final options = labels.entries
-        .map((entry) => StyleOption(key: entry.key, label: entry.value))
-        .toList();
-
-    final chosen = await showStylePickerDialog(
-      context: context,
-      title: 'Select terminal theme',
-      options: options,
-      selectedKey: initialKey,
-      onPreview: (key) =>
-          unawaited(_setTerminalThemeForBrightness(brightness, key)),
-    );
-
-    if (chosen == null) {
-      await _setTerminalThemeForBrightness(brightness, savedTheme);
-      return;
-    }
-    await _setTerminalThemeForBrightness(brightness, chosen);
-  }
-
-  Future<void> _setTerminalThemeForBrightness(
-    Brightness brightness,
-    String themeKey,
-  ) {
-    return widget.settingsController.update((current) {
-      if (brightness == Brightness.dark) {
-        if (current.terminalThemeDark == themeKey) return current;
-        return current.copyWith(terminalThemeDark: themeKey);
-      }
-      if (current.terminalThemeLight == themeKey) return current;
-      return current.copyWith(terminalThemeLight: themeKey);
-    });
-  }
-
   String _shellEscape(String input) {
     final escaped = input.replaceAll("'", r"'\''");
     return "'$escaped'";
@@ -511,16 +462,18 @@ class _TerminalTabState extends State<TerminalTab> {
                   width: double.infinity,
                   child: Actions(
                     actions: {
-                      _OpenScrollbackIntent: CallbackAction<_OpenScrollbackIntent>(
-                        onInvoke: (intent) {
-                          _openScrollbackInEditor();
-                          return null;
-                        },
-                      ),
+                      _OpenScrollbackIntent:
+                          CallbackAction<_OpenScrollbackIntent>(
+                            onInvoke: (intent) {
+                              _openScrollbackInEditor();
+                              return null;
+                            },
+                          ),
                     },
                     child: GestureDetector(
                       onLongPressStart: inputMode.enableGestures
-                          ? (details) => _handleLongPress(details.globalPosition)
+                          ? (details) =>
+                                _handleLongPress(details.globalPosition)
                           : null,
                       onTap: _isMobile ? _enableMobileFocus : null,
                       onScaleStart: _isMobile
@@ -574,34 +527,20 @@ class _TerminalTabState extends State<TerminalTab> {
                       paddingY: settings.terminalPaddingY,
                       darkTheme: settings.terminalThemeDark,
                       lightTheme: settings.terminalThemeLight,
-                      onFontFamilyChanged: (value) =>
-                          widget.settingsController.update(
-                            (s) => s.copyWith(terminalFontFamily: value),
-                          ),
-                      onFontSizeChanged: (value) =>
-                          widget.settingsController.update(
-                            (s) => s.copyWith(terminalFontSize: value),
-                          ),
-                      onLineHeightChanged: (value) =>
-                          widget.settingsController.update(
-                            (s) => s.copyWith(terminalLineHeight: value),
-                          ),
-                      onPaddingXChanged: (value) =>
-                          widget.settingsController.update(
-                            (s) => s.copyWith(terminalPaddingX: value),
-                          ),
-                      onPaddingYChanged: (value) =>
-                          widget.settingsController.update(
-                            (s) => s.copyWith(terminalPaddingY: value),
-                          ),
-                      onDarkThemeChanged: (value) =>
-                          widget.settingsController.update(
-                            (s) => s.copyWith(terminalThemeDark: value),
-                          ),
-                      onLightThemeChanged: (value) =>
-                          widget.settingsController.update(
-                            (s) => s.copyWith(terminalThemeLight: value),
-                          ),
+                      onFontFamilyChanged: (value) => widget.settingsController
+                          .update((s) => s.copyWith(terminalFontFamily: value)),
+                      onFontSizeChanged: (value) => widget.settingsController
+                          .update((s) => s.copyWith(terminalFontSize: value)),
+                      onLineHeightChanged: (value) => widget.settingsController
+                          .update((s) => s.copyWith(terminalLineHeight: value)),
+                      onPaddingXChanged: (value) => widget.settingsController
+                          .update((s) => s.copyWith(terminalPaddingX: value)),
+                      onPaddingYChanged: (value) => widget.settingsController
+                          .update((s) => s.copyWith(terminalPaddingY: value)),
+                      onDarkThemeChanged: (value) => widget.settingsController
+                          .update((s) => s.copyWith(terminalThemeDark: value)),
+                      onLightThemeChanged: (value) => widget.settingsController
+                          .update((s) => s.copyWith(terminalThemeLight: value)),
                     ),
                   ),
               ],

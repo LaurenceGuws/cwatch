@@ -38,10 +38,8 @@ class SshAuthPrompter {
     final success = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => _SshUnlockDialog(
-        keyService: keyService,
-        request: request,
-      ),
+      builder: (dialogContext) =>
+          _SshUnlockDialog(keyService: keyService, request: request),
     );
     return SshKeyUnlockResult(unlocked: success == true);
   }
@@ -61,10 +59,7 @@ class SshAuthPrompter {
 }
 
 class _SshUnlockDialog extends StatefulWidget {
-  const _SshUnlockDialog({
-    required this.keyService,
-    required this.request,
-  });
+  const _SshUnlockDialog({required this.keyService, required this.request});
 
   final BuiltInSshKeyService keyService;
   final SshKeyUnlockRequest request;
@@ -106,8 +101,7 @@ class _SshUnlockDialogState extends State<_SshUnlockDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Key unlocked for this session.')),
         );
-      } else if (result.status ==
-          BuiltInSshKeyUnlockStatus.incorrectPassword) {
+      } else if (result.status == BuiltInSshKeyUnlockStatus.incorrectPassword) {
         setState(() {
           _errorText = 'Incorrect password. Please try again.';
           _loading = false;

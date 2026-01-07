@@ -155,7 +155,11 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
                             child: SingleChildScrollView(
                               child: Column(
                                 children: [
-                                  for (var i = 0; i < _requests.length; i++) ...[
+                                  for (
+                                    var i = 0;
+                                    i < _requests.length;
+                                    i++
+                                  ) ...[
                                     _buildRow(i, _requests[i]),
                                     if (i != _requests.length - 1)
                                       Divider(height: spacing.lg),
@@ -709,7 +713,10 @@ class _SortableHeader extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(label, style: textStyle),
-        if (icon != null) ...[SizedBox(width: spacing.sm), Icon(icon, size: spacing.base * 3.5)],
+        if (icon != null) ...[
+          SizedBox(width: spacing.sm),
+          Icon(icon, size: spacing.base * 3.5),
+        ],
       ],
     );
 

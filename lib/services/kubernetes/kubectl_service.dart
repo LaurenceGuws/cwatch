@@ -77,10 +77,7 @@ class KubectlService {
 
   Future<String> _runKubectl(List<String> args) async {
     final tag = 'Kubectl';
-    final logger = AppLogger.remote(
-      tag: tag,
-      source: 'kubectl',
-    );
+    final logger = AppLogger.remote(tag: tag, source: 'kubectl');
     final localLogger = AppLogger(tag: tag);
     final contextLabel = _contextLabelFromArgs(args);
     final stopwatch = Stopwatch()..start();

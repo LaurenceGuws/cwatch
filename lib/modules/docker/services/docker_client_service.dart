@@ -675,10 +675,7 @@ class DockerClientService {
     String operation = 'run',
     String? contextLabel,
   }) async {
-    final logger = AppLogger.remote(
-      tag: 'Docker',
-      source: 'docker',
-    );
+    final logger = AppLogger.remote(tag: 'Docker', source: 'docker');
     final command = 'docker ${args.join(' ')}';
     final resolvedContext = contextLabel ?? _contextLabelFromArgs(args);
     try {

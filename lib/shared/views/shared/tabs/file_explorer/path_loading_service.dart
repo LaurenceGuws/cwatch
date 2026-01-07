@@ -78,8 +78,9 @@ class PathLoadingService {
     String? currentPath,
   }) async {
     final target = PathUtils.normalizePath(path, currentPath: currentPath);
-    final entries =
-        await runShellWrapper(() => shellService.listDirectory(host, target));
+    final entries = await runShellWrapper(
+      () => shellService.listDirectory(host, target),
+    );
     return entries.where((e) => e.name != '.' && e.name != '..').toList();
   }
 
@@ -111,8 +112,7 @@ class PathLoadingService {
           cancellation: cancellation,
         ),
       );
-      final hitNames =
-          entries.map((entry) => entry.name).take(50).join(', ');
+      final hitNames = entries.map((entry) => entry.name).take(50).join(', ');
       AppLogger().debug(
         'Search hits (${entries.length}) base="$target" query="$query" '
         'include="${includePattern ?? ''}" exclude="${excludePattern ?? ''}" '

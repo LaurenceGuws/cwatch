@@ -235,9 +235,7 @@ class GeneralSettingsTab extends StatelessWidget {
             subtitle: null,
             title: Row(
               children: [
-                const Expanded(
-                  child: Text('Enable SSH debug overlays'),
-                ),
+                const Expanded(child: Text('Enable SSH debug overlays')),
                 SizedBox(width: spacing.md),
                 const Tooltip(
                   message:

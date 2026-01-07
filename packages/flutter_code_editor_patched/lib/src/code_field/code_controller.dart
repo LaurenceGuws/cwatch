@@ -896,7 +896,10 @@ class CodeController extends TextEditingController {
   /// in any way.
   void foldOutsideSections(Iterable<String> names) {
     final foldLines = {..._code.foldableBlocks.map((b) => b.firstLine)};
-    final sections = names.map((s) => _code.namedSections[s]).whereNotNull();
+    final sections = names
+        .map((s) => _code.namedSections[s])
+        .where((section) => section != null)
+        .map((section) => section!);
 
     for (final block in _code.foldableBlocks) {
       for (final section in sections) {

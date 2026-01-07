@@ -151,9 +151,7 @@ class _HostListState extends State<HostList> {
           ),
           children: collapsed
               ? const []
-              : [
-                  _buildHostTable(context, hosts, surfaceColor: sectionColor),
-                ],
+              : [_buildHostTable(context, hosts, surfaceColor: sectionColor)],
         ),
       );
     }
@@ -277,9 +275,9 @@ class _HostListState extends State<HostList> {
                   ),
                   Text(
                     host.hostname,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      height: 1.0,
-                    ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(height: 1.0),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -423,5 +421,4 @@ class _HostListState extends State<HostList> {
     // Larger than text without overflowing the row.
     return titleSize * 1.9;
   }
-
 }

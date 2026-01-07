@@ -149,7 +149,10 @@ class ShortcutService {
     if (handler != null) {
       if (shouldLog) {
         final handledLabel = binding.toConfigString();
-        AppLogger().debug('${scope.id} handled $handledLabel', tag: 'Shortcuts');
+        AppLogger().debug(
+          '${scope.id} handled $handledLabel',
+          tag: 'Shortcuts',
+        );
       }
       handler();
       return scope.consumeOnHandle;

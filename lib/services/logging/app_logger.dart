@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_initializing_formals
+
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
@@ -9,17 +11,11 @@ enum LogLevel { trace, debug, info, warning, error, critical }
 /// Lightweight logger to control console output across app.
 /// Defaults to Debug level in debug builds and Warning in release.
 class AppLogger {
-  AppLogger({this.tag})
-      : remoteService = false,
-        source = null,
-        host = null;
+  AppLogger({this.tag}) : remoteService = false, source = null, host = null;
 
-  AppLogger.remote({
-    this.tag,
-    required String source,
-    this.host,
-  }) : remoteService = true,
-       source = source {
+  AppLogger.remote({this.tag, required String source, this.host})
+    : remoteService = true,
+      source = source {
     assert(source.isNotEmpty, 'Remote logger requires a non-empty source.');
   }
 
@@ -134,15 +130,13 @@ class AppLogger {
 
   static bool _remoteCommandLoggingEnabled = false;
 
-  static bool get remoteCommandLoggingEnabled =>
-      _remoteCommandLoggingEnabled;
+  static bool get remoteCommandLoggingEnabled => _remoteCommandLoggingEnabled;
 
   static void configureRemoteCommandLogging({required bool enabled}) {
     _remoteCommandLoggingEnabled = enabled;
   }
 
-  static RemoteCommandObserver get remoteCommandObserver =>
-      _addRemoteCommand;
+  static RemoteCommandObserver get remoteCommandObserver => _addRemoteCommand;
 
   void _log(
     LogLevel level,
@@ -230,8 +224,9 @@ class AppLogger {
       return;
     }
     final resolvedSource = source ?? tag ?? 'app';
-    final output =
-        remote.output.isNotEmpty ? remote.output : (error?.toString() ?? '');
+    final output = remote.output.isNotEmpty
+        ? remote.output
+        : (error?.toString() ?? '');
     _addRemoteCommand(
       RemoteCommandDebugEvent(
         level: level,

@@ -136,8 +136,7 @@ class _TerminalScrollGestureHandlerState
     final isAlt = widget.terminal.isUsingAltBuffer;
     // Forward wheel events when the app requests mouse input or when in
     // alternate buffer (e.g. editors like vim/tmux panes).
-    final forwardScroll =
-        isAlt || widget.terminal.mouseMode != MouseMode.none;
+    final forwardScroll = isAlt || widget.terminal.mouseMode != MouseMode.none;
     if (!forwardScroll) {
       return widget.child;
     }

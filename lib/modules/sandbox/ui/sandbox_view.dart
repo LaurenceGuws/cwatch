@@ -9,7 +9,11 @@ import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/widgets/section_nav_bar.dart';
 
 class SandboxView extends StatelessWidget {
-  const SandboxView({super.key, this.leading, required this.settingsController});
+  const SandboxView({
+    super.key,
+    this.leading,
+    required this.settingsController,
+  });
 
   final Widget? leading;
   final AppSettingsController settingsController;

@@ -330,11 +330,7 @@ class DockerEngineService {
   }) async {
     final logger = AppLogger.remote(source: 'docker', host: host);
     try {
-      final output = await shell.runCommand(
-        host,
-        command,
-        timeout: timeout,
-      );
+      final output = await shell.runCommand(host, command, timeout: timeout);
       logger.trace(
         'Remote docker $operation',
         remote: RemoteCommandDetails(

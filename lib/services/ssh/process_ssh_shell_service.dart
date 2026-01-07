@@ -126,7 +126,6 @@ class ProcessRemoteShellService extends RemoteShellService {
 
     final commandBase = "cd '${escapeSingleQuotes(sanitizedPath)}' &&";
     String dirOutput;
-    String fileOutput;
     final entries = <RemoteFileEntry>[];
     final now = DateTime.now();
     void addEntries(String output, {required bool isDirectory}) {
@@ -166,7 +165,7 @@ class ProcessRemoteShellService extends RemoteShellService {
       final filesCommand =
           "$commandBase find . $prunePrefix\\( ${buildPredicate('f', includeName: false)} \\) -exec grep $grepFlags -- '$escapedQuery' {} + 2>/dev/null || true";
       dirOutput = '';
-      final filesRun = await _runner.runSshStreaming(
+      await _runner.runSshStreaming(
         host,
         filesCommand,
         timeout: effectiveTimeout,
@@ -177,10 +176,10 @@ class ProcessRemoteShellService extends RemoteShellService {
           addEntries(line, isDirectory: false);
         },
       );
-      fileOutput = filesRun.stdout;
     } else {
-      final printFlag =
-          onEntry != null ? "-exec printf '%s\\n' {} \\;" : '-print';
+      final printFlag = onEntry != null
+          ? "-exec printf '%s\\n' {} \\;"
+          : '-print';
       final dirsCommand =
           "$commandBase find . ${buildPredicate('d', includeName: true)} $printFlag 2>/dev/null || true";
       final filesCommand =
@@ -209,7 +208,6 @@ class ProcessRemoteShellService extends RemoteShellService {
       );
       final runs = await Future.wait([dirsFuture, filesFuture]);
       dirOutput = runs[0].stdout;
-      fileOutput = runs[1].stdout;
     }
     if (searchContents) {
       addEntries(dirOutput, isDirectory: true);

@@ -54,10 +54,11 @@ class _SelectableListItemState extends State<SelectableListItem> {
     final stripeBackground = widget.stripeIndex == null
         ? Colors.transparent
         : (widget.stripeIndex!.isEven
-            ? listTokens.stripeEvenBackground
-            : listTokens.stripeOddBackground);
-    final background =
-        widget.selected ? listTokens.selectedBackground : stripeBackground;
+              ? listTokens.stripeEvenBackground
+              : listTokens.stripeOddBackground);
+    final background = widget.selected
+        ? listTokens.selectedBackground
+        : stripeBackground;
     final foreground = widget.selected
         ? listTokens.selectedForeground
         : listTokens.unselectedForeground;

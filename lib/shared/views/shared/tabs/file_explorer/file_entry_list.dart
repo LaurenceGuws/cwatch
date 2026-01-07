@@ -261,7 +261,10 @@ class _FileEntryListState extends State<FileEntryList> {
     final remotePath = session.remotePath;
     final syncing = widget.syncingPaths.contains(remotePath);
     final refreshing = widget.refreshingPaths.contains(remotePath);
-    const iconButtonConstraints = BoxConstraints.tightFor(width: 28, height: 28);
+    const iconButtonConstraints = BoxConstraints.tightFor(
+      width: 28,
+      height: 28,
+    );
     const iconButtonPadding = EdgeInsets.zero;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -345,9 +348,7 @@ class _FileEntryListState extends State<FileEntryList> {
           onRowPointerCancel: _handleRowPointerCancel,
           onRowPointerEnter: _handleRowPointerEnter,
           onBackgroundContextMenu: widget.onBackgroundContextMenu,
-          emptyState: const StandardEmptyState(
-            message: 'Directory is empty.',
-          ),
+          emptyState: const StandardEmptyState(message: 'Directory is empty.'),
         ),
       ),
     );

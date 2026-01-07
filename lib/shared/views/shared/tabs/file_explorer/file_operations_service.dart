@@ -306,10 +306,8 @@ class FileOperationsService {
     );
     final items = downloadEntries
         .map(
-          (entry) => FileOperationItem(
-            label: entry.label,
-            sizeBytes: entry.sizeBytes,
-          ),
+          (entry) =>
+              FileOperationItem(label: entry.label, sizeBytes: entry.sizeBytes),
         )
         .toList();
     final totalItems = items.isNotEmpty ? items.length : entries.length;
@@ -346,6 +344,7 @@ class FileOperationsService {
             sawBytes = true;
             progressController.addItemBytes(index, bytes);
           }
+
           try {
             if (entry.isDirectory) {
               await Directory(entry.localDestination).create(recursive: true);
@@ -375,9 +374,9 @@ class FileOperationsService {
       if (!context.mounted) return;
       progressController.dismiss();
       if (progressController.cancelled) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Download cancelled')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Download cancelled')));
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
@@ -534,9 +533,9 @@ class FileOperationsService {
 
       if (!context.mounted) return;
       if (progressController.cancelled) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Upload cancelled')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Upload cancelled')));
       } else if (failCount == 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -664,6 +663,7 @@ class FileOperationsService {
                 progressController.addBytes(bytes);
               }
             }
+
             final remoteDir = p.dirname(entry.remotePath).replaceAll('\\', '/');
             try {
               await _ensureRemoteDirectory(remoteDir, createdRemoteDirs);
@@ -721,9 +721,9 @@ class FileOperationsService {
 
       if (!context.mounted) return;
       if (progressController.cancelled) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Upload cancelled')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Upload cancelled')));
       } else if (failCount == 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -821,8 +821,10 @@ class FileOperationsService {
           return;
         }
         final name = p.basename(localPath);
-        final remotePath =
-            joinPath(targetDirectory, name).replaceAll('\\', '/');
+        final remotePath = joinPath(
+          targetDirectory,
+          name,
+        ).replaceAll('\\', '/');
         final itemIndex = items.indexWhere((item) {
           return item.label == name || item.label.startsWith('$name/');
         });
@@ -1187,19 +1189,13 @@ class FileOperationsService {
             : '$labelPrefix/${child.name}';
         final childRemote = joinPath(remotePath, child.name);
         if (child.isDirectory) {
-          await walkDirectory(
-            remotePath: childRemote,
-            labelPrefix: childLabel,
-          );
+          await walkDirectory(remotePath: childRemote, labelPrefix: childLabel);
         } else {
           results.add(
             _DownloadEntry(
               label: childLabel,
               remotePath: childRemote,
-              localDestination: p.join(
-                baseLocalDir,
-                p.dirname(childLabel),
-              ),
+              localDestination: p.join(baseLocalDir, p.dirname(childLabel)),
               sizeBytes: child.sizeBytes,
               isDirectory: false,
             ),

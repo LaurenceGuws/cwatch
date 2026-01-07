@@ -371,11 +371,7 @@ class FileExplorerController extends ChangeNotifier {
     }
     searchQuery = query;
     if (query.trim().isEmpty) {
-      await loadPath(
-        currentPath,
-        forceReload: true,
-        keepSearchActive: true,
-      );
+      await loadPath(currentPath, forceReload: true, keepSearchActive: true);
       return;
     }
     _searchCancellation?.cancel();
@@ -555,8 +551,10 @@ class FileExplorerController extends ChangeNotifier {
     }
     _prefetchedPaths.add(target);
     try {
-      final entries =
-          await _pathLoadingService.listPath(target, currentPath: currentPath);
+      final entries = await _pathLoadingService.listPath(
+        target,
+        currentPath: currentPath,
+      );
       pathHistory.add(target);
       for (final entry in entries) {
         if (entry.isDirectory && entry.name != '.' && entry.name != '..') {

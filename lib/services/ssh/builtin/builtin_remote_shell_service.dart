@@ -187,8 +187,9 @@ class BuiltInRemoteShellService extends RemoteShellService {
       );
       commandLog = filesCommand;
     } else {
-      final printFlag =
-          onEntry != null ? "-exec printf '%s\\n' {} \\;" : '-print';
+      final printFlag = onEntry != null
+          ? "-exec printf '%s\\n' {} \\;"
+          : '-print';
       final dirsCommand =
           "$commandBase find . ${buildPredicate('d', includeName: true)} $printFlag 2>/dev/null || true";
       final filesCommand =

@@ -213,8 +213,7 @@ class AppSettings {
         fileTransferUploadConcurrency ?? this.fileTransferUploadConcurrency,
       ),
       fileTransferDownloadConcurrency: _sanitizeTransferConcurrency(
-        fileTransferDownloadConcurrency ??
-            this.fileTransferDownloadConcurrency,
+        fileTransferDownloadConcurrency ?? this.fileTransferDownloadConcurrency,
       ),
       explorerRowHeight: _sanitizeExplorerRowHeight(
         explorerRowHeight ?? this.explorerRowHeight,
@@ -387,8 +386,7 @@ class AppSettings {
       explorerRowHeight: _sanitizeExplorerRowHeight(
         (json['explorerRowHeight'] as num?)?.toDouble() ?? 36,
       ),
-      explorerShowBreadcrumbs:
-          json['explorerShowBreadcrumbs'] as bool? ?? true,
+      explorerShowBreadcrumbs: json['explorerShowBreadcrumbs'] as bool? ?? true,
     );
   }
 

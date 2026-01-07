@@ -352,36 +352,33 @@ class _DockerOverviewState extends State<DockerOverview>
                               Focus(
                                 focusNode: _containerFocus,
                                 onKeyEvent: _handleContainerKey,
-                                  child: ContainerPeek(
-                                    containers: containers,
-                                    onTapDown: _handleContainerTapDown,
-                                    onSelectionChanged:
-                                        _handleContainerSelectionChanged,
-                                    selectedIds:
-                                        _controller.selectedContainerIds,
-                                    busyIds:
-                                        _controller
-                                            .containerActionInProgress
-                                            .keys
-                                            .toSet(),
-                                    actionLabels:
-                                        _controller.containerActionInProgress,
-                                    onComposeAction: _handleComposeAction,
-                                    onComposeForward: widget.remoteHost != null
-                                        ? (project) =>
+                                child: ContainerPeek(
+                                  containers: containers,
+                                  onTapDown: _handleContainerTapDown,
+                                  onSelectionChanged:
+                                      _handleContainerSelectionChanged,
+                                  selectedIds: _controller.selectedContainerIds,
+                                  busyIds: _controller
+                                      .containerActionInProgress
+                                      .keys
+                                      .toSet(),
+                                  actionLabels:
+                                      _controller.containerActionInProgress,
+                                  onComposeAction: _handleComposeAction,
+                                  onComposeForward: widget.remoteHost != null
+                                      ? (project) =>
                                             _actions.forwardComposePorts(
                                               context,
                                               project: project,
                                             )
-                                        : null,
-                                    onComposeStopForward:
-                                        widget.remoteHost != null
-                                        ? (_) => _actions.stopForwardsForHost(
-                                            context,
-                                          )
-                                        : null,
-                                    settingsController:
-                                        widget.settingsController,
+                                      : null,
+                                  onComposeStopForward:
+                                      widget.remoteHost != null
+                                      ? (_) => _actions.stopForwardsForHost(
+                                          context,
+                                        )
+                                      : null,
+                                  settingsController: widget.settingsController,
                                 ),
                               ),
                             ],
@@ -391,11 +388,11 @@ class _DockerOverviewState extends State<DockerOverview>
                         : ListView(
                             children: [
                               ImagePeek(
-                                  images: images,
-                                  onTapDown: _handleImageTapDown,
-                                  onSelectionChanged:
-                                      _handleImageSelectionChanged,
-                                  selectedIds: _controller.selectedImageKeys,
+                                images: images,
+                                onTapDown: _handleImageTapDown,
+                                onSelectionChanged:
+                                    _handleImageSelectionChanged,
+                                selectedIds: _controller.selectedImageKeys,
                               ),
                             ],
                           ),
@@ -404,12 +401,11 @@ class _DockerOverviewState extends State<DockerOverview>
                         : ListView(
                             children: [
                               NetworkList(
-                                  networks: networks,
-                                  onTapDown: _handleNetworkTapDown,
-                                  onSelectionChanged:
-                                      _handleNetworkSelectionChanged,
-                                  selectedIds:
-                                      _controller.selectedNetworkKeys,
+                                networks: networks,
+                                onTapDown: _handleNetworkTapDown,
+                                onSelectionChanged:
+                                    _handleNetworkSelectionChanged,
+                                selectedIds: _controller.selectedNetworkKeys,
                               ),
                             ],
                           ),
@@ -418,12 +414,11 @@ class _DockerOverviewState extends State<DockerOverview>
                         : ListView(
                             children: [
                               VolumeList(
-                                  volumes: volumes,
-                                  onTapDown: _handleVolumeTapDown,
-                                  onSelectionChanged:
-                                      _handleVolumeSelectionChanged,
-                                  selectedIds:
-                                      _controller.selectedVolumeKeys,
+                                volumes: volumes,
+                                onTapDown: _handleVolumeTapDown,
+                                onSelectionChanged:
+                                    _handleVolumeSelectionChanged,
+                                selectedIds: _controller.selectedVolumeKeys,
                               ),
                             ],
                           ),

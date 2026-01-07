@@ -84,9 +84,7 @@ class _PathNavigatorState extends State<PathNavigator> {
       if (controller != null) {
         controller.value = controller.value.copyWith(
           text: widget.currentPath,
-          selection: TextSelection.collapsed(
-            offset: widget.currentPath.length,
-          ),
+          selection: TextSelection.collapsed(offset: widget.currentPath.length),
         );
       } else {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -193,7 +191,8 @@ class _PathNavigatorState extends State<PathNavigator> {
                     onIncludeChanged: widget.onSearchIncludeChanged,
                     onExcludeChanged: widget.onSearchExcludeChanged,
                     onMatchCaseToggled: widget.onSearchMatchCaseChanged,
-                    onMatchWholeWordToggled: widget.onSearchMatchWholeWordChanged,
+                    onMatchWholeWordToggled:
+                        widget.onSearchMatchWholeWordChanged,
                     onSearchContentsChanged: widget.onSearchContentsChanged,
                   ),
                 ],
@@ -220,10 +219,7 @@ class _PathNavigatorState extends State<PathNavigator> {
 }
 
 class _RowHeightSlider extends StatelessWidget {
-  const _RowHeightSlider({
-    required this.rowHeight,
-    required this.onChanged,
-  });
+  const _RowHeightSlider({required this.rowHeight, required this.onChanged});
 
   final double rowHeight;
   final ValueChanged<double>? onChanged;
@@ -325,12 +321,10 @@ class _BreadcrumbsViewState extends State<_BreadcrumbsView> {
     final chips = <Widget>[
       _BreadcrumbButton(
         label: '/',
-        onPressed: normalizedCurrent == '/' ? null : () => widget.onPathChanged('/'),
-        suffix: _buildOptionalSeparator(
-          context,
-          '/',
-          widget.onPrefetchPath,
-        ),
+        onPressed: normalizedCurrent == '/'
+            ? null
+            : () => widget.onPathChanged('/'),
+        suffix: _buildOptionalSeparator(context, '/', widget.onPrefetchPath),
       ),
     ];
 
@@ -436,11 +430,10 @@ class _BreadcrumbsViewState extends State<_BreadcrumbsView> {
       final currentCount = _childDirectoriesForPath(path).length;
       final originalCount = _requestedCounts[path];
       final requestedAt = _requestedAt[path];
-      final agedOut = requestedAt != null &&
+      final agedOut =
+          requestedAt != null &&
           DateTime.now().difference(requestedAt) > const Duration(seconds: 1);
-      if (originalCount == null ||
-          currentCount != originalCount ||
-          agedOut) {
+      if (originalCount == null || currentCount != originalCount || agedOut) {
         resolved.add(path);
       }
     }
@@ -640,10 +633,7 @@ class _BreadcrumbMenuButtonBodyState extends State<_BreadcrumbMenuButtonBody> {
       ),
       items: children
           .map(
-            (child) => PopupMenuItem<String>(
-              value: child,
-              child: Text(child),
-            ),
+            (child) => PopupMenuItem<String>(value: child, child: Text(child)),
           )
           .toList(),
     ).then((value) {
@@ -742,7 +732,9 @@ class _BreadcrumbButtonState extends State<_BreadcrumbButton> {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 120),
                     decoration: BoxDecoration(
-                      color: _suffixHover ? innerHoverColor : Colors.transparent,
+                      color: _suffixHover
+                          ? innerHoverColor
+                          : Colors.transparent,
                       borderRadius: const BorderRadius.horizontal(
                         right: Radius.circular(6),
                       ),
@@ -791,7 +783,6 @@ class _PathFieldViewState extends State<_PathFieldView> {
   bool _forcePreview = false;
   int? _lastHighlight;
   String? _previewText;
-  String? _lastUserQuery;
   List<_PathSuggestion> _cachedOptions = const [];
 
   @override
@@ -819,11 +810,10 @@ class _PathFieldViewState extends State<_PathFieldView> {
   }
 
   _PathSuggestion _buildSuggestion(String basePrefix, String entryName) {
-    final replacement = basePrefix.isEmpty ? entryName : '$basePrefix$entryName';
-    return _PathSuggestion(
-      name: entryName,
-      replacement: replacement,
-    );
+    final replacement = basePrefix.isEmpty
+        ? entryName
+        : '$basePrefix$entryName';
+    return _PathSuggestion(name: entryName, replacement: replacement);
   }
 
   @override
@@ -836,7 +826,6 @@ class _PathFieldViewState extends State<_PathFieldView> {
           return _cachedOptions;
         }
         final input = textEditingValue.text.trim();
-        _lastUserQuery = textEditingValue.text;
         final lastSlashIndex = input.lastIndexOf('/');
         final basePrefix = lastSlashIndex == -1
             ? ''
@@ -846,15 +835,20 @@ class _PathFieldViewState extends State<_PathFieldView> {
             : input.substring(lastSlashIndex + 1);
         final basePath = basePrefix.isEmpty
             ? widget.currentPath
-            : PathUtils.normalizePath(basePrefix, currentPath: widget.currentPath);
-        final normalizedBasePath =
-            PathUtils.normalizePath(basePath, currentPath: widget.currentPath);
-        final prefix =
-            normalizedBasePath == '/' ? '/' : '$normalizedBasePath/';
+            : PathUtils.normalizePath(
+                basePrefix,
+                currentPath: widget.currentPath,
+              );
+        final normalizedBasePath = PathUtils.normalizePath(
+          basePath,
+          currentPath: widget.currentPath,
+        );
+        final prefix = normalizedBasePath == '/' ? '/' : '$normalizedBasePath/';
         final childNames = <String>{};
         for (final path in widget.pathHistory) {
           final normalized = PathUtils.normalizePath(path);
-          if (normalized == normalizedBasePath || !normalized.startsWith(prefix)) {
+          if (normalized == normalizedBasePath ||
+              !normalized.startsWith(prefix)) {
             continue;
           }
           final remainder = normalized.substring(prefix.length);
@@ -885,8 +879,8 @@ class _PathFieldViewState extends State<_PathFieldView> {
         return Focus(
           focusNode: _keyboardFocusNode,
           skipTraversal: true,
-          onKey: (node, event) {
-            if (event is RawKeyDownEvent &&
+          onKeyEvent: (node, event) {
+            if (event is KeyDownEvent &&
                 (event.logicalKey == LogicalKeyboardKey.arrowDown ||
                     event.logicalKey == LogicalKeyboardKey.arrowUp)) {
               _keyboardNavActive = true;
@@ -919,7 +913,10 @@ class _PathFieldViewState extends State<_PathFieldView> {
         );
       },
       onSelected: (value) => widget.onPathChanged(
-        PathUtils.normalizePath(value.replacement, currentPath: widget.currentPath),
+        PathUtils.normalizePath(
+          value.replacement,
+          currentPath: widget.currentPath,
+        ),
       ),
       optionsViewBuilder: (context, onSelected, options) {
         final optionList = options.toList();
@@ -967,8 +964,10 @@ class _PathFieldViewState extends State<_PathFieldView> {
     final basePath = basePrefix.isEmpty
         ? widget.currentPath
         : PathUtils.normalizePath(basePrefix, currentPath: widget.currentPath);
-    final normalizedBasePath =
-        PathUtils.normalizePath(basePath, currentPath: widget.currentPath);
+    final normalizedBasePath = PathUtils.normalizePath(
+      basePath,
+      currentPath: widget.currentPath,
+    );
     if (_lastBasePath == normalizedBasePath) {
       return;
     }
@@ -1033,10 +1032,7 @@ class _PathFieldViewState extends State<_PathFieldView> {
 }
 
 class _PathSuggestion {
-  const _PathSuggestion({
-    required this.name,
-    required this.replacement,
-  });
+  const _PathSuggestion({required this.name, required this.replacement});
 
   final String name;
   final String replacement;

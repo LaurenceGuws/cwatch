@@ -150,8 +150,8 @@ class _FileExplorerTabState extends State<FileExplorerTab>
   @override
   Widget build(BuildContext context) {
     final spacing = context.appTheme.spacing;
-    final dropOverlayColor =
-        context.appTheme.list.selectedBackground.withValues(alpha: 0.35);
+    final dropOverlayColor = context.appTheme.list.selectedBackground
+        .withValues(alpha: 0.35);
     final errorMessage = _controller.error;
     final isTimeoutError = _isTimeoutError(errorMessage);
     if (isTimeoutError &&
@@ -162,9 +162,9 @@ class _FileExplorerTabState extends State<FileExplorerTab>
         if (!mounted) {
           return;
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(errorMessage)));
       });
     }
     final showStreamingResults =
@@ -1007,9 +1007,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
         label: _controller.searchActive ? 'Hide search' : 'Show search',
         icon: _controller.searchActive ? Icons.search_off : Icons.search,
         onSelected: () {
-          unawaited(
-            _controller.setSearchActive(!_controller.searchActive),
-          );
+          unawaited(_controller.setSearchActive(!_controller.searchActive));
         },
       ),
     );

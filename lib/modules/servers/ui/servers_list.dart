@@ -97,8 +97,10 @@ class _ServersListState extends State<ServersList> {
     setState(() {
       _showListSettings = !_showListSettings;
     });
-    
-    final emptyTabs = _tabController.tabs.where((t) => t.action == ServerAction.empty);
+
+    final emptyTabs = _tabController.tabs.where(
+      (t) => t.action == ServerAction.empty,
+    );
     for (final tab in emptyTabs) {
       _syncTabOverlayOptions(tab);
     }
@@ -266,7 +268,7 @@ class _ServersListState extends State<ServersList> {
       );
       socket.destroy();
       return true;
-    } catch (error, stackTrace) {
+    } catch (error) {
       return false;
     }
   }
@@ -553,21 +555,23 @@ class _ServersListState extends State<ServersList> {
               registry: _tabRegistry,
               tabBarHeight: 36,
               showTabBar: TabBarVisibilityController.instance,
-              enableWindowDrag:
-                  !widget.settingsController.settings.windowUseSystemDecorations,
+              enableWindowDrag: !widget
+                  .settingsController
+                  .settings
+                  .windowUseSystemDecorations,
               leading: widget.leading != null
                   ? Padding(
                       padding: EdgeInsets.symmetric(
                         horizontal:
                             (!kIsWeb &&
-                                    (defaultTargetPlatform ==
-                                            TargetPlatform.windows ||
-                                        defaultTargetPlatform ==
-                                            TargetPlatform.macOS ||
-                                        defaultTargetPlatform ==
-                                            TargetPlatform.linux))
-                                ? 0
-                                : spacing.sm,
+                                (defaultTargetPlatform ==
+                                        TargetPlatform.windows ||
+                                    defaultTargetPlatform ==
+                                        TargetPlatform.macOS ||
+                                    defaultTargetPlatform ==
+                                        TargetPlatform.linux))
+                            ? 0
+                            : spacing.sm,
                       ),
                       child: SizedBox(
                         height: 36,

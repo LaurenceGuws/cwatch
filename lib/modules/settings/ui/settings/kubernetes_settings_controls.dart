@@ -17,7 +17,6 @@ class KubernetesSettingsControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final spacing = Theme.of(context).cardTheme.margin?.vertical ?? 8; // approximation
     final configs = settings.kubernetesConfigPaths;
 
     return Column(

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'settings_section.dart';

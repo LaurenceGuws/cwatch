@@ -239,10 +239,7 @@ class BuiltInSshIdentityManager {
           error: error,
         );
       } on ArgumentError catch (error) {
-        logBuiltInSshWarning(
-          'Error parsing built-in key $keyId',
-          error: error,
-        );
+        logBuiltInSshWarning('Error parsing built-in key $keyId', error: error);
         if (error.message == 'passphrase is required for encrypted key') {
           final label = vault.getUnlockedEntry(keyId)?.label;
           throw BuiltInSshKeyPassphraseRequired(
@@ -254,10 +251,7 @@ class BuiltInSshIdentityManager {
         }
         rethrow;
       } on StateError catch (error) {
-        logBuiltInSshWarning(
-          'Error parsing built-in key $keyId',
-          error: error,
-        );
+        logBuiltInSshWarning('Error parsing built-in key $keyId', error: error);
         if (error.message.contains('encrypted')) {
           final label = vault.getUnlockedEntry(keyId)?.label;
           throw BuiltInSshKeyPassphraseRequired(

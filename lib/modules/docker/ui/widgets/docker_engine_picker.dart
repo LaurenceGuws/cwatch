@@ -375,7 +375,8 @@ class RemoteHostList extends StatelessWidget {
     return [
       StructuredDataColumn<RemoteDockerStatus>(
         label: 'Host',
-        autoFitText: (status) => '${status.host.name} ${_hostAddress(status.host)}',
+        autoFitText: (status) =>
+            '${status.host.name} ${_hostAddress(status.host)}',
         cellBuilder: (context, status) => _buildCombinedCell(context, status),
       ),
       StructuredDataColumn<RemoteDockerStatus>(
@@ -425,9 +426,9 @@ class RemoteHostList extends StatelessWidget {
                     ),
                     Text(
                       address,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        height: 1.0,
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(height: 1.0),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -455,7 +456,6 @@ class RemoteHostList extends StatelessWidget {
       host,
     )];
   }
-
 }
 
 class EngineButton extends StatelessWidget {

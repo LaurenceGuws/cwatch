@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import '../../../../theme/app_theme.dart';
 
@@ -147,7 +145,10 @@ class _PathSearchPanelState extends State<PathSearchPanel> {
                             ],
                           ),
                         ToggleButtons(
-                          isSelected: [!widget.searchContents, widget.searchContents],
+                          isSelected: [
+                            !widget.searchContents,
+                            widget.searchContents,
+                          ],
                           onPressed: (index) {
                             widget.onSearchContentsChanged?.call(index == 1);
                           },
@@ -229,12 +230,16 @@ class _PathSearchPanelState extends State<PathSearchPanel> {
                 ),
                 IconButton(
                   icon: Icon(
-                    widget.searchExpanded ? Icons.expand_less : Icons.expand_more,
+                    widget.searchExpanded
+                        ? Icons.expand_less
+                        : Icons.expand_more,
                     size: 16,
                   ),
                   tooltip: widget.searchExpanded ? 'Collapse' : 'Expand',
                   onPressed: () {
-                    widget.onSearchExpandedChanged?.call(!widget.searchExpanded);
+                    widget.onSearchExpandedChanged?.call(
+                      !widget.searchExpanded,
+                    );
                   },
                 ),
               ],
@@ -246,9 +251,11 @@ class _PathSearchPanelState extends State<PathSearchPanel> {
                   final minFieldWidth = 220.0;
                   final availableWidth = constraints.maxWidth;
                   final showOptions = _searchOptionsOpen;
-                  final canFitAll = showOptions &&
+                  final canFitAll =
+                      showOptions &&
                       availableWidth >= (minFieldWidth * 3) + (gap * 2);
-                  final canFitTwo = showOptions &&
+                  final canFitTwo =
+                      showOptions &&
                       availableWidth >= (minFieldWidth * 2) + gap;
                   Widget buildField({
                     required TextEditingController controller,

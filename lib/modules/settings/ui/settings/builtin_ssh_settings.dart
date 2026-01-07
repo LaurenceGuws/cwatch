@@ -304,7 +304,10 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       final updatedBindings = Map<String, String>.from(bindings);
       for (final hostName in hostsUsingKey) {
         updatedBindings.remove(hostName);
-        AppLogger().debug('Removed key binding for host $hostName', tag: 'Settings');
+        AppLogger().debug(
+          'Removed key binding for host $hostName',
+          tag: 'Settings',
+        );
       }
       widget.controller.update(
         (current) =>
@@ -323,7 +326,10 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
 
   void _clearUnlocked() {
     widget.keyService.lockAll();
-    AppLogger().debug('Cleared unlocked built-in keys from memory', tag: 'Settings');
+    AppLogger().debug(
+      'Cleared unlocked built-in keys from memory',
+      tag: 'Settings',
+    );
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Unlocked keys cleared from memory.')),
     );
@@ -803,9 +809,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       child: DropdownButtonFormField<String?>(
         initialValue: mapping,
         isExpanded: true,
-        decoration: InputDecoration(
-          labelText: host.name,
-        ),
+        decoration: InputDecoration(labelText: host.name),
         items: keyItems,
         onChanged: (value) => _updateHostBinding(host.name, value),
       ),

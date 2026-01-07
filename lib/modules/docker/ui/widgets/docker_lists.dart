@@ -98,10 +98,7 @@ class EmptyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final spacing = context.appTheme.spacing;
     return Card(
-      child: Padding(
-        padding: EdgeInsets.all(spacing.lg),
-        child: Text(message),
-      ),
+      child: Padding(padding: EdgeInsets.all(spacing.lg), child: Text(message)),
     );
   }
 }
@@ -720,25 +717,24 @@ class _ImagePeekState extends State<ImagePeek> {
                 ),
               ],
             ),
-            children:
-                collapsed
-                    ? const []
-                    : [
-                        StructuredDataTable<DockerImage>(
-                          rows: items,
-                          columns: _imageColumns(context),
-                          rowHeight: 64,
-                          shrinkToContent: true,
-                          useZebraStripes: false,
-                          surfaceBackgroundColor: sectionColor,
-                          primaryDoubleClickOpensContextMenu: false,
-                          onRowContextMenu: _handleImageContextMenu,
-                          onSelectionChanged: (selectedRows) {
-                            final keys = items.map(_imageKey).toSet();
-                            widget.onSelectionChanged?.call(keys, selectedRows);
-                          },
-                        ),
-                      ],
+            children: collapsed
+                ? const []
+                : [
+                    StructuredDataTable<DockerImage>(
+                      rows: items,
+                      columns: _imageColumns(context),
+                      rowHeight: 64,
+                      shrinkToContent: true,
+                      useZebraStripes: false,
+                      surfaceBackgroundColor: sectionColor,
+                      primaryDoubleClickOpensContextMenu: false,
+                      onRowContextMenu: _handleImageContextMenu,
+                      onSelectionChanged: (selectedRows) {
+                        final keys = items.map(_imageKey).toSet();
+                        widget.onSelectionChanged?.call(keys, selectedRows);
+                      },
+                    ),
+                  ],
           ),
         );
       }),
@@ -983,33 +979,29 @@ class _NetworkListState extends State<NetworkList> {
                 ),
               ],
             ),
-            children:
-                collapsed
-                    ? const []
-                    : [
-                        StructuredDataTable<DockerNetwork>(
-                          rows: items,
-                          columns: _networkColumns(context, icons),
-                          rowHeight: 64,
-                          shrinkToContent: true,
-                          useZebraStripes: false,
-                          surfaceBackgroundColor: sectionColor,
-                          primaryDoubleClickOpensContextMenu: false,
-                          onRowContextMenu: _handleNetworkContextMenu,
-                          onSelectionChanged: (selectedRows) {
-                            final keys = items
-                                .map(
-                                  (item) =>
-                                      item.id.isNotEmpty ? item.id : item.name,
-                                )
-                                .toSet();
-                            widget.onSelectionChanged?.call(
-                              keys,
-                              selectedRows,
-                            );
-                          },
-                        ),
-                      ],
+            children: collapsed
+                ? const []
+                : [
+                    StructuredDataTable<DockerNetwork>(
+                      rows: items,
+                      columns: _networkColumns(context, icons),
+                      rowHeight: 64,
+                      shrinkToContent: true,
+                      useZebraStripes: false,
+                      surfaceBackgroundColor: sectionColor,
+                      primaryDoubleClickOpensContextMenu: false,
+                      onRowContextMenu: _handleNetworkContextMenu,
+                      onSelectionChanged: (selectedRows) {
+                        final keys = items
+                            .map(
+                              (item) =>
+                                  item.id.isNotEmpty ? item.id : item.name,
+                            )
+                            .toSet();
+                        widget.onSelectionChanged?.call(keys, selectedRows);
+                      },
+                    ),
+                  ],
           ),
         );
       }),
@@ -1159,29 +1151,24 @@ class _VolumeListState extends State<VolumeList> {
                 ),
               ],
             ),
-            children:
-                collapsed
-                    ? const []
-                    : [
-                        StructuredDataTable<DockerVolume>(
-                          rows: items,
-                          columns: _volumeColumns(context, icons),
-                          rowHeight: 64,
-                          shrinkToContent: true,
-                          useZebraStripes: false,
-                          surfaceBackgroundColor: sectionColor,
-                          primaryDoubleClickOpensContextMenu: false,
-                          onRowContextMenu: _handleVolumeContextMenu,
-                          onSelectionChanged: (selectedRows) {
-                            final keys =
-                                items.map((item) => item.name).toSet();
-                            widget.onSelectionChanged?.call(
-                              keys,
-                              selectedRows,
-                            );
-                          },
-                        ),
-                      ],
+            children: collapsed
+                ? const []
+                : [
+                    StructuredDataTable<DockerVolume>(
+                      rows: items,
+                      columns: _volumeColumns(context, icons),
+                      rowHeight: 64,
+                      shrinkToContent: true,
+                      useZebraStripes: false,
+                      surfaceBackgroundColor: sectionColor,
+                      primaryDoubleClickOpensContextMenu: false,
+                      onRowContextMenu: _handleVolumeContextMenu,
+                      onSelectionChanged: (selectedRows) {
+                        final keys = items.map((item) => item.name).toSet();
+                        widget.onSelectionChanged?.call(keys, selectedRows);
+                      },
+                    ),
+                  ],
           ),
         );
       }),

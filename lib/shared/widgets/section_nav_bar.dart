@@ -89,14 +89,10 @@ class SectionNavBar extends StatelessWidget {
                 children: [
                   if (leading != null) ...[
                     leading!,
-                    if (showTitle && title.isNotEmpty)
-                      const SizedBox(width: 8),
+                    if (showTitle && title.isNotEmpty) const SizedBox(width: 8),
                   ],
                   if (showTitle && title.isNotEmpty)
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
+                    Text(title, style: Theme.of(context).textTheme.titleLarge),
                   if (hasTabs)
                     Flexible(
                       fit: FlexFit.loose,
@@ -116,8 +112,7 @@ class SectionNavBar extends StatelessWidget {
                                       tabIcons!.length == tabs.length
                                   ? _buildIconTabs(context, tabs, tabIcons!)
                                   : tabs,
-                              labelColor:
-                                  Theme.of(context).colorScheme.primary,
+                              labelColor: Theme.of(context).colorScheme.primary,
                               unselectedLabelColor: Theme.of(
                                 context,
                               ).colorScheme.onSurfaceVariant,
@@ -128,8 +123,10 @@ class SectionNavBar extends StatelessWidget {
                     )
                   else
                     const Spacer(),
-                  if (trailing != null)
-                    ...[const SizedBox(width: 8), trailing!],
+                  if (trailing != null) ...[
+                    const SizedBox(width: 8),
+                    trailing!,
+                  ],
                 ],
               ),
             ),

@@ -88,81 +88,62 @@ class _DockerViewState extends State<DockerView> {
       ValueNotifier<List<SshHost>>(const []);
   final ValueNotifier<List<RemoteDockerStatus>> _scanStatusesNotifier =
       ValueNotifier<List<RemoteDockerStatus>>(const []);
-    final ValueNotifier<bool> _scanningNotifier = ValueNotifier<bool>(false);
-    List<RemoteDockerStatus> _cachedReady = const [];
-    bool _showListSettings = false;
-  
-      List<EngineTab> get _tabs => _tabController.tabs;
-      int get _selectedIndex => _tabController.selectedIndex;
-    
-            void _toggleListSettings() {
-    
-              setState(() {
-    
-                _showListSettings = !_showListSettings;
-    
-              });
-    
-              _refreshPickerTabs();
-    
-            }
-    
-      
-    
-        void _replaceBaseTab(EngineTab tab) {
-    
-          final selectedId = _tabs.isEmpty
-    
-              ? null
-    
-              : _tabs[_selectedIndex.clamp(0, _tabs.length - 1)].id;
-    
-          if (_tabController.tabs.isEmpty) {
-    
-            _tabController.addTab(tab);
-    
-          } else {
-    
-            _tabRegistry.remove(_tabController.tabs.first);
-    
-            _tabController.replaceBaseTab(tab);
-    
-          }
-    
-          _tabRegistry.widgetFor(tab, () => tab.body);
-    
-          if (selectedId != null) {
-    
-            final restoredIndex = _tabs.indexWhere((t) => t.id == selectedId);
-    
-            if (restoredIndex != -1) {
-    
-              _tabController.select(restoredIndex);
-    
-            }
-    
-          }
-    
-        }
-    
-      
-    
-        void _syncPickerOptions(EngineTab tab) {
-      final options = <TabChipOption>[
-        TabChipOption(
-          label: _showListSettings ? 'Hide list settings' : 'List settings',
-          icon: Icons.settings,
-          onSelected: _toggleListSettings,
-        ),
-      ];
-      final controller = tab.optionsController;
-      if (controller != null) {
-        controller.update(options);
+  final ValueNotifier<bool> _scanningNotifier = ValueNotifier<bool>(false);
+  List<RemoteDockerStatus> _cachedReady = const [];
+  bool _showListSettings = false;
+
+  List<EngineTab> get _tabs => _tabController.tabs;
+  int get _selectedIndex => _tabController.selectedIndex;
+
+  void _toggleListSettings() {
+    setState(() {
+      _showListSettings = !_showListSettings;
+    });
+
+    _refreshPickerTabs();
+  }
+
+  void _replaceBaseTab(EngineTab tab) {
+    final selectedId = _tabs.isEmpty
+        ? null
+        : _tabs[_selectedIndex.clamp(0, _tabs.length - 1)].id;
+
+    if (_tabController.tabs.isEmpty) {
+      _tabController.addTab(tab);
+    } else {
+      _tabRegistry.remove(_tabController.tabs.first);
+
+      _tabController.replaceBaseTab(tab);
+    }
+
+    _tabRegistry.widgetFor(tab, () => tab.body);
+
+    if (selectedId != null) {
+      final restoredIndex = _tabs.indexWhere((t) => t.id == selectedId);
+
+      if (restoredIndex != -1) {
+        _tabController.select(restoredIndex);
       }
     }
-  
-    @override
-    void initState() {    super.initState();
+  }
+
+  void _syncPickerOptions(EngineTab tab) {
+    final options = <TabChipOption>[
+      TabChipOption(
+        label: _showListSettings ? 'Hide list settings' : 'List settings',
+        icon: Icons.settings,
+        onSelected: _toggleListSettings,
+      ),
+    ];
+    final controller = tab.optionsController;
+    if (controller != null) {
+      controller.update(options);
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
     _contextsFuture = _loadContexts();
     _tabController = TabHostController<EngineTab>(
       baseTabBuilder: () => _enginePickerTab(),
@@ -271,9 +252,8 @@ class _DockerViewState extends State<DockerView> {
                   const Divider(),
                   DockerSettingsControls(
                     logsTail: widget.settingsController.settings.dockerLogsTail,
-                    onLogsTailChanged: (value) => widget.settingsController.update(
-                      (s) => s.copyWith(dockerLogsTail: value),
-                    ),
+                    onLogsTailChanged: (value) => widget.settingsController
+                        .update((s) => s.copyWith(dockerLogsTail: value)),
                   ),
                 ],
               ),
@@ -369,21 +349,23 @@ class _DockerViewState extends State<DockerView> {
                 registry: _tabRegistry,
                 tabBarHeight: 36,
                 showTabBar: TabBarVisibilityController.instance,
-                enableWindowDrag:
-                    !widget.settingsController.settings.windowUseSystemDecorations,
+                enableWindowDrag: !widget
+                    .settingsController
+                    .settings
+                    .windowUseSystemDecorations,
                 leading: widget.leading != null
                     ? Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal:
                               (!kIsWeb &&
-                                      (defaultTargetPlatform ==
-                                              TargetPlatform.windows ||
-                                          defaultTargetPlatform ==
-                                              TargetPlatform.macOS ||
-                                          defaultTargetPlatform ==
-                                              TargetPlatform.linux))
-                                  ? 0
-                                  : spacing.sm,
+                                  (defaultTargetPlatform ==
+                                          TargetPlatform.windows ||
+                                      defaultTargetPlatform ==
+                                          TargetPlatform.macOS ||
+                                      defaultTargetPlatform ==
+                                          TargetPlatform.linux))
+                              ? 0
+                              : spacing.sm,
                         ),
                         child: SizedBox(
                           height: 36,

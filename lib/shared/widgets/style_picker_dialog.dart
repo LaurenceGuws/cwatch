@@ -126,9 +126,7 @@ class _StylePickerDialogState extends State<_StylePickerDialog> {
       onConfirm: _apply,
       child: Dialog(
         insetPadding: EdgeInsets.all(spacing.md),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(2),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
         clipBehavior: Clip.antiAlias,
         child: SizedBox(
           width: 520,
