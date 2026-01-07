@@ -7,22 +7,7 @@ import 'package:window_manager/window_manager.dart';
 import 'package:tray_manager/tray_manager.dart';
 
 import '../../models/app_settings.dart';
-import '../../models/ssh_host.dart';
-import '../../modules/docker/view.dart';
-import '../../modules/kubernetes/view.dart';
-import '../../modules/sandbox/view.dart';
-import '../../modules/servers/view.dart';
-import '../../modules/settings/view.dart';
-import '../../modules/debug_logs/view.dart';
-import '../../modules/wsl/view.dart';
 import '../../services/settings/app_settings_controller.dart';
-import '../../services/ssh/builtin/builtin_ssh_key_store.dart';
-import '../../services/ssh/builtin/builtin_ssh_key_service.dart';
-import '../../services/ssh/builtin/builtin_ssh_vault.dart';
-import '../../services/ssh/ssh_shell_factory.dart';
-import '../../services/ssh/ssh_auth_prompter.dart';
-import '../../services/ssh/ssh_auth_coordinator.dart';
-import '../../services/ssh/ssh_config_service.dart';
 import '../../shared/shortcuts/shortcut_actions.dart';
 import '../../shared/shortcuts/shortcut_service.dart';
 import '../../shared/theme/app_theme.dart';
@@ -34,14 +19,14 @@ import '../../shared/widgets/input_help_dialog.dart';
 import '../../shared/widgets/command_palette.dart';
 import 'command_palette_registry.dart';
 import '../tabs/tab_bar_visibility.dart';
-import '../../services/window/window_chrome_service.dart';
-import '../../services/window/tray_service.dart';
 import '../../services/logging/app_logger.dart';
-import 'gesture_detector_factory.dart';
 import 'tab_navigation_registry.dart';
+import 'home_shell_modules.dart';
 import 'module_registry.dart';
 import 'shell_module.dart';
 import 'window_controls_constants.dart';
+import 'home_shell_services.dart';
+import 'home_shell_state.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({required this.settingsController, super.key});
@@ -54,29 +39,13 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell>
     with WindowListener, TrayListener {
-  late Future<List<SshHost>> _hostsFuture;
-  String _selectedDestination = 'servers';
-  bool _sidebarCollapsed = false;
-  bool _shellStateRestored = false;
-  bool _paletteOpen = false;
-  late final GestureDetectorFactory _gestureDetectorFactory;
-  late final WindowChromeService _windowChrome;
-  late final TrayService _trayService;
+  late final HomeShellState _state;
+  late final HomeShellServices _services;
   late final VoidCallback _settingsListener;
-  late final BuiltInSshKeyStore _builtInKeyStore;
-  late final BuiltInSshVault _builtInVault;
-  late final BuiltInSshKeyService _builtInKeyService;
-  late final SshAuthCoordinator _authCoordinator;
-  late final SshShellFactory _shellFactory;
-  String? _hostsSettingsSignature;
-  _SidebarPlacement _sidebarPlacement = _SidebarPlacement.dynamic;
-  final Map<String, Widget> _pageCache = {};
   late final ModuleRegistry _moduleRegistry;
   bool _gesturesEnabled = true;
   GestureSubscription? _globalGestureSub;
   double? _scaleStartZoom;
-  bool _isWindowMaximized = false;
-  bool _closeToTrayEnabled = false;
 
   bool get _supportsCustomChrome =>
       !kIsWeb &&
@@ -87,38 +56,34 @@ class _HomeShellState extends State<HomeShell>
   @override
   void initState() {
     super.initState();
-    _builtInKeyStore = BuiltInSshKeyStore();
-    _builtInVault = BuiltInSshVault(keyStore: _builtInKeyStore);
-    _builtInKeyService = BuiltInSshKeyService(
-      keyStore: _builtInKeyStore,
-      vault: _builtInVault,
+    _state = HomeShellState();
+    _services = HomeShellServices()
+      ..init(
+        context: context,
+        settingsController: widget.settingsController,
+      );
+    _state.refreshHosts(widget.settingsController.settings);
+    _moduleRegistry = ModuleRegistry(
+      buildHomeShellModules(
+        hostsFuture: _state.hostsFuture,
+        settingsController: widget.settingsController,
+        keyService: _services.keyService,
+        shellFactory: _services.shellFactory,
+        isWindows: defaultTargetPlatform == TargetPlatform.windows,
+      ),
     );
-    _authCoordinator = SshAuthPrompter.forContext(
-      context: context,
-      keyService: _builtInKeyService,
-    );
-    _windowChrome = WindowChromeService();
-    _trayService = TrayService();
-    _shellFactory = SshShellFactory(
-      settingsController: widget.settingsController,
-      keyService: _builtInKeyService,
-      authCoordinator: _authCoordinator,
-    );
-    _refreshHosts();
-    _moduleRegistry = ModuleRegistry(_buildModules());
     _moduleRegistry.addListener(_handleModulesChanged);
-    _hostsSettingsSignature = _hostSettingsSignature(
+    _state.hostsSettingsSignature = _state.hostSettingsSignature(
       widget.settingsController.settings,
     );
     _applyShellSettings(widget.settingsController.settings);
-    _shellStateRestored = widget.settingsController.isLoaded;
+    _state.shellStateRestored = widget.settingsController.isLoaded;
     _settingsListener = _handleSettingsChanged;
     widget.settingsController.addListener(_settingsListener);
     ShortcutService.instance.updateSettings(widget.settingsController.settings);
     AppLogger.configureRemoteCommandLogging(
       enabled: widget.settingsController.settings.debugMode,
     );
-    _gestureDetectorFactory = GestureDetectorFactory();
     _configureInputMode(widget.settingsController.settings);
     _syncWindowState();
     if (_supportsCustomChrome) {
@@ -130,16 +95,7 @@ class _HomeShellState extends State<HomeShell>
   ShortcutSubscription? _globalShortcutSub;
 
   void _refreshHosts() {
-    final customHosts = widget.settingsController.settings.customSshHosts;
-    final customConfigs =
-        widget.settingsController.settings.customSshConfigPaths;
-    final disabledConfigs =
-        widget.settingsController.settings.disabledSshConfigPaths;
-    _hostsFuture = SshConfigService(
-      customHosts: customHosts,
-      additionalEntryPoints: customConfigs,
-      disabledEntryPoints: disabledConfigs,
-    ).loadHosts(checkAvailability: false);
+    _state.refreshHosts(widget.settingsController.settings);
   }
 
   @override
@@ -152,7 +108,7 @@ class _HomeShellState extends State<HomeShell>
     widget.settingsController.removeListener(_settingsListener);
     _globalShortcutSub?.dispose();
     _globalGestureSub?.dispose();
-    _gestureDetectorFactory.dispose();
+    _services.dispose();
     super.dispose();
   }
 
@@ -161,12 +117,12 @@ class _HomeShellState extends State<HomeShell>
     setState(() {
       final modules = _moduleRegistry.modules;
       if (modules.isEmpty) {
-        _selectedDestination = '';
+        _state.selectedDestination = '';
         return;
       }
-      final exists = modules.any((module) => module.id == _selectedDestination);
+      final exists = modules.any((module) => module.id == _state.selectedDestination);
       if (!exists) {
-        _selectedDestination = modules.first.id;
+        _state.selectedDestination = modules.first.id;
       }
     });
   }
@@ -175,44 +131,45 @@ class _HomeShellState extends State<HomeShell>
     if (!widget.settingsController.isLoaded) {
       return;
     }
-    if (!_shellStateRestored) {
-      final previousDestination = _selectedDestination;
+    if (!_state.shellStateRestored) {
+      final previousDestination = _state.selectedDestination;
       setState(() {
         _applyShellSettings(widget.settingsController.settings);
-        if (_selectedDestination != previousDestination) {
-          _pageCache.removeWhere(
-            (destination, _) => destination != _selectedDestination,
-          );
+        if (_state.selectedDestination != previousDestination) {
+          _state.pageCache.evictAllExcept(_state.selectedDestination);
         }
-        _shellStateRestored = true;
+        _state.shellStateRestored = true;
       });
     }
     ShortcutService.instance.updateSettings(widget.settingsController.settings);
-    _shellFactory.handleSettingsChanged(widget.settingsController.settings);
+    _services.handleSettingsChanged(widget.settingsController.settings);
     _configureInputMode(widget.settingsController.settings);
     if (_moduleRegistry.modules.isEmpty) {
       return;
     }
-    final nextSignature = _hostSettingsSignature(
+    final nextSignature = _state.hostSettingsSignature(
       widget.settingsController.settings,
     );
-    if (nextSignature != _hostsSettingsSignature) {
-      _hostsSettingsSignature = nextSignature;
+    if (nextSignature != _state.hostsSettingsSignature) {
+      _state.hostsSettingsSignature = nextSignature;
       setState(() {
         _refreshHosts();
       });
     }
-    unawaited(_windowChrome.apply(widget.settingsController.settings));
+    unawaited(
+      _services.windowChrome.apply(widget.settingsController.settings),
+    );
     unawaited(_configureCloseToTray(widget.settingsController.settings));
   }
 
   void _applyShellSettings(AppSettings settings) {
     AppLogger.configureRemoteCommandLogging(enabled: settings.debugMode);
-    _selectedDestination =
-        _destinationFromName(settings.shellDestination) ?? _selectedDestination;
-    _sidebarCollapsed = settings.shellSidebarCollapsed;
-    _sidebarPlacement = _placementFromString(settings.shellSidebarPlacement);
-    unawaited(_windowChrome.apply(settings));
+    _state.selectedDestination =
+        _destinationFromName(settings.shellDestination) ?? _state.selectedDestination;
+    _state.sidebarCollapsed = settings.shellSidebarCollapsed;
+    _state.sidebarPlacement =
+        _state.placementFromString(settings.shellSidebarPlacement);
+    unawaited(_services.windowChrome.apply(settings));
     unawaited(_configureCloseToTray(settings));
     _configureInputMode(settings);
   }
@@ -222,16 +179,16 @@ class _HomeShellState extends State<HomeShell>
       return;
     }
     final enable = settings.closeToTray;
-    if (_closeToTrayEnabled == enable) {
+    if (_state.closeToTrayEnabled == enable) {
       return;
     }
-    _closeToTrayEnabled = enable;
+    _state.closeToTrayEnabled = enable;
     await windowManager.setPreventClose(enable);
     if (enable) {
-      await _trayService.ensureInitialized();
+      await _services.trayService.ensureInitialized();
     } else {
       await windowManager.setSkipTaskbar(false);
-      await _trayService.destroy();
+      await _services.trayService.destroy();
     }
   }
 
@@ -300,29 +257,11 @@ class _HomeShellState extends State<HomeShell>
     }
   }
 
-  String _hostSettingsSignature(AppSettings settings) {
-    final hosts = settings.customSshHosts
-        .map(
-          (host) =>
-              '${host.name}|${host.hostname}|${host.port}|${host.user ?? ''}|${host.identityFile ?? ''}',
-        )
-        .join(';');
-    final customConfigs = List<String>.from(settings.customSshConfigPaths)
-      ..sort();
-    final disabledConfigs = List<String>.from(settings.disabledSshConfigPaths)
-      ..sort();
-    return [
-      hosts,
-      customConfigs.join(';'),
-      disabledConfigs.join(';'),
-    ].join('::');
-  }
-
   void _handleDestinationSelected(String destination) {
-    if (_selectedDestination == destination) {
+    if (_state.selectedDestination == destination) {
       return;
     }
-    setState(() => _selectedDestination = destination);
+    setState(() => _state.selectedDestination = destination);
     _persistShellState(destination: destination);
   }
 
@@ -330,7 +269,7 @@ class _HomeShellState extends State<HomeShell>
     final modules = _moduleRegistry.modules;
     if (modules.isEmpty) return;
     final currentIndex = modules.indexWhere(
-      (m) => m.id == _selectedDestination,
+      (m) => m.id == _state.selectedDestination,
     );
     final nextIndex = (currentIndex + 1) % modules.length;
     _handleDestinationSelected(modules[nextIndex].id);
@@ -340,7 +279,7 @@ class _HomeShellState extends State<HomeShell>
     final modules = _moduleRegistry.modules;
     if (modules.isEmpty) return;
     final currentIndex = modules.indexWhere(
-      (m) => m.id == _selectedDestination,
+      (m) => m.id == _state.selectedDestination,
     );
     final prevIndex = (currentIndex - 1 + modules.length) % modules.length;
     _handleDestinationSelected(modules[prevIndex].id);
@@ -348,7 +287,7 @@ class _HomeShellState extends State<HomeShell>
 
   void _focusNextTab() {
     final navigator = TabNavigationRegistry.instance.forModule(
-      _selectedDestination,
+      _state.selectedDestination,
     );
     final handled = navigator?.next() ?? false;
     if (handled) return;
@@ -356,28 +295,28 @@ class _HomeShellState extends State<HomeShell>
 
   void _focusPreviousTab() {
     final navigator = TabNavigationRegistry.instance.forModule(
-      _selectedDestination,
+      _state.selectedDestination,
     );
     final handled = navigator?.previous() ?? false;
     if (handled) return;
   }
 
   void _setSidebarCollapsed(bool collapsed) {
-    if (_sidebarCollapsed == collapsed) return;
+    if (_state.sidebarCollapsed == collapsed) return;
     setState(() {
-      _sidebarCollapsed = collapsed;
+      _state.sidebarCollapsed = collapsed;
     });
     _persistShellState(collapsed: collapsed);
   }
 
-  void _toggleSidebar() => _setSidebarCollapsed(!_sidebarCollapsed);
+  void _toggleSidebar() => _setSidebarCollapsed(!_state.sidebarCollapsed);
 
   Future<void> _openCommandPalette() async {
-    if (_paletteOpen) {
+    if (_state.paletteOpen) {
       Navigator.of(context, rootNavigator: true).maybePop();
       return;
     }
-    _paletteOpen = true;
+    _state.paletteOpen = true;
     final entries = <CommandPaletteEntry>[
       CommandPaletteEntry(
         id: 'global:nextTab',
@@ -409,10 +348,10 @@ class _HomeShellState extends State<HomeShell>
       ),
       CommandPaletteEntry(
         id: 'global:sidebar:toggle',
-        label: _sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar',
+        label: _state.sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar',
         category: 'Chrome',
         onSelected: _toggleSidebar,
-        icon: _sidebarCollapsed ? Icons.chevron_right : Icons.chevron_left,
+        icon: _state.sidebarCollapsed ? Icons.chevron_right : Icons.chevron_left,
       ),
       CommandPaletteEntry(
         id: 'global:sidebar:show',
@@ -460,13 +399,13 @@ class _HomeShellState extends State<HomeShell>
         onSelected: () => showInputHelpDialog(
           context,
           settings: widget.settingsController.settings,
-          moduleId: _selectedDestination,
+          moduleId: _state.selectedDestination,
         ),
         icon: Icons.info_outline,
       ),
     ];
     final handle = CommandPaletteRegistry.instance.forModule(
-      _selectedDestination,
+      _state.selectedDestination,
     );
     if (handle != null) {
       final moduleEntries = await Future<List<CommandPaletteEntry>>.value(
@@ -475,26 +414,26 @@ class _HomeShellState extends State<HomeShell>
       entries.addAll(moduleEntries);
     }
     if (!mounted || entries.isEmpty) {
-      _paletteOpen = false;
+      _state.paletteOpen = false;
       return;
     }
     try {
       await showCommandPalette(context, entries: entries);
     } finally {
-      _paletteOpen = false;
+      _state.paletteOpen = false;
     }
   }
 
   void _ensurePageCached(String destination, BuildContext context) {
-    if (_pageCache.containsKey(destination)) {
-      return;
-    }
-    _pageCache[destination] = _buildPageForDestination(destination, context);
+    _state.pageCache.ensurePageCached(
+      destination: destination,
+      buildPage: () => _buildPageForDestination(destination, context),
+    );
   }
 
   Widget _buildSidebarToggleButton(BuildContext context) {
     return _SidebarMenuButton(
-      collapsed: _sidebarCollapsed,
+      collapsed: _state.sidebarCollapsed,
       onShowOptions: (position) => _showSidebarOptions(context, position),
     );
   }
@@ -520,35 +459,35 @@ class _HomeShellState extends State<HomeShell>
       items: [
         CheckedPopupMenuItem(
           value: _SidebarOption.hide,
-          checked: _sidebarCollapsed,
+          checked: _state.sidebarCollapsed,
           child: const Text('Hide sidebar'),
         ),
         const PopupMenuDivider(),
         CheckedPopupMenuItem(
           value: _SidebarOption.pinLeft,
           checked:
-              !_sidebarCollapsed && _sidebarPlacement == _SidebarPlacement.left,
+              !_state.sidebarCollapsed && _state.sidebarPlacement == SidebarPlacement.left,
           child: const Text('Pin to left'),
         ),
         CheckedPopupMenuItem(
           value: _SidebarOption.pinRight,
           checked:
-              !_sidebarCollapsed &&
-              _sidebarPlacement == _SidebarPlacement.right,
+              !_state.sidebarCollapsed &&
+              _state.sidebarPlacement == SidebarPlacement.right,
           child: const Text('Pin to right'),
         ),
         CheckedPopupMenuItem(
           value: _SidebarOption.pinBottom,
           checked:
-              !_sidebarCollapsed &&
-              _sidebarPlacement == _SidebarPlacement.bottom,
+              !_state.sidebarCollapsed &&
+              _state.sidebarPlacement == SidebarPlacement.bottom,
           child: const Text('Pin to bottom'),
         ),
         CheckedPopupMenuItem(
           value: _SidebarOption.dynamicPlacement,
           checked:
-              !_sidebarCollapsed &&
-              _sidebarPlacement == _SidebarPlacement.dynamic,
+              !_state.sidebarCollapsed &&
+              _state.sidebarPlacement == SidebarPlacement.dynamic,
           child: const Text('Dynamic placement'),
         ),
       ],
@@ -562,44 +501,45 @@ class _HomeShellState extends State<HomeShell>
     setState(() {
       switch (option) {
         case _SidebarOption.hide:
-          _sidebarCollapsed = true;
+          _state.sidebarCollapsed = true;
           break;
         case _SidebarOption.pinLeft:
-          _sidebarCollapsed = false;
-          _sidebarPlacement = _SidebarPlacement.left;
+          _state.sidebarCollapsed = false;
+          _state.sidebarPlacement = SidebarPlacement.left;
           break;
         case _SidebarOption.pinRight:
-          _sidebarCollapsed = false;
-          _sidebarPlacement = _SidebarPlacement.right;
+          _state.sidebarCollapsed = false;
+          _state.sidebarPlacement = SidebarPlacement.right;
           break;
         case _SidebarOption.pinBottom:
-          _sidebarCollapsed = false;
-          _sidebarPlacement = _SidebarPlacement.bottom;
+          _state.sidebarCollapsed = false;
+          _state.sidebarPlacement = SidebarPlacement.bottom;
           break;
         case _SidebarOption.dynamicPlacement:
-          _sidebarCollapsed = false;
-          _sidebarPlacement = _SidebarPlacement.dynamic;
+          _state.sidebarCollapsed = false;
+          _state.sidebarPlacement = SidebarPlacement.dynamic;
           break;
       }
     });
     _persistShellState(
-      collapsed: _sidebarCollapsed,
-      placement: _sidebarPlacement,
+      collapsed: _state.sidebarCollapsed,
+      placement: _state.sidebarPlacement,
     );
   }
 
   void _persistShellState({
     String? destination,
     bool? collapsed,
-    _SidebarPlacement? placement,
+    SidebarPlacement? placement,
   }) {
-    final targetDestination = destination ?? _selectedDestination;
+    final targetDestination = destination ?? _state.selectedDestination;
     final settings = widget.settingsController.settings;
-    final targetCollapsed = collapsed ?? _sidebarCollapsed;
-    final targetPlacement = placement ?? _sidebarPlacement;
+    final targetCollapsed = collapsed ?? _state.sidebarCollapsed;
+    final targetPlacement = placement ?? _state.sidebarPlacement;
     if (settings.shellDestination == targetDestination &&
         settings.shellSidebarCollapsed == targetCollapsed &&
-        settings.shellSidebarPlacement == _placementToString(targetPlacement)) {
+        settings.shellSidebarPlacement ==
+            _state.placementToString(targetPlacement)) {
       return;
     }
     unawaited(
@@ -607,7 +547,7 @@ class _HomeShellState extends State<HomeShell>
         (current) => current.copyWith(
           shellDestination: targetDestination,
           shellSidebarCollapsed: targetCollapsed,
-          shellSidebarPlacement: _placementToString(targetPlacement),
+          shellSidebarPlacement: _state.placementToString(targetPlacement),
         ),
       ),
     );
@@ -636,38 +576,6 @@ class _HomeShellState extends State<HomeShell>
     );
   }
 
-  List<ShellModuleView> _buildModules() {
-    final modules = <ShellModuleView>[
-      ServersModule(
-        hostsFuture: _hostsFuture,
-        settingsController: widget.settingsController,
-        keyService: _builtInKeyService,
-        shellFactory: _shellFactory,
-      ),
-    ];
-    if (defaultTargetPlatform == TargetPlatform.windows) {
-      modules.add(const WslModule());
-    }
-    modules.addAll([
-      DockerModule(
-        hostsFuture: _hostsFuture,
-        settingsController: widget.settingsController,
-        keyService: _builtInKeyService,
-        shellFactory: _shellFactory,
-      ),
-      KubernetesModule(settingsController: widget.settingsController),
-      SandboxModule(settingsController: widget.settingsController),
-      DebugLogsModule(settingsController: widget.settingsController),
-      SettingsModule(
-        controller: widget.settingsController,
-        hostsFuture: _hostsFuture,
-        keyService: _builtInKeyService,
-        shellFactory: _shellFactory,
-      ),
-    ]);
-    return modules;
-  }
-
   void _syncWindowState() {
     if (!_supportsCustomChrome) {
       return;
@@ -676,7 +584,7 @@ class _HomeShellState extends State<HomeShell>
     unawaited(() async {
       final maximized = await windowManager.isMaximized();
       if (mounted) {
-        setState(() => _isWindowMaximized = maximized);
+        setState(() => _state.isWindowMaximized = maximized);
       }
     }());
   }
@@ -688,7 +596,7 @@ class _HomeShellState extends State<HomeShell>
       builder: (context, _) {
         void showOptions(Offset position) =>
             _showSidebarOptions(context, position);
-        _ensurePageCached(_selectedDestination, context);
+        _ensurePageCached(_state.selectedDestination, context);
         final spacing = context.appTheme.spacing;
         final viewportWidth = MediaQuery.of(context).size.width;
         final viewportHeight = MediaQuery.of(context).size.height;
@@ -700,18 +608,18 @@ class _HomeShellState extends State<HomeShell>
         final secondaryModules = modules
             .where((module) => !module.isPrimary)
             .toList();
-        final selectedIndex = _moduleIndex(_selectedDestination);
+        final selectedIndex = _moduleIndex(_state.selectedDestination);
         final safeSelectedIndex = selectedIndex.clamp(
           0,
           (modules.length - 1).clamp(0, 9999),
         );
-        final bool showSidebar = !_sidebarCollapsed;
+        final bool showSidebar = !_state.sidebarCollapsed;
         final bool useCustomChrome =
             _supportsCustomChrome &&
             !widget.settingsController.settings.windowUseSystemDecorations;
         final Widget? windowControls = useCustomChrome
             ? _WindowControls(
-                isMaximized: _isWindowMaximized,
+                isMaximized: _state.isWindowMaximized,
                 onDrag: _startWindowDrag,
                 onToggleMaximize: _toggleWindowMaximize,
                 onMinimize: _minimizeWindow,
@@ -727,12 +635,12 @@ class _HomeShellState extends State<HomeShell>
               EdgeInsets.only(top: _WindowControls.height + spacing.base * 1.5);
         }
         if (showSidebar) {
-          switch (_sidebarPlacement) {
-            case _SidebarPlacement.dynamic:
+          switch (_state.sidebarPlacement) {
+            case SidebarPlacement.dynamic:
               if (isPortrait) {
                 navigationBar = _BottomNavBar(
                   modules: modules,
-                  selected: _selectedDestination,
+                  selected: _state.selectedDestination,
                   onSelect: _handleDestinationSelected,
                   onShowOptions: showOptions,
                 );
@@ -744,7 +652,7 @@ class _HomeShellState extends State<HomeShell>
                 navigationBar = _Sidebar(
                   primaryModules: primaryModules,
                   secondaryModules: secondaryModules,
-                  selected: _selectedDestination,
+                  selected: _state.selectedDestination,
                   onSelect: _handleDestinationSelected,
                   onShowOptions: showOptions,
                 );
@@ -754,11 +662,11 @@ class _HomeShellState extends State<HomeShell>
                 );
               }
               break;
-            case _SidebarPlacement.left:
+            case SidebarPlacement.left:
               navigationBar = _Sidebar(
                 primaryModules: primaryModules,
                 secondaryModules: secondaryModules,
-                selected: _selectedDestination,
+                selected: _state.selectedDestination,
                 onSelect: _handleDestinationSelected,
                 onShowOptions: showOptions,
               );
@@ -767,11 +675,11 @@ class _HomeShellState extends State<HomeShell>
                 left: _Sidebar.width + spacing.xs,
               );
               break;
-            case _SidebarPlacement.right:
+            case SidebarPlacement.right:
               navigationBar = _Sidebar(
                 primaryModules: primaryModules,
                 secondaryModules: secondaryModules,
-                selected: _selectedDestination,
+                selected: _state.selectedDestination,
                 onSelect: _handleDestinationSelected,
                 alignRight: true,
                 onShowOptions: showOptions,
@@ -781,10 +689,10 @@ class _HomeShellState extends State<HomeShell>
                 right: _Sidebar.width + spacing.xs,
               );
               break;
-            case _SidebarPlacement.bottom:
+            case SidebarPlacement.bottom:
               navigationBar = _BottomNavBar(
                 modules: modules,
-                selected: _selectedDestination,
+                selected: _state.selectedDestination,
                 onSelect: _handleDestinationSelected,
                 onShowOptions: showOptions,
               );
@@ -802,7 +710,9 @@ class _HomeShellState extends State<HomeShell>
             index: safeSelectedIndex,
             children: modules
                 .map(
-                  (module) => _pageCache[module.id] ?? const SizedBox.shrink(),
+                  (module) =>
+                      _state.pageCache.pageFor(module.id) ??
+                      const SizedBox.shrink(),
                 )
                 .toList(),
           ),
@@ -820,7 +730,7 @@ class _HomeShellState extends State<HomeShell>
                     onScaleStart: _gesturesEnabled ? _handleScaleStart : null,
                     onScaleUpdate: _gesturesEnabled ? _handleScaleUpdate : null,
                     onScaleEnd: _gesturesEnabled ? _handleScaleEnd : null,
-                    child: _gestureDetectorFactory.wrap(
+                    child: _services.gestureDetectorFactory.wrap(
                       context,
                       LayoutBuilder(
                         builder: (context, constraints) {
@@ -907,10 +817,10 @@ class _HomeShellState extends State<HomeShell>
     final isMaximized = await windowManager.isMaximized();
     if (isMaximized) {
       await windowManager.unmaximize();
-      if (mounted) setState(() => _isWindowMaximized = false);
+      if (mounted) setState(() => _state.isWindowMaximized = false);
     } else {
       await windowManager.maximize();
-      if (mounted) setState(() => _isWindowMaximized = true);
+      if (mounted) setState(() => _state.isWindowMaximized = true);
     }
   }
 
@@ -929,7 +839,7 @@ class _HomeShellState extends State<HomeShell>
   }
 
   Future<void> _hideToTray() async {
-    await _trayService.ensureInitialized();
+    await _services.trayService.ensureInitialized();
     await windowManager.hide();
     await windowManager.setSkipTaskbar(true);
   }
@@ -941,18 +851,18 @@ class _HomeShellState extends State<HomeShell>
   }
 
   Future<void> _quitFromTray() async {
-    await _trayService.destroy();
+    await _services.trayService.destroy();
     await windowManager.destroy();
   }
 
   @override
   void onWindowMaximize() {
-    if (mounted) setState(() => _isWindowMaximized = true);
+    if (mounted) setState(() => _state.isWindowMaximized = true);
   }
 
   @override
   void onWindowUnmaximize() {
-    if (mounted) setState(() => _isWindowMaximized = false);
+    if (mounted) setState(() => _state.isWindowMaximized = false);
   }
 
   @override
@@ -988,7 +898,9 @@ class _HomeShellState extends State<HomeShell>
       case 'icon-512':
       case 'icon-768':
       case 'icon-1024':
-        unawaited(_trayService.setIconChoiceByKey(menuItem.key ?? ''));
+        unawaited(
+          _services.trayService.setIconChoiceByKey(menuItem.key ?? ''),
+        );
         break;
     }
   }
@@ -1462,35 +1374,6 @@ class _WindowControlsPathClipper extends CustomClipper<ui.Path> {
   bool shouldReclip(_WindowControlsPathClipper oldClipper) {
     return oldClipper.buttonWidth != buttonWidth ||
         oldClipper.buttonHeight != buttonHeight;
-  }
-}
-
-enum _SidebarPlacement { dynamic, left, right, bottom }
-
-_SidebarPlacement _placementFromString(String? value) {
-  switch (value) {
-    case 'left':
-      return _SidebarPlacement.left;
-    case 'right':
-      return _SidebarPlacement.right;
-    case 'bottom':
-      return _SidebarPlacement.bottom;
-    case 'dynamic':
-    default:
-      return _SidebarPlacement.dynamic;
-  }
-}
-
-String _placementToString(_SidebarPlacement placement) {
-  switch (placement) {
-    case _SidebarPlacement.dynamic:
-      return 'dynamic';
-    case _SidebarPlacement.left:
-      return 'left';
-    case _SidebarPlacement.right:
-      return 'right';
-    case _SidebarPlacement.bottom:
-      return 'bottom';
   }
 }
 

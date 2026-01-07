@@ -1,0 +1,64 @@
+Here’s a small, size-first refactor plan focused on splitting HomeShell and the file explorer stack, with concrete extraction targets and minimal risk. I’ll keep it incremental so you can
+  stop after any step.
+
+  Goal
+  Reduce file size and “god widget/service” growth while keeping behavior intact.
+
+  Plan (Small Steps, Safe to Stop After Any Step)
+
+  1. Extract HomeShell infrastructure into 3 focused classes
+
+  - New: lib/core/navigation/home_shell_state.dart
+      - Holds: _selectedDestination, _sidebarCollapsed, _sidebarPlacement, _pageCache, _shellStateRestored, _paletteOpen, _hostsFuture, _hostsSettingsSignature.
+      - API: init(AppSettings), applySettings(AppSettings), ensurePageCached(...), refreshHosts(...), moduleById(...), moduleIndex(...).
+  - New: lib/core/navigation/home_shell_services.dart
+      - Holds: SSH key store, vault, key service, auth coordinator, shell factory, window chrome, tray service, gesture factory.
+      - API: init(BuildContext, AppSettingsController), dispose(), onSettingsChanged(AppSettings)
+  - New: lib/core/navigation/home_shell_modules.dart
+      - buildModules(...) and _buildModules() logic.
+  - Result: lib/core/navigation/app_shell.dart should shrink to ~300–500 lines.
+
+  2. Replace widget-local page cache with a tiny cache helper
+
+  - New: lib/core/navigation/home_shell_page_cache.dart
+      - ensurePageCached(String id, BuildContext, ShellModuleView module)
+      - evictAllExcept(String id)
+  - Benefit: isolates caching policy and lets you later swap to PageStorage or IndexedStack without touching HomeShell.
+
+  3. Split File Explorer controller into “state + ops + UI adapter”
+
+  - New: lib/shared/views/shared/tabs/file_explorer/explorer_state.dart
+      - Holds: entries, currentPath, loading, error, search*, rowHeight, showBreadcrumbs, pathHistory, etc.
+  - New: lib/shared/views/shared/tabs/file_explorer/explorer_ops.dart
+      - Pure-ish service: refresh, search, prefetch, download, upload, paste, delete, rename, etc.
+      - No BuildContext. All UI effects become callbacks.
+  - New: lib/shared/views/shared/tabs/file_explorer/explorer_ui_adapter.dart
+      - Maps ops events to snackbars, progress dialogs, merge prompts.
+  - Result: file_explorer_controller.dart shrinks to wiring + lifecycle.
+
+  4. Move File Explorer “UI helpers” into sub-widgets
+
+  - Split file_explorer_tab.dart into:
+      - file_explorer_tab.dart (shell + state wiring)
+      - file_explorer_view.dart (layout)
+      - file_explorer_drop_target.dart (drop logic)
+      - file_explorer_content.dart (loading/error/streaming states)
+
+  5. Optional: introduce a feature barrel
+
+  - lib/modules/servers/ and lib/shared/views/shared/tabs/file_explorer/ can get a barrel.dart exporting the split pieces.
+  - This reduces import noise in high-churn files.
+
+  Suggested order
+  1 → 2 → 3 → 4 (and skip 5 unless you like it)
+
+Progress
+- Started Step 1: extracted module construction into `lib/core/navigation/home_shell_modules.dart`.
+- Updated `lib/core/navigation/app_shell.dart` to use the new module builder.
+- Continued Step 1: added `lib/core/navigation/home_shell_services.dart` and moved HomeShell service setup into it.
+- Updated `lib/core/navigation/app_shell.dart` to use `HomeShellServices` for key service, shell factory, window chrome, tray, and gesture factory.
+- Continued Step 1: added `lib/core/navigation/home_shell_state.dart` and moved HomeShell UI state + host signature/refresh helpers into it.
+- Updated `lib/core/navigation/app_shell.dart` to use `HomeShellState` for destinations, sidebar state, page cache, window/tray state, and host refresh/signature.
+- Continued Step 1: moved sidebar placement parsing/serialization into `HomeShellState` to reduce `app_shell.dart` helpers.
+- Continued Step 1: moved page cache helpers into `HomeShellState` and simplified `app_shell.dart` usage.
+- Completed Step 2: added `lib/core/navigation/home_shell_page_cache.dart` and routed cache calls through it.
