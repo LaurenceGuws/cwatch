@@ -1,0 +1,98 @@
+Phase 2 — Maintainability + Size Reduction (Architecture Pass)
+
+Goal
+Finish de-vibing by turning the remaining “god files” into small, testable, replaceable parts; reduce coupling between UI and infrastructure; and optionally reduce shipped app size.
+
+Scope (what Phase 2 targets)
+- HomeShell (`lib/core/navigation/app_shell.dart`) → split into controller + view pieces.
+- Module UIs (Docker/Servers/Kubernetes) → remove repeated tab/list boilerplate.
+- Explorer stack → separate orchestration from UI effects.
+- Optional repo/binary size work → fonts/assets.
+
+2.1 HomeShell: finish the extraction
+Target files
+- `lib/core/navigation/app_shell.dart` (currently ~1380 lines)
+
+Work
+1) Introduce `HomeShellController`
+- New: `lib/core/navigation/home_shell_controller.dart`
+- Owns: listeners (settings, module registry), command palette assembly, gesture/shortcut policy toggles, persistence calls.
+- Exposes: a minimal `ValueListenable` / `ChangeNotifier` state model consumed by the UI.
+
+2) Split UI sections into dedicated widgets/files
+- New (examples):
+  - `lib/core/navigation/widgets/window_controls.dart`
+  - `lib/core/navigation/widgets/sidebar.dart`
+  - `lib/core/navigation/widgets/bottom_nav_bar.dart`
+  - `lib/core/navigation/widgets/navigation_button.dart`
+  - `lib/core/navigation/widgets/sidebar_menu_button.dart`
+  - `lib/core/navigation/widgets/window_controls_path_clipper.dart`
+
+3) Keep `HomeShell` as a thin composition root
+- `HomeShell` wires: settings controller, services, module registry, controller lifecycle.
+- `HomeShellView` renders: chrome + nav + page stack.
+
+Success criteria
+- `lib/core/navigation/app_shell.dart` becomes a small entrypoint file (ideally <400 LOC).
+- Side effects are isolated (easy to reason about lifecycle and disposal).
+
+2.2 Unify module scaffolding (reduce duplication)
+Observation
+`DockerView`, `ServersList`, and `KubernetesContextList` share the same patterns:
+- TabHostController + TabViewRegistry + tab state map
+- settings listeners + list settings toggle
+- command palette handle + tab nav handle
+
+Work
+- New: `lib/core/tabs/tabbed_module_scaffold.dart`
+  - Handles the shared lifecycle and wiring.
+  - Accepts a config: tab factory, palette loader, settings panel builder, refresh hooks.
+
+Success criteria
+- Each module UI file shrinks significantly (goal: <600 LOC each).
+- Fewer imports and fewer “copy/paste” lifecycle bugs.
+
+2.3 Clean dependency direction (UI → interfaces → implementations)
+Work
+- Define lightweight interfaces where UI currently imports concrete services.
+  - Example: define `SshService`, `DockerService`, `ExplorerOps` interfaces.
+  - Keep implementations in `services/**/impl`.
+
+Success criteria
+- Feature UI can be tested with fakes/mocks.
+- Fewer cross-module imports.
+
+2.4 File explorer: separate UI effects from orchestration
+Target
+- `lib/shared/views/shared/tabs/file_explorer/file_operations_service.dart` (~1280 LOC)
+
+Work
+- Split into:
+  - `file_operations_service.dart` (pure orchestration, no BuildContext)
+  - `file_operations_ui_adapter.dart` (snackbars, dialogs, progress UI)
+  - `file_transfer_queue.dart` (optional: concurrency + cancel tokens)
+
+Success criteria
+- Non-UI code becomes usable from background tasks / headless tests.
+
+2.5 Optional: Reduce shipped app size (fonts/themes)
+Observation
+`assets/fonts` is the largest chunk (~23MB).
+
+Options
+- Keep only one Nerd Font family (or subset glyph coverage) used by default.
+- Move non-default fonts to an optional download/import workflow.
+- Prune terminal theme packs to a curated set.
+
+Deliverables
+- A Phase 2 PR can be staged as multiple small PRs:
+  1) HomeShell split (controller + widgets)
+  2) TabbedModuleScaffold + migrate one module
+  3) Migrate remaining modules
+  4) Explorer service split
+  5) Assets/fonts slimming (optional)
+
+Open questions (answer before implementing)
+- Primary objective: reduce Dart LOC, reduce shipped size, or both?
+- Are behavior changes acceptable (e.g., small UX tweaks), or must it be strictly no-diff?
+- Should we prioritize HomeShell first (biggest file) or module duplication first (biggest repeated pattern)?

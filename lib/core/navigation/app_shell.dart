@@ -1,32 +1,23 @@
 import 'dart:async';
-import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:tray_manager/tray_manager.dart';
 
-import '../../models/app_settings.dart';
 import '../../services/settings/app_settings_controller.dart';
-import '../../shared/shortcuts/shortcut_actions.dart';
-import '../../shared/shortcuts/shortcut_service.dart';
-import '../../shared/theme/app_theme.dart';
-import '../../shared/theme/nerd_fonts.dart';
-import '../../shared/shortcuts/input_mode_resolver.dart';
 import '../../shared/gestures/gesture_activators.dart';
 import '../../shared/gestures/gesture_service.dart';
-import '../../shared/widgets/input_help_dialog.dart';
 import '../../shared/widgets/command_palette.dart';
-import 'command_palette_registry.dart';
-import '../tabs/tab_bar_visibility.dart';
+import 'home_shell_command_palette.dart';
+import 'home_shell_sidebar_menu.dart';
+import 'home_shell_view.dart';
 import '../../services/logging/app_logger.dart';
 import 'tab_navigation_registry.dart';
-import 'home_shell_modules.dart';
-import 'module_registry.dart';
-import 'shell_module.dart';
-import 'window_controls_constants.dart';
-import 'home_shell_services.dart';
+import 'home_shell_controller.dart';
 import 'home_shell_state.dart';
+import 'widgets/sidebar_menu_button.dart';
+import 'widgets/window_controls.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({required this.settingsController, super.key});
@@ -39,12 +30,7 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell>
     with WindowListener, TrayListener {
-  late final HomeShellState _state;
-  late final HomeShellServices _services;
-  late final VoidCallback _settingsListener;
-  late final ModuleRegistry _moduleRegistry;
-  bool _gesturesEnabled = true;
-  GestureSubscription? _globalGestureSub;
+  late final HomeShellController _controller;
   double? _scaleStartZoom;
 
   bool get _supportsCustomChrome =>
@@ -56,46 +42,21 @@ class _HomeShellState extends State<HomeShell>
   @override
   void initState() {
     super.initState();
-    _state = HomeShellState();
-    _services = HomeShellServices()
-      ..init(
-        context: context,
-        settingsController: widget.settingsController,
-      );
-    _state.refreshHosts(widget.settingsController.settings);
-    _moduleRegistry = ModuleRegistry(
-      buildHomeShellModules(
-        hostsFuture: _state.hostsFuture,
-        settingsController: widget.settingsController,
-        keyService: _services.keyService,
-        shellFactory: _services.shellFactory,
-        isWindows: defaultTargetPlatform == TargetPlatform.windows,
-      ),
+    _controller = HomeShellController(
+      settingsController: widget.settingsController,
+      platform: defaultTargetPlatform,
+      supportsCustomChrome: _supportsCustomChrome,
     );
-    _moduleRegistry.addListener(_handleModulesChanged);
-    _state.hostsSettingsSignature = _state.hostSettingsSignature(
-      widget.settingsController.settings,
+    _controller.init(
+      context,
+      openCommandPalette: _openCommandPalette,
+      handleGlobalPinchZoom: _handleGlobalPinchZoom,
     );
-    _applyShellSettings(widget.settingsController.settings);
-    _state.shellStateRestored = widget.settingsController.isLoaded;
-    _settingsListener = _handleSettingsChanged;
-    widget.settingsController.addListener(_settingsListener);
-    ShortcutService.instance.updateSettings(widget.settingsController.settings);
-    AppLogger.configureRemoteCommandLogging(
-      enabled: widget.settingsController.settings.debugMode,
-    );
-    _configureInputMode(widget.settingsController.settings);
+
     _syncWindowState();
     if (_supportsCustomChrome) {
       trayManager.addListener(this);
-      unawaited(_configureCloseToTray(widget.settingsController.settings));
     }
-  }
-
-  ShortcutSubscription? _globalShortcutSub;
-
-  void _refreshHosts() {
-    _state.refreshHosts(widget.settingsController.settings);
   }
 
   @override
@@ -104,190 +65,21 @@ class _HomeShellState extends State<HomeShell>
     if (_supportsCustomChrome) {
       trayManager.removeListener(this);
     }
-    _moduleRegistry.removeListener(_handleModulesChanged);
-    widget.settingsController.removeListener(_settingsListener);
-    _globalShortcutSub?.dispose();
-    _globalGestureSub?.dispose();
-    _services.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
-  void _handleModulesChanged() {
-    if (!mounted) return;
-    setState(() {
-      final modules = _moduleRegistry.modules;
-      if (modules.isEmpty) {
-        _state.selectedDestination = '';
-        return;
-      }
-      final exists = modules.any((module) => module.id == _state.selectedDestination);
-      if (!exists) {
-        _state.selectedDestination = modules.first.id;
-      }
-    });
-  }
-
-  void _handleSettingsChanged() {
-    if (!widget.settingsController.isLoaded) {
-      return;
-    }
-    if (!_state.shellStateRestored) {
-      final previousDestination = _state.selectedDestination;
-      setState(() {
-        _applyShellSettings(widget.settingsController.settings);
-        if (_state.selectedDestination != previousDestination) {
-          _state.pageCache.evictAllExcept(_state.selectedDestination);
-        }
-        _state.shellStateRestored = true;
-      });
-    }
-    ShortcutService.instance.updateSettings(widget.settingsController.settings);
-    _services.handleSettingsChanged(widget.settingsController.settings);
-    _configureInputMode(widget.settingsController.settings);
-    if (_moduleRegistry.modules.isEmpty) {
-      return;
-    }
-    final nextSignature = _state.hostSettingsSignature(
-      widget.settingsController.settings,
-    );
-    if (nextSignature != _state.hostsSettingsSignature) {
-      _state.hostsSettingsSignature = nextSignature;
-      setState(() {
-        _refreshHosts();
-      });
-    }
-    unawaited(
-      _services.windowChrome.apply(widget.settingsController.settings),
-    );
-    unawaited(_configureCloseToTray(widget.settingsController.settings));
-  }
-
-  void _applyShellSettings(AppSettings settings) {
-    AppLogger.configureRemoteCommandLogging(enabled: settings.debugMode);
-    _state.selectedDestination =
-        _destinationFromName(settings.shellDestination) ?? _state.selectedDestination;
-    _state.sidebarCollapsed = settings.shellSidebarCollapsed;
-    _state.sidebarPlacement =
-        _state.placementFromString(settings.shellSidebarPlacement);
-    unawaited(_services.windowChrome.apply(settings));
-    unawaited(_configureCloseToTray(settings));
-    _configureInputMode(settings);
-  }
-
-  Future<void> _configureCloseToTray(AppSettings settings) async {
-    if (!_supportsCustomChrome) {
-      return;
-    }
-    final enable = settings.closeToTray;
-    if (_state.closeToTrayEnabled == enable) {
-      return;
-    }
-    _state.closeToTrayEnabled = enable;
-    await windowManager.setPreventClose(enable);
-    if (enable) {
-      await _services.trayService.ensureInitialized();
-    } else {
-      await windowManager.setSkipTaskbar(false);
-      await _services.trayService.destroy();
-    }
-  }
-
-  Future<void> _changeAppZoom(double delta) async {
-    await widget.settingsController.update((current) {
-      final next = (current.zoomFactor + delta).clamp(0.8, 1.5).toDouble();
-      return current.copyWith(zoomFactor: next);
-    });
-  }
-
-  void _configureInputMode(AppSettings settings) {
-    final config = resolveInputMode(
-      settings.inputModePreference,
-      defaultTargetPlatform,
-    );
-    if (mounted && _gesturesEnabled != config.enableGestures) {
-      setState(() {
-        _gesturesEnabled = config.enableGestures;
-      });
-    } else {
-      _gesturesEnabled = config.enableGestures;
-    }
-
-    if (!config.enableShortcuts) {
-      _globalShortcutSub?.dispose();
-      _globalShortcutSub = null;
-    } else {
-      _globalShortcutSub ??= ShortcutService.instance.registerScope(
-        id: 'global',
-        priority: -10,
-        handlers: {
-          ShortcutActions.globalZoomIn: () => _changeAppZoom(0.05),
-          ShortcutActions.globalZoomOut: () => _changeAppZoom(-0.05),
-          ShortcutActions.tabsNext: _focusNextTab,
-          ShortcutActions.tabsPrevious: _focusPreviousTab,
-          ShortcutActions.viewsFocusUp: _focusPreviousDestination,
-          ShortcutActions.viewsFocusDown: _focusNextDestination,
-          ShortcutActions.globalCommandPalette: _openCommandPalette,
-        },
-        focusNode: null,
-      );
-    }
-
-    if (!config.enableGestures) {
-      _globalGestureSub?.dispose();
-      _globalGestureSub = null;
-    } else {
-      _globalGestureSub ??= GestureService.instance.registerScope(
-        id: 'global_gestures',
-        priority: -10,
-        handlers: {
-          Gestures.commandPaletteTripleTap: (_) => _openCommandPalette(),
-          Gestures.commandPaletteTripleSwipeDown: (_) => _openCommandPalette(),
-          Gestures.tabsNextSwipe: (_) => _focusNextTab(),
-          Gestures.tabsPreviousSwipe: (_) => _focusPreviousTab(),
-          Gestures.viewsFocusUpSwipe: (_) => _focusPreviousDestination(),
-          Gestures.globalPinchZoom: (invocation) {
-            final next = invocation.payloadAs<double>();
-            if (next != null) {
-              _handleGlobalPinchZoom(next);
-            }
-          },
-        },
-        focusNode: null,
-      );
-    }
-  }
-
   void _handleDestinationSelected(String destination) {
-    if (_state.selectedDestination == destination) {
-      return;
-    }
-    setState(() => _state.selectedDestination = destination);
-    _persistShellState(destination: destination);
+    _controller.handleDestinationSelected(destination);
   }
 
-  void _focusNextDestination() {
-    final modules = _moduleRegistry.modules;
-    if (modules.isEmpty) return;
-    final currentIndex = modules.indexWhere(
-      (m) => m.id == _state.selectedDestination,
-    );
-    final nextIndex = (currentIndex + 1) % modules.length;
-    _handleDestinationSelected(modules[nextIndex].id);
-  }
+  void _focusNextDestination() => _controller.focusNextDestination();
 
-  void _focusPreviousDestination() {
-    final modules = _moduleRegistry.modules;
-    if (modules.isEmpty) return;
-    final currentIndex = modules.indexWhere(
-      (m) => m.id == _state.selectedDestination,
-    );
-    final prevIndex = (currentIndex - 1 + modules.length) % modules.length;
-    _handleDestinationSelected(modules[prevIndex].id);
-  }
+  void _focusPreviousDestination() => _controller.focusPreviousDestination();
 
   void _focusNextTab() {
     final navigator = TabNavigationRegistry.instance.forModule(
-      _state.selectedDestination,
+      _controller.state.selectedDestination,
     );
     final handled = navigator?.next() ?? false;
     if (handled) return;
@@ -295,152 +87,80 @@ class _HomeShellState extends State<HomeShell>
 
   void _focusPreviousTab() {
     final navigator = TabNavigationRegistry.instance.forModule(
-      _state.selectedDestination,
+      _controller.state.selectedDestination,
     );
     final handled = navigator?.previous() ?? false;
     if (handled) return;
   }
 
   void _setSidebarCollapsed(bool collapsed) {
-    if (_state.sidebarCollapsed == collapsed) return;
-    setState(() {
-      _state.sidebarCollapsed = collapsed;
-    });
-    _persistShellState(collapsed: collapsed);
+    _controller.persistSidebarCollapsed(collapsed);
   }
 
-  void _toggleSidebar() => _setSidebarCollapsed(!_state.sidebarCollapsed);
+  void _toggleSidebar() =>
+      _setSidebarCollapsed(!_controller.state.sidebarCollapsed);
 
   Future<void> _openCommandPalette() async {
-    if (_state.paletteOpen) {
+    if (_controller.state.paletteOpen) {
       Navigator.of(context, rootNavigator: true).maybePop();
       return;
     }
-    _state.paletteOpen = true;
-    final entries = <CommandPaletteEntry>[
-      CommandPaletteEntry(
-        id: 'global:nextTab',
-        label: 'Next tab',
-        category: 'Navigation',
-        onSelected: _focusNextTab,
-        icon: Icons.arrow_forward,
-      ),
-      CommandPaletteEntry(
-        id: 'global:previousTab',
-        label: 'Previous tab',
-        category: 'Navigation',
-        onSelected: _focusPreviousTab,
-        icon: Icons.arrow_back,
-      ),
-      CommandPaletteEntry(
-        id: 'global:focusNextView',
-        label: 'Focus next view',
-        category: 'Navigation',
-        onSelected: _focusNextDestination,
-        icon: Icons.arrow_downward,
-      ),
-      CommandPaletteEntry(
-        id: 'global:focusPreviousView',
-        label: 'Focus previous view',
-        category: 'Navigation',
-        onSelected: _focusPreviousDestination,
-        icon: Icons.arrow_upward,
-      ),
-      CommandPaletteEntry(
-        id: 'global:sidebar:toggle',
-        label: _state.sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar',
-        category: 'Chrome',
-        onSelected: _toggleSidebar,
-        icon: _state.sidebarCollapsed ? Icons.chevron_right : Icons.chevron_left,
-      ),
-      CommandPaletteEntry(
-        id: 'global:sidebar:show',
-        label: 'Show sidebar',
-        category: 'Chrome',
-        onSelected: () => _setSidebarCollapsed(false),
-        icon: Icons.chevron_right,
-      ),
-      CommandPaletteEntry(
-        id: 'global:sidebar:hide',
-        label: 'Hide sidebar',
-        category: 'Chrome',
-        onSelected: () => _setSidebarCollapsed(true),
-        icon: Icons.chevron_left,
-      ),
-      CommandPaletteEntry(
-        id: 'global:tabs:toggleBar',
-        label: TabBarVisibilityController.instance.value
-            ? 'Hide tab bar'
-            : 'Show tab bar',
-        category: 'Chrome',
-        onSelected: TabBarVisibilityController.instance.toggle,
-        icon: Icons.tab,
-      ),
-      CommandPaletteEntry(
-        id: 'global:tabs:showBar',
-        label: 'Show tab bar',
-        category: 'Chrome',
-        onSelected: TabBarVisibilityController.instance.show,
-        icon: Icons.visibility,
-      ),
-      CommandPaletteEntry(
-        id: 'global:tabs:hideBar',
-        label: 'Hide tab bar',
-        category: 'Chrome',
-        onSelected: TabBarVisibilityController.instance.hide,
-        icon: Icons.visibility_off,
-      ),
-      CommandPaletteEntry(
-        id: 'global:help:input',
-        label: 'Help: input & shortcuts',
-        category: 'Help',
-        description:
-            'Show active shortcuts and gestures for the current context.',
-        onSelected: () => showInputHelpDialog(
-          context,
-          settings: widget.settingsController.settings,
-          moduleId: _state.selectedDestination,
-        ),
-        icon: Icons.info_outline,
-      ),
-    ];
-    final handle = CommandPaletteRegistry.instance.forModule(
-      _state.selectedDestination,
+
+    _controller.state.paletteOpen = true;
+
+    final entries = HomeShellCommandPalette.buildGlobalEntries(
+      context: context,
+      settingsController: widget.settingsController,
+      moduleId: _controller.state.selectedDestination,
+      sidebarCollapsed: _controller.state.sidebarCollapsed,
+      focusNextTab: _focusNextTab,
+      focusPreviousTab: _focusPreviousTab,
+      focusNextDestination: _focusNextDestination,
+      focusPreviousDestination: _focusPreviousDestination,
+      toggleSidebar: _toggleSidebar,
+      showSidebar: () => _setSidebarCollapsed(false),
+      hideSidebar: () => _setSidebarCollapsed(true),
     );
-    if (handle != null) {
-      final moduleEntries = await Future<List<CommandPaletteEntry>>.value(
-        handle.loader(),
-      );
-      entries.addAll(moduleEntries);
-    }
+
+    final moduleEntries = await HomeShellCommandPalette.loadModuleEntries(
+      moduleId: _controller.state.selectedDestination,
+    );
+    entries.addAll(moduleEntries);
+
     if (!mounted || entries.isEmpty) {
-      _state.paletteOpen = false;
+      _controller.state.paletteOpen = false;
       return;
     }
+
     try {
       await showCommandPalette(context, entries: entries);
     } finally {
-      _state.paletteOpen = false;
+      _controller.state.paletteOpen = false;
     }
   }
 
   void _ensurePageCached(String destination, BuildContext context) {
-    _state.pageCache.ensurePageCached(
+    _controller.state.pageCache.ensurePageCached(
       destination: destination,
       buildPage: () => _buildPageForDestination(destination, context),
     );
   }
 
   Widget _buildSidebarToggleButton(BuildContext context) {
-    return _SidebarMenuButton(
-      collapsed: _state.sidebarCollapsed,
+    return SidebarMenuButton(
+      collapsed: _controller.state.sidebarCollapsed,
       onShowOptions: (position) => _showSidebarOptions(context, position),
     );
   }
 
   Widget _buildPageForDestination(String destination, BuildContext context) {
     final toggleButton = _buildSidebarToggleButton(context);
-    final module = _moduleById(destination);
+    final module = _controller.moduleRegistry.modules.isEmpty
+        ? null
+        : _controller.moduleRegistry.modules.firstWhere(
+            (m) => m.id == destination,
+            orElse: () => _controller.moduleRegistry.modules.first,
+          );
     return module?.build(context, toggleButton) ?? const SizedBox.shrink();
   }
 
@@ -448,132 +168,35 @@ class _HomeShellState extends State<HomeShell>
     BuildContext context,
     Offset position,
   ) async {
-    final choice = await showMenu<_SidebarOption>(
+    final choice = await HomeShellSidebarMenu.show(
       context: context,
-      position: RelativeRect.fromLTRB(
-        position.dx,
-        position.dy,
-        position.dx,
-        position.dy,
-      ),
-      items: [
-        CheckedPopupMenuItem(
-          value: _SidebarOption.hide,
-          checked: _state.sidebarCollapsed,
-          child: const Text('Hide sidebar'),
-        ),
-        const PopupMenuDivider(),
-        CheckedPopupMenuItem(
-          value: _SidebarOption.pinLeft,
-          checked:
-              !_state.sidebarCollapsed && _state.sidebarPlacement == SidebarPlacement.left,
-          child: const Text('Pin to left'),
-        ),
-        CheckedPopupMenuItem(
-          value: _SidebarOption.pinRight,
-          checked:
-              !_state.sidebarCollapsed &&
-              _state.sidebarPlacement == SidebarPlacement.right,
-          child: const Text('Pin to right'),
-        ),
-        CheckedPopupMenuItem(
-          value: _SidebarOption.pinBottom,
-          checked:
-              !_state.sidebarCollapsed &&
-              _state.sidebarPlacement == SidebarPlacement.bottom,
-          child: const Text('Pin to bottom'),
-        ),
-        CheckedPopupMenuItem(
-          value: _SidebarOption.dynamicPlacement,
-          checked:
-              !_state.sidebarCollapsed &&
-              _state.sidebarPlacement == SidebarPlacement.dynamic,
-          child: const Text('Dynamic placement'),
-        ),
-      ],
+      position: position,
+      sidebarCollapsed: _controller.state.sidebarCollapsed,
+      sidebarPlacement: _controller.state.sidebarPlacement,
     );
     if (choice != null) {
       _handleSidebarOption(choice);
     }
   }
 
-  void _handleSidebarOption(_SidebarOption option) {
-    setState(() {
-      switch (option) {
-        case _SidebarOption.hide:
-          _state.sidebarCollapsed = true;
-          break;
-        case _SidebarOption.pinLeft:
-          _state.sidebarCollapsed = false;
-          _state.sidebarPlacement = SidebarPlacement.left;
-          break;
-        case _SidebarOption.pinRight:
-          _state.sidebarCollapsed = false;
-          _state.sidebarPlacement = SidebarPlacement.right;
-          break;
-        case _SidebarOption.pinBottom:
-          _state.sidebarCollapsed = false;
-          _state.sidebarPlacement = SidebarPlacement.bottom;
-          break;
-        case _SidebarOption.dynamicPlacement:
-          _state.sidebarCollapsed = false;
-          _state.sidebarPlacement = SidebarPlacement.dynamic;
-          break;
-      }
-    });
-    _persistShellState(
-      collapsed: _state.sidebarCollapsed,
-      placement: _state.sidebarPlacement,
-    );
-  }
-
-  void _persistShellState({
-    String? destination,
-    bool? collapsed,
-    SidebarPlacement? placement,
-  }) {
-    final targetDestination = destination ?? _state.selectedDestination;
-    final settings = widget.settingsController.settings;
-    final targetCollapsed = collapsed ?? _state.sidebarCollapsed;
-    final targetPlacement = placement ?? _state.sidebarPlacement;
-    if (settings.shellDestination == targetDestination &&
-        settings.shellSidebarCollapsed == targetCollapsed &&
-        settings.shellSidebarPlacement ==
-            _state.placementToString(targetPlacement)) {
-      return;
+  void _handleSidebarOption(SidebarOption option) {
+    switch (option) {
+      case SidebarOption.hide:
+        _controller.persistSidebarCollapsed(true);
+        break;
+      case SidebarOption.pinLeft:
+        _controller.persistSidebarPlacement(SidebarPlacement.left);
+        break;
+      case SidebarOption.pinRight:
+        _controller.persistSidebarPlacement(SidebarPlacement.right);
+        break;
+      case SidebarOption.pinBottom:
+        _controller.persistSidebarPlacement(SidebarPlacement.bottom);
+        break;
+      case SidebarOption.dynamicPlacement:
+        _controller.persistSidebarPlacement(SidebarPlacement.dynamic);
+        break;
     }
-    unawaited(
-      widget.settingsController.update(
-        (current) => current.copyWith(
-          shellDestination: targetDestination,
-          shellSidebarCollapsed: targetCollapsed,
-          shellSidebarPlacement: _state.placementToString(targetPlacement),
-        ),
-      ),
-    );
-  }
-
-  String? _destinationFromName(String? value) =>
-      _moduleRegistry.modules.any((module) => module.id == value)
-      ? value
-      : (_moduleRegistry.modules.isNotEmpty
-            ? _moduleRegistry.modules.first.id
-            : null);
-
-  int _moduleIndex(String id) {
-    final modules = _moduleRegistry.modules;
-    if (modules.isEmpty) return 0;
-    final index = modules.indexWhere((module) => module.id == id);
-    return index == -1 ? 0 : index;
-  }
-
-  ShellModuleView? _moduleById(String id) {
-    final modules = _moduleRegistry.modules;
-    if (modules.isEmpty) return null;
-    return modules.firstWhere(
-      (module) => module.id == id,
-      orElse: () => modules.first,
-    );
   }
 
   void _syncWindowState() {
@@ -584,7 +207,7 @@ class _HomeShellState extends State<HomeShell>
     unawaited(() async {
       final maximized = await windowManager.isMaximized();
       if (mounted) {
-        setState(() => _state.isWindowMaximized = maximized);
+        _controller.setWindowMaximized(maximized);
       }
     }());
   }
@@ -592,181 +215,34 @@ class _HomeShellState extends State<HomeShell>
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: widget.settingsController,
+      animation: Listenable.merge([widget.settingsController, _controller]),
       builder: (context, _) {
-        void showOptions(Offset position) =>
-            _showSidebarOptions(context, position);
-        _ensurePageCached(_state.selectedDestination, context);
-        final spacing = context.appTheme.spacing;
-        final viewportWidth = MediaQuery.of(context).size.width;
-        final viewportHeight = MediaQuery.of(context).size.height;
-        final isPortrait = viewportHeight > viewportWidth;
-        final modules = _moduleRegistry.modules;
-        final primaryModules = modules
-            .where((module) => module.isPrimary)
-            .toList();
-        final secondaryModules = modules
-            .where((module) => !module.isPrimary)
-            .toList();
-        final selectedIndex = _moduleIndex(_state.selectedDestination);
-        final safeSelectedIndex = selectedIndex.clamp(
-          0,
-          (modules.length - 1).clamp(0, 9999),
-        );
-        final bool showSidebar = !_state.sidebarCollapsed;
         final bool useCustomChrome =
             _supportsCustomChrome &&
             !widget.settingsController.settings.windowUseSystemDecorations;
         final Widget? windowControls = useCustomChrome
-            ? _WindowControls(
-                isMaximized: _state.isWindowMaximized,
+            ? WindowControls(
+                isMaximized: _controller.state.isWindowMaximized,
                 onDrag: _startWindowDrag,
                 onToggleMaximize: _toggleWindowMaximize,
                 onMinimize: _minimizeWindow,
                 onClose: _closeWindow,
               )
             : null;
-        Widget? navigationBar;
-        Alignment navigationAlignment = Alignment.centerLeft;
-        EdgeInsets contentPadding = EdgeInsets.zero;
-        if (useCustomChrome) {
-          contentPadding =
-              contentPadding +
-              EdgeInsets.only(top: _WindowControls.height + spacing.base * 1.5);
-        }
-        if (showSidebar) {
-          switch (_state.sidebarPlacement) {
-            case SidebarPlacement.dynamic:
-              if (isPortrait) {
-                navigationBar = _BottomNavBar(
-                  modules: modules,
-                  selected: _state.selectedDestination,
-                  onSelect: _handleDestinationSelected,
-                  onShowOptions: showOptions,
-                );
-                navigationAlignment = Alignment.bottomCenter;
-                contentPadding = const EdgeInsets.only(
-                  bottom: _BottomNavBar.height,
-                );
-              } else {
-                navigationBar = _Sidebar(
-                  primaryModules: primaryModules,
-                  secondaryModules: secondaryModules,
-                  selected: _state.selectedDestination,
-                  onSelect: _handleDestinationSelected,
-                  onShowOptions: showOptions,
-                );
-                navigationAlignment = Alignment.centerLeft;
-                contentPadding = EdgeInsets.only(
-                  left: _Sidebar.width + spacing.xs,
-                );
-              }
-              break;
-            case SidebarPlacement.left:
-              navigationBar = _Sidebar(
-                primaryModules: primaryModules,
-                secondaryModules: secondaryModules,
-                selected: _state.selectedDestination,
-                onSelect: _handleDestinationSelected,
-                onShowOptions: showOptions,
-              );
-              navigationAlignment = Alignment.centerLeft;
-              contentPadding = EdgeInsets.only(
-                left: _Sidebar.width + spacing.xs,
-              );
-              break;
-            case SidebarPlacement.right:
-              navigationBar = _Sidebar(
-                primaryModules: primaryModules,
-                secondaryModules: secondaryModules,
-                selected: _state.selectedDestination,
-                onSelect: _handleDestinationSelected,
-                alignRight: true,
-                onShowOptions: showOptions,
-              );
-              navigationAlignment = Alignment.centerRight;
-              contentPadding = EdgeInsets.only(
-                right: _Sidebar.width + spacing.xs,
-              );
-              break;
-            case SidebarPlacement.bottom:
-              navigationBar = _BottomNavBar(
-                modules: modules,
-                selected: _state.selectedDestination,
-                onSelect: _handleDestinationSelected,
-                onShowOptions: showOptions,
-              );
-              navigationAlignment = Alignment.bottomCenter;
-              contentPadding = const EdgeInsets.only(
-                bottom: _BottomNavBar.height,
-              );
-              break;
-          }
-        }
-        final content = Padding(
-          padding: contentPadding,
-          child: IndexedStack(
-            key: const ValueKey('pages-indexed-stack'),
-            index: safeSelectedIndex,
-            children: modules
-                .map(
-                  (module) =>
-                      _state.pageCache.pageFor(module.id) ??
-                      const SizedBox.shrink(),
-                )
-                .toList(),
-          ),
-        );
-        return Focus(
-          autofocus: true,
-          canRequestFocus: true,
-          child: Scaffold(
-            body: Stack(
-              children: [
-                SafeArea(
-                  minimum: EdgeInsets.zero,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.translucent,
-                    onScaleStart: _gesturesEnabled ? _handleScaleStart : null,
-                    onScaleUpdate: _gesturesEnabled ? _handleScaleUpdate : null,
-                    onScaleEnd: _gesturesEnabled ? _handleScaleEnd : null,
-                    child: _services.gestureDetectorFactory.wrap(
-                      context,
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          return Stack(
-                            children: [
-                              // Content with path clipper to exclude button area
-                              if (useCustomChrome && windowControls != null)
-                                Positioned.fill(
-                                  child: ClipPath(
-                                    clipper: _WindowControlsPathClipper(
-                                      buttonWidth: _WindowControls.totalWidth,
-                                      buttonHeight: _WindowControls.height,
-                                    ),
-                                    child: content,
-                                  ),
-                                )
-                              else
-                                Positioned.fill(child: content),
-                              if (navigationBar != null)
-                                Align(
-                                  alignment: navigationAlignment,
-                                  child: navigationBar,
-                                ),
-                            ],
-                          );
-                        },
-                      ),
-                      enabled: _gesturesEnabled,
-                    ),
-                  ),
-                ),
-                if (windowControls != null)
-                  Positioned(top: 0, right: 0, child: windowControls),
-              ],
-            ),
-          ),
+
+        return HomeShellView(
+          settingsController: widget.settingsController,
+          controller: _controller,
+          supportsCustomChrome: _supportsCustomChrome,
+          ensurePageCached: (context, destination) =>
+              _ensurePageCached(destination, context),
+          onShowSidebarOptions: (position) =>
+              _showSidebarOptions(context, position),
+          onDestinationSelected: _handleDestinationSelected,
+          windowControls: windowControls,
+          onScaleStart: _handleScaleStart,
+          onScaleUpdate: _handleScaleUpdate,
+          onScaleEnd: _handleScaleEnd,
         );
       },
     );
@@ -817,10 +293,10 @@ class _HomeShellState extends State<HomeShell>
     final isMaximized = await windowManager.isMaximized();
     if (isMaximized) {
       await windowManager.unmaximize();
-      if (mounted) setState(() => _state.isWindowMaximized = false);
+      _controller.setWindowMaximized(false);
     } else {
       await windowManager.maximize();
-      if (mounted) setState(() => _state.isWindowMaximized = true);
+      _controller.setWindowMaximized(true);
     }
   }
 
@@ -839,7 +315,7 @@ class _HomeShellState extends State<HomeShell>
   }
 
   Future<void> _hideToTray() async {
-    await _services.trayService.ensureInitialized();
+    await _controller.services.trayService.ensureInitialized();
     await windowManager.hide();
     await windowManager.setSkipTaskbar(true);
   }
@@ -851,18 +327,18 @@ class _HomeShellState extends State<HomeShell>
   }
 
   Future<void> _quitFromTray() async {
-    await _services.trayService.destroy();
+    await _controller.services.trayService.destroy();
     await windowManager.destroy();
   }
 
   @override
   void onWindowMaximize() {
-    if (mounted) setState(() => _state.isWindowMaximized = true);
+    _controller.setWindowMaximized(true);
   }
 
   @override
   void onWindowUnmaximize() {
-    if (mounted) setState(() => _state.isWindowMaximized = false);
+    _controller.setWindowMaximized(false);
   }
 
   @override
@@ -899,482 +375,11 @@ class _HomeShellState extends State<HomeShell>
       case 'icon-768':
       case 'icon-1024':
         unawaited(
-          _services.trayService.setIconChoiceByKey(menuItem.key ?? ''),
+          _controller.services.trayService.setIconChoiceByKey(
+            menuItem.key ?? '',
+          ),
         );
         break;
     }
   }
 }
-
-class _WindowControls extends StatefulWidget {
-  const _WindowControls({
-    required this.isMaximized,
-    required this.onDrag,
-    required this.onToggleMaximize,
-    required this.onMinimize,
-    required this.onClose,
-  });
-
-  static const double height = WindowControlsConstants.height;
-  static const double totalWidth = WindowControlsConstants.totalWidth;
-
-  final bool isMaximized;
-  final VoidCallback onDrag;
-  final VoidCallback onToggleMaximize;
-  final VoidCallback onMinimize;
-  final VoidCallback onClose;
-
-  @override
-  State<_WindowControls> createState() => _WindowControlsState();
-}
-
-class _WindowControlsState extends State<_WindowControls> {
-  @override
-  Widget build(BuildContext context) {
-    final toolbarColor = context.appTheme.section.toolbarBackground;
-
-    return Container(
-      color: toolbarColor,
-      padding: const EdgeInsets.only(right: 4),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onPanStart: (_) => widget.onDrag(),
-        onDoubleTap: widget.onToggleMaximize,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _CaptionButton(
-              icon: Icons.remove_rounded,
-              tooltip: 'Minimize',
-              onPressed: widget.onMinimize,
-            ),
-            _CaptionButton(
-              icon: widget.isMaximized
-                  ? Icons.filter_none_rounded
-                  : Icons.check_box_outline_blank_rounded,
-              tooltip: widget.isMaximized ? 'Restore' : 'Maximize',
-              onPressed: widget.onToggleMaximize,
-            ),
-            _CaptionButton(
-              icon: Icons.close_rounded,
-              tooltip: 'Close',
-              onPressed: widget.onClose,
-              destructive: true,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CaptionButton extends StatefulWidget {
-  const _CaptionButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onPressed,
-    this.destructive = false,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onPressed;
-  final bool destructive;
-
-  @override
-  State<_CaptionButton> createState() => _CaptionButtonState();
-}
-
-class _CaptionButtonState extends State<_CaptionButton> {
-  bool _hovering = false;
-
-  void _setHover(bool hovering) {
-    if (_hovering == hovering) return;
-    setState(() => _hovering = hovering);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final hoverColor = widget.destructive
-        ? scheme.error.withValues(alpha: 0.8)
-        : scheme.surfaceContainerHighest.withValues(alpha: 0.35);
-    final iconColor = widget.destructive
-        ? (_hovering ? scheme.onError : scheme.onSurface)
-        : scheme.onSurface;
-    return Tooltip(
-      message: widget.tooltip,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        onEnter: (_) => _setHover(true),
-        onExit: (_) => _setHover(false),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: widget.onPressed,
-          child: Container(
-            width: WindowControlsConstants.buttonWidth,
-            height: WindowControlsConstants.height,
-            color: _hovering ? hoverColor : Colors.transparent,
-            child: Icon(widget.icon, size: 18, color: iconColor),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Sidebar extends StatelessWidget {
-  static const double width = 48;
-
-  const _Sidebar({
-    required this.primaryModules,
-    required this.secondaryModules,
-    required this.selected,
-    required this.onSelect,
-    this.onShowOptions,
-    this.alignRight = false,
-  });
-
-  final List<ShellModuleView> primaryModules;
-  final List<ShellModuleView> secondaryModules;
-  final String selected;
-  final ValueChanged<String> onSelect;
-  final bool alignRight;
-  final ValueChanged<Offset>? onShowOptions;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final spacing = context.appTheme.spacing;
-    final decoration = BoxDecoration(
-      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.22),
-      border: alignRight
-          ? Border(
-              left: BorderSide(
-                color: colorScheme.outlineVariant.withValues(alpha: 0.4),
-              ),
-            )
-          : Border(
-              right: BorderSide(
-                color: colorScheme.outlineVariant.withValues(alpha: 0.4),
-              ),
-            ),
-    );
-    final content = Container(
-      width: width,
-      margin: alignRight
-          ? EdgeInsets.only(left: spacing.xs)
-          : EdgeInsets.only(right: spacing.xs),
-      decoration: decoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          SizedBox(height: spacing.lg),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: primaryModules
-                .map(
-                  (module) => _NavigationButton(
-                    destinationId: module.id,
-                    icon: module.icon,
-                    label: module.label,
-                    selected: selected == module.id,
-                    onSelect: onSelect,
-                    vertical: true,
-                  ),
-                )
-                .toList(),
-          ),
-          const Spacer(),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: secondaryModules
-                .map(
-                  (module) => _NavigationButton(
-                    destinationId: module.id,
-                    icon: module.icon,
-                    label: module.label,
-                    selected: selected == module.id,
-                    onSelect: onSelect,
-                    vertical: true,
-                  ),
-                )
-                .toList(),
-          ),
-          SizedBox(height: spacing.lg),
-        ],
-      ),
-    );
-    return GestureDetector(
-      onLongPressStart: (details) =>
-          onShowOptions?.call(details.globalPosition),
-      onSecondaryTapDown: (details) =>
-          onShowOptions?.call(details.globalPosition),
-      child: content,
-    );
-  }
-}
-
-class _BottomNavBar extends StatelessWidget {
-  const _BottomNavBar({
-    required this.modules,
-    required this.selected,
-    required this.onSelect,
-    this.onShowOptions,
-  });
-
-  final List<ShellModuleView> modules;
-  final String selected;
-  final ValueChanged<String> onSelect;
-  final ValueChanged<Offset>? onShowOptions;
-
-  static const double height = 72;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onLongPressStart: (details) =>
-          onShowOptions?.call(details.globalPosition),
-      onSecondaryTapDown: (details) =>
-          onShowOptions?.call(details.globalPosition),
-      child: Container(
-        height: 72,
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.18),
-          border: Border(
-            top: BorderSide(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.4),
-            ),
-          ),
-        ),
-        child: Row(
-          children: modules
-              .map(
-                (module) => Expanded(
-                  child: _NavigationButton(
-                    destinationId: module.id,
-                    icon: module.icon,
-                    label: module.label,
-                    selected: selected == module.id,
-                    onSelect: onSelect,
-                    vertical: false,
-                  ),
-                ),
-              )
-              .toList(),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavigationButton extends StatefulWidget {
-  const _NavigationButton({
-    required this.destinationId,
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onSelect,
-    required this.vertical,
-  });
-
-  final String destinationId;
-  final NerdIcon icon;
-  final String label;
-  final bool selected;
-  final ValueChanged<String> onSelect;
-  final bool vertical;
-
-  @override
-  State<_NavigationButton> createState() => _NavigationButtonState();
-}
-
-class _NavigationButtonState extends State<_NavigationButton> {
-  bool _hovering = false;
-
-  void _setHovering(bool hovering) {
-    if (_hovering == hovering) return;
-    setState(() => _hovering = hovering);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final spacing = context.appTheme.spacing;
-    final defaultColor = colorScheme.onSurfaceVariant;
-    final hoverColor = colorScheme.primary.withValues(alpha: 0.75);
-    final iconColor = widget.selected
-        ? colorScheme.primary
-        : (_hovering ? hoverColor : defaultColor);
-    final indicatorColor = widget.selected
-        ? colorScheme.primary
-        : Colors.transparent;
-
-    final iconWidget = Icon(widget.icon.data, size: 30, color: iconColor);
-    final iconPadding = widget.vertical
-        ? const EdgeInsets.only(right: 4)
-        : EdgeInsets.zero;
-
-    final buttonWidth = widget.vertical ? _Sidebar.width : double.infinity;
-    final button = InkWell(
-      onTap: () => widget.onSelect(widget.destinationId),
-      splashColor: Colors.transparent,
-      hoverColor: Colors.transparent,
-      highlightColor: Colors.transparent,
-      child: SizedBox(
-        width: buttonWidth,
-        height: 56,
-        child: widget.vertical
-            ? Row(
-                children: [
-                  Container(width: 4, height: 56, color: indicatorColor),
-                  Expanded(
-                    child: Center(
-                      child: Padding(padding: iconPadding, child: iconWidget),
-                    ),
-                  ),
-                ],
-              )
-            : Column(
-                children: [
-                  Container(
-                    width: double.infinity,
-                    height: 4,
-                    color: indicatorColor,
-                  ),
-                  const Spacer(),
-                  iconWidget,
-                  const Spacer(),
-                ],
-              ),
-      ),
-    );
-
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: spacing.sm),
-      child: MouseRegion(
-        onEnter: (_) => _setHovering(true),
-        onExit: (_) => _setHovering(false),
-        cursor: SystemMouseCursors.click,
-        child: Tooltip(message: widget.label, child: button),
-      ),
-    );
-  }
-}
-
-class _SidebarMenuButton extends StatefulWidget {
-  const _SidebarMenuButton({
-    required this.collapsed,
-    required this.onShowOptions,
-  });
-
-  final bool collapsed;
-  final ValueChanged<Offset> onShowOptions;
-
-  @override
-  State<_SidebarMenuButton> createState() => _SidebarMenuButtonState();
-}
-
-class _SidebarMenuButtonState extends State<_SidebarMenuButton> {
-  Offset? _tapPosition;
-  bool _hovering = false;
-
-  void _onTapDown(TapDownDetails details) {
-    _tapPosition = details.globalPosition;
-  }
-
-  void _onTap() {
-    final position = _tapPosition ?? Offset.zero;
-    widget.onShowOptions(position);
-  }
-
-  void _setHovering(bool value) {
-    if (_hovering == value) return;
-    setState(() => _hovering = value);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final tooltip = widget.collapsed ? 'Show navigation' : 'Sidebar options';
-    // Match the tab bar height when custom chrome is enabled
-    final bool useCustomChrome =
-        !kIsWeb &&
-        (defaultTargetPlatform == TargetPlatform.windows ||
-            defaultTargetPlatform == TargetPlatform.macOS ||
-            defaultTargetPlatform == TargetPlatform.linux);
-    final buttonSize = useCustomChrome
-        ? WindowControlsConstants.tabBarHeight
-        : 48.0;
-
-    final colorScheme = Theme.of(context).colorScheme;
-    // Use the same hover color as tab chips
-    final hoverColor = colorScheme.surfaceContainerHighest.withValues(
-      alpha: 0.55,
-    );
-
-    return MouseRegion(
-      onEnter: (_) => _setHovering(true),
-      onExit: (_) => _setHovering(false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTapDown: _onTapDown,
-        onTap: _onTap,
-        behavior: HitTestBehavior.translucent,
-        child: Tooltip(
-          message: tooltip,
-          child: Container(
-            width: buttonSize,
-            height: buttonSize,
-            color: _hovering ? hoverColor : Colors.transparent,
-            child: Icon(widget.collapsed ? Icons.menu : Icons.menu_open),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Custom path clipper that excludes only the window controls button area
-/// from the top-right corner, allowing content to use space to the left
-/// and below the buttons.
-class _WindowControlsPathClipper extends CustomClipper<ui.Path> {
-  const _WindowControlsPathClipper({
-    required this.buttonWidth,
-    required this.buttonHeight,
-  });
-
-  final double buttonWidth;
-  final double buttonHeight;
-
-  @override
-  ui.Path getClip(Size size) {
-    final path = ui.Path();
-    // Create a path that covers the entire screen except the button area
-    // Button area is at: top-right corner, width=buttonWidth, height=buttonHeight
-
-    // Start from top-left
-    path.moveTo(0, 0);
-    // Go to top-right, but stop before the button area
-    path.lineTo(size.width - buttonWidth, 0);
-    // Go down to button area bottom
-    path.lineTo(size.width - buttonWidth, buttonHeight);
-    // Go to bottom-right (skipping the button area)
-    path.lineTo(size.width, buttonHeight);
-    // Go to bottom-right corner
-    path.lineTo(size.width, size.height);
-    // Go to bottom-left
-    path.lineTo(0, size.height);
-    // Close the path
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(_WindowControlsPathClipper oldClipper) {
-    return oldClipper.buttonWidth != buttonWidth ||
-        oldClipper.buttonHeight != buttonHeight;
-  }
-}
-
-enum _SidebarOption { hide, pinLeft, pinRight, pinBottom, dynamicPlacement }

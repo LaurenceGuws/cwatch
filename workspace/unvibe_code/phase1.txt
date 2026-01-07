@@ -52,24 +52,11 @@ Here’s a small, size-first refactor plan focused on splitting HomeShell and th
   Suggested order
   1 → 2 → 3 → 4 (and skip 5 unless you like it)
 
-Progress
-- Started Step 1: extracted module construction into `lib/core/navigation/home_shell_modules.dart`.
-- Updated `lib/core/navigation/app_shell.dart` to use the new module builder.
-- Continued Step 1: added `lib/core/navigation/home_shell_services.dart` and moved HomeShell service setup into it.
-- Updated `lib/core/navigation/app_shell.dart` to use `HomeShellServices` for key service, shell factory, window chrome, tray, and gesture factory.
-- Continued Step 1: added `lib/core/navigation/home_shell_state.dart` and moved HomeShell UI state + host signature/refresh helpers into it.
-- Updated `lib/core/navigation/app_shell.dart` to use `HomeShellState` for destinations, sidebar state, page cache, window/tray state, and host refresh/signature.
-- Continued Step 1: moved sidebar placement parsing/serialization into `HomeShellState` to reduce `app_shell.dart` helpers.
-- Continued Step 1: moved page cache helpers into `HomeShellState` and simplified `app_shell.dart` usage.
-- Completed Step 2: added `lib/core/navigation/home_shell_page_cache.dart` and routed cache calls through it.
-- Started Step 3: added `explorer_state.dart` and moved search/UI state fields (loading, error, search flags, row height, breadcrumbs) behind `controller.state`.
-- Continued Step 3: moved entries/path history/local edit/sync state into `ExplorerState` and updated controller/tab to reference `controller.state`.
-- Continued Step 3: added `explorer_ops.dart` and moved load/search/refresh/sort/prefetch logic into it; controller now delegates.
-- Continued Step 3: added `explorer_ui_adapter.dart` and moved drag-related snackbars into a UI adapter.
-- Continued Step 3: routed FileOperationsService snackbars through ExplorerUiAdapter (kept progress dialogs local).
-- Continued Step 3: routed clipboard/delete/editing snackbars through ExplorerUiAdapter (kept dialogs in place).
-- Continued Step 3: moved file_explorer_tab and trash_tab snackbars into ExplorerUiAdapter.
-- Continued Step 3: moved file_explorer_tab context menu + dialogs and trash_tab passphrase/unlock dialogs into ExplorerUiAdapter.
-- Continued Step 3: moved context_menu_builder path copy snackbar and navigate-to-subdirectory dialog messaging through ExplorerUiAdapter; added optional error callback for ExternalAppLauncher.
-- Continued Step 3: moved context menu copy-path snackbar into adapter, routed navigate-to-subdirectory dialog messaging via adapter, and added optional error callback to ExternalAppLauncher (analyze clean).
-- Continued Step 3: routed path navigator breadcrumb menu via ExplorerUiAdapter and threaded optional menu callback through PathNavigator/BreadcrumbsView.
+Progress (verified in repo)
+- Step 1 is in place structurally: `lib/core/navigation/home_shell_state.dart`, `lib/core/navigation/home_shell_services.dart`, and `lib/core/navigation/home_shell_modules.dart` exist and are being used.
+- Step 2 is in place: `lib/core/navigation/home_shell_page_cache.dart` exists (page caching extracted).
+- Remaining issue for Phase 1 goals: `lib/core/navigation/app_shell.dart` is still ~1380 lines and still mixes many responsibilities (chrome/tray, navigation UI, command palette wiring, gestures, persistence), so the “shrink to ~300–500 lines” target is not met yet.
+- File explorer work is partially aligned with the plan: `lib/shared/views/shared/tabs/file_explorer/file_operations_service.dart` is already a dedicated service, but it’s still large (~1280 lines) and still contains both orchestration and UI-facing concerns.
+
+Notes
+- This Phase 1 doc now reflects what’s actually present in the codebase as of the latest review (largest files + boundaries), and keeps the remaining Phase 1 work focused on finishing the de-god-widget extraction.
