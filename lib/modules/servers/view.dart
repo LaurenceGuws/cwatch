@@ -4,7 +4,7 @@ import '../../core/navigation/shell_module.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/services/ssh/ssh_shell_factory.dart';
-import 'ui/servers_list.dart';
+import 'ui/server_workspace_view.dart';
 import '../../shared/theme/nerd_fonts.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 
@@ -32,7 +32,7 @@ class ServersModule extends ShellModuleView {
 
   @override
   Widget build(BuildContext context, Widget leading) {
-    return ServersList(
+    return ServerWorkspaceView(
       moduleId: id,
       hostsFuture: hostsFuture,
       settingsController: settingsController,

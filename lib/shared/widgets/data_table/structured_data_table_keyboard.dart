@@ -390,5 +390,4 @@ mixin _StructuredDataTableKeyboard<T> on _StructuredDataTableStateBase<T> {
     }
     return KeyEventResult.ignored;
   }
-
 }

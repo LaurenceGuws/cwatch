@@ -13,7 +13,9 @@ class ExplorerUiAdapter {
 
   void showSnackBar(String message) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void showDragNotSupported() {
@@ -164,7 +166,8 @@ class ExplorerUiAdapter {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+              onPressed: () =>
+                  Navigator.of(context).pop(controller.text.trim()),
               child: Text(submitLabel),
             ),
           ],

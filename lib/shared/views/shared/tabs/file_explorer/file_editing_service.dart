@@ -150,10 +150,7 @@ class FileEditingService {
         if (!context.mounted) {
           return;
         }
-        _showSnackBar(
-          context,
-          'Synced ${session.remotePath} to remote host',
-        );
+        _showSnackBar(context, 'Synced ${session.remotePath} to remote host');
       } else if (localContents == baseContents) {
         await workingFile.writeAsString(remoteContents);
         await snapshotFile.writeAsString(remoteContents);
@@ -178,10 +175,7 @@ class FileEditingService {
           session.lastSynced = DateTime.now();
           onSynced(session);
           if (context.mounted) {
-            _showSnackBar(
-              context,
-              'Merged and synced ${session.remotePath}',
-            );
+            _showSnackBar(context, 'Merged and synced ${session.remotePath}');
           }
         }
       }
@@ -227,10 +221,7 @@ class FileEditingService {
       await workingFile.writeAsString(nextWorking);
       await File(session.snapshotPath).writeAsString(remoteContents);
       if (context.mounted) {
-        _showSnackBar(
-          context,
-          'Cache refreshed for ${session.remotePath}',
-        );
+        _showSnackBar(context, 'Cache refreshed for ${session.remotePath}');
       }
     } catch (error, stackTrace) {
       AppLogger().warn(
@@ -254,18 +245,15 @@ class FileEditingService {
     if (!context.mounted) {
       return;
     }
-    _showSnackBar(
-      context,
-      'Cleared cached copy for ${session.remotePath}',
-    );
+    _showSnackBar(context, 'Cleared cached copy for ${session.remotePath}');
   }
 
   void _showSnackBar(BuildContext context, String message) {
     uiAdapter?.showSnackBar(message);
     if (!context.mounted || uiAdapter != null) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   /// Hydrate cached sessions for entries

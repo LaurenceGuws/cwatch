@@ -311,5 +311,4 @@ mixin _StructuredDataTableColumns<T> on _StructuredDataTableStateBase<T> {
     }
     return widths;
   }
-
 }

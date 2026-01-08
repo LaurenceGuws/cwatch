@@ -254,10 +254,7 @@ class ContextMenuBuilder {
               .join('\n');
           await Clipboard.setData(ClipboardData(text: paths));
           if (!context.mounted) return;
-          _showSnackBar(
-            context,
-            'Copied ${selectedEntries.length} paths',
-          );
+          _showSnackBar(context, 'Copied ${selectedEntries.length} paths');
         }
         break;
       case ExplorerContextAction.openLocally:
@@ -328,9 +325,9 @@ class ContextMenuBuilder {
   void _showSnackBar(BuildContext context, String message) {
     onMessage?.call(message);
     if (!context.mounted || onMessage != null) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 

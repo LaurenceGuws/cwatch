@@ -105,5 +105,4 @@ mixin _StructuredDataTableContextMenu<T> on _StructuredDataTableStateBase<T> {
     final selectedRows = _selectedRows();
     _showContextMenu(_visibleRows[index], position, selectedRows);
   }
-
 }

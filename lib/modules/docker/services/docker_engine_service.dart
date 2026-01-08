@@ -328,7 +328,11 @@ class DockerEngineService {
     required String operation,
     required Duration timeout,
   }) async {
-    final logger = AppLogger.remote(tag: 'Docker', source: 'docker', host: host);
+    final logger = AppLogger.remote(
+      tag: 'Docker',
+      source: 'docker',
+      host: host,
+    );
     try {
       final output = await shell.runCommand(host, command, timeout: timeout);
       logger.trace(

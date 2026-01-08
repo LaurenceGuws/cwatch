@@ -35,9 +35,9 @@ class ExternalAppLauncher {
   /// Open a config file in an external editor
   static Future<void> openConfigFile(
     String sourcePath,
-    BuildContext context,
-    {void Function(String)? onError}
-  ) async {
+    BuildContext context, {
+    void Function(String)? onError,
+  }) async {
     try {
       final editor = Platform.environment['EDITOR']?.trim();
       if (editor != null && editor.isNotEmpty) {

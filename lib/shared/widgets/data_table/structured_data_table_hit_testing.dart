@@ -96,5 +96,4 @@ mixin _StructuredDataTableHitTesting<T> on _StructuredDataTableStateBase<T> {
     }
     return rowIndex;
   }
-
 }

@@ -161,11 +161,15 @@ class HomeShellView extends StatelessWidget {
               minimum: EdgeInsets.zero,
               child: GestureDetector(
                 behavior: HitTestBehavior.translucent,
-                onScaleStart: controller.gesturesEnabled ? onScaleStart : null,
-                onScaleUpdate: controller.gesturesEnabled
+                onScaleStart: controller.input.gesturesEnabled
+                    ? onScaleStart
+                    : null,
+                onScaleUpdate: controller.input.gesturesEnabled
                     ? onScaleUpdate
                     : null,
-                onScaleEnd: controller.gesturesEnabled ? onScaleEnd : null,
+                onScaleEnd: controller.input.gesturesEnabled
+                    ? onScaleEnd
+                    : null,
                 child: controller.services.gestureDetectorFactory.wrap(
                   context,
                   LayoutBuilder(
@@ -193,7 +197,7 @@ class HomeShellView extends StatelessWidget {
                       );
                     },
                   ),
-                  enabled: controller.gesturesEnabled,
+                  enabled: controller.input.gesturesEnabled,
                 ),
               ),
             ),

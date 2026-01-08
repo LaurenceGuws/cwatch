@@ -656,9 +656,7 @@ class _BreadcrumbMenuButtonBodyState extends State<_BreadcrumbMenuButtonBody> {
       overlay.size.height - bottomEdge,
     );
     final items = children
-        .map(
-          (child) => PopupMenuItem<String>(value: child, child: Text(child)),
-        )
+        .map((child) => PopupMenuItem<String>(value: child, child: Text(child)))
         .toList();
     final constraints = BoxConstraints(
       minWidth: renderBox.size.width,

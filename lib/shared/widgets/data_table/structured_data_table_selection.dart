@@ -251,5 +251,4 @@ mixin _StructuredDataTableSelection<T> on _StructuredDataTableStateBase<T> {
       widget.onCellEditCanceled?.call(coordinate);
     }
   }
-
 }

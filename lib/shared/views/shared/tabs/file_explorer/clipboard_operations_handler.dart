@@ -86,8 +86,8 @@ class ClipboardOperationsHandler {
   void _showSnackBar(BuildContext context, String message) {
     uiAdapter?.showSnackBar(message);
     if (!context.mounted || uiAdapter != null) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }

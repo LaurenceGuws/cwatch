@@ -68,7 +68,6 @@ class HomeShellState {
         return 'bottom';
     }
   }
-
 }
 
 enum SidebarPlacement { dynamic, left, right, bottom }

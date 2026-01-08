@@ -207,7 +207,7 @@ class _HomeShellState extends State<HomeShell>
     unawaited(() async {
       final maximized = await windowManager.isMaximized();
       if (mounted) {
-        _controller.setWindowMaximized(maximized);
+        _controller.window.setWindowMaximized(maximized);
       }
     }());
   }
@@ -293,10 +293,10 @@ class _HomeShellState extends State<HomeShell>
     final isMaximized = await windowManager.isMaximized();
     if (isMaximized) {
       await windowManager.unmaximize();
-      _controller.setWindowMaximized(false);
+      _controller.window.setWindowMaximized(false);
     } else {
       await windowManager.maximize();
-      _controller.setWindowMaximized(true);
+      _controller.window.setWindowMaximized(true);
     }
   }
 
@@ -333,12 +333,12 @@ class _HomeShellState extends State<HomeShell>
 
   @override
   void onWindowMaximize() {
-    _controller.setWindowMaximized(true);
+    _controller.window.setWindowMaximized(true);
   }
 
   @override
   void onWindowUnmaximize() {
-    _controller.setWindowMaximized(false);
+    _controller.window.setWindowMaximized(false);
   }
 
   @override

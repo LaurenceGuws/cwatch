@@ -1,33 +1,24 @@
+import 'package:flutter/widgets.dart';
 import 'package:cwatch/core/models/tab_state.dart';
+import 'package:cwatch/core/workspace/tabbed_workspace_controller.dart';
 import 'package:cwatch/core/workspace/workspace_persistence.dart';
+import 'package:cwatch/core/workspace/workspace_tab.dart';
+import 'package:cwatch/models/explorer_context.dart';
 import 'package:cwatch/models/server_action.dart';
 import 'package:cwatch/models/server_workspace_state.dart';
 import 'package:cwatch/models/ssh_host.dart';
-import 'package:cwatch/services/filesystem/explorer_trash_manager.dart';
 import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
-import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
-import 'package:cwatch/services/ssh/remote_shell_service.dart';
 
-import 'server_tab_factory.dart';
+import 'server_tab_builder.dart';
 import 'servers/server_models.dart';
 
-class ServerWorkspaceController {
+class ServerWorkspaceController extends TabbedWorkspaceController {
   ServerWorkspaceController({
     required this.settingsController,
-    required this.keyService,
     required Future<List<SshHost>> Function() hostsLoader,
-    required this.trashManager,
-    required RemoteShellService Function(SshHost host) shellServiceForHost,
-    required EditorBodyBuilder editorBuilder,
+    required super.baseTabBuilder,
   }) : _hostsLoader = hostsLoader {
-    tabFactory = ServerTabFactory(
-      settingsController: settingsController,
-      trashManager: trashManager,
-      keyService: keyService,
-      shellServiceForHost: shellServiceForHost,
-      editorBuilder: editorBuilder,
-    );
     workspacePersistence = WorkspacePersistence(
       settingsController: settingsController,
       readFromSettings: (settings) => settings.serverWorkspace,
@@ -38,11 +29,7 @@ class ServerWorkspaceController {
   }
 
   final AppSettingsController settingsController;
-  final BuiltInSshKeyService keyService;
-  final ExplorerTrashManager trashManager;
   final Future<List<SshHost>> Function() _hostsLoader;
-
-  late final ServerTabFactory tabFactory;
   late final WorkspacePersistence<ServerWorkspaceState> workspacePersistence;
 
   Future<List<SshHost>> loadHosts() async {
@@ -59,68 +46,143 @@ class ServerWorkspaceController {
     }
   }
 
-  ServerWorkspaceState currentWorkspaceState(
-    List<ServerTab> tabs,
-    int selectedIndex,
-  ) {
-    final states = tabs.map(_tabStateFromTab).toList();
-    final clampedIndex = states.isEmpty
-        ? 0
-        : selectedIndex.clamp(0, states.length - 1);
-    return ServerWorkspaceState(tabs: states, selectedIndex: clampedIndex);
+  @override
+  Future<void> restoreState() async {
+    // This is handled by the View which calls restore with specific builder/hosts
+    // because we need runtime dependencies that are not available here.
   }
 
-  List<ServerTab> buildTabsFromState(
-    ServerWorkspaceState workspace,
-    List<SshHost> hosts,
-  ) {
-    final restored = <ServerTab>[];
+  Future<void> restore({
+    required ServerTabBuilder builder,
+    required List<SshHost> hosts,
+    required VoidCallback onCloseTab,
+    required Function(SshHost host, String path, String content) onOpenEditor,
+    required Function(SshHost host, String? dir) onOpenTerminal,
+    required Function(ExplorerContext context) onOpenTrash,
+    required Widget Function(String tabId) hostListBuilder,
+  }) async {
+    final workspace = settingsController.settings.serverWorkspace;
+    if (workspace == null || workspace.tabs.isEmpty) return;
+    if (!workspacePersistence.shouldRestore(workspace)) return;
+
+    final restoredTabs = <WorkspaceTab>[];
     for (final tabState in workspace.tabs) {
       final host = _resolveHost(tabState, hosts);
-      if (host == null) {
-        continue;
-      }
-      final tab = _createTabFromState(tabState, host);
+      if (host == null) continue;
+
+      final tab = _createTabFromState(
+        state: tabState,
+        host: host,
+        builder: builder,
+        onCloseTab: onCloseTab,
+        onOpenEditor: onOpenEditor,
+        onOpenTerminal: onOpenTerminal,
+        onOpenTrash: onOpenTrash,
+        hostListBuilder: hostListBuilder,
+      );
       if (tab != null) {
-        restored.add(tab);
+        restoredTabs.add(tab);
       }
     }
-    return restored;
+
+    if (restoredTabs.isNotEmpty) {
+      workspacePersistence.markRestored(workspace);
+      replaceAll(restoredTabs, selectedIndex: workspace.selectedIndex);
+    }
   }
 
-  ServerTab? _createTabFromState(TabState state, SshHost host) {
-    final action = serverActionFromName(state.kind);
-    if (action == null) {
-      return null;
+  @override
+  Future<void> persistState() async {
+    final persistedTabs = <TabState>[];
+    int selectedPersistedIndex = 0;
+
+    for (int i = 0; i < tabs.length; i++) {
+      final tab = tabs[i];
+      if (tab.workspaceState is ServerTabData) {
+        final data = tab.workspaceState as ServerTabData;
+        if (i == selectedIndex) {
+          selectedPersistedIndex = persistedTabs.length;
+        }
+        persistedTabs.add(data.persistedState);
+      }
     }
+
+    final clampedIndex = persistedTabs.isEmpty
+        ? 0
+        : selectedPersistedIndex.clamp(0, persistedTabs.length - 1);
+
+    final workspace = ServerWorkspaceState(
+      tabs: persistedTabs,
+      selectedIndex: clampedIndex,
+    );
+
+    await workspacePersistence.persist(workspace);
+  }
+
+  void updateTabState(String tabId, TabState newState) {
+    final index = tabs.indexWhere((t) => t.id == tabId);
+    if (index != -1) {
+      final tab = tabs[index];
+      if (tab.workspaceState is ServerTabData) {
+        final oldData = tab.workspaceState as ServerTabData;
+        final newTab = tab.copyWith(
+          workspaceState: ServerTabData(
+            host: oldData.host,
+            action: oldData.action,
+            persistedState: newState,
+          ),
+        );
+        replaceTab(tabId, newTab);
+      }
+    }
+  }
+
+  WorkspaceTab? _createTabFromState({
+    required TabState state,
+    required SshHost host,
+    required ServerTabBuilder builder,
+    required VoidCallback onCloseTab,
+    required Function(SshHost host, String path, String content) onOpenEditor,
+    required Function(SshHost host, String? dir) onOpenTerminal,
+    required Function(ExplorerContext context) onOpenTrash,
+    required Widget Function(String tabId) hostListBuilder,
+  }) {
+    final action = serverActionFromName(state.kind);
+    if (action == null) return null;
+
     switch (action) {
       case ServerAction.fileExplorer:
-        return tabFactory.explorerTab(
+        return builder.explorerTab(
           id: state.id,
           host: host,
           customName: _customName(state),
           initialPath: state.path,
+          onOpenEditor: (path, content) => onOpenEditor(host, path, content),
+          onOpenTerminal: onOpenTerminal,
+          onOpenTrash: onOpenTrash,
         );
       case ServerAction.editor:
-        return tabFactory.editorTab(
+        return builder.editorTab(
           id: state.id,
           host: host,
           path: state.path ?? state.title ?? '',
         );
       case ServerAction.terminal:
-        return tabFactory.terminalTab(
+        return builder.terminalTab(
           id: state.id,
           host: host,
           initialDirectory: state.path,
+          onClose: onCloseTab,
+          onOpenEditor: (path, content) => onOpenEditor(host, path, content),
         );
       case ServerAction.resources:
-        return tabFactory.resourcesTab(
+        return builder.resourcesTab(
           id: state.id,
           host: host,
           customName: _customName(state),
         );
       case ServerAction.connectivity:
-        return tabFactory.connectivityTab(
+        return builder.connectivityTab(
           id: state.id,
           host: host,
           customName: _customName(state),
@@ -128,13 +190,13 @@ class ServerWorkspaceController {
       case ServerAction.portForward:
         return null;
       case ServerAction.trash:
-        return tabFactory.trashTab(
+        return builder.trashTab(
           id: state.id,
           host: host,
           customName: _customName(state),
         );
       case ServerAction.empty:
-        return tabFactory.emptyTab(id: state.id);
+        return builder.emptyTab(id: state.id, body: hostListBuilder(state.id));
     }
   }
 
@@ -159,31 +221,6 @@ class ServerWorkspaceController {
         if (hostName == null) return null;
         return _findHostByName(hosts, hostName);
     }
-  }
-
-  TabState _tabStateFromTab(ServerTab tab) {
-    final action = tab.action;
-    final path =
-        action == ServerAction.editor || action == ServerAction.terminal
-        ? tab.customName
-        : null;
-    if (action == ServerAction.portForward) {
-      return TabState(
-        id: tab.id,
-        kind: ServerAction.empty.name,
-        hostName: tab.host.name,
-      );
-    }
-    return TabState(
-      id: tab.id,
-      kind: action.name,
-      hostName: tab.host.name,
-      title: tab.title,
-      label: tab.label,
-      path: action == ServerAction.fileExplorer
-          ? (tab.explorerPath ?? path)
-          : path,
-    );
   }
 
   String? _customName(TabState state) => state.title ?? state.label;

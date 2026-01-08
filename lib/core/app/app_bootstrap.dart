@@ -47,8 +47,14 @@ class _CwatchAppState extends State<CwatchApp> {
         return MaterialApp(
           title: 'CWatch',
           themeMode: settings.themeMode,
-          theme: ThemeFactory.build(settings: settings, brightness: Brightness.light),
-          darkTheme: ThemeFactory.build(settings: settings, brightness: Brightness.dark),
+          theme: ThemeFactory.build(
+            settings: settings,
+            brightness: Brightness.light,
+          ),
+          darkTheme: ThemeFactory.build(
+            settings: settings,
+            brightness: Brightness.dark,
+          ),
           builder: (context, child) {
             final mediaQuery = MediaQuery.of(context);
             final zoom = settings.zoomFactor.clamp(0.8, 1.5).toDouble();

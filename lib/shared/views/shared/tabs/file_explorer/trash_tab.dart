@@ -141,9 +141,7 @@ class _TrashTabState extends State<TrashTab> {
         final keyLabel = error.keyLabel ?? error.keyId;
         final detail = error.error.message ?? error.error.toString();
         if (mounted) {
-          _showSnackBar(
-            'Key $keyLabel uses an unsupported cipher ($detail).',
-          );
+          _showSnackBar('Key $keyLabel uses an unsupported cipher ($detail).');
         }
         rethrow;
       } on BuiltInSshIdentityPassphraseRequired catch (error) {
@@ -393,9 +391,7 @@ class _TrashTabState extends State<TrashTab> {
         tag: 'Trash',
       );
       if (!mounted) return;
-      _showSnackBar(
-        'Restored ${entry.displayName} to ${entry.remotePath}',
-      );
+      _showSnackBar('Restored ${entry.displayName} to ${entry.remotePath}');
     } catch (error) {
       if (error is CancelledTrashOperation) return;
       AppLogger().warn(

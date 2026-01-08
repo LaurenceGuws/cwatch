@@ -101,5 +101,4 @@ mixin _StructuredDataTableScrolling<T> on _StructuredDataTableStateBase<T> {
       _scrollToColumn(targetColumn);
     });
   }
-
 }

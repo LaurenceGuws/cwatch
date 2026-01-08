@@ -963,5 +963,4 @@ mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
       child: keyboardWrapped,
     );
   }
-
 }

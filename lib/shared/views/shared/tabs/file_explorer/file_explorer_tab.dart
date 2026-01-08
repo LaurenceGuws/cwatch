@@ -278,7 +278,9 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       actions: {
         _ToggleSearchIntent: CallbackAction<_ToggleSearchIntent>(
           onInvoke: (_) {
-            unawaited(_controller.setSearchActive(!_controller.state.searchActive));
+            unawaited(
+              _controller.setSearchActive(!_controller.state.searchActive),
+            );
             return null;
           },
         ),
@@ -965,7 +967,9 @@ class _FileExplorerTabState extends State<FileExplorerTab>
         label: _controller.state.searchActive ? 'Hide search' : 'Show search',
         icon: _controller.state.searchActive ? Icons.search_off : Icons.search,
         onSelected: () {
-          unawaited(_controller.setSearchActive(!_controller.state.searchActive));
+          unawaited(
+            _controller.setSearchActive(!_controller.state.searchActive),
+          );
         },
       ),
     );

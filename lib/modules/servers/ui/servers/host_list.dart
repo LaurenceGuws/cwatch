@@ -371,7 +371,8 @@ class _HostListState extends State<HostList> {
     );
     final singleSelection = selection.length == 1;
     final isCustom = host.source == 'custom';
-    final allDisabled = selection.isNotEmpty && selection.every(_isHostDisabled);
+    final allDisabled =
+        selection.isNotEmpty && selection.every(_isHostDisabled);
     final selectionHasDisabled = selection.any(_isHostDisabled);
 
     return [

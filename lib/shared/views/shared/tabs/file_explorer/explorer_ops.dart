@@ -304,5 +304,5 @@ class ExplorerOps {
   }
 
   void Function(String path, Object error, StackTrace stackTrace)?
-      onPrefetchError;
+  onPrefetchError;
 }
