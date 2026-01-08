@@ -1,69 +1,54 @@
 import 'package:flutter/widgets.dart';
 
 import 'package:cwatch/core/models/tab_state.dart';
-import 'package:cwatch/core/workspace/tabbed_workspace_controller.dart';
-import 'package:cwatch/core/workspace/workspace_persistence.dart';
+import 'package:cwatch/core/workspace/persistent_workspace_controller.dart';
 import 'package:cwatch/core/workspace/workspace_tab.dart';
+import 'package:cwatch/models/app_settings.dart';
 import 'package:cwatch/models/kubernetes_workspace_state.dart';
 import 'package:cwatch/services/kubernetes/kubeconfig_service.dart';
-import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 
 import 'kubernetes_tab_builder.dart';
 
-class KubernetesWorkspaceController extends TabbedWorkspaceController {
+class KubernetesWorkspaceController
+    extends PersistentWorkspaceController<KubernetesWorkspaceState> {
   KubernetesWorkspaceController({
-    required this.settingsController,
+    required super.settingsController,
     required super.baseTabBuilder,
-  }) {
-    workspacePersistence = WorkspacePersistence(
-      settingsController: settingsController,
-      readFromSettings: (settings) => settings.kubernetesWorkspace,
-      writeToSettings: (current, workspace) =>
-          current.copyWith(kubernetesWorkspace: workspace),
-      signatureOf: (workspace) => workspace.signature,
-    );
+  });
+
+  @override
+  KubernetesWorkspaceState? readFromSettings(AppSettings settings) {
+    return settings.kubernetesWorkspace;
   }
 
-  final AppSettingsController settingsController;
-  late final WorkspacePersistence<KubernetesWorkspaceState>
-  workspacePersistence;
+  @override
+  AppSettings writeToSettings(
+    AppSettings current,
+    KubernetesWorkspaceState workspace,
+  ) {
+    return current.copyWith(kubernetesWorkspace: workspace);
+  }
+
+  @override
+  KubernetesWorkspaceState createWorkspaceState(
+    List<TabState> tabs,
+    int selectedIndex,
+  ) {
+    return KubernetesWorkspaceState(tabs: tabs, selectedIndex: selectedIndex);
+  }
+
+  @override
+  TabState? getTabState(Object? tabData) {
+    if (tabData is KubernetesTabData) {
+      return tabData.persistedState;
+    }
+    return null;
+  }
 
   @override
   Future<void> restoreState() async {
     // Handled by view.
-  }
-
-  KubernetesWorkspaceState buildWorkspaceStateSnapshot() {
-    final persistedTabs = <TabState>[];
-    int selectedPersistedIndex = 0;
-
-    for (int i = 0; i < tabs.length; i++) {
-      final tab = tabs[i];
-      final data = tab.workspaceState;
-      if (data is KubernetesTabData) {
-        if (i == selectedIndex) {
-          selectedPersistedIndex = persistedTabs.length;
-        }
-        persistedTabs.add(data.persistedState);
-      }
-    }
-
-    final clampedIndex = persistedTabs.isEmpty
-        ? 0
-        : selectedPersistedIndex.clamp(0, persistedTabs.length - 1);
-
-    return KubernetesWorkspaceState(
-      tabs: persistedTabs,
-      selectedIndex: clampedIndex,
-    );
-  }
-
-  String currentWorkspaceSignature() => buildWorkspaceStateSnapshot().signature;
-
-  @override
-  Future<void> persistState() async {
-    await workspacePersistence.persist(buildWorkspaceStateSnapshot());
   }
 
   Future<void> restore({

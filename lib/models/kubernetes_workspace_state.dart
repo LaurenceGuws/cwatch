@@ -1,17 +1,21 @@
 import 'dart:convert';
 
 import 'package:cwatch/core/models/tab_state.dart';
+import 'package:cwatch/core/models/workspace_state.dart';
 import '../services/logging/app_logger.dart';
 
 enum KubernetesTabKind { details, resources }
 
 /// Serialized workspace for the Kubernetes view.
-class KubernetesWorkspaceState {
+class KubernetesWorkspaceState implements WorkspaceState {
   const KubernetesWorkspaceState({required this.tabs, this.selectedIndex = 0});
 
+  @override
   final List<TabState> tabs;
+  @override
   final int selectedIndex;
 
+  @override
   Map<String, dynamic> toJson() {
     return {
       'tabs': tabs.map((tab) => tab.toJson()).toList(),
@@ -39,5 +43,6 @@ class KubernetesWorkspaceState {
     return KubernetesWorkspaceState(tabs: tabs, selectedIndex: selected);
   }
 
+  @override
   String get signature => jsonEncode(toJson());
 }

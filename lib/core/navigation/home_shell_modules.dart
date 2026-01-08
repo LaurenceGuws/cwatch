@@ -2,7 +2,6 @@ import '../../models/ssh_host.dart';
 import '../../modules/debug_logs/view.dart';
 import '../../modules/docker/view.dart';
 import '../../modules/kubernetes/view.dart';
-import '../../modules/sandbox/view.dart';
 import '../../modules/servers/view.dart';
 import '../../modules/settings/view.dart';
 import '../../modules/wsl/view.dart';
@@ -27,7 +26,7 @@ List<ShellModuleView> buildHomeShellModules({
     ),
   ];
   if (isWindows) {
-    modules.add(const WslModule());
+    modules.add(WslModule(settingsController: settingsController));
   }
   modules.addAll([
     DockerModule(
@@ -37,7 +36,6 @@ List<ShellModuleView> buildHomeShellModules({
       shellFactory: shellFactory,
     ),
     KubernetesModule(settingsController: settingsController),
-    SandboxModule(settingsController: settingsController),
     DebugLogsModule(settingsController: settingsController),
     SettingsModule(
       controller: settingsController,

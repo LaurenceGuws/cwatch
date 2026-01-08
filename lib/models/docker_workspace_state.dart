@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:cwatch/core/models/tab_state.dart';
+import 'package:cwatch/core/models/workspace_state.dart';
 import '../services/logging/app_logger.dart';
 
 enum DockerTabKind {
@@ -95,12 +96,15 @@ class DockerTabState {
   }
 }
 
-class DockerWorkspaceState {
+class DockerWorkspaceState implements WorkspaceState {
   const DockerWorkspaceState({required this.tabs, this.selectedIndex = 0});
 
+  @override
   final List<TabState> tabs;
+  @override
   final int selectedIndex;
 
+  @override
   Map<String, dynamic> toJson() {
     return {
       'tabs': tabs.map((tab) => tab.toJson()).toList(),
@@ -128,5 +132,6 @@ class DockerWorkspaceState {
     return DockerWorkspaceState(tabs: tabs, selectedIndex: selected);
   }
 
+  @override
   String get signature => jsonEncode(toJson());
 }

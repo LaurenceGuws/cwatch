@@ -1,41 +1,60 @@
 import 'package:flutter/widgets.dart';
 
 import 'package:cwatch/core/models/tab_state.dart';
-import 'package:cwatch/core/workspace/tabbed_workspace_controller.dart';
-import 'package:cwatch/core/workspace/workspace_persistence.dart';
+import 'package:cwatch/core/workspace/persistent_workspace_controller.dart';
 import 'package:cwatch/core/workspace/workspace_tab.dart';
+import 'package:cwatch/models/app_settings.dart';
 import 'package:cwatch/models/docker_workspace_state.dart';
 import 'package:cwatch/models/explorer_context.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/modules/docker/ui/docker_tab_builder.dart';
 import 'package:cwatch/modules/docker/ui/remote_docker_status.dart';
 import 'package:cwatch/services/logging/app_logger.dart';
-import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/core/services/remote_endpoint_cache.dart';
 
-class DockerWorkspaceController extends TabbedWorkspaceController {
+class DockerWorkspaceController
+    extends PersistentWorkspaceController<DockerWorkspaceState> {
   DockerWorkspaceController({
-    required this.settingsController,
+    required super.settingsController,
     required super.baseTabBuilder,
   }) : endpointCache = RemoteEndpointCache(
          settingsController: settingsController,
          readNames: (settings) => settings.dockerRemoteHosts,
          writeNames: (current, names) =>
              current.copyWith(dockerRemoteHosts: names),
-       ) {
-    workspacePersistence = WorkspacePersistence(
-      settingsController: settingsController,
-      readFromSettings: (settings) => settings.dockerWorkspace,
-      writeToSettings: (current, workspace) =>
-          current.copyWith(dockerWorkspace: workspace),
-      signatureOf: (workspace) => workspace.signature,
-    );
+       );
+
+  final RemoteEndpointCache endpointCache;
+
+  @override
+  DockerWorkspaceState? readFromSettings(AppSettings settings) {
+    return settings.dockerWorkspace;
   }
 
-  final AppSettingsController settingsController;
-  final RemoteEndpointCache endpointCache;
-  late final WorkspacePersistence<DockerWorkspaceState> workspacePersistence;
+  @override
+  AppSettings writeToSettings(
+    AppSettings current,
+    DockerWorkspaceState workspace,
+  ) {
+    return current.copyWith(dockerWorkspace: workspace);
+  }
+
+  @override
+  DockerWorkspaceState createWorkspaceState(
+    List<TabState> tabs,
+    int selectedIndex,
+  ) {
+    return DockerWorkspaceState(tabs: tabs, selectedIndex: selectedIndex);
+  }
+
+  @override
+  TabState? getTabState(Object? tabData) {
+    if (tabData is DockerTabData) {
+      return tabData.persistedState;
+    }
+    return null;
+  }
 
   @override
   Future<void> restoreState() async {
@@ -70,40 +89,6 @@ class DockerWorkspaceController extends TabbedWorkspaceController {
       workspacePersistence.markRestored(workspace);
       replaceAll(restoredTabs, selectedIndex: workspace.selectedIndex);
     }
-  }
-
-  DockerWorkspaceState buildWorkspaceStateSnapshot() {
-    final persistedTabs = <TabState>[];
-    int selectedPersistedIndex = 0;
-
-    for (int i = 0; i < tabs.length; i++) {
-      final tab = tabs[i];
-      if (tab.workspaceState is DockerTabData) {
-        final data = tab.workspaceState as DockerTabData;
-        if (i == selectedIndex) {
-          selectedPersistedIndex = persistedTabs.length;
-        }
-        persistedTabs.add(data.persistedState);
-      }
-    }
-
-    final clampedIndex = persistedTabs.isEmpty
-        ? 0
-        : selectedPersistedIndex.clamp(0, persistedTabs.length - 1);
-
-    return DockerWorkspaceState(
-      tabs: persistedTabs,
-      selectedIndex: clampedIndex,
-    );
-  }
-
-  String currentWorkspaceSignature() {
-    return buildWorkspaceStateSnapshot().signature;
-  }
-
-  @override
-  Future<void> persistState() async {
-    await workspacePersistence.persist(buildWorkspaceStateSnapshot());
   }
 
   WorkspaceTab? _createTabFromState({

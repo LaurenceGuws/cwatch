@@ -5,6 +5,7 @@ import 'custom_ssh_host.dart';
 import 'docker_workspace_state.dart';
 import 'server_workspace_state.dart';
 import 'kubernetes_workspace_state.dart';
+import 'wsl_workspace_state.dart';
 import 'ssh_client_backend.dart';
 import 'input_mode_preference.dart';
 
@@ -36,6 +37,7 @@ class AppSettings {
     this.kubernetesConfigPaths = const [],
     this.serverWorkspace,
     this.kubernetesWorkspace,
+    this.wslWorkspace,
     this.settingsTabIndex = 0,
     this.shortcutBindings = const {},
     this.editorThemeLight,
@@ -86,6 +88,7 @@ class AppSettings {
   final List<String> kubernetesConfigPaths;
   final ServerWorkspaceState? serverWorkspace;
   final KubernetesWorkspaceState? kubernetesWorkspace;
+  final WslWorkspaceState? wslWorkspace;
   final int settingsTabIndex;
   final Map<String, String> shortcutBindings;
   final String? editorThemeLight;
@@ -138,6 +141,7 @@ class AppSettings {
     List<String>? kubernetesConfigPaths,
     ServerWorkspaceState? serverWorkspace,
     KubernetesWorkspaceState? kubernetesWorkspace,
+    WslWorkspaceState? wslWorkspace,
     int? settingsTabIndex,
     Map<String, String>? shortcutBindings,
     String? editorThemeLight,
@@ -194,6 +198,7 @@ class AppSettings {
           kubernetesConfigPaths ?? this.kubernetesConfigPaths,
       serverWorkspace: serverWorkspace ?? this.serverWorkspace,
       kubernetesWorkspace: kubernetesWorkspace ?? this.kubernetesWorkspace,
+      wslWorkspace: wslWorkspace ?? this.wslWorkspace,
       settingsTabIndex: settingsTabIndex ?? this.settingsTabIndex,
       shortcutBindings: shortcutBindings ?? this.shortcutBindings,
       editorThemeLight: editorThemeLight ?? this.editorThemeLight,
@@ -339,6 +344,23 @@ class AppSettings {
         }
         return null;
       }(),
+      wslWorkspace: () {
+        final raw = json['wslWorkspace'];
+        if (raw is Map<String, dynamic>) {
+          try {
+            return WslWorkspaceState.fromJson(raw);
+          } catch (error, stackTrace) {
+            AppLogger().warn(
+              'Failed to parse wsl workspace state',
+              tag: 'Settings',
+              error: error,
+              stackTrace: stackTrace,
+            );
+            return null;
+          }
+        }
+        return null;
+      }(),
       settingsTabIndex: (json['settingsTabIndex'] as num?)?.toInt() ?? 0,
       shortcutBindings:
           (json['shortcutBindings'] as Map<String, dynamic>?)?.map(
@@ -428,6 +450,7 @@ class AppSettings {
       if (serverWorkspace != null) 'serverWorkspace': serverWorkspace!.toJson(),
       if (kubernetesWorkspace != null)
         'kubernetesWorkspace': kubernetesWorkspace!.toJson(),
+      if (wslWorkspace != null) 'wslWorkspace': wslWorkspace!.toJson(),
       'settingsTabIndex': settingsTabIndex,
       'shortcutBindings': shortcutBindings,
       if (editorThemeLight != null) 'editorThemeLight': editorThemeLight,
