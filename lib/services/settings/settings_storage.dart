@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import '../../models/app_settings.dart';
 import '../logging/app_logger.dart';
@@ -38,7 +39,12 @@ class SettingsStorage {
 
   Future<void> save(AppSettings settings) async {
     final file = await _settingsFile();
-    await file.writeAsString(jsonEncode(settings.toJson()));
+
+    // JSON encoding can be expensive for large settings payloads (e.g. workspace
+    // state). Do the encoding off the UI isolate to avoid freezing interactions.
+    final encoded = await Isolate.run(() => jsonEncode(settings.toJson()));
+
+    await file.writeAsString(encoded);
   }
 
   Future<File> _settingsFile() async {

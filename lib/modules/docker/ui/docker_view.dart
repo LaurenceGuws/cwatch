@@ -15,8 +15,7 @@ import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/widgets/dialog_keyboard_shortcuts.dart';
-import 'package:cwatch/core/models/tab_state.dart';
-import 'package:cwatch/core/tabs/tab_host.dart';
+import 'package:cwatch/core/workspace/workspace_tab.dart';
 import 'package:cwatch/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/core/tabs/tabbed_workspace_shell.dart';
 import 'package:cwatch/core/navigation/tab_navigation_registry.dart';
@@ -24,14 +23,14 @@ import 'package:cwatch/core/navigation/command_palette_registry.dart';
 import 'package:cwatch/core/tabs/tab_bar_visibility.dart';
 import 'package:cwatch/models/docker_workspace_state.dart';
 import 'package:cwatch/core/widgets/keep_alive.dart';
-import 'engine_tab.dart';
 import 'widgets/docker_engine_picker.dart';
 import 'widgets/remote_scan_dialog.dart';
 import '../services/docker_container_shell_service.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 import 'package:cwatch/shared/views/shared/tabs/settings/floating_settings_window.dart';
-import 'docker_tab_factory.dart';
+import 'docker_tab_builder.dart';
 import 'docker_workspace_controller.dart';
+import 'remote_docker_status.dart';
 import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/modules/settings/ui/settings/docker_settings_controls.dart';
 
@@ -61,18 +60,9 @@ class _DockerViewState extends State<DockerView> {
   final DockerClientService _docker = const DockerClientService();
   final ExplorerTrashManager _trashManager = ExplorerTrashManager();
   final PortForwardService _portForwardService = PortForwardService();
-  DockerTabFactory get _tabFactory => DockerTabFactory(
-    docker: _docker,
-    settingsController: widget.settingsController,
-    trashManager: _trashManager,
-    keyService: widget.keyService,
-    portForwardService: _portForwardService,
-  );
-  late final TabHostController<EngineTab> _tabController;
-  final Map<String, TabState> _tabStates = {};
-  late final TabViewRegistry<EngineTab> _tabRegistry;
-  List<EngineTab> _tabSnapshot = const [];
+  late final DockerTabBuilder _tabBuilder;
   late final DockerWorkspaceController _workspaceController;
+  late final TabViewRegistry<WorkspaceTab> _tabRegistry;
   late final VoidCallback _settingsListener;
   late final VoidCallback _tabsListener;
   late final TabNavigationHandle _tabNavigator;
@@ -92,64 +82,40 @@ class _DockerViewState extends State<DockerView> {
   List<RemoteDockerStatus> _cachedReady = const [];
   bool _showListSettings = false;
 
-  List<EngineTab> get _tabs => _tabController.tabs;
-  int get _selectedIndex => _tabController.selectedIndex;
+  List<WorkspaceTab> get _tabs => _workspaceController.tabs;
+  int get _selectedIndex => _workspaceController.selectedIndex;
 
   void _toggleListSettings() {
     setState(() {
       _showListSettings = !_showListSettings;
     });
-
-    _refreshPickerTabs();
+    // In new architecture, we might not need to sync overlay options manually
+    // if the builder rebuilds them correctly.
   }
 
-  void _replaceBaseTab(EngineTab tab) {
-    final selectedId = _tabs.isEmpty
-        ? null
-        : _tabs[_selectedIndex.clamp(0, _tabs.length - 1)].id;
-
-    if (_tabController.tabs.isEmpty) {
-      _tabController.addTab(tab);
-    } else {
-      _tabRegistry.remove(_tabController.tabs.first);
-
-      _tabController.replaceBaseTab(tab);
-    }
-
-    _tabRegistry.widgetFor(tab, () => tab.body);
-
-    if (selectedId != null) {
-      final restoredIndex = _tabs.indexWhere((t) => t.id == selectedId);
-
-      if (restoredIndex != -1) {
-        _tabController.select(restoredIndex);
-      }
-    }
-  }
-
-  void _syncPickerOptions(EngineTab tab) {
-    final options = <TabChipOption>[
-      TabChipOption(
-        label: _showListSettings ? 'Hide list settings' : 'List settings',
-        icon: Icons.settings,
-        onSelected: _toggleListSettings,
-      ),
-    ];
-    final controller = tab.optionsController;
-    if (controller != null) {
-      controller.update(options);
-    }
+  void _replaceTab(String tabId, WorkspaceTab tab) {
+    _workspaceController.replaceTab(tabId, tab);
   }
 
   @override
   void initState() {
     super.initState();
     _contextsFuture = _loadContexts();
-    _tabController = TabHostController<EngineTab>(
-      baseTabBuilder: () => _enginePickerTab(),
-      tabId: (tab) => tab.id,
+
+    _tabBuilder = DockerTabBuilder(
+      docker: _docker,
+      settingsController: widget.settingsController,
+      trashManager: _trashManager,
+      keyService: widget.keyService,
+      portForwardService: _portForwardService,
     );
-    _tabRegistry = TabViewRegistry<EngineTab>(
+
+    _workspaceController = DockerWorkspaceController(
+      settingsController: widget.settingsController,
+      baseTabBuilder: () => _enginePickerTab(),
+    );
+
+    _tabRegistry = TabViewRegistry<WorkspaceTab>(
       tabId: (tab) => tab.id,
       keepAliveBuilder: (child, key) =>
           KeepAliveWrapper(key: key, child: child),
@@ -160,14 +126,14 @@ class _DockerViewState extends State<DockerView> {
         final length = _tabs.length;
         if (length <= 1) return false;
         final next = (_selectedIndex + 1) % length;
-        _tabController.select(next);
+        _workspaceController.select(next);
         return true;
       },
       previous: () {
         final length = _tabs.length;
         if (length <= 1) return false;
         final prev = (_selectedIndex - 1 + length) % length;
-        _tabController.select(prev);
+        _workspaceController.select(prev);
         return true;
       },
     );
@@ -179,16 +145,13 @@ class _DockerViewState extends State<DockerView> {
       widget.moduleId,
       _commandPaletteHandle,
     );
-    final picker = _tabController.tabs.first;
-    _tabRegistry.widgetFor(picker, () => picker.body);
-    _registerTabState(picker.workspaceState as TabState);
-    _tabSnapshot = _tabController.tabs.toList();
-    _tabsListener = _handleTabsChanged;
-    _tabController.addListener(_tabsListener);
+
+    _tabsListener = () {
+      setState(() {});
+    };
+    _workspaceController.addListener(_tabsListener);
+
     _settingsListener = _handleSettingsChanged;
-    _workspaceController = DockerWorkspaceController(
-      settingsController: widget.settingsController,
-    );
     _portForwardService.setAuthCoordinator(widget.shellFactory.authCoordinator);
     widget.settingsController.addListener(_settingsListener);
     _restoreWorkspace();
@@ -196,7 +159,8 @@ class _DockerViewState extends State<DockerView> {
 
   @override
   void dispose() {
-    _tabController.removeListener(_tabsListener);
+    _workspaceController.removeListener(_tabsListener);
+    _workspaceController.dispose();
     widget.settingsController.removeListener(_settingsListener);
     _portForwardService.dispose();
     TabNavigationRegistry.instance.unregister(widget.moduleId, _tabNavigator);
@@ -207,63 +171,52 @@ class _DockerViewState extends State<DockerView> {
     super.dispose();
   }
 
-  EngineTab _enginePickerTab({String? id}) {
+  WorkspaceTab _enginePickerTab({String? id}) {
     final tabId = id ?? _uniqueId();
-    final optionsController = TabOptionsController();
-    final tab = EngineTab(
-      id: tabId,
-      title: 'Docker Engines',
-      label: 'Docker Engines',
-      icon: NerdIcon.docker.data,
-      canDrag: false,
-      isPicker: true,
-      workspaceState: TabState(id: tabId, kind: DockerTabKind.picker.name),
-      optionsController: optionsController,
-      body: Stack(
-        children: [
-          EnginePicker(
-            tabId: tabId,
-            contextsFuture: _contextsFuture,
-            cachedReady: _cachedReady,
-            remoteStatusFuture: _remoteStatusFuture,
-            remoteScanRequested: _remoteScanRequested,
-            onRefreshContexts: _refreshContexts,
-            onScanRemotes: _scanRemotes,
-            onOpenContext: (contextName, anchor) =>
-                _openContextDashboard(tabId, contextName, anchor),
-            onOpenHost: (host, anchor) =>
-                _openHostDashboard(tabId, host, anchor),
-            settingsController: widget.settingsController,
-          ),
-          if (_showListSettings)
-            FloatingSettingsWindow(
-              title: 'Docker List Settings',
-              onClose: _toggleListSettings,
-              child: Column(
-                children: [
-                  ListTile(
-                    title: const Text('Scan for remote engines'),
-                    leading: const Icon(Icons.radar),
-                    onTap: () {
-                      _scanRemotes();
-                      _toggleListSettings(); // Close settings after triggering scan
-                    },
-                  ),
-                  const Divider(),
-                  DockerSettingsControls(
-                    logsTail: widget.settingsController.settings.dockerLogsTail,
-                    onLogsTailChanged: (value) => widget.settingsController
-                        .update((s) => s.copyWith(dockerLogsTail: value)),
-                  ),
-                ],
-              ),
+    return _tabBuilder.picker(id: tabId, body: _buildPickerBody(tabId));
+  }
+
+  Widget _buildPickerBody(String tabId) {
+    return Stack(
+      children: [
+        EnginePicker(
+          tabId: tabId,
+          contextsFuture: _contextsFuture,
+          cachedReady: _cachedReady,
+          remoteStatusFuture: _remoteStatusFuture,
+          remoteScanRequested: _remoteScanRequested,
+          onRefreshContexts: _refreshContexts,
+          onScanRemotes: _scanRemotes,
+          onOpenContext: (contextName, anchor) =>
+              _openContextDashboard(tabId, contextName, anchor),
+          onOpenHost: (host, anchor) => _openHostDashboard(tabId, host, anchor),
+          settingsController: widget.settingsController,
+        ),
+        if (_showListSettings)
+          FloatingSettingsWindow(
+            title: 'Docker List Settings',
+            onClose: _toggleListSettings,
+            child: Column(
+              children: [
+                ListTile(
+                  title: const Text('Scan for remote engines'),
+                  leading: const Icon(Icons.radar),
+                  onTap: () {
+                    _scanRemotes();
+                    _toggleListSettings();
+                  },
+                ),
+                const Divider(),
+                DockerSettingsControls(
+                  logsTail: widget.settingsController.settings.dockerLogsTail,
+                  onLogsTailChanged: (value) => widget.settingsController
+                      .update((s) => s.copyWith(dockerLogsTail: value)),
+                ),
+              ],
             ),
-        ],
-      ),
+          ),
+      ],
     );
-    _syncPickerOptions(tab);
-    _tabStates[tab.id] = TabState(id: tab.id, kind: DockerTabKind.picker.name);
-    return tab;
   }
 
   String _uniqueId() => DateTime.now().microsecondsSinceEpoch.toString();
@@ -284,13 +237,23 @@ class _DockerViewState extends State<DockerView> {
 
   void _refreshContexts() {
     _contextsFuture = _loadContexts();
-    final currentId = _tabs.first.id;
-    final picker = _enginePickerTab(id: currentId);
-    _disposeTabOptions(_tabs[0]);
-    _tabRegistry.remove(_tabs[0]);
-    _replaceBaseTab(picker);
-    _registerTabState(picker.workspaceState as TabState);
-    _persistWorkspace();
+
+    final pickerIds = _tabs
+        .where(
+          (t) =>
+              (t.workspaceState as DockerTabData?)?.kind ==
+              DockerTabKind.picker,
+        )
+        .map((t) => t.id)
+        .toList();
+
+    _workspaceController.runWithoutPersist(() {
+      for (final id in pickerIds) {
+        _replaceTab(id, _enginePickerTab(id: id));
+      }
+    });
+
+    unawaited(_workspaceController.persistState());
   }
 
   void _scanRemotes() {
@@ -344,8 +307,8 @@ class _DockerViewState extends State<DockerView> {
           Expanded(
             child: Material(
               color: context.appTheme.section.toolbarBackground,
-              child: TabbedWorkspaceShell<EngineTab>(
-                controller: _tabController,
+              child: TabbedWorkspaceShell<WorkspaceTab>(
+                controller: _workspaceController,
                 registry: _tabRegistry,
                 tabBarHeight: 36,
                 showTabBar: TabBarVisibilityController.instance,
@@ -373,33 +336,16 @@ class _DockerViewState extends State<DockerView> {
                         ),
                       )
                     : null,
-                onReorder: (oldIndex, newIndex) {
-                  final selectedTabId = _tabs.isEmpty
-                      ? null
-                      : _tabs[_selectedIndex].id;
-                  if (oldIndex < newIndex) newIndex -= 1;
-                  _tabController.reorder(oldIndex, newIndex);
-                  if (selectedTabId != null) {
-                    final newIndexOfSelected = _tabs.indexWhere(
-                      (tab) => tab.id == selectedTabId,
-                    );
-                    _tabController.select(
-                      newIndexOfSelected.clamp(0, _tabs.length - 1),
-                    );
-                  }
-                  _persistWorkspace();
-                },
+                onReorder: _workspaceController.reorder,
                 onAddTab: _addEnginePickerTab,
                 buildChip: (context, index, tab) {
                   final optionsController = tab.optionsController;
-                  final state = tab.workspaceState is TabState
-                      ? tab.workspaceState as TabState
-                      : null;
+                  final data = tab.workspaceState as DockerTabData?;
                   final isPicker =
-                      tab.isPicker || state?.kind == DockerTabKind.picker.name;
+                      tab.isPicker || data?.kind == DockerTabKind.picker;
                   final canDrag = tab.canDrag && !isPicker;
                   final canRename = tab.canRename && !isPicker;
-                  final closeWarning = _isCommandWorkspace(tab.workspaceState)
+                  final closeWarning = _isCommandWorkspace(data)
                       ? const TabCloseWarning(
                           title: 'Disconnect session?',
                           message:
@@ -420,10 +366,9 @@ class _DockerViewState extends State<DockerView> {
                       icon: tab.icon,
                       selected: index == _selectedIndex,
                       onSelect: () {
-                        _tabController.select(index);
-                        _persistWorkspace();
+                        _workspaceController.select(index);
                       },
-                      onClose: () => _closeTab(index),
+                      onClose: () => _workspaceController.closeTab(index),
                       closable: true,
                       onRename: canRename ? () => _renameTab(index) : null,
                       dragIndex: canDrag ? index : null,
@@ -441,7 +386,20 @@ class _DockerViewState extends State<DockerView> {
                   return ValueListenableBuilder<List<TabChipOption>>(
                     key: ValueKey(tab.id),
                     valueListenable: optionsController,
-                    builder: (context, options, _) => buildTab(options),
+                    builder: (context, options, _) {
+                      final updatedOptions = [
+                        ...options,
+                        if (isPicker)
+                          TabChipOption(
+                            label: _showListSettings
+                                ? 'Hide list settings'
+                                : 'List settings',
+                            icon: Icons.settings,
+                            onSelected: _toggleListSettings,
+                          ),
+                      ];
+                      return buildTab(updatedOptions);
+                    },
                   );
                 },
                 buildBody: (tab) => tab.body,
@@ -458,29 +416,7 @@ class _DockerViewState extends State<DockerView> {
   }
 
   void _addEnginePickerTab() {
-    final picker = _enginePickerTab();
-    _registerTabState(picker.workspaceState as TabState);
-    _tabRegistry.widgetFor(picker, () => picker.body);
-    _tabController.addTab(picker);
-  }
-
-  void _disposeTabOptions(EngineTab tab) {
-    tab.optionsController?.dispose();
-  }
-
-  void _closeTab(int index) {
-    if (index < 0 || index >= _tabs.length) {
-      return;
-    }
-    final removedTab = _tabs[index];
-    _disposeTabOptions(removedTab);
-    _tabStates.remove(removedTab.id);
-    _tabRegistry.remove(removedTab);
-    _tabSnapshot = _tabController.tabs
-        .where((tab) => tab.id != removedTab.id)
-        .toList();
-    _tabController.closeTab(index);
-    _persistWorkspace();
+    _workspaceController.addTab(_enginePickerTab());
   }
 
   List<CommandPaletteEntry> _buildCommandPaletteEntries() {
@@ -512,7 +448,7 @@ class _DockerViewState extends State<DockerView> {
           id: '${widget.moduleId}:closeTab',
           label: 'Close tab',
           category: 'Tabs',
-          onSelected: () => _closeTab(_selectedIndex),
+          onSelected: () => _workspaceController.closeTab(_selectedIndex),
         ),
       );
     }
@@ -567,15 +503,30 @@ class _DockerViewState extends State<DockerView> {
     final trimmed = newName.trim();
     if (trimmed.isEmpty || trimmed == tab.title) return;
 
+    // Update title
     final updated = tab.copyWith(title: trimmed, label: trimmed);
-    final state = _resolvedStateForTab(tab);
-    if (state != null) {
-      _tabStates[tab.id] = _copyStateWithTitle(state, trimmed);
+    // Update persisted state title
+    if (tab.workspaceState is DockerTabData) {
+      final data = tab.workspaceState as DockerTabData;
+      final newState = data.persistedState.copyWith(
+        title: trimmed,
+        label: trimmed,
+      );
+      // We need to update the tab with new workspace state
+      // WorkspaceTab is immutable, so we create a new one
+      // But DockerTabData is immutable too.
+      // So we need to reconstruct the hierarchy.
+      // Actually, replacing the tab in controller is enough.
+      final newTabWithState = updated.copyWith(
+        workspaceState: DockerTabData(
+          kind: data.kind,
+          persistedState: newState,
+        ),
+      );
+      _workspaceController.replaceTab(tab.id, newTabWithState);
+    } else {
+      _workspaceController.replaceTab(tab.id, updated);
     }
-    _tabRegistry.widgetFor(updated, () => updated.body);
-    _tabController.replaceTab(tab.id, updated);
-    setState(() {});
-    unawaited(_persistWorkspace());
   }
 
   Future<void> _openContextDashboard(
@@ -588,19 +539,23 @@ class _DockerViewState extends State<DockerView> {
     if (choice == null || !mounted) return;
     final newId = 'ctx-$contextName-${DateTime.now().microsecondsSinceEpoch}';
     final newTab = choice == _DashboardTarget.resources
-        ? _buildResourcesTab(
+        ? _tabBuilder.resources(
             id: newId,
             title: contextName,
             label: contextName,
             icon: icons.cloud,
             contextName: contextName,
+            onOpenTab: _openChildTab,
+            onCloseTab: _closeTabById,
           )
-        : _buildOverviewTab(
+        : _tabBuilder.overview(
             id: newId,
             title: contextName,
             label: contextName,
             icon: icons.cloud,
             contextName: contextName,
+            onOpenTab: _openChildTab,
+            onCloseTab: _closeTabById,
           );
     _replaceTab(tabId, newTab);
   }
@@ -620,38 +575,27 @@ class _DockerViewState extends State<DockerView> {
     if (choice == null || !mounted) return;
     final newId = 'host-${host.name}-${DateTime.now().microsecondsSinceEpoch}';
     final newTab = choice == _DashboardTarget.resources
-        ? _buildResourcesTab(
+        ? _tabBuilder.resources(
             id: newId,
             title: host.name,
             label: host.name,
             icon: icons.cloudOutline,
             remoteHost: host,
             shellService: shell,
+            onOpenTab: _openChildTab,
+            onCloseTab: _closeTabById,
           )
-        : _buildOverviewTab(
+        : _tabBuilder.overview(
             id: newId,
             title: host.name,
             label: host.name,
             icon: icons.cloudOutline,
             remoteHost: host,
             shellService: shell,
+            onOpenTab: _openChildTab,
+            onCloseTab: _closeTabById,
           );
     _replaceTab(tabId, newTab);
-  }
-
-  void _replaceTab(String tabId, EngineTab tab) {
-    final currentIndex = _tabs.indexWhere((existing) => existing.id == tabId);
-    if (currentIndex == -1) {
-      return;
-    }
-    _disposeTabOptions(_tabs[currentIndex]);
-    _tabStates.remove(tabId);
-    _tabRegistry.remove(_tabs[currentIndex]);
-    if (tab.workspaceState is TabState) {
-      _registerTabState(tab.workspaceState as TabState);
-    }
-    _tabRegistry.widgetFor(tab, () => tab.body);
-    _tabController.replaceTab(tabId, tab);
   }
 
   Future<_DashboardTarget?> _pickDashboardTarget(
@@ -757,9 +701,9 @@ class _DockerViewState extends State<DockerView> {
 
   bool _isScanCancelled(int token) => _cancelledScans.contains(token);
 
-  bool _isCommandWorkspace(Object? workspaceState) {
-    if (workspaceState is TabState) {
-      return workspaceState.kind == DockerTabKind.command.name;
+  bool _isCommandWorkspace(DockerTabData? data) {
+    if (data != null) {
+      return data.kind == DockerTabKind.command;
     }
     return false;
   }
@@ -767,17 +711,19 @@ class _DockerViewState extends State<DockerView> {
   void _refreshPickerTabs() {
     final pickerIds = _tabs
         .where((tab) {
-          if (tab.workspaceState is TabState) {
-            final state = tab.workspaceState as TabState;
-            return state.kind == DockerTabKind.picker.name;
-          }
-          return tab.body is EnginePicker;
+          final data = tab.workspaceState as DockerTabData?;
+          return data?.kind == DockerTabKind.picker;
         })
         .map((t) => t.id)
         .toList();
-    for (final id in pickerIds) {
-      _replaceTab(id, _enginePickerTab(id: id));
-    }
+
+    _workspaceController.runWithoutPersist(() {
+      for (final id in pickerIds) {
+        _replaceTab(id, _enginePickerTab(id: id));
+      }
+    });
+
+    unawaited(_workspaceController.persistState());
   }
 
   Future<RemoteDockerStatus> _probeHost(SshHost host) async {
@@ -833,250 +779,75 @@ class _DockerViewState extends State<DockerView> {
     return widget.shellFactory.forHost(host);
   }
 
-  void _openChildTab(EngineTab tab) {
-    final uniqueId = _ensureUniqueId(tab.id);
-    final uniqueTab = tab.copyWith(id: uniqueId);
-    _tabRegistry.widgetFor(uniqueTab, () => uniqueTab.body);
-    _tabController.addTab(uniqueTab);
-    TabState? state;
-    if (uniqueTab.workspaceState is TabState) {
-      state = uniqueTab.workspaceState as TabState;
-    } else {
-      state = _tabStateFromBody(
-        uniqueTab.id,
-        uniqueTab.body,
-        uniqueTab.workspaceState is TabState
-            ? uniqueTab.workspaceState as TabState
-            : null,
-      );
-    }
-    if (state != null) {
-      _registerTabState(_workspaceController.copyStateWithId(state, uniqueId));
-    }
-    _persistWorkspace();
-  }
-
-  EngineTab _buildOverviewTab({
-    required String id,
-    required String title,
-    required String label,
-    required IconData icon,
-    String? contextName,
-    SshHost? remoteHost,
-    RemoteShellService? shellService,
-  }) {
-    return _tabFactory.overview(
-      id: id,
-      title: title,
-      label: label,
-      icon: icon,
-      contextName: contextName,
-      remoteHost: remoteHost,
-      shellService: shellService,
-      onOpenTab: _openChildTab,
-      onCloseTab: _closeTabById,
-    );
-  }
-
-  EngineTab _buildResourcesTab({
-    required String id,
-    required String title,
-    required String label,
-    required IconData icon,
-    String? contextName,
-    SshHost? remoteHost,
-    RemoteShellService? shellService,
-  }) {
-    return _tabFactory.resources(
-      id: id,
-      title: title,
-      label: label,
-      icon: icon,
-      contextName: contextName,
-      remoteHost: remoteHost,
-      shellService: shellService,
-      onOpenTab: _openChildTab,
-      onCloseTab: _closeTabById,
-    );
+  void _openChildTab(WorkspaceTab tab) {
+    // This is called by builder callbacks.
+    // The tab is already built. We just need to ensure unique ID if needed?
+    // Usually builder creates new ID.
+    _workspaceController.addTab(tab);
   }
 
   void _closeTabById(String id) {
     final index = _tabs.indexWhere((tab) => tab.id == id);
-    if (index == -1) return;
-    _closeTab(index);
-  }
-
-  TabState? _tabStateFromBody(
-    String id,
-    Widget body,
-    TabState? workspaceState,
-  ) {
-    return _workspaceController.tabStateFromBody(
-      id,
-      body,
-      workspaceState: workspaceState,
-    );
-  }
-
-  TabState? _resolvedStateForTab(EngineTab tab) {
-    TabState? workspaceState;
-    if (tab.workspaceState is TabState) {
-      workspaceState = tab.workspaceState as TabState;
-    }
-    return _tabStates[tab.id] ??
-        workspaceState ??
-        _tabStateFromBody(tab.id, tab.body, workspaceState);
-  }
-
-  TabState _copyStateWithTitle(TabState state, String title) {
-    return state.copyWith(title: title, label: state.label ?? title);
-  }
-
-  void _registerTabState(TabState? state) {
-    if (state == null) return;
-    _tabStates[state.id] = state;
-  }
-
-  DockerWorkspaceState _currentWorkspaceState() {
-    return _workspaceController.currentWorkspaceState(
-      tabs: _tabs,
-      selectedIndex: _selectedIndex,
-      explicitStates: _tabStates,
-    );
-  }
-
-  Future<void> _persistWorkspace() async {
-    final workspace = _currentWorkspaceState();
-    await _workspaceController.workspacePersistence.persist(workspace);
+    if (index != -1) _workspaceController.closeTab(index);
   }
 
   void _updateExplorerPath(String tabId, String path) {
-    final existing = _tabStates[tabId];
-    final kind = existing?.kind ?? DockerTabKind.containerExplorer.name;
-    _tabStates[tabId] = (existing ?? TabState(id: tabId, kind: kind)).copyWith(
-      path: path,
-    );
-    unawaited(_persistWorkspace());
+    final index = _tabs.indexWhere((t) => t.id == tabId);
+    if (index != -1) {
+      final tab = _tabs[index];
+      final data = tab.workspaceState as DockerTabData?;
+      if (data != null) {
+        final newState = data.persistedState.copyWith(path: path);
+        final newTab = tab.copyWith(
+          workspaceState: DockerTabData(
+            kind: data.kind,
+            persistedState: newState,
+          ),
+        );
+        _workspaceController.replaceTab(tabId, newTab);
+      }
+    }
   }
 
   void _handleSettingsChanged() {
     if (!mounted) return;
-    unawaited(_restoreWorkspace());
-    _workspaceController.workspacePersistence.persistIfPending(
-      _persistWorkspace,
-    );
-  }
 
-  void _handleTabsChanged() {
-    final currentTabs = _tabController.tabs;
-    final currentIds = currentTabs.map((tab) => tab.id).toSet();
-    final removed = _tabSnapshot.where((tab) => !currentIds.contains(tab.id));
-    for (final tab in removed) {
-      _tabStates.remove(tab.id);
-      _tabRegistry.remove(tab);
+    // Only restore if the persisted workspace differs from our current tabs.
+    // This avoids a restore loop when our own persistence writes trigger the
+    // settings listener (especially noticeable when multiple picker tabs exist).
+    final persistedSignature =
+        widget.settingsController.settings.dockerWorkspace?.signature;
+    if (persistedSignature != null &&
+        persistedSignature !=
+            _workspaceController.currentWorkspaceSignature()) {
+      unawaited(_restoreWorkspace());
     }
-    final previousIds = _tabSnapshot.map((tab) => tab.id).toSet();
-    for (final tab in currentTabs) {
-      if (!previousIds.contains(tab.id)) {
-        _registerTabState(
-          tab.workspaceState is TabState
-              ? tab.workspaceState as TabState
-              : _tabStateFromBody(tab.id, tab.body, null),
-        );
-      }
-      _tabRegistry.widgetFor(tab, () => tab.body);
-    }
-    _tabSnapshot = currentTabs.toList();
-    setState(() {});
-    unawaited(_persistWorkspace());
+
+    _workspaceController.workspacePersistence.persistIfPending(
+      () => _workspaceController.persistState(),
+    );
   }
 
   Future<void> _restoreWorkspace() async {
-    DockerWorkspaceState? workspace;
     List<SshHost> hosts = const [];
     try {
       hosts = await widget.hostsFuture;
-      workspace = widget.settingsController.settings.dockerWorkspace;
     } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Failed to load docker workspace state',
-        tag: 'Docker',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      workspace = widget.settingsController.settings.dockerWorkspace;
+      AppLogger().warn('Failed hosts', error: error, stackTrace: stackTrace);
     }
     if (!mounted) return;
 
-    if (workspace == null || workspace.tabs.isEmpty) {
-      setState(() {
-        final picker = _enginePickerTab();
-        _tabStates
-          ..clear()
-          ..addAll({
-            picker.id: TabState(id: picker.id, kind: DockerTabKind.picker.name),
-          });
-        _tabRegistry.reset([picker]);
-        _tabController.replaceAll([picker]);
-      });
-      return;
-    }
-    if (!_workspaceController.workspacePersistence.shouldRestore(workspace)) {
-      return;
-    }
-    final restored = _workspaceController.buildTabsFromState(
-      workspace: workspace,
+    await _workspaceController.restore(
+      builder: _tabBuilder,
       hosts: hosts,
-      buildTab: (state) => _tabFromState(state, hosts),
-    );
-    final newTabs = restored.tabs;
-    final newStates = restored.states;
-
-    if (newTabs.isEmpty) {
-      final picker = _enginePickerTab();
-      newTabs.add(picker);
-      newStates[picker.id] = TabState(
-        id: picker.id,
-        kind: DockerTabKind.picker.name,
-      );
-    }
-
-    final restoredWorkspace = workspace;
-    final selected = restoredWorkspace.selectedIndex.clamp(
-      0,
-      newTabs.length - 1,
-    );
-
-    _tabStates
-      ..clear()
-      ..addAll(newStates);
-    _tabRegistry.reset(newTabs);
-    _tabController.replaceAll(newTabs, selectedIndex: selected);
-    _tabSnapshot = _tabController.tabs.toList();
-    _workspaceController.workspacePersistence.markRestored(restoredWorkspace);
-    unawaited(_loadCachedReady());
-  }
-
-  EngineTab? _tabFromState(TabState state, List<SshHost> hosts) {
-    final icons = context.appTheme.icons;
-    return _workspaceController.tabFromState(
-      state: state,
-      hosts: hosts,
-      builders: TabBuilders(
-        buildPlaceholder: ({required id}) => _enginePickerTab(id: id),
-        buildPicker: ({required id}) => _enginePickerTab(id: id),
-        buildOverview: _buildOverviewTab,
-        buildResources: _buildResourcesTab,
-        buildCommand: _tabFactory.commandTerminal,
-        buildComposeLogs: _tabFactory.composeLogs,
-        buildExplorer: _tabFactory.explorer,
-        buildEditor: _tabFactory.containerEditor,
-        cloudIcon: icons.cloud,
-        cloudOutlineIcon: icons.cloudOutline,
+      pickerBuilder: _buildPickerBody,
+      callbacks: TabBuilders(
+        cloudIcon: context.appTheme.icons.cloud,
+        cloudOutlineIcon: context.appTheme.icons.cloudOutline,
         commandIcon: NerdIcon.terminal.data,
         composeIcon: NerdIcon.terminal.data,
-        explorerIcon: icons.folderOpen,
-        editorIcon: icons.edit,
+        explorerIcon: context.appTheme.icons.folderOpen,
+        editorIcon: context.appTheme.icons.edit,
         shellForHost: _shellServiceForHost,
         containerShell: _containerShell,
         dockerContextNameFor: _dockerContextNameFor,
@@ -1085,16 +856,8 @@ class _DockerViewState extends State<DockerView> {
         onExplorerPathChanged: _updateExplorerPath,
       ),
     );
-  }
 
-  String _ensureUniqueId(String base) {
-    var candidate = base;
-    var counter = 1;
-    final existing = _tabs.map((t) => t.id).toSet();
-    while (existing.contains(candidate)) {
-      candidate = '$base-${counter++}';
-    }
-    return candidate;
+    unawaited(_loadCachedReady());
   }
 
   RemoteShellService? _containerShell(

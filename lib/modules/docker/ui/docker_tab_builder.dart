@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:cwatch/core/models/tab_state.dart';
+import 'package:cwatch/core/workspace/workspace_tab.dart';
 import 'package:cwatch/models/docker_workspace_state.dart';
 import 'package:cwatch/models/explorer_context.dart';
 import 'package:cwatch/models/ssh_host.dart';
@@ -14,13 +15,12 @@ import 'package:cwatch/shared/views/shared/tabs/editor/remote_file_editor_loader
 import 'package:cwatch/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart';
 import 'package:cwatch/shared/views/shared/tabs/file_explorer/trash_tab.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
-import 'engine_tab.dart';
 import 'widgets/docker_command_terminal.dart';
 import 'widgets/docker_overview.dart';
 import 'widgets/docker_resources.dart';
 
-class DockerTabFactory {
-  const DockerTabFactory({
+class DockerTabBuilder {
+  const DockerTabBuilder({
     required this.docker,
     required this.settingsController,
     required this.trashManager,
@@ -34,7 +34,7 @@ class DockerTabFactory {
   final BuiltInSshKeyService keyService;
   final PortForwardService portForwardService;
 
-  EngineTab overview({
+  WorkspaceTab overview({
     required String id,
     required String title,
     required String label,
@@ -42,7 +42,7 @@ class DockerTabFactory {
     String? contextName,
     SshHost? remoteHost,
     RemoteShellService? shellService,
-    required void Function(EngineTab tab) onOpenTab,
+    required void Function(WorkspaceTab tab) onOpenTab,
     required void Function(String id) onCloseTab,
   }) {
     final controller = TabOptionsController();
@@ -57,10 +57,10 @@ class DockerTabFactory {
       onOpenTab: onOpenTab,
       onCloseTab: onCloseTab,
       optionsController: controller,
-      tabFactory: this,
+      tabBuilder: this,
       portForwardService: portForwardService,
     );
-    return EngineTab(
+    return WorkspaceTab(
       id: id,
       title: title,
       label: label,
@@ -68,21 +68,26 @@ class DockerTabFactory {
       body: body,
       canDrag: true,
       canRename: true,
-      workspaceState: TabState(
-        id: id,
+      workspaceState: DockerTabData(
         kind: contextName != null
-            ? DockerTabKind.contextOverview.name
-            : DockerTabKind.hostOverview.name,
-        contextName: contextName,
-        hostName: remoteHost?.name,
-        title: title,
-        label: label,
+            ? DockerTabKind.contextOverview
+            : DockerTabKind.hostOverview,
+        persistedState: TabState(
+          id: id,
+          kind: contextName != null
+              ? DockerTabKind.contextOverview.name
+              : DockerTabKind.hostOverview.name,
+          contextName: contextName,
+          hostName: remoteHost?.name,
+          title: title,
+          label: label,
+        ),
       ),
       optionsController: controller,
     );
   }
 
-  EngineTab resources({
+  WorkspaceTab resources({
     required String id,
     required String title,
     required String label,
@@ -90,7 +95,7 @@ class DockerTabFactory {
     String? contextName,
     SshHost? remoteHost,
     RemoteShellService? shellService,
-    required void Function(EngineTab tab) onOpenTab,
+    required void Function(WorkspaceTab tab) onOpenTab,
     required void Function(String id) onCloseTab,
   }) {
     final controller = TabOptionsController();
@@ -102,9 +107,9 @@ class DockerTabFactory {
       onOpenTab: onOpenTab,
       onCloseTab: onCloseTab,
       optionsController: controller,
-      tabFactory: this,
+      tabBuilder: this,
     );
-    return EngineTab(
+    return WorkspaceTab(
       id: id,
       title: title,
       label: label,
@@ -112,21 +117,26 @@ class DockerTabFactory {
       body: body,
       canDrag: true,
       canRename: true,
-      workspaceState: TabState(
-        id: id,
+      workspaceState: DockerTabData(
         kind: contextName != null
-            ? DockerTabKind.contextResources.name
-            : DockerTabKind.hostResources.name,
-        contextName: contextName,
-        hostName: remoteHost?.name,
-        title: title,
-        label: label,
+            ? DockerTabKind.contextResources
+            : DockerTabKind.hostResources,
+        persistedState: TabState(
+          id: id,
+          kind: contextName != null
+              ? DockerTabKind.contextResources.name
+              : DockerTabKind.hostResources.name,
+          contextName: contextName,
+          hostName: remoteHost?.name,
+          title: title,
+          label: label,
+        ),
       ),
       optionsController: controller,
     );
   }
 
-  EngineTab explorer({
+  WorkspaceTab explorer({
     required String id,
     required String title,
     required String label,
@@ -137,12 +147,12 @@ class DockerTabFactory {
     required String containerId,
     String? containerName,
     String? dockerContextName,
-    required void Function(EngineTab tab) onOpenTab,
+    required void Function(WorkspaceTab tab) onOpenTab,
     String? initialPath,
     void Function(String path)? onPathChanged,
   }) {
     final controller = CompositeTabOptionsController();
-    return EngineTab(
+    return WorkspaceTab(
       id: id,
       title: title,
       label: label,
@@ -186,25 +196,28 @@ class DockerTabFactory {
         onOpenTerminalTab: null,
         optionsController: controller,
       ),
-      workspaceState: TabState(
-        id: id,
-        kind: DockerTabKind.containerExplorer.name,
-        hostName: host.name,
-        contextName: dockerContextName,
-        title: title,
-        label: label,
-        extra: {
-          if (containerId.isNotEmpty) 'containerId': containerId,
-          if (containerName != null && containerName.isNotEmpty)
-            'containerName': containerName,
-        },
-        path: initialPath,
+      workspaceState: DockerTabData(
+        kind: DockerTabKind.containerExplorer,
+        persistedState: TabState(
+          id: id,
+          kind: DockerTabKind.containerExplorer.name,
+          hostName: host.name,
+          contextName: dockerContextName,
+          title: title,
+          label: label,
+          extra: {
+            if (containerId.isNotEmpty) 'containerId': containerId,
+            if (containerName != null && containerName.isNotEmpty)
+              'containerName': containerName,
+          },
+          path: initialPath,
+        ),
       ),
       optionsController: controller,
     );
   }
 
-  EngineTab containerEditor({
+  WorkspaceTab containerEditor({
     required String id,
     required String title,
     required String label,
@@ -218,7 +231,7 @@ class DockerTabFactory {
     String? contextName,
   }) {
     final controller = TabOptionsController();
-    return EngineTab(
+    return WorkspaceTab(
       id: id,
       title: title,
       label: label,
@@ -233,26 +246,29 @@ class DockerTabFactory {
         optionsController: controller,
         initialContent: initialContent,
       ),
-      workspaceState: TabState(
-        id: id,
-        kind: DockerTabKind.containerEditor.name,
-        hostName: host.name,
-        contextName: contextName,
-        path: path,
-        title: title,
-        label: label,
-        extra: {
-          if (containerId != null && containerId.isNotEmpty)
-            'containerId': containerId,
-          if (containerName != null && containerName.isNotEmpty)
-            'containerName': containerName,
-        },
+      workspaceState: DockerTabData(
+        kind: DockerTabKind.containerEditor,
+        persistedState: TabState(
+          id: id,
+          kind: DockerTabKind.containerEditor.name,
+          hostName: host.name,
+          contextName: contextName,
+          path: path,
+          title: title,
+          label: label,
+          extra: {
+            if (containerId != null && containerId.isNotEmpty)
+              'containerId': containerId,
+            if (containerName != null && containerName.isNotEmpty)
+              'containerName': containerName,
+          },
+        ),
       ),
       optionsController: controller,
     );
   }
 
-  EngineTab commandTerminal({
+  WorkspaceTab commandTerminal({
     required String id,
     required String title,
     required String label,
@@ -268,7 +284,7 @@ class DockerTabFactory {
     Future<void> Function(String path, String content)? onOpenEditorTab,
   }) {
     final controller = CompositeTabOptionsController();
-    return EngineTab(
+    return WorkspaceTab(
       id: id,
       title: title,
       label: label,
@@ -285,26 +301,29 @@ class DockerTabFactory {
         optionsController: controller,
         onOpenEditorTab: onOpenEditorTab,
       ),
-      workspaceState: TabState(
-        id: id,
-        kind: kind.name,
-        hostName: host?.name,
-        command: command,
-        title: title,
-        label: label,
-        contextName: contextName,
-        extra: {
-          if (containerId != null && containerId.isNotEmpty)
-            'containerId': containerId,
-          if (containerName != null && containerName.isNotEmpty)
-            'containerName': containerName,
-        },
+      workspaceState: DockerTabData(
+        kind: kind,
+        persistedState: TabState(
+          id: id,
+          kind: kind.name,
+          hostName: host?.name,
+          command: command,
+          title: title,
+          label: label,
+          contextName: contextName,
+          extra: {
+            if (containerId != null && containerId.isNotEmpty)
+              'containerId': containerId,
+            if (containerName != null && containerName.isNotEmpty)
+              'containerName': containerName,
+          },
+        ),
       ),
       optionsController: controller,
     );
   }
 
-  EngineTab composeLogs({
+  WorkspaceTab composeLogs({
     required String id,
     required String title,
     required String label,
@@ -320,7 +339,7 @@ class DockerTabFactory {
     Future<void> Function(String path, String content)? onOpenEditorTab,
   }) {
     final controller = CompositeTabOptionsController();
-    return EngineTab(
+    return WorkspaceTab(
       id: id,
       title: title,
       label: label,
@@ -339,22 +358,25 @@ class DockerTabFactory {
         settingsController: settingsController,
         onOpenEditorTab: onOpenEditorTab,
       ),
-      workspaceState: TabState(
-        id: id,
-        kind: DockerTabKind.composeLogs.name,
-        hostName: host?.name,
-        contextName: contextName,
-        project: project,
-        services: services,
-        title: title,
-        command: composeBase,
-        label: label,
+      workspaceState: DockerTabData(
+        kind: DockerTabKind.composeLogs,
+        persistedState: TabState(
+          id: id,
+          kind: DockerTabKind.composeLogs.name,
+          hostName: host?.name,
+          contextName: contextName,
+          project: project,
+          services: services,
+          title: title,
+          command: composeBase,
+          label: label,
+        ),
       ),
       optionsController: controller,
     );
   }
 
-  EngineTab trash({
+  WorkspaceTab trash({
     required String id,
     required String title,
     required String label,
@@ -362,7 +384,8 @@ class DockerTabFactory {
     required ExplorerContext explorerContext,
     required RemoteShellService shellService,
   }) {
-    return EngineTab(
+    final controller = CompositeTabOptionsController();
+    return WorkspaceTab(
       id: id,
       title: title,
       label: label,
@@ -374,6 +397,46 @@ class DockerTabFactory {
         keyService: keyService,
         context: explorerContext,
       ),
+      optionsController: controller,
     );
   }
+
+  WorkspaceTab placeholder({required String id, Widget? body}) {
+    return WorkspaceTab(
+      id: id,
+      title: 'Docker',
+      label: 'Docker',
+      icon: Icons.list,
+      body: body ?? const SizedBox.shrink(),
+      canDrag: false,
+      canRename: false,
+      workspaceState: DockerTabData(
+        kind: DockerTabKind.placeholder,
+        persistedState: TabState(id: id, kind: DockerTabKind.placeholder.name),
+      ),
+    );
+  }
+
+  WorkspaceTab picker({required String id, Widget? body}) {
+    return WorkspaceTab(
+      id: id,
+      title: 'Docker',
+      label: 'Docker',
+      icon: Icons.list,
+      body: body ?? const SizedBox.shrink(),
+      canDrag: false,
+      canRename: false,
+      workspaceState: DockerTabData(
+        kind: DockerTabKind.picker,
+        persistedState: TabState(id: id, kind: DockerTabKind.picker.name),
+      ),
+    );
+  }
+}
+
+class DockerTabData {
+  const DockerTabData({required this.kind, required this.persistedState});
+
+  final DockerTabKind kind;
+  final TabState persistedState;
 }

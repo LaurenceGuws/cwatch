@@ -1,0 +1,35 @@
+# Refactoring Progress Summary - Phase 3: Architecture Unification
+
+## Completed Tasks:
+1.  **Centralized Theme Logic**:
+    *   Extracted `ThemeFactory` from `AppBootstrap`.
+    *   Simplified `CwatchApp` initialization.
+2.  **Dismantled HomeShellController God Class**:
+    *   Created `HomeShellInputController` for shortcuts and gestures.
+    *   Created `HomeShellWindowController` for window and tray management.
+3.  **Core Workspace Abstraction**:
+    *   Created `WorkspaceTab` and `TabbedWorkspaceController` in `lib/core/workspace/`.
+    *   Provides a unified way to handle tabbed views, persistence, and navigation.
+4.  **Refactored Servers Module**:
+    *   Implemented `ServerTabBuilder` and updated `ServerWorkspaceController`.
+    *   Replaced `ServersList` with `ServerWorkspaceView`.
+    *   Ensured tab chips are correctly replaced when a user selects an action (terminal, explorer, etc.) from the default view.
+    *   Enforced tab bar visibility even in empty/default states.
+
+## In Progress (Docker Module Refactor):
+1.  **DockerTabBuilder**: Created to return standard `WorkspaceTab` objects.
+2.  **DockerWorkspaceController**: Updated to extend `TabbedWorkspaceController`.
+3.  **View Updates**: `DockerView`, `DockerOverview`, and `DockerResources` have been updated to use the new controller.
+4.  **Cleanup**: Removed `EngineTab` and `DockerTabFactory`.
+5.  **Analyzer Green**: Fixed broken imports and restored `RemoteDockerStatus` via `lib/modules/docker/ui/remote_docker_status.dart`.
+
+## Outstanding Tasks:
+1.  **Docker Follow-ups**:
+    *   Decide whether to keep both `DockerTabState` (model) and `DockerTabData` (wrapper) or consolidate the naming.
+    *   Manually sanity-check behavior vs old Docker UI (tab replacement, remote scan dialog, persistence restore).
+2.  **Kubernetes Module Refactor**:
+    *   Apply the same `TabbedWorkspaceController` pattern to the Kubernetes module for consistency.
+3.  **UX Polish**:
+    *   Ensure the "Replace tab chip" behavior is consistent across all 3 modules (Server/Docker/K8s).
+4.  **God File Cleanup**:
+    *   Decompose `docker_lists.dart` (1000+ lines) into smaller, component-based files.

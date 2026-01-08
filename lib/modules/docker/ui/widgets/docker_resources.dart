@@ -15,8 +15,8 @@ import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 import 'package:cwatch/shared/widgets/standard_empty_state.dart';
-import '../engine_tab.dart';
-import '../docker_tab_factory.dart';
+import 'package:cwatch/core/workspace/workspace_tab.dart';
+import '../docker_tab_builder.dart';
 
 class DockerResources extends StatefulWidget {
   const DockerResources({
@@ -28,17 +28,17 @@ class DockerResources extends StatefulWidget {
     this.onOpenTab,
     this.onCloseTab,
     this.optionsController,
-    required this.tabFactory,
+    required this.tabBuilder,
   });
 
   final DockerClientService docker;
   final String? contextName;
   final SshHost? remoteHost;
   final RemoteShellService? shellService;
-  final void Function(EngineTab tab)? onOpenTab;
+  final void Function(WorkspaceTab tab)? onOpenTab;
   final void Function(String tabId)? onCloseTab;
   final TabOptionsController? optionsController;
-  final DockerTabFactory tabFactory;
+  final DockerTabBuilder tabBuilder;
 
   @override
   State<DockerResources> createState() => _DockerResourcesState();
@@ -390,7 +390,7 @@ class _DockerResourcesState extends State<DockerResources>
         'docker ${contextFlag}stats --no-stream --format "{{json .}}"; exit';
     final tabId = 'dstat-${DateTime.now().microsecondsSinceEpoch}';
     widget.onOpenTab!(
-      widget.tabFactory.commandTerminal(
+      widget.tabBuilder.commandTerminal(
         id: tabId,
         title: 'docker stats',
         label: 'docker stats',

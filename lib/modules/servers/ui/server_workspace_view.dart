@@ -436,28 +436,32 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
               settingsController: widget.settingsController,
               keyService: widget.keyService,
               onOpenConnectivity: (host) {
-                if (onAction != null)
+                if (onAction != null) {
                   onAction(host, ServerAction.connectivity);
-                else
+                } else {
                   _addTab(host, ServerAction.connectivity);
+                }
               },
               onOpenResources: (host) {
-                if (onAction != null)
+                if (onAction != null) {
                   onAction(host, ServerAction.resources);
-                else
+                } else {
                   _addTab(host, ServerAction.resources);
+                }
               },
               onOpenTerminal: (host) {
-                if (onAction != null)
+                if (onAction != null) {
                   onAction(host, ServerAction.terminal);
-                else
+                } else {
                   _addTab(host, ServerAction.terminal);
+                }
               },
               onOpenExplorer: (host) {
-                if (onAction != null)
+                if (onAction != null) {
                   onAction(host, ServerAction.fileExplorer);
-                else
+                } else {
                   _addTab(host, ServerAction.fileExplorer);
+                }
               },
               onOpenPortForward: _openPortForwardDialog,
               onHostsChanged: () {

@@ -10,8 +10,8 @@ import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/models/docker_workspace_state.dart';
 import 'package:cwatch/modules/docker/services/docker_container_shell_service.dart';
 import 'package:cwatch/modules/docker/services/docker_client_service.dart';
-import 'package:cwatch/modules/docker/ui/docker_tab_factory.dart';
-import 'package:cwatch/modules/docker/ui/engine_tab.dart';
+import 'package:cwatch/modules/docker/ui/docker_tab_builder.dart';
+import 'package:cwatch/core/workspace/workspace_tab.dart';
 import 'package:cwatch/shared/widgets/port_forward_dialog.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
@@ -30,7 +30,7 @@ class DockerOverviewActions {
     required this.contextName,
     required this.remoteHost,
     required this.shellService,
-    required this.tabFactory,
+    required this.tabBuilder,
     required this.onOpenTab,
     required this.onCloseTab,
     required this.settingsController,
@@ -43,8 +43,8 @@ class DockerOverviewActions {
   final String? contextName;
   final SshHost? remoteHost;
   final RemoteShellService? shellService;
-  final DockerTabFactory tabFactory;
-  final void Function(EngineTab tab)? onOpenTab;
+  final DockerTabBuilder tabBuilder;
+  final void Function(WorkspaceTab tab)? onOpenTab;
   final void Function(String tabId)? onCloseTab;
   final AppSettingsController settingsController;
   final PortForwardService portForwardService;
@@ -540,7 +540,7 @@ done'
     if (_canOpenTabs) {
       final tabId =
           'logs-${container.id}-${DateTime.now().microsecondsSinceEpoch}';
-      final tab = tabFactory.commandTerminal(
+      final tab = tabBuilder.commandTerminal(
         id: tabId,
         title: 'Logs • $name',
         label: 'Logs: $name',
@@ -569,7 +569,7 @@ done'
     final services = controller.composeServices(project);
     if (_canOpenTabs) {
       final tabId = 'clogs-$project-${DateTime.now().microsecondsSinceEpoch}';
-      final tab = tabFactory.composeLogs(
+      final tab = tabBuilder.composeLogs(
         id: tabId,
         title: 'Compose logs: $project',
         label: 'Compose logs: $project',
@@ -618,7 +618,7 @@ done'
     }
     final tabId =
         'exec-${container.id}-${DateTime.now().microsecondsSinceEpoch}';
-    final tab = tabFactory.commandTerminal(
+    final tab = tabBuilder.commandTerminal(
       id: tabId,
       title: 'Shell: $name',
       label: 'Shell: $name',
@@ -669,7 +669,7 @@ done'
       containerName: container.name,
       dockerContextName: dockerContextName,
     );
-    final tab = tabFactory.explorer(
+    final tab = tabBuilder.explorer(
       id: 'explore-${container.id}-${DateTime.now().microsecondsSinceEpoch}',
       title:
           'Explore ${container.name.isNotEmpty ? container.name : container.id}',

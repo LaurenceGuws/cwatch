@@ -80,9 +80,21 @@ class TabHostController<T> extends ChangeNotifier {
     if (oldIndex < 0 || oldIndex >= _tabs.length) return;
     if (newIndex < 0 || newIndex >= _tabs.length) return;
     if (oldIndex == newIndex) return;
+
+    final selectedId = (_selectedIndex >= 0 && _selectedIndex < _tabs.length)
+        ? tabId(_tabs[_selectedIndex])
+        : null;
+
     final tab = _tabs.removeAt(oldIndex);
     _tabs.insert(newIndex, tab);
-    _selectedIndex = _tabs.indexWhere((candidate) => candidate == tab);
+
+    if (selectedId != null) {
+      final nextSelected = _tabs.indexWhere((t) => tabId(t) == selectedId);
+      _selectedIndex = nextSelected == -1 ? 0 : nextSelected;
+    } else {
+      _selectedIndex = 0;
+    }
+
     notifyListeners();
   }
 

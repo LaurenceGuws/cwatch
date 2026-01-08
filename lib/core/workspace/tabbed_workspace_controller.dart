@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:cwatch/core/tabs/tab_host.dart';
 import 'workspace_tab.dart';
 
@@ -10,51 +9,72 @@ abstract class TabbedWorkspaceController
   bool _isRestored = false;
   bool get isRestored => _isRestored;
 
+  bool _suspendPersist = false;
+
+  T runWithoutPersist<T>(T Function() action) {
+    final previous = _suspendPersist;
+    _suspendPersist = true;
+    try {
+      return action();
+    } finally {
+      _suspendPersist = previous;
+    }
+  }
+
   // Override methods to hook persistence
 
   @override
   void addTab(WorkspaceTab tab) {
     super.addTab(tab);
-    persistState();
+    if (!_suspendPersist) {
+      persistState();
+    }
   }
 
   @override
   void select(int index) {
     super.select(index);
-    persistState();
+    if (!_suspendPersist) {
+      persistState();
+    }
   }
 
   @override
   void replaceBaseTab(WorkspaceTab tab) {
     super.replaceBaseTab(tab);
-    persistState();
+    if (!_suspendPersist) {
+      persistState();
+    }
   }
 
   @override
   void replaceTab(String id, WorkspaceTab replacement) {
     super.replaceTab(id, replacement);
-    persistState();
+    if (!_suspendPersist) {
+      persistState();
+    }
   }
 
   @override
   void closeTab(int index, {WorkspaceTab? baseReplacement}) {
     super.closeTab(index, baseReplacement: baseReplacement);
-    persistState();
+    if (!_suspendPersist) {
+      persistState();
+    }
   }
 
   @override
   void reorder(int oldIndex, int newIndex) {
     super.reorder(oldIndex, newIndex);
-    persistState();
+    if (!_suspendPersist) {
+      persistState();
+    }
   }
 
   @override
   void replaceAll(List<WorkspaceTab> tabs, {int selectedIndex = 0}) {
     super.replaceAll(tabs, selectedIndex: selectedIndex);
-    // Usually called during restore, so mark restored
     _isRestored = true;
-    // Don't persist immediately on restore? Or do?
-    // Usually restore sets the state to what matches persistence.
   }
 
   Future<void> restoreState();

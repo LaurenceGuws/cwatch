@@ -10,18 +10,7 @@ import 'package:cwatch/shared/widgets/data_table/structured_data_table.dart';
 import 'package:cwatch/shared/widgets/distro_leading_slot.dart';
 import 'package:cwatch/shared/widgets/lists/section_list.dart';
 import 'docker_shared.dart';
-
-class RemoteDockerStatus {
-  const RemoteDockerStatus({
-    required this.host,
-    required this.available,
-    required this.detail,
-  });
-
-  final SshHost host;
-  final bool available;
-  final String detail;
-}
+import '../remote_docker_status.dart';
 
 class EnginePicker extends StatefulWidget {
   const EnginePicker({

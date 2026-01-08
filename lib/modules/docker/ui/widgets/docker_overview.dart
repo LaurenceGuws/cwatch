@@ -21,8 +21,8 @@ import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/widgets/section_nav_bar.dart';
 import 'package:cwatch/shared/widgets/standard_empty_state.dart';
-import '../engine_tab.dart';
-import '../docker_tab_factory.dart';
+import 'package:cwatch/core/workspace/workspace_tab.dart';
+import '../docker_tab_builder.dart';
 import 'docker_lists.dart';
 import 'docker_shared.dart';
 import 'docker_overview_controller.dart';
@@ -30,7 +30,7 @@ import 'docker_overview_actions.dart';
 import 'package:cwatch/modules/docker/services/container_distro_manager.dart';
 import 'package:cwatch/modules/docker/services/container_distro_key.dart';
 
-typedef OpenTab = void Function(EngineTab tab);
+typedef OpenTab = void Function(WorkspaceTab tab);
 
 class DockerOverview extends StatefulWidget {
   const DockerOverview({
@@ -45,7 +45,7 @@ class DockerOverview extends StatefulWidget {
     this.onOpenTab,
     this.onCloseTab,
     this.optionsController,
-    required this.tabFactory,
+    required this.tabBuilder,
     required this.portForwardService,
   });
 
@@ -59,7 +59,7 @@ class DockerOverview extends StatefulWidget {
   final OpenTab? onOpenTab;
   final void Function(String tabId)? onCloseTab;
   final TabOptionsController? optionsController;
-  final DockerTabFactory tabFactory;
+  final DockerTabBuilder tabBuilder;
   final PortForwardService portForwardService;
 
   @override
@@ -121,7 +121,7 @@ class _DockerOverviewState extends State<DockerOverview>
       contextName: widget.contextName,
       remoteHost: widget.remoteHost,
       shellService: widget.shellService,
-      tabFactory: widget.tabFactory,
+      tabBuilder: widget.tabBuilder,
       onOpenTab: widget.onOpenTab,
       onCloseTab: widget.onCloseTab,
       settingsController: widget.settingsController,
