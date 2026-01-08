@@ -22,6 +22,7 @@ import 'package:cwatch/shared/shortcuts/input_mode_resolver.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/widgets/dialog_keyboard_shortcuts.dart';
+import 'package:cwatch/shared/widgets/mobile_focus_manager.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 import 'package:cwatch/shared/views/shared/tabs/terminal/terminal_theme_presets.dart';
 
@@ -75,8 +76,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   int _sessionToken = 0;
   String? _lastSelectionSignature;
   double? _lastLoggedScroll;
-  VoidCallback? _focusListener;
-  bool _suppressMobileFocus = false;
+  late final MobileFocusManager _mobileFocus;
   static const _shellResolver = LocalShellResolver();
 
   LocalShellDefinition get _localShell =>
@@ -85,12 +85,11 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   @override
   void initState() {
     super.initState();
-    _focusListener = () {
-      if (_isMobile && !_focusNode.hasFocus) {
-        _focusNode.canRequestFocus = false;
-      }
-    };
-    _focusNode.addListener(_focusListener!);
+    _mobileFocus = MobileFocusManager(
+      focusNode: _focusNode,
+      isMobile: _isMobile,
+    );
+    _mobileFocus.attach();
     _controller.addListener(_logSelectionChange);
     _scrollController.addListener(_logScrollChange);
     _configureInputMode();
@@ -110,7 +109,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   void dispose() {
     _pty?.kill();
     _outputSub?.cancel();
-    _focusNode.removeListener(_focusListener ?? () {});
+    _mobileFocus.detach();
     _controller.removeListener(_logSelectionChange);
     _scrollController.removeListener(_logScrollChange);
     _scrollController.dispose();
@@ -412,24 +411,11 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     }
   }
 
-  void _enableMobileFocus() {
-    if (!_isMobile || _suppressMobileFocus) return;
-    _focusNode.canRequestFocus = true;
-    _focusNode.requestFocus();
-  }
+  void _enableMobileFocus() => _mobileFocus.enableFocus();
 
-  void _beginMobileGestureBlock() {
-    if (!_isMobile) return;
-    _suppressMobileFocus = true;
-    _focusNode.unfocus();
-    _focusNode.canRequestFocus = false;
-  }
+  void _beginMobileGestureBlock() => _mobileFocus.beginGestureBlock();
 
-  void _endMobileGestureBlock() {
-    if (!_isMobile) return;
-    _suppressMobileFocus = false;
-    _focusNode.canRequestFocus = true;
-  }
+  void _endMobileGestureBlock() => _mobileFocus.endGestureBlock();
 
   void _registerShortcuts() {
     _shortcutSub = ShortcutService.instance.registerScope(

@@ -19,6 +19,7 @@ import '../../../../../shared/shortcuts/input_mode_resolver.dart';
 import '../../../../../shared/gestures/gesture_activators.dart';
 import '../../../../../shared/gestures/gesture_service.dart';
 import '../../../../../shared/theme/app_theme.dart';
+import '../../../../../shared/widgets/mobile_focus_manager.dart';
 import 'package:cwatch/modules/settings/ui/settings/terminal_settings_controls.dart';
 import '../../../../theme/nerd_fonts.dart';
 import '../settings/floating_settings_window.dart';
@@ -57,8 +58,7 @@ class _TerminalTabState extends State<TerminalTab> {
   bool get _isMobile =>
       defaultTargetPlatform == TargetPlatform.android ||
       defaultTargetPlatform == TargetPlatform.iOS;
-  VoidCallback? _focusListener;
-  bool _suppressMobileFocus = false;
+  late final MobileFocusManager _mobileFocus;
   TerminalSession? _pty;
   StreamSubscription<String>? _outputSub;
   bool _connecting = true;
@@ -74,12 +74,11 @@ class _TerminalTabState extends State<TerminalTab> {
   void initState() {
     super.initState();
     _attachTerminalHandlers();
-    _focusListener = () {
-      if (_isMobile && !_focusNode.hasFocus) {
-        _focusNode.canRequestFocus = false;
-      }
-    };
-    _focusNode.addListener(_focusListener!);
+    _mobileFocus = MobileFocusManager(
+      focusNode: _focusNode,
+      isMobile: _isMobile,
+    );
+    _mobileFocus.attach();
     _settingsListener = _handleSettingsChanged;
     widget.settingsController.addListener(_settingsListener);
     _configureInputMode(widget.settingsController.settings);
@@ -97,7 +96,7 @@ class _TerminalTabState extends State<TerminalTab> {
     _closing = true;
     _resetSession();
     _controller.dispose();
-    _focusNode.removeListener(_focusListener ?? () {});
+    _mobileFocus.detach();
     _focusNode.dispose();
     _shortcutSub?.dispose();
     _gestureSub?.dispose();
@@ -710,24 +709,11 @@ class _TerminalTabState extends State<TerminalTab> {
     }
   }
 
-  void _enableMobileFocus() {
-    if (!_isMobile || _suppressMobileFocus) return;
-    _focusNode.canRequestFocus = true;
-    _focusNode.requestFocus();
-  }
+  void _enableMobileFocus() => _mobileFocus.enableFocus();
 
-  void _beginMobileGestureBlock() {
-    if (!_isMobile) return;
-    _suppressMobileFocus = true;
-    _focusNode.unfocus();
-    _focusNode.canRequestFocus = false;
-  }
+  void _beginMobileGestureBlock() => _mobileFocus.beginGestureBlock();
 
-  void _endMobileGestureBlock() {
-    if (!_isMobile) return;
-    _suppressMobileFocus = false;
-    _focusNode.canRequestFocus = true;
-  }
+  void _endMobileGestureBlock() => _mobileFocus.endGestureBlock();
 }
 
 class _OpenScrollbackIntent extends Intent {

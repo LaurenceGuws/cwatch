@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
 
 import '../../../../../models/explorer_context.dart';
 import '../../../../../models/remote_file_entry.dart';
@@ -16,7 +14,7 @@ import '../../../../../services/ssh/remote_shell_service.dart';
 import 'clipboard_operations_handler.dart';
 import 'delete_operations_handler.dart';
 import 'desktop_drag_source.dart';
-import 'drag_types.dart';
+import 'explorer_os_drag_manager.dart';
 import 'explorer_clipboard.dart';
 import 'explorer_ops.dart';
 import 'explorer_state.dart';
@@ -72,14 +70,9 @@ class FileExplorerController extends ChangeNotifier {
   late final SshAuthHandler _sshAuthHandler;
   late final ExplorerUiAdapter _uiAdapter;
   final DesktopDragSource? dragSource = createDesktopDragSource();
-  bool _osDragActive = false;
-  String? _activeDragTempDir;
-  String? _activeDragSourcePath;
-  String? _lastDragTempDir;
-  String? _lastDragSourcePath;
-  DateTime? _lastDragExpiresAt;
+  late final ExplorerOsDragManager _osDragManager;
 
-  bool get isOsDragActive => _osDragActive;
+  bool get isOsDragActive => _osDragManager.isOsDragActive;
 
   late final VoidCallback _clipboardListener;
   late final VoidCallback _cutEventListener;
@@ -148,6 +141,12 @@ class FileExplorerController extends ChangeNotifier {
       host: host,
     );
     _uiAdapter = ExplorerUiAdapter(context: context);
+    _osDragManager = ExplorerOsDragManager(
+      host: host,
+      shellService: shellService,
+      uiAdapter: _uiAdapter,
+      runShell: _runShell,
+    );
     selectionController = SelectionController(
       currentPath: currentPath,
       joinPath: PathUtils.joinPath,
@@ -158,20 +157,22 @@ class FileExplorerController extends ChangeNotifier {
       cache: cache,
       runShellWrapper: _runShell,
     );
-    _ops = ExplorerOps(
-      state: state,
-      pathLoadingService: _pathLoadingService,
-      selectionController: selectionController,
-      onPathChanged: onPathChanged,
-      notify: notifyListeners,
-    )..onPrefetchError = (path, error, stackTrace) {
-        AppLogger().warn(
-          'Failed to prefetch path $path',
-          tag: 'Explorer',
-          error: error,
-          stackTrace: stackTrace,
-        );
-      };
+    _ops =
+        ExplorerOps(
+            state: state,
+            pathLoadingService: _pathLoadingService,
+            selectionController: selectionController,
+            onPathChanged: onPathChanged,
+            notify: notifyListeners,
+          )
+          ..onPrefetchError = (path, error, stackTrace) {
+            AppLogger().warn(
+              'Failed to prefetch path $path',
+              tag: 'Explorer',
+              error: error,
+              stackTrace: stackTrace,
+            );
+          };
     fileOpsService = FileOperationsService(
       shellService: shellService,
       host: host,
@@ -387,40 +388,13 @@ class FileExplorerController extends ChangeNotifier {
   bool isSelfDragDrop({
     required List<String> paths,
     required String targetDirectory,
-  }) {
-    final now = DateTime.now();
-    final expiry = _lastDragExpiresAt;
-    if (expiry != null && now.isAfter(expiry)) {
-      _lastDragTempDir = null;
-      _lastDragSourcePath = null;
-      _lastDragExpiresAt = null;
-    }
-    final tempDir = _activeDragTempDir ?? _lastDragTempDir;
-    final sourcePath = _activeDragSourcePath ?? _lastDragSourcePath;
-    if (tempDir == null || sourcePath == null) {
-      return false;
-    }
-    if (targetDirectory != sourcePath) {
-      return false;
-    }
-    return paths.isNotEmpty &&
-        paths.every((path) => p.isWithin(tempDir, path) || path == tempDir);
-  }
+  }) => _osDragManager.isSelfDragDrop(
+    paths: paths,
+    targetDirectory: targetDirectory,
+  );
 
-  bool isSelfDragTarget(String targetDirectory) {
-    final now = DateTime.now();
-    final expiry = _lastDragExpiresAt;
-    if (expiry != null && now.isAfter(expiry)) {
-      _lastDragTempDir = null;
-      _lastDragSourcePath = null;
-      _lastDragExpiresAt = null;
-    }
-    final sourcePath = _activeDragSourcePath ?? _lastDragSourcePath;
-    if (sourcePath == null) {
-      return false;
-    }
-    return targetDirectory == sourcePath;
-  }
+  bool isSelfDragTarget(String targetDirectory) =>
+      _osDragManager.isSelfDragTarget(targetDirectory);
 
   @override
   void dispose() {
@@ -438,104 +412,13 @@ class FileExplorerController extends ChangeNotifier {
     required BuildContext context,
     required Offset globalPosition,
     required List<RemoteFileEntry> entriesToDrag,
-  }) async {
-    final source = dragSource;
-    if (source == null || !source.isSupported) {
-      _uiAdapter.showDragNotSupported();
-      return;
-    }
-    if (entriesToDrag.isEmpty) {
-      _uiAdapter.showNothingToDrag();
-      return;
-    }
-    _osDragActive = true;
-    final tempDir = await Directory.systemTemp.createTemp('cwatch-drag-');
-    _activeDragTempDir = tempDir.path;
-    _activeDragSourcePath = currentPath;
-    _lastDragTempDir = tempDir.path;
-    _lastDragSourcePath = currentPath;
-    _lastDragExpiresAt = DateTime.now().add(const Duration(minutes: 2));
-    try {
-      final staged = <DragLocalItem>[];
-      final downloads = <RemotePathDownload>[];
-      for (final entry in entriesToDrag) {
-        final remotePath = PathUtils.joinPath(currentPath, entry.name);
-        final localTarget = p.join(tempDir.path, entry.name);
-        downloads.add(
-          RemotePathDownload(
-            remotePath: remotePath,
-            localDestination: tempDir.path,
-            recursive: entry.isDirectory,
-          ),
-        );
-        staged.add(
-          DragLocalItem(
-            localPath: localTarget,
-            displayName: entry.name,
-            isDirectory: entry.isDirectory,
-            remotePath: remotePath,
-          ),
-        );
-      }
-      await runShell(
-        () => shellService.downloadPaths(
-          host: host,
-          downloads: downloads,
-          onError: (download, error) {
-            AppLogger().warn(
-              'Failed to stage ${download.remotePath} for drag',
-              tag: 'Explorer',
-              error: error,
-            );
-          },
-        ),
-      );
-      staged.removeWhere((item) {
-        if (item.isDirectory) {
-          return !Directory(item.localPath).existsSync();
-        }
-        return !File(item.localPath).existsSync();
-      });
-      if (staged.isEmpty) {
-        _uiAdapter.showNothingToDrag();
-        return;
-      }
-      if (!context.mounted) {
-        return;
-      }
-      await source.startDrag(
-        context: context,
-        globalPosition: globalPosition,
-        items: staged,
-      );
-      if (!context.mounted) {
-        return;
-      }
-      _uiAdapter.showDragStarted();
-    } finally {
-      _osDragActive = false;
-      _activeDragTempDir = null;
-      _activeDragSourcePath = null;
-      // Cleanup temp dir later.
-      Future<void>.delayed(const Duration(minutes: 2), () async {
-        try {
-          await tempDir.delete(recursive: true);
-        } catch (error, stackTrace) {
-          AppLogger().warn(
-            'Failed to delete temp drag directory ${tempDir.path}',
-            tag: 'Explorer',
-            error: error,
-            stackTrace: stackTrace,
-          );
-        }
-        if (_lastDragTempDir == tempDir.path) {
-          _lastDragTempDir = null;
-          _lastDragSourcePath = null;
-          _lastDragExpiresAt = null;
-        }
-      });
-    }
-  }
+  }) => _osDragManager.startOsDrag(
+    dragSource: dragSource,
+    context: context,
+    globalPosition: globalPosition,
+    entriesToDrag: entriesToDrag,
+    currentPath: currentPath,
+  );
 }
 
 class CancelledExplorerOperation implements Exception {
