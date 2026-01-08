@@ -75,6 +75,10 @@ class KubectlService {
     );
   }
 
+  Future<String> runRaw(List<String> args) async {
+    return _runKubectl(args);
+  }
+
   Future<String> _runKubectl(List<String> args) async {
     final tag = 'Kubectl';
     final logger = AppLogger.remote(tag: tag, source: 'kubectl');

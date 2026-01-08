@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:cwatch/models/app_settings.dart';
+import 'package:cwatch/models/kubernetes_backend.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/widgets/form_spacer.dart';
 
@@ -22,6 +23,25 @@ class KubernetesSettingsControls extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const Text('Backend'),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<KubernetesBackend>(
+          value: settings.kubernetesBackend,
+          items: const [
+            DropdownMenuItem(
+              value: KubernetesBackend.cli,
+              child: Text('CLI (kubectl)'),
+            ),
+            DropdownMenuItem(value: KubernetesBackend.api, child: Text('API')),
+          ],
+          onChanged: (value) {
+            if (value == null) return;
+            settingsController.update(
+              (s) => s.copyWith(kubernetesBackend: value),
+            );
+          },
+        ),
+        const FormSpacer(),
         const Text('Kubeconfig Files'),
         const SizedBox(height: 8),
         Wrap(
@@ -43,6 +63,13 @@ class KubernetesSettingsControls extends StatelessWidget {
           icon: const Icon(Icons.add),
           label: const Text('Add Kubeconfig'),
           onPressed: () => _pickConfigFile(context),
+        ),
+        const FormSpacer(),
+        Text(
+          settings.kubernetesBackend == KubernetesBackend.api
+              ? 'API backend uses kubeconfig auth (token/certs). exec/auth-provider not supported yet.'
+              : 'Using kubectl on this host for Kubernetes data.',
+          style: Theme.of(context).textTheme.bodySmall,
         ),
       ],
     );

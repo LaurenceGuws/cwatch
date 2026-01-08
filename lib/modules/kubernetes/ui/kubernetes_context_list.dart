@@ -17,11 +17,12 @@ import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
-import 'package:cwatch/shared/views/shared/tabs/file_explorer/external_app_launcher.dart';
 import 'package:cwatch/shared/views/shared/tabs/settings/floating_settings_window.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 import 'package:cwatch/shared/widgets/data_table/structured_data_table.dart';
 import 'package:cwatch/shared/widgets/lists/section_list.dart';
+import 'package:cwatch/shared/views/shared/tabs/file_explorer/external_app_launcher.dart';
+import 'widgets/kubernetes_dashboard_view.dart';
 import 'package:cwatch/modules/settings/ui/settings/kubernetes_settings_controls.dart';
 
 import 'kubernetes_context_controller.dart';
@@ -436,38 +437,9 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   }
 
   Widget _buildContextDetails(KubeconfigContext context) {
-    final spacing = this.context.appTheme.spacing;
-    return Padding(
-      padding: EdgeInsets.all(spacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            context.name,
-            style: Theme.of(this.context).textTheme.titleLarge,
-          ),
-          SizedBox(height: spacing.md),
-          Text('Cluster: ${context.cluster}'),
-          if (context.namespace != null)
-            Text('Namespace: ${context.namespace}'),
-          if (context.server != null) Text('Server: ${context.server}'),
-          SizedBox(height: spacing.lg),
-          Wrap(
-            spacing: spacing.md,
-            runSpacing: spacing.sm,
-            children: [
-              OutlinedButton.icon(
-                onPressed: () => ExternalAppLauncher.openConfigFile(
-                  context.configPath,
-                  this.context,
-                ),
-                icon: const Icon(Icons.open_in_new),
-                label: const Text('Open kubeconfig'),
-              ),
-            ],
-          ),
-        ],
-      ),
+    return KubernetesDashboardView(
+      context: context,
+      settingsController: widget.settingsController,
     );
   }
 

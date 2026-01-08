@@ -4,6 +4,7 @@ import '../services/logging/app_logger.dart';
 import 'custom_ssh_host.dart';
 import 'docker_workspace_state.dart';
 import 'server_workspace_state.dart';
+import 'kubernetes_backend.dart';
 import 'kubernetes_workspace_state.dart';
 import 'wsl_workspace_state.dart';
 import 'ssh_client_backend.dart';
@@ -35,6 +36,7 @@ class AppSettings {
     this.serverDistroMap = const {},
     this.dockerDistroMap = const {},
     this.kubernetesConfigPaths = const [],
+    this.kubernetesBackend = KubernetesBackend.cli,
     this.serverWorkspace,
     this.kubernetesWorkspace,
     this.wslWorkspace,
@@ -86,6 +88,7 @@ class AppSettings {
   final Map<String, String> serverDistroMap;
   final Map<String, String> dockerDistroMap;
   final List<String> kubernetesConfigPaths;
+  final KubernetesBackend kubernetesBackend;
   final ServerWorkspaceState? serverWorkspace;
   final KubernetesWorkspaceState? kubernetesWorkspace;
   final WslWorkspaceState? wslWorkspace;
@@ -139,6 +142,7 @@ class AppSettings {
     Map<String, String>? serverDistroMap,
     Map<String, String>? dockerDistroMap,
     List<String>? kubernetesConfigPaths,
+    KubernetesBackend? kubernetesBackend,
     ServerWorkspaceState? serverWorkspace,
     KubernetesWorkspaceState? kubernetesWorkspace,
     WslWorkspaceState? wslWorkspace,
@@ -196,6 +200,7 @@ class AppSettings {
       dockerDistroMap: dockerDistroMap ?? this.dockerDistroMap,
       kubernetesConfigPaths:
           kubernetesConfigPaths ?? this.kubernetesConfigPaths,
+      kubernetesBackend: kubernetesBackend ?? this.kubernetesBackend,
       serverWorkspace: serverWorkspace ?? this.serverWorkspace,
       kubernetesWorkspace: kubernetesWorkspace ?? this.kubernetesWorkspace,
       wslWorkspace: wslWorkspace ?? this.wslWorkspace,
@@ -320,6 +325,9 @@ class AppSettings {
               ?.whereType<String>()
               .toList() ??
           const [],
+      kubernetesBackend: KubernetesBackendParsing.fromJson(
+        json['kubernetesBackend'] as String?,
+      ),
       serverWorkspace: () {
         final raw = json['serverWorkspace'];
         if (raw is Map<String, dynamic>) {
@@ -447,6 +455,7 @@ class AppSettings {
       'serverDistroMap': serverDistroMap,
       'dockerDistroMap': dockerDistroMap,
       'kubernetesConfigPaths': kubernetesConfigPaths,
+      'kubernetesBackend': kubernetesBackend.name,
       if (serverWorkspace != null) 'serverWorkspace': serverWorkspace!.toJson(),
       if (kubernetesWorkspace != null)
         'kubernetesWorkspace': kubernetesWorkspace!.toJson(),
