@@ -704,6 +704,14 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
       setState(() {});
     }
 
+    final persistedSignature =
+        widget.settingsController.settings.serverWorkspace?.signature;
+    if (persistedSignature != null &&
+        persistedSignature !=
+            _workspaceController.currentWorkspaceSignature()) {
+      unawaited(_restoreWorkspace());
+    }
+
     _workspaceController.workspacePersistence.persistIfPending(
       () => _workspaceController.persistState(),
     );
@@ -801,14 +809,12 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
       action: action,
     );
 
-    // Check if we need to replace placeholder
-    if (_tabs.length == 1 &&
-        (_tabs.first.workspaceState as ServerTabData?)?.action ==
-            ServerAction.empty) {
-      _workspaceController.replaceTab(_tabs.first.id, tab);
-    } else {
-      _workspaceController.addTab(tab);
-    }
+    _workspaceController.addOrReplaceCurrent(
+      tab,
+      shouldReplace: (current) =>
+          (current.workspaceState as ServerTabData?)?.action ==
+          ServerAction.empty,
+    );
   }
 
   WorkspaceTab _createTab({

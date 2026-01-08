@@ -91,8 +91,7 @@ class ServerWorkspaceController extends TabbedWorkspaceController {
     }
   }
 
-  @override
-  Future<void> persistState() async {
+  ServerWorkspaceState buildWorkspaceStateSnapshot() {
     final persistedTabs = <TabState>[];
     int selectedPersistedIndex = 0;
 
@@ -111,12 +110,19 @@ class ServerWorkspaceController extends TabbedWorkspaceController {
         ? 0
         : selectedPersistedIndex.clamp(0, persistedTabs.length - 1);
 
-    final workspace = ServerWorkspaceState(
+    return ServerWorkspaceState(
       tabs: persistedTabs,
       selectedIndex: clampedIndex,
     );
+  }
 
-    await workspacePersistence.persist(workspace);
+  String currentWorkspaceSignature() {
+    return buildWorkspaceStateSnapshot().signature;
+  }
+
+  @override
+  Future<void> persistState() async {
+    await workspacePersistence.persist(buildWorkspaceStateSnapshot());
   }
 
   void updateTabState(String tabId, TabState newState) {

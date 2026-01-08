@@ -21,6 +21,20 @@ abstract class TabbedWorkspaceController
     }
   }
 
+  void addOrReplaceCurrent(
+    WorkspaceTab tab, {
+    required bool Function(WorkspaceTab current) shouldReplace,
+  }) {
+    if (tabs.isNotEmpty && selectedIndex >= 0 && selectedIndex < tabs.length) {
+      final current = tabs[selectedIndex];
+      if (shouldReplace(current)) {
+        replaceTab(current.id, tab);
+        return;
+      }
+    }
+    addTab(tab);
+  }
+
   // Override methods to hook persistence
 
   @override
