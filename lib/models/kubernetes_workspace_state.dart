@@ -4,7 +4,7 @@ import 'package:cwatch/core/models/tab_state.dart';
 import 'package:cwatch/core/models/workspace_state.dart';
 import '../services/logging/app_logger.dart';
 
-enum KubernetesTabKind { details, resources }
+enum KubernetesTabKind { details }
 
 /// Serialized workspace for the Kubernetes view.
 class KubernetesWorkspaceState implements WorkspaceState {

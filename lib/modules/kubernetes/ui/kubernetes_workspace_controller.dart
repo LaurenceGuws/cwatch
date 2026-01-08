@@ -6,8 +6,6 @@ import 'package:cwatch/core/workspace/workspace_tab.dart';
 import 'package:cwatch/models/app_settings.dart';
 import 'package:cwatch/models/kubernetes_workspace_state.dart';
 import 'package:cwatch/services/kubernetes/kubeconfig_service.dart';
-import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
-
 import 'kubernetes_tab_builder.dart';
 
 class KubernetesWorkspaceController
@@ -56,11 +54,6 @@ class KubernetesWorkspaceController
     required List<KubeconfigContext> contexts,
     required Widget Function(String tabId) placeholderBuilder,
     required Widget Function(KubeconfigContext context) detailsBuilder,
-    required Widget Function(
-      KubeconfigContext context,
-      TabOptionsController options,
-    )
-    resourcesBuilder,
   }) async {
     final workspace = settingsController.settings.kubernetesWorkspace;
     if (workspace == null || workspace.tabs.isEmpty) return;
@@ -74,7 +67,6 @@ class KubernetesWorkspaceController
         builder: builder,
         placeholderBuilder: placeholderBuilder,
         detailsBuilder: detailsBuilder,
-        resourcesBuilder: resourcesBuilder,
       );
       if (tab != null) {
         restoredTabs.add(tab);
@@ -93,11 +85,6 @@ class KubernetesWorkspaceController
     required KubernetesTabBuilder builder,
     required Widget Function(String tabId) placeholderBuilder,
     required Widget Function(KubeconfigContext context) detailsBuilder,
-    required Widget Function(
-      KubeconfigContext context,
-      TabOptionsController options,
-    )
-    resourcesBuilder,
   }) {
     if (_isPlaceholderState(state)) {
       return builder.placeholder(
@@ -113,19 +100,7 @@ class KubernetesWorkspaceController
     final context = _findContext(contexts, contextName, configPath);
     if (context == null) return null;
 
-    final kind = _kindFromString(state.kind);
     final customName = state.title ?? state.label;
-
-    if (kind == KubernetesTabKind.resources) {
-      final options = CompositeTabOptionsController();
-      return builder.resources(
-        id: state.id,
-        context: context,
-        customName: customName,
-        optionsController: options,
-        body: resourcesBuilder(context, options),
-      );
-    }
 
     return builder.details(
       id: state.id,
@@ -137,13 +112,6 @@ class KubernetesWorkspaceController
 
   bool _isPlaceholderState(TabState state) {
     return state.kind == 'placeholder';
-  }
-
-  KubernetesTabKind _kindFromString(String raw) {
-    return KubernetesTabKind.values.firstWhere(
-      (value) => value.name == raw,
-      orElse: () => KubernetesTabKind.details,
-    );
   }
 
   KubeconfigContext? _findContext(

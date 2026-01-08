@@ -3,11 +3,13 @@ part of 'structured_data_table.dart';
 
 mixin _StructuredDataTableSelection<T> on _StructuredDataTableStateBase<T> {
   void _setMarqueeSelecting(bool value) {
+    if (!mounted) return;
     if (_isMarqueeSelecting == value) return;
     setState(() => _isMarqueeSelecting = value);
   }
 
   void _setRowDragAnchor(int? rowIndex, int? pointer) {
+    if (!mounted) return;
     if (_rowDragAnchorIndex == rowIndex && _rowDragPointer == pointer) return;
     setState(() {
       _rowDragAnchorIndex = rowIndex;
@@ -16,6 +18,7 @@ mixin _StructuredDataTableSelection<T> on _StructuredDataTableStateBase<T> {
   }
 
   void _handleSelectionChanged() {
+    if (!mounted) return;
     setState(() {});
     widget.onSelectionChanged?.call(_selectedRows());
     if (!widget.cellSelectionEnabled) {

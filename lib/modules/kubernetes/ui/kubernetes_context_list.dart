@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 
 import 'package:cwatch/core/navigation/command_palette_registry.dart';
@@ -10,10 +11,8 @@ import 'package:cwatch/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/core/tabs/tabbed_workspace_shell.dart';
 import 'package:cwatch/core/widgets/keep_alive.dart';
 import 'package:cwatch/core/workspace/workspace_tab.dart';
-import 'package:cwatch/models/kubernetes_workspace_state.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/services/kubernetes/kubeconfig_service.dart';
-import 'package:cwatch/services/kubernetes/kubectl_service.dart';
 import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
@@ -28,7 +27,6 @@ import 'package:cwatch/modules/settings/ui/settings/kubernetes_settings_controls
 import 'kubernetes_context_controller.dart';
 import 'kubernetes_tab_builder.dart';
 import 'kubernetes_workspace_controller.dart';
-import 'widgets/kubernetes_resources.dart';
 
 class KubernetesContextList extends StatefulWidget {
   const KubernetesContextList({
@@ -52,8 +50,6 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
 
   final KubernetesContextController _contextController =
       KubernetesContextController();
-  final KubectlService _kubectl = const KubectlService();
-
   late final KubernetesTabBuilder _tabBuilder;
   late final KubernetesWorkspaceController _workspaceController;
   late final TabViewRegistry<WorkspaceTab> _tabRegistry;
@@ -69,6 +65,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   Future<List<KubeconfigContext>>? _contextsFuture;
   List<KubeconfigContext> _cachedContexts = const [];
   final Map<String, bool> _collapsedByConfigPath = {};
+  final Set<String> _selectedContextKeys = {};
   bool _showListSettings = false;
 
   List<WorkspaceTab> get _tabs => _workspaceController.tabs;
@@ -81,8 +78,19 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
 
   KubeconfigContext? _tabContext(WorkspaceTab tab) => _tabData(tab)?.context;
 
-  KubernetesTabKind _tabKind(WorkspaceTab tab) =>
-      _tabData(tab)?.kind ?? KubernetesTabKind.details;
+  String _contextSelectionKey(KubeconfigContext ctx) =>
+      '${ctx.configPath}|${ctx.name}';
+
+  List<KubeconfigContext> _selectedContextsForAction(
+    KubeconfigContext fallback,
+  ) {
+    final selected = _cachedContexts
+        .where(
+          (ctx) => _selectedContextKeys.contains(_contextSelectionKey(ctx)),
+        )
+        .toList(growable: false);
+    return selected.isEmpty ? [fallback] : selected;
+  }
 
   bool _isPlaceholder(WorkspaceTab tab) {
     final state = _tabData(tab)?.persistedState;
@@ -132,7 +140,9 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     );
     TabNavigationRegistry.instance.register(widget.moduleId, _tabNavigator);
 
-    _commandPaletteHandle = CommandPaletteHandle(loader: () => const []);
+    _commandPaletteHandle = CommandPaletteHandle(
+      loader: () => _buildCommandPaletteEntries(),
+    );
     CommandPaletteRegistry.instance.register(
       widget.moduleId,
       _commandPaletteHandle,
@@ -194,7 +204,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
 
     _workspaceController.runWithoutPersist(() {
       for (final id in placeholderIds) {
-        _workspaceController.replaceTab(id, _createPlaceholderTab(id: id));
+        _replaceTab(id, _createPlaceholderTab(id: id));
       }
     });
 
@@ -226,7 +236,6 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
       placeholderBuilder: (tabId) =>
           _buildContextSelection(replaceTabId: tabId),
       detailsBuilder: _buildContextDetails,
-      resourcesBuilder: (context, options) => _buildResources(context, options),
     );
   }
 
@@ -242,30 +251,16 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
 
   WorkspaceTab _createContextTab({
     required KubeconfigContext context,
-    required KubernetesTabKind kind,
     String? id,
     String? customName,
-    TabOptionsController? optionsController,
   }) {
     final tabId = id ?? 'k8s-${_uniqueId()}';
-    late final WorkspaceTab tab;
-    if (kind == KubernetesTabKind.resources) {
-      final controller = optionsController ?? CompositeTabOptionsController();
-      tab = _tabBuilder.resources(
-        id: tabId,
-        context: context,
-        customName: customName,
-        optionsController: controller,
-        body: _buildResources(context, controller),
-      );
-    } else {
-      tab = _tabBuilder.details(
-        id: tabId,
-        context: context,
-        customName: customName,
-        body: _buildContextDetails(context),
-      );
-    }
+    final tab = _tabBuilder.details(
+      id: tabId,
+      context: context,
+      customName: customName,
+      body: _buildContextDetails(context),
+    );
     _syncTabOptions(tab);
     return tab;
   }
@@ -290,46 +285,21 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
         ),
       );
     } else {
-      final kind = _tabKind(tab);
-      if (kind == KubernetesTabKind.details) {
-        options.add(
-          TabChipOption(
-            label: 'Open resources',
-            icon: NerdIcon.database.data,
-            onSelected: () => _openContextTab(
-              context,
-              kind: KubernetesTabKind.resources,
-              replaceTabId: tab.id,
-            ),
-          ),
-        );
-        options.add(
-          TabChipOption(
-            label: 'Refresh contexts',
-            icon: NerdIcon.refresh.data,
-            onSelected: _refreshContexts,
-          ),
-        );
-      } else {
-        options.add(
-          TabChipOption(
-            label: 'Open details',
-            icon: NerdIcon.kubernetes.data,
-            onSelected: () => _openContextTab(
-              context,
-              kind: KubernetesTabKind.details,
-              replaceTabId: tab.id,
-            ),
-          ),
-        );
-        options.add(
-          TabChipOption(
-            label: 'Refresh metrics',
-            icon: NerdIcon.refresh.data,
-            onSelected: () => _reloadResourceTab(tab.id),
-          ),
-        );
-      }
+      options.add(
+        TabChipOption(
+          label: 'Back to context list',
+          icon: Icons.list,
+          onSelected: () =>
+              _replaceTab(tab.id, _createPlaceholderTab(id: tab.id)),
+        ),
+      );
+      options.add(
+        TabChipOption(
+          label: 'Copy context name',
+          icon: NerdIcon.copy.data,
+          onSelected: () => unawaited(_copyText(context.name)),
+        ),
+      );
     }
 
     final controller = tab.optionsController;
@@ -352,11 +322,15 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     }
   }
 
-  void _openContextTab(
-    KubeconfigContext context, {
-    KubernetesTabKind kind = KubernetesTabKind.details,
-    String? replaceTabId,
-  }) {
+  void _replaceTab(String tabId, WorkspaceTab tab) {
+    final index = _tabs.indexWhere((candidate) => candidate.id == tabId);
+    if (index != -1) {
+      _tabRegistry.remove(_tabs[index]);
+    }
+    _workspaceController.replaceTab(tabId, tab);
+  }
+
+  void _openContextTab(KubeconfigContext context, {String? replaceTabId}) {
     final replacementId =
         replaceTabId ??
         (_selectedIndex >= 0 &&
@@ -367,20 +341,23 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
 
     final tab = _createContextTab(
       context: context,
-      kind: kind,
       id: replacementId,
       customName: null,
     );
 
     if (replacementId != null) {
-      _workspaceController.replaceTab(replacementId, tab);
+      _replaceTab(replacementId, tab);
       return;
     }
 
-    _workspaceController.addOrReplaceCurrent(
-      tab,
-      shouldReplace: (current) => _isPlaceholder(current),
-    );
+    if (_selectedIndex >= 0 &&
+        _selectedIndex < _tabs.length &&
+        _isPlaceholder(_tabs[_selectedIndex])) {
+      _replaceTab(_tabs[_selectedIndex].id, tab);
+      return;
+    }
+
+    _workspaceController.addTab(tab);
   }
 
   void _closeTab(int index) {
@@ -399,38 +376,63 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     _workspaceController.addTab(_createPlaceholderTab());
   }
 
-  Future<void> _reloadResourceTab(String tabId) async {
-    final index = _tabs.indexWhere((t) => t.id == tabId);
-    if (index == -1) return;
-
-    final tab = _tabs[index];
-    final context = _tabContext(tab);
-    if (context == null) return;
-
-    final controller = tab.optionsController;
-    if (controller is CompositeTabOptionsController) {
-      final refreshed = _tabBuilder.resources(
-        id: tab.id,
-        context: context,
-        customName: _tabData(tab)?.customName,
-        optionsController: controller,
-        body: _buildResources(context, controller),
-      );
-      _syncTabOptions(refreshed);
-      _workspaceController.replaceTab(tab.id, refreshed);
-    }
+  Future<void> _copyText(String text) async {
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Copied to clipboard')));
   }
 
-  Widget _buildResources(
-    KubeconfigContext context,
-    TabOptionsController options,
+  List<StructuredDataChip> _contextMetadata(KubeconfigContext ctx) {
+    final chips = <StructuredDataChip>[];
+    if (ctx.isCurrent) {
+      chips.add(const StructuredDataChip(label: 'Current', icon: Icons.check));
+    }
+    final namespace = ctx.namespace?.trim();
+    if (namespace != null && namespace.isNotEmpty) {
+      chips.add(StructuredDataChip(label: 'ns: $namespace'));
+    }
+    return chips;
+  }
+
+  List<StructuredDataMenuAction<KubeconfigContext>> _buildContextMenuActions(
+    KubeconfigContext ctx,
+    List<KubeconfigContext> selected,
+    Offset? anchor,
   ) {
-    return KubernetesResources(
-      contextName: context.name,
-      configPath: context.configPath,
-      kubectl: _kubectl,
-      optionsController: options,
-    );
+    final selection = _selectedContextsForAction(ctx);
+    final singleSelection = selection.length == 1;
+
+    return [
+      StructuredDataMenuAction<KubeconfigContext>(
+        label: 'Open details',
+        icon: NerdIcon.kubernetes.data,
+        onSelected: (_, primary) => _openContextTab(primary),
+      ),
+      StructuredDataMenuAction<KubeconfigContext>(
+        label: 'Copy context name',
+        icon: NerdIcon.copy.data,
+        onSelected: (_, primary) => unawaited(_copyText(primary.name)),
+      ),
+      StructuredDataMenuAction<KubeconfigContext>(
+        label: 'Open kubeconfig',
+        icon: Icons.open_in_new,
+        enabled: singleSelection,
+        onSelected: (_, primary) =>
+            ExternalAppLauncher.openConfigFile(primary.configPath, context),
+      ),
+      StructuredDataMenuAction<KubeconfigContext>(
+        label: 'Open details in new tabs',
+        icon: NerdIcon.kubernetes.data,
+        enabled: selection.length > 1,
+        onSelected: (_, _) {
+          for (final target in selection) {
+            _workspaceController.addTab(_createContextTab(context: target));
+          }
+        },
+      ),
+    ];
   }
 
   Widget _buildContextDetails(KubeconfigContext context) {
@@ -454,12 +456,6 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
             spacing: spacing.md,
             runSpacing: spacing.sm,
             children: [
-              FilledButton.icon(
-                onPressed: () =>
-                    _openContextTab(context, kind: KubernetesTabKind.resources),
-                icon: Icon(NerdIcon.database.data),
-                label: const Text('Open resources'),
-              ),
               OutlinedButton.icon(
                 onPressed: () => ExternalAppLauncher.openConfigFile(
                   context.configPath,
@@ -552,11 +548,28 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                     : [
                         StructuredDataTable<KubeconfigContext>(
                           rows: contextsForPath,
-                          columns: _contextColumns(context, replaceTabId),
+                          columns: _contextColumns(context),
                           rowHeight: 64,
                           shrinkToContent: true,
                           useZebraStripes: false,
                           surfaceBackgroundColor: sectionColor,
+                          primaryDoubleClickOpensContextMenu: false,
+                          metadataBuilder: _contextMetadata,
+                          onRowDoubleTap: (ctx) =>
+                              _openContextTab(ctx, replaceTabId: replaceTabId),
+                          rowContextMenuBuilder: _buildContextMenuActions,
+                          onSelectionChanged: (selectedRows) {
+                            final tableKeys = contextsForPath
+                                .map(_contextSelectionKey)
+                                .toSet();
+                            setState(() {
+                              _selectedContextKeys
+                                ..removeAll(tableKeys)
+                                ..addAll(
+                                  selectedRows.map(_contextSelectionKey),
+                                );
+                            });
+                          },
                         ),
                       ],
               ),
@@ -615,23 +628,44 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
 
   List<StructuredDataColumn<KubeconfigContext>> _contextColumns(
     BuildContext context,
-    String replaceTabId,
   ) {
+    final spacing = context.appTheme.spacing;
     return [
       StructuredDataColumn<KubeconfigContext>(
         label: 'Context',
         flex: 3,
         autoFitText: (ctx) => ctx.name,
         cellBuilder: (context, ctx) {
-          return ListTile(
-            dense: true,
-            title: Text(ctx.name),
-            subtitle: Text(path.basename(ctx.configPath)),
-            onTap: () => _openContextTab(
-              ctx,
-              kind: KubernetesTabKind.details,
-              replaceTabId: replaceTabId,
-            ),
+          return Row(
+            children: [
+              Icon(
+                NerdIcon.kubernetes.data,
+                size: 18,
+                color: Theme.of(context).iconTheme.color,
+              ),
+              SizedBox(width: spacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      ctx.name,
+                      style: Theme.of(context).textTheme.titleMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      path.basename(ctx.configPath),
+                      style: Theme.of(context).textTheme.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -643,6 +677,48 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     return index.isEven
         ? theme.section.surface.background
         : theme.section.toolbarBackground;
+  }
+
+  List<CommandPaletteEntry> _buildCommandPaletteEntries() {
+    final entries = <CommandPaletteEntry>[];
+
+    if (_tabs.isNotEmpty &&
+        _selectedIndex >= 0 &&
+        _selectedIndex < _tabs.length) {
+      final tab = _tabs[_selectedIndex];
+      final options = tab.optionsController?.value ?? const <TabChipOption>[];
+      entries.addAll(
+        options.map(
+          (option) => CommandPaletteEntry(
+            id: '${widget.moduleId}:tabOption:${option.label}',
+            label: option.label,
+            category: 'Tab options',
+            onSelected: option.onSelected,
+            icon: option.icon,
+          ),
+        ),
+      );
+
+      entries.add(
+        CommandPaletteEntry(
+          id: '${widget.moduleId}:closeTab',
+          label: 'Close tab',
+          category: 'Tabs',
+          onSelected: () => _closeTab(_selectedIndex),
+        ),
+      );
+    }
+
+    entries.add(
+      CommandPaletteEntry(
+        id: '${widget.moduleId}:newTab',
+        label: 'New tab',
+        category: 'Tabs',
+        onSelected: _startEmptyTab,
+      ),
+    );
+
+    return entries;
   }
 
   @override

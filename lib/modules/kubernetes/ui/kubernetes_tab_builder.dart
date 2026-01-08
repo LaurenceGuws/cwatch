@@ -26,6 +26,7 @@ class KubernetesTabBuilder {
       body: body,
       canDrag: false,
       canRename: false,
+      isPicker: true,
       workspaceState: KubernetesTabData(
         kind: KubernetesTabKind.details,
         context: null,
@@ -68,42 +69,6 @@ class KubernetesTabBuilder {
         persistedState: TabState(
           id: id,
           kind: KubernetesTabKind.details.name,
-          contextName: context.name,
-          path: context.configPath,
-          title: title,
-          label: title,
-        ),
-      ),
-      optionsController: controller,
-    );
-  }
-
-  WorkspaceTab resources({
-    required String id,
-    required KubeconfigContext context,
-    required Widget body,
-    String? customName,
-    TabOptionsController? optionsController,
-  }) {
-    final controller = optionsController ?? CompositeTabOptionsController();
-    final title = (customName != null && customName.trim().isNotEmpty)
-        ? customName.trim()
-        : context.name;
-    return WorkspaceTab(
-      id: id,
-      title: title,
-      label: title,
-      icon: NerdIcon.database.data,
-      body: body,
-      canDrag: true,
-      canRename: true,
-      workspaceState: KubernetesTabData(
-        kind: KubernetesTabKind.resources,
-        context: context,
-        customName: customName,
-        persistedState: TabState(
-          id: id,
-          kind: KubernetesTabKind.resources.name,
           contextName: context.name,
           path: context.configPath,
           title: title,
