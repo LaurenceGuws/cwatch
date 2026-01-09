@@ -12,12 +12,15 @@ import 'package:cwatch/core/workspace/workspace_tab.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/modules/wsl/services/wsl_distribution.dart';
 import 'package:cwatch/modules/wsl/services/wsl_service_interface.dart';
-import 'package:cwatch/modules/wsl/services/wsl_shell_service.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
-import 'package:cwatch/shared/widgets/dialog_keyboard_shortcuts.dart';
+
+import 'package:cwatch/app/adapters/wsl_ui_adapter.dart';
+import 'package:cwatch/ui/bindings/wsl_shell_service_binding.dart';
+import 'package:cwatch/ui/bindings/wsl_tab_builder_binding.dart';
+import 'package:cwatch/ui/bindings/wsl_workspace_controller_binding.dart';
 
 import 'wsl_tab_builder.dart';
 import 'wsl_workspace_controller.dart';
@@ -41,8 +44,14 @@ class WslView extends StatefulWidget {
 }
 
 class _WslViewState extends State<WslView> {
+  final WslTabBuilderBinding _tabBuilderBinding = const WslTabBuilderBinding();
+  final WslWorkspaceControllerBinding _workspaceBinding =
+      const WslWorkspaceControllerBinding();
+  final WslShellServiceBinding _shellServiceBinding =
+      const WslShellServiceBinding();
   late final WslTabBuilder _tabBuilder;
   late final WslWorkspaceController _workspaceController;
+  late final WslUiAdapter _uiAdapter;
   late final TabViewRegistry<WorkspaceTab> _tabRegistry;
   late final TabNavigationHandle _tabNavigator;
   late final VoidCallback _settingsListener;
@@ -59,13 +68,14 @@ class _WslViewState extends State<WslView> {
   @override
   void initState() {
     super.initState();
+    _uiAdapter = WslUiAdapter(context: context);
     _distrosFuture = _loadDistributions();
 
-    _tabBuilder = WslTabBuilder(
+    _tabBuilder = _tabBuilderBinding.create(
       settingsController: widget.settingsController,
     );
 
-    _workspaceController = WslWorkspaceController(
+    _workspaceController = _workspaceBinding.create(
       settingsController: widget.settingsController,
       baseTabBuilder: () => _distroPickerTab(),
     );
@@ -210,13 +220,14 @@ class _WslViewState extends State<WslView> {
 
   void _openTerminal(String tabId, String distroName) {
     final newId = 'wsl-$distroName-${_uniqueId()}';
+    final shellService = _shellServiceBinding.create(distroName: distroName);
     final tab = _tabBuilder.terminal(
       id: newId,
       title: distroName,
       label: distroName,
       icon: NerdIcon.penguin.data,
       distroName: distroName,
-      shellService: WslShellService(distroName),
+      shellService: shellService,
       onExit: () => _closeTabById(newId),
     );
     _workspaceController.replaceTab(tabId, tab);
@@ -250,7 +261,7 @@ class _WslViewState extends State<WslView> {
       pickerBuilder: _buildPickerBody,
       callbacks: WslTabBuilders(
         terminalIcon: NerdIcon.penguin.data,
-        shellForDistro: (distro) => WslShellService(distro),
+        shellForDistro: (distro) => _shellServiceBinding.create(distroName: distro),
         closeTab: _closeTabById,
       ),
     );
@@ -263,39 +274,9 @@ class _WslViewState extends State<WslView> {
   Future<void> _renameTab(int index) async {
     if (index < 0 || index >= _tabs.length) return;
     final tab = _tabs[index];
-    final controller = TextEditingController(text: tab.title);
-    String? newName;
-    try {
-      newName = await showDialog<String>(
-        context: context,
-        builder: (context) => DialogKeyboardShortcuts(
-          onCancel: () => Navigator.of(context).pop(),
-          onConfirm: () => Navigator.of(context).pop(controller.text.trim()),
-          child: AlertDialog(
-            title: const Text('Rename tab'),
-            content: TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'Tab name'),
-              onSubmitted: (value) => Navigator.of(context).pop(value),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () =>
-                    Navigator.of(context).pop(controller.text.trim()),
-                child: const Text('Save'),
-              ),
-            ],
-          ),
-        ),
-      );
-    } finally {
-      WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
-    }
+    final newName = await _uiAdapter.showRenameDialog(
+      initialName: tab.title,
+    );
     if (newName == null) return;
     final trimmed = newName.trim();
     if (trimmed.isEmpty || trimmed == tab.title) return;

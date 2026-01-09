@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'package:cwatch/app/controllers/kubernetes_dashboard_controller.dart';
 import 'package:cwatch/models/kubernetes_backend.dart';
-import 'package:cwatch/services/kubernetes/kubeconfig_service.dart';
-import 'package:cwatch/services/kubernetes/kubernetes_dashboard_service.dart';
+import 'package:cwatch/models/kubernetes/kubeconfig_context.dart';
+import 'package:cwatch/models/kubernetes/kubernetes_dashboard_models.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/widgets/data_table/structured_data_table.dart';
+import 'package:cwatch/ui/bindings/kubernetes_dashboard_binding.dart';
 
 class KubernetesDashboardView extends StatefulWidget {
   const KubernetesDashboardView({
@@ -23,104 +25,86 @@ class KubernetesDashboardView extends StatefulWidget {
 }
 
 class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
-  late final KubernetesDashboardService _service;
-  late KubernetesBackend _backend;
-  Future<KubernetesDashboardSnapshot>? _snapshotFuture;
+  final KubernetesDashboardBinding _binding =
+      const KubernetesDashboardBinding();
+  late final KubernetesDashboardController _controller;
+  late final VoidCallback _controllerListener;
   late final VoidCallback _settingsListener;
   late final TextEditingController _searchController;
-  String _namespaceScope = _allNamespacesLabel;
-  String _searchQuery = '';
 
   static const String _allNamespacesLabel = 'All namespaces';
 
   @override
   void initState() {
     super.initState();
-    _service = KubernetesDashboardService();
-    _backend = widget.settingsController.settings.kubernetesBackend;
-    _snapshotFuture = _loadSnapshot();
+    _controller = _binding.create(
+      context: widget.context,
+      initialBackend: widget.settingsController.settings.kubernetesBackend,
+    );
+    _controllerListener = () {
+      if (!mounted) return;
+      setState(() {});
+    };
+    _controller.addListener(_controllerListener);
     _settingsListener = _handleSettingsChanged;
     _searchController = TextEditingController();
     widget.settingsController.addListener(_settingsListener);
+    _controller.initialize();
   }
 
   @override
   void dispose() {
     widget.settingsController.removeListener(_settingsListener);
+    _controller
+      ..removeListener(_controllerListener)
+      ..dispose();
     _searchController.dispose();
     super.dispose();
   }
 
   void _handleSettingsChanged() {
     final next = widget.settingsController.settings.kubernetesBackend;
-    if (next == _backend) return;
-    setState(() {
-      _backend = next;
-      _snapshotFuture = _loadSnapshot();
-    });
-  }
-
-  Future<KubernetesDashboardSnapshot> _loadSnapshot() {
-    return _service.load(backend: _backend, context: widget.context);
-  }
-
-  void _refresh() {
-    setState(() {
-      _snapshotFuture = _loadSnapshot();
-    });
+    _controller.setBackend(next);
   }
 
   @override
   Widget build(BuildContext context) {
     final spacing = context.appTheme.spacing;
-    return FutureBuilder<KubernetesDashboardSnapshot>(
-      future: _snapshotFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return _buildError(context, snapshot.error.toString());
-        }
-        final data = snapshot.data;
-        if (data == null) {
-          return _buildError(context, 'No data available.');
-        }
-        return Column(
-          children: [
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                spacing.lg,
-                spacing.lg,
-                spacing.lg,
-                spacing.md,
-              ),
-              child: _buildHeader(context, data),
-            ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                spacing.lg,
-                0,
-                spacing.lg,
-                spacing.md,
-              ),
-              child: _buildScopeBar(context, data),
-            ),
-            if (data.warnings.isNotEmpty)
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  spacing.lg,
-                  0,
-                  spacing.lg,
-                  spacing.md,
-                ),
-                child: _buildWarnings(context, data.warnings),
-              ),
-            _buildTabs(context, data),
-          ],
-        );
-      },
+    final snapshot = _controller.snapshot;
+    final loading = _controller.loading;
+    final error = _controller.error;
+
+    if (loading && snapshot == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (error != null) {
+      return _buildError(context, error);
+    }
+    if (snapshot == null) {
+      return _buildError(context, 'No data available.');
+    }
+    return Column(
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            spacing.lg,
+            spacing.lg,
+            spacing.lg,
+            spacing.md,
+          ),
+          child: _buildHeader(context, snapshot),
+        ),
+        Padding(
+          padding: EdgeInsets.fromLTRB(spacing.lg, 0, spacing.lg, spacing.md),
+          child: _buildScopeBar(context, snapshot),
+        ),
+        if (snapshot.warnings.isNotEmpty)
+          Padding(
+            padding: EdgeInsets.fromLTRB(spacing.lg, 0, spacing.lg, spacing.md),
+            child: _buildWarnings(context, snapshot.warnings),
+          ),
+        _buildTabs(context, snapshot),
+      ],
     );
   }
 
@@ -160,7 +144,7 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
                     ),
                   _metaChip(
                     context,
-                    label: _backendLabel(data.backend),
+                    label: _backendLabel(_controller.backend),
                     icon: Icons.settings_input_component,
                   ),
                 ],
@@ -177,7 +161,7 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
             ),
             SizedBox(height: spacing.xs),
             FilledButton.icon(
-              onPressed: _refresh,
+              onPressed: _controller.refresh,
               icon: const Icon(Icons.refresh),
               label: const Text('Refresh'),
             ),
@@ -194,13 +178,13 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
     final spacing = context.appTheme.spacing;
     final surface = context.appTheme.section.surface;
     final namespaces = _namespaceOptions(data);
-    final scopeValue = namespaces.contains(_namespaceScope)
-        ? _namespaceScope
+    final scopeValue = namespaces.contains(_controller.namespaceScope)
+        ? _controller.namespaceScope
         : _allNamespacesLabel;
-    if (scopeValue != _namespaceScope) {
+    if (scopeValue != _controller.namespaceScope) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        setState(() => _namespaceScope = scopeValue);
+        _controller.setNamespaceScope(scopeValue);
       });
     }
     return Container(
@@ -215,14 +199,17 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
           final narrow = constraints.maxWidth < 720;
           final searchField = TextField(
             controller: _searchController,
-            onChanged: _setSearchQuery,
+            onChanged: (value) => _controller.setSearchQuery(value.trim()),
             decoration: InputDecoration(
               labelText: 'Filter',
               prefixIcon: const Icon(Icons.search),
-              suffixIcon: _searchQuery.isEmpty
+              suffixIcon: _controller.searchQuery.isEmpty
                   ? null
                   : IconButton(
-                      onPressed: _clearSearch,
+                      onPressed: () {
+                        _searchController.clear();
+                        _controller.setSearchQuery('');
+                      },
                       icon: const Icon(Icons.close),
                       tooltip: 'Clear filter',
                     ),
@@ -238,7 +225,7 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
             ],
             onChanged: (value) {
               if (value == null) return;
-              setState(() => _namespaceScope = value);
+              _controller.setNamespaceScope(value);
             },
             decoration: const InputDecoration(
               labelText: 'Namespace scope',
@@ -300,15 +287,6 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
     );
   }
 
-  void _setSearchQuery(String value) {
-    setState(() => _searchQuery = value.trim());
-  }
-
-  void _clearSearch() {
-    _searchController.clear();
-    setState(() => _searchQuery = '');
-  }
-
   List<String> _namespaceOptions(KubernetesDashboardSnapshot data) {
     final names = <String>{for (final row in data.namespaces) row.name}.toList()
       ..sort();
@@ -368,14 +346,16 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
     List<T> rows,
     String Function(T row) namespaceFor,
   ) {
-    if (_namespaceScope == _allNamespacesLabel) {
+    if (_controller.namespaceScope == _allNamespacesLabel) {
       return rows;
     }
-    return rows.where((row) => namespaceFor(row) == _namespaceScope).toList();
+    return rows
+        .where((row) => namespaceFor(row) == _controller.namespaceScope)
+        .toList();
   }
 
   List<T> _applySearch<T>(List<T> rows, List<String?> Function(T row) fields) {
-    final query = _searchQuery.toLowerCase();
+    final query = _controller.searchQuery.toLowerCase();
     if (query.isEmpty) {
       return rows;
     }
@@ -761,7 +741,7 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
             Text(message, textAlign: TextAlign.center),
             SizedBox(height: spacing.lg),
             FilledButton.icon(
-              onPressed: _refresh,
+              onPressed: _controller.refresh,
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
             ),

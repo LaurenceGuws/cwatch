@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cwatch/core/models/tab_state.dart';
 import 'package:cwatch/core/workspace/workspace_tab.dart';
 import 'package:cwatch/models/kubernetes_workspace_state.dart';
-import 'package:cwatch/services/kubernetes/kubeconfig_service.dart';
+import 'package:cwatch/models/kubernetes/kubeconfig_context.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 

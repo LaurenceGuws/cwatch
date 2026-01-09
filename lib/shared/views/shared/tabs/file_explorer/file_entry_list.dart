@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import '../../../../../data/models/local_file_session.dart';
 import '../../../../../models/remote_file_entry.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../theme/nerd_fonts.dart';
@@ -7,20 +8,6 @@ import '../../../../widgets/data_table/structured_data_table.dart';
 import '../../../../widgets/standard_empty_state.dart';
 import '../../../../widgets/lists/selectable_list_item.dart';
 import 'file_icon_resolver.dart';
-
-/// Local file session model
-class LocalFileSession {
-  LocalFileSession({
-    required this.localPath,
-    required this.snapshotPath,
-    required this.remotePath,
-  });
-
-  final String localPath;
-  final String snapshotPath;
-  final String remotePath;
-  DateTime? lastSynced;
-}
 
 /// Widget for displaying the list of file entries
 class FileEntryList extends StatefulWidget {

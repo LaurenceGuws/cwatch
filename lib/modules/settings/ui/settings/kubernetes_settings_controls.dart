@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
+
+import 'package:cwatch/app/controllers/settings_controller.dart';
 import 'package:cwatch/models/app_settings.dart';
 import 'package:cwatch/models/kubernetes_backend.dart';
-import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/widgets/form_spacer.dart';
 
 class KubernetesSettingsControls extends StatelessWidget {
@@ -14,7 +14,7 @@ class KubernetesSettingsControls extends StatelessWidget {
   });
 
   final AppSettings settings;
-  final AppSettingsController settingsController;
+  final SettingsController settingsController;
 
   @override
   Widget build(BuildContext context) {
@@ -76,27 +76,10 @@ class KubernetesSettingsControls extends StatelessWidget {
   }
 
   Future<void> _pickConfigFile(BuildContext context) async {
-    final result = await FilePicker.platform.pickFiles(
-      dialogTitle: 'Select kubeconfig file',
-      allowMultiple: false,
-    );
-    final path = result?.files.single.path;
-    if (path == null) return;
-
-    final normalized = p.normalize(path);
-    final current = settings.kubernetesConfigPaths;
-    if (current.contains(normalized)) return;
-
-    await settingsController.update(
-      (s) => s.copyWith(kubernetesConfigPaths: [...current, normalized]),
-    );
+    await settingsController.addKubeconfigFile();
   }
 
   Future<void> _removeConfigPath(String path) async {
-    final current = settings.kubernetesConfigPaths;
-    final next = [...current]..remove(path);
-    await settingsController.update(
-      (s) => s.copyWith(kubernetesConfigPaths: next),
-    );
+    await settingsController.removeKubeconfigPath(path);
   }
 }

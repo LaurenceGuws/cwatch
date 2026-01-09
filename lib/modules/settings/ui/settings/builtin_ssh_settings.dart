@@ -1,30 +1,16 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:path/path.dart' as p;
 
-import 'package:cwatch/services/logging/app_logger.dart';
+import 'package:cwatch/app/controllers/settings_controller.dart';
 import 'package:cwatch/models/ssh_host.dart';
-import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_entry.dart';
-import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/widgets/form_spacer.dart';
-import 'package:cwatch/shared/widgets/dialog_keyboard_shortcuts.dart';
 
 /// Built-in SSH settings widget for managing SSH keys
 class BuiltInSshSettings extends StatefulWidget {
-  const BuiltInSshSettings({
-    super.key,
-    required this.controller,
-    required this.hostsFuture,
-    required this.keyService,
-  });
+  const BuiltInSshSettings({super.key, required this.controller});
 
-  final AppSettingsController controller;
-  final Future<List<SshHost>> hostsFuture;
-  final BuiltInSshKeyService keyService;
+  final SettingsController controller;
 
   @override
   State<BuiltInSshSettings> createState() => _BuiltInSshSettingsState();
@@ -44,14 +30,14 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
   @override
   void initState() {
     super.initState();
-    _keysFuture = widget.keyService.listKeys();
+    _keysFuture = widget.controller.listBuiltInKeys();
     _vaultListener = () => setState(() {});
-    widget.keyService.vault.addListener(_vaultListener);
+    widget.controller.keyVaultListenable.addListener(_vaultListener);
   }
 
   @override
   void dispose() {
-    widget.keyService.vault.removeListener(_vaultListener);
+    widget.controller.keyVaultListenable.removeListener(_vaultListener);
     _labelController.dispose();
     _keyController.dispose();
     _passwordController.dispose();
@@ -60,7 +46,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
 
   void _refreshKeys() {
     setState(() {
-      _keysFuture = widget.keyService.listKeys();
+      _keysFuture = widget.controller.listBuiltInKeys();
     });
   }
 
@@ -68,321 +54,44 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
     final label = _labelController.text.trim();
     final keyText = _keyController.text.trim();
     final password = _passwordController.text.trim();
-    if (label.isEmpty || keyText.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Provide label and key.')));
-      return;
-    }
-
     setState(() => _isSaving = true);
-    AppLogger().debug('Adding built-in key "$label"', tag: 'Settings');
     try {
-      final addResult = await widget.keyService.addKey(
+      final added = await widget.controller.addBuiltInKey(
         label: label,
-        keyPem: keyText,
-        storagePassword: password.isEmpty ? null : password,
-        keyPassphrase: null,
+        keyText: keyText,
+        password: password,
       );
-      if (addResult.status == BuiltInSshKeyAddStatus.needsPassphrase) {
-        if (!mounted) return;
-        setState(() => _isSaving = false);
-        final passphrase = await _promptForKeyPassphrase(
-          context,
-          isRequired: true,
-        );
-        if (passphrase == null || passphrase.isEmpty) {
-          return;
-        }
-        setState(() => _isSaving = true);
-        final retry = await widget.keyService.addKey(
-          label: label,
-          keyPem: keyText,
-          storagePassword: password.isEmpty ? null : password,
-          keyPassphrase: passphrase,
-        );
-        if (retry.status != BuiltInSshKeyAddStatus.success) {
-          if (!mounted) return;
-          final message =
-              retry.message ??
-              'Unable to import key. Please check the passphrase or format.';
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(message),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 5),
-            ),
-          );
-          return;
-        }
-      } else if (addResult.status != BuiltInSshKeyAddStatus.success) {
-        if (!mounted) return;
-        final message =
-            addResult.message ??
-            'Key cannot be parsed. It may be encrypted, unsupported, or malformed.';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-        return;
+      if (!mounted) return;
+      if (added) {
+        _labelController.clear();
+        _keyController.clear();
+        _passwordController.clear();
+        _refreshKeys();
       }
-
-      _labelController.clear();
-      _keyController.clear();
-      _passwordController.clear();
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Key added to the vault.')));
-      _refreshKeys();
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Failed to add built-in SSH key',
-        tag: 'Settings',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to add key: $error')));
     } finally {
-      setState(() => _isSaving = false);
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
-  }
-
-  Future<String?> _promptForKeyPassphrase(
-    BuildContext context, {
-    bool isRequired = false,
-  }) async {
-    final controller = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (context) {
-        final spacing = context.appTheme.spacing;
-        return DialogKeyboardShortcuts(
-          onCancel: () => Navigator.of(context).pop(null),
-          onConfirm: () => Navigator.of(context).pop(controller.text.trim()),
-          child: AlertDialog(
-            title: Text(
-              isRequired ? 'Key passphrase required' : 'Key validation needed',
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isRequired
-                      ? 'This key is encrypted with a passphrase. '
-                            'Please provide the passphrase to validate the key can be decrypted.'
-                      : 'The key could not be parsed. It may be encrypted with a passphrase, '
-                            'or it may be unsupported. Please try providing a passphrase if the key is encrypted.',
-                ),
-                SizedBox(height: spacing.xl),
-                TextField(
-                  controller: controller,
-                  autofocus: true,
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: 'Key passphrase',
-                    helperText: isRequired
-                        ? 'This will not be stored, only used for validation.'
-                        : 'Leave empty if the key is not encrypted. '
-                              'This will not be stored, only used for validation.',
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              if (!isRequired)
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(''),
-                  child: const Text('Try without passphrase'),
-                ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(null),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () =>
-                    Navigator.of(context).pop(controller.text.trim()),
-                child: const Text('Validate'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   Future<void> _unlockKey(String keyId) async {
-    final entry = await widget.keyService.loadKey(keyId);
-    if (!mounted) return;
-    String? password;
-    if (entry != null && entry.isEncrypted) {
-      password = await _promptForPassword(context);
-      if (password == null) {
-        return;
-      }
-    }
-    AppLogger().debug('Unlocking built-in key $keyId', tag: 'Settings');
-    final result = await widget.keyService.unlock(keyId, password: password);
-    if (!mounted) return;
-    switch (result.status) {
-      case BuiltInSshKeyUnlockStatus.unlocked:
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Key unlocked for this session.')),
-        );
-        break;
-      case BuiltInSshKeyUnlockStatus.incorrectPassword:
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result.message ?? 'Incorrect password.')),
-        );
-        break;
-      default:
-        final message = result.message ?? 'Failed to unlock key.';
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(message)));
-        break;
-    }
+    await widget.controller.unlockBuiltInKey(keyId);
   }
 
   Future<void> _removeKeyEntry(String keyId) async {
-    // Check which hosts are using this key
-    final hosts = await widget.hostsFuture;
-    if (!mounted) return;
-    final bindings = widget.controller.settings.builtinSshHostKeyBindings;
-    final hostsUsingKey = hosts
-        .where((host) => bindings[host.name] == keyId)
-        .map((host) => host.name)
-        .toList();
-
-    // If key is in use, warn the user
-    if (hostsUsingKey.isNotEmpty) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) {
-          return DialogKeyboardShortcuts(
-            onCancel: () => Navigator.of(context).pop(false),
-            onConfirm: () => Navigator.of(context).pop(true),
-            child: AlertDialog(
-              title: const Text('Key in use'),
-              content: Text(
-                'This key is currently assigned to ${hostsUsingKey.length} '
-                'host${hostsUsingKey.length == 1 ? '' : 's'}: '
-                '${hostsUsingKey.join(', ')}.\n\n'
-                'Deleting this key will remove it from these hosts. Continue?',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.error,
-                    foregroundColor: Theme.of(context).colorScheme.onError,
-                  ),
-                  child: const Text('Delete'),
-                ),
-              ],
-            ),
-          );
-        },
-      );
-
-      if (confirmed != true || !mounted) {
-        return;
-      }
-
-      // Remove key bindings for all hosts using this key
-      final updatedBindings = Map<String, String>.from(bindings);
-      for (final hostName in hostsUsingKey) {
-        updatedBindings.remove(hostName);
-        AppLogger().debug(
-          'Removed key binding for host $hostName',
-          tag: 'Settings',
-        );
-      }
-      widget.controller.update(
-        (current) =>
-            current.copyWith(builtinSshHostKeyBindings: updatedBindings),
-      );
+    final removed = await widget.controller.removeBuiltInKey(keyId);
+    if (removed) {
+      _refreshKeys();
     }
-
-    AppLogger().debug('Removing built-in key $keyId', tag: 'Settings');
-    await widget.keyService.deleteKey(keyId);
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Key removed from vault.')));
-    _refreshKeys();
   }
 
   void _clearUnlocked() {
-    widget.keyService.lockAll();
-    AppLogger().debug(
-      'Cleared unlocked built-in keys from memory',
-      tag: 'Settings',
-    );
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Unlocked keys cleared from memory.')),
-    );
+    widget.controller.clearUnlockedKeys();
   }
 
   void _updateHostBinding(String hostName, String? keyId) {
-    final current = widget.controller.settings.builtinSshHostKeyBindings;
-    final updated = Map<String, String>.from(current);
-    if (keyId == null) {
-      updated.remove(hostName);
-    } else {
-      updated[hostName] = keyId;
-    }
-    AppLogger().debug(
-      'Host $hostName now uses ${keyId ?? 'platform default'} for SSH.',
-      tag: 'Settings',
-    );
-    widget.controller.update(
-      (current) => current.copyWith(builtinSshHostKeyBindings: updated),
-    );
-  }
-
-  Future<String?> _promptForPassword(BuildContext context) async {
-    final controller = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (context) {
-        return DialogKeyboardShortcuts(
-          onCancel: () => Navigator.of(context).pop(null),
-          onConfirm: () => Navigator.of(context).pop(controller.text.trim()),
-          child: AlertDialog(
-            title: const Text('Unlock key'),
-            content: TextField(
-              controller: controller,
-              autofocus: true,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Password'),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(null),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () =>
-                    Navigator.of(context).pop(controller.text.trim()),
-                child: const Text('Unlock'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+    widget.controller.updateHostBinding(hostName, keyId);
   }
 
   @override
@@ -413,18 +122,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
             // Auto-unlock plaintext keys
             if (keys.isNotEmpty) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                for (final entry in keys) {
-                  if (!entry.isEncrypted &&
-                      !widget.keyService.isUnlocked(entry.id)) {
-                    widget.keyService
-                        .unlock(entry.id, password: null)
-                        .catchError(
-                          (_) => const BuiltInSshKeyUnlockResult(
-                            status: BuiltInSshKeyUnlockStatus.failed,
-                          ),
-                        );
-                  }
-                }
+                widget.controller.unlockPlaintextKeysIfNeeded(keys);
               });
             }
 
@@ -451,7 +149,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
           future: _keysFuture,
           builder: (context, keysSnapshot) {
             return FutureBuilder<List<SshHost>>(
-              future: widget.hostsFuture,
+              future: widget.controller.hostsFuture,
               builder: (context, hostsSnapshot) {
                 // Update cache when data is available
                 if (keysSnapshot.hasData && keysSnapshot.data != null) {
@@ -552,7 +250,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
             ElevatedButton.icon(
               icon: const Icon(Icons.file_open_outlined),
               label: const Text('Import from file'),
-              onPressed: _isSaving ? null : () => _pickKeyFile(context),
+              onPressed: _isSaving ? null : _pickKeyFile,
             ),
             if (_lastPickedFileName != null)
               Chip(
@@ -602,55 +300,24 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
     );
   }
 
-  Future<void> _pickKeyFile(BuildContext context) async {
-    final result = await FilePicker.platform.pickFiles(
-      dialogTitle: 'Select private key (PEM)',
-      allowMultiple: false,
-      withData: true,
-    );
-    final file = result?.files.first;
-    if (file == null) {
+  Future<void> _pickKeyFile() async {
+    final loaded = await widget.controller.loadPrivateKeyContents();
+    if (loaded == null) {
       return;
     }
-    try {
-      final bytes =
-          file.bytes ??
-          (file.path != null ? await File(file.path!).readAsBytes() : null);
-      if (bytes == null) {
-        throw Exception('Unable to read selected file.');
-      }
-      final contents = String.fromCharCodes(bytes);
-      setState(() {
-        _keyController.text = contents;
-        _labelController.text = _labelController.text.isEmpty
-            ? p.basename(file.name)
-            : _labelController.text;
-        _lastPickedFileName = file.name;
-      });
-      if (!context.mounted) return;
-      _showSnack(context, 'Loaded key from ${file.name}');
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Failed to load SSH key file ${file.name}',
-        tag: 'Settings',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      if (!context.mounted) return;
-      _showSnack(context, 'Failed to read key: $error');
-    }
-  }
-
-  void _showSnack(BuildContext context, String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    setState(() {
+      _keyController.text = loaded.contents;
+      _labelController.text = _labelController.text.isEmpty
+          ? loaded.fileName
+          : _labelController.text;
+      _lastPickedFileName = loaded.fileName;
+    });
   }
 
   Widget _buildKeyTile(BuiltInSshKeyEntry entry, BuildContext context) {
     // Plaintext keys are always considered unlocked
     final isUnlocked =
-        widget.keyService.isUnlocked(entry.id) || !entry.isEncrypted;
+        widget.controller.isKeyUnlocked(entry.id) || !entry.isEncrypted;
     final fingerprint = entry.fingerprint.length > 12
         ? '${entry.fingerprint.substring(0, 12)}…'
         : entry.fingerprint;
@@ -716,52 +383,14 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
     );
   }
 
-  Future<void> _lockKey(String keyId) async {
-    widget.keyService.lock(keyId);
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Key locked.')));
+  void _lockKey(String keyId) {
+    widget.controller.lockBuiltInKey(keyId);
   }
 
   Future<void> _encryptKey(String keyId) async {
-    final password = await _promptForPassword(context);
-    if (password == null || !mounted) {
-      return;
-    }
-
-    final entry = await widget.keyService.loadKey(keyId);
-    if (entry == null || entry.isEncrypted) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Key not found or already encrypted.')),
-        );
-      }
-      return;
-    }
-
-    try {
-      await widget.keyService.encryptStoredKey(
-        keyId: keyId,
-        password: password,
-      );
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Key encrypted successfully.')),
-      );
+    final encrypted = await widget.controller.encryptBuiltInKey(keyId);
+    if (encrypted) {
       _refreshKeys();
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Failed to encrypt stored SSH key $keyId',
-        tag: 'Settings',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to encrypt key: $error')));
     }
   }
 

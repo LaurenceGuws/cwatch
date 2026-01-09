@@ -3,14 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:cwatch/models/ssh_host.dart';
-import 'package:cwatch/services/logging/app_logger.dart';
+import 'package:cwatch/app/controllers/resources_controller.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
+import 'package:cwatch/ui/bindings/resources_binding.dart';
 import 'resources/process_tree_view.dart';
-import 'resources/resource_models.dart';
 import 'resources/resource_panels.dart';
-import 'resources/resource_parser.dart';
-import 'resources/resource_utils.dart';
 import 'resources/resource_widgets.dart';
 
 class ResourcesTab extends StatefulWidget {
@@ -28,14 +26,10 @@ class ResourcesTab extends StatefulWidget {
 }
 
 class _ResourcesTabState extends State<ResourcesTab> {
+  final ResourcesBinding _binding = const ResourcesBinding();
   final ProcessTreeController _processTreeController = ProcessTreeController();
-  ResourceSnapshot? _snapshot;
-  bool _loading = true;
-  String? _error;
-  Timer? _pollTimer;
-  late final HistoryManager _historyManager;
-  late final NetworkRateCalculator _networkRateCalculator;
-  late final ResourceParser _resourceParser;
+  late ResourcesController _controller;
+  late final VoidCallback _controllerListener;
 
   static const _historyCapacity = 30;
   static const double _sampleWindowSeconds = 0.4;
@@ -43,143 +37,39 @@ class _ResourcesTabState extends State<ResourcesTab> {
   @override
   void initState() {
     super.initState();
-    _historyManager = HistoryManager(capacity: _historyCapacity);
-    _networkRateCalculator = NetworkRateCalculator();
-    _resourceParser = ResourceParser(
+    _controller = _binding.create(
       host: widget.host,
       shellService: widget.shellService,
+      historyCapacity: _historyCapacity,
       sampleWindowSeconds: _sampleWindowSeconds,
     );
-    AppLogger().debug(
-      'Loading resources for ${widget.host.name}',
-      tag: 'Resources',
-    );
-    _loadResources();
+    _controllerListener = () {
+      if (!mounted) return;
+      setState(() {});
+    };
+    _controller.addListener(_controllerListener);
+    _controller.initialize();
   }
 
   @override
   void dispose() {
-    _pollTimer?.cancel();
+    _controller
+      ..removeListener(_controllerListener)
+      ..dispose();
     super.dispose();
   }
 
-  Future<void> _loadResources() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final rawSnapshot = await _resourceParser.collectSnapshot();
-      final netRates = _networkRateCalculator.computeNetRates(
-        rawSnapshot.netTotals,
-      );
-      final snapshot = ResourceSnapshot(
-        cpuUsage: rawSnapshot.cpuUsage,
-        load1: rawSnapshot.load1,
-        load5: rawSnapshot.load5,
-        load15: rawSnapshot.load15,
-        memoryTotalGb: rawSnapshot.memoryTotalGb,
-        memoryUsedGb: rawSnapshot.memoryUsedGb,
-        memoryUsedPct: rawSnapshot.memoryUsedPct,
-        swapTotalGb: rawSnapshot.swapTotalGb,
-        swapUsedGb: rawSnapshot.swapUsedGb,
-        swapUsedPct: rawSnapshot.swapUsedPct,
-        disks: rawSnapshot.disks,
-        processes: rawSnapshot.processes,
-        netInMbps: netRates.$1,
-        netOutMbps: netRates.$2,
-        totalDiskIo: rawSnapshot.totalDiskIo,
-        netTotals: rawSnapshot.netTotals,
-      );
-      if (!mounted) return;
-      setState(() {
-        _snapshot = snapshot;
-        _loading = false;
-        _historyManager.appendCpu(snapshot.cpuUsage);
-        _historyManager.appendMemory(snapshot.memoryUsedPct);
-        _historyManager.appendDiskIo(snapshot.totalDiskIo);
-        _historyManager.appendNetIn(snapshot.netInMbps);
-        _historyManager.appendNetOut(snapshot.netOutMbps);
-      });
-      AppLogger().debug(
-        'Resources loaded for ${widget.host.name}',
-        tag: 'Resources',
-      );
-      _startPolling();
-    } catch (error) {
-      AppLogger().warn(
-        'Failed to load resources for ${widget.host.name}',
-        tag: 'Resources',
-        error: error,
-      );
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = error.toString();
-      });
-    }
-  }
-
-  void _startPolling() {
-    _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) => _refresh());
-  }
-
-  Future<void> _refresh() async {
-    try {
-      final rawSnapshot = await _resourceParser.collectSnapshot();
-      final netRates = _networkRateCalculator.computeNetRates(
-        rawSnapshot.netTotals,
-      );
-      final snapshot = ResourceSnapshot(
-        cpuUsage: rawSnapshot.cpuUsage,
-        load1: rawSnapshot.load1,
-        load5: rawSnapshot.load5,
-        load15: rawSnapshot.load15,
-        memoryTotalGb: rawSnapshot.memoryTotalGb,
-        memoryUsedGb: rawSnapshot.memoryUsedGb,
-        memoryUsedPct: rawSnapshot.memoryUsedPct,
-        swapTotalGb: rawSnapshot.swapTotalGb,
-        swapUsedGb: rawSnapshot.swapUsedGb,
-        swapUsedPct: rawSnapshot.swapUsedPct,
-        disks: rawSnapshot.disks,
-        processes: rawSnapshot.processes,
-        netInMbps: netRates.$1,
-        netOutMbps: netRates.$2,
-        totalDiskIo: rawSnapshot.totalDiskIo,
-        netTotals: rawSnapshot.netTotals,
-      );
-      if (!mounted) return;
-      setState(() {
-        _snapshot = snapshot;
-        _error = null;
-        _historyManager.appendCpu(snapshot.cpuUsage);
-        _historyManager.appendMemory(snapshot.memoryUsedPct);
-        _historyManager.appendDiskIo(snapshot.totalDiskIo);
-        _historyManager.appendNetIn(snapshot.netInMbps);
-        _historyManager.appendNetOut(snapshot.netOutMbps);
-      });
-      AppLogger().debug(
-        'Resources refreshed for ${widget.host.name}',
-        tag: 'Resources',
-      );
-    } catch (error) {
-      AppLogger().warn(
-        'Resource refresh failed for ${widget.host.name}',
-        tag: 'Resources',
-        error: error,
-      );
-      if (!mounted) return;
-      setState(() {
-        _error = error.toString();
-      });
-    }
+  Future<void> _refresh() {
+    return _controller.refresh();
   }
 
   @override
   Widget build(BuildContext context) {
     final spacing = context.appTheme.spacing;
-    if (_loading) {
+    final snapshot = _controller.snapshot;
+    final error = _controller.error;
+    final history = _controller.historyManager;
+    if (_controller.loading) {
       return const Center(child: CircularProgressIndicator());
     }
     return RefreshIndicator(
@@ -188,7 +78,7 @@ class _ResourcesTabState extends State<ResourcesTab> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: spacing.all(2),
         children: [
-          if (_error != null)
+          if (error != null)
             Card(
               color: Theme.of(context).colorScheme.errorContainer,
               child: Padding(
@@ -202,7 +92,7 @@ class _ResourcesTabState extends State<ResourcesTab> {
                     SizedBox(width: spacing.sm),
                     Expanded(
                       child: Text(
-                        _error!,
+                        error,
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onErrorContainer,
                         ),
@@ -212,34 +102,31 @@ class _ResourcesTabState extends State<ResourcesTab> {
                 ),
               ),
             ),
-          if (_snapshot != null) ...[
-            CpuPanel(
-              snapshot: _snapshot!,
-              cpuHistory: _historyManager.cpuHistory,
-            ),
+          if (snapshot != null) ...[
+            CpuPanel(snapshot: snapshot, cpuHistory: history.cpuHistory),
             SizedBox(height: spacing.lg),
             MemoryPanel(
-              snapshot: _snapshot!,
-              memoryHistory: _historyManager.memoryHistory,
+              snapshot: snapshot,
+              memoryHistory: history.memoryHistory,
             ),
             SizedBox(height: spacing.lg),
             NetworkPanel(
-              snapshot: _snapshot!,
-              netInHistory: _historyManager.netInHistory,
-              netOutHistory: _historyManager.netOutHistory,
+              snapshot: snapshot,
+              netInHistory: history.netInHistory,
+              netOutHistory: history.netOutHistory,
             ),
             SizedBox(height: spacing.lg),
             DisksPanel(
-              snapshot: _snapshot!,
-              diskIoHistory: _historyManager.diskIoHistory,
+              snapshot: snapshot,
+              diskIoHistory: history.diskIoHistory,
             ),
             SizedBox(height: spacing.lg),
             SectionCard(
               title: 'Top Processes',
-              subtitle: _snapshot!.processes.isEmpty
+              subtitle: snapshot.processes.isEmpty
                   ? null
-                  : '${_snapshot!.processes.length} sampled processes',
-              trailing: _snapshot!.processes.isEmpty
+                  : '${snapshot.processes.length} sampled processes',
+              trailing: snapshot.processes.isEmpty
                   ? null
                   : Row(
                       mainAxisSize: MainAxisSize.min,
@@ -256,10 +143,10 @@ class _ResourcesTabState extends State<ResourcesTab> {
                         ),
                       ],
                     ),
-              child: _snapshot!.processes.isEmpty
+              child: snapshot.processes.isEmpty
                   ? const Text('No process information available.')
                   : ProcessTreeView(
-                      processes: _snapshot!.processes,
+                      processes: snapshot.processes,
                       controller: _processTreeController,
                     ),
             ),

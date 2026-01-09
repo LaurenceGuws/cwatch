@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:cwatch/app/controllers/settings_controller.dart';
 import 'package:cwatch/models/app_settings.dart';
-import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_binding.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_definition.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
@@ -16,7 +16,7 @@ class ShortcutsSettingsTab extends StatelessWidget {
     required this.settings,
   });
 
-  final AppSettingsController controller;
+  final SettingsController controller;
   final AppSettings settings;
 
   @override
@@ -48,7 +48,7 @@ class ShortcutCategorySection extends StatelessWidget {
   });
 
   final ShortcutCategory category;
-  final AppSettingsController controller;
+  final SettingsController controller;
   final AppSettings settings;
   final String? titleOverride;
   final String? descriptionOverride;
@@ -138,7 +138,7 @@ class _ShortcutRow extends StatefulWidget {
   });
 
   final ShortcutDefinition definition;
-  final AppSettingsController controller;
+  final SettingsController controller;
   final AppSettings settings;
 
   @override

@@ -15,10 +15,11 @@ import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/services/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/services/ssh/ssh_config_service.dart';
 import 'package:cwatch/modules/servers/services/host_distro_manager.dart';
-import 'package:cwatch/services/ssh/ssh_auth_prompter.dart';
+import 'package:cwatch/app/adapters/server_workspace_ui_adapter.dart';
+import 'package:cwatch/app/controllers/server_port_forward_controller.dart';
 import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/services/logging/app_logger.dart';
-import 'package:cwatch/shared/widgets/port_forward_dialog.dart';
+import 'package:cwatch/ui/bindings/server_workspace_binding.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/widgets/dialog_keyboard_shortcuts.dart';
@@ -37,9 +38,13 @@ import 'package:cwatch/core/widgets/keep_alive.dart';
 import 'package:cwatch/core/tabs/tabbed_workspace_shell.dart';
 import 'package:cwatch/modules/servers/services/host_distro_key.dart';
 import 'package:cwatch/shared/views/shared/tabs/settings/floating_settings_window.dart';
+import 'package:cwatch/app/controllers/settings_controller.dart';
 import 'package:cwatch/modules/settings/ui/settings/server_list_settings_controls.dart';
 import 'package:cwatch/modules/settings/ui/settings/ssh_settings_controls.dart';
 import 'package:cwatch/shared/services/host_shell_policy.dart';
+import 'package:cwatch/ui/bindings/settings_binding.dart';
+import 'package:cwatch/ui/bindings/server_tab_builder_binding.dart';
+import 'package:cwatch/ui/bindings/ssh_shell_factory_binding.dart';
 
 class ServerWorkspaceView extends StatefulWidget {
   const ServerWorkspaceView({
@@ -64,8 +69,14 @@ class ServerWorkspaceView extends StatefulWidget {
 }
 
 class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
+  final ServerWorkspaceBinding _binding = const ServerWorkspaceBinding();
+  final SettingsBinding _settingsBinding = const SettingsBinding();
+  final SshShellFactoryBinding _shellFactoryBinding =
+      const SshShellFactoryBinding();
   final ExplorerTrashManager _trashManager = ExplorerTrashManager();
   final PortForwardService _portForwardService = PortForwardService();
+  late ServerWorkspaceUiAdapter _uiAdapter;
+  late ServerPortForwardController _portForwardController;
   late final SshShellFactory _shellFactory;
   late final HostDistroManager _distroManager;
   final Map<String, bool> _hostAvailability = {};
@@ -81,6 +92,7 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   late final CommandPaletteHandle _commandPaletteHandle;
   late Future<List<SshHost>> _hostsFuture;
   late final ValueNotifier<Future<List<SshHost>>> _hostsFutureNotifier;
+  late final SettingsController _settingsController;
   List<SshHost> _lastHosts = const [];
   String _customHostsSignature = '';
   String _pathsSignature = '';
@@ -283,11 +295,11 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   @override
   void initState() {
     super.initState();
-    final authCoordinator = SshAuthPrompter.forContext(
-      context: context,
+    _uiAdapter = _binding.createUiAdapter(context: context);
+    final authCoordinator = _uiAdapter.buildSshAuthCoordinator(
       keyService: widget.keyService,
     );
-    _shellFactory = SshShellFactory(
+    _shellFactory = _shellFactoryBinding.create(
       settingsController: widget.settingsController,
       keyService: widget.keyService,
       authCoordinator: authCoordinator,
@@ -297,14 +309,31 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
       shellFactory: _shellFactory,
     );
     _portForwardService.setAuthCoordinator(_shellFactory.authCoordinator);
+    _portForwardController = _binding.createPortForwardController(
+      context: context,
+      portForwardService: _portForwardService,
+      settingsController: widget.settingsController,
+      keyService: widget.keyService,
+      uiAdapter: _uiAdapter,
+    );
     _hostsFuture = _loadHosts();
     _hostsFutureNotifier = ValueNotifier(_hostsFuture);
 
-    _tabBuilder = ServerTabBuilder(
+    final settingsUiAdapter = _settingsBinding.createUiAdapter(context: context);
+    _settingsController = _settingsBinding.createController(
+      settingsController: widget.settingsController,
+      keyService: widget.keyService,
+      hostsFuture: _hostsFuture,
+      uiAdapter: settingsUiAdapter,
+    );
+
+    final tabBuilderBinding = const ServerTabBuilderBinding();
+    _tabBuilder = tabBuilderBinding.create(
       settingsController: widget.settingsController,
       trashManager: _trashManager,
       shellServiceForHost: (host) => _shellFactory.forHost(host),
       keyService: widget.keyService,
+      hostsFuture: _hostsFuture,
     );
 
     _workspaceController = ServerWorkspaceController(
@@ -376,6 +405,7 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
     _workspaceController.dispose();
     _hostsFutureNotifier.dispose();
     widget.settingsController.removeListener(_settingsListener);
+    _settingsController.dispose();
     _portForwardService.dispose();
     TabNavigationRegistry.instance.unregister(widget.moduleId, _tabNavigator);
     CommandPaletteRegistry.instance.unregister(
@@ -493,15 +523,13 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
           child: Column(
             children: [
               ServerListSettingsControls(
-                settings: widget.settingsController.settings,
-                settingsController: widget.settingsController,
+                settings: _settingsController.settings,
+                settingsController: _settingsController,
                 hosts: _lastHosts,
               ),
               const Divider(),
               SshSettingsControls(
-                controller: widget.settingsController,
-                hostsFuture: _hostsFuture,
-                keyService: widget.keyService,
+                controller: _settingsController,
               ),
             ],
           ),
@@ -874,59 +902,8 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
     );
   }
 
-  Future<void> _openPortForwardDialog(SshHost host) async {
-    final active = _portForwardService.forwardsForHost(host).toList();
-    final hostKeyBindings =
-        widget.settingsController.settings.builtinSshHostKeyBindings;
-    final initial = active.isNotEmpty
-        ? active.expand((f) => f.requests.map((r) => r.copy())).toList()
-        : [
-            PortForwardRequest(
-              remoteHost: '127.0.0.1',
-              remotePort: 0,
-              localPort: 0,
-              label: 'Mapping 1',
-            ),
-          ];
-    final result = await showPortForwardDialog(
-      context: context,
-      title: 'Port forwarding (${host.name})',
-      requests: initial,
-      portValidator: _portForwardService.isPortAvailable,
-      active: active,
-    );
-    if (!mounted || result == null || result.isEmpty) return;
-    try {
-      await _portForwardService.startForward(
-        host: host,
-        requests: result,
-        settingsController: widget.settingsController,
-        builtInKeyService: widget.keyService,
-        hostKeyBindings: hostKeyBindings,
-        authCoordinator: SshAuthPrompter.forContext(
-          context: context,
-          keyService: widget.keyService,
-        ),
-      );
-      if (!mounted) return;
-      final summary = result
-          .map((r) => '${r.localPort}->${r.remotePort}')
-          .join(', ');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Forwarding $summary for ${host.name}.')),
-      );
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Failed to start port forwarding for ${host.name}',
-        tag: 'Servers',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Port forward failed: $error')));
-    }
+  Future<void> _openPortForwardDialog(SshHost host) {
+    return _portForwardController.openDialog(host);
   }
 
   Future<void> _showAddServerDialog(

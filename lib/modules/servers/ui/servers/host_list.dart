@@ -12,7 +12,7 @@ import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/widgets/data_table/structured_data_table.dart';
 import 'package:cwatch/shared/widgets/lists/section_list.dart';
 import 'package:cwatch/shared/widgets/standard_empty_state.dart';
-import 'package:cwatch/shared/views/shared/tabs/file_explorer/external_app_launcher.dart';
+import 'package:cwatch/app/adapters/external_app_launcher.dart';
 import 'package:cwatch/shared/widgets/distro_leading_slot.dart';
 import 'package:cwatch/modules/servers/services/host_distro_key.dart';
 import 'package:cwatch/services/logging/app_logger.dart';

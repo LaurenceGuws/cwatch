@@ -29,7 +29,7 @@ class Sidebar extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final spacing = context.appTheme.spacing;
     final decoration = BoxDecoration(
-      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.22),
+      color: context.appTheme.section.toolbarBackground,
       border: alignRight
           ? Border(
               left: BorderSide(

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import 'package:cwatch/app/adapters/ssh_key_dialog_ui_adapter.dart';
 import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
@@ -18,12 +19,19 @@ class AddKeyDialog extends StatefulWidget {
 }
 
 class _AddKeyDialogState extends State<AddKeyDialog> {
+  late final SshKeyDialogUiAdapter _uiAdapter;
   final _formKey = GlobalKey<FormState>();
   final _labelController = TextEditingController();
   final _keyController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isSaving = false;
   String? _selectedFilePath;
+
+  @override
+  void initState() {
+    super.initState();
+    _uiAdapter = SshKeyDialogUiAdapter(context: context);
+  }
 
   @override
   void dispose() {
@@ -98,13 +106,7 @@ class _AddKeyDialogState extends State<AddKeyDialog> {
           final message =
               retry.message ??
               'Unable to import key. Please check the passphrase or format.';
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(message),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 5),
-            ),
-          );
+          _uiAdapter.showSnackBar(message, isError: true);
           return;
         }
         if (!mounted) return;
@@ -115,13 +117,7 @@ class _AddKeyDialogState extends State<AddKeyDialog> {
         final message =
             addResult.message ??
             'Key cannot be parsed. It may be encrypted, unsupported, or malformed.';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
+        _uiAdapter.showSnackBar(message, isError: true);
         return;
       }
       final entry = addResult.entry;
@@ -135,9 +131,7 @@ class _AddKeyDialogState extends State<AddKeyDialog> {
         stackTrace: stackTrace,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to add key: $error')));
+      _uiAdapter.showSnackBar('Failed to add key: $error', isError: true);
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);

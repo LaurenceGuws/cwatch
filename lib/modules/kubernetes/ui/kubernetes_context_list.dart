@@ -12,20 +12,25 @@ import 'package:cwatch/core/tabs/tabbed_workspace_shell.dart';
 import 'package:cwatch/core/widgets/keep_alive.dart';
 import 'package:cwatch/core/workspace/workspace_tab.dart';
 import 'package:cwatch/models/ssh_host.dart';
-import 'package:cwatch/services/kubernetes/kubeconfig_service.dart';
+import 'package:cwatch/models/kubernetes/kubeconfig_context.dart';
 import 'package:cwatch/services/logging/app_logger.dart';
+import 'package:cwatch/app/controllers/settings_controller.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
+import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/views/shared/tabs/settings/floating_settings_window.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 import 'package:cwatch/shared/widgets/data_table/structured_data_table.dart';
 import 'package:cwatch/shared/widgets/lists/section_list.dart';
-import 'package:cwatch/shared/views/shared/tabs/file_explorer/external_app_launcher.dart';
+import 'package:cwatch/app/adapters/external_app_launcher.dart';
+import 'package:cwatch/app/adapters/kubernetes_ui_adapter.dart';
+import 'package:cwatch/ui/bindings/settings_binding.dart';
+import 'package:cwatch/ui/bindings/kubernetes_context_binding.dart';
 import 'widgets/kubernetes_dashboard_view.dart';
 import 'package:cwatch/modules/settings/ui/settings/kubernetes_settings_controls.dart';
 
-import 'kubernetes_context_controller.dart';
+import 'package:cwatch/app/controllers/kubernetes_context_controller.dart';
 import 'kubernetes_tab_builder.dart';
 import 'kubernetes_workspace_controller.dart';
 
@@ -34,11 +39,15 @@ class KubernetesContextList extends StatefulWidget {
     super.key,
     required this.moduleId,
     required this.settingsController,
+    required this.keyService,
+    required this.hostsFuture,
     this.leading,
   });
 
   final String moduleId;
   final AppSettingsController settingsController;
+  final BuiltInSshKeyService keyService;
+  final Future<List<SshHost>> hostsFuture;
   final Widget? leading;
 
   @override
@@ -49,11 +58,15 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   static const String _placeholderName = '__k8s_placeholder__';
   static const String _placeholderConfig = '__k8s_placeholder__';
 
-  final KubernetesContextController _contextController =
-      KubernetesContextController();
+  final KubernetesContextBinding _contextBinding =
+      const KubernetesContextBinding();
+  final SettingsBinding _settingsBinding = const SettingsBinding();
+  late final KubernetesContextController _contextController;
   late final KubernetesTabBuilder _tabBuilder;
   late final KubernetesWorkspaceController _workspaceController;
   late final TabViewRegistry<WorkspaceTab> _tabRegistry;
+  late final SettingsController _settingsController;
+  late final KubernetesUiAdapter _uiAdapter;
 
   late final VoidCallback _settingsListener;
   late final VoidCallback _tabsListener;
@@ -101,6 +114,18 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   @override
   void initState() {
     super.initState();
+
+    _contextController = _contextBinding.create();
+
+    final settingsUiAdapter = _settingsBinding.createUiAdapter(
+      context: context,
+    );
+    _settingsController = _settingsBinding.createController(
+      settingsController: widget.settingsController,
+      keyService: widget.keyService,
+      hostsFuture: widget.hostsFuture,
+      uiAdapter: settingsUiAdapter,
+    );
 
     _tabBuilder = const KubernetesTabBuilder(
       placeholderName: _placeholderName,
@@ -159,6 +184,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   @override
   void dispose() {
     widget.settingsController.removeListener(_settingsListener);
+    _settingsController.dispose();
     _workspaceController.removeListener(_tabsListener);
     _workspaceController.dispose();
     _emptyOptions.dispose();
@@ -380,9 +406,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   Future<void> _copyText(String text) async {
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Copied to clipboard')));
+    _uiAdapter.showSnackBar('Copied to clipboard');
   }
 
   List<StructuredDataChip> _contextMetadata(KubeconfigContext ctx) {
@@ -588,8 +612,8 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
               ),
               const Divider(),
               KubernetesSettingsControls(
-                settings: widget.settingsController.settings,
-                settingsController: widget.settingsController,
+                settings: _settingsController.settings,
+                settingsController: _settingsController,
               ),
             ],
           ),

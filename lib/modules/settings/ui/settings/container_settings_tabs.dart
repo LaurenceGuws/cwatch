@@ -4,8 +4,8 @@ import 'package:cwatch/shared/theme/app_theme.dart';
 import 'settings_section.dart';
 import 'docker_settings_controls.dart';
 import 'kubernetes_settings_controls.dart';
+import 'package:cwatch/app/controllers/settings_controller.dart';
 import 'package:cwatch/models/app_settings.dart';
-import 'package:cwatch/services/settings/app_settings_controller.dart';
 
 /// Docker settings tab widget
 class DockerSettingsTab extends StatelessWidget {
@@ -46,7 +46,7 @@ class KubernetesSettingsTab extends StatelessWidget {
   });
 
   final AppSettings settings;
-  final AppSettingsController settingsController;
+  final SettingsController settingsController;
 
   @override
   Widget build(BuildContext context) {

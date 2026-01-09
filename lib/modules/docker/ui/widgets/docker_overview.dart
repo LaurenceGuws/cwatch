@@ -26,7 +26,9 @@ import '../docker_tab_builder.dart';
 import 'docker_lists.dart';
 import 'docker_shared.dart';
 import 'docker_overview_controller.dart';
-import 'docker_overview_actions.dart';
+import 'package:cwatch/app/adapters/docker_overview_ui_adapter.dart';
+import 'package:cwatch/app/controllers/docker_overview_actions_controller.dart';
+import 'package:cwatch/ui/bindings/docker_overview_binding.dart';
 import 'package:cwatch/modules/docker/services/container_distro_manager.dart';
 import 'package:cwatch/modules/docker/services/container_distro_key.dart';
 
@@ -68,9 +70,11 @@ class DockerOverview extends StatefulWidget {
 
 class _DockerOverviewState extends State<DockerOverview>
     with SingleTickerProviderStateMixin, TabOptionsMixin {
+  final DockerOverviewBinding _binding = const DockerOverviewBinding();
   late DockerOverviewController _controller;
   late final VoidCallback _controllerListener;
-  late DockerOverviewActions _actions;
+  late DockerOverviewActionsController _actions;
+  late DockerOverviewUiAdapter _uiAdapter;
   late DockerOverviewMenus _menus;
   late final ContainerDistroManager _containerDistroManager;
   late final TabController _tabController;
@@ -104,7 +108,7 @@ class _DockerOverviewState extends State<DockerOverview>
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
-    _controller = DockerOverviewController(
+    _controller = _binding.createController(
       docker: widget.docker,
       contextName: widget.contextName,
       remoteHost: widget.remoteHost,
@@ -115,7 +119,9 @@ class _DockerOverviewState extends State<DockerOverview>
     };
     _controller.addListener(_controllerListener);
     _controller.initialize();
-    _actions = DockerOverviewActions(
+    _uiAdapter = _binding.createUiAdapter(context: context);
+    _actions = _binding.createActionsController(
+      context: context,
       controller: _controller,
       docker: widget.docker,
       contextName: widget.contextName,
@@ -127,6 +133,7 @@ class _DockerOverviewState extends State<DockerOverview>
       settingsController: widget.settingsController,
       portForwardService: widget.portForwardService,
       keyService: widget.keyService,
+      uiAdapter: _uiAdapter,
     );
     _containerDistroManager = ContainerDistroManager(
       settingsController: widget.settingsController,
@@ -137,7 +144,7 @@ class _DockerOverviewState extends State<DockerOverview>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _menus = DockerOverviewMenus(icons: _icons);
+    _menus = DockerOverviewMenus(icons: _icons, uiAdapter: _uiAdapter);
     _registerTabOptions();
   }
 
@@ -154,13 +161,13 @@ class _DockerOverviewState extends State<DockerOverview>
         label: 'System prune',
         icon: Icons.cleaning_services_outlined,
         color: scheme.error,
-        onSelected: () => _runPrune(includeVolumes: false),
+        onSelected: () => _actions.runPrune(includeVolumes: false),
       ),
       TabChipOption(
         label: 'Prune incl. volumes',
         icon: Icons.delete_sweep_outlined,
         color: scheme.error,
-        onSelected: () => _runPrune(includeVolumes: true),
+        onSelected: () => _actions.runPrune(includeVolumes: true),
       ),
     ];
     queueTabOptions(widget.optionsController, options);
@@ -204,42 +211,6 @@ class _DockerOverviewState extends State<DockerOverview>
           ),
         );
       }
-    }
-  }
-
-  Future<void> _runPrune({required bool includeVolumes}) async {
-    try {
-      if (widget.remoteHost != null && widget.shellService != null) {
-        final cmd = includeVolumes
-            ? 'docker system prune -f --volumes'
-            : 'docker system prune -f';
-        await widget.shellService!.runCommand(
-          widget.remoteHost!,
-          cmd,
-          timeout: const Duration(seconds: 20),
-        );
-      } else {
-        await widget.docker.systemPrune(
-          context: widget.contextName,
-          includeVolumes: includeVolumes,
-        );
-      }
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Prune completed.')));
-      _refresh();
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Docker prune failed',
-        tag: 'Docker',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Prune failed: $error')));
     }
   }
 
@@ -368,15 +339,12 @@ class _DockerOverviewState extends State<DockerOverview>
                                   onComposeForward: widget.remoteHost != null
                                       ? (project) =>
                                             _actions.forwardComposePorts(
-                                              context,
                                               project: project,
                                             )
                                       : null,
                                   onComposeStopForward:
                                       widget.remoteHost != null
-                                      ? (_) => _actions.stopForwardsForHost(
-                                          context,
-                                        )
+                                      ? (_) => _actions.stopForwardsForHost()
                                       : null,
                                   settingsController: widget.settingsController,
                                 ),
@@ -503,35 +471,23 @@ class _DockerOverviewState extends State<DockerOverview>
         : container.id;
     final copyLabel = isMulti ? 'Container IDs' : 'Container ID';
     final extraActions = <PopupMenuEntry<String>>[
-      _menus.menuItem(context, 'logs', 'Tail logs', Icons.list_alt_outlined),
-      _menus.menuItem(
-        context,
-        'shell',
-        'Open shell tab',
-        NerdIcon.terminal.data,
-      ),
-      _menus.menuItem(context, 'copyExec', 'Copy exec command', _icons.copy),
+      _menus.menuItem('logs', 'Tail logs', Icons.list_alt_outlined),
+      _menus.menuItem('shell', 'Open shell tab', NerdIcon.terminal.data),
+      _menus.menuItem('copyExec', 'Copy exec command', _icons.copy),
+      if (widget.remoteHost != null)
+        _menus.menuItem('forward', 'Port forward…', Icons.link_outlined),
       if (widget.remoteHost != null)
         _menus.menuItem(
-          context,
-          'forward',
-          'Port forward…',
-          Icons.link_outlined,
-        ),
-      if (widget.remoteHost != null)
-        _menus.menuItem(
-          context,
           'stopForward',
           'Stop port forwards',
           Icons.link_off_outlined,
         ),
-      _menus.menuItem(context, 'explore', 'Open explorer', _icons.folderOpen),
-      _menus.menuItem(context, 'start', 'Start', Icons.play_arrow_rounded),
-      _menus.menuItem(context, 'stop', 'Stop', Icons.stop_rounded),
-      _menus.menuItem(context, 'restart', 'Restart', _icons.refresh),
+      _menus.menuItem('explore', 'Open explorer', _icons.folderOpen),
+      _menus.menuItem('start', 'Start', Icons.play_arrow_rounded),
+      _menus.menuItem('stop', 'Stop', Icons.stop_rounded),
+      _menus.menuItem('restart', 'Restart', _icons.refresh),
       const PopupMenuDivider(),
       _menus.menuItem(
-        context,
         'remove',
         'Remove',
         Icons.delete_outline,
@@ -539,7 +495,6 @@ class _DockerOverviewState extends State<DockerOverview>
       ),
     ];
     _menus.showItemMenu(
-      context: context,
       globalPosition: details.globalPosition,
       title: title,
       details: detailsMap,
@@ -551,44 +506,40 @@ class _DockerOverviewState extends State<DockerOverview>
           case 'logs':
             for (final target in selection) {
               if (!mounted) return;
-              await _actions.openLogsTab(target, context: context);
+              await _actions.openLogsTab(container: target);
             }
             break;
           case 'shell':
             for (final target in selection) {
               if (!mounted) return;
-              await _actions.openExecTerminal(context, target);
+              await _actions.openExecTerminal(target);
             }
             break;
           case 'copyExec':
             if (selection.length == 1) {
-              await _actions.copyExecCommand(context, selection.first.id);
+              await _actions.copyExecCommand(selection.first.id);
             } else {
               final commands = selection
                   .map((item) => _actions.execCommand(item.id))
                   .join('\n');
-              await Clipboard.setData(ClipboardData(text: commands));
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Exec commands copied (${selection.length}).'),
-                ),
+              await _uiAdapter.copyToClipboard(
+                commands,
+                successMessage: 'Exec commands copied (${selection.length}).',
               );
             }
             break;
           case 'stopForward':
-            await _actions.stopForwardsForHost(context);
+            await _actions.stopForwardsForHost();
             break;
           case 'forward':
             for (final target in selection) {
-              await _actions.forwardContainerPorts(context, container: target);
+              await _actions.forwardContainerPorts(container: target);
             }
             break;
           case 'explore':
             for (final target in selection) {
               await _actions.openContainerExplorer(
-                context,
-                target,
+                container: target,
                 dockerContextName: _dockerContextName(
                   widget.remoteHost ??
                       const SshHost(
@@ -610,7 +561,6 @@ class _DockerOverviewState extends State<DockerOverview>
             await Future.wait(
               selection.map(
                 (target) => _actions.runContainerAction(
-                  context,
                   container: target,
                   action: action,
                   onRestarted: () => _updateContainerAfterRestart(target),
@@ -625,7 +575,6 @@ class _DockerOverviewState extends State<DockerOverview>
           case 'remove':
             for (final target in selection) {
               await _actions.runContainerAction(
-                context,
                 container: target,
                 action: action,
                 onRestarted: () => _updateContainerAfterRestart(target),
@@ -646,11 +595,10 @@ class _DockerOverviewState extends State<DockerOverview>
   Future<void> _handleComposeAction(String project, String action) async {
     switch (action) {
       case 'logs':
-        await _actions.openComposeLogsTab(context, project: project);
+        await _actions.openComposeLogsTab(project: project);
         break;
       case 'restart':
         await _actions.runComposeCommand(
-          context,
           project: project,
           action: 'restart',
           onSynced: () => _syncProjectContainers(project),
@@ -658,7 +606,6 @@ class _DockerOverviewState extends State<DockerOverview>
         break;
       case 'up':
         await _actions.runComposeCommand(
-          context,
           project: project,
           action: 'up',
           onSynced: () => _syncProjectContainers(project),
@@ -666,7 +613,6 @@ class _DockerOverviewState extends State<DockerOverview>
         break;
       case 'down':
         await _actions.runComposeCommand(
-          context,
           project: project,
           action: 'down',
           onSynced: () => _syncProjectContainers(project),
@@ -691,7 +637,6 @@ class _DockerOverviewState extends State<DockerOverview>
         : image.id;
     final copyLabel = isMulti ? 'Image IDs' : 'Image ID';
     _menus.showItemMenu(
-      context: context,
       globalPosition: details.globalPosition,
       title: title,
       details: detailsMap,
@@ -714,7 +659,6 @@ class _DockerOverviewState extends State<DockerOverview>
         : _networkKey(network);
     final copyLabel = isMulti ? 'Network IDs' : 'Network ID';
     _menus.showItemMenu(
-      context: context,
       globalPosition: details.globalPosition,
       title: title,
       details: detailsMap,
@@ -741,7 +685,6 @@ class _DockerOverviewState extends State<DockerOverview>
         : volume.name;
     final copyLabel = isMulti ? 'Volume names' : 'Volume name';
     _menus.showItemMenu(
-      context: context,
       globalPosition: details.globalPosition,
       title: title,
       details: detailsMap,
@@ -999,9 +942,7 @@ class _DockerOverviewState extends State<DockerOverview>
         stackTrace: stackTrace,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Compose sync failed: $error')));
+      _uiAdapter.showSnackBar('Compose sync failed: $error');
     }
   }
 }

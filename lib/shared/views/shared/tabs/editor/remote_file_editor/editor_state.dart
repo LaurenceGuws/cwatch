@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:highlight/highlight_core.dart';
 
+import '../../../../../../app/controllers/settings_controller.dart';
 import '../../../../../../services/logging/app_logger.dart';
-import '../../../../../../services/settings/app_settings_controller.dart';
 import 'language_detection.dart';
 
 class EditorState extends ChangeNotifier {
@@ -30,7 +30,7 @@ class EditorState extends ChangeNotifier {
 
   final String path;
   final String initialContent;
-  final AppSettingsController settingsController;
+  final SettingsController settingsController;
 
   late final CodeController controller;
   final FocusNode editorFocusNode = FocusNode();

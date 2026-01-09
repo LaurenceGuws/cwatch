@@ -3,9 +3,14 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'package:cwatch/app/adapters/remote_file_editor_ui_adapter.dart';
+import 'package:cwatch/app/controllers/remote_file_editor_controller.dart';
+
+import '../../../../../app/controllers/settings_controller.dart';
 import '../../../../../models/ssh_host.dart';
 import '../../../../../services/settings/app_settings_controller.dart';
-import '../../../../../services/ssh/remote_shell_service.dart';
+import '../../../../../services/ssh/builtin/builtin_ssh_key_service.dart';
+import '../../../../../ui/bindings/settings_binding.dart';
 import '../../../../../shared/gestures/gesture_activators.dart';
 import '../../../../../shared/gestures/gesture_service.dart';
 import '../../../../../shared/shortcuts/input_mode_resolver.dart';
@@ -20,28 +25,29 @@ import '../settings/floating_settings_window.dart';
 import 'remote_file_editor/code_editor_view.dart';
 import 'remote_file_editor/editor_state.dart';
 import 'remote_file_editor/editor_theme_utils.dart';
-import 'remote_file_editor/file_info_dialog.dart';
 import 'remote_file_editor/language_detection.dart';
 
 class RemoteFileEditorTab extends StatefulWidget {
   const RemoteFileEditorTab({
     super.key,
-    required this.host,
-    required this.shellService,
+    required this.controller,
+    required this.uiAdapter,
     required this.path,
     required this.initialContent,
-    required this.onSave,
     required this.settingsController,
+    required this.keyService,
+    required this.hostsFuture,
     this.helperText,
     this.optionsController,
   });
 
-  final SshHost host;
-  final RemoteShellService shellService;
+  final RemoteFileEditorController controller;
+  final RemoteFileEditorUiAdapter uiAdapter;
   final String path;
   final String initialContent;
-  final Future<void> Function(String content) onSave;
   final AppSettingsController settingsController;
+  final BuiltInSshKeyService keyService;
+  final Future<List<SshHost>> hostsFuture;
   final String? helperText;
   final TabOptionsController? optionsController;
 
@@ -51,6 +57,8 @@ class RemoteFileEditorTab extends StatefulWidget {
 
 class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
     with TabOptionsMixin {
+  final SettingsBinding _settingsBinding = const SettingsBinding();
+  late final SettingsController _settingsController;
   late final EditorState _state;
   ShortcutSubscription? _shortcutSub;
   GestureSubscription? _gestureSub;
@@ -61,13 +69,21 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
   @override
   void initState() {
     super.initState();
+    final settingsUiAdapter =
+        _settingsBinding.createUiAdapter(context: context);
+    _settingsController = _settingsBinding.createController(
+      settingsController: widget.settingsController,
+      keyService: widget.keyService,
+      hostsFuture: widget.hostsFuture,
+      uiAdapter: settingsUiAdapter,
+    );
     _state = EditorState(
       path: widget.path,
       initialContent: widget.initialContent,
-      settingsController: widget.settingsController,
+      settingsController: _settingsController,
     )..addListener(_handleStateChanged);
     _settingsListener = _configureInputMode;
-    widget.settingsController.addListener(_settingsListener);
+    _settingsController.addListener(_settingsListener);
     _configureInputMode();
     _updateTabOptions();
   }
@@ -76,7 +92,9 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
   void dispose() {
     _shortcutSub?.dispose();
     _gestureSub?.dispose();
-    widget.settingsController.removeListener(_settingsListener);
+    _settingsController
+      ..removeListener(_settingsListener)
+      ..dispose();
     _state.removeListener(_handleStateChanged);
     _state.dispose();
     super.dispose();
@@ -89,12 +107,10 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
   }
 
   Future<void> _handleSave() async {
-    final saved = await _state.save(widget.onSave);
+    final saved = await _state.save(widget.controller.saveContent);
     _updateTabOptions();
     if (!mounted || !saved) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Saved ${widget.path}')));
+    widget.uiAdapter.showSnackBar('Saved ${widget.path}');
   }
 
   Widget _wrapWithGestures(Widget child, InputModeConfig inputMode) {
@@ -102,7 +118,7 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
     return GestureDetector(
       onScaleStart: (details) {
         if (details.pointerCount < 2) return;
-        _scaleStartFontSize = widget.settingsController.settings.editorFontSize;
+        _scaleStartFontSize = _settingsController.settings.editorFontSize;
       },
       onScaleUpdate: (details) {
         if (_scaleStartFontSize == null || details.pointerCount < 2) return;
@@ -118,7 +134,7 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
 
   void _configureInputMode() {
     final inputMode = resolveInputMode(
-      widget.settingsController.settings.inputModePreference,
+      _settingsController.settings.inputModePreference,
       defaultTargetPlatform,
     );
     _configureShortcuts(inputMode);
@@ -170,11 +186,10 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
   void _showFileInfo(BuildContext context) {
     final language = languageFromPath(widget.path);
     final parser = _state.controller.language?.runtimeType.toString();
-    showFileInfoDialog(
-      context: context,
+    widget.uiAdapter.showFileInfoDialog(
       path: widget.path,
       content: _state.controller.text,
-      language: language,
+      language: language ?? 'Unknown',
       parserName: parser,
       helperText: widget.helperText,
     );
@@ -214,7 +229,7 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final theme = _getThemeForColorScheme(colorScheme);
-    final settings = widget.settingsController.settings;
+    final settings = _settingsController.settings;
     final inputMode = resolveInputMode(
       settings.inputModePreference,
       defaultTargetPlatform,
@@ -272,15 +287,15 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
                     lineHeight: settings.editorLineHeight,
                     lightTheme: settings.editorThemeLight,
                     darkTheme: settings.editorThemeDark,
-                    onFontFamilyChanged: (value) => widget.settingsController
+                    onFontFamilyChanged: (value) => _settingsController
                         .update((s) => s.copyWith(editorFontFamily: value)),
-                    onFontSizeChanged: (value) => widget.settingsController
+                    onFontSizeChanged: (value) => _settingsController
                         .update((s) => s.copyWith(editorFontSize: value)),
-                    onLineHeightChanged: (value) => widget.settingsController
+                    onLineHeightChanged: (value) => _settingsController
                         .update((s) => s.copyWith(editorLineHeight: value)),
-                    onLightThemeChanged: (value) => widget.settingsController
+                    onLightThemeChanged: (value) => _settingsController
                         .update((s) => s.copyWith(editorThemeLight: value)),
-                    onDarkThemeChanged: (value) => widget.settingsController
+                    onDarkThemeChanged: (value) => _settingsController
                         .update((s) => s.copyWith(editorThemeDark: value)),
                   ),
                 ],
@@ -292,14 +307,14 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
   }
 
   Future<void> _changeEditorFont(double delta) async {
-    await widget.settingsController.update((current) {
+    await _settingsController.update((current) {
       final next = (current.editorFontSize + delta).clamp(8, 32).toDouble();
       return current.copyWith(editorFontSize: next);
     });
   }
 
   Future<void> _setEditorFontSize(double value) async {
-    await widget.settingsController.update((current) {
+    await _settingsController.update((current) {
       final next = value.clamp(8, 32).toDouble();
       if (next == current.editorFontSize) return current;
       return current.copyWith(editorFontSize: next);

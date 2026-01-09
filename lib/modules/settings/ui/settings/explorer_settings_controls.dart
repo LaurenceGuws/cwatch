@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cwatch/app/controllers/settings_controller.dart';
 import 'package:cwatch/models/app_settings.dart';
-import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/widgets/form_spacer.dart';
 
 class ExplorerSettingsControls extends StatelessWidget {
@@ -11,7 +11,7 @@ class ExplorerSettingsControls extends StatelessWidget {
   });
 
   final AppSettings settings;
-  final AppSettingsController settingsController;
+  final SettingsController settingsController;
 
   @override
   Widget build(BuildContext context) {

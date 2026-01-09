@@ -3,15 +3,14 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../../../../app/controllers/trash_tab_controller.dart';
 import '../../../../../models/explorer_context.dart';
 import '../../../../../services/filesystem/explorer_trash_manager.dart';
 import '../../../../../services/logging/app_logger.dart';
-import '../../../../../services/ssh/remote_shell_service.dart';
-import '../../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
 import '../../../../../services/ssh/builtin/builtin_ssh_key_service.dart';
+import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../../shared/theme/app_theme.dart';
-import 'explorer_ui_adapter.dart';
-import 'ssh_auth_handler.dart';
+import '../../../../../ui/bindings/trash_tab_binding.dart';
 
 class TrashTab extends StatefulWidget {
   const TrashTab({
@@ -32,12 +31,21 @@ class TrashTab extends StatefulWidget {
 }
 
 class _TrashTabState extends State<TrashTab> {
+  final TrashTabBinding _binding = const TrashTabBinding();
+  late final TrashTabController _controller;
   late Future<List<TrashedEntry>> _entriesFuture;
   late final VoidCallback _changesListener;
 
   @override
   void initState() {
     super.initState();
+    _controller = _binding.create(
+      context: context,
+      manager: widget.manager,
+      shellService: widget.shellService,
+      keyService: widget.keyService,
+      explorerContext: widget.context,
+    );
     _entriesFuture = widget.manager.loadEntries(contextId: widget.context?.id);
     _changesListener = () {
       if (!mounted) return;
@@ -63,6 +71,7 @@ class _TrashTabState extends State<TrashTab> {
   @override
   void dispose() {
     widget.manager.changes.removeListener(_changesListener);
+    _controller.dispose();
     super.dispose();
   }
 
@@ -75,212 +84,12 @@ class _TrashTabState extends State<TrashTab> {
     await _entriesFuture;
   }
 
-  bool _unlockInProgress = false;
-  final Map<String, Future<String?>> _pendingPassphrasePrompts = {};
-
-  void _showSnackBar(String message) {
-    ExplorerUiAdapter(context: context).showSnackBar(message);
-  }
-
-  ExplorerUiAdapter get _uiAdapter => ExplorerUiAdapter(context: context);
-
   Future<T> _runShell<T>(Future<T> Function() action) async {
-    if (widget.keyService == null) {
-      return action();
-    }
     try {
-      return await _withBuiltinUnlock(action);
+      return await _controller.runShell(action);
     } on SshUnlockCancelled {
       throw const CancelledTrashOperation();
     }
-  }
-
-  Future<T> _withBuiltinUnlock<T>(Future<T> Function() action) async {
-    while (true) {
-      try {
-        return await action();
-      } on BuiltInSshKeyLockedException catch (error) {
-        AppLogger().warn(
-          'Built-in key locked for ${error.hostName}',
-          tag: 'Trash',
-          error: error,
-        );
-        final unlocked = await _promptUnlock(error.keyId);
-        if (!unlocked) {
-          throw const SshUnlockCancelled();
-        }
-        continue;
-      } on BuiltInSshKeyPassphraseRequired catch (error) {
-        AppLogger().warn(
-          'Passphrase required for built-in key ${error.keyId}',
-          tag: 'Trash',
-          error: error,
-        );
-        final keyLabel = error.keyLabel ?? error.keyId;
-        final passphrase = await _awaitPassphraseInput(
-          error.hostName,
-          'built-in key $keyLabel',
-        );
-        if (passphrase == null) {
-          throw const SshUnlockCancelled();
-        }
-        final service = widget.shellService;
-        if (service is BuiltInRemoteShellService) {
-          service.setBuiltInKeyPassphrase(error.keyId, passphrase);
-        }
-        if (mounted) {
-          _showSnackBar('Passphrase stored for $keyLabel.');
-        }
-        continue;
-      } on BuiltInSshKeyUnsupportedCipher catch (error) {
-        AppLogger().warn(
-          'Unsupported cipher for built-in key ${error.keyId}',
-          tag: 'Trash',
-          error: error,
-        );
-        final keyLabel = error.keyLabel ?? error.keyId;
-        final detail = error.error.message ?? error.error.toString();
-        if (mounted) {
-          _showSnackBar('Key $keyLabel uses an unsupported cipher ($detail).');
-        }
-        rethrow;
-      } on BuiltInSshIdentityPassphraseRequired catch (error) {
-        AppLogger().warn(
-          'Passphrase required for identity ${error.identityPath}',
-          tag: 'Trash',
-          error: error,
-        );
-        final passphrase = await _awaitPassphraseInput(
-          error.hostName,
-          error.identityPath,
-        );
-        if (passphrase == null) {
-          throw const SshUnlockCancelled();
-        }
-        final service = widget.shellService;
-        if (service is BuiltInRemoteShellService) {
-          service.setIdentityPassphrase(error.identityPath, passphrase);
-        }
-        if (mounted) {
-          _showSnackBar('Passphrase stored for ${error.identityPath}.');
-        }
-        continue;
-      } on BuiltInSshAuthenticationFailed catch (error) {
-        AppLogger().warn(
-          'SSH authentication failed for ${error.hostName}',
-          tag: 'Trash',
-          error: error,
-        );
-        if (mounted) {
-          _showSnackBar(
-            'SSH authentication failed for ${error.hostName}. '
-            'Check your key configuration in settings.',
-          );
-        }
-        rethrow;
-      }
-    }
-  }
-
-  Future<bool> _promptUnlock(String keyId) async {
-    if (_unlockInProgress) {
-      return false;
-    }
-    final service = widget.keyService;
-    if (service == null) {
-      return false;
-    }
-    _unlockInProgress = true;
-    AppLogger().debug('Prompting unlock for key $keyId', tag: 'Trash');
-    try {
-      final initial = await service.unlock(keyId, password: null);
-      if (initial.status == BuiltInSshKeyUnlockStatus.unlocked) {
-        if (mounted) {
-          _showSnackBar('Key unlocked for this session.');
-          AppLogger().debug('Unlock succeeded for key $keyId', tag: 'Trash');
-        }
-        return true;
-      }
-      String? password;
-      password = await _showUnlockDialog(keyId);
-      if (password == null) {
-        AppLogger().debug('Unlock cancelled for key $keyId', tag: 'Trash');
-        return false;
-      }
-      final result = await service.unlock(keyId, password: password);
-      if (result.status == BuiltInSshKeyUnlockStatus.unlocked) {
-        if (mounted) {
-          _showSnackBar('Key unlocked for this session.');
-          AppLogger().debug('Unlock succeeded for key $keyId', tag: 'Trash');
-        }
-        return true;
-      }
-      final message = result.message ?? 'Incorrect password for that key.';
-      if (mounted) {
-        _showSnackBar(message);
-      }
-      AppLogger().warn('Unlock failed for key $keyId: $message', tag: 'Trash');
-      return false;
-    } catch (error) {
-      if (mounted) {
-        _showSnackBar('Failed to unlock key: $error');
-      }
-      AppLogger().warn(
-        'Unlock failed for key $keyId',
-        tag: 'Trash',
-        error: error,
-      );
-      return false;
-    } finally {
-      _unlockInProgress = false;
-      AppLogger().debug('Unlock flow completed for key $keyId', tag: 'Trash');
-    }
-  }
-
-  Future<String?> _showUnlockDialog(String keyId) async {
-    return _uiAdapter.showTextInputDialog(
-      title: 'Unlock key $keyId',
-      label: 'Password',
-      submitLabel: 'Unlock',
-    );
-  }
-
-  Future<String?> _awaitPassphraseInput(String host, String path) {
-    final key = '$host|$path';
-    final existing = _pendingPassphrasePrompts[key];
-    if (existing != null) {
-      AppLogger().debug('Awaiting existing passphrase for $key', tag: 'Trash');
-      return existing;
-    }
-    final completer = Completer<String?>();
-    _pendingPassphrasePrompts[key] = completer.future;
-    () async {
-      try {
-        AppLogger().debug('Prompting passphrase for $key', tag: 'Trash');
-        final result = await _promptPassphrase(host, path);
-        completer.complete(result);
-      } catch (error, stackTrace) {
-        AppLogger().warn(
-          'Failed to prompt passphrase for $key',
-          tag: 'Trash',
-          error: error,
-          stackTrace: stackTrace,
-        );
-        completer.completeError(error, stackTrace);
-      } finally {
-        _pendingPassphrasePrompts.remove(key);
-        AppLogger().debug('Passphrase prompt completed for $key', tag: 'Trash');
-      }
-    }();
-    return completer.future;
-  }
-
-  Future<String?> _promptPassphrase(String host, String path) async {
-    return _uiAdapter.showTextInputDialog(
-      title: 'Passphrase for $host ($path)',
-      label: 'Passphrase',
-      submitLabel: 'Submit',
-    );
   }
 
   @override
@@ -366,7 +175,7 @@ class _TrashTabState extends State<TrashTab> {
   Future<void> _deleteEntry(TrashedEntry entry) async {
     await widget.manager.deleteEntry(entry);
     if (!mounted) return;
-    _showSnackBar('Deleted ${entry.displayName} permanently');
+    _controller.uiAdapter.showSnackBar('Deleted ${entry.displayName} permanently');
   }
 
   Future<void> _restoreEntry(TrashedEntry entry) async {
@@ -391,7 +200,7 @@ class _TrashTabState extends State<TrashTab> {
         tag: 'Trash',
       );
       if (!mounted) return;
-      _showSnackBar('Restored ${entry.displayName} to ${entry.remotePath}');
+      _controller.uiAdapter.showSnackBar('Restored ${entry.displayName} to ${entry.remotePath}');
     } catch (error) {
       if (error is CancelledTrashOperation) return;
       AppLogger().warn(
@@ -400,7 +209,7 @@ class _TrashTabState extends State<TrashTab> {
         error: error,
       );
       if (!mounted) return;
-      _showSnackBar('Restore failed: $error');
+      _controller.uiAdapter.showSnackBar('Restore failed: $error');
     }
   }
 

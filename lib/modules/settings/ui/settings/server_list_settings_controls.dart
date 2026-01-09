@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:cwatch/app/controllers/settings_controller.dart';
 import 'package:cwatch/models/app_settings.dart';
 import 'package:cwatch/models/ssh_host.dart';
-import 'package:cwatch/services/settings/app_settings_controller.dart';
 
 class ServerListSettingsControls extends StatelessWidget {
   const ServerListSettingsControls({
@@ -12,7 +12,7 @@ class ServerListSettingsControls extends StatelessWidget {
   });
 
   final AppSettings settings;
-  final AppSettingsController settingsController;
+  final SettingsController settingsController;
   final List<SshHost>? hosts;
 
   Map<String, SshHost> _hostIndex() {

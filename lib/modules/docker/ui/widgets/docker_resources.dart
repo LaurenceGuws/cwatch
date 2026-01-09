@@ -1,15 +1,10 @@
-import 'dart:async';
-import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
+import 'package:cwatch/app/controllers/docker_resources_controller.dart';
 import 'package:cwatch/models/docker_container_stat.dart';
-import 'package:cwatch/models/ssh_host.dart';
-import 'package:cwatch/modules/docker/services/docker_client_service.dart';
-import 'package:cwatch/services/logging/app_logger.dart';
-import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/shared/mixins/tab_options_mixin.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
@@ -21,20 +16,14 @@ import '../docker_tab_builder.dart';
 class DockerResources extends StatefulWidget {
   const DockerResources({
     super.key,
-    required this.docker,
-    this.contextName,
-    this.remoteHost,
-    this.shellService,
+    required this.controller,
     this.onOpenTab,
     this.onCloseTab,
     this.optionsController,
     required this.tabBuilder,
   });
 
-  final DockerClientService docker;
-  final String? contextName;
-  final SshHost? remoteHost;
-  final RemoteShellService? shellService;
+  final DockerResourcesController controller;
   final void Function(WorkspaceTab tab)? onOpenTab;
   final void Function(String tabId)? onCloseTab;
   final TabOptionsController? optionsController;
@@ -46,18 +35,8 @@ class DockerResources extends StatefulWidget {
 
 class _DockerResourcesState extends State<DockerResources>
     with TabOptionsMixin {
-  Timer? _poller;
-  bool _loading = true;
-  String? _error;
-  List<DockerContainerStat> _stats = const [];
-  int _sortColumnIndex = 0;
-  bool _sortAscending = true;
-  final Map<String, List<double>> _cpuHistoryByContainer = {};
-  final Map<String, List<double>> _memPercentHistoryByContainer = {};
-  final Map<String, List<double>> _memUsageHistoryByContainer = {};
-  final Map<String, List<double>> _netIoHistoryByContainer = {};
-  final Map<String, List<double>> _blockIoHistoryByContainer = {};
-  static const _historyLimit = 60;
+  late final DockerResourcesController _controller;
+  late final VoidCallback _controllerListener;
   AppIcons get _icons => context.appTheme.icons;
   AppDockerTokens get _dockerTheme => context.appTheme.docker;
   bool _tabOptionsRegistered = false;
@@ -65,8 +44,13 @@ class _DockerResourcesState extends State<DockerResources>
   @override
   void initState() {
     super.initState();
-    _refreshStats(initial: true);
-    _startPolling();
+    _controller = widget.controller;
+    _controllerListener = () {
+      if (!mounted) return;
+      setState(() {});
+    };
+    _controller.addListener(_controllerListener);
+    _controller.initialize();
   }
 
   @override
@@ -90,39 +74,25 @@ class _DockerResourcesState extends State<DockerResources>
       TabChipOption(
         label: 'Refresh',
         icon: icons.refresh,
-        onSelected: _refreshStats,
+        onSelected: () => _controller.loadStats(),
       ),
     ]);
   }
 
   @override
   void dispose() {
-    _poller?.cancel();
+    _controller
+      ..removeListener(_controllerListener)
+      ..dispose();
     super.dispose();
-  }
-
-  void _startPolling() {
-    _poller?.cancel();
-    _poller = Timer.periodic(const Duration(seconds: 5), (_) {
-      _refreshStats();
-    });
-  }
-
-  Future<List<DockerContainerStat>> _load() async {
-    if (widget.remoteHost != null && widget.shellService != null) {
-      final output = await widget.shellService!.runCommand(
-        widget.remoteHost!,
-        "docker stats --no-stream --format '{{json .}}'",
-        timeout: const Duration(seconds: 8),
-      );
-      return _parseStats(output);
-    }
-    return widget.docker.listContainerStats(context: widget.contextName);
   }
 
   @override
   Widget build(BuildContext context) {
     final spacing = context.appTheme.spacing;
+    final loading = _controller.loading;
+    final error = _controller.error;
+    final stats = _sortedStats();
     return Padding(
       padding: EdgeInsets.all(spacing.md),
       child: Column(
@@ -130,11 +100,11 @@ class _DockerResourcesState extends State<DockerResources>
         children: [
           SizedBox(height: spacing.md),
           Expanded(
-            child: _loading
+            child: loading
                 ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                ? Center(child: Text('Failed to load stats: $_error'))
-                : _stats.isEmpty
+                : error != null
+                ? Center(child: Text('Failed to load stats: $error'))
+                : stats.isEmpty
                 ? const StandardEmptyState(message: 'No container stats found.')
                 : LayoutBuilder(
                     builder: (context, constraints) {
@@ -142,7 +112,7 @@ class _DockerResourcesState extends State<DockerResources>
                         children: [
                           _buildCharts(constraints.maxWidth),
                           SizedBox(height: spacing.xl),
-                          _buildContainerTable(constraints.maxWidth),
+                          _buildContainerTable(constraints.maxWidth, stats),
                         ],
                       );
                     },
@@ -153,28 +123,38 @@ class _DockerResourcesState extends State<DockerResources>
     );
   }
 
+  List<DockerContainerStat> _sortedStats() {
+    final stats = [..._controller.stats];
+    final comparator = _comparatorForColumn(_controller.sortColumnIndex);
+    stats.sort((a, b) {
+      final result = comparator(a, b);
+      return _controller.sortAscending ? result : -result;
+    });
+    return stats;
+  }
+
   Widget _buildCharts(double maxCardWidth) {
     final spacing = context.appTheme.spacing;
     final memUsageScaled = _scaleForBytes(
-      _seriesFromMap(_memUsageHistoryByContainer),
+      _seriesFromMap(_controller.memUsageHistoryByContainer),
     );
     final netIoScaled = _scaleForBytes(
-      _seriesFromMap(_netIoHistoryByContainer),
+      _seriesFromMap(_controller.netIoHistoryByContainer),
     );
     final blockIoScaled = _scaleForBytes(
-      _seriesFromMap(_blockIoHistoryByContainer),
+      _seriesFromMap(_controller.blockIoHistoryByContainer),
     );
     final charts = [
       (
         title: 'CPU %',
         subtitle: 'CPU percent by container',
-        series: _seriesFromMap(_cpuHistoryByContainer),
+        series: _seriesFromMap(_controller.cpuHistoryByContainer),
         unit: null,
       ),
       (
         title: 'Memory %',
         subtitle: 'Memory percent by container',
-        series: _seriesFromMap(_memPercentHistoryByContainer),
+        series: _seriesFromMap(_controller.memPercentHistoryByContainer),
         unit: null,
       ),
       (
@@ -217,7 +197,10 @@ class _DockerResourcesState extends State<DockerResources>
     );
   }
 
-  Widget _buildContainerTable(double maxCardWidth) {
+  Widget _buildContainerTable(
+    double maxCardWidth,
+    List<DockerContainerStat> stats,
+  ) {
     final spacing = context.appTheme.spacing;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -230,40 +213,46 @@ class _DockerResourcesState extends State<DockerResources>
             child: ConstrainedBox(
               constraints: BoxConstraints(minWidth: maxCardWidth),
               child: DataTable(
-                sortColumnIndex: _sortColumnIndex,
-                sortAscending: _sortAscending,
+                sortColumnIndex: _controller.sortColumnIndex,
+                sortAscending: _controller.sortAscending,
                 columns: [
                   DataColumn(
                     label: const Text('Container'),
-                    onSort: (index, ascending) => _sortStats(index, ascending),
+                    onSort: (index, ascending) =>
+                        _controller.setSort(index, ascending),
                   ),
                   DataColumn(
                     numeric: true,
                     label: const Text('CPU'),
-                    onSort: (index, ascending) => _sortStats(index, ascending),
+                    onSort: (index, ascending) =>
+                        _controller.setSort(index, ascending),
                   ),
                   DataColumn(
                     numeric: true,
                     label: const Text('Mem'),
-                    onSort: (index, ascending) => _sortStats(index, ascending),
+                    onSort: (index, ascending) =>
+                        _controller.setSort(index, ascending),
                   ),
                   DataColumn(
                     numeric: true,
                     label: const Text('Net I/O'),
-                    onSort: (index, ascending) => _sortStats(index, ascending),
+                    onSort: (index, ascending) =>
+                        _controller.setSort(index, ascending),
                   ),
                   DataColumn(
                     numeric: true,
                     label: const Text('Block I/O'),
-                    onSort: (index, ascending) => _sortStats(index, ascending),
+                    onSort: (index, ascending) =>
+                        _controller.setSort(index, ascending),
                   ),
                   DataColumn(
                     numeric: true,
                     label: const Text('PIDs'),
-                    onSort: (index, ascending) => _sortStats(index, ascending),
+                    onSort: (index, ascending) =>
+                        _controller.setSort(index, ascending),
                   ),
                 ],
-                rows: _stats
+                rows: stats
                     .map(
                       (stat) => DataRow(
                         cells: [
@@ -300,23 +289,6 @@ class _DockerResourcesState extends State<DockerResources>
     return double.tryParse(value);
   }
 
-  void _sortStats(int columnIndex, bool ascending) {
-    setState(() {
-      _sortColumnIndex = columnIndex;
-      _sortAscending = ascending;
-      _applySort();
-    });
-  }
-
-  void _applySort() {
-    final comparator = _comparatorForColumn(_sortColumnIndex);
-    _stats = [..._stats]
-      ..sort((a, b) {
-        final result = comparator(a, b);
-        return _sortAscending ? result : -result;
-      });
-  }
-
   int Function(DockerContainerStat a, DockerContainerStat b)
   _comparatorForColumn(int column) {
     switch (column) {
@@ -325,13 +297,20 @@ class _DockerResourcesState extends State<DockerResources>
       case 2:
         return (a, b) => _compareNum(_memPercent(a), _memPercent(b));
       case 3:
-        return (a, b) =>
-            _compareNum(_parseBytePair(a.netIO), _parseBytePair(b.netIO));
+        return (a, b) => _compareNum(
+          _controller.parseBytePair(a.netIO),
+          _controller.parseBytePair(b.netIO),
+        );
       case 4:
-        return (a, b) =>
-            _compareNum(_parseBytePair(a.blockIO), _parseBytePair(b.blockIO));
+        return (a, b) => _compareNum(
+          _controller.parseBytePair(a.blockIO),
+          _controller.parseBytePair(b.blockIO),
+        );
       case 5:
-        return (a, b) => _compareNum(_parsePid(a.pids), _parsePid(b.pids));
+        return (a, b) => _compareNum(
+          double.tryParse(a.pids) ?? 0,
+          double.tryParse(b.pids) ?? 0,
+        );
       case 0:
       default:
         return (a, b) =>
@@ -346,45 +325,11 @@ class _DockerResourcesState extends State<DockerResources>
     return a.compareTo(b);
   }
 
-  List<DockerContainerStat> _parseStats(String output) {
-    final items = <DockerContainerStat>[];
-    for (final line in const LineSplitter().convert(output)) {
-      final trimmed = line.trim();
-      if (trimmed.isEmpty) continue;
-      try {
-        final decoded = jsonDecode(trimmed);
-        if (decoded is Map<String, dynamic>) {
-          items.add(
-            DockerContainerStat(
-              id: (decoded['Container'] as String?)?.trim() ?? '',
-              name: (decoded['Name'] as String?)?.trim() ?? '',
-              cpu: (decoded['CPUPerc'] as String?)?.trim() ?? '',
-              memUsage: (decoded['MemUsage'] as String?)?.trim() ?? '',
-              memPercent: (decoded['MemPerc'] as String?)?.trim() ?? '',
-              netIO: (decoded['NetIO'] as String?)?.trim() ?? '',
-              blockIO: (decoded['BlockIO'] as String?)?.trim() ?? '',
-              pids: (decoded['PIDs'] as String?)?.trim() ?? '',
-            ),
-          );
-        }
-      } catch (error, stackTrace) {
-        AppLogger().warn(
-          'Failed to parse docker stats line',
-          tag: 'Docker',
-          error: error,
-          stackTrace: stackTrace,
-        );
-        continue;
-      }
-    }
-    return items;
-  }
-
   void _openStatsTab() {
     if (widget.onOpenTab == null) return;
-    final contextFlag =
-        widget.contextName != null && widget.contextName!.isNotEmpty
-        ? '--context ${widget.contextName!} '
+    final contextName = _controller.contextName;
+    final contextFlag = contextName != null && contextName.isNotEmpty
+        ? '--context $contextName '
         : '';
     final command =
         'docker ${contextFlag}stats --no-stream --format "{{json .}}"; exit';
@@ -396,120 +341,12 @@ class _DockerResourcesState extends State<DockerResources>
         label: 'docker stats',
         command: command,
         icon: NerdIcon.terminal.data,
-        host: widget.remoteHost,
-        shellService: widget.shellService,
+        host: _controller.remoteHost,
+        shellService: _controller.shellService,
         onExit: () => widget.onCloseTab?.call(tabId),
       ),
     );
   }
-
-  Future<void> _refreshStats({bool initial = false}) async {
-    if (initial) {
-      setState(() {
-        _loading = true;
-        _error = null;
-      });
-    }
-    try {
-      final stats = await _load();
-      setState(() {
-        _stats = stats;
-        _error = null;
-        _loading = false;
-        for (final stat in stats) {
-          final name = _nameOf(stat);
-          _appendHistoryFor(
-            _cpuHistoryByContainer,
-            name,
-            _cpuPercent(stat) ?? 0,
-          );
-          _appendHistoryFor(
-            _memPercentHistoryByContainer,
-            name,
-            _memPercent(stat) ?? 0,
-          );
-          _appendHistoryFor(
-            _memUsageHistoryByContainer,
-            name,
-            _parseBytes(stat.memUsage) ?? 0,
-          );
-          _appendHistoryFor(
-            _netIoHistoryByContainer,
-            name,
-            _parseBytePair(stat.netIO),
-          );
-          _appendHistoryFor(
-            _blockIoHistoryByContainer,
-            name,
-            _parseBytePair(stat.blockIO),
-          );
-        }
-        _applySort();
-      });
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Failed to refresh docker stats',
-        tag: 'Docker',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      setState(() {
-        _error = error.toString();
-        _loading = false;
-      });
-    }
-  }
-
-  void _appendHistoryFor(
-    Map<String, List<double>> map,
-    String key,
-    double value,
-  ) {
-    final list = map.putIfAbsent(key, () => <double>[]);
-    list.add(value);
-    if (list.length > _historyLimit) {
-      list.removeAt(0);
-    }
-  }
-
-  double? _parseBytes(String value) {
-    final used = value.split('/').first.trim();
-    return _parseByteValue(used);
-  }
-
-  double _parseBytePair(String value) {
-    final parts = value.split('/');
-    final double first = parts.isNotEmpty
-        ? (_parseByteValue(parts[0].trim()) ?? 0)
-        : 0;
-    final double second = parts.length > 1
-        ? (_parseByteValue(parts[1].trim()) ?? 0)
-        : 0;
-    return first + second;
-  }
-
-  double? _parseByteValue(String value) {
-    final match = RegExp(
-      r'([0-9]+(?:\.[0-9]+)?)\s*([A-Za-z]+)?',
-    ).firstMatch(value.trim());
-    if (match == null) return null;
-    final number = double.tryParse(match.group(1) ?? '');
-    if (number == null) return null;
-    final unit = (match.group(2) ?? 'B').toLowerCase();
-    const multipliers = {
-      'b': 1,
-      'kb': 1024,
-      'kib': 1024,
-      'mb': 1024 * 1024,
-      'mib': 1024 * 1024,
-      'gb': 1024 * 1024 * 1024,
-      'gib': 1024 * 1024 * 1024,
-    };
-    final multiplier = multipliers[unit] ?? 1;
-    return number * multiplier;
-  }
-
-  double _parsePid(String value) => double.tryParse(value) ?? 0;
 
   Widget _lineChartCard({
     required String title,

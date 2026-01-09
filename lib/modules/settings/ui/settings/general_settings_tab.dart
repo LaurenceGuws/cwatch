@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
+import 'package:cwatch/app/controllers/settings_controller.dart';
 import 'package:cwatch/models/app_settings.dart';
-import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/models/input_mode_preference.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_definition.dart';
 import 'package:cwatch/shared/widgets/form_spacer.dart';
@@ -33,7 +33,7 @@ class GeneralSettingsTab extends StatelessWidget {
   });
 
   final AppSettings settings;
-  final AppSettingsController settingsController;
+  final SettingsController settingsController;
   final ThemeMode selectedTheme;
   final bool debugMode;
   final double zoomFactor;

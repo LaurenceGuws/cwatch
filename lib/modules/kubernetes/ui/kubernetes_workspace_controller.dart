@@ -5,7 +5,7 @@ import 'package:cwatch/core/workspace/persistent_workspace_controller.dart';
 import 'package:cwatch/core/workspace/workspace_tab.dart';
 import 'package:cwatch/models/app_settings.dart';
 import 'package:cwatch/models/kubernetes_workspace_state.dart';
-import 'package:cwatch/services/kubernetes/kubeconfig_service.dart';
+import 'package:cwatch/models/kubernetes/kubeconfig_context.dart';
 import 'kubernetes_tab_builder.dart';
 
 class KubernetesWorkspaceController

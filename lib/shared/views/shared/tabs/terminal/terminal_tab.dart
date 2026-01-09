@@ -4,7 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
-import 'package:cwatch/services/ssh/terminal_session.dart';
+
+import 'package:cwatch/app/adapters/terminal_ui_adapter.dart';
+import 'package:cwatch/app/controllers/terminal_session_controller.dart';
+import 'package:cwatch/ui/bindings/terminal_tab_binding.dart';
 
 import '../../../../../models/app_settings.dart';
 import '../../../../../models/ssh_host.dart';
@@ -52,15 +55,16 @@ class TerminalTab extends StatefulWidget {
 }
 
 class _TerminalTabState extends State<TerminalTab> {
+  final TerminalTabBinding _binding = const TerminalTabBinding();
   final TerminalController _controller = TerminalController();
   final Terminal _terminal = Terminal(maxLines: 1000);
   final FocusNode _focusNode = FocusNode();
+  late TerminalSessionController _sessionController;
+  late TerminalUiAdapter _uiAdapter;
   bool get _isMobile =>
       defaultTargetPlatform == TargetPlatform.android ||
       defaultTargetPlatform == TargetPlatform.iOS;
   late final MobileFocusManager _mobileFocus;
-  TerminalSession? _pty;
-  StreamSubscription<String>? _outputSub;
   bool _connecting = true;
   String? _error;
   bool _closing = false;
@@ -73,6 +77,11 @@ class _TerminalTabState extends State<TerminalTab> {
   @override
   void initState() {
     super.initState();
+    _sessionController = _binding.createSessionController(
+      host: widget.host,
+      shellService: widget.shellService,
+    );
+    _uiAdapter = _binding.createUiAdapter(context: context);
     _attachTerminalHandlers();
     _mobileFocus = MobileFocusManager(
       focusNode: _focusNode,
@@ -95,6 +104,7 @@ class _TerminalTabState extends State<TerminalTab> {
   void dispose() {
     _closing = true;
     _resetSession();
+    _sessionController.dispose();
     _controller.dispose();
     _mobileFocus.detach();
     _focusNode.dispose();
@@ -128,18 +138,10 @@ class _TerminalTabState extends State<TerminalTab> {
     _terminal.buffer.setCursor(0, 0);
 
     try {
-      final session = await widget.shellService.createTerminalSession(
-        widget.host,
+      await _sessionController.start(
         options: _terminalSessionOptions(),
-      );
-      _pty = session;
-      _applyTerminalSizeToSession();
-      _outputSub?.cancel();
-      _outputSub = const Utf8Decoder(
-        allowMalformed: true,
-      ).bind(session.output).listen(_handlePtyText);
-      unawaited(
-        session.exitCode.then((code) {
+        onOutput: _handlePtyText,
+        onExit: (code) {
           if (!mounted || _closing || token != _sessionToken) return;
           if (code != 0) {
             _terminal.write('\r\nProcess exited with code $code\r\n');
@@ -147,21 +149,22 @@ class _TerminalTabState extends State<TerminalTab> {
           }
           _closing = true;
           widget.onExit?.call();
-        }),
+        },
       );
+      _applyTerminalSizeToSession();
 
       _terminal.textInput('clear');
       _terminal.keyInput(TerminalKey.enter);
       await _sendInitialDirectory();
       if (!mounted) {
-        session.kill();
+        _sessionController.reset();
         return;
       }
       setState(() {
         _connecting = false;
       });
     } catch (error, stack) {
-      _pty?.kill();
+      _sessionController.reset();
       AppLogger().warn(
         'Terminal session failed',
         tag: 'Terminal',
@@ -199,7 +202,7 @@ class _TerminalTabState extends State<TerminalTab> {
     if (bytes.isEmpty) {
       return;
     }
-    _pty?.write(Uint8List.fromList(bytes));
+    _sessionController.write(Uint8List.fromList(bytes));
   }
 
   void _onTerminalResize(
@@ -208,20 +211,16 @@ class _TerminalTabState extends State<TerminalTab> {
     int pixelWidth,
     int pixelHeight,
   ) {
-    _pty?.resize(rows, columns);
+    _sessionController.resize(rows, columns);
   }
 
   void _applyTerminalSizeToSession() {
-    final session = _pty;
-    if (session == null) {
-      return;
-    }
     final rows = _terminal.viewHeight;
     final columns = _terminal.viewWidth;
     if (rows <= 0 || columns <= 0) {
       return;
     }
-    session.resize(rows, columns);
+    _sessionController.resize(rows, columns);
   }
 
   void _attachTerminalHandlers() {
@@ -237,10 +236,7 @@ class _TerminalTabState extends State<TerminalTab> {
   }
 
   void _resetSession() {
-    _pty?.kill();
-    _pty = null;
-    _outputSub?.cancel();
-    _outputSub = null;
+    _sessionController.reset();
   }
 
   void _updateTabOptions() {
@@ -355,12 +351,11 @@ class _TerminalTabState extends State<TerminalTab> {
     if (text.isEmpty) {
       return;
     }
-    await Clipboard.setData(ClipboardData(text: text));
+    await _uiAdapter.copyToClipboard(text);
   }
 
   Future<void> _pasteFromClipboard() async {
-    final data = await Clipboard.getData('text/plain');
-    final text = data?.text;
+    final text = await _uiAdapter.readClipboardText();
     if (text == null || text.isEmpty) {
       return;
     }

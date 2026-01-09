@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:cwatch/app/controllers/settings_controller.dart';
 import 'package:cwatch/models/app_settings.dart';
-import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_definition.dart';
 import 'settings_section.dart';
 import 'shortcuts_settings_tab.dart';
@@ -15,7 +15,7 @@ class ExplorerSettingsTab extends StatelessWidget {
   });
 
   final AppSettings settings;
-  final AppSettingsController settingsController;
+  final SettingsController settingsController;
 
   @override
   Widget build(BuildContext context) {

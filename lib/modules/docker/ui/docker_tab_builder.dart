@@ -15,8 +15,10 @@ import 'package:cwatch/shared/views/shared/tabs/editor/remote_file_editor_loader
 import 'package:cwatch/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart';
 import 'package:cwatch/shared/views/shared/tabs/file_explorer/trash_tab.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
+import 'package:cwatch/ui/bindings/docker_command_terminal_binding.dart';
 import 'widgets/docker_command_terminal.dart';
 import 'widgets/docker_overview.dart';
+import 'package:cwatch/ui/bindings/docker_resources_binding.dart';
 import 'widgets/docker_resources.dart';
 
 class DockerTabBuilder {
@@ -26,6 +28,7 @@ class DockerTabBuilder {
     required this.trashManager,
     required this.keyService,
     required this.portForwardService,
+    required this.hostsFuture,
   });
 
   final DockerClientService docker;
@@ -33,6 +36,7 @@ class DockerTabBuilder {
   final ExplorerTrashManager trashManager;
   final BuiltInSshKeyService keyService;
   final PortForwardService portForwardService;
+  final Future<List<SshHost>> hostsFuture;
 
   WorkspaceTab overview({
     required String id,
@@ -99,11 +103,14 @@ class DockerTabBuilder {
     required void Function(String id) onCloseTab,
   }) {
     final controller = TabOptionsController();
-    final body = DockerResources(
+    final resourcesController = const DockerResourcesBinding().create(
       docker: docker,
       contextName: contextName,
       remoteHost: remoteHost,
       shellService: shellService,
+    );
+    final body = DockerResources(
+      controller: resourcesController,
       onOpenTab: onOpenTab,
       onCloseTab: onCloseTab,
       optionsController: controller,
@@ -164,6 +171,8 @@ class DockerTabBuilder {
         explorerContext: explorerContext,
         shellService: shellService,
         settingsController: settingsController,
+        keyService: keyService,
+        hostsFuture: hostsFuture,
         trashManager: trashManager,
         initialPath: initialPath,
         onPathChanged: onPathChanged,
@@ -243,6 +252,8 @@ class DockerTabBuilder {
         shellService: shellService,
         path: path,
         settingsController: settingsController,
+        keyService: keyService,
+        hostsFuture: hostsFuture,
         optionsController: controller,
         initialContent: initialContent,
       ),
@@ -292,15 +303,18 @@ class DockerTabBuilder {
       canDrag: true,
       canRename: true,
       body: DockerCommandTerminal(
-        command: command,
+        controller: const DockerCommandTerminalBinding().create(
+          command: command,
+          host: host,
+          shellService: shellService,
+        ),
         title: title,
-        host: host,
-        shellService: shellService,
         settingsController: settingsController,
         onExit: onExit,
         optionsController: controller,
         onOpenEditorTab: onOpenEditorTab,
       ),
+
       workspaceState: DockerTabData(
         kind: kind,
         persistedState: TabState(
@@ -350,8 +364,8 @@ class DockerTabBuilder {
         composeBase: composeBase,
         project: project,
         services: services,
-        host: host,
-        shellService: shellService,
+        controllerBuilder: (command) => const DockerCommandTerminalBinding()
+            .create(command: command, host: host, shellService: shellService),
         onExit: onExit,
         optionsController: controller,
         tailLines: tailLines,

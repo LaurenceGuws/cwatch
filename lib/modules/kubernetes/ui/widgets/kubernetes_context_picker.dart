@@ -1,18 +1,19 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 
-import 'package:cwatch/services/kubernetes/kubeconfig_service.dart';
+import 'package:cwatch/models/kubernetes/kubeconfig_context.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
-import 'package:cwatch/shared/views/shared/tabs/file_explorer/external_app_launcher.dart';
+import 'package:cwatch/app/adapters/external_app_launcher.dart';
+import 'package:cwatch/app/adapters/kubernetes_ui_adapter.dart';
 import 'package:cwatch/shared/widgets/data_table/structured_data_table.dart';
 import 'package:cwatch/shared/widgets/lists/section_list.dart';
+import 'package:cwatch/ui/bindings/kubernetes_context_binding.dart';
 
-import '../kubernetes_context_controller.dart';
+import 'package:cwatch/app/controllers/kubernetes_context_controller.dart';
 
 class KubernetesContextPicker extends StatefulWidget {
   const KubernetesContextPicker({
@@ -38,10 +39,19 @@ class KubernetesContextPicker extends StatefulWidget {
 }
 
 class _KubernetesContextPickerState extends State<KubernetesContextPicker> {
-  final KubernetesContextController _contextController =
-      KubernetesContextController();
+  final KubernetesContextBinding _contextBinding =
+      const KubernetesContextBinding();
+  late final KubernetesContextController _contextController;
+  late final KubernetesUiAdapter _uiAdapter;
   final Map<String, bool> _collapsedByConfigPath = {};
   final Set<String> _selectedContextKeys = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _contextController = _contextBinding.create();
+    _uiAdapter = KubernetesUiAdapter(context: context);
+  }
 
   String _contextSelectionKey(KubeconfigContext ctx) =>
       '${ctx.configPath}|${ctx.name}';
@@ -57,13 +67,7 @@ class _KubernetesContextPickerState extends State<KubernetesContextPicker> {
     return selected.isEmpty ? [fallback] : selected;
   }
 
-  Future<void> _copyText(String text) async {
-    await Clipboard.setData(ClipboardData(text: text));
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Copied to clipboard')));
-  }
+  Future<void> _copyText(String text) => _uiAdapter.copyToClipboard(text);
 
   @override
   Widget build(BuildContext context) {

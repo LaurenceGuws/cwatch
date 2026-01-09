@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
 
+import 'package:cwatch/app/adapters/settings_ui_adapter.dart';
+import 'package:cwatch/app/controllers/settings_controller.dart';
+import 'package:cwatch/core/navigation/command_palette_registry.dart';
+import 'package:cwatch/core/navigation/tab_navigation_registry.dart';
 import 'package:cwatch/models/ssh_host.dart';
-import 'package:cwatch/services/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
+import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
+import 'package:cwatch/services/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/widgets/section_nav_bar.dart';
-import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
-import 'package:cwatch/core/navigation/tab_navigation_registry.dart';
-import 'package:cwatch/core/navigation/command_palette_registry.dart';
+import 'package:cwatch/ui/bindings/settings_binding.dart';
 import 'container_settings_tabs.dart';
+import 'editor_settings_tab.dart';
+import 'explorer_settings_tab.dart';
 import 'general_settings_tab.dart';
 import 'servers_settings_tab.dart';
-import 'editor_settings_tab.dart';
 import 'terminal_settings_tab.dart';
-import 'explorer_settings_tab.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({
@@ -37,6 +40,9 @@ class SettingsView extends StatefulWidget {
 
 class _SettingsViewState extends State<SettingsView>
     with SingleTickerProviderStateMixin {
+  final SettingsBinding _binding = const SettingsBinding();
+  late final SettingsUiAdapter _uiAdapter;
+  late final SettingsController _controller;
   late final TabController _tabController;
   late final VoidCallback _settingsListener;
   late final TabNavigationHandle _tabNavigator;
@@ -65,6 +71,13 @@ class _SettingsViewState extends State<SettingsView>
   @override
   void initState() {
     super.initState();
+    _uiAdapter = _binding.createUiAdapter(context: context);
+    _controller = _binding.createController(
+      settingsController: widget.controller,
+      hostsFuture: widget.hostsFuture,
+      keyService: widget.keyService,
+      uiAdapter: _uiAdapter,
+    );
     _tabController = TabController(length: _tabs.length, vsync: this);
     _tabNavigator = TabNavigationHandle(
       next: () {
@@ -89,7 +102,7 @@ class _SettingsViewState extends State<SettingsView>
     CommandPaletteRegistry.instance.register('settings', _commandPaletteHandle);
     _tabController.addListener(_handleTabChanged);
     _settingsListener = _syncTabFromSettings;
-    widget.controller.addListener(_settingsListener);
+    _controller.addListener(_settingsListener);
     _syncTabFromSettings();
   }
 
@@ -100,7 +113,8 @@ class _SettingsViewState extends State<SettingsView>
       'settings',
       _commandPaletteHandle,
     );
-    widget.controller.removeListener(_settingsListener);
+    _controller.removeListener(_settingsListener);
+    _controller.dispose();
     _tabController.removeListener(_handleTabChanged);
     _tabController.dispose();
     super.dispose();
@@ -126,9 +140,9 @@ class _SettingsViewState extends State<SettingsView>
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: widget.controller,
+      animation: _controller,
       builder: (context, _) {
-        final settings = widget.controller.settings;
+        final settings = _controller.settings;
         return Column(
           children: [
             SectionNavBar(
@@ -141,49 +155,44 @@ class _SettingsViewState extends State<SettingsView>
               enableWindowDrag: !settings.windowUseSystemDecorations,
             ),
             Expanded(
-              child: widget.controller.isLoaded
+              child: _controller.isLoaded
                   ? TabBarView(
                       controller: _tabController,
                       children: [
                         GeneralSettingsTab(
                           settings: settings,
-                          settingsController: widget.controller,
+                          settingsController: _controller,
                           selectedTheme: settings.themeMode,
                           debugMode: settings.debugMode,
                           zoomFactor: settings.zoomFactor,
-                          onThemeChanged: (mode) => widget.controller.update(
+                          onThemeChanged: (mode) => _controller.update(
                             (current) => current.copyWith(themeMode: mode),
                           ),
-                          onDebugModeChanged: (value) =>
-                              widget.controller.update(
-                                (current) => current.copyWith(debugMode: value),
-                              ),
-                          onZoomChanged: (value) => widget.controller.update(
+                          onDebugModeChanged: (value) => _controller.update(
+                            (current) => current.copyWith(debugMode: value),
+                          ),
+                          onZoomChanged: (value) => _controller.update(
                             (current) => current.copyWith(zoomFactor: value),
                           ),
                           appFontFamily: settings.appFontFamily,
-                          onAppFontFamilyChanged: (value) =>
-                              widget.controller.update(
-                                (current) => current.copyWith(
-                                  appFontFamily: value.trim().isEmpty
-                                      ? null
-                                      : value.trim(),
-                                ),
-                              ),
+                          onAppFontFamilyChanged: (value) => _controller.update(
+                            (current) => current.copyWith(
+                              appFontFamily: value.trim().isEmpty
+                                  ? null
+                                  : value.trim(),
+                            ),
+                          ),
                           appThemeKey: settings.appThemeKey,
-                          onAppThemeChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(appThemeKey: value),
-                              ),
+                          onAppThemeChanged: (value) => _controller.update(
+                            (current) => current.copyWith(appThemeKey: value),
+                          ),
                           uiDensity: settings.uiDensity,
-                          onUiDensityChanged: (value) =>
-                              widget.controller.update(
-                                (current) => current.copyWith(uiDensity: value),
-                              ),
+                          onUiDensityChanged: (value) => _controller.update(
+                            (current) => current.copyWith(uiDensity: value),
+                          ),
                           inputModePreference: settings.inputModePreference,
                           onInputModePreferenceChanged: (value) =>
-                              widget.controller.update(
+                              _controller.update(
                                 (current) => current.copyWith(
                                   inputModePreference: value,
                                 ),
@@ -191,29 +200,26 @@ class _SettingsViewState extends State<SettingsView>
                         ),
                         ExplorerSettingsTab(
                           settings: settings,
-                          settingsController: widget.controller,
+                          settingsController: _controller,
                         ),
                         ServersSettingsTab(
                           key: const ValueKey('servers_settings_tab'),
-                          controller: widget.controller,
-                          hostsFuture: widget.hostsFuture,
-                          keyService: widget.keyService,
+                          controller: _controller,
                         ),
                         DockerSettingsTab(
                           logsTail: settings.dockerLogsTailClamped,
-                          onLogsTailChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(dockerLogsTail: value),
-                              ),
+                          onLogsTailChanged: (value) => _controller.update(
+                            (current) =>
+                                current.copyWith(dockerLogsTail: value),
+                          ),
                         ),
                         KubernetesSettingsTab(
                           settings: settings,
-                          settingsController: widget.controller,
+                          settingsController: _controller,
                         ),
                         TerminalSettingsTab(
                           settings: settings,
-                          settingsController: widget.controller,
+                          settingsController: _controller,
                           fontFamily: settings.terminalFontFamily,
                           fontSize: settings.terminalFontSize,
                           lineHeight: settings.terminalLineHeight,
@@ -221,81 +227,69 @@ class _SettingsViewState extends State<SettingsView>
                           paddingY: settings.terminalPaddingY,
                           darkTheme: settings.terminalThemeDark,
                           lightTheme: settings.terminalThemeLight,
-                          onFontFamilyChanged: (value) =>
-                              widget.controller.update(
-                                (current) => current.copyWith(
-                                  terminalFontFamily: value.trim().isEmpty
-                                      ? null
-                                      : value.trim(),
-                                ),
-                              ),
-                          onFontSizeChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(terminalFontSize: value),
-                              ),
-                          onLineHeightChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(terminalLineHeight: value),
-                              ),
-                          onPaddingXChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(terminalPaddingX: value),
-                              ),
-                          onPaddingYChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(terminalPaddingY: value),
-                              ),
-                          onDarkThemeChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(terminalThemeDark: value),
-                              ),
-                          onLightThemeChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(terminalThemeLight: value),
-                              ),
+                          onFontFamilyChanged: (value) => _controller.update(
+                            (current) => current.copyWith(
+                              terminalFontFamily: value.trim().isEmpty
+                                  ? null
+                                  : value.trim(),
+                            ),
+                          ),
+                          onFontSizeChanged: (value) => _controller.update(
+                            (current) =>
+                                current.copyWith(terminalFontSize: value),
+                          ),
+                          onLineHeightChanged: (value) => _controller.update(
+                            (current) =>
+                                current.copyWith(terminalLineHeight: value),
+                          ),
+                          onPaddingXChanged: (value) => _controller.update(
+                            (current) =>
+                                current.copyWith(terminalPaddingX: value),
+                          ),
+                          onPaddingYChanged: (value) => _controller.update(
+                            (current) =>
+                                current.copyWith(terminalPaddingY: value),
+                          ),
+                          onDarkThemeChanged: (value) => _controller.update(
+                            (current) =>
+                                current.copyWith(terminalThemeDark: value),
+                          ),
+                          onLightThemeChanged: (value) => _controller.update(
+                            (current) =>
+                                current.copyWith(terminalThemeLight: value),
+                          ),
                         ),
                         EditorSettingsTab(
                           settings: settings,
-                          settingsController: widget.controller,
+                          settingsController: _controller,
                           fontFamily: settings.editorFontFamily,
                           fontSize: settings.editorFontSize,
                           lineHeight: settings.editorLineHeight,
-                          onFontFamilyChanged: (value) =>
-                              widget.controller.update(
-                                (current) => current.copyWith(
-                                  editorFontFamily: value.trim().isEmpty
-                                      ? null
-                                      : value.trim(),
-                                ),
-                              ),
-                          onFontSizeChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(editorFontSize: value),
-                              ),
-                          onLineHeightChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(editorLineHeight: value),
-                              ),
+                          onFontFamilyChanged: (value) => _controller.update(
+                            (current) => current.copyWith(
+                              editorFontFamily: value.trim().isEmpty
+                                  ? null
+                                  : value.trim(),
+                            ),
+                          ),
+                          onFontSizeChanged: (value) => _controller.update(
+                            (current) =>
+                                current.copyWith(editorFontSize: value),
+                          ),
+                          onLineHeightChanged: (value) => _controller.update(
+                            (current) =>
+                                current.copyWith(editorLineHeight: value),
+                          ),
                           lightTheme: settings.editorThemeLight,
                           darkTheme: settings.editorThemeDark,
-                          onLightThemeChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(editorThemeLight: value),
-                              ),
-                          onDarkThemeChanged: (value) =>
-                              widget.controller.update(
-                                (current) =>
-                                    current.copyWith(editorThemeDark: value),
-                              ),
+                          onLightThemeChanged: (value) => _controller.update(
+                            (current) =>
+                                current.copyWith(editorThemeLight: value),
+                          ),
+                          onDarkThemeChanged: (value) => _controller.update(
+                            (current) =>
+                                current.copyWith(editorThemeDark: value),
+                          ),
                         ),
                       ],
                     )
@@ -308,10 +302,10 @@ class _SettingsViewState extends State<SettingsView>
   }
 
   void _syncTabFromSettings() {
-    if (!widget.controller.isLoaded) {
+    if (!_controller.isLoaded) {
       return;
     }
-    final target = widget.controller.settings.settingsTabIndex.clamp(
+    final target = _controller.settings.settingsTabIndex.clamp(
       0,
       _tabs.length - 1,
     );
@@ -325,11 +319,9 @@ class _SettingsViewState extends State<SettingsView>
       return;
     }
     final index = _tabController.index;
-    if (widget.controller.settings.settingsTabIndex == index) {
+    if (_controller.settings.settingsTabIndex == index) {
       return;
     }
-    widget.controller.update(
-      (current) => current.copyWith(settingsTabIndex: index),
-    );
+    _controller.update((current) => current.copyWith(settingsTabIndex: index));
   }
 }

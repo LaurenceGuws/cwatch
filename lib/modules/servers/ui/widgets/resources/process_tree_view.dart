@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:cwatch/app/adapters/process_tree_ui_adapter.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'resource_models.dart';
 
@@ -40,6 +41,7 @@ class ProcessTreeView extends StatefulWidget {
 }
 
 class _ProcessTreeViewState extends State<ProcessTreeView> {
+  late final ProcessTreeUiAdapter _uiAdapter;
   final Set<int> _collapsedPids = {};
   int? _selectedPid;
   ProcessSortColumn _sortColumn = ProcessSortColumn.cpu;
@@ -50,6 +52,7 @@ class _ProcessTreeViewState extends State<ProcessTreeView> {
   @override
   void initState() {
     super.initState();
+    _uiAdapter = ProcessTreeUiAdapter(context: context);
     widget.controller?._attach(
       expandAll: _expandAll,
       collapseAll: _collapseAll,
@@ -290,9 +293,7 @@ class _ProcessTreeViewState extends State<ProcessTreeView> {
   }
 
   void _showSnack(BuildContext context, String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    _uiAdapter.showSnackBar(message);
   }
 
   void _handleSort(ProcessSortColumn column) {

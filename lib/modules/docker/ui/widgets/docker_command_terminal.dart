@@ -4,17 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:xterm/xterm.dart';
-import 'package:cwatch/services/ssh/terminal_session.dart';
 
+import 'package:cwatch/app/adapters/terminal_ui_adapter.dart';
+import 'package:cwatch/app/controllers/docker_command_terminal_controller.dart';
 import 'package:cwatch/models/app_settings.dart';
 import 'package:cwatch/models/input_mode_preference.dart';
-import 'package:cwatch/models/ssh_host.dart';
-import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
-import 'package:cwatch/services/logging/app_logger.dart';
+import 'package:cwatch/services/ssh/remote_shell_base.dart';
 import 'package:cwatch/shared/gestures/gesture_activators.dart';
 import 'package:cwatch/shared/gestures/gesture_service.dart';
-import 'package:cwatch/shared/shell/local_shell.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_actions.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_resolver.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_service.dart';
@@ -30,10 +28,8 @@ import 'package:cwatch/shared/views/shared/tabs/terminal/terminal_theme_presets.
 class DockerCommandTerminal extends StatefulWidget {
   const DockerCommandTerminal({
     super.key,
-    required this.command,
+    required this.controller,
     required this.title,
-    this.host,
-    this.shellService,
     this.settingsController,
     this.showCopyButton = true,
     this.autofocus = true,
@@ -42,9 +38,7 @@ class DockerCommandTerminal extends StatefulWidget {
     this.onOpenEditorTab,
   });
 
-  final SshHost? host;
-  final RemoteShellService? shellService;
-  final String command;
+  final DockerCommandTerminalController controller;
   final String title;
   final AppSettingsController? settingsController;
   final bool showCopyButton;
@@ -58,39 +52,39 @@ class DockerCommandTerminal extends StatefulWidget {
 }
 
 class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
-  final TerminalController _controller = TerminalController();
+  final TerminalController _terminalController = TerminalController();
   final Terminal _terminal = Terminal(maxLines: 1000);
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
+  late DockerCommandTerminalController _sessionController;
+  late final TerminalUiAdapter _uiAdapter;
+  late final VoidCallback _sessionListener;
   bool get _isMobile =>
       defaultTargetPlatform == TargetPlatform.android ||
       defaultTargetPlatform == TargetPlatform.iOS;
   ShortcutSubscription? _shortcutSub;
   GestureSubscription? _gestureSub;
   VoidCallback? _settingsListener;
-  TerminalSession? _pty;
-  StreamSubscription<String>? _outputSub;
-  bool _connecting = true;
-  String? _error;
-  final StringBuffer _outputBuffer = StringBuffer();
-  int _sessionToken = 0;
   String? _lastSelectionSignature;
   double? _lastLoggedScroll;
   late final MobileFocusManager _mobileFocus;
-  static const _shellResolver = LocalShellResolver();
-
-  LocalShellDefinition get _localShell =>
-      _shellResolver.forPlatform(defaultTargetPlatform);
 
   @override
   void initState() {
     super.initState();
+    _sessionController = widget.controller;
+    _uiAdapter = TerminalUiAdapter(context: context);
+    _sessionListener = () {
+      if (!mounted) return;
+      setState(() {});
+    };
+    _sessionController.addListener(_sessionListener);
     _mobileFocus = MobileFocusManager(
       focusNode: _focusNode,
       isMobile: _isMobile,
     );
     _mobileFocus.attach();
-    _controller.addListener(_logSelectionChange);
+    _terminalController.addListener(_logSelectionChange);
     _scrollController.addListener(_logScrollChange);
     _configureInputMode();
     if (widget.settingsController != null) {
@@ -107,13 +101,14 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
 
   @override
   void dispose() {
-    _pty?.kill();
-    _outputSub?.cancel();
+    _sessionController
+      ..removeListener(_sessionListener)
+      ..dispose();
     _mobileFocus.detach();
-    _controller.removeListener(_logSelectionChange);
+    _terminalController.removeListener(_logSelectionChange);
     _scrollController.removeListener(_logScrollChange);
     _scrollController.dispose();
-    _controller.dispose();
+    _terminalController.dispose();
     _shortcutSub?.dispose();
     _gestureSub?.dispose();
     _focusNode.dispose();
@@ -126,7 +121,10 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   @override
   void didUpdateWidget(covariant DockerCommandTerminal oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.command != widget.command || oldWidget.host != widget.host) {
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_sessionListener);
+      _sessionController = widget.controller;
+      _sessionController.addListener(_sessionListener);
       _start();
     }
     if (oldWidget.optionsController != widget.optionsController ||
@@ -136,61 +134,26 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   }
 
   Future<void> _start() async {
-    _sessionToken += 1;
-    final token = _sessionToken;
-    setState(() {
-      _connecting = true;
-      _error = null;
-      _outputBuffer.clear();
-    });
     _terminal.onOutput = _onOutput;
     _terminal.onResize = _onResize;
     _terminal.buffer.clear();
     try {
       final options = _sessionOptions();
-      final session = widget.host != null && widget.shellService != null
-          ? await widget.shellService!.createTerminalSession(
-              widget.host!,
-              options: options,
-            )
-          : LocalPtySession(
-              executable: _localShell.executable,
-              arguments: _localShell.arguments,
-              cols: options.columns,
-              rows: options.rows,
-            );
-
-      if (token != _sessionToken) {
-        session.kill();
-        return;
-      }
-      _pty = session;
-      _outputSub?.cancel();
-      _outputSub = const Utf8Decoder(
-        allowMalformed: true,
-      ).bind(session.output).listen(_handlePtyText);
-      unawaited(
-        session.exitCode.then((_) {
-          if (!mounted || token != _sessionToken) return;
+      await _sessionController.start(
+        options: options,
+        onOutput: (text) {
+          if (text.isEmpty) return;
+          _terminal.write(text);
+          _logSelectionChange();
+        },
+        onExit: () {
+          if (!mounted) return;
           widget.onExit?.call();
-        }),
+        },
       );
-
-      // Send the command into the PTY after the session is ready.
-      _terminal.textInput('${widget.command}\n');
-      setState(() => _connecting = false);
+      _sessionController.writeCommand(_sessionController.command);
       _updateTabOptions();
-    } catch (error, stack) {
-      AppLogger().warn(
-        'Docker command terminal failed',
-        tag: 'DockerTerminal',
-        error: error,
-        stackTrace: stack,
-      );
-      setState(() {
-        _connecting = false;
-        _error = error.toString();
-      });
+    } catch (_) {
       _updateTabOptions();
     }
   }
@@ -204,47 +167,35 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     return TerminalSessionOptions(columns: columns, rows: rows);
   }
 
-  void _handlePtyText(String text) {
-    if (text.isEmpty) return;
-    _terminal.write(text);
-    _outputBuffer.write(text);
-    _logSelectionChange();
-  }
-
   void _onOutput(String value) {
     final bytes = utf8.encode(value);
     if (bytes.isEmpty) return;
-    _pty?.write(Uint8List.fromList(bytes));
-    _outputBuffer.write(value);
+    _sessionController.write(Uint8List.fromList(bytes));
     _logSelectionChange();
   }
 
   void _onResize(int columns, int rows, int pixelWidth, int pixelHeight) {
     if (columns <= 0 || rows <= 0) return;
-    _pty?.resize(rows, columns);
+    _sessionController.resize(rows, columns);
   }
 
   Future<void> _copyOutput() async {
-    final selection = _controller.selection;
+    final selection = _terminalController.selection;
     if (selection != null) {
       final selected = _terminal.buffer.getText(selection);
       final cleaned = _stripAnsi(selected);
       if (cleaned.trim().isEmpty) return;
-      await Clipboard.setData(ClipboardData(text: cleaned));
+      await _uiAdapter.copyToClipboard(cleaned);
     } else {
-      if (_outputBuffer.isEmpty) return;
-      final plain = _stripAnsi(_outputBuffer.toString());
-      await Clipboard.setData(ClipboardData(text: plain));
+      if (_sessionController.outputBuffer.isEmpty) return;
+      final plain = _stripAnsi(_sessionController.outputBuffer.toString());
+      await _uiAdapter.copyToClipboard(plain);
     }
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          selection != null
-              ? 'Selection copied to clipboard'
-              : 'Output copied to clipboard',
-        ),
-      ),
+    _uiAdapter.showSnackBar(
+      selection != null
+          ? 'Selection copied to clipboard'
+          : 'Output copied to clipboard',
     );
     _logSelectionChange(force: true);
     _updateTabOptions();
@@ -274,10 +225,12 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   }
 
   Widget _buildContent(BuildContext context, AppSettings? settings) {
-    if (_error != null) {
-      return Center(child: Text(_error!));
+    final error = _sessionController.error;
+    final connecting = _sessionController.connecting;
+    if (error != null) {
+      return Center(child: Text(error));
     }
-    if (_connecting) {
+    if (connecting) {
       return const Center(child: CircularProgressIndicator());
     }
     final resolvedSettings = settings ?? widget.settingsController?.settings;
@@ -303,7 +256,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
         onScaleEnd: _isMobile ? (_) => _endMobileGestureBlock() : null,
         child: TerminalView(
           _terminal,
-          controller: _controller,
+          controller: _terminalController,
           scrollController: _scrollController,
           focusNode: _focusNode,
           shortcuts: _shortcutBindings(resolvedSettings, inputMode),
@@ -487,7 +440,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     if (renderBox == null) {
       return;
     }
-    final selection = _controller.selection;
+    final selection = _terminalController.selection;
     final hasSelection =
         selection != null && _safeSelectionText(selection).isNotEmpty;
     final action = await showMenu<_TerminalMenuAction>(
@@ -504,7 +457,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
         ),
         PopupMenuItem(
           value: _TerminalMenuAction.copyAll,
-          enabled: _outputBuffer.isNotEmpty,
+          enabled: _sessionController.outputBuffer.isNotEmpty,
           child: const Text('Copy all output'),
         ),
         const PopupMenuItem(
@@ -555,24 +508,23 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   }
 
   Future<void> _copySelectionOnly() async {
-    final selection = _controller.selection;
+    final selection = _terminalController.selection;
     if (selection == null) return;
     final text = _safeSelectionText(selection);
     final cleaned = _stripAnsi(text);
     if (cleaned.trim().isEmpty) return;
-    await Clipboard.setData(ClipboardData(text: cleaned));
+    await _uiAdapter.copyToClipboard(cleaned);
   }
 
   Future<void> _copyAllOutput() async {
-    if (_outputBuffer.isEmpty) return;
-    final plain = _stripAnsi(_outputBuffer.toString());
+    if (_sessionController.outputBuffer.isEmpty) return;
+    final plain = _stripAnsi(_sessionController.outputBuffer.toString());
     if (plain.trim().isEmpty) return;
-    await Clipboard.setData(ClipboardData(text: plain));
+    await _uiAdapter.copyToClipboard(plain);
   }
 
   Future<void> _pasteFromClipboard() async {
-    final data = await Clipboard.getData('text/plain');
-    final text = data?.text;
+    final text = await _uiAdapter.readClipboardText();
     if (text == null || text.isEmpty) {
       return;
     }
@@ -589,11 +541,11 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     final endCol = buffer.viewWidth > 0 ? buffer.viewWidth - 1 : 0;
     final base = buffer.createAnchor(0, 0);
     final extent = buffer.createAnchor(endCol, endLine);
-    _controller.setSelection(base, extent);
+    _terminalController.setSelection(base, extent);
   }
 
   void _sendClearCommand() {
-    _controller.clearSelection();
+    _terminalController.clearSelection();
     _terminal.textInput('clear');
     _terminal.keyInput(TerminalKey.enter);
   }
@@ -603,7 +555,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     if (openEditor == null) return;
     final content = _stripAnsi(_terminal.buffer.getText());
     if (content.trim().isEmpty) return;
-    final name = widget.host?.name ?? 'docker';
+    final name = _sessionController.host?.name ?? 'docker';
     final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
     final path = '/tmp/$name-scrollback-$timestamp.log';
     await openEditor(path, content);
@@ -620,7 +572,7 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   }
 
   void _logSelectionChange({bool force = false}) {
-    final selection = _controller.selection;
+    final selection = _terminalController.selection;
     if (selection == null) {
       _lastSelectionSignature = null;
       _updateTabOptions();
@@ -661,19 +613,14 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   String _safeSelectionText(BufferRange selection) {
     try {
       return _terminal.buffer.getText(selection);
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Failed to read terminal selection text',
-        tag: 'Docker',
-        error: error,
-        stackTrace: stackTrace,
-      );
+    } catch (_) {
       return '';
     }
   }
 
   bool get _hasCopyableText =>
-      _controller.selection != null || _outputBuffer.isNotEmpty;
+      _terminalController.selection != null ||
+      _sessionController.outputBuffer.isNotEmpty;
 
   void _updateTabOptions() {
     final controller = widget.optionsController;
@@ -718,8 +665,7 @@ class ComposeLogsTerminal extends StatefulWidget {
     required this.composeBase,
     required this.project,
     required this.services,
-    this.host,
-    this.shellService,
+    required this.controllerBuilder,
     this.onExit,
     this.optionsController,
     required this.tailLines,
@@ -730,8 +676,8 @@ class ComposeLogsTerminal extends StatefulWidget {
   final String composeBase;
   final String project;
   final List<String> services;
-  final SshHost? host;
-  final RemoteShellService? shellService;
+  final DockerCommandTerminalController Function(String command)
+  controllerBuilder;
   final VoidCallback? onExit;
   final TabOptionsController? optionsController;
   final int tailLines;
@@ -781,10 +727,8 @@ class _ComposeLogsTerminalState extends State<ComposeLogsTerminal> {
         Expanded(
           child: DockerCommandTerminal(
             key: ValueKey('$command-$_restartToken'),
-            command: command,
+            controller: widget.controllerBuilder(command),
             title: 'Compose logs • ${widget.project}',
-            host: widget.host,
-            shellService: widget.shellService,
             showCopyButton: true,
             autofocus: false,
             onExit: widget.onExit,

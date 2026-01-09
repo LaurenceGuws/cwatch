@@ -290,7 +290,7 @@ class _TabChipState extends State<TabChip> {
                                 child: Center(
                                   child: Icon(
                                     NerdIcon.close.data,
-                                    size: 16,
+                                    size: 14,
                                     color: widget.closable
                                         ? (widget.selected
                                               ? closeColor

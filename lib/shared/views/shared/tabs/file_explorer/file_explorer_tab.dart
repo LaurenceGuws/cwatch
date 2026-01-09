@@ -6,23 +6,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 
-import '../../../../../shared/mixins/tab_options_mixin.dart';
-import '../../../../../shared/theme/app_theme.dart';
-import '../../../../../models/explorer_context.dart';
+import '../../../../../app/controllers/file_explorer_controller.dart';
+import '../../../../../app/controllers/settings_controller.dart';
+import '../../../../../app/services/explorer_clipboard.dart';
+import '../../../../../data/models/local_file_session.dart';
 import '../../../../../models/app_settings.dart';
+import '../../../../../models/explorer_context.dart';
 import '../../../../../models/remote_file_entry.dart';
 import '../../../../../models/ssh_host.dart';
+import '../../../../../services/filesystem/explorer_trash_manager.dart';
 import '../../../../../services/logging/app_logger.dart';
 import '../../../../../services/settings/app_settings_controller.dart';
+import '../../../../../services/ssh/builtin/builtin_ssh_key_service.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
-import '../../../../../services/filesystem/explorer_trash_manager.dart';
+import '../../../../../ui/bindings/settings_binding.dart';
+import '../../../../../shared/mixins/tab_options_mixin.dart';
+import '../../../../../shared/theme/app_theme.dart';
+import '../../../../../ui/bindings/file_explorer_binding.dart';
 import '../../../../shortcuts/input_mode_resolver.dart';
 import '../../../../shortcuts/shortcut_actions.dart';
 import '../../../../shortcuts/shortcut_resolver.dart';
 import 'context_menu_builder.dart';
-import 'explorer_clipboard.dart';
-import 'file_explorer_controller.dart';
-import 'explorer_ui_adapter.dart';
 import 'file_entry_list.dart';
 import 'selection_controller.dart';
 import 'package:cwatch/modules/settings/ui/settings/explorer_settings_controls.dart';
@@ -38,6 +42,8 @@ class FileExplorerTab extends StatefulWidget {
     required this.explorerContext,
     required this.shellService,
     required this.settingsController,
+    required this.keyService,
+    required this.hostsFuture,
     required this.trashManager,
     required this.onOpenTrash,
     this.onOpenEditorTab,
@@ -51,6 +57,8 @@ class FileExplorerTab extends StatefulWidget {
   final ExplorerContext explorerContext;
   final RemoteShellService shellService;
   final AppSettingsController settingsController;
+  final BuiltInSshKeyService keyService;
+  final Future<List<SshHost>> hostsFuture;
   final ExplorerTrashManager trashManager;
   final ValueChanged<ExplorerContext> onOpenTrash;
   final Future<void> Function(String path, String initialContent)?
@@ -66,7 +74,10 @@ class FileExplorerTab extends StatefulWidget {
 
 class _FileExplorerTabState extends State<FileExplorerTab>
     with TabOptionsMixin {
-  late final FileExplorerController _controller;
+  final FileExplorerBinding _binding = const FileExplorerBinding();
+  final SettingsBinding _settingsBinding = const SettingsBinding();
+  late FileExplorerController _controller;
+  late final SettingsController _settingsController;
   late final VoidCallback _controllerListener;
   final FocusNode _listFocusNode = FocusNode(debugLabel: 'file-explorer-list');
   final ScrollController _scrollController = ScrollController();
@@ -77,7 +88,15 @@ class _FileExplorerTabState extends State<FileExplorerTab>
   @override
   void initState() {
     super.initState();
-    _controller = FileExplorerController(
+    final settingsUiAdapter = _settingsBinding.createUiAdapter(context: context);
+    _settingsController = _settingsBinding.createController(
+      settingsController: widget.settingsController,
+      keyService: widget.keyService,
+      hostsFuture: widget.hostsFuture,
+      uiAdapter: settingsUiAdapter,
+    );
+    _controller = _binding.create(
+      context: context,
       host: widget.host,
       explorerContext: widget.explorerContext,
       shellService: widget.shellService,
@@ -86,7 +105,6 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       onOpenEditorTab: widget.onOpenEditorTab,
       onPathChanged: widget.onPathChanged,
       initialPath: widget.initialPath,
-      promptMergeDialog: _promptMergeDialog,
     );
     _controllerListener = () {
       if (!mounted) return;
@@ -94,7 +112,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       _updateTabOptions();
     };
     _controller.addListener(_controllerListener);
-    unawaited(_controller.initialize(context));
+    unawaited(_controller.initialize());
   }
 
   @override
@@ -106,7 +124,8 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       _controller
         ..removeListener(_controllerListener)
         ..dispose();
-      _controller = FileExplorerController(
+      _controller = _binding.create(
+        context: context,
         host: widget.host,
         explorerContext: widget.explorerContext,
         shellService: widget.shellService,
@@ -115,10 +134,9 @@ class _FileExplorerTabState extends State<FileExplorerTab>
         onOpenEditorTab: widget.onOpenEditorTab,
         onPathChanged: widget.onPathChanged,
         initialPath: widget.initialPath,
-        promptMergeDialog: _promptMergeDialog,
       );
       _controller.addListener(_controllerListener);
-      unawaited(_controller.initialize(context));
+      unawaited(_controller.initialize());
       return;
     }
     if (oldWidget.optionsController != widget.optionsController ||
@@ -133,6 +151,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     _controller
       ..removeListener(_controllerListener)
       ..dispose();
+    _settingsController.dispose();
     _listFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -146,10 +165,8 @@ class _FileExplorerTabState extends State<FileExplorerTab>
   }
 
   void _showSnackBar(String message) {
-    _uiAdapter.showSnackBar(message);
+    _controller.uiAdapter.showSnackBar(message);
   }
-
-  ExplorerUiAdapter get _uiAdapter => ExplorerUiAdapter(context: context);
 
   @override
   Widget build(BuildContext context) {
@@ -316,8 +333,8 @@ class _FileExplorerTabState extends State<FileExplorerTab>
                 title: 'Explorer Settings',
                 onClose: _toggleSettings,
                 child: ExplorerSettingsControls(
-                  settings: widget.settingsController.settings,
-                  settingsController: widget.settingsController,
+                  settings: _settingsController.settings,
+                  settingsController: _settingsController,
                 ),
               ),
           ],
@@ -397,11 +414,12 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       showRowHeightControl: _controller.state.showRowHeightControl,
       rowHeight: _controller.state.rowHeight,
       onRowHeightChanged: _controller.setRowHeight,
-      onShowMenu: (position, items, constraints) => _uiAdapter.showMenuAt(
-        position: position,
-        items: items,
-        constraints: constraints,
-      ),
+      onShowMenu: (position, items, constraints) =>
+          _controller.uiAdapter.showMenuAt(
+            position: position,
+            items: items,
+            constraints: constraints,
+          ),
     );
   }
 
@@ -515,7 +533,6 @@ class _FileExplorerTabState extends State<FileExplorerTab>
         );
         if (selected.isEmpty) return;
         await _controller.startOsDrag(
-          context: context,
           globalPosition: position,
           entriesToDrag: selected,
         );
@@ -551,7 +568,6 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       tag: 'Explorer',
     );
     await _controller.fileOpsUiHandler.handleDroppedPaths(
-      context: context,
       targetDirectory: _controller.currentPath,
       paths: paths.toList(),
       joinPath: PathUtils.joinPath,
@@ -652,10 +668,11 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     );
 
     final menuItems = builder.buildEntryMenuItems(entry);
-    final action = await _uiAdapter.showContextMenu<ExplorerContextAction>(
-      position: position,
-      items: menuItems,
-    );
+    final action = await _controller.uiAdapter
+        .showContextMenu<ExplorerContextAction>(
+          position: position,
+          items: menuItems,
+        );
 
     if (!mounted) {
       return;
@@ -675,7 +692,6 @@ class _FileExplorerTabState extends State<FileExplorerTab>
 
   Future<void> _openEditor(RemoteFileEntry entry) async {
     await _controller.fileEditingService.openEditor(
-      context,
       entry,
       _controller.currentPath,
     );
@@ -683,7 +699,6 @@ class _FileExplorerTabState extends State<FileExplorerTab>
 
   Future<void> _openLocally(RemoteFileEntry entry) async {
     final session = await _controller.fileEditingService.openLocally(
-      context,
       entry,
       _controller.currentPath,
     );
@@ -694,7 +709,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
 
   Future<void> _syncLocalEdit(LocalFileSession session) async {
     _controller.markSyncing(session.remotePath, syncing: true);
-    await _controller.fileEditingService.syncLocalEdit(context, session, (s) {
+    await _controller.fileEditingService.syncLocalEdit(session, (s) {
       if (mounted) {
         _controller.updateLocalEdit(s);
       }
@@ -706,17 +721,14 @@ class _FileExplorerTabState extends State<FileExplorerTab>
 
   Future<void> _refreshCacheFromServer(LocalFileSession session) async {
     _controller.markRefreshing(session.remotePath, refreshing: true);
-    await _controller.fileEditingService.refreshCacheFromServer(
-      context,
-      session,
-    );
+    await _controller.fileEditingService.refreshCacheFromServer(session);
     if (mounted) {
       _controller.markRefreshing(session.remotePath, refreshing: false);
     }
   }
 
   Future<void> _clearCachedCopy(LocalFileSession session) async {
-    await _controller.fileEditingService.clearCachedCopy(context, session);
+    await _controller.fileEditingService.clearCachedCopy(session);
     if (mounted) {
       _controller.removeLocalEdit(session);
     }
@@ -726,11 +738,11 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     RemoteFileEntry entry,
     ExplorerClipboardOperation operation,
   ) {
-    _controller.clipboardHandler.setClipboardEntry(context, entry, operation);
+    _controller.clipboardHandler.setClipboardEntry(entry, operation);
   }
 
   Future<void> _promptRename(RemoteFileEntry entry) async {
-    final newName = await _uiAdapter.showRenameDialog(entry);
+    final newName = await _controller.uiAdapter.showRenameDialog(entry);
     if (newName == null) {
       return;
     }
@@ -768,7 +780,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
   }
 
   Future<void> _promptMove(RemoteFileEntry entry) async {
-    final target = await _uiAdapter.showMoveDialog(
+    final target = await _controller.uiAdapter.showMoveDialog(
       entry,
       _controller.currentPath,
     );
@@ -811,7 +823,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     bool permanent = false,
   }) async {
     final deletePermanently = permanent || SelectionController.isShiftPressed();
-    final confirmed = await _uiAdapter.showDeleteDialog(
+    final confirmed = await _controller.uiAdapter.showDeleteDialog(
       entry,
       widget.host,
       deletePermanently,
@@ -822,14 +834,12 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     if (!mounted) return;
     if (deletePermanently) {
       await _controller.deleteHandler.deletePermanently(
-        context,
         entry,
         _controller.currentPath,
         _refreshCurrentPath,
       );
     } else {
       await _controller.deleteHandler.moveToTrash(
-        context,
         entry,
         _controller.currentPath,
         _refreshCurrentPath,
@@ -839,7 +849,6 @@ class _FileExplorerTabState extends State<FileExplorerTab>
 
   Future<void> _handlePaste({required String targetDirectory}) async {
     await _controller.fileOpsUiHandler.handlePaste(
-      context: context,
       targetDirectory: targetDirectory,
       currentPath: _controller.currentPath,
       joinPath: PathUtils.joinPath,
@@ -851,7 +860,6 @@ class _FileExplorerTabState extends State<FileExplorerTab>
 
   Future<void> _handleMultiCopy(List<RemoteFileEntry> entries) async {
     _controller.clipboardHandler.setClipboardEntries(
-      context,
       entries,
       ExplorerClipboardOperation.copy,
     );
@@ -859,7 +867,6 @@ class _FileExplorerTabState extends State<FileExplorerTab>
 
   Future<void> _handleMultiCut(List<RemoteFileEntry> entries) async {
     _controller.clipboardHandler.setClipboardEntries(
-      context,
       entries,
       ExplorerClipboardOperation.cut,
     );
@@ -874,7 +881,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     }
     final deletePermanently = permanent || SelectionController.isShiftPressed();
     final count = entries.length;
-    final confirmed = await _uiAdapter.showMultiDeleteDialog(
+    final confirmed = await _controller.uiAdapter.showMultiDeleteDialog(
       count: count,
       hostName: widget.host.name,
       deletePermanently: deletePermanently,
@@ -885,14 +892,12 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     if (!mounted) return;
     if (deletePermanently) {
       await _controller.deleteHandler.deleteMultiplePermanently(
-        context,
         entries,
         _controller.currentPath,
         _refreshCurrentPath,
       );
     } else {
       await _controller.deleteHandler.moveMultipleToTrash(
-        context,
         entries,
         _controller.currentPath,
         _refreshCurrentPath,
@@ -902,7 +907,6 @@ class _FileExplorerTabState extends State<FileExplorerTab>
 
   Future<void> _handleDownload(List<RemoteFileEntry> entries) async {
     await _controller.fileOpsUiHandler.handleDownload(
-      context: context,
       entries: entries,
       currentPath: _controller.currentPath,
       joinPath: PathUtils.joinPath,
@@ -911,7 +915,6 @@ class _FileExplorerTabState extends State<FileExplorerTab>
 
   Future<void> _handleUploadFiles(String targetDirectory) async {
     await _controller.fileOpsUiHandler.handleUploadFiles(
-      context: context,
       targetDirectory: targetDirectory,
       joinPath: PathUtils.joinPath,
       refreshCurrentPath: _refreshCurrentPath,
@@ -920,29 +923,15 @@ class _FileExplorerTabState extends State<FileExplorerTab>
 
   Future<void> _handleUploadFolder(String targetDirectory) async {
     await _controller.fileOpsUiHandler.handleUploadFolder(
-      context: context,
       targetDirectory: targetDirectory,
       joinPath: PathUtils.joinPath,
       refreshCurrentPath: _refreshCurrentPath,
     );
   }
 
-  Future<String?> _promptMergeDialog({
-    required String remotePath,
-    required String local,
-    required String remote,
-  }) async {
-    return _uiAdapter.showMergeConflictDialog(
-      remotePath: remotePath,
-      local: local,
-      remote: remote,
-    );
-  }
-
   Future<void> _showNavigateToSubdirectoryDialog() async {
-    final selected = await _uiAdapter.showNavigateToSubdirectoryDialog(
-      _controller.state.entries,
-    );
+    final selected = await _controller.uiAdapter
+        .showNavigateToSubdirectoryDialog(_controller.state.entries);
     if (selected != null && mounted) {
       final targetPath = PathUtils.joinPath(_controller.currentPath, selected);
       _loadPath(targetPath);

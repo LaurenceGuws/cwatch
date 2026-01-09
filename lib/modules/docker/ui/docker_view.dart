@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
-import 'package:cwatch/models/docker_context.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/modules/docker/services/docker_client_service.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
@@ -24,7 +23,6 @@ import 'package:cwatch/core/tabs/tab_bar_visibility.dart';
 import 'package:cwatch/models/docker_workspace_state.dart';
 import 'package:cwatch/core/widgets/keep_alive.dart';
 import 'widgets/docker_engine_picker.dart';
-import 'widgets/remote_scan_dialog.dart';
 import '../services/docker_container_shell_service.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 import 'package:cwatch/shared/views/shared/tabs/settings/floating_settings_window.dart';
@@ -33,6 +31,10 @@ import 'docker_workspace_controller.dart';
 import 'remote_docker_status.dart';
 import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/modules/settings/ui/settings/docker_settings_controls.dart';
+import 'package:cwatch/app/adapters/docker_ui_adapter.dart';
+import 'package:cwatch/app/controllers/docker_view_controller.dart';
+import 'package:cwatch/ui/bindings/docker_client_service_binding.dart';
+import 'package:cwatch/ui/bindings/docker_view_binding.dart';
 
 class DockerView extends StatefulWidget {
   const DockerView({
@@ -57,18 +59,22 @@ class DockerView extends StatefulWidget {
 }
 
 class _DockerViewState extends State<DockerView> {
-  final DockerClientService _docker = const DockerClientService();
+  final DockerClientServiceBinding _dockerBinding =
+      const DockerClientServiceBinding();
+  final DockerViewBinding _viewBinding = const DockerViewBinding();
+  late final DockerClientService _docker;
+  late final DockerViewController _viewController;
   final ExplorerTrashManager _trashManager = ExplorerTrashManager();
   final PortForwardService _portForwardService = PortForwardService();
   late final DockerTabBuilder _tabBuilder;
   late final DockerWorkspaceController _workspaceController;
   late final TabViewRegistry<WorkspaceTab> _tabRegistry;
+  late final DockerUiAdapter _uiAdapter;
   late final VoidCallback _settingsListener;
   late final VoidCallback _tabsListener;
+  late final VoidCallback _viewControllerListener;
   late final TabNavigationHandle _tabNavigator;
   late final CommandPaletteHandle _commandPaletteHandle;
-
-  Future<List<DockerContext>>? _contextsFuture;
   Future<List<RemoteDockerStatus>>? _remoteStatusFuture;
   bool _remoteScanRequested = false;
   bool _scanningRemotes = false;
@@ -100,7 +106,15 @@ class _DockerViewState extends State<DockerView> {
   @override
   void initState() {
     super.initState();
-    _contextsFuture = _loadContexts();
+    _docker = _dockerBinding.create();
+    _viewController = _viewBinding.createController(docker: _docker);
+    _viewControllerListener = () {
+      if (!mounted) return;
+      setState(() {});
+    };
+    _viewController.addListener(_viewControllerListener);
+    _uiAdapter = DockerUiAdapter(context: context);
+    _viewController.loadContexts();
 
     _tabBuilder = DockerTabBuilder(
       docker: _docker,
@@ -108,6 +122,7 @@ class _DockerViewState extends State<DockerView> {
       trashManager: _trashManager,
       keyService: widget.keyService,
       portForwardService: _portForwardService,
+      hostsFuture: widget.hostsFuture,
     );
 
     _workspaceController = DockerWorkspaceController(
@@ -161,6 +176,8 @@ class _DockerViewState extends State<DockerView> {
   void dispose() {
     _workspaceController.removeListener(_tabsListener);
     _workspaceController.dispose();
+    _viewController.removeListener(_viewControllerListener);
+    _viewController.dispose();
     widget.settingsController.removeListener(_settingsListener);
     _portForwardService.dispose();
     TabNavigationRegistry.instance.unregister(widget.moduleId, _tabNavigator);
@@ -181,7 +198,7 @@ class _DockerViewState extends State<DockerView> {
       children: [
         EnginePicker(
           tabId: tabId,
-          contextsFuture: _contextsFuture,
+          contextsFuture: _viewController.contextsFuture,
           cachedReady: _cachedReady,
           remoteStatusFuture: _remoteStatusFuture,
           remoteScanRequested: _remoteScanRequested,
@@ -221,22 +238,8 @@ class _DockerViewState extends State<DockerView> {
 
   String _uniqueId() => DateTime.now().microsecondsSinceEpoch.toString();
 
-  Future<List<DockerContext>> _loadContexts() async {
-    try {
-      return await _docker.listContexts();
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Failed to load docker contexts',
-        tag: 'Docker',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      return const <DockerContext>[];
-    }
-  }
-
   void _refreshContexts() {
-    _contextsFuture = _loadContexts();
+    _viewController.refreshContexts();
 
     final pickerIds = _tabs
         .where(
@@ -264,37 +267,28 @@ class _DockerViewState extends State<DockerView> {
     _remoteScanRequested = true;
     _scanStatusesNotifier.value = const [];
     _remoteStatusFuture = _loadRemoteStatuses(manual: true, token: token);
-    bool dialogOpen = true;
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return RemoteScanDialog(
-          onCancel: () {
-            _cancelledScans.add(token);
-            dialogOpen = false;
-            Navigator.of(dialogContext).pop();
-            setState(() {
-              _scanningRemotes = false;
-              _scanningNotifier.value = false;
-            });
-          },
-          hostsListenable: _scanHostsNotifier,
-          statusesListenable: _scanStatusesNotifier,
-          scanningListenable: _scanningNotifier,
-        );
+    unawaited(_uiAdapter.showRemoteScanDialog(
+      onCancel: () {
+        _cancelledScans.add(token);
+        setState(() {
+          _scanningRemotes = false;
+          _scanningNotifier.value = false;
+        });
       },
-    );
-    _remoteStatusFuture!.whenComplete(() {
-      if (!mounted) return;
-      if (!_isScanCancelled(token) && dialogOpen) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-      setState(() {
-        _scanningRemotes = false;
-        _scanningNotifier.value = false;
-      });
-    });
+      hostsListenable: _scanHostsNotifier,
+      statusesListenable: _scanStatusesNotifier,
+      scanningListenable: _scanningNotifier,
+      onComplete: () async {
+        await _remoteStatusFuture;
+        if (!mounted) return;
+        if (!_isScanCancelled(token)) {
+          setState(() {
+            _scanningRemotes = false;
+            _scanningNotifier.value = false;
+          });
+        }
+      },
+    ));
   }
 
   @override

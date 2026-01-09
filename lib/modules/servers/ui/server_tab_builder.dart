@@ -27,12 +27,14 @@ class ServerTabBuilder {
     required this.trashManager,
     required this.shellServiceForHost,
     required this.keyService,
+    required this.hostsFuture,
   });
 
   final AppSettingsController settingsController;
   final ExplorerTrashManager trashManager;
   final RemoteShellService Function(SshHost host) shellServiceForHost;
   final BuiltInSshKeyService keyService;
+  final Future<List<SshHost>> hostsFuture;
 
   WorkspaceTab explorerTab({
     required String id,
@@ -56,6 +58,8 @@ class ServerTabBuilder {
         explorerContext: effectiveContext,
         shellService: shellServiceForHost(host),
         settingsController: settingsController,
+        keyService: keyService,
+        hostsFuture: hostsFuture,
         trashManager: trashManager,
         initialPath: initialPath,
         onPathChanged: (path) {
@@ -104,6 +108,8 @@ class ServerTabBuilder {
         shellService: shellServiceForHost(host),
         path: path,
         settingsController: settingsController,
+        keyService: keyService,
+        hostsFuture: hostsFuture,
         initialContent: initialContent,
         optionsController: controller,
       ),
@@ -300,6 +306,8 @@ class _EditorTabLoader extends StatelessWidget {
     required this.shellService,
     required this.path,
     required this.settingsController,
+    required this.keyService,
+    required this.hostsFuture,
     this.initialContent,
     this.optionsController,
   });
@@ -308,6 +316,8 @@ class _EditorTabLoader extends StatelessWidget {
   final RemoteShellService shellService;
   final String path;
   final AppSettingsController settingsController;
+  final BuiltInSshKeyService keyService;
+  final Future<List<SshHost>> hostsFuture;
   final String? initialContent;
   final TabOptionsController? optionsController;
 
@@ -319,6 +329,8 @@ class _EditorTabLoader extends StatelessWidget {
       shellService: shellService,
       path: path,
       settingsController: settingsController,
+      keyService: keyService,
+      hostsFuture: hostsFuture,
       initialContent: initialContent,
       optionsController: optionsController,
       onSave: (content) async {

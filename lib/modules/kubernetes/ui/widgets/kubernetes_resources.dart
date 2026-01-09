@@ -1,14 +1,13 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
 
-import 'package:cwatch/services/kubernetes/kubectl_service.dart';
-import 'package:cwatch/services/logging/app_logger.dart';
+import 'package:cwatch/app/adapters/kubernetes_ui_adapter.dart';
+import 'package:cwatch/app/controllers/kubernetes_resources_controller.dart';
+import 'package:cwatch/models/kubernetes/kubernetes_resource_models.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
+import 'package:cwatch/ui/bindings/kubernetes_resources_binding.dart';
 
 class _SeriesData {
   const _SeriesData({
@@ -72,20 +71,16 @@ class _LegendChip extends StatelessWidget {
   }
 }
 
-enum PodSortMetric { cpu, memory, name, namespace }
-
 class KubernetesResources extends StatefulWidget {
   const KubernetesResources({
     super.key,
     required this.contextName,
     required this.configPath,
-    required this.kubectl,
     this.optionsController,
   });
 
   final String contextName;
   final String configPath;
-  final KubectlService kubectl;
   final TabOptionsController? optionsController;
 
   @override
@@ -93,41 +88,35 @@ class KubernetesResources extends StatefulWidget {
 }
 
 class _KubernetesResourcesState extends State<KubernetesResources> {
-  KubeResourceSnapshot? _snapshot;
-  bool _loading = true;
-  String? _error;
-  Timer? _poller;
-  int _nodeSortColumn = 1;
-  bool _nodeSortAscending = false;
-  int _podSortColumn = 2;
-  bool _podSortAscending = false;
+  final KubernetesResourcesBinding _binding =
+      const KubernetesResourcesBinding();
+  late final KubernetesResourcesController _controller;
+  late final KubernetesUiAdapter _uiAdapter;
+  late final VoidCallback _controllerListener;
   bool _tabOptionsRegistered = false;
-  final Map<String, List<double>> _nodeCpuHistory = {};
-  final Map<String, List<double>> _nodeMemHistory = {};
-  static const _historyLimit = 90;
-  String? _namespaceFilter;
-  bool _includeSystemNamespaces = false;
-  int _podLimit = 50;
-  PodSortMetric _podSortMetric = PodSortMetric.cpu;
 
   @override
   void initState() {
     super.initState();
-    _loadResources(initial: true);
-    _startPolling();
+    _uiAdapter = KubernetesUiAdapter(context: context);
+    _controller = _binding.create(
+      contextName: widget.contextName,
+      configPath: widget.configPath,
+    );
+    _controllerListener = () {
+      if (!mounted) return;
+      setState(() {});
+    };
+    _controller.addListener(_controllerListener);
+    _controller.initialize();
   }
 
   @override
   void dispose() {
-    _poller?.cancel();
+    _controller
+      ..removeListener(_controllerListener)
+      ..dispose();
     super.dispose();
-  }
-
-  void _startPolling() {
-    _poller?.cancel();
-    _poller = Timer.periodic(const Duration(seconds: 15), (_) {
-      _loadResources();
-    });
   }
 
   @override
@@ -147,19 +136,19 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
         TabChipOption(
           label: 'Refresh',
           icon: NerdIcon.refresh.data,
-          onSelected: _loadResources,
+          onSelected: () => _controller.loadResources(),
         ),
         TabChipOption(
           label: 'Copy `kubectl top nodes`',
           icon: NerdIcon.copy.data,
-          onSelected: () => _copyCommand(
+          onSelected: () => _uiAdapter.copyToClipboard(
             'kubectl --context=${widget.contextName} --kubeconfig=${widget.configPath} top nodes',
           ),
         ),
         TabChipOption(
           label: 'Copy `kubectl top pods -A`',
           icon: NerdIcon.copy.data,
-          onSelected: () => _copyCommand(
+          onSelected: () => _uiAdapter.copyToClipboard(
             'kubectl --context=${widget.contextName} --kubeconfig=${widget.configPath} top pods -A',
           ),
         ),
@@ -173,66 +162,26 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
     });
   }
 
-  Future<void> _copyCommand(String command) async {
-    await Clipboard.setData(ClipboardData(text: command));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Command copied to clipboard')),
-    );
-  }
-
-  Future<void> _loadResources({bool initial = false}) async {
-    if (initial) {
-      setState(() {
-        _loading = true;
-        _error = null;
-      });
-    }
-    try {
-      final snapshot = await widget.kubectl.fetchResources(
-        contextName: widget.contextName,
-        configPath: widget.configPath,
-      );
-      if (!mounted) return;
-      setState(() {
-        _snapshot = snapshot;
-        _loading = false;
-        _error = null;
-        _recordHistory(snapshot);
-      });
-    } catch (e, stackTrace) {
-      AppLogger().warn(
-        'Failed to load Kubernetes resources',
-        tag: 'Kubernetes',
-        error: e,
-        stackTrace: stackTrace,
-      );
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final spacing = context.appTheme.spacing;
     final scheme = Theme.of(context).colorScheme;
-    final snapshot = _snapshot;
+    final snapshot = _controller.snapshot;
+    final loading = _controller.loading;
+    final error = _controller.error;
 
     Widget body;
-    if (_loading && snapshot == null) {
+    if (loading && snapshot == null) {
       body = const Center(child: CircularProgressIndicator());
-    } else if (_error != null) {
+    } else if (error != null) {
       body = Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Failed to load resources: $_error'),
+            Text('Failed to load resources: $error'),
             SizedBox(height: spacing.lg),
             FilledButton.icon(
-              onPressed: () => _loadResources(initial: true),
+              onPressed: () => _controller.loadResources(initial: true),
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
             ),
@@ -254,7 +203,7 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
           _buildNodeTable(snapshot),
           SizedBox(height: spacing.base * 1.5),
           _buildPodTable(snapshot),
-          if (_loading) ...[
+          if (loading) ...[
             SizedBox(height: spacing.base * 1.5),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -365,7 +314,7 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
     final spacing = context.appTheme.spacing;
     final namespaces = snapshot.pods.map((p) => p.namespace).toSet().toList()
       ..sort();
-    final selectedNamespace = _namespaceFilter ?? 'All';
+    final selectedNamespace = _controller.namespaceFilter ?? 'All';
     return Wrap(
       spacing: spacing.base,
       runSpacing: spacing.base * 0.6,
@@ -386,9 +335,7 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
                   ),
                 ],
                 onChanged: (value) {
-                  setState(() {
-                    _namespaceFilter = value == 'All' ? null : value;
-                  });
+                  _controller.setNamespaceFilter(value == 'All' ? null : value);
                 },
               ),
             ),
@@ -396,11 +343,9 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
         ),
         FilterChip(
           label: const Text('Include system namespaces'),
-          selected: _includeSystemNamespaces,
+          selected: _controller.includeSystemNamespaces,
           onSelected: (value) {
-            setState(() {
-              _includeSystemNamespaces = value;
-            });
+            _controller.setIncludeSystemNamespaces(value);
           },
         ),
         Row(
@@ -410,7 +355,7 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
             SizedBox(width: spacing.md),
             DropdownButtonHideUnderline(
               child: DropdownButton<int>(
-                value: _podLimit,
+                value: _controller.podLimit,
                 items: const [
                   DropdownMenuItem(value: 25, child: Text('25')),
                   DropdownMenuItem(value: 50, child: Text('50')),
@@ -419,9 +364,7 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
                 ],
                 onChanged: (value) {
                   if (value == null) return;
-                  setState(() {
-                    _podLimit = value;
-                  });
+                  _controller.setPodLimit(value);
                 },
               ),
             ),
@@ -450,29 +393,26 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
                   icon: Icon(Icons.sort_by_alpha),
                 ),
               ],
-              selected: {_podSortMetric},
+              selected: {_controller.podSortMetric},
               onSelectionChanged: (selection) {
                 if (selection.isEmpty) return;
-                final choice = selection.first;
-                setState(() {
-                  _podSortMetric = choice;
-                  _podSortColumn = switch (choice) {
-                    PodSortMetric.cpu => 2,
-                    PodSortMetric.memory => 3,
-                    PodSortMetric.name => 1,
-                    PodSortMetric.namespace => 0,
-                  };
-                  _podSortAscending = false;
-                });
+                _controller.setPodSortMetric(selection.first);
               },
             ),
             IconButton(
-              tooltip: _podSortAscending ? 'Descending' : 'Ascending',
+              tooltip: _controller.podSortAscending
+                  ? 'Descending'
+                  : 'Ascending',
               icon: Icon(
-                _podSortAscending ? Icons.arrow_downward : Icons.arrow_upward,
+                _controller.podSortAscending
+                    ? Icons.arrow_downward
+                    : Icons.arrow_upward,
               ),
               onPressed: () {
-                setState(() => _podSortAscending = !_podSortAscending);
+                _controller.setPodSort(
+                  _controller.podSortColumn,
+                  !_controller.podSortAscending,
+                );
               },
             ),
           ],
@@ -486,7 +426,7 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
     final nodes = [...snapshot.nodes];
     nodes.sort((a, b) {
       int result;
-      switch (_nodeSortColumn) {
+      switch (_controller.nodeSortColumn) {
         case 0:
           result = a.name.compareTo(b.name);
           break;
@@ -505,7 +445,7 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
         default:
           result = 0;
       }
-      return _nodeSortAscending ? result : -result;
+      return _controller.nodeSortAscending ? result : -result;
     });
 
     return Card(
@@ -517,14 +457,14 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
-          sortColumnIndex: _nodeSortColumn,
-          sortAscending: _nodeSortAscending,
+          sortColumnIndex: _controller.nodeSortColumn,
+          sortAscending: _controller.nodeSortAscending,
           columns: [
-            _sortableColumn('Node', 0, onSort: _setNodeSort),
-            _sortableColumn('CPU (cores)', 1, onSort: _setNodeSort),
-            _sortableColumn('CPU %', 2, onSort: _setNodeSort),
-            _sortableColumn('Memory', 3, onSort: _setNodeSort),
-            _sortableColumn('Memory %', 4, onSort: _setNodeSort),
+            _sortableColumn('Node', 0, onSort: _controller.setNodeSort),
+            _sortableColumn('CPU (cores)', 1, onSort: _controller.setNodeSort),
+            _sortableColumn('CPU %', 2, onSort: _controller.setNodeSort),
+            _sortableColumn('Memory', 3, onSort: _controller.setNodeSort),
+            _sortableColumn('Memory %', 4, onSort: _controller.setNodeSort),
           ],
           rows: nodes
               .map(
@@ -549,7 +489,7 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
     final pods = _filterPods(snapshot);
     pods.sort((a, b) {
       int result;
-      switch (_podSortMetric) {
+      switch (_controller.podSortMetric) {
         case PodSortMetric.namespace:
           result = a.namespace.compareTo(b.namespace);
           break;
@@ -563,9 +503,9 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
           result = _safeCompare(a.memoryBytes, b.memoryBytes);
           break;
       }
-      return _podSortAscending ? result : -result;
+      return _controller.podSortAscending ? result : -result;
     });
-    final topPods = pods.take(_podLimit).toList();
+    final topPods = pods.take(_controller.podLimit).toList();
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -575,13 +515,13 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
-          sortColumnIndex: _podSortColumn,
-          sortAscending: _podSortAscending,
+          sortColumnIndex: _controller.podSortColumn,
+          sortAscending: _controller.podSortAscending,
           columns: [
-            _sortableColumn('Namespace', 0, onSort: _setPodSort),
-            _sortableColumn('Pod', 1, onSort: _setPodSort),
-            _sortableColumn('CPU (cores)', 2, onSort: _setPodSort),
-            _sortableColumn('Memory', 3, onSort: _setPodSort),
+            _sortableColumn('Namespace', 0, onSort: _controller.setPodSort),
+            _sortableColumn('Pod', 1, onSort: _controller.setPodSort),
+            _sortableColumn('CPU (cores)', 2, onSort: _controller.setPodSort),
+            _sortableColumn('Memory', 3, onSort: _controller.setPodSort),
           ],
           rows: topPods
               .map(
@@ -611,68 +551,34 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
     );
   }
 
-  void _setNodeSort(int columnIndex, bool ascending) {
-    setState(() {
-      _nodeSortColumn = columnIndex;
-      _nodeSortAscending = ascending;
-    });
-  }
-
-  void _setPodSort(int columnIndex, bool ascending) {
-    setState(() {
-      _podSortColumn = columnIndex;
-      _podSortAscending = ascending;
-    });
-  }
-
   List<KubePodStat> _filterPods(KubeResourceSnapshot snapshot) {
     final systemNamespaces = {'kube-system', 'kube-public', 'kube-node-lease'};
     final pods = snapshot.pods.where((pod) {
-      if (!_includeSystemNamespaces &&
+      if (!_controller.includeSystemNamespaces &&
           systemNamespaces.contains(pod.namespace)) {
         return false;
       }
-      if (_namespaceFilter != null && _namespaceFilter!.isNotEmpty) {
-        return pod.namespace == _namespaceFilter;
+      if (_controller.namespaceFilter != null &&
+          _controller.namespaceFilter!.isNotEmpty) {
+        return pod.namespace == _controller.namespaceFilter;
       }
       return true;
     }).toList();
     return pods;
   }
 
-  void _recordHistory(KubeResourceSnapshot snapshot) {
-    void record(Map<String, List<double>> target, String key, double? value) {
-      if (value == null) {
-        return;
-      }
-      final series = target.putIfAbsent(key, () => []);
-      series.add(value);
-      if (series.length > _historyLimit) {
-        series.removeRange(0, series.length - _historyLimit);
-      }
-    }
-
-    for (final node in snapshot.nodes) {
-      record(_nodeCpuHistory, node.name, node.cpuPercent ?? node.cpuCores ?? 0);
-      record(
-        _nodeMemHistory,
-        node.name,
-        (node.memoryBytes ?? 0) / (1024 * 1024),
-      );
-    }
-  }
-
   Widget _buildCharts(KubeResourceSnapshot snapshot) {
-    if (_nodeCpuHistory.isEmpty && _nodeMemHistory.isEmpty) {
+    if (_controller.nodeCpuHistory.isEmpty &&
+        _controller.nodeMemHistory.isEmpty) {
       return const SizedBox.shrink();
     }
     final spacing = context.appTheme.spacing;
-    final memScaled = _scaleForBytes(_nodeMemHistory);
+    final memScaled = _scaleForBytes(_controller.nodeMemHistory);
     final charts = [
       (
         title: 'CPU usage',
         subtitle: 'Node CPU percent over time',
-        series: _seriesFromHistory(_nodeCpuHistory),
+        series: _seriesFromHistory(_controller.nodeCpuHistory),
         unit: '%',
         maxY: 100.0,
       ),

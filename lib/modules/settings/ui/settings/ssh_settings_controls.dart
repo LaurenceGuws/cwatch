@@ -1,15 +1,8 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
+import 'package:cwatch/app/controllers/settings_controller.dart';
 import 'package:cwatch/models/ssh_client_backend.dart';
-import 'package:cwatch/services/logging/app_logger.dart';
-import 'package:cwatch/services/settings/app_settings_controller.dart';
-import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/widgets/form_spacer.dart';
@@ -17,16 +10,9 @@ import 'builtin_ssh_settings.dart';
 import 'settings_section.dart';
 
 class SshSettingsControls extends StatefulWidget {
-  const SshSettingsControls({
-    super.key,
-    required this.controller,
-    required this.hostsFuture,
-    required this.keyService,
-  });
+  const SshSettingsControls({super.key, required this.controller});
 
-  final AppSettingsController controller;
-  final Future<List<SshHost>> hostsFuture;
-  final BuiltInSshKeyService keyService;
+  final SettingsController controller;
 
   @override
   State<SshSettingsControls> createState() => _SshSettingsControlsState();
@@ -40,15 +26,12 @@ class _SshSettingsControlsState extends State<SshSettingsControls> {
     final backend = settings.sshClientBackend;
     final usingBuiltIn = backend == SshClientBackend.builtin;
     final customConfigs = settings.customSshConfigPaths;
-    final supportsPlatformSsh = _supportsPlatformSsh();
+    final supportsPlatformSsh = widget.controller.supportsPlatformSsh;
 
     if (!supportsPlatformSsh && backend != SshClientBackend.builtin) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        widget.controller.update(
-          (current) =>
-              current.copyWith(sshClientBackend: SshClientBackend.builtin),
-        );
+        widget.controller.ensureSupportedSshBackend();
       });
     }
 
@@ -63,9 +46,7 @@ class _SshSettingsControlsState extends State<SshSettingsControls> {
               final target = value
                   ? SshClientBackend.builtin
                   : SshClientBackend.platform;
-              widget.controller.update(
-                (current) => current.copyWith(sshClientBackend: target),
-              );
+              widget.controller.setSshClientBackend(target);
             },
             title: Row(
               children: [
@@ -80,19 +61,14 @@ class _SshSettingsControlsState extends State<SshSettingsControls> {
               ],
             ),
           ),
-        if (usingBuiltIn)
-          BuiltInSshSettings(
-            controller: widget.controller,
-            hostsFuture: widget.hostsFuture,
-            keyService: widget.keyService,
-          ),
+        if (usingBuiltIn) BuiltInSshSettings(controller: widget.controller),
         const Divider(),
         SettingsSection(
           title: 'Detected SSH config files',
           description:
               'Toggle which ssh_config files are used when discovering hosts.',
           child: FutureBuilder<List<SshHost>>(
-            future: widget.hostsFuture,
+            future: widget.controller.hostsFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return Padding(
@@ -173,69 +149,10 @@ class _SshSettingsControlsState extends State<SshSettingsControls> {
     );
   }
 
-  Future<void> _pickConfigFile() async {
-    final result = await FilePicker.platform.pickFiles(
-      dialogTitle: 'Select ssh_config file',
-      allowMultiple: false,
-      withData: true,
-    );
-    final file = (result != null && result.files.isNotEmpty)
-        ? result.files.first
-        : null;
-    String? path = file?.path;
-    if (path == null && file?.bytes != null) {
-      path = await _persistPickedConfig(file!);
-    }
-    if (path == null) {
-      _showSnack('Unable to read selected file');
-      return;
-    }
-    final normalized = p.normalize(path);
-    final current = widget.controller.settings.customSshConfigPaths;
-    if (current.contains(normalized)) {
-      _showSnack('Config already added');
-      return;
-    }
-    await widget.controller.update(
-      (settings) =>
-          settings.copyWith(customSshConfigPaths: [...current, normalized]),
-    );
-    _showSnack('Added SSH config: ${p.basename(normalized)}');
-  }
-
-  Future<String?> _persistPickedConfig(PlatformFile file) async {
-    final bytes = file.bytes;
-    if (bytes == null) {
-      return null;
-    }
-    try {
-      final supportDir = await getApplicationSupportDirectory();
-      final targetDir = Directory(p.join(supportDir.path, 'ssh_configs'));
-      await targetDir.create(recursive: true);
-      final fileName = file.name.isNotEmpty
-          ? file.name
-          : 'ssh_config_${DateTime.now().millisecondsSinceEpoch}';
-      final target = File(p.join(targetDir.path, fileName));
-      await target.writeAsBytes(bytes, flush: true);
-      return target.path;
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Failed to persist SSH config ${file.name}',
-        tag: 'Settings',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      return null;
-    }
-  }
+  Future<void> _pickConfigFile() => widget.controller.addSshConfigFile();
 
   Future<void> _removeConfigPath(String path) async {
-    final current = widget.controller.settings.customSshConfigPaths;
-    final next = [...current]..remove(path);
-    await widget.controller.update(
-      (settings) => settings.copyWith(customSshConfigPaths: next),
-    );
-    _showSnack('Removed config');
+    await widget.controller.removeSshConfigPath(path);
   }
 
   Future<void> _toggleConfigPath(
@@ -243,27 +160,6 @@ class _SshSettingsControlsState extends State<SshSettingsControls> {
     bool enabled,
     Set<String> disabled,
   ) async {
-    final next = disabled.toSet();
-    if (enabled) {
-      next.remove(path);
-    } else {
-      next.add(path);
-    }
-    await widget.controller.update(
-      (settings) => settings.copyWith(disabledSshConfigPaths: next.toList()),
-    );
-    _showSnack(enabled ? 'Enabled $path' : 'Disabled $path');
-  }
-
-  void _showSnack(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  bool _supportsPlatformSsh() {
-    if (kIsWeb) return false;
-    return Platform.isLinux || Platform.isMacOS || Platform.isWindows;
+    await widget.controller.toggleSshConfigPath(path, enabled, disabled);
   }
 }

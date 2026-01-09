@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../models/app_settings.dart';
 import '../../services/logging/app_logger.dart';
 import '../../services/settings/app_settings_controller.dart';
+import '../../ui/bindings/home_shell_services_binding.dart';
 import 'home_shell_input_controller.dart';
 import 'home_shell_modules.dart';
 import 'home_shell_services.dart';
@@ -23,8 +24,10 @@ class HomeShellController extends ChangeNotifier {
   final TargetPlatform platform;
   final bool supportsCustomChrome;
 
+  final HomeShellServicesBinding _servicesBinding =
+      const HomeShellServicesBinding();
   final HomeShellState state = HomeShellState();
-  final HomeShellServices services = HomeShellServices();
+  late final HomeShellServices services;
 
   late final ModuleRegistry moduleRegistry;
   late final HomeShellInputController input;
@@ -40,7 +43,10 @@ class HomeShellController extends ChangeNotifier {
     if (_initialized) return;
     _initialized = true;
 
-    services.init(context: context, settingsController: settingsController);
+    services = _servicesBinding.create(
+      context: context,
+      settingsController: settingsController,
+    );
     state.refreshHosts(settingsController.settings);
 
     moduleRegistry = ModuleRegistry(

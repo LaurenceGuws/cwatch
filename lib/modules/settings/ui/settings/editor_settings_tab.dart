@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:cwatch/app/controllers/settings_controller.dart';
 import 'package:cwatch/models/app_settings.dart';
-import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/shared/shortcuts/shortcut_definition.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'shortcuts_settings_tab.dart';
@@ -25,7 +25,7 @@ class EditorSettingsTab extends StatelessWidget {
   });
 
   final AppSettings settings;
-  final AppSettingsController settingsController;
+  final SettingsController settingsController;
   final String? fontFamily;
   final double fontSize;
   final double lineHeight;

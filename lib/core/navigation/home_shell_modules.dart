@@ -35,7 +35,11 @@ List<ShellModuleView> buildHomeShellModules({
       keyService: keyService,
       shellFactory: shellFactory,
     ),
-    KubernetesModule(settingsController: settingsController),
+    KubernetesModule(
+      settingsController: settingsController,
+      keyService: keyService,
+      hostsFuture: hostsFuture,
+    ),
     DebugLogsModule(settingsController: settingsController),
     SettingsModule(
       controller: settingsController,
