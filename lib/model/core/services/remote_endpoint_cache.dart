@@ -1,30 +1,29 @@
-import 'package:cwatch/model/models/app_settings.dart';
-import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
+import 'package:cwatch/model/services_infra/cache/cache_storage.dart';
 
 /// Small helper to cache and restore ready remote endpoints (e.g., Docker hosts).
+///
+/// This uses the app's cache file (not `settings.json`) because it's derived
+/// state that can be rebuilt by rescanning.
 class RemoteEndpointCache {
   const RemoteEndpointCache({
-    required this.settingsController,
-    required this.readNames,
-    required this.writeNames,
+    required this.storage,
+    this.key = 'dockerRemoteHosts',
   });
 
-  final AppSettingsController settingsController;
-  final List<String> Function(AppSettings settings) readNames;
-  final AppSettings Function(AppSettings current, List<String> names)
-  writeNames;
+  final CacheStorage storage;
+  final String key;
 
-  List<String> read() => readNames(settingsController.settings);
+  Future<List<String>> read() => storage.readStringList(key);
 
   Future<void> persist(List<String> names) async {
     final next = names.toSet().toList()..sort();
-    final current = read();
+    final current = await read();
     final currentSorted = [...current]..sort();
     if (_listEquals(next, currentSorted)) {
       return;
     }
-    await settingsController.update((settings) => writeNames(settings, next));
+    await storage.writeStringList(key, next);
   }
 
   List<SshHost> applyToHosts(List<String> names, List<SshHost> knownHosts) {

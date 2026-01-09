@@ -453,7 +453,7 @@ class AppSettings {
       'disabledSshConfigPaths': disabledSshConfigPaths,
       'disabledServerHosts': disabledServerHosts,
       'serverDistroMap': serverDistroMap,
-      'dockerDistroMap': dockerDistroMap,
+
       'kubernetesConfigPaths': kubernetesConfigPaths,
       'kubernetesBackend': kubernetesBackend.name,
       if (serverWorkspace != null) 'serverWorkspace': serverWorkspace!.toJson(),
@@ -467,7 +467,7 @@ class AppSettings {
       if (editorFontFamily != null) 'editorFontFamily': editorFontFamily,
       'editorFontSize': editorFontSize,
       'editorLineHeight': editorLineHeight,
-      'dockerRemoteHosts': dockerRemoteHosts,
+
       if (dockerSelectedContext != null)
         'dockerSelectedContext': dockerSelectedContext,
       if (dockerWorkspace != null) 'dockerWorkspace': dockerWorkspace!.toJson(),

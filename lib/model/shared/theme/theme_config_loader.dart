@@ -30,7 +30,7 @@ Future<void> applyThemeConfigOverrides(AppSettingsController controller) async {
     return;
   }
 
-  controller.applyOverrides((current) {
+  await controller.update((current) {
     var updated = current;
     if (appOverrides != null) {
       updated = updated.copyWith(
@@ -140,6 +140,11 @@ Future<File?> _pickFirstToml(Directory directory) async {
       entries
           .whereType<File>()
           .where((file) => file.path.toLowerCase().endsWith('.toml'))
+          // The app auto-generates `example.toml` templates; they should never
+          // act as active overrides.
+          .where(
+            (file) => p.basename(file.path).toLowerCase() != 'example.toml',
+          )
           .toList()
         ..sort((a, b) => a.path.compareTo(b.path));
   if (files.isEmpty) {

@@ -12,18 +12,14 @@ import 'package:cwatch/view/features/docker/remote_docker_status.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 import 'package:cwatch/model/core/services/remote_endpoint_cache.dart';
+import 'package:cwatch/model/services_infra/cache/cache_storage.dart';
 
 class DockerWorkspaceController
     extends PersistentWorkspaceController<DockerWorkspaceState> {
   DockerWorkspaceController({
     required super.settingsController,
     required super.baseTabBuilder,
-  }) : endpointCache = RemoteEndpointCache(
-         settingsController: settingsController,
-         readNames: (settings) => settings.dockerRemoteHosts,
-         writeNames: (current, names) =>
-             current.copyWith(dockerRemoteHosts: names),
-       );
+  }) : endpointCache = RemoteEndpointCache(storage: CacheStorage());
 
   final RemoteEndpointCache endpointCache;
 
@@ -380,7 +376,7 @@ class DockerWorkspaceController
   Future<List<RemoteDockerStatus>> loadCachedReady(
     Future<List<SshHost>> hostsFuture,
   ) async {
-    final readyNames = endpointCache.read().toSet();
+    final readyNames = (await endpointCache.read()).toSet();
     if (readyNames.isEmpty) return const [];
     List<SshHost> hosts = const [];
     try {
