@@ -6,19 +6,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:cwatch/models/app_settings.dart';
-import 'package:cwatch/models/explorer_context.dart';
-import 'package:cwatch/models/remote_file_entry.dart';
-import 'package:cwatch/models/ssh_host.dart';
-import 'package:cwatch/services/settings/app_settings_controller.dart';
-import 'package:cwatch/services/settings/settings_storage.dart';
-import 'package:cwatch/services/ssh/remote_shell_service.dart';
-import 'package:cwatch/services/ssh/terminal_session.dart';
-import 'package:cwatch/services/filesystem/explorer_trash_manager.dart';
-import 'package:cwatch/app/adapters/explorer_ui_adapter.dart';
-import 'package:cwatch/app/adapters/file_operations_ui_handler.dart';
-import 'package:cwatch/app/services/explorer_clipboard.dart';
-import 'package:cwatch/app/services/file_operations_service.dart';
+import 'package:cwatch/model/models/app_settings.dart';
+import 'package:cwatch/model/models/explorer_context.dart';
+import 'package:cwatch/model/models/remote_file_entry.dart';
+import 'package:cwatch/model/models/ssh_host.dart';
+import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
+import 'package:cwatch/model/services_infra/settings/settings_storage.dart';
+import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
+import 'package:cwatch/model/services_infra/ssh/terminal_session.dart';
+import 'package:cwatch/model/services_infra/filesystem/explorer_trash_manager.dart';
+import 'package:cwatch/controller/adapters/explorer_ui_adapter.dart';
+import 'package:cwatch/controller/adapters/file_operations_ui_handler.dart';
+import 'package:cwatch/model/services/explorer_clipboard.dart';
+import 'package:cwatch/model/services/file_operations_service.dart';
 
 class CopyCall {
   const CopyCall(this.source, this.destination, this.recursive);

@@ -1,0 +1,899 @@
+import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
+import 'package:xterm/xterm.dart';
+
+import 'package:cwatch/controller/adapters/terminal_ui_adapter.dart';
+import 'package:cwatch/controller/controllers/docker_command_terminal_controller.dart';
+import 'package:cwatch/model/models/app_settings.dart';
+import 'package:cwatch/model/models/input_mode_preference.dart';
+import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
+import 'package:cwatch/model/services_infra/ssh/remote_shell_base.dart';
+import 'package:cwatch/model/shared/gestures/gesture_activators.dart';
+import 'package:cwatch/model/shared/gestures/gesture_service.dart';
+import 'package:cwatch/model/shared/shortcuts/shortcut_actions.dart';
+import 'package:cwatch/model/shared/shortcuts/shortcut_resolver.dart';
+import 'package:cwatch/model/shared/shortcuts/shortcut_service.dart';
+import 'package:cwatch/model/shared/shortcuts/input_mode_resolver.dart';
+import 'package:cwatch/model/shared/theme/app_theme.dart';
+import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
+import 'package:cwatch/view/shared/widgets/dialog_keyboard_shortcuts.dart';
+import 'package:cwatch/view/shared/widgets/mobile_focus_manager.dart';
+import 'package:cwatch/view/shared/views/shared/tabs/tab_chip.dart';
+import 'package:cwatch/view/shared/views/shared/tabs/terminal/terminal_theme_presets.dart';
+
+/// Lightweight terminal view that runs a provided Docker command locally or via SSH.
+class DockerCommandTerminal extends StatefulWidget {
+  const DockerCommandTerminal({
+    super.key,
+    required this.controller,
+    required this.title,
+    this.settingsController,
+    this.showCopyButton = true,
+    this.autofocus = true,
+    this.onExit,
+    this.optionsController,
+    this.onOpenEditorTab,
+  });
+
+  final DockerCommandTerminalController controller;
+  final String title;
+  final AppSettingsController? settingsController;
+  final bool showCopyButton;
+  final bool autofocus;
+  final VoidCallback? onExit;
+  final TabOptionsController? optionsController;
+  final Future<void> Function(String path, String content)? onOpenEditorTab;
+
+  @override
+  State<DockerCommandTerminal> createState() => _DockerCommandTerminalState();
+}
+
+class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
+  final TerminalController _terminalController = TerminalController();
+  final Terminal _terminal = Terminal(maxLines: 1000);
+  final ScrollController _scrollController = ScrollController();
+  final FocusNode _focusNode = FocusNode();
+  late DockerCommandTerminalController _sessionController;
+  late final TerminalUiAdapter _uiAdapter;
+  late final VoidCallback _sessionListener;
+  bool get _isMobile =>
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
+  ShortcutSubscription? _shortcutSub;
+  GestureSubscription? _gestureSub;
+  VoidCallback? _settingsListener;
+  String? _lastSelectionSignature;
+  double? _lastLoggedScroll;
+  late final MobileFocusManager _mobileFocus;
+
+  @override
+  void initState() {
+    super.initState();
+    _sessionController = widget.controller;
+    _uiAdapter = TerminalUiAdapter(context: context);
+    _sessionListener = () {
+      if (!mounted) return;
+      setState(() {});
+    };
+    _sessionController.addListener(_sessionListener);
+    _mobileFocus = MobileFocusManager(
+      focusNode: _focusNode,
+      isMobile: _isMobile,
+    );
+    _mobileFocus.attach();
+    _terminalController.addListener(_logSelectionChange);
+    _scrollController.addListener(_logScrollChange);
+    _configureInputMode();
+    if (widget.settingsController != null) {
+      _settingsListener = () => _configureInputMode();
+      widget.settingsController!.addListener(_settingsListener!);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_isMobile) {
+        _focusNode.requestFocus();
+      }
+      _start();
+    });
+  }
+
+  @override
+  void dispose() {
+    _sessionController
+      ..removeListener(_sessionListener)
+      ..dispose();
+    _mobileFocus.detach();
+    _terminalController.removeListener(_logSelectionChange);
+    _scrollController.removeListener(_logScrollChange);
+    _scrollController.dispose();
+    _terminalController.dispose();
+    _shortcutSub?.dispose();
+    _gestureSub?.dispose();
+    _focusNode.dispose();
+    if (_settingsListener != null && widget.settingsController != null) {
+      widget.settingsController!.removeListener(_settingsListener!);
+    }
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant DockerCommandTerminal oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_sessionListener);
+      _sessionController = widget.controller;
+      _sessionController.addListener(_sessionListener);
+      _start();
+    }
+    if (oldWidget.optionsController != widget.optionsController ||
+        oldWidget.showCopyButton != widget.showCopyButton) {
+      _updateTabOptions();
+    }
+  }
+
+  Future<void> _start() async {
+    _terminal.onOutput = _onOutput;
+    _terminal.onResize = _onResize;
+    _terminal.buffer.clear();
+    try {
+      final options = _sessionOptions();
+      await _sessionController.start(
+        options: options,
+        onOutput: (text) {
+          if (text.isEmpty) return;
+          _terminal.write(text);
+          _logSelectionChange();
+        },
+        onExit: () {
+          if (!mounted) return;
+          widget.onExit?.call();
+        },
+      );
+      _sessionController.writeCommand(_sessionController.command);
+      _updateTabOptions();
+    } catch (_) {
+      _updateTabOptions();
+    }
+  }
+
+  TerminalSessionOptions _sessionOptions() {
+    final columns = _terminal.viewWidth > 0 ? _terminal.viewWidth : 80;
+    final rows = _terminal.viewHeight > 0 ? _terminal.viewHeight : 25;
+    if (columns <= 0 || rows <= 0) {
+      return const TerminalSessionOptions(columns: 80, rows: 25);
+    }
+    return TerminalSessionOptions(columns: columns, rows: rows);
+  }
+
+  void _onOutput(String value) {
+    final bytes = utf8.encode(value);
+    if (bytes.isEmpty) return;
+    _sessionController.write(Uint8List.fromList(bytes));
+    _logSelectionChange();
+  }
+
+  void _onResize(int columns, int rows, int pixelWidth, int pixelHeight) {
+    if (columns <= 0 || rows <= 0) return;
+    _sessionController.resize(rows, columns);
+  }
+
+  Future<void> _copyOutput() async {
+    final selection = _terminalController.selection;
+    if (selection != null) {
+      final selected = _terminal.buffer.getText(selection);
+      final cleaned = _stripAnsi(selected);
+      if (cleaned.trim().isEmpty) return;
+      await _uiAdapter.copyToClipboard(cleaned);
+    } else {
+      if (_sessionController.outputBuffer.isEmpty) return;
+      final plain = _stripAnsi(_sessionController.outputBuffer.toString());
+      await _uiAdapter.copyToClipboard(plain);
+    }
+    if (!mounted) return;
+    _uiAdapter.showSnackBar(
+      selection != null
+          ? 'Selection copied to clipboard'
+          : 'Output copied to clipboard',
+    );
+    _logSelectionChange(force: true);
+    _updateTabOptions();
+  }
+
+  String _stripAnsi(String input) {
+    var output = input;
+    // OSC sequences: ESC ] ... BEL or ESC \
+    output = output.replaceAll(RegExp(r'\x1B\][\s\S]*?(?:\x07|\x1B\\)'), '');
+    // CSI sequences
+    output = output.replaceAll(RegExp(r'\x1B\[[0-?]*[ -/]*[@-~]'), '');
+    // Single ESC codes
+    output = output.replaceAll(RegExp(r'\x1B[@-Z\\-_]'), '');
+    return output;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.settingsController != null) {
+      return AnimatedBuilder(
+        animation: widget.settingsController!,
+        builder: (context, _) =>
+            _buildContent(context, widget.settingsController!.settings),
+      );
+    }
+    return _buildContent(context, null);
+  }
+
+  Widget _buildContent(BuildContext context, AppSettings? settings) {
+    final error = _sessionController.error;
+    final connecting = _sessionController.connecting;
+    if (error != null) {
+      return Center(child: Text(error));
+    }
+    if (connecting) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    final resolvedSettings = settings ?? widget.settingsController?.settings;
+    final inputMode = resolveInputMode(
+      resolvedSettings?.inputModePreference ?? InputModePreference.auto,
+      defaultTargetPlatform,
+    );
+    return Actions(
+      actions: {
+        _OpenScrollbackIntent: CallbackAction<_OpenScrollbackIntent>(
+          onInvoke: (intent) async {
+            await _openScrollbackInEditor();
+            return null;
+          },
+        ),
+      },
+      child: GestureDetector(
+        onLongPressStart: inputMode.enableGestures
+            ? (details) => _handleLongPress(details.globalPosition)
+            : null,
+        onTap: _isMobile ? _enableMobileFocus : null,
+        onScaleStart: _isMobile ? (_) => _beginMobileGestureBlock() : null,
+        onScaleEnd: _isMobile ? (_) => _endMobileGestureBlock() : null,
+        child: TerminalView(
+          _terminal,
+          controller: _terminalController,
+          scrollController: _scrollController,
+          focusNode: _focusNode,
+          shortcuts: _shortcutBindings(resolvedSettings, inputMode),
+          onKeyEvent: _handleTerminalKeyEvent,
+          autofocus: widget.autofocus && !_isMobile,
+          hardwareKeyboardOnly: !kIsWeb && !_isMobile,
+          alwaysShowCursor: true,
+          enablePinchZoom: inputMode.enableGestures,
+          padding: EdgeInsets.symmetric(
+            horizontal: (resolvedSettings?.terminalPaddingX ?? 8)
+                .clamp(0, 48)
+                .toDouble(),
+            vertical: (resolvedSettings?.terminalPaddingY ?? 10)
+                .clamp(0, 48)
+                .toDouble(),
+          ),
+          textStyle: _textStyle(resolvedSettings),
+          theme: _terminalTheme(context, resolvedSettings),
+          onFontSizeChange: _handlePinchZoom,
+          onSecondaryTapDown: (details, _) =>
+              _showContextMenu(details.globalPosition),
+        ),
+      ),
+    );
+  }
+
+  Map<ShortcutActivator, Intent> _shortcutBindings(
+    AppSettings? settings,
+    InputModeConfig inputMode,
+  ) {
+    if (!inputMode.enableShortcuts) {
+      return const {};
+    }
+    final resolver = ShortcutResolver(settings);
+    final map = <ShortcutActivator, Intent>{};
+
+    void add(String actionId, Intent intent) {
+      final binding = resolver.bindingFor(actionId);
+      if (binding == null) return;
+      map[binding.toActivator()] = intent;
+    }
+
+    add(ShortcutActions.terminalCopy, CopySelectionTextIntent.copy);
+    add(
+      ShortcutActions.terminalPaste,
+      const PasteTextIntent(SelectionChangedCause.keyboard),
+    );
+    add(
+      ShortcutActions.terminalSelectAll,
+      const SelectAllTextIntent(SelectionChangedCause.keyboard),
+    );
+    add(ShortcutActions.terminalOpenScrollback, const _OpenScrollbackIntent());
+
+    return map;
+  }
+
+  KeyEventResult _handleTerminalKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    return ShortcutService.instance.shouldSuppressEvent(event)
+        ? KeyEventResult.handled
+        : KeyEventResult.ignored;
+  }
+
+  Future<void> _changeTerminalFont(double delta) async {
+    final controller = widget.settingsController;
+    if (controller == null) {
+      return;
+    }
+    await controller.update((current) {
+      final next = (current.terminalFontSize + delta).clamp(8, 32).toDouble();
+      return current.copyWith(terminalFontSize: next);
+    });
+  }
+
+  Future<void> _setTerminalFontSize(double value) async {
+    final controller = widget.settingsController;
+    if (controller == null) return;
+    await controller.update((current) {
+      final next = value.clamp(8, 32).toDouble();
+      if (next == current.terminalFontSize) return current;
+      return current.copyWith(terminalFontSize: next);
+    });
+  }
+
+  void _handlePinchZoom(double value) {
+    final handled = GestureService.instance.handle(
+      Gestures.dockerTerminalPinchZoom,
+      payload: value,
+    );
+    if (!handled) {
+      unawaited(_setTerminalFontSize(value));
+    }
+  }
+
+  void _handleLongPress(Offset globalPosition) {
+    // Treat long-press as context tap (right-click equivalent) without toggling focus.
+    final handled = GestureService.instance.handle(
+      Gestures.dockerTerminalLongPressMenu,
+      payload: globalPosition,
+    );
+    if (!handled) {
+      _showContextMenu(globalPosition);
+    }
+  }
+
+  void _enableMobileFocus() => _mobileFocus.enableFocus();
+
+  void _beginMobileGestureBlock() => _mobileFocus.beginGestureBlock();
+
+  void _endMobileGestureBlock() => _mobileFocus.endGestureBlock();
+
+  void _registerShortcuts() {
+    _shortcutSub = ShortcutService.instance.registerScope(
+      id: 'docker_terminal',
+      handlers: {
+        ShortcutActions.terminalZoomIn: () => _changeTerminalFont(1),
+        ShortcutActions.terminalZoomOut: () => _changeTerminalFont(-1),
+      },
+      focusNode: _focusNode,
+      priority: 5,
+      consumeOnHandle: true,
+    );
+  }
+
+  void _configureShortcuts(InputModeConfig inputMode) {
+    if (widget.settingsController == null) {
+      return;
+    }
+    if (!inputMode.enableShortcuts) {
+      _shortcutSub?.dispose();
+      _shortcutSub = null;
+      return;
+    }
+    if (_shortcutSub != null) return;
+    _registerShortcuts();
+  }
+
+  void _configureGestures(InputModeConfig inputMode) {
+    if (!inputMode.enableGestures) {
+      _gestureSub?.dispose();
+      _gestureSub = null;
+      return;
+    }
+    if (_gestureSub != null) return;
+    _gestureSub = GestureService.instance.registerScope(
+      id: 'docker_terminal_gestures',
+      handlers: {
+        Gestures.dockerTerminalPinchZoom: (invocation) {
+          final next = invocation.payloadAs<double>();
+          if (next != null) {
+            unawaited(_setTerminalFontSize(next));
+          }
+        },
+        Gestures.dockerTerminalLongPressMenu: (invocation) {
+          final offset = invocation.payloadAs<Offset>();
+          if (offset != null) {
+            _showContextMenu(offset);
+          }
+        },
+      },
+      focusNode: _focusNode,
+      priority: 5,
+    );
+  }
+
+  void _configureInputMode() {
+    final settings = widget.settingsController?.settings;
+    final inputMode = resolveInputMode(
+      settings?.inputModePreference ?? InputModePreference.auto,
+      defaultTargetPlatform,
+    );
+    _configureShortcuts(inputMode);
+    _configureGestures(inputMode);
+  }
+
+  Future<void> _showContextMenu(Offset globalPosition) async {
+    final overlay = Overlay.of(context);
+    final renderBox = overlay.context.findRenderObject() as RenderBox?;
+    if (renderBox == null) {
+      return;
+    }
+    final selection = _terminalController.selection;
+    final hasSelection =
+        selection != null && _safeSelectionText(selection).isNotEmpty;
+    final action = await showMenu<_TerminalMenuAction>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(globalPosition.dx, globalPosition.dy, 0, 0),
+        Offset.zero & renderBox.size,
+      ),
+      items: [
+        PopupMenuItem(
+          value: _TerminalMenuAction.copySelection,
+          enabled: hasSelection,
+          child: const Text('Copy selection'),
+        ),
+        PopupMenuItem(
+          value: _TerminalMenuAction.copyAll,
+          enabled: _sessionController.outputBuffer.isNotEmpty,
+          child: const Text('Copy all output'),
+        ),
+        const PopupMenuItem(
+          value: _TerminalMenuAction.paste,
+          child: Text('Paste'),
+        ),
+        const PopupMenuItem(
+          value: _TerminalMenuAction.selectAll,
+          child: Text('Select all'),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: _TerminalMenuAction.openScrollback,
+          enabled:
+              widget.onOpenEditorTab != null &&
+              _terminal.buffer.lines.length > 0,
+          child: const Text('Open scrollback in editor'),
+        ),
+        const PopupMenuItem(
+          value: _TerminalMenuAction.clear,
+          child: Text('Clear screen'),
+        ),
+      ],
+    );
+
+    switch (action) {
+      case _TerminalMenuAction.copySelection:
+        await _copySelectionOnly();
+        break;
+      case _TerminalMenuAction.copyAll:
+        await _copyAllOutput();
+        break;
+      case _TerminalMenuAction.paste:
+        await _pasteFromClipboard();
+        break;
+      case _TerminalMenuAction.selectAll:
+        _selectAll();
+        break;
+      case _TerminalMenuAction.openScrollback:
+        await _openScrollbackInEditor();
+        break;
+      case _TerminalMenuAction.clear:
+        _sendClearCommand();
+        break;
+      case null:
+        break;
+    }
+  }
+
+  Future<void> _copySelectionOnly() async {
+    final selection = _terminalController.selection;
+    if (selection == null) return;
+    final text = _safeSelectionText(selection);
+    final cleaned = _stripAnsi(text);
+    if (cleaned.trim().isEmpty) return;
+    await _uiAdapter.copyToClipboard(cleaned);
+  }
+
+  Future<void> _copyAllOutput() async {
+    if (_sessionController.outputBuffer.isEmpty) return;
+    final plain = _stripAnsi(_sessionController.outputBuffer.toString());
+    if (plain.trim().isEmpty) return;
+    await _uiAdapter.copyToClipboard(plain);
+  }
+
+  Future<void> _pasteFromClipboard() async {
+    final text = await _uiAdapter.readClipboardText();
+    if (text == null || text.isEmpty) {
+      return;
+    }
+    _terminal.textInput(text);
+  }
+
+  void _selectAll() {
+    final buffer = _terminal.buffer;
+    final lineCount = buffer.lines.length;
+    if (lineCount == 0) {
+      return;
+    }
+    final endLine = lineCount - 1;
+    final endCol = buffer.viewWidth > 0 ? buffer.viewWidth - 1 : 0;
+    final base = buffer.createAnchor(0, 0);
+    final extent = buffer.createAnchor(endCol, endLine);
+    _terminalController.setSelection(base, extent);
+  }
+
+  void _sendClearCommand() {
+    _terminalController.clearSelection();
+    _terminal.textInput('clear');
+    _terminal.keyInput(TerminalKey.enter);
+  }
+
+  Future<void> _openScrollbackInEditor() async {
+    final openEditor = widget.onOpenEditorTab;
+    if (openEditor == null) return;
+    final content = _stripAnsi(_terminal.buffer.getText());
+    if (content.trim().isEmpty) return;
+    final name = _sessionController.host?.name ?? 'docker';
+    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+    final path = '/tmp/$name-scrollback-$timestamp.log';
+    await openEditor(path, content);
+  }
+
+  void _logScrollChange() {
+    if (!_scrollController.hasClients) return;
+    final current = _scrollController.position.pixels;
+    // Avoid log spam for tiny deltas.
+    if (_lastLoggedScroll != null && (current - _lastLoggedScroll!).abs() < 4) {
+      return;
+    }
+    _lastLoggedScroll = current;
+  }
+
+  void _logSelectionChange({bool force = false}) {
+    final selection = _terminalController.selection;
+    if (selection == null) {
+      _lastSelectionSignature = null;
+      _updateTabOptions();
+      return;
+    }
+    final text = _safeSelectionText(selection);
+    final signature = '${selection.begin}-${selection.end}|${text.hashCode}';
+    if (!force && signature == _lastSelectionSignature) {
+      return;
+    }
+    _lastSelectionSignature = signature;
+    _updateTabOptions();
+  }
+
+  TerminalStyle _textStyle(AppSettings? settings) {
+    final fontSize = (settings?.terminalFontSize ?? 14).clamp(8, 32).toDouble();
+    final lineHeight = (settings?.terminalLineHeight ?? 1.4)
+        .clamp(0.8, 2.0)
+        .toDouble();
+    return TerminalStyle(
+      fontFamily: NerdFonts.effectiveTerminalFamily(
+        settings?.terminalFontFamily,
+      ),
+      fontFamilyFallback: NerdFonts.terminalFallbackFamilies,
+      fontSize: fontSize,
+      height: lineHeight,
+    );
+  }
+
+  TerminalTheme _terminalTheme(BuildContext context, AppSettings? settings) {
+    final brightness = Theme.of(context).colorScheme.brightness;
+    final key = brightness == Brightness.dark
+        ? settings?.terminalThemeDark ?? 'dracula'
+        : settings?.terminalThemeLight ?? 'solarized-light';
+    return terminalThemeForKey(key);
+  }
+
+  String _safeSelectionText(BufferRange selection) {
+    try {
+      return _terminal.buffer.getText(selection);
+    } catch (_) {
+      return '';
+    }
+  }
+
+  bool get _hasCopyableText =>
+      _terminalController.selection != null ||
+      _sessionController.outputBuffer.isNotEmpty;
+
+  void _updateTabOptions() {
+    final controller = widget.optionsController;
+    if (controller == null) {
+      return;
+    }
+    final options = <TabChipOption>[];
+    if (widget.showCopyButton) {
+      options.add(
+        TabChipOption(
+          label: 'Copy output',
+          icon: Icons.copy,
+          enabled: _hasCopyableText,
+          onSelected: _copyOutput,
+        ),
+      );
+    }
+    if (controller is CompositeTabOptionsController) {
+      controller.updateBase(options);
+      return;
+    }
+    controller.update(options);
+  }
+}
+
+class _OpenScrollbackIntent extends Intent {
+  const _OpenScrollbackIntent();
+}
+
+enum _TerminalMenuAction {
+  copySelection,
+  copyAll,
+  paste,
+  selectAll,
+  openScrollback,
+  clear,
+}
+
+class ComposeLogsTerminal extends StatefulWidget {
+  const ComposeLogsTerminal({
+    super.key,
+    required this.composeBase,
+    required this.project,
+    required this.services,
+    required this.controllerBuilder,
+    this.onExit,
+    this.optionsController,
+    required this.tailLines,
+    this.settingsController,
+    this.onOpenEditorTab,
+  });
+
+  final String composeBase;
+  final String project;
+  final List<String> services;
+  final DockerCommandTerminalController Function(String command)
+  controllerBuilder;
+  final VoidCallback? onExit;
+  final TabOptionsController? optionsController;
+  final int tailLines;
+  final AppSettingsController? settingsController;
+  final Future<void> Function(String path, String content)? onOpenEditorTab;
+
+  @override
+  State<ComposeLogsTerminal> createState() => _ComposeLogsTerminalState();
+}
+
+class _ComposeLogsTerminalState extends State<ComposeLogsTerminal> {
+  bool _excludeSelection = false;
+  final Set<String> _selected = {};
+  int _restartToken = 0;
+  int get _tailLines {
+    final value = widget.tailLines;
+    if (value < 0) return 0;
+    if (value > 5000) return 5000;
+    return value;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _queueTabOptionsUpdate();
+  }
+
+  @override
+  void didUpdateWidget(covariant ComposeLogsTerminal oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.optionsController != widget.optionsController ||
+        oldWidget.project != widget.project ||
+        oldWidget.composeBase != widget.composeBase ||
+        oldWidget.services != widget.services) {
+      _queueTabOptionsUpdate();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final serviceItems = widget.services;
+    _selected.removeWhere((s) => !serviceItems.contains(s));
+    final command = _buildCommand();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: DockerCommandTerminal(
+            key: ValueKey('$command-$_restartToken'),
+            controller: widget.controllerBuilder(command),
+            title: 'Compose logs • ${widget.project}',
+            showCopyButton: true,
+            autofocus: false,
+            onExit: widget.onExit,
+            optionsController: widget.optionsController,
+            settingsController: widget.settingsController,
+            onOpenEditorTab: widget.onOpenEditorTab,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _buildCommand() {
+    final tailArg = '--tail $_tailLines';
+    if (widget.services.isEmpty || _selected.isEmpty) {
+      return '${widget.composeBase} logs -f $tailArg; exit';
+    }
+    final includeList = _excludeSelection
+        ? widget.services.where((s) => !_selected.contains(s)).toList()
+        : _selected.toList();
+    if (includeList.isEmpty) {
+      return '${widget.composeBase} logs -f $tailArg; exit';
+    }
+    final servicesArg = includeList.map((s) => '"$s"').join(' ');
+    return '${widget.composeBase} logs -f $tailArg $servicesArg; exit';
+  }
+
+  void _restartLogs() {
+    setState(() => _restartToken += 1);
+    _updateTabOptions();
+  }
+
+  Future<void> _showServiceDialog() async {
+    if (widget.services.isEmpty) {
+      return;
+    }
+    final serviceItems = widget.services;
+    final dialogSelected = Set<String>.from(_selected);
+    var dialogExcludeSelection = _excludeSelection;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final spacing = context.appTheme.spacing;
+            return DialogKeyboardShortcuts(
+              onCancel: () => Navigator.of(dialogContext).pop(false),
+              onConfirm: () => Navigator.of(dialogContext).pop(true),
+              child: AlertDialog(
+                title: const Text('Filter services'),
+                content: SizedBox(
+                  width: double.maxFinite,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: spacing.base * 1.5,
+                        runSpacing: spacing.base * 1.5,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (serviceItems.isEmpty)
+                            const Text('No services detected')
+                          else
+                            ...serviceItems.map(
+                              (service) => FilterChip(
+                                label: Text(service),
+                                selected: dialogSelected.contains(service),
+                                onSelected: (value) => setState(() {
+                                  if (value) {
+                                    dialogSelected.add(service);
+                                  } else {
+                                    dialogSelected.remove(service);
+                                  }
+                                }),
+                              ),
+                            ),
+                        ],
+                      ),
+                      SizedBox(height: spacing.lg),
+                      Row(
+                        children: [
+                          const Text('Exclude selected'),
+                          Switch(
+                            value: dialogExcludeSelection,
+                            onChanged: (value) =>
+                                setState(() => dialogExcludeSelection = value),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          TextButton(
+                            onPressed: () => setState(
+                              () => dialogSelected.addAll(serviceItems),
+                            ),
+                            child: const Text('Select all'),
+                          ),
+                          TextButton(
+                            onPressed: () =>
+                                setState(() => dialogSelected.clear()),
+                            child: const Text('Clear'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(false),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(true),
+                    child: const Text('Apply'),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+    if (result != true) {
+      return;
+    }
+    setState(() {
+      _selected
+        ..clear()
+        ..addAll(dialogSelected);
+      _excludeSelection = dialogExcludeSelection;
+      _restartToken += 1;
+    });
+    _updateTabOptions();
+  }
+
+  void _updateTabOptions() {
+    final controller = widget.optionsController;
+    if (controller == null) {
+      return;
+    }
+    final overlay = [
+      TabChipOption(
+        label: 'Services…',
+        icon: Icons.filter_list,
+        onSelected: _showServiceDialog,
+      ),
+      TabChipOption(
+        label: 'Restart tail',
+        icon: Icons.refresh,
+        onSelected: _restartLogs,
+      ),
+    ];
+    if (controller is CompositeTabOptionsController) {
+      controller.updateOverlay(overlay);
+      return;
+    }
+    controller.update(overlay);
+  }
+
+  void _queueTabOptionsUpdate() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _updateTabOptions();
+    });
+  }
+}
