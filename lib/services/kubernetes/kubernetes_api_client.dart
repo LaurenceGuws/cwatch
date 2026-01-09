@@ -117,7 +117,7 @@ class KubernetesApiClient {
     }
     final client = HttpClient(context: context);
     if (auth.insecureSkipTlsVerify) {
-      client.badCertificateCallback = (_, __, ___) => true;
+      client.badCertificateCallback = (_, _, _) => true;
     }
     return client;
   }

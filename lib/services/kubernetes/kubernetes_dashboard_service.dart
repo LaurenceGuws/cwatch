@@ -599,7 +599,7 @@ class KubernetesDashboardService {
         final port = _int(entry['port']);
         final protocol = _string(entry['protocol']);
         if (port != null) {
-          formatted.add('${port}${protocol != null ? '/$protocol' : ''}');
+          formatted.add('$port${protocol != null ? '/$protocol' : ''}');
         }
       }
     }

@@ -1,42 +1,32 @@
 # CWatch
 
-Cross‑platform Flutter app for managing servers, Docker resources, and remote files with built‑in SSH tooling.
+Cross‑platform Flutter desktop app for managing servers, Docker, Kubernetes contexts, and remote files over SSH.
 
 ## Highlights
-- Docker: engine picker, context dashboards, resource stats, container exec, compose logs.
-- Servers: SSH connectivity, resource monitors, process tree, logs, trash, remote file explorer with editing/cache.
-- Terminals: PTY sessions (local or SSH), patched terminal library for stable selection.
-- Settings: agents, SSH vault/keys, container defaults, security, debug logs.
-- UI shell: tabbed workspace layout, Nerd Fonts theming, shared widgets and dialogs.
+- **Servers**: SSH connectivity, resource panels, process tree, logs, and a remote file explorer with editor + cache.
+- **Docker**: engine picker, remote context dashboards, resource lists, and container terminals.
+- **Kubernetes**: context picker + dashboard views backed by the CLI (`kubectl`) service.
+- **WSL (Windows only)**: WSL distribution views via `lib/modules/wsl/`.
+- **Debug Logs**: in‑app log viewer for tracing SSH/Docker/K8s activity.
+- **Terminal & Editor**: PTY-backed terminal tabs and a remote file editor with syntax detection and theme presets.
 
-## Code Map (lib/)
-- `models/` – settings, workspace state, Docker/SSH entities.
-- `services/`
-  - SSH: `remote_shell_base.dart`, process client, built‑in client/vault, config parsing, command logging, editor cache.
-  - Docker: client, engine services, container shells.
-  - Other: logging, settings, filesystem trash.
-- `modules/`
-  - `docker/` – view + widgets (dashboards, lists, terminals, resource panes).
-  - `servers/` – server lists, dialogs, resource panels.
-  - `settings/` – settings tabs and sections.
-  - `kubernetes/` – kube context helpers.
-- `shared/` – tabbed workspace UI (file explorer, editor, terminal, dialogs, theme).
-- `core/` – navigation, workspace persistence/tracking, app bootstrap.
-- `packages/terminal_library_patched/` – vendored terminal lib with scrolling/selection fixes (via `dependency_overrides`).
+## Code Map
+- `lib/core/` app bootstrap (`app_bootstrap.dart`), navigation shell, tab/workspace persistence.
+- `lib/modules/` UI modules: `servers/`, `docker/`, `kubernetes/`, `wsl/`, `debug_logs/`, `settings/`.
+- `lib/services/ssh/` SSH backends, vault/keys, host key handling, SFTP transfers, terminal sessions.
+- `lib/shared/views/shared/tabs/` terminal/editor/file explorer tabs + shared dialogs.
+- `assets/` theme presets and media used by terminal/editor UI.
+- `packages/` patched deps: `xterm_patched`, `flutter_code_editor_patched`.
 
-## SSH Implementations
-- **ProcessRemoteShellService**: wraps system `ssh/scp`; good for environments with native SSH.
-- **BuiltInRemoteShellService**: pure Dart SSH (dartssh2) with vault-backed keys; supports SFTP upload/download and terminal sessions. Key unlock prompts can be wired via the built‑in key service.
+## SSH Backends
+- **ProcessRemoteShellService**: uses system `ssh`/`scp` for command and file ops.
+- **BuiltInRemoteShellService**: pure Dart SSH with vault‑backed keys, host key verification, and SFTP.
 
 ## Development
-1) Install Flutter SDK and deps.
+1) Install Flutter SDK.
 2) `flutter pub get`
 3) `flutter run -d <device>`
-4) `flutter analyze`
-5) `flutter test` (use `--coverage` to mirror CI expectations)
+4) `flutter analyze` (required after each change)
+5) `flutter test` or `flutter test --coverage`
 
-Formatting: Flutter defaults (2 spaces, trailing commas). Keep imports ordered (SDK → third‑party → project). 
-
-## Notes
-- Terminal patches live in `packages/terminal_library_patched` (`xterm_library/core/ui/render.dart`, `xterm_library/core/ui/gesture/gesture_handler.dart`); optional repro in `tools/terminal_selection_demo`.
-- Workspace/tab state is persisted; see `core/workspace/` for persistence behavior.
+Formatting: 2‑space indentation, trailing commas in widgets, and ordered imports (SDK → third‑party → project).

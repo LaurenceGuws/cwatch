@@ -17,38 +17,39 @@ import 'package:cwatch/services/ssh/terminal_session.dart';
 import 'package:cwatch/services/filesystem/explorer_trash_manager.dart';
 import 'package:cwatch/shared/views/shared/tabs/file_explorer/explorer_clipboard.dart';
 import 'package:cwatch/shared/views/shared/tabs/file_explorer/file_operations_service.dart';
+import 'package:cwatch/shared/views/shared/tabs/file_explorer/file_operations_ui_handler.dart';
 
-class _CopyCall {
-  const _CopyCall(this.source, this.destination, this.recursive);
+class CopyCall {
+  const CopyCall(this.source, this.destination, this.recursive);
 
   final String source;
   final String destination;
   final bool recursive;
 }
 
-class _MoveCall {
-  const _MoveCall(this.source, this.destination);
+class MoveCall {
+  const MoveCall(this.source, this.destination);
 
   final String source;
   final String destination;
 }
 
-class _DeleteCall {
-  const _DeleteCall(this.path);
+class DeleteCall {
+  const DeleteCall(this.path);
 
   final String path;
 }
 
-class _DownloadCall {
-  const _DownloadCall(this.remotePath, this.localDestination, this.recursive);
+class DownloadCall {
+  const DownloadCall(this.remotePath, this.localDestination, this.recursive);
 
   final String remotePath;
   final String localDestination;
   final bool recursive;
 }
 
-class _UploadCall {
-  const _UploadCall(this.localPath, this.remoteDestination, this.recursive);
+class UploadCall {
+  const UploadCall(this.localPath, this.remoteDestination, this.recursive);
 
   final String localPath;
   final String remoteDestination;
@@ -70,11 +71,11 @@ class FakeSettingsStorage extends SettingsStorage {
 class FakeRemoteShellService extends RemoteShellService {
   FakeRemoteShellService() : super(debugMode: false, observer: null);
 
-  final List<_CopyCall> copyCalls = [];
-  final List<_MoveCall> moveCalls = [];
-  final List<_DeleteCall> deleteCalls = [];
-  final List<_DownloadCall> downloadCalls = [];
-  final List<_UploadCall> uploadCalls = [];
+  final List<CopyCall> copyCalls = [];
+  final List<MoveCall> moveCalls = [];
+  final List<DeleteCall> deleteCalls = [];
+  final List<DownloadCall> downloadCalls = [];
+  final List<UploadCall> uploadCalls = [];
 
   @override
   Future<List<RemoteFileEntry>> listDirectory(
@@ -142,7 +143,7 @@ class FakeRemoteShellService extends RemoteShellService {
     Duration timeout = const Duration(seconds: 15),
     RunTimeoutHandler? onTimeout,
   }) async {
-    moveCalls.add(_MoveCall(source, destination));
+    moveCalls.add(MoveCall(source, destination));
   }
 
   @override
@@ -154,7 +155,7 @@ class FakeRemoteShellService extends RemoteShellService {
     Duration timeout = const Duration(seconds: 20),
     RunTimeoutHandler? onTimeout,
   }) async {
-    copyCalls.add(_CopyCall(source, destination, recursive));
+    copyCalls.add(CopyCall(source, destination, recursive));
   }
 
   @override
@@ -164,7 +165,7 @@ class FakeRemoteShellService extends RemoteShellService {
     Duration timeout = const Duration(seconds: 15),
     RunTimeoutHandler? onTimeout,
   }) async {
-    deleteCalls.add(_DeleteCall(path));
+    deleteCalls.add(DeleteCall(path));
   }
 
   @override
@@ -190,7 +191,7 @@ class FakeRemoteShellService extends RemoteShellService {
     void Function(int bytesTransferred)? onBytes,
     RunTimeoutHandler? onTimeout,
   }) async {
-    downloadCalls.add(_DownloadCall(remotePath, localDestination, recursive));
+    downloadCalls.add(DownloadCall(remotePath, localDestination, recursive));
     final dir = Directory(localDestination);
     await dir.create(recursive: true);
     final target = p.join(localDestination, p.basename(remotePath));
@@ -211,7 +212,7 @@ class FakeRemoteShellService extends RemoteShellService {
     void Function(int bytesTransferred)? onBytes,
     RunTimeoutHandler? onTimeout,
   }) async {
-    uploadCalls.add(_UploadCall(localPath, remoteDestination, recursive));
+    uploadCalls.add(UploadCall(localPath, remoteDestination, recursive));
   }
 
   @override
@@ -332,6 +333,7 @@ void main() {
     final host = _host('alpha');
     final context = ExplorerContext.server(host);
     final service = _serviceFor(shell: shell, context: context);
+    final uiHandler = FileOperationsUiHandler(service: service);
 
     ExplorerClipboard.setEntry(
       ExplorerClipboardEntry(
@@ -360,7 +362,7 @@ void main() {
 
     var refreshed = false;
     await tester.runAsync(() async {
-      await service.handlePaste(
+      await uiHandler.handlePaste(
         context: widgetContext!,
         targetDirectory: '/dest',
         currentPath: '/dest',
@@ -388,6 +390,7 @@ void main() {
     final sourceContext = ExplorerContext.server(sourceHost);
     final destContext = ExplorerContext.server(destHost);
     final service = _serviceFor(shell: destShell, context: destContext);
+    final uiHandler = FileOperationsUiHandler(service: service);
 
     ExplorerClipboard.setEntry(
       ExplorerClipboardEntry(
@@ -415,7 +418,7 @@ void main() {
     );
 
     await tester.runAsync(() async {
-      await service.handlePaste(
+      await uiHandler.handlePaste(
         context: widgetContext!,
         targetDirectory: '/dest',
         currentPath: '/other',

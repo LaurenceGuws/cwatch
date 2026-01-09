@@ -1,0 +1,106 @@
+Phase 4 — UI Layer Separation (Controller/View-Model + Service + Repository + UI Adapter)
+
+Overview
+Goal: Move CWatch toward a clean, predictable architecture where UI never touches domain/data logic directly. Establish a single, global layered structure (no per-module nested layers) that is enforced across the app. This phase focuses on UI layer separation, leaving persistence standardization for the next phase.
+
+Principles
+- UI only talks to Controllers/ViewModels.
+- Controllers/ViewModels orchestrate Services and call UI Adapters for dialogs/snackbars/menus.
+- Services contain domain logic only (no Flutter imports).
+- Repositories encapsulate data access (filesystem, SSH, caches, config).
+- UI Adapters are the only layer touching Flutter UI APIs (BuildContext, dialogs, SnackBars, menus).
+- Shared layer is for utilities and cross-cutting concerns only.
+
+Target Structure (Global, Single-Layered)
+- lib/app/controllers/
+- lib/app/services/
+- lib/app/repositories/
+- lib/app/adapters/
+- lib/data/sources/
+- lib/data/models/
+- lib/ui/views/
+- lib/ui/widgets/
+- lib/ui/bindings/
+- lib/shared/ (utilities only)
+
+Scope for Phase 4
+- Establish new folder structure and base interfaces.
+- Pilot migration on File Explorer (largest UI-service mix).
+- Document rules and add a checklist for future refactors.
+- Ensure no regressions in UI behavior; run flutter analyze.
+
+Phase 4 Plan (Tracking)
+
+Phase 4.1 — Baseline + Map (Audit)
+Deliverables:
+- A short module map of current UI-to-service couplings (file explorer, terminal/editor, docker, servers).
+- List of “UI leakage” points (BuildContext usage in services, dialogs/snackbars in non-UI layers).
+Tasks:
+- Scan file explorer, terminal/editor tabs, docker views for UI logic in services.
+- Identify which services already have UI adapters (e.g., explorer).
+- Note which controller-like classes exist and what their responsibilities are.
+Exit Criteria:
+- Audit list complete and saved in phase4.txt.
+
+Phase 4.2 — Base Layer Contracts + Folder Layout
+Deliverables:
+- New folders created in lib/app, lib/data, lib/ui.
+- Minimal base interfaces/types:
+  - AppController (or BaseController)
+  - AppService (or BaseService)
+  - AppRepository (or BaseRepository)
+  - UiAdapter
+Tasks:
+- Create folders.
+- Add lightweight base interfaces (no Flutter imports).
+- Update README/ARCHITECTURE.md with the rules and layer boundaries.
+Exit Criteria:
+- Folder structure exists and base types compile.
+- Architecture rules documented.
+
+Phase 4.3 — Pilot Migration: File Explorer
+Deliverables:
+- File Explorer UI separation complete (UI uses controller; controller uses service + adapter).
+- Services and repositories for explorer live in new folders.
+Tasks:
+- Move FileOperationsService to lib/app/services/ (no UI imports).
+- Move UI adapter(s) to lib/app/adapters/.
+- Create FileExplorerController in lib/app/controllers/ and wire it via a binding in lib/ui/bindings/.
+- Update imports/usages in file explorer UI.
+Exit Criteria:
+- flutter analyze clean.
+- File explorer behavior unchanged for paste/upload/download flows.
+
+Phase 4.4 — Hardening + Consistency
+Deliverables:
+- Controller ↔ service boundaries validated with a lint checklist.
+- Update 1–2 more call sites to use controller (small refactors).
+Tasks:
+- Quick sweep to remove any remaining UI usage in app/services.
+- Ensure UI adapter usage is consistent (no BuildContext leaks).
+- Add doc checklist to enforce rules for new code.
+Exit Criteria:
+- No Flutter imports in lib/app/services or lib/app/repositories.
+- UI adapter usage is consistent across explorer.
+
+Phase 4.5 — Review + Next-Phase Prep
+Deliverables:
+- Summary of completed moves and remaining hotspots.
+- “Phase 5” inputs for persistence standardization (inventory of caches/configs).
+Tasks:
+- Summarize lessons learned and list next modules to migrate (docker, servers, terminal/editor).
+- Draft persistence audit list to seed phase5.
+Exit Criteria:
+- Phase 4 complete summary appended.
+
+Progress Tracker
+- [ ] 4.1 Baseline + Map
+- [ ] 4.2 Base Contracts + Layout
+- [ ] 4.3 File Explorer Pilot Migration
+- [ ] 4.4 Hardening + Consistency
+- [ ] 4.5 Review + Next-Phase Prep
+
+Notes
+- No per-module nested layers. All controllers/services/repos/adapters live in global folders.
+- Favor incremental moves; do not break imports en masse.
+- Keep UI adapters thin and injectable from controllers.

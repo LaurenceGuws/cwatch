@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../../../../../models/explorer_context.dart';
 import '../../../../../models/remote_file_entry.dart';
@@ -12,9 +10,7 @@ import '../../../../../services/logging/app_logger.dart';
 import '../../../../../services/filesystem/explorer_trash_manager.dart';
 import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../../services/settings/app_settings_controller.dart';
-import 'explorer_ui_adapter.dart';
 import 'explorer_clipboard.dart';
-import '../../../../widgets/file_operation_progress_dialog.dart';
 
 /// Service for handling file operations (copy, move, delete, download, upload)
 class FileOperationsService {
@@ -25,7 +21,6 @@ class FileOperationsService {
     required this.trashManager,
     required this.runShellWrapper,
     required this.explorerContext,
-    this.uiAdapter,
   }) : assert(explorerContext.host == host);
 
   final RemoteShellService shellService;
@@ -34,12 +29,11 @@ class FileOperationsService {
   final ExplorerContext explorerContext;
   final ExplorerTrashManager trashManager;
   final Future<T> Function<T>(Future<T> Function() action) runShellWrapper;
-  final ExplorerUiAdapter? uiAdapter;
   static const Duration _uploadTimeout = Duration(minutes: 20);
 
-  int get _uploadConcurrency =>
+  int get uploadConcurrency =>
       settingsController.settings.fileTransferUploadConcurrency;
-  int get _downloadConcurrency =>
+  int get downloadConcurrency =>
       settingsController.settings.fileTransferDownloadConcurrency;
 
   /// Copy files/directories
@@ -106,770 +100,7 @@ class FileOperationsService {
     );
   }
 
-  /// Handle paste operation
-  Future<void> handlePaste({
-    required BuildContext context,
-    required String targetDirectory,
-    required String currentPath,
-    required String Function(String, String) joinPath,
-    required String Function(String) normalizePath,
-    required Future<void> Function() refreshCurrentPath,
-  }) async {
-    final clipboardEntries = ExplorerClipboard.entries;
-    if (clipboardEntries.isEmpty) {
-      return;
-    }
-    final destinationDir = normalizePath(targetDirectory);
-    final refreshCurrent = destinationDir == currentPath;
-
-    // Show progress dialog for multiple items
-    FileOperationProgressController? progressController;
-    if (clipboardEntries.length > 1) {
-      if (!context.mounted) return;
-      progressController = FileOperationProgressDialog.show(
-        context,
-        operation:
-            clipboardEntries.first.operation == ExplorerClipboardOperation.copy
-            ? 'Copying'
-            : 'Moving',
-        totalItems: clipboardEntries.length,
-      );
-    }
-
-    int successCount = 0;
-    int failCount = 0;
-    final cutEntries = <ExplorerClipboardEntry>[];
-
-    for (var i = 0; i < clipboardEntries.length; i++) {
-      final clipboard = clipboardEntries[i];
-      final destinationPath = joinPath(destinationDir, clipboard.displayName);
-
-      // Skip if pasting to same location
-      if (clipboard.contextId == explorerContext.id &&
-          clipboard.remotePath == destinationPath) {
-        if (progressController != null) {
-          progressController.increment();
-        }
-        continue;
-      }
-
-      // Update progress
-      if (progressController != null) {
-        progressController.updateProgress(currentItem: clipboard.displayName);
-      }
-
-      try {
-        final isSameContext = clipboard.contextId == explorerContext.id;
-        if (isSameContext) {
-          if (clipboard.operation == ExplorerClipboardOperation.copy) {
-            await copyPath(
-              clipboard.remotePath,
-              destinationPath,
-              recursive: clipboard.isDirectory,
-            );
-            successCount++;
-          } else {
-            await movePath(clipboard.remotePath, destinationPath);
-            cutEntries.add(clipboard);
-            successCount++;
-          }
-        } else {
-          await _copyAcrossContexts(
-            clipboard,
-            destinationPath,
-            move: clipboard.operation == ExplorerClipboardOperation.cut,
-          );
-          if (clipboard.operation == ExplorerClipboardOperation.cut) {
-            cutEntries.add(clipboard);
-          }
-          successCount++;
-        }
-        if (progressController != null) {
-          progressController.increment();
-        }
-      } catch (error) {
-        failCount++;
-        AppLogger().warn(
-          'Failed to paste ${clipboard.displayName}',
-          tag: 'Explorer',
-          error: error,
-        );
-        if (progressController != null) {
-          progressController.increment();
-        }
-      }
-    }
-
-    // Close progress dialog if shown
-    if (progressController != null && context.mounted) {
-      progressController.dismiss();
-    }
-
-    // Notify cut completion for all cut entries
-    if (cutEntries.isNotEmpty) {
-      ExplorerClipboard.notifyCutsCompleted(cutEntries);
-    }
-
-    if (refreshCurrent) {
-      await refreshCurrentPath();
-    }
-    if (!context.mounted) return;
-
-    if (failCount == 0) {
-      _showSnackBar(
-        context,
-        successCount == 1
-            ? 'Pasted ${clipboardEntries.first.displayName}'
-            : 'Pasted $successCount item${successCount > 1 ? 's' : ''}',
-      );
-    } else {
-      _showSnackBar(
-        context,
-        'Pasted $successCount item${successCount > 1 ? 's' : ''}. $failCount failed.',
-      );
-    }
-  }
-
-  /// Handle download operation
-  Future<void> handleDownload({
-    required BuildContext context,
-    required List<RemoteFileEntry> entries,
-    required String currentPath,
-    required String Function(String, String) joinPath,
-  }) async {
-    if (entries.isEmpty) {
-      return;
-    }
-
-    // Prompt user to select download directory
-    String? selectedDirectory;
-    if (Platform.isAndroid) {
-      // On Android, use file_picker to select directory
-      selectedDirectory = await FilePicker.platform.getDirectoryPath(
-        dialogTitle: 'Select download location',
-      );
-      // Fallback to app's external storage Downloads directory if user cancels
-      if (selectedDirectory == null) {
-        try {
-          final externalDir = await getExternalStorageDirectory();
-          if (externalDir != null) {
-            final downloadsDir = Directory(
-              p.join(externalDir.path, 'Downloads'),
-            );
-            selectedDirectory = downloadsDir.path;
-          } else {
-            // Last resort: use app's documents directory
-            final appDir = await getApplicationDocumentsDirectory();
-            final downloadsDir = Directory(p.join(appDir.path, 'Downloads'));
-            selectedDirectory = downloadsDir.path;
-          }
-        } catch (e) {
-          AppLogger().warn(
-            'Failed to get Android storage directory',
-            tag: 'Explorer',
-            error: e,
-          );
-          // Show error and return
-          if (!context.mounted) return;
-          _showSnackBar(context, 'Failed to access download directory');
-          return;
-        }
-      }
-    } else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-      selectedDirectory = await FilePicker.platform.getDirectoryPath(
-        dialogTitle: 'Select download location',
-      );
-    }
-
-    if (selectedDirectory == null) {
-      return;
-    }
-
-    final downloadDir = Directory(selectedDirectory);
-    if (!await downloadDir.exists()) {
-      await downloadDir.create(recursive: true);
-    }
-
-    final downloadEntries = await _collectDownloadEntries(
-      entries: entries,
-      baseRemotePath: currentPath,
-      baseLocalDir: downloadDir.path,
-      joinPath: joinPath,
-    );
-    final items = downloadEntries
-        .map(
-          (entry) =>
-              FileOperationItem(label: entry.label, sizeBytes: entry.sizeBytes),
-        )
-        .toList();
-    final totalItems = items.isNotEmpty ? items.length : entries.length;
-
-    if (!context.mounted) return;
-    late final FileOperationProgressController progressController;
-    progressController = FileOperationProgressDialog.show(
-      context,
-      operation: 'Downloading',
-      totalItems: totalItems,
-      items: items,
-      maxConcurrency: _downloadConcurrency,
-      showConcurrencyControls: true,
-      onCancel: () {
-        progressController.cancel();
-      },
-    );
-
-    var successCount = 0;
-
-    try {
-      await _runConcurrent(
-        total: downloadEntries.length,
-        maxConcurrency: () => progressController.maxConcurrency,
-        isCancelled: () => progressController.cancelled,
-        task: (index) async {
-          final entry = downloadEntries[index];
-          if (!context.mounted) return;
-          if (progressController.cancelled) return;
-          progressController.markInProgress(index);
-          var sawBytes = false;
-          void handleBytes(int bytes) {
-            if (bytes <= 0) return;
-            sawBytes = true;
-            progressController.addItemBytes(index, bytes);
-          }
-
-          try {
-            if (entry.isDirectory) {
-              await Directory(entry.localDestination).create(recursive: true);
-            } else {
-              await downloadPath(
-                remotePath: entry.remotePath,
-                localDestination: entry.localDestination,
-                recursive: false,
-                onBytes: handleBytes,
-              );
-            }
-            if (!context.mounted) return;
-            successCount++;
-            progressController.markCompleted(index, addSize: !sawBytes);
-          } catch (error) {
-            if (!context.mounted) return;
-            progressController.markFailed(index);
-            AppLogger().warn(
-              'Failed to download ${entry.label}',
-              tag: 'Explorer',
-              error: error,
-            );
-          }
-        },
-      );
-
-      if (!context.mounted) return;
-      progressController.dismiss();
-      if (progressController.cancelled) {
-        _showSnackBar(context, 'Download cancelled');
-        return;
-      }
-      _showSnackBar(
-        context,
-        'Downloaded $successCount item${successCount == 1 ? '' : 's'}',
-      );
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Download operation failed',
-        tag: 'Explorer',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      if (!context.mounted) return;
-      progressController.dismiss();
-      _showSnackBar(context, 'Download failed: $error');
-    }
-  }
-
-  /// Handle upload operation
-  Future<void> handleUploadFiles({
-    required BuildContext context,
-    required String targetDirectory,
-    required String Function(String, String) joinPath,
-    required Future<void> Function() refreshCurrentPath,
-  }) async {
-    // Prompt user to select files/directories to upload
-    FilePickerResult? result;
-    result = await FilePicker.platform.pickFiles(
-      allowMultiple: true,
-      dialogTitle: 'Select files to upload',
-      // Avoid loading entire files into memory (especially videos) on mobile.
-      withData: false,
-    );
-
-    final resultFiles = result?.files ?? const <PlatformFile>[];
-
-    if (result == null || resultFiles.isEmpty) {
-      return;
-    }
-
-    final files = resultFiles.where((f) => f.path != null).toList();
-
-    if (files.isEmpty) {
-      if (!context.mounted) return;
-      _showSnackBar(context, 'No valid files selected');
-      return;
-    }
-
-    final items = await _buildFileItems(files);
-
-    // Show progress dialog
-    if (!context.mounted) return;
-    late final FileOperationProgressController progressController;
-    progressController = FileOperationProgressDialog.show(
-      context,
-      operation: 'Uploading',
-      totalItems: items.length,
-      items: items,
-      maxConcurrency: _uploadConcurrency,
-      showConcurrencyControls: true,
-      onCancel: () {
-        progressController.cancel();
-      },
-    );
-
-    try {
-      int successCount = 0;
-      int failCount = 0;
-
-      await _runConcurrent(
-        total: files.length,
-        maxConcurrency: () => progressController.maxConcurrency,
-        isCancelled: () => progressController.cancelled,
-        task: (i) async {
-          final file = files[i];
-
-          if (!context.mounted) {
-            return;
-          }
-          if (progressController.cancelled) {
-            return;
-          }
-
-          final fileName = file.name.isNotEmpty
-              ? file.name
-              : (file.path != null ? p.basename(file.path!) : 'file_$i');
-          final remotePath = joinPath(targetDirectory, fileName);
-
-          progressController.markInProgress(i);
-          var sawBytes = false;
-          void handleBytes(int bytes) {
-            if (bytes <= 0) return;
-            sawBytes = true;
-            progressController.addItemBytes(i, bytes);
-          }
-
-          try {
-            if (file.path == null || file.path!.isEmpty) {
-              throw Exception('File has no accessible path');
-            }
-
-            final localEntityType = FileSystemEntity.typeSync(file.path!);
-            final isDirectory =
-                localEntityType == FileSystemEntityType.directory;
-
-            if (isDirectory) {
-              failCount++;
-              AppLogger().warn(
-                'Skipping directory in file upload: ${file.path}',
-                tag: 'Explorer',
-              );
-              progressController.markFailed(i);
-              return;
-            }
-
-            await uploadPath(
-              localPath: file.path!,
-              remoteDestination: remotePath,
-              recursive: false,
-              onBytes: handleBytes,
-            );
-            if (!context.mounted) return;
-            successCount++;
-            progressController.markCompleted(i, addSize: !sawBytes);
-          } catch (error) {
-            if (!context.mounted) return;
-            failCount++;
-            progressController.markFailed(i);
-            AppLogger().warn(
-              'Failed to upload $fileName',
-              tag: 'Explorer',
-              error: error,
-            );
-            AppLogger().debug(
-              'File details: path=${file.path}, name=${file.name}, bytes=${file.bytes?.length ?? 0}',
-              tag: 'Explorer',
-            );
-          }
-        },
-      );
-
-      if (!context.mounted) return;
-      progressController.dismiss();
-      await refreshCurrentPath();
-
-      if (!context.mounted) return;
-      if (progressController.cancelled) {
-        _showSnackBar(context, 'Upload cancelled');
-      } else if (failCount == 0) {
-        _showSnackBar(
-          context,
-          'Uploaded $successCount item${successCount > 1 ? 's' : ''}',
-        );
-      } else {
-        _showSnackBar(
-          context,
-          'Uploaded $successCount item${successCount > 1 ? 's' : ''}. $failCount failed.',
-        );
-      }
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Upload operation failed',
-        tag: 'Explorer',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      if (!context.mounted) return;
-      progressController.dismiss();
-      if (!context.mounted) return;
-      _showSnackBar(context, 'Upload failed: $error');
-    }
-  }
-
-  Future<void> handleUploadFolder({
-    required BuildContext context,
-    required String targetDirectory,
-    required String Function(String, String) joinPath,
-    required Future<void> Function() refreshCurrentPath,
-  }) async {
-    final createdRemoteDirs = <String>{};
-
-    final directoryPath = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: 'Select a folder to upload',
-    );
-
-    if (directoryPath == null || directoryPath.isEmpty) {
-      return;
-    }
-
-    final directoryName = p.basename(directoryPath);
-    final baseRemotePath = joinPath(
-      targetDirectory,
-      directoryName,
-    ).replaceAll('\\', '/');
-    final remoteBaseDir = p.dirname(baseRemotePath).replaceAll('\\', '/');
-
-    final directoryCounts = await _countDirectoryEntries([directoryPath]);
-    final totalItems = directoryCounts.totalUnits == 0
-        ? 1
-        : directoryCounts.totalUnits;
-    final items = await _buildDirectoryItems(directoryPath, directoryName);
-
-    if (!context.mounted) return;
-    late final FileOperationProgressController progressController;
-    progressController = FileOperationProgressDialog.show(
-      context,
-      operation: 'Uploading',
-      totalItems: totalItems,
-      items: items,
-      maxConcurrency: _uploadConcurrency,
-      showConcurrencyControls: true,
-      onCancel: () {
-        progressController.cancel();
-      },
-    );
-
-    try {
-      int successCount = 0;
-      int failCount = 0;
-
-      try {
-        await _ensureRemoteDirectory(remoteBaseDir, createdRemoteDirs);
-      } catch (error) {
-        if (!context.mounted) return;
-        failCount++;
-        AppLogger().warn(
-          'Failed to prepare remote directory for $directoryName',
-          tag: 'Explorer',
-          error: error,
-        );
-        progressController.increment();
-        return;
-      }
-
-      final itemIndexByLabel = <String, int>{
-        for (var i = 0; i < items.length; i++) items[i].label: i,
-      };
-      final uploadEntries = await _collectDirectoryUploads(
-        directoryPath: directoryPath,
-        directoryName: directoryName,
-        baseRemotePath: baseRemotePath,
-        itemIndexByLabel: itemIndexByLabel,
-        joinPath: joinPath,
-      );
-
-      if (uploadEntries.isNotEmpty) {
-        await _runConcurrent(
-          total: uploadEntries.length,
-          maxConcurrency: () => progressController.maxConcurrency,
-          isCancelled: () => progressController.cancelled,
-          task: (index) async {
-            final entry = uploadEntries[index];
-            if (!context.mounted) return;
-            if (progressController.cancelled) return;
-            if (entry.itemIndex != -1) {
-              progressController.markInProgress(entry.itemIndex);
-            }
-            var sawBytes = false;
-            void handleBytes(int bytes) {
-              if (bytes <= 0) return;
-              sawBytes = true;
-              if (entry.itemIndex != -1) {
-                progressController.addItemBytes(entry.itemIndex, bytes);
-              } else {
-                progressController.addBytes(bytes);
-              }
-            }
-
-            final remoteDir = p.dirname(entry.remotePath).replaceAll('\\', '/');
-            try {
-              await _ensureRemoteDirectory(remoteDir, createdRemoteDirs);
-              await uploadPath(
-                localPath: entry.localPath,
-                remoteDestination: entry.remotePath,
-                recursive: false,
-                onBytes: handleBytes,
-              );
-              if (!context.mounted) return;
-              successCount++;
-              if (entry.itemIndex != -1) {
-                progressController.markCompleted(
-                  entry.itemIndex,
-                  addSize: !sawBytes,
-                );
-              }
-            } catch (error) {
-              if (!context.mounted) return;
-              failCount++;
-              if (entry.itemIndex != -1) {
-                progressController.markFailed(entry.itemIndex);
-              }
-              AppLogger().warn(
-                'Failed to upload ${entry.remotePath}',
-                tag: 'Explorer',
-                error: error,
-              );
-            }
-          },
-        );
-      }
-
-      if (uploadEntries.isEmpty) {
-        try {
-          await _ensureRemoteDirectory(baseRemotePath, createdRemoteDirs);
-          successCount++;
-        } catch (error) {
-          failCount++;
-          AppLogger().warn(
-            'Failed to create empty folder $directoryName',
-            tag: 'Explorer',
-            error: error,
-          );
-        }
-        final emptyIndex = items.indexWhere((i) => i.label == directoryName);
-        if (emptyIndex != -1) {
-          progressController.markCompleted(emptyIndex);
-        }
-      }
-
-      if (!context.mounted) return;
-      progressController.dismiss();
-      await refreshCurrentPath();
-
-      if (!context.mounted) return;
-      if (progressController.cancelled) {
-        _showSnackBar(context, 'Upload cancelled');
-      } else if (failCount == 0) {
-        _showSnackBar(
-          context,
-          'Uploaded ${directoryCounts.totalUnits} item${directoryCounts.totalUnits == 1 ? '' : 's'}',
-        );
-      } else {
-        _showSnackBar(
-          context,
-          'Uploaded $successCount item${successCount == 1 ? '' : 's'}. $failCount failed.',
-        );
-      }
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Directory upload failed',
-        tag: 'Explorer',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      if (!context.mounted) return;
-      if (Navigator.of(context, rootNavigator: true).canPop()) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-      if (!context.mounted) return;
-      _showSnackBar(context, 'Upload failed: $error');
-    }
-  }
-
-  /// Handle files/folders dropped from the OS into the explorer.
-  Future<void> handleDroppedPaths({
-    required BuildContext context,
-    required List<String> paths,
-    required String targetDirectory,
-    required String Function(String, String) joinPath,
-    required Future<void> Function() refreshCurrentPath,
-  }) async {
-    final toUpload = paths
-        .map((path) => path.trim())
-        .where((path) => path.isNotEmpty)
-        .toList();
-    if (toUpload.isEmpty) {
-      _showSnackBar(context, 'No valid paths to upload');
-      return;
-    }
-
-    final items = await _buildDroppedItems(toUpload);
-    final totalItems = items.isNotEmpty ? items.length : toUpload.length;
-
-    if (!context.mounted) {
-      return;
-    }
-    late final FileOperationProgressController progressController;
-    progressController = FileOperationProgressDialog.show(
-      context,
-      operation: 'Uploading',
-      totalItems: totalItems,
-      items: items.isEmpty ? null : items,
-      maxConcurrency: _uploadConcurrency,
-      showConcurrencyControls: true,
-      onCancel: () {
-        progressController.cancel();
-      },
-    );
-
-    var successCount = 0;
-    var failCount = 0;
-
-    await _runConcurrent(
-      total: toUpload.length,
-      maxConcurrency: () => progressController.maxConcurrency,
-      isCancelled: () => progressController.cancelled,
-      task: (i) async {
-        if (!context.mounted) {
-          return;
-        }
-        if (progressController.cancelled) {
-          return;
-        }
-        final localPath = toUpload[i];
-        final entityType = FileSystemEntity.typeSync(localPath);
-        if (entityType == FileSystemEntityType.notFound) {
-          failCount++;
-          progressController.increment();
-          return;
-        }
-        final name = p.basename(localPath);
-        final remotePath = joinPath(
-          targetDirectory,
-          name,
-        ).replaceAll('\\', '/');
-        final itemIndex = items.indexWhere((item) {
-          return item.label == name || item.label.startsWith('$name/');
-        });
-        if (itemIndex != -1) {
-          progressController.markInProgress(itemIndex);
-        } else {
-          progressController.updateProgress(currentItem: name);
-        }
-        var sawBytes = false;
-        void handleBytes(int bytes) {
-          if (bytes <= 0) return;
-          sawBytes = true;
-          if (itemIndex != -1) {
-            progressController.addItemBytes(itemIndex, bytes);
-          } else {
-            progressController.addBytes(bytes);
-          }
-        }
-
-        try {
-          final isDirectory = entityType == FileSystemEntityType.directory;
-          await uploadPath(
-            localPath: localPath,
-            remoteDestination: remotePath,
-            recursive: isDirectory,
-            onBytes: handleBytes,
-          );
-          successCount++;
-          if (itemIndex != -1) {
-            progressController.markCompleted(itemIndex, addSize: !sawBytes);
-          } else {
-            progressController.increment();
-          }
-        } catch (error) {
-          failCount++;
-          AppLogger().warn(
-            'Failed to upload dropped path $localPath',
-            tag: 'Explorer',
-            error: error,
-          );
-          if (itemIndex != -1) {
-            progressController.markFailed(itemIndex);
-          } else {
-            progressController.increment();
-          }
-        }
-      },
-    );
-
-    if (context.mounted) {
-      progressController.dismiss();
-    }
-
-    if (successCount > 0) {
-      await refreshCurrentPath();
-    }
-
-    if (!context.mounted) {
-      return;
-    }
-
-    if (progressController.cancelled) {
-      _showSnackBar(context, 'Upload cancelled');
-      return;
-    }
-    if (failCount == 0) {
-      _showSnackBar(
-        context,
-        'Uploaded $successCount item${successCount == 1 ? '' : 's'}',
-      );
-    } else {
-      _showSnackBar(
-        context,
-        'Uploaded $successCount item${successCount == 1 ? '' : 's'}. $failCount failed.',
-      );
-    }
-  }
-
-  void _showSnackBar(BuildContext context, String message) {
-    uiAdapter?.showSnackBar(message);
-    if (!context.mounted || uiAdapter != null) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  Future<_DirectoryCountResult> _countDirectoryEntries(
+  Future<DirectoryCountResult> countDirectoryEntries(
     List<String> directories,
   ) async {
     var fileCount = 0;
@@ -904,16 +135,16 @@ class FileOperationsService {
       }
     }
 
-    return _DirectoryCountResult(
+    return DirectoryCountResult(
       fileCount: fileCount,
       emptyDirectories: emptyDirectories,
     );
   }
 
-  Future<List<FileOperationItem>> _buildFileItems(
-    List<PlatformFile> files,
+  Future<List<TransferItem>> buildFileItems(
+    List<TransferItemInput> files,
   ) async {
-    final items = <FileOperationItem>[];
+    final items = <TransferItem>[];
     for (var i = 0; i < files.length; i++) {
       final file = files[i];
       final name = file.name.isNotEmpty
@@ -936,16 +167,16 @@ class FileOperationsService {
       } else if (file.bytes != null) {
         size = file.bytes!.length;
       }
-      items.add(FileOperationItem(label: name, sizeBytes: size));
+      items.add(TransferItem(label: name, sizeBytes: size));
     }
     return items;
   }
 
-  Future<List<FileOperationItem>> _buildDirectoryItems(
+  Future<List<TransferItem>> buildDirectoryItems(
     String directoryPath,
     String directoryName,
   ) async {
-    final items = <FileOperationItem>[];
+    final items = <TransferItem>[];
     var hasFiles = false;
     try {
       await for (final entity in Directory(
@@ -972,7 +203,7 @@ class FileOperationsService {
           size = 0;
         }
         items.add(
-          FileOperationItem(
+          TransferItem(
             label: '$directoryName/$relativePath',
             sizeBytes: size,
           ),
@@ -987,18 +218,18 @@ class FileOperationsService {
       );
     }
     if (!hasFiles) {
-      items.add(FileOperationItem(label: directoryName, sizeBytes: 0));
+      items.add(TransferItem(label: directoryName, sizeBytes: 0));
     }
     return items;
   }
 
-  Future<List<FileOperationItem>> _buildDroppedItems(List<String> paths) async {
-    final items = <FileOperationItem>[];
+  Future<List<TransferItem>> buildDroppedItems(List<String> paths) async {
+    final items = <TransferItem>[];
     for (final path in paths) {
       final type = await FileSystemEntity.type(path, followLinks: false);
       final name = p.basename(path);
       if (type == FileSystemEntityType.directory) {
-        items.addAll(await _buildDirectoryItems(path, name));
+        items.addAll(await buildDirectoryItems(path, name));
       } else if (type == FileSystemEntityType.file) {
         var size = 0;
         try {
@@ -1013,13 +244,13 @@ class FileOperationsService {
           );
           size = 0;
         }
-        items.add(FileOperationItem(label: name, sizeBytes: size));
+        items.add(TransferItem(label: name, sizeBytes: size));
       }
     }
     return items;
   }
 
-  Future<void> _ensureRemoteDirectory(
+  Future<void> ensureRemoteDirectory(
     String remotePath,
     Set<String> created,
   ) async {
@@ -1035,7 +266,7 @@ class FileOperationsService {
     created.add(remotePath);
   }
 
-  Future<void> _runConcurrent({
+  Future<void> runConcurrent({
     required int total,
     required int Function() maxConcurrency,
     required bool Function() isCancelled,
@@ -1074,14 +305,14 @@ class FileOperationsService {
     await completer.future;
   }
 
-  Future<List<_UploadEntry>> _collectDirectoryUploads({
+  Future<List<UploadEntry>> collectDirectoryUploads({
     required String directoryPath,
     required String directoryName,
     required String baseRemotePath,
     required Map<String, int> itemIndexByLabel,
     required String Function(String, String) joinPath,
   }) async {
-    final entries = <_UploadEntry>[];
+    final entries = <UploadEntry>[];
     try {
       await for (final entity in Directory(
         directoryPath,
@@ -1099,7 +330,7 @@ class FileOperationsService {
         final itemLabel = '$directoryName/$relativePath';
         final itemIndex = itemIndexByLabel[itemLabel] ?? -1;
         entries.add(
-          _UploadEntry(
+          UploadEntry(
             localPath: entity.path,
             remotePath: remotePath,
             itemIndex: itemIndex,
@@ -1116,22 +347,22 @@ class FileOperationsService {
     return entries;
   }
 
-  Future<List<_DownloadEntry>> _collectDownloadEntries({
+  Future<List<DownloadEntry>> collectDownloadEntries({
     required List<RemoteFileEntry> entries,
     required String baseRemotePath,
     required String baseLocalDir,
     required String Function(String, String) joinPath,
   }) async {
-    final results = <_DownloadEntry>[];
+    final results = <DownloadEntry>[];
 
     Future<void> walkDirectory({
       required String remotePath,
       required String labelPrefix,
     }) async {
-      final children = await _listRemoteDirectory(remotePath);
+      final children = await listRemoteDirectory(remotePath);
       if (children.isEmpty) {
         results.add(
-          _DownloadEntry(
+          DownloadEntry(
             label: labelPrefix,
             remotePath: remotePath,
             localDestination: p.join(baseLocalDir, labelPrefix),
@@ -1150,7 +381,7 @@ class FileOperationsService {
           await walkDirectory(remotePath: childRemote, labelPrefix: childLabel);
         } else {
           results.add(
-            _DownloadEntry(
+            DownloadEntry(
               label: childLabel,
               remotePath: childRemote,
               localDestination: p.join(baseLocalDir, p.dirname(childLabel)),
@@ -1168,7 +399,7 @@ class FileOperationsService {
         await walkDirectory(remotePath: remotePath, labelPrefix: entry.name);
       } else {
         results.add(
-          _DownloadEntry(
+          DownloadEntry(
             label: entry.name,
             remotePath: remotePath,
             localDestination: baseLocalDir,
@@ -1182,7 +413,7 @@ class FileOperationsService {
     return results;
   }
 
-  Future<List<RemoteFileEntry>> _listRemoteDirectory(String remotePath) async {
+  Future<List<RemoteFileEntry>> listRemoteDirectory(String remotePath) async {
     try {
       final entries = await runShellWrapper(
         () => shellService.listDirectory(host, remotePath),
@@ -1200,7 +431,7 @@ class FileOperationsService {
     }
   }
 
-  Future<void> _copyAcrossContexts(
+  Future<void> copyAcrossContexts(
     ExplorerClipboardEntry entry,
     String destinationPath, {
     required bool move,
@@ -1240,8 +471,8 @@ class FileOperationsService {
   }
 }
 
-class _UploadEntry {
-  const _UploadEntry({
+class UploadEntry {
+  const UploadEntry({
     required this.localPath,
     required this.remotePath,
     required this.itemIndex,
@@ -1252,8 +483,8 @@ class _UploadEntry {
   final int itemIndex;
 }
 
-class _DownloadEntry {
-  const _DownloadEntry({
+class DownloadEntry {
+  const DownloadEntry({
     required this.label,
     required this.remotePath,
     required this.localDestination,
@@ -1268,8 +499,8 @@ class _DownloadEntry {
   final bool isDirectory;
 }
 
-class _DirectoryCountResult {
-  const _DirectoryCountResult({
+class DirectoryCountResult {
+  const DirectoryCountResult({
     required this.fileCount,
     required this.emptyDirectories,
   });
@@ -1278,4 +509,19 @@ class _DirectoryCountResult {
   final int emptyDirectories;
 
   int get totalUnits => fileCount + emptyDirectories;
+}
+
+class TransferItem {
+  const TransferItem({required this.label, required this.sizeBytes});
+
+  final String label;
+  final int sizeBytes;
+}
+
+class TransferItemInput {
+  const TransferItemInput({required this.name, this.path, this.bytes});
+
+  final String name;
+  final String? path;
+  final List<int>? bytes;
 }

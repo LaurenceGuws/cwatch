@@ -550,7 +550,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       '${_controller.currentPath}: ${paths.join(', ')}',
       tag: 'Explorer',
     );
-    await _controller.fileOpsService.handleDroppedPaths(
+    await _controller.fileOpsUiHandler.handleDroppedPaths(
       context: context,
       targetDirectory: _controller.currentPath,
       paths: paths.toList(),
@@ -838,7 +838,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
   }
 
   Future<void> _handlePaste({required String targetDirectory}) async {
-    await _controller.fileOpsService.handlePaste(
+    await _controller.fileOpsUiHandler.handlePaste(
       context: context,
       targetDirectory: targetDirectory,
       currentPath: _controller.currentPath,
@@ -901,7 +901,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
   }
 
   Future<void> _handleDownload(List<RemoteFileEntry> entries) async {
-    await _controller.fileOpsService.handleDownload(
+    await _controller.fileOpsUiHandler.handleDownload(
       context: context,
       entries: entries,
       currentPath: _controller.currentPath,
@@ -910,7 +910,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
   }
 
   Future<void> _handleUploadFiles(String targetDirectory) async {
-    await _controller.fileOpsService.handleUploadFiles(
+    await _controller.fileOpsUiHandler.handleUploadFiles(
       context: context,
       targetDirectory: targetDirectory,
       joinPath: PathUtils.joinPath,
@@ -919,7 +919,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
   }
 
   Future<void> _handleUploadFolder(String targetDirectory) async {
-    await _controller.fileOpsService.handleUploadFolder(
+    await _controller.fileOpsUiHandler.handleUploadFolder(
       context: context,
       targetDirectory: targetDirectory,
       joinPath: PathUtils.joinPath,

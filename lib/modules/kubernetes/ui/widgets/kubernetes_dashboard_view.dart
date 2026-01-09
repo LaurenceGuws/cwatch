@@ -231,7 +231,7 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
           );
 
           final scopeField = DropdownButtonFormField<String>(
-            value: scopeValue,
+            initialValue: scopeValue,
             items: [
               for (final name in namespaces)
                 DropdownMenuItem(value: name, child: Text(name)),
@@ -954,7 +954,6 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
       case KubernetesBackend.api:
         return 'API';
       case KubernetesBackend.cli:
-      default:
         return 'CLI (kubectl)';
     }
   }

@@ -26,7 +26,7 @@ class KubernetesSettingsControls extends StatelessWidget {
         const Text('Backend'),
         const SizedBox(height: 8),
         DropdownButtonFormField<KubernetesBackend>(
-          value: settings.kubernetesBackend,
+          initialValue: settings.kubernetesBackend,
           items: const [
             DropdownMenuItem(
               value: KubernetesBackend.cli,

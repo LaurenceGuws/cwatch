@@ -23,6 +23,7 @@ import 'external_app_launcher.dart';
 import 'file_editing_service.dart';
 import 'file_entry_list.dart';
 import 'file_operations_service.dart';
+import 'file_operations_ui_handler.dart';
 import 'path_loading_service.dart';
 import 'path_utils.dart';
 import 'selection_controller.dart';
@@ -64,6 +65,7 @@ class FileExplorerController extends ChangeNotifier {
   late final PathLoadingService _pathLoadingService;
   late final ExplorerOps _ops;
   late final FileOperationsService fileOpsService;
+  late final FileOperationsUiHandler fileOpsUiHandler;
   late final FileEditingService fileEditingService;
   late final DeleteOperationsHandler deleteHandler;
   late final ClipboardOperationsHandler clipboardHandler;
@@ -180,6 +182,9 @@ class FileExplorerController extends ChangeNotifier {
       trashManager: trashManager,
       runShellWrapper: _runShell,
       explorerContext: explorerContext,
+    );
+    fileOpsUiHandler = FileOperationsUiHandler(
+      service: fileOpsService,
       uiAdapter: _uiAdapter,
     );
     fileEditingService = FileEditingService(
