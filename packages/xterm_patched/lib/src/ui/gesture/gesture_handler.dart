@@ -1,5 +1,5 @@
 import 'package:flutter/gestures.dart';
-import 'package:cwatch/services/logging/app_logger.dart';
+import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:flutter/widgets.dart';
 import 'package:xterm/src/core/buffer/cell_offset.dart';
 import 'package:xterm/src/core/mouse/button.dart';
