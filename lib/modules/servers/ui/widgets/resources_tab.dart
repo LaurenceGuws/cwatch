@@ -2,47 +2,30 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/app/controllers/resources_controller.dart';
-import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
-import 'package:cwatch/ui/bindings/resources_binding.dart';
 import 'resources/process_tree_view.dart';
 import 'resources/resource_panels.dart';
 import 'resources/resource_widgets.dart';
 
 class ResourcesTab extends StatefulWidget {
-  const ResourcesTab({
-    super.key,
-    required this.host,
-    required this.shellService,
-  });
+  const ResourcesTab({super.key, required this.controller});
 
-  final SshHost host;
-  final RemoteShellService shellService;
+  final ResourcesController controller;
 
   @override
   State<ResourcesTab> createState() => _ResourcesTabState();
 }
 
 class _ResourcesTabState extends State<ResourcesTab> {
-  final ResourcesBinding _binding = const ResourcesBinding();
   final ProcessTreeController _processTreeController = ProcessTreeController();
-  late ResourcesController _controller;
+  late final ResourcesController _controller;
   late final VoidCallback _controllerListener;
-
-  static const _historyCapacity = 30;
-  static const double _sampleWindowSeconds = 0.4;
 
   @override
   void initState() {
     super.initState();
-    _controller = _binding.create(
-      host: widget.host,
-      shellService: widget.shellService,
-      historyCapacity: _historyCapacity,
-      sampleWindowSeconds: _sampleWindowSeconds,
-    );
+    _controller = widget.controller;
     _controllerListener = () {
       if (!mounted) return;
       setState(() {});
@@ -53,9 +36,7 @@ class _ResourcesTabState extends State<ResourcesTab> {
 
   @override
   void dispose() {
-    _controller
-      ..removeListener(_controllerListener)
-      ..dispose();
+    _controller.removeListener(_controllerListener);
     super.dispose();
   }
 

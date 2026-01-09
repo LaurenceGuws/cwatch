@@ -8,6 +8,8 @@ import 'package:cwatch/modules/docker/services/docker_client_service.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/services/ssh/ssh_shell_factory.dart';
+import 'package:cwatch/ui/bindings/docker_shell_callbacks_binding.dart';
+import 'package:cwatch/app/controllers/docker_shell_callbacks.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/filesystem/explorer_trash_manager.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
@@ -23,7 +25,6 @@ import 'package:cwatch/core/tabs/tab_bar_visibility.dart';
 import 'package:cwatch/models/docker_workspace_state.dart';
 import 'package:cwatch/core/widgets/keep_alive.dart';
 import 'widgets/docker_engine_picker.dart';
-import '../services/docker_container_shell_service.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 import 'package:cwatch/shared/views/shared/tabs/settings/floating_settings_window.dart';
 import 'docker_tab_builder.dart';
@@ -62,6 +63,8 @@ class _DockerViewState extends State<DockerView> {
   final DockerClientServiceBinding _dockerBinding =
       const DockerClientServiceBinding();
   final DockerViewBinding _viewBinding = const DockerViewBinding();
+  final DockerShellCallbacksBinding _shellCallbacksBinding =
+      const DockerShellCallbacksBinding();
   late final DockerClientService _docker;
   late final DockerViewController _viewController;
   final ExplorerTrashManager _trashManager = ExplorerTrashManager();
@@ -70,6 +73,7 @@ class _DockerViewState extends State<DockerView> {
   late final DockerWorkspaceController _workspaceController;
   late final TabViewRegistry<WorkspaceTab> _tabRegistry;
   late final DockerUiAdapter _uiAdapter;
+  late final DockerShellCallbacks _shellCallbacks;
   late final VoidCallback _settingsListener;
   late final VoidCallback _tabsListener;
   late final VoidCallback _viewControllerListener;
@@ -114,6 +118,9 @@ class _DockerViewState extends State<DockerView> {
     };
     _viewController.addListener(_viewControllerListener);
     _uiAdapter = DockerUiAdapter(context: context);
+    _shellCallbacks = _shellCallbacksBinding.create(
+      shellFactory: widget.shellFactory,
+    );
     _viewController.loadContexts();
 
     _tabBuilder = DockerTabBuilder(
@@ -267,28 +274,30 @@ class _DockerViewState extends State<DockerView> {
     _remoteScanRequested = true;
     _scanStatusesNotifier.value = const [];
     _remoteStatusFuture = _loadRemoteStatuses(manual: true, token: token);
-    unawaited(_uiAdapter.showRemoteScanDialog(
-      onCancel: () {
-        _cancelledScans.add(token);
-        setState(() {
-          _scanningRemotes = false;
-          _scanningNotifier.value = false;
-        });
-      },
-      hostsListenable: _scanHostsNotifier,
-      statusesListenable: _scanStatusesNotifier,
-      scanningListenable: _scanningNotifier,
-      onComplete: () async {
-        await _remoteStatusFuture;
-        if (!mounted) return;
-        if (!_isScanCancelled(token)) {
+    unawaited(
+      _uiAdapter.showRemoteScanDialog(
+        onCancel: () {
+          _cancelledScans.add(token);
           setState(() {
             _scanningRemotes = false;
             _scanningNotifier.value = false;
           });
-        }
-      },
-    ));
+        },
+        hostsListenable: _scanHostsNotifier,
+        statusesListenable: _scanStatusesNotifier,
+        scanningListenable: _scanningNotifier,
+        onComplete: () async {
+          await _remoteStatusFuture;
+          if (!mounted) return;
+          if (!_isScanCancelled(token)) {
+            setState(() {
+              _scanningRemotes = false;
+              _scanningNotifier.value = false;
+            });
+          }
+        },
+      ),
+    );
   }
 
   @override
@@ -559,7 +568,7 @@ class _DockerViewState extends State<DockerView> {
     SshHost host,
     Offset? anchor,
   ) async {
-    final shell = _shellServiceForHost(host);
+    final shell = _shellCallbacks.shellForHost(host);
     final icons = context.appTheme.icons;
     final choice = await _pickDashboardTarget(
       host.name,
@@ -721,7 +730,7 @@ class _DockerViewState extends State<DockerView> {
   }
 
   Future<RemoteDockerStatus> _probeHost(SshHost host) async {
-    final shell = _shellServiceForHost(host);
+    final shell = _shellCallbacks.shellForHost(host);
     const probeCommand =
         "if command -v docker >/dev/null 2>&1; then docker info >/dev/null 2>&1 && echo '__DOCKER_OK__' || echo '__DOCKER_ERROR__'; else echo '__NO_DOCKER__'; fi";
     try {
@@ -767,10 +776,6 @@ class _DockerViewState extends State<DockerView> {
         detail: error.toString(),
       );
     }
-  }
-
-  RemoteShellService _shellServiceForHost(SshHost host) {
-    return widget.shellFactory.forHost(host);
   }
 
   void _openChildTab(WorkspaceTab tab) {
@@ -842,8 +847,8 @@ class _DockerViewState extends State<DockerView> {
         composeIcon: NerdIcon.terminal.data,
         explorerIcon: context.appTheme.icons.folderOpen,
         editorIcon: context.appTheme.icons.edit,
-        shellForHost: _shellServiceForHost,
-        containerShell: _containerShell,
+        shellForHost: _shellCallbacks.shellForHost,
+        containerShell: _shellCallbacks.containerShell,
         dockerContextNameFor: _dockerContextNameFor,
         closeTab: _closeTabById,
         onOpenTab: _openChildTab,
@@ -852,25 +857,6 @@ class _DockerViewState extends State<DockerView> {
     );
 
     unawaited(_loadCachedReady());
-  }
-
-  RemoteShellService? _containerShell(
-    SshHost? host,
-    String? containerId, {
-    String? contextName,
-  }) {
-    final id = containerId ?? '';
-    if (host == null || host.name == 'local') {
-      return LocalDockerContainerShellService(
-        containerId: id,
-        contextName: contextName,
-      );
-    }
-    return DockerContainerShellService(
-      host: host,
-      containerId: id,
-      baseShell: _shellServiceForHost(host),
-    );
   }
 
   String _dockerContextNameFor(SshHost host, String? contextName) {

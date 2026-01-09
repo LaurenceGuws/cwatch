@@ -42,6 +42,46 @@ Tasks:
 Exit Criteria:
 - Audit list complete and saved in phase4.txt.
 
+Phase 4.1 Audit Findings (initial pass)
+
+File Explorer
+- UI-to-service couplings:
+  - `lib/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart` constructs `FileExplorerController` and invokes `FileOperationsUiHandler`, `FileEditingService`, `DeleteOperationsHandler`, `ClipboardOperationsHandler`, `ExplorerOsDragManager` directly with `BuildContext` for dialogs/snackbars and drop handling.
+  - `lib/shared/views/shared/tabs/file_explorer/file_explorer_controller.dart` orchestrates `ExplorerOps`, `PathLoadingService`, `FileOperationsService`, `FileOperationsUiHandler`, `FileEditingService`, `DeleteOperationsHandler`, `ClipboardOperationsHandler`, and `ExplorerUiAdapter`.
+- UI leakage points:
+  - `lib/shared/views/shared/tabs/file_explorer/file_editing_service.dart` imports Flutter and uses `BuildContext` + `ScaffoldMessenger` for snackbar feedback.
+  - `lib/shared/views/shared/tabs/file_explorer/file_operations_ui_handler.dart` is UI-bound (dialogs, progress UI, FilePicker) but lives alongside services.
+  - `lib/shared/views/shared/tabs/file_explorer/clipboard_operations_handler.dart` and `lib/shared/views/shared/tabs/file_explorer/delete_operations_handler.dart` take `BuildContext` and show snackbars.
+  - `lib/shared/views/shared/tabs/file_explorer/explorer_os_drag_manager.dart` uses `BuildContext` and UI adapter to initiate drag.
+  - `lib/shared/views/shared/tabs/file_explorer/external_app_launcher.dart` takes `BuildContext` for error snackbars.
+- Existing UI adapter:
+  - `lib/shared/views/shared/tabs/file_explorer/explorer_ui_adapter.dart` wraps dialogs/snackbars/menus, but several services still call UI directly.
+
+Terminal / Editor
+- UI-to-service couplings:
+  - `lib/shared/views/shared/tabs/terminal/terminal_tab.dart` calls `RemoteShellService.createTerminalSession` directly and manages SSH lifecycle in UI state.
+  - `lib/shared/views/shared/tabs/editor/remote_file_editor_loader.dart` reads/writes via `RemoteShellService` inside UI widget.
+  - `lib/shared/views/shared/tabs/editor/remote_file_editor_tab.dart` saves via callback that often writes to `RemoteShellService` in callers.
+- UI leakage points:
+  - None observed in `lib/services` for terminal/editor flows, but UI is tightly coupled to SSH services without controller/service separation.
+
+Docker
+- UI-to-service couplings:
+  - `lib/modules/docker/ui/widgets/docker_overview_actions.dart` calls `DockerClientService`, `RemoteShellService`, `PortForwardService`, and `BuiltInSshKeyService` directly from UI actions.
+  - `DockerOverviewActions` also builds UI dialogs and snackbars inline.
+- UI leakage points:
+  - `lib/services/ssh/ssh_auth_prompter.dart` is a UI dialog helper inside `lib/services/` and depends on Flutter + `BuildContext`.
+
+Servers
+- UI-to-service couplings:
+  - `lib/modules/servers/ui/widgets/resources_tab.dart` constructs `ResourceParser` (SSH runner) in the UI and calls `collectSnapshot` directly.
+  - `lib/modules/servers/ui/server_tab_builder.dart` wires `RemoteShellService` directly into tabs (Terminal, Explorer, Editor), and `_EditorTabLoader` writes remote files directly.
+- UI leakage points:
+  - `ResourceParser` is a service-like class under `lib/modules/servers/ui/` rather than a services layer, and it calls SSH directly.
+
+Notes
+- `lib/services/ssh/ssh_auth_prompter.dart` is the only `lib/services` file with direct Flutter UI usage identified in this pass.
+
 Phase 4.2 — Base Layer Contracts + Folder Layout
 Deliverables:
 - New folders created in lib/app, lib/data, lib/ui.
@@ -94,13 +134,85 @@ Exit Criteria:
 - Phase 4 complete summary appended.
 
 Progress Tracker
-- [ ] 4.1 Baseline + Map
-- [ ] 4.2 Base Contracts + Layout
-- [ ] 4.3 File Explorer Pilot Migration
-- [ ] 4.4 Hardening + Consistency
-- [ ] 4.5 Review + Next-Phase Prep
+- [x] 4.1 Baseline + Map
+- [x] 4.2 Base Contracts + Layout
+- [x] 4.3 File Explorer Pilot Migration
+- [x] 4.4 Hardening + Consistency
+- [x] 4.5 Review + Next-Phase Prep
+
+Phase 4.5 Summary
+- File Explorer refactor complete: controller/service/adapter split; UI uses binding.
+- Docker overview actions refactored into controller + UI adapter + binding.
+- Servers resources + port forwarding now controller + adapter driven.
+- Terminal/editor flows now use controllers + bindings; UI adapters handle feedback.
+- Services in lib/app/services remain Flutter-free.
+- flutter analyze clean.
+
+Remaining UI Coupling Hotspots (still direct UI↔service usage)
+- Kubernetes UI flows: kubeconfig/kubectl/dashboard service usage still inside UI widgets/controllers.
+  - lib/modules/kubernetes/ui/kubernetes_context_controller.dart
+  - lib/modules/kubernetes/ui/kubernetes_workspace_controller.dart
+  - lib/modules/kubernetes/ui/kubernetes_tab_builder.dart
+  - lib/modules/kubernetes/ui/kubernetes_context_list.dart
+  - lib/modules/kubernetes/ui/widgets/kubernetes_context_picker.dart
+  - lib/modules/kubernetes/ui/widgets/kubernetes_resources.dart
+  - lib/modules/kubernetes/ui/widgets/kubernetes_dashboard_view.dart
+- Settings UI tabs use services directly (settings + SSH key services).
+  - lib/modules/settings/ui/settings/* (multiple tabs)
+  - lib/modules/settings/view.dart
+- WSL UI flows still directly use WSL services without controller/binding.
+  - lib/modules/wsl/ui/wsl_view.dart
+  - lib/modules/wsl/ui/wsl_tab_builder.dart
+  - lib/modules/wsl/ui/wsl_workspace_controller.dart
+- Server tab builder still wires remote shells/editor cache directly into tabs.
+  - lib/modules/servers/ui/server_tab_builder.dart
+- Docker command terminal/resources widgets still talk to remote shell/logging directly.
+  - lib/modules/docker/ui/widgets/docker_command_terminal.dart
+  - lib/modules/docker/ui/widgets/docker_resources.dart
+- File explorer trash tab still owns SSH unlock + shell calls in UI layer.
+  - lib/shared/views/shared/tabs/file_explorer/trash_tab.dart
+- Editor state still logs/saves via services directly (UI-side state object).
+  - lib/shared/views/shared/tabs/editor/remote_file_editor/editor_state.dart
+
+Phase 5 Prep: Persistence Audit Seeds
+- Remote editor cache (RemoteEditorCache) + local session files
+- Explorer trash manager storage and restore events
+- App settings storage + any implicit caches
+- SSH auth/key handling (built-in key store/passphrase cache)
+- Docker client state + port-forward persistence
 
 Notes
 - No per-module nested layers. All controllers/services/repos/adapters live in global folders.
 - Favor incremental moves; do not break imports en masse.
 - Keep UI adapters thin and injectable from controllers.
+
+Post-Session Audit: Remaining UI↔Service Coupling (as of 2026-01-09)
+- Kubernetes UI still imports services directly:
+  - lib/modules/kubernetes/ui/kubernetes_context_controller.dart
+  - lib/modules/kubernetes/ui/kubernetes_workspace_controller.dart
+  - lib/modules/kubernetes/ui/kubernetes_tab_builder.dart
+  - lib/modules/kubernetes/ui/kubernetes_context_list.dart
+  - lib/modules/kubernetes/ui/widgets/kubernetes_resources.dart
+  - lib/modules/kubernetes/ui/widgets/kubernetes_dashboard_view.dart
+  - lib/modules/kubernetes/ui/widgets/kubernetes_context_picker.dart
+- Docker UI widgets still import/call services directly:
+  - lib/modules/docker/ui/widgets/docker_command_terminal.dart
+  - lib/modules/docker/ui/widgets/docker_resources.dart
+  - lib/modules/docker/ui/widgets/docker_engine_picker.dart
+  - lib/modules/docker/ui/widgets/docker_lists.dart
+  - lib/modules/docker/ui/docker_view.dart
+- Servers UI still wires services directly:
+  - lib/modules/servers/ui/server_tab_builder.dart
+  - lib/modules/servers/ui/widgets/resources_tab.dart
+  - lib/modules/servers/ui/server_workspace_view.dart (still contains showDialog(...) call sites)
+- Shared tabs still use SSH services directly:
+  - lib/shared/views/shared/tabs/terminal/terminal_tab.dart
+  - lib/shared/views/shared/tabs/editor/remote_file_editor_loader.dart
+  - lib/shared/views/shared/tabs/file_explorer/trash_tab.dart
+- WSL UI still imports services directly:
+  - lib/modules/wsl/ui/wsl_view.dart
+  - lib/modules/wsl/ui/wsl_tab_builder.dart
+  - lib/modules/wsl/ui/wsl_workspace_controller.dart
+- Service-layer UI leakage (BuildContext usage):
+  - lib/services/window/window_controls_scope.dart
+

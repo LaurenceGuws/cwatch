@@ -8,27 +8,21 @@ import 'package:cwatch/models/docker_image.dart';
 import 'package:cwatch/models/docker_network.dart';
 import 'package:cwatch/models/docker_volume.dart';
 import 'package:cwatch/models/ssh_host.dart';
-import 'package:cwatch/modules/docker/services/docker_client_service.dart';
 import 'package:cwatch/modules/docker/services/docker_engine_service.dart';
-import 'package:cwatch/services/filesystem/explorer_trash_manager.dart';
 import 'package:cwatch/services/logging/app_logger.dart';
-import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
-import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/shared/mixins/tab_options_mixin.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/widgets/section_nav_bar.dart';
 import 'package:cwatch/shared/widgets/standard_empty_state.dart';
 import 'package:cwatch/core/workspace/workspace_tab.dart';
-import '../docker_tab_builder.dart';
 import 'docker_lists.dart';
 import 'docker_shared.dart';
 import 'docker_overview_controller.dart';
 import 'package:cwatch/app/adapters/docker_overview_ui_adapter.dart';
 import 'package:cwatch/app/controllers/docker_overview_actions_controller.dart';
-import 'package:cwatch/ui/bindings/docker_overview_binding.dart';
 import 'package:cwatch/modules/docker/services/container_distro_manager.dart';
 import 'package:cwatch/modules/docker/services/container_distro_key.dart';
 
@@ -37,32 +31,18 @@ typedef OpenTab = void Function(WorkspaceTab tab);
 class DockerOverview extends StatefulWidget {
   const DockerOverview({
     super.key,
-    required this.docker,
-    this.contextName,
-    this.remoteHost,
-    this.shellService,
-    required this.trashManager,
-    required this.keyService,
+    required this.controller,
+    required this.actions,
+    required this.uiAdapter,
     required this.settingsController,
-    this.onOpenTab,
-    this.onCloseTab,
     this.optionsController,
-    required this.tabBuilder,
-    required this.portForwardService,
   });
 
-  final DockerClientService docker;
-  final String? contextName;
-  final SshHost? remoteHost;
-  final RemoteShellService? shellService;
-  final ExplorerTrashManager trashManager;
-  final BuiltInSshKeyService keyService;
+  final DockerOverviewController controller;
+  final DockerOverviewActionsController actions;
+  final DockerOverviewUiAdapter uiAdapter;
   final AppSettingsController settingsController;
-  final OpenTab? onOpenTab;
-  final void Function(String tabId)? onCloseTab;
   final TabOptionsController? optionsController;
-  final DockerTabBuilder tabBuilder;
-  final PortForwardService portForwardService;
 
   @override
   State<DockerOverview> createState() => _DockerOverviewState();
@@ -70,12 +50,11 @@ class DockerOverview extends StatefulWidget {
 
 class _DockerOverviewState extends State<DockerOverview>
     with SingleTickerProviderStateMixin, TabOptionsMixin {
-  final DockerOverviewBinding _binding = const DockerOverviewBinding();
-  late DockerOverviewController _controller;
-  late final VoidCallback _controllerListener;
-  late DockerOverviewActionsController _actions;
-  late DockerOverviewUiAdapter _uiAdapter;
+  late final DockerOverviewController _controller;
+  late final DockerOverviewActionsController _actions;
+  late final DockerOverviewUiAdapter _uiAdapter;
   late DockerOverviewMenus _menus;
+  late final VoidCallback _controllerListener;
   late final ContainerDistroManager _containerDistroManager;
   late final TabController _tabController;
   final FocusNode _containerFocus = FocusNode(debugLabel: 'docker-containers');
@@ -108,36 +87,19 @@ class _DockerOverviewState extends State<DockerOverview>
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
-    _controller = _binding.createController(
-      docker: widget.docker,
-      contextName: widget.contextName,
-      remoteHost: widget.remoteHost,
-      shellService: widget.shellService,
-    );
+    _controller = widget.controller;
+    _actions = widget.actions;
+    _uiAdapter = widget.uiAdapter;
+
     _controllerListener = () {
       if (mounted) setState(() {});
     };
     _controller.addListener(_controllerListener);
     _controller.initialize();
-    _uiAdapter = _binding.createUiAdapter(context: context);
-    _actions = _binding.createActionsController(
-      context: context,
-      controller: _controller,
-      docker: widget.docker,
-      contextName: widget.contextName,
-      remoteHost: widget.remoteHost,
-      shellService: widget.shellService,
-      tabBuilder: widget.tabBuilder,
-      onOpenTab: widget.onOpenTab,
-      onCloseTab: widget.onCloseTab,
-      settingsController: widget.settingsController,
-      portForwardService: widget.portForwardService,
-      keyService: widget.keyService,
-      uiAdapter: _uiAdapter,
-    );
+
     _containerDistroManager = ContainerDistroManager(
       settingsController: widget.settingsController,
-      docker: widget.docker,
+      docker: _controller.docker,
     );
   }
 
@@ -204,9 +166,9 @@ class _DockerOverviewState extends State<DockerOverview>
         unawaited(
           _containerDistroManager.ensureDistroForContainer(
             container,
-            contextName: widget.contextName,
-            remoteHost: widget.remoteHost,
-            shellService: widget.shellService,
+            contextName: _controller.contextName,
+            remoteHost: _controller.remoteHost,
+            shellService: _controller.shellService,
             force: !wasRunning,
           ),
         );
@@ -336,14 +298,15 @@ class _DockerOverviewState extends State<DockerOverview>
                                   actionLabels:
                                       _controller.containerActionInProgress,
                                   onComposeAction: _handleComposeAction,
-                                  onComposeForward: widget.remoteHost != null
+                                  onComposeForward:
+                                      _controller.remoteHost != null
                                       ? (project) =>
                                             _actions.forwardComposePorts(
                                               project: project,
                                             )
                                       : null,
                                   onComposeStopForward:
-                                      widget.remoteHost != null
+                                      _controller.remoteHost != null
                                       ? (_) => _actions.stopForwardsForHost()
                                       : null,
                                   settingsController: widget.settingsController,
@@ -474,9 +437,9 @@ class _DockerOverviewState extends State<DockerOverview>
       _menus.menuItem('logs', 'Tail logs', Icons.list_alt_outlined),
       _menus.menuItem('shell', 'Open shell tab', NerdIcon.terminal.data),
       _menus.menuItem('copyExec', 'Copy exec command', _icons.copy),
-      if (widget.remoteHost != null)
+      if (_controller.remoteHost != null)
         _menus.menuItem('forward', 'Port forward…', Icons.link_outlined),
-      if (widget.remoteHost != null)
+      if (_controller.remoteHost != null)
         _menus.menuItem(
           'stopForward',
           'Stop port forwards',
@@ -541,7 +504,7 @@ class _DockerOverviewState extends State<DockerOverview>
               await _actions.openContainerExplorer(
                 container: target,
                 dockerContextName: _dockerContextName(
-                  widget.remoteHost ??
+                  _controller.remoteHost ??
                       const SshHost(
                         name: 'local',
                         hostname: 'localhost',
@@ -883,7 +846,7 @@ class _DockerOverviewState extends State<DockerOverview>
   }
 
   String _dockerContextName(SshHost host) {
-    final trimmedContext = widget.contextName?.trim();
+    final trimmedContext = _controller.contextName?.trim();
     if (trimmedContext?.isNotEmpty == true) {
       return trimmedContext!;
     }
@@ -898,18 +861,18 @@ class _DockerOverviewState extends State<DockerOverview>
 
   Future<DateTime?> _loadStartTime(DockerContainer container) async {
     try {
-      if (widget.remoteHost != null && widget.shellService != null) {
-        final output = await widget.shellService!.runCommand(
-          widget.remoteHost!,
+      if (_controller.remoteHost != null && _controller.shellService != null) {
+        final output = await _controller.shellService!.runCommand(
+          _controller.remoteHost!,
           "docker inspect -f '{{.State.StartedAt}}' ${container.id}",
           timeout: const Duration(seconds: 8),
         );
         final raw = output.trim().replaceAll('"', '');
         return DateTime.tryParse(raw);
       }
-      return await widget.docker.inspectContainerStartTime(
+      return await _controller.docker.inspectContainerStartTime(
         id: container.id,
-        context: widget.contextName,
+        context: _controller.contextName,
       );
     } catch (error, stackTrace) {
       AppLogger().warn(

@@ -22,11 +22,9 @@ import 'package:cwatch/services/logging/app_logger.dart';
 import 'package:cwatch/ui/bindings/server_workspace_binding.dart';
 import 'package:cwatch/shared/theme/app_theme.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
-import 'package:cwatch/shared/widgets/dialog_keyboard_shortcuts.dart';
 import 'package:cwatch/core/navigation/tab_navigation_registry.dart';
 import 'package:cwatch/core/navigation/command_palette_registry.dart';
 import 'package:cwatch/core/tabs/tab_bar_visibility.dart';
-import 'servers/add_server_dialog.dart';
 import 'servers/host_list.dart';
 import 'servers/server_models.dart';
 import 'servers/servers_widgets.dart';
@@ -319,7 +317,9 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
     _hostsFuture = _loadHosts();
     _hostsFutureNotifier = ValueNotifier(_hostsFuture);
 
-    final settingsUiAdapter = _settingsBinding.createUiAdapter(context: context);
+    final settingsUiAdapter = _settingsBinding.createUiAdapter(
+      context: context,
+    );
     _settingsController = _settingsBinding.createController(
       settingsController: widget.settingsController,
       keyService: widget.keyService,
@@ -528,9 +528,7 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
                 hosts: _lastHosts,
               ),
               const Divider(),
-              SshSettingsControls(
-                controller: _settingsController,
-              ),
+              SshSettingsControls(controller: _settingsController),
             ],
           ),
         ),
@@ -910,12 +908,9 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
     BuildContext context,
     List<String> existingNames,
   ) async {
-    final result = await showDialog<CustomSshHost>(
-      context: context,
-      builder: (context) => AddServerDialog(
-        keyService: widget.keyService,
-        existingNames: existingNames,
-      ),
+    final result = await _uiAdapter.showAddServerDialog(
+      keyService: widget.keyService,
+      existingNames: existingNames,
     );
     if (result != null) {
       final current = widget.settingsController.settings;
@@ -953,39 +948,9 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
       return;
     }
     final tab = _tabs[index];
-    final controller = TextEditingController(text: tab.title);
-    String? newName;
-    try {
-      newName = await showDialog<String>(
-        context: context,
-        builder: (context) => DialogKeyboardShortcuts(
-          onCancel: () => Navigator.of(context).pop(),
-          onConfirm: () => Navigator.of(context).pop(controller.text.trim()),
-          child: AlertDialog(
-            title: const Text('Rename tab'),
-            content: TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'Tab name'),
-              onSubmitted: (value) => Navigator.of(context).pop(value),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () =>
-                    Navigator.of(context).pop(controller.text.trim()),
-                child: const Text('Save'),
-              ),
-            ],
-          ),
-        ),
-      );
-    } finally {
-      controller.dispose();
-    }
+    final newName = await _uiAdapter.showRenameTabDialog(
+      initialName: tab.title,
+    );
     if (newName == null) {
       return;
     }
@@ -993,7 +958,6 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
     if (trimmedInput.isEmpty) return;
 
     final updated = tab.copyWith(title: trimmedInput, label: trimmedInput);
-    // Also update workspace state title
     if (tab.workspaceState is ServerTabData) {
       final oldData = tab.workspaceState as ServerTabData;
       final newTabWithState = updated.copyWith(

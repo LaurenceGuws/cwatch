@@ -11,11 +11,17 @@ import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart';
 import 'package:cwatch/shared/views/shared/tabs/file_explorer/trash_tab.dart';
+import 'package:cwatch/ui/bindings/file_explorer_binding.dart';
+import 'package:cwatch/ui/bindings/settings_binding.dart';
+import 'package:cwatch/ui/bindings/trash_tab_binding.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 import 'package:cwatch/shared/views/shared/tabs/terminal/terminal_tab.dart';
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
+import 'package:cwatch/app/controllers/remote_file_editor_controller.dart';
 import 'package:cwatch/shared/views/shared/tabs/editor/remote_file_editor_loader.dart';
 import 'package:cwatch/services/ssh/remote_editor_cache.dart';
+import 'package:cwatch/ui/bindings/resources_binding.dart';
+import 'package:cwatch/ui/bindings/terminal_tab_binding.dart';
 
 import 'widgets/connectivity_tab.dart';
 import 'widgets/resources_tab.dart';
@@ -53,25 +59,38 @@ class ServerTabBuilder {
       title: customName ?? host.name,
       label: customName ?? host.name,
       icon: NerdIcon.folder.data,
-      body: FileExplorerTab(
-        host: host,
-        explorerContext: effectiveContext,
-        shellService: shellServiceForHost(host),
-        settingsController: settingsController,
-        keyService: keyService,
-        hostsFuture: hostsFuture,
-        trashManager: trashManager,
-        initialPath: initialPath,
-        onPathChanged: (path) {
-          // We might need to update the tab state here, but that requires
-          // access to the controller. For now, we rely on internal state
-          // or we can pass a callback that updates the tab state.
+      body: Builder(
+        builder: (context) {
+          final settingsUiAdapter = const SettingsBinding().createUiAdapter(
+            context: context,
+          );
+          final explorerSettingsController = const SettingsBinding()
+              .createController(
+                settingsController: settingsController,
+                keyService: keyService,
+                hostsFuture: hostsFuture,
+                uiAdapter: settingsUiAdapter,
+              );
+          final explorerController = const FileExplorerBinding().create(
+            context: context,
+            host: host,
+            explorerContext: effectiveContext,
+            shellService: shellServiceForHost(host),
+            settingsController: settingsController,
+            trashManager: trashManager,
+            initialPath: initialPath,
+            onOpenEditorTab: (path, content) => onOpenEditor(path, content),
+          );
+          return FileExplorerTab(
+            controller: explorerController,
+            settingsController: explorerSettingsController,
+            onOpenTrash: onOpenTrash,
+            onOpenTerminalTab: (path) => onOpenTerminal(host, path),
+            optionsController: controller,
+          );
         },
-        onOpenTrash: onOpenTrash,
-        onOpenEditorTab: (path, content) async => onOpenEditor(path, content),
-        onOpenTerminalTab: (path) => onOpenTerminal(host, path),
-        optionsController: controller,
       ),
+
       canDrag: true,
       canRename: true,
       optionsController: controller,
@@ -103,16 +122,35 @@ class ServerTabBuilder {
       title: path,
       label: path,
       icon: Icons.edit_note,
-      body: _EditorTabLoader(
-        host: host,
-        shellService: shellServiceForHost(host),
-        path: path,
-        settingsController: settingsController,
-        keyService: keyService,
-        hostsFuture: hostsFuture,
-        initialContent: initialContent,
-        optionsController: controller,
+      body: Builder(
+        builder: (context) {
+          final cache = RemoteEditorCache();
+          final shellService = shellServiceForHost(host);
+          return RemoteFileEditorLoader(
+            path: path,
+            controllerBuilder: (uiAdapter) => RemoteFileEditorController(
+              host: host,
+              shellService: shellService,
+              path: path,
+              uiAdapter: uiAdapter,
+              onSave: (content) async {
+                await shellService.writeFile(host, path, content);
+                await cache.materialize(
+                  host: host.name,
+                  remotePath: path,
+                  contents: content,
+                );
+              },
+            ),
+            settingsController: settingsController,
+            keyService: keyService,
+            hostsFuture: hostsFuture,
+            initialContent: initialContent,
+            optionsController: controller,
+          );
+        },
       ),
+
       canDrag: true,
       canRename: true,
       optionsController: controller,
@@ -146,12 +184,16 @@ class ServerTabBuilder {
       body: TerminalTab(
         host: host,
         initialDirectory: initialDirectory,
-        shellService: shellServiceForHost(host),
+        sessionController: const TerminalTabBinding().createSessionController(
+          host: host,
+          shellService: shellServiceForHost(host),
+        ),
         settingsController: settingsController,
         onOpenEditorTab: (path, content) => onOpenEditor(path, content),
         onExit: onClose,
         optionsController: controller,
       ),
+
       canDrag: true,
       canRename: true,
       optionsController: controller,
@@ -180,7 +222,12 @@ class ServerTabBuilder {
       title: customName ?? host.name,
       label: customName ?? host.name,
       icon: NerdIcon.database.data,
-      body: ResourcesTab(host: host, shellService: shellServiceForHost(host)),
+      body: ResourcesTab(
+        controller: const ResourcesBinding().create(
+          host: host,
+          shellService: shellServiceForHost(host),
+        ),
+      ),
       canDrag: true,
       canRename: true,
       optionsController: controller,
@@ -240,11 +287,17 @@ class ServerTabBuilder {
       title: customName ?? 'Trash • ${host.name}',
       label: customName ?? 'Trash',
       icon: Icons.delete_outline,
-      body: TrashTab(
-        manager: trashManager,
-        shellService: shellServiceForHost(host),
-        keyService: keyService,
-        context: effectiveContext,
+      body: Builder(
+        builder: (context) {
+          final controller = const TrashTabBinding().create(
+            context: context,
+            manager: trashManager,
+            shellService: shellServiceForHost(host),
+            keyService: keyService,
+            explorerContext: effectiveContext,
+          );
+          return TrashTab(controller: controller);
+        },
       ),
       canDrag: true,
       canRename: true,
@@ -298,49 +351,4 @@ class ServerTabData {
   final SshHost host;
   final ServerAction action;
   final TabState persistedState;
-}
-
-class _EditorTabLoader extends StatelessWidget {
-  const _EditorTabLoader({
-    required this.host,
-    required this.shellService,
-    required this.path,
-    required this.settingsController,
-    required this.keyService,
-    required this.hostsFuture,
-    this.initialContent,
-    this.optionsController,
-  });
-
-  final SshHost host;
-  final RemoteShellService shellService;
-  final String path;
-  final AppSettingsController settingsController;
-  final BuiltInSshKeyService keyService;
-  final Future<List<SshHost>> hostsFuture;
-  final String? initialContent;
-  final TabOptionsController? optionsController;
-
-  @override
-  Widget build(BuildContext context) {
-    final cache = RemoteEditorCache();
-    return RemoteFileEditorLoader(
-      host: host,
-      shellService: shellService,
-      path: path,
-      settingsController: settingsController,
-      keyService: keyService,
-      hostsFuture: hostsFuture,
-      initialContent: initialContent,
-      optionsController: optionsController,
-      onSave: (content) async {
-        await shellService.writeFile(host, path, content);
-        await cache.materialize(
-          host: host.name,
-          remotePath: path,
-          contents: content,
-        );
-      },
-    );
-  }
 }

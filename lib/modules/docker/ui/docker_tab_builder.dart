@@ -11,13 +11,18 @@ import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
+import 'package:cwatch/app/controllers/remote_file_editor_controller.dart';
 import 'package:cwatch/shared/views/shared/tabs/editor/remote_file_editor_loader.dart';
 import 'package:cwatch/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart';
 import 'package:cwatch/shared/views/shared/tabs/file_explorer/trash_tab.dart';
+import 'package:cwatch/ui/bindings/file_explorer_binding.dart';
+import 'package:cwatch/ui/bindings/settings_binding.dart';
+import 'package:cwatch/ui/bindings/trash_tab_binding.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 import 'package:cwatch/ui/bindings/docker_command_terminal_binding.dart';
 import 'widgets/docker_command_terminal.dart';
 import 'widgets/docker_overview.dart';
+import 'package:cwatch/ui/bindings/docker_overview_binding.dart';
 import 'package:cwatch/ui/bindings/docker_resources_binding.dart';
 import 'widgets/docker_resources.dart';
 
@@ -50,19 +55,36 @@ class DockerTabBuilder {
     required void Function(String id) onCloseTab,
   }) {
     final controller = TabOptionsController();
-    final body = DockerOverview(
-      docker: docker,
-      contextName: contextName,
-      remoteHost: remoteHost,
-      shellService: shellService,
-      trashManager: trashManager,
-      keyService: keyService,
-      settingsController: settingsController,
-      onOpenTab: onOpenTab,
-      onCloseTab: onCloseTab,
-      optionsController: controller,
-      tabBuilder: this,
-      portForwardService: portForwardService,
+    final body = Builder(
+      builder: (context) {
+        final binding = const DockerOverviewBinding();
+        final uiAdapter = binding.createUiAdapter(context: context);
+        final overviewController = binding.createController(
+          docker: docker,
+          contextName: contextName,
+          remoteHost: remoteHost,
+          shellService: shellService,
+        );
+        final actions = binding.createActionsController(
+          context: context,
+          controller: overviewController,
+          docker: docker,
+          tabBuilder: this,
+          onOpenTab: onOpenTab,
+          onCloseTab: onCloseTab,
+          settingsController: settingsController,
+          portForwardService: portForwardService,
+          keyService: keyService,
+          uiAdapter: uiAdapter,
+        );
+        return DockerOverview(
+          controller: overviewController,
+          actions: actions,
+          uiAdapter: uiAdapter,
+          settingsController: settingsController,
+          optionsController: controller,
+        );
+      },
     );
     return WorkspaceTab(
       id: id,
@@ -166,45 +188,63 @@ class DockerTabBuilder {
       icon: icon,
       canDrag: true,
       canRename: true,
-      body: FileExplorerTab(
-        host: host,
-        explorerContext: explorerContext,
-        shellService: shellService,
-        settingsController: settingsController,
-        keyService: keyService,
-        hostsFuture: hostsFuture,
-        trashManager: trashManager,
-        initialPath: initialPath,
-        onPathChanged: onPathChanged,
-        onOpenTrash: (ctx) => onOpenTab(
-          trash(
-            id: 'trash-${ctx.host.name}-${DateTime.now().microsecondsSinceEpoch}',
-            title: 'Trash • ${ctx.host.name}',
-            label: 'Trash',
-            icon: Icons.delete,
-            explorerContext: ctx,
-            shellService: shellService,
-          ),
-        ),
-        onOpenEditorTab: (path, content) async {
-          final editorTab = containerEditor(
-            id: 'editor-${path.hashCode}-${DateTime.now().microsecondsSinceEpoch}',
-            title: 'Edit $path',
-            label: path,
-            icon: Icons.edit,
-            host: host,
-            shellService: shellService,
-            path: path,
-            initialContent: content,
-            containerId: containerId,
-            containerName: containerName,
-            contextName: dockerContextName,
+      body: Builder(
+        builder: (context) {
+          final settingsUiAdapter = const SettingsBinding().createUiAdapter(
+            context: context,
           );
-          onOpenTab(editorTab);
+          final explorerSettingsController = const SettingsBinding()
+              .createController(
+                settingsController: settingsController,
+                keyService: keyService,
+                hostsFuture: hostsFuture,
+                uiAdapter: settingsUiAdapter,
+              );
+          final explorerController = const FileExplorerBinding().create(
+            context: context,
+            host: host,
+            explorerContext: explorerContext,
+            shellService: shellService,
+            settingsController: settingsController,
+            trashManager: trashManager,
+            initialPath: initialPath,
+            onPathChanged: onPathChanged,
+            onOpenEditorTab: (path, content) async {
+              final editorTab = containerEditor(
+                id: 'editor-${path.hashCode}-${DateTime.now().microsecondsSinceEpoch}',
+                title: 'Edit $path',
+                label: path,
+                icon: Icons.edit,
+                host: host,
+                shellService: shellService,
+                path: path,
+                initialContent: content,
+                containerId: containerId,
+                containerName: containerName,
+                contextName: dockerContextName,
+              );
+              onOpenTab(editorTab);
+            },
+          );
+          return FileExplorerTab(
+            controller: explorerController,
+            settingsController: explorerSettingsController,
+            onOpenTrash: (ctx) => onOpenTab(
+              trash(
+                id: 'trash-${ctx.host.name}-${DateTime.now().microsecondsSinceEpoch}',
+                title: 'Trash • ${ctx.host.name}',
+                label: 'Trash',
+                icon: Icons.delete,
+                explorerContext: ctx,
+                shellService: shellService,
+              ),
+            ),
+            onOpenTerminalTab: null,
+            optionsController: controller,
+          );
         },
-        onOpenTerminalTab: null,
-        optionsController: controller,
       ),
+
       workspaceState: DockerTabData(
         kind: DockerTabKind.containerExplorer,
         persistedState: TabState(
@@ -248,15 +288,20 @@ class DockerTabBuilder {
       canDrag: true,
       canRename: true,
       body: RemoteFileEditorLoader(
-        host: host,
-        shellService: shellService,
         path: path,
+        controllerBuilder: (uiAdapter) => RemoteFileEditorController(
+          host: host,
+          shellService: shellService,
+          path: path,
+          uiAdapter: uiAdapter,
+        ),
         settingsController: settingsController,
         keyService: keyService,
         hostsFuture: hostsFuture,
         optionsController: controller,
         initialContent: initialContent,
       ),
+
       workspaceState: DockerTabData(
         kind: DockerTabKind.containerEditor,
         persistedState: TabState(
@@ -405,11 +450,17 @@ class DockerTabBuilder {
       label: label,
       icon: icon,
       canRename: true,
-      body: TrashTab(
-        manager: trashManager,
-        shellService: shellService,
-        keyService: keyService,
-        context: explorerContext,
+      body: Builder(
+        builder: (context) {
+          final controller = const TrashTabBinding().create(
+            context: context,
+            manager: trashManager,
+            shellService: shellService,
+            keyService: keyService,
+            explorerContext: explorerContext,
+          );
+          return TrashTab(controller: controller);
+        },
       ),
       optionsController: controller,
     );

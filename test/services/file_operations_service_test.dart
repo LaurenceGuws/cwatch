@@ -15,9 +15,10 @@ import 'package:cwatch/services/settings/settings_storage.dart';
 import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/services/ssh/terminal_session.dart';
 import 'package:cwatch/services/filesystem/explorer_trash_manager.dart';
-import 'package:cwatch/shared/views/shared/tabs/file_explorer/explorer_clipboard.dart';
-import 'package:cwatch/shared/views/shared/tabs/file_explorer/file_operations_service.dart';
-import 'package:cwatch/shared/views/shared/tabs/file_explorer/file_operations_ui_handler.dart';
+import 'package:cwatch/app/adapters/explorer_ui_adapter.dart';
+import 'package:cwatch/app/adapters/file_operations_ui_handler.dart';
+import 'package:cwatch/app/services/explorer_clipboard.dart';
+import 'package:cwatch/app/services/file_operations_service.dart';
 
 class CopyCall {
   const CopyCall(this.source, this.destination, this.recursive);
@@ -333,7 +334,6 @@ void main() {
     final host = _host('alpha');
     final context = ExplorerContext.server(host);
     final service = _serviceFor(shell: shell, context: context);
-    final uiHandler = FileOperationsUiHandler(service: service);
 
     ExplorerClipboard.setEntry(
       ExplorerClipboardEntry(
@@ -360,10 +360,13 @@ void main() {
       ),
     );
 
+    final uiHandler = FileOperationsUiHandler(
+      service: service,
+      uiAdapter: ExplorerUiAdapter(context: widgetContext!),
+    );
     var refreshed = false;
     await tester.runAsync(() async {
       await uiHandler.handlePaste(
-        context: widgetContext!,
         targetDirectory: '/dest',
         currentPath: '/dest',
         joinPath: (a, b) => '$a/$b',
@@ -390,7 +393,6 @@ void main() {
     final sourceContext = ExplorerContext.server(sourceHost);
     final destContext = ExplorerContext.server(destHost);
     final service = _serviceFor(shell: destShell, context: destContext);
-    final uiHandler = FileOperationsUiHandler(service: service);
 
     ExplorerClipboard.setEntry(
       ExplorerClipboardEntry(
@@ -417,9 +419,13 @@ void main() {
       ),
     );
 
+    final uiHandler = FileOperationsUiHandler(
+      service: service,
+      uiAdapter: ExplorerUiAdapter(context: widgetContext!),
+    );
+
     await tester.runAsync(() async {
       await uiHandler.handlePaste(
-        context: widgetContext!,
         targetDirectory: '/dest',
         currentPath: '/other',
         joinPath: (a, b) => '$a/$b',

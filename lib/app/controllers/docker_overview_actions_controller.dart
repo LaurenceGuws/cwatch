@@ -23,9 +23,6 @@ class DockerOverviewActionsController {
   DockerOverviewActionsController({
     required this.controller,
     required this.docker,
-    required this.contextName,
-    required this.remoteHost,
-    required this.shellService,
     required this.tabBuilder,
     required this.onOpenTab,
     required this.onCloseTab,
@@ -37,9 +34,6 @@ class DockerOverviewActionsController {
 
   final DockerOverviewController controller;
   final DockerClientService docker;
-  final String? contextName;
-  final SshHost? remoteHost;
-  final RemoteShellService? shellService;
   final DockerTabBuilder tabBuilder;
   final void Function(WorkspaceTab tab)? onOpenTab;
   final void Function(String tabId)? onCloseTab;
@@ -48,29 +42,33 @@ class DockerOverviewActionsController {
   final BuiltInSshKeyService keyService;
   final DockerOverviewUiAdapter uiAdapter;
 
+  String? get _contextName => controller.contextName;
+  SshHost? get _remoteHost => controller.remoteHost;
+  RemoteShellService? get _shellService => controller.shellService;
+
   bool get _canOpenTabs => onOpenTab != null;
   bool get _isRemote => controller.isRemote;
   int get _tailLines => settingsController.settings.dockerLogsTailClamped;
   bool get _supportsForwarding =>
-      _isRemote && remoteHost != null && shellService != null;
+      _isRemote && _remoteHost != null && _shellService != null;
 
   String logsBaseCommand(String containerId) {
-    final contextFlag = contextName != null && contextName!.isNotEmpty
-        ? '--context ${contextName!} '
+    final contextFlag = _contextName != null && _contextName!.isNotEmpty
+        ? '--context ${_contextName!} '
         : '';
     return 'docker ${contextFlag}logs $containerId';
   }
 
   String composeBaseCommand(String project) {
-    final contextFlag = contextName != null && contextName!.isNotEmpty
-        ? '--context ${contextName!} '
+    final contextFlag = _contextName != null && _contextName!.isNotEmpty
+        ? '--context ${_contextName!} '
         : '';
     return 'docker ${contextFlag}compose -p "$project"';
   }
 
   String followLogsCommand(String containerId) {
-    final contextFlag = contextName != null && contextName!.isNotEmpty
-        ? '--context ${contextName!} '
+    final contextFlag = _contextName != null && _contextName!.isNotEmpty
+        ? '--context ${_contextName!} '
         : '';
     final tailArg = '--tail $_tailLines';
     return '''
@@ -166,37 +164,37 @@ class DockerOverviewActionsController {
     controller.markContainerAction(container.id, action);
     try {
       await controller.runWithRetry(() async {
-        if (_isRemote && shellService != null && remoteHost != null) {
+        if (_isRemote && _shellService != null && _remoteHost != null) {
           final cmd = 'docker $action ${container.id}';
-          await shellService!.runCommand(remoteHost!, cmd, timeout: timeout);
+          await _shellService!.runCommand(_remoteHost!, cmd, timeout: timeout);
           return;
         }
         switch (action) {
           case 'start':
             await docker.startContainer(
               id: container.id,
-              context: contextName,
+              context: _contextName,
               timeout: timeout,
             );
             break;
           case 'stop':
             await docker.stopContainer(
               id: container.id,
-              context: contextName,
+              context: _contextName,
               timeout: timeout,
             );
             break;
           case 'restart':
             await docker.restartContainer(
               id: container.id,
-              context: contextName,
+              context: _contextName,
               timeout: timeout,
             );
             break;
           case 'remove':
             await docker.removeContainer(
               id: container.id,
-              context: contextName,
+              context: _contextName,
               timeout: timeout,
             );
             break;
@@ -247,10 +245,10 @@ class DockerOverviewActionsController {
         return;
     }
     try {
-      if (_isRemote && shellService != null && remoteHost != null) {
+      if (_isRemote && _shellService != null && _remoteHost != null) {
         final cmd = '${composeBaseCommand(project)} ${args.join(' ')}';
-        await shellService!.runCommand(
-          remoteHost!,
+        await _shellService!.runCommand(
+          _remoteHost!,
           cmd,
           timeout: const Duration(minutes: 5),
         );
@@ -282,18 +280,18 @@ class DockerOverviewActionsController {
 
   Future<void> runPrune({required bool includeVolumes}) async {
     try {
-      if (remoteHost != null && shellService != null) {
+      if (_remoteHost != null && _shellService != null) {
         final cmd = includeVolumes
             ? 'docker system prune -f --volumes'
             : 'docker system prune -f';
-        await shellService!.runCommand(
-          remoteHost!,
+        await _shellService!.runCommand(
+          _remoteHost!,
           cmd,
           timeout: const Duration(seconds: 20),
         );
       } else {
         await docker.systemPrune(
-          context: contextName,
+          context: _contextName,
           includeVolumes: includeVolumes,
         );
       }
@@ -319,8 +317,8 @@ class DockerOverviewActionsController {
       return;
     }
     final detected = _extractPorts(container.ports);
-    final activeForwards = remoteHost != null
-        ? portForwardService.forwardsForHost(remoteHost!).toList()
+    final activeForwards = _remoteHost != null
+        ? portForwardService.forwardsForHost(_remoteHost!).toList()
         : const <ActivePortForward>[];
     if (detected.isEmpty) {
       uiAdapter.showSnackBar('No published ports detected.');
@@ -365,7 +363,7 @@ class DockerOverviewActionsController {
     if (result == null || result.isEmpty) return;
     try {
       await portForwardService.startForward(
-        host: remoteHost!,
+        host: _remoteHost!,
         requests: result,
         settingsController: settingsController,
         builtInKeyService: keyService,
@@ -390,8 +388,8 @@ class DockerOverviewActionsController {
   }
 
   Future<void> stopForwardsForHost() async {
-    if (!_supportsForwarding || remoteHost == null) return;
-    final forwards = portForwardService.forwardsForHost(remoteHost!).toList();
+    if (!_supportsForwarding || _remoteHost == null) return;
+    final forwards = portForwardService.forwardsForHost(_remoteHost!).toList();
     if (forwards.isEmpty) {
       uiAdapter.showSnackBar('No active forwards.');
       return;
@@ -429,8 +427,8 @@ class DockerOverviewActionsController {
       }
     }
 
-    final activeForwards = remoteHost != null
-        ? portForwardService.forwardsForHost(remoteHost!).toList()
+    final activeForwards = _remoteHost != null
+        ? portForwardService.forwardsForHost(_remoteHost!).toList()
         : const <ActivePortForward>[];
     final requests = <PortForwardRequest>[];
     final reservedLocals = activeForwards
@@ -479,7 +477,7 @@ class DockerOverviewActionsController {
     if (result == null || result.isEmpty) return;
     try {
       await portForwardService.startForward(
-        host: remoteHost!,
+        host: _remoteHost!,
         requests: result,
         settingsController: settingsController,
         builtInKeyService: keyService,
@@ -518,12 +516,12 @@ class DockerOverviewActionsController {
         label: 'Logs: $name',
         command: tailCommand,
         icon: NerdIcon.terminal.data,
-        host: remoteHost,
-        shellService: shellService,
+        host: _remoteHost,
+        shellService: _shellService,
         kind: DockerTabKind.containerLogs,
         containerId: container.id,
         containerName: name,
-        contextName: contextName,
+        contextName: _contextName,
         onExit: () => onCloseTab?.call(tabId),
       );
       onOpenTab!(tab);
@@ -546,9 +544,9 @@ class DockerOverviewActionsController {
         composeBase: base,
         project: project,
         services: services,
-        host: remoteHost,
-        shellService: shellService,
-        contextName: contextName,
+        host: _remoteHost,
+        shellService: _shellService,
+        contextName: _contextName,
         onExit: () => onCloseTab?.call(tabId),
         tailLines: tailLines,
       );
@@ -571,8 +569,8 @@ class DockerOverviewActionsController {
 
   Future<void> openExecTerminal(DockerContainer container) async {
     final name = container.name.isNotEmpty ? container.name : container.id;
-    final contextFlag = contextName != null && contextName!.isNotEmpty
-        ? '--context ${contextName!} '
+    final contextFlag = _contextName != null && _contextName!.isNotEmpty
+        ? '--context ${_contextName!} '
         : '';
     final command = autoCloseCommand(
       'docker ${contextFlag}exec -it ${container.id} /bin/sh',
@@ -589,13 +587,13 @@ class DockerOverviewActionsController {
       label: 'Shell: $name',
       command: command,
       icon: NerdIcon.terminal.data,
-      host: remoteHost,
-      shellService: shellService,
+      host: _remoteHost,
+      shellService: _shellService,
       onExit: () => onCloseTab?.call(tabId),
       kind: DockerTabKind.containerShell,
       containerId: container.id,
       containerName: name,
-      contextName: contextName,
+      contextName: _contextName,
     );
     onOpenTab!(tab);
   }
@@ -605,19 +603,19 @@ class DockerOverviewActionsController {
     required String dockerContextName,
   }) async {
     if (!_canOpenTabs) return;
-    final isRemote = remoteHost != null && shellService != null;
+    final isRemote = _remoteHost != null && _shellService != null;
     final shell = isRemote
         ? DockerContainerShellService(
-            host: remoteHost!,
+            host: _remoteHost!,
             containerId: container.id,
-            baseShell: shellService!,
+            baseShell: _shellService!,
           )
         : LocalDockerContainerShellService(
             containerId: container.id,
-            contextName: contextName,
+            contextName: _contextName,
           );
     final host =
-        remoteHost ??
+        _remoteHost ??
         const SshHost(
           name: 'local',
           hostname: 'localhost',
@@ -651,8 +649,8 @@ class DockerOverviewActionsController {
   }
 
   String execCommand(String containerId) {
-    final contextFlag = contextName != null && contextName!.isNotEmpty
-        ? '--context ${contextName!} '
+    final contextFlag = _contextName != null && _contextName!.isNotEmpty
+        ? '--context ${_contextName!} '
         : '';
     return 'docker ${contextFlag}exec -it $containerId /bin/sh # change to /bin/bash if needed';
   }
@@ -669,9 +667,9 @@ class DockerOverviewActionsController {
     String command, {
     required int tailLines,
   }) async {
-    if (_isRemote && shellService != null && remoteHost != null) {
-      return shellService!.runCommand(
-        remoteHost!,
+    if (_isRemote && _shellService != null && _remoteHost != null) {
+      return _shellService!.runCommand(
+        _remoteHost!,
         '$command --tail $tailLines',
         timeout: const Duration(seconds: 8),
       );

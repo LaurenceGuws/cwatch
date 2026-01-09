@@ -5,7 +5,7 @@ import 'package:cwatch/core/workspace/persistent_workspace_controller.dart';
 import 'package:cwatch/core/workspace/workspace_tab.dart';
 import 'package:cwatch/models/app_settings.dart';
 import 'package:cwatch/models/wsl_workspace_state.dart';
-import 'package:cwatch/services/ssh/remote_shell_service.dart';
+import 'package:cwatch/app/controllers/terminal_session_controller.dart';
 import 'wsl_tab_builder.dart';
 
 class WslWorkspaceController
@@ -95,16 +95,18 @@ class WslWorkspaceController
       case WslTabKind.terminal:
         if (wslState.distroName == null) return null;
         final title = wslState.title ?? wslState.distroName!;
-        final shell = callbacks.shellForDistro(wslState.distroName!);
-        if (shell == null) return null;
-        
+        final sessionController = callbacks.sessionControllerForDistro(
+          wslState.distroName!,
+        );
+        if (sessionController == null) return null;
+
         return builder.terminal(
           id: wslState.id,
           title: title,
           label: title,
           icon: callbacks.terminalIcon,
           distroName: wslState.distroName!,
-          shellService: shell,
+          sessionController: sessionController,
           onExit: () => callbacks.closeTab(wslState.id),
         );
     }
@@ -134,11 +136,12 @@ class WslWorkspaceController
 class WslTabBuilders {
   const WslTabBuilders({
     required this.terminalIcon,
-    required this.shellForDistro,
+    required this.sessionControllerForDistro,
     required this.closeTab,
   });
 
   final IconData terminalIcon;
-  final RemoteShellService? Function(String distroName) shellForDistro;
+  final TerminalSessionController? Function(String distroName)
+  sessionControllerForDistro;
   final void Function(String id) closeTab;
 }

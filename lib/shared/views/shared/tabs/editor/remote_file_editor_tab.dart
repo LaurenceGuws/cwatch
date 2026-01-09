@@ -7,10 +7,6 @@ import 'package:cwatch/app/adapters/remote_file_editor_ui_adapter.dart';
 import 'package:cwatch/app/controllers/remote_file_editor_controller.dart';
 
 import '../../../../../app/controllers/settings_controller.dart';
-import '../../../../../models/ssh_host.dart';
-import '../../../../../services/settings/app_settings_controller.dart';
-import '../../../../../services/ssh/builtin/builtin_ssh_key_service.dart';
-import '../../../../../ui/bindings/settings_binding.dart';
 import '../../../../../shared/gestures/gesture_activators.dart';
 import '../../../../../shared/gestures/gesture_service.dart';
 import '../../../../../shared/shortcuts/input_mode_resolver.dart';
@@ -35,8 +31,6 @@ class RemoteFileEditorTab extends StatefulWidget {
     required this.path,
     required this.initialContent,
     required this.settingsController,
-    required this.keyService,
-    required this.hostsFuture,
     this.helperText,
     this.optionsController,
   });
@@ -45,9 +39,7 @@ class RemoteFileEditorTab extends StatefulWidget {
   final RemoteFileEditorUiAdapter uiAdapter;
   final String path;
   final String initialContent;
-  final AppSettingsController settingsController;
-  final BuiltInSshKeyService keyService;
-  final Future<List<SshHost>> hostsFuture;
+  final SettingsController settingsController;
   final String? helperText;
   final TabOptionsController? optionsController;
 
@@ -57,8 +49,7 @@ class RemoteFileEditorTab extends StatefulWidget {
 
 class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
     with TabOptionsMixin {
-  final SettingsBinding _settingsBinding = const SettingsBinding();
-  late final SettingsController _settingsController;
+  late SettingsController _settingsController;
   late final EditorState _state;
   ShortcutSubscription? _shortcutSub;
   GestureSubscription? _gestureSub;
@@ -69,14 +60,7 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
   @override
   void initState() {
     super.initState();
-    final settingsUiAdapter =
-        _settingsBinding.createUiAdapter(context: context);
-    _settingsController = _settingsBinding.createController(
-      settingsController: widget.settingsController,
-      keyService: widget.keyService,
-      hostsFuture: widget.hostsFuture,
-      uiAdapter: settingsUiAdapter,
-    );
+    _settingsController = widget.settingsController;
     _state = EditorState(
       path: widget.path,
       initialContent: widget.initialContent,
@@ -98,6 +82,18 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
     _state.removeListener(_handleStateChanged);
     _state.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant RemoteFileEditorTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.settingsController != widget.settingsController) {
+      oldWidget.settingsController.removeListener(_settingsListener);
+      oldWidget.settingsController.dispose();
+      _settingsController = widget.settingsController;
+      _settingsController.addListener(_settingsListener);
+      _configureInputMode();
+    }
   }
 
   void _handleStateChanged() {
@@ -287,16 +283,21 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
                     lineHeight: settings.editorLineHeight,
                     lightTheme: settings.editorThemeLight,
                     darkTheme: settings.editorThemeDark,
-                    onFontFamilyChanged: (value) => _settingsController
-                        .update((s) => s.copyWith(editorFontFamily: value)),
-                    onFontSizeChanged: (value) => _settingsController
-                        .update((s) => s.copyWith(editorFontSize: value)),
-                    onLineHeightChanged: (value) => _settingsController
-                        .update((s) => s.copyWith(editorLineHeight: value)),
-                    onLightThemeChanged: (value) => _settingsController
-                        .update((s) => s.copyWith(editorThemeLight: value)),
-                    onDarkThemeChanged: (value) => _settingsController
-                        .update((s) => s.copyWith(editorThemeDark: value)),
+                    onFontFamilyChanged: (value) => _settingsController.update(
+                      (s) => s.copyWith(editorFontFamily: value),
+                    ),
+                    onFontSizeChanged: (value) => _settingsController.update(
+                      (s) => s.copyWith(editorFontSize: value),
+                    ),
+                    onLineHeightChanged: (value) => _settingsController.update(
+                      (s) => s.copyWith(editorLineHeight: value),
+                    ),
+                    onLightThemeChanged: (value) => _settingsController.update(
+                      (s) => s.copyWith(editorThemeLight: value),
+                    ),
+                    onDarkThemeChanged: (value) => _settingsController.update(
+                      (s) => s.copyWith(editorThemeDark: value),
+                    ),
                   ),
                 ],
               ),

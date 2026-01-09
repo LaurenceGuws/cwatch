@@ -3,18 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:cwatch/core/models/tab_state.dart';
 import 'package:cwatch/core/workspace/workspace_tab.dart';
 import 'package:cwatch/models/wsl_workspace_state.dart';
+import 'package:cwatch/app/controllers/terminal_session_controller.dart';
 import 'package:cwatch/models/ssh_host.dart';
 import 'package:cwatch/services/settings/app_settings_controller.dart';
-import 'package:cwatch/services/ssh/remote_shell_service.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 import 'package:cwatch/shared/views/shared/tabs/terminal/terminal_tab.dart';
 
 import 'package:cwatch/shared/theme/nerd_fonts.dart';
 
 class WslTabBuilder {
-  const WslTabBuilder({
-    required this.settingsController,
-  });
+  const WslTabBuilder({required this.settingsController});
 
   final AppSettingsController settingsController;
 
@@ -40,7 +38,7 @@ class WslTabBuilder {
     required String label,
     required IconData icon,
     required String distroName,
-    required RemoteShellService shellService,
+    required TerminalSessionController sessionController,
     VoidCallback? onExit,
     Future<void> Function(String path, String content)? onOpenEditorTab,
   }) {
@@ -54,13 +52,18 @@ class WslTabBuilder {
       canRename: true,
       body: TerminalTab(
         host: const SshHost(
-            name: 'wsl', hostname: '', port: 0, available: true), // Placeholder
-        shellService: shellService,
+          name: 'wsl',
+          hostname: '',
+          port: 0,
+          available: true,
+        ), // Placeholder
+        sessionController: sessionController,
         settingsController: settingsController,
         onExit: onExit,
         optionsController: controller,
         onOpenEditorTab: onOpenEditorTab,
       ),
+
       workspaceState: WslTabData(
         kind: WslTabKind.terminal,
         persistedState: TabState(

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
+import 'package:cwatch/models/custom_ssh_host.dart';
+import 'package:cwatch/modules/servers/ui/servers/add_server_dialog.dart';
 import 'package:cwatch/services/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/services/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/services/ssh/ssh_auth_coordinator.dart';
+import 'package:cwatch/shared/widgets/dialog_keyboard_shortcuts.dart';
 import 'package:cwatch/shared/widgets/port_forward_dialog.dart' as port_forward;
 
 import 'ssh_auth_prompter.dart';
@@ -35,6 +38,55 @@ class ServerWorkspaceUiAdapter {
       portValidator: portValidator,
       active: active,
     );
+  }
+
+  Future<CustomSshHost?> showAddServerDialog({
+    required BuiltInSshKeyService keyService,
+    required List<String> existingNames,
+  }) {
+    if (!context.mounted) return Future.value(null);
+    return showDialog<CustomSshHost>(
+      context: context,
+      builder: (dialogContext) =>
+          AddServerDialog(keyService: keyService, existingNames: existingNames),
+    );
+  }
+
+  Future<String?> showRenameTabDialog({required String initialName}) async {
+    if (!context.mounted) return null;
+    final controller = TextEditingController(text: initialName);
+    try {
+      return await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => DialogKeyboardShortcuts(
+          onCancel: () => Navigator.of(dialogContext).pop(),
+          onConfirm: () =>
+              Navigator.of(dialogContext).pop(controller.text.trim()),
+          child: AlertDialog(
+            title: const Text('Rename tab'),
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Tab name'),
+              onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () =>
+                    Navigator.of(dialogContext).pop(controller.text.trim()),
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+        ),
+      );
+    } finally {
+      WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
+    }
   }
 
   SshAuthCoordinator buildSshAuthCoordinator({

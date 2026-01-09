@@ -11,8 +11,8 @@ import 'package:cwatch/ui/bindings/terminal_tab_binding.dart';
 
 import '../../../../../models/app_settings.dart';
 import '../../../../../models/ssh_host.dart';
-import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../../services/ssh/builtin/builtin_remote_shell_service.dart';
+import '../../../../../services/ssh/remote_shell_base.dart';
 import '../../../../../services/settings/app_settings_controller.dart';
 import '../../../../../services/logging/app_logger.dart';
 import '../../../../../shared/shortcuts/shortcut_actions.dart';
@@ -35,7 +35,7 @@ class TerminalTab extends StatefulWidget {
     super.key,
     required this.host,
     this.initialDirectory,
-    required this.shellService,
+    required this.sessionController,
     required this.settingsController,
     this.onOpenEditorTab,
     this.onExit,
@@ -44,7 +44,7 @@ class TerminalTab extends StatefulWidget {
 
   final SshHost host;
   final String? initialDirectory;
-  final RemoteShellService shellService;
+  final TerminalSessionController sessionController;
   final AppSettingsController settingsController;
   final Future<void> Function(String path, String content)? onOpenEditorTab;
   final VoidCallback? onExit;
@@ -77,10 +77,7 @@ class _TerminalTabState extends State<TerminalTab> {
   @override
   void initState() {
     super.initState();
-    _sessionController = _binding.createSessionController(
-      host: widget.host,
-      shellService: widget.shellService,
-    );
+    _sessionController = widget.sessionController;
     _uiAdapter = _binding.createUiAdapter(context: context);
     _attachTerminalHandlers();
     _mobileFocus = MobileFocusManager(
@@ -119,6 +116,11 @@ class _TerminalTabState extends State<TerminalTab> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.optionsController != widget.optionsController) {
       _updateTabOptions();
+    }
+    if (oldWidget.sessionController != widget.sessionController) {
+      _sessionController.dispose();
+      _sessionController = widget.sessionController;
+      _startSession();
     }
   }
 

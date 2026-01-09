@@ -18,6 +18,24 @@ Cross‑platform Flutter desktop app for managing servers, Docker, Kubernetes co
 - `assets/` theme presets and media used by terminal/editor UI.
 - `packages/` patched deps: `xterm_patched`, `flutter_code_editor_patched`.
 
+## Architecture (Phase 4)
+- UI only talks to controllers/view-models.
+- Controllers orchestrate services and call UI adapters for dialogs/snackbars/menus.
+- Services contain domain logic only (no Flutter imports).
+- Repositories encapsulate data access (filesystem, SSH, caches, config).
+- UI adapters are the only layer touching Flutter UI APIs.
+- Shared remains utilities and cross-cutting concerns.
+- Global layer folders (no per-module nesting):
+  - `lib/app/controllers/`
+  - `lib/app/services/`
+  - `lib/app/repositories/`
+  - `lib/app/adapters/`
+  - `lib/data/sources/`
+  - `lib/data/models/`
+  - `lib/ui/views/`
+  - `lib/ui/widgets/`
+  - `lib/ui/bindings/`
+
 ## SSH Backends
 - **ProcessRemoteShellService**: uses system `ssh`/`scp` for command and file ops.
 - **BuiltInRemoteShellService**: pure Dart SSH with vault‑backed keys, host key verification, and SFTP.

@@ -13,16 +13,10 @@ import '../../../../../data/models/local_file_session.dart';
 import '../../../../../models/app_settings.dart';
 import '../../../../../models/explorer_context.dart';
 import '../../../../../models/remote_file_entry.dart';
-import '../../../../../models/ssh_host.dart';
-import '../../../../../services/filesystem/explorer_trash_manager.dart';
 import '../../../../../services/logging/app_logger.dart';
-import '../../../../../services/settings/app_settings_controller.dart';
-import '../../../../../services/ssh/builtin/builtin_ssh_key_service.dart';
-import '../../../../../services/ssh/remote_shell_service.dart';
-import '../../../../../ui/bindings/settings_binding.dart';
+
 import '../../../../../shared/mixins/tab_options_mixin.dart';
 import '../../../../../shared/theme/app_theme.dart';
-import '../../../../../ui/bindings/file_explorer_binding.dart';
 import '../../../../shortcuts/input_mode_resolver.dart';
 import '../../../../shortcuts/shortcut_actions.dart';
 import '../../../../shortcuts/shortcut_resolver.dart';
@@ -36,37 +30,20 @@ import '../tab_chip.dart';
 import '../settings/floating_settings_window.dart';
 
 class FileExplorerTab extends StatefulWidget {
-  FileExplorerTab({
+  const FileExplorerTab({
     super.key,
-    required this.host,
-    required this.explorerContext,
-    required this.shellService,
+    required this.controller,
     required this.settingsController,
-    required this.keyService,
-    required this.hostsFuture,
-    required this.trashManager,
     required this.onOpenTrash,
-    this.onOpenEditorTab,
     this.onOpenTerminalTab,
     this.optionsController,
-    this.initialPath,
-    this.onPathChanged,
-  }) : assert(explorerContext.host == host);
+  });
 
-  final SshHost host;
-  final ExplorerContext explorerContext;
-  final RemoteShellService shellService;
-  final AppSettingsController settingsController;
-  final BuiltInSshKeyService keyService;
-  final Future<List<SshHost>> hostsFuture;
-  final ExplorerTrashManager trashManager;
+  final FileExplorerController controller;
+  final SettingsController settingsController;
   final ValueChanged<ExplorerContext> onOpenTrash;
-  final Future<void> Function(String path, String initialContent)?
-  onOpenEditorTab;
   final ValueChanged<String>? onOpenTerminalTab;
   final TabOptionsController? optionsController;
-  final String? initialPath;
-  final ValueChanged<String>? onPathChanged;
 
   @override
   State<FileExplorerTab> createState() => _FileExplorerTabState();
@@ -74,10 +51,8 @@ class FileExplorerTab extends StatefulWidget {
 
 class _FileExplorerTabState extends State<FileExplorerTab>
     with TabOptionsMixin {
-  final FileExplorerBinding _binding = const FileExplorerBinding();
-  final SettingsBinding _settingsBinding = const SettingsBinding();
   late FileExplorerController _controller;
-  late final SettingsController _settingsController;
+  late SettingsController _settingsController;
   late final VoidCallback _controllerListener;
   final FocusNode _listFocusNode = FocusNode(debugLabel: 'file-explorer-list');
   final ScrollController _scrollController = ScrollController();
@@ -88,24 +63,8 @@ class _FileExplorerTabState extends State<FileExplorerTab>
   @override
   void initState() {
     super.initState();
-    final settingsUiAdapter = _settingsBinding.createUiAdapter(context: context);
-    _settingsController = _settingsBinding.createController(
-      settingsController: widget.settingsController,
-      keyService: widget.keyService,
-      hostsFuture: widget.hostsFuture,
-      uiAdapter: settingsUiAdapter,
-    );
-    _controller = _binding.create(
-      context: context,
-      host: widget.host,
-      explorerContext: widget.explorerContext,
-      shellService: widget.shellService,
-      settingsController: widget.settingsController,
-      trashManager: widget.trashManager,
-      onOpenEditorTab: widget.onOpenEditorTab,
-      onPathChanged: widget.onPathChanged,
-      initialPath: widget.initialPath,
-    );
+    _settingsController = widget.settingsController;
+    _controller = widget.controller;
     _controllerListener = () {
       if (!mounted) return;
       setState(() {});
@@ -118,26 +77,16 @@ class _FileExplorerTabState extends State<FileExplorerTab>
   @override
   void didUpdateWidget(covariant FileExplorerTab oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final shellChanged = oldWidget.shellService != widget.shellService;
-    final hostChanged = oldWidget.host != widget.host;
-    if (shellChanged || hostChanged) {
-      _controller
-        ..removeListener(_controllerListener)
-        ..dispose();
-      _controller = _binding.create(
-        context: context,
-        host: widget.host,
-        explorerContext: widget.explorerContext,
-        shellService: widget.shellService,
-        settingsController: widget.settingsController,
-        trashManager: widget.trashManager,
-        onOpenEditorTab: widget.onOpenEditorTab,
-        onPathChanged: widget.onPathChanged,
-        initialPath: widget.initialPath,
-      );
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_controllerListener);
+      oldWidget.controller.dispose();
+      _controller = widget.controller;
       _controller.addListener(_controllerListener);
       unawaited(_controller.initialize());
-      return;
+    }
+    if (oldWidget.settingsController != widget.settingsController) {
+      oldWidget.settingsController.dispose();
+      _settingsController = widget.settingsController;
     }
     if (oldWidget.optionsController != widget.optionsController ||
         oldWidget.onOpenTerminalTab != widget.onOpenTerminalTab ||
@@ -342,7 +291,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       ),
     );
 
-    final shortcuts = _explorerShortcuts(widget.settingsController.settings);
+    final shortcuts = _explorerShortcuts(_settingsController.settings);
     if (shortcuts.isEmpty) {
       return actions;
     }
@@ -611,7 +560,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       sortedEntries,
     );
     final builder = ContextMenuBuilder(
-      hostName: widget.host.name,
+      hostName: _controller.host.name,
       currentPath: _controller.currentPath,
       selectedEntries: selectedEntries,
       clipboardAvailable: ExplorerClipboard.hasEntries,
@@ -757,8 +706,8 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     );
     try {
       await _controller.runShell(
-        () => widget.shellService.movePath(
-          widget.host,
+        () => _controller.shellService.movePath(
+          _controller.host,
           sourcePath,
           destinationPath,
         ),
@@ -796,8 +745,8 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     }
     try {
       await _controller.runShell(
-        () => widget.shellService.movePath(
-          widget.host,
+        () => _controller.shellService.movePath(
+          _controller.host,
           PathUtils.joinPath(_controller.currentPath, entry.name),
           normalized,
         ),
@@ -825,7 +774,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     final deletePermanently = permanent || SelectionController.isShiftPressed();
     final confirmed = await _controller.uiAdapter.showDeleteDialog(
       entry,
-      widget.host,
+      _controller.host,
       deletePermanently,
     );
     if (confirmed != true) {
@@ -883,7 +832,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     final count = entries.length;
     final confirmed = await _controller.uiAdapter.showMultiDeleteDialog(
       count: count,
-      hostName: widget.host.name,
+      hostName: _controller.host.name,
       deletePermanently: deletePermanently,
     );
     if (confirmed != true) {
@@ -973,7 +922,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       TabChipOption(
         label: 'Open trash',
         icon: Icons.delete_outline,
-        onSelected: () => widget.onOpenTrash(widget.explorerContext),
+        onSelected: () => widget.onOpenTrash(_controller.explorerContext),
       ),
     );
     if (widget.onOpenTerminalTab != null) {

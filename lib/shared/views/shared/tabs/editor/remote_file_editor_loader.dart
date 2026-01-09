@@ -6,37 +6,35 @@ import 'package:cwatch/app/adapters/remote_file_editor_ui_adapter.dart';
 import 'package:cwatch/app/controllers/remote_file_editor_controller.dart';
 import 'package:cwatch/ui/bindings/remote_file_editor_binding.dart';
 
+import '../../../../../app/controllers/settings_controller.dart';
 import '../../../../../models/ssh_host.dart';
 import '../../../../../services/settings/app_settings_controller.dart';
 import '../../../../../services/ssh/builtin/builtin_ssh_key_service.dart';
-import '../../../../../services/ssh/remote_shell_service.dart';
+import '../../../../../ui/bindings/settings_binding.dart';
 import '../tab_chip.dart';
 import 'remote_file_editor_tab.dart';
 
 class RemoteFileEditorLoader extends StatefulWidget {
   const RemoteFileEditorLoader({
     super.key,
-    required this.host,
-    required this.shellService,
     required this.path,
+    required this.controllerBuilder,
     required this.settingsController,
     required this.keyService,
     required this.hostsFuture,
     this.optionsController,
     this.helperText,
-    this.onSave,
     this.initialContent,
   });
 
-  final SshHost host;
-  final RemoteShellService shellService;
   final String path;
+  final RemoteFileEditorController Function(RemoteFileEditorUiAdapter uiAdapter)
+  controllerBuilder;
   final AppSettingsController settingsController;
   final BuiltInSshKeyService keyService;
   final Future<List<SshHost>> hostsFuture;
   final TabOptionsController? optionsController;
   final String? helperText;
-  final Future<void> Function(String content)? onSave;
   final String? initialContent;
 
   @override
@@ -45,25 +43,35 @@ class RemoteFileEditorLoader extends StatefulWidget {
 
 class _RemoteFileEditorLoaderState extends State<RemoteFileEditorLoader> {
   final RemoteFileEditorBinding _binding = const RemoteFileEditorBinding();
+  final SettingsBinding _settingsBinding = const SettingsBinding();
   late RemoteFileEditorController _controller;
   late RemoteFileEditorUiAdapter _uiAdapter;
+  late SettingsController _settingsController;
   late Future<String> _contentFuture;
 
   @override
   void initState() {
     super.initState();
     _uiAdapter = _binding.createUiAdapter(context: context);
-    _controller = _binding.createController(
+    _controller = widget.controllerBuilder(_uiAdapter);
+    final settingsUiAdapter = _settingsBinding.createUiAdapter(
       context: context,
-      host: widget.host,
-      shellService: widget.shellService,
-      path: widget.path,
-      onSave: widget.onSave,
-      uiAdapter: _uiAdapter,
+    );
+    _settingsController = _settingsBinding.createController(
+      settingsController: widget.settingsController,
+      keyService: widget.keyService,
+      hostsFuture: widget.hostsFuture,
+      uiAdapter: settingsUiAdapter,
     );
     _contentFuture = _controller.loadContent(
       initialContent: widget.initialContent,
     );
+  }
+
+  @override
+  void dispose() {
+    _settingsController.dispose();
+    super.dispose();
   }
 
   @override
@@ -83,9 +91,7 @@ class _RemoteFileEditorLoaderState extends State<RemoteFileEditorLoader> {
           uiAdapter: _uiAdapter,
           path: widget.path,
           initialContent: content,
-          settingsController: widget.settingsController,
-          keyService: widget.keyService,
-          hostsFuture: widget.hostsFuture,
+          settingsController: _settingsController,
           helperText: widget.helperText,
           optionsController: widget.optionsController,
         );

@@ -18,7 +18,7 @@ import 'package:cwatch/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/shared/views/shared/tabs/tab_chip.dart';
 
 import 'package:cwatch/app/adapters/wsl_ui_adapter.dart';
-import 'package:cwatch/ui/bindings/wsl_shell_service_binding.dart';
+import 'package:cwatch/ui/bindings/wsl_terminal_session_binding.dart';
 import 'package:cwatch/ui/bindings/wsl_tab_builder_binding.dart';
 import 'package:cwatch/ui/bindings/wsl_workspace_controller_binding.dart';
 
@@ -47,8 +47,8 @@ class _WslViewState extends State<WslView> {
   final WslTabBuilderBinding _tabBuilderBinding = const WslTabBuilderBinding();
   final WslWorkspaceControllerBinding _workspaceBinding =
       const WslWorkspaceControllerBinding();
-  final WslShellServiceBinding _shellServiceBinding =
-      const WslShellServiceBinding();
+  final WslTerminalSessionBinding _terminalSessionBinding =
+      const WslTerminalSessionBinding();
   late final WslTabBuilder _tabBuilder;
   late final WslWorkspaceController _workspaceController;
   late final WslUiAdapter _uiAdapter;
@@ -220,14 +220,16 @@ class _WslViewState extends State<WslView> {
 
   void _openTerminal(String tabId, String distroName) {
     final newId = 'wsl-$distroName-${_uniqueId()}';
-    final shellService = _shellServiceBinding.create(distroName: distroName);
+    final sessionController = _terminalSessionBinding.create(
+      distroName: distroName,
+    );
     final tab = _tabBuilder.terminal(
       id: newId,
       title: distroName,
       label: distroName,
       icon: NerdIcon.penguin.data,
       distroName: distroName,
-      shellService: shellService,
+      sessionController: sessionController,
       onExit: () => _closeTabById(newId),
     );
     _workspaceController.replaceTab(tabId, tab);
@@ -261,7 +263,8 @@ class _WslViewState extends State<WslView> {
       pickerBuilder: _buildPickerBody,
       callbacks: WslTabBuilders(
         terminalIcon: NerdIcon.penguin.data,
-        shellForDistro: (distro) => _shellServiceBinding.create(distroName: distro),
+        sessionControllerForDistro: (distro) =>
+            _terminalSessionBinding.create(distroName: distro),
         closeTab: _closeTabById,
       ),
     );
@@ -274,9 +277,7 @@ class _WslViewState extends State<WslView> {
   Future<void> _renameTab(int index) async {
     if (index < 0 || index >= _tabs.length) return;
     final tab = _tabs[index];
-    final newName = await _uiAdapter.showRenameDialog(
-      initialName: tab.title,
-    );
+    final newName = await _uiAdapter.showRenameDialog(initialName: tab.title);
     if (newName == null) return;
     final trimmed = newName.trim();
     if (trimmed.isEmpty || trimmed == tab.title) return;
@@ -289,10 +290,7 @@ class _WslViewState extends State<WslView> {
         label: trimmed,
       );
       final newTabWithState = updated.copyWith(
-        workspaceState: WslTabData(
-          kind: data.kind,
-          persistedState: newState,
-        ),
+        workspaceState: WslTabData(kind: data.kind, persistedState: newState),
       );
       _workspaceController.replaceTab(tab.id, newTabWithState);
     } else {
@@ -358,8 +356,7 @@ class _WslViewState extends State<WslView> {
                     },
                     onClose: () => _workspaceController.closeTab(index),
                     closable: true,
-                    onRename:
-                        tab.canRename ? () => _renameTab(index) : null,
+                    onRename: tab.canRename ? () => _renameTab(index) : null,
                     dragIndex: tab.canDrag ? index : null,
                   );
                 },

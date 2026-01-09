@@ -4,81 +4,68 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../../../app/controllers/trash_tab_controller.dart';
-import '../../../../../models/explorer_context.dart';
 import '../../../../../services/filesystem/explorer_trash_manager.dart';
 import '../../../../../services/logging/app_logger.dart';
-import '../../../../../services/ssh/builtin/builtin_ssh_key_service.dart';
-import '../../../../../services/ssh/remote_shell_service.dart';
 import '../../../../../shared/theme/app_theme.dart';
-import '../../../../../ui/bindings/trash_tab_binding.dart';
 
 class TrashTab extends StatefulWidget {
-  const TrashTab({
-    super.key,
-    required this.manager,
-    required this.shellService,
-    this.keyService,
-    this.context,
-  });
+  const TrashTab({super.key, required this.controller});
 
-  final ExplorerTrashManager manager;
-  final RemoteShellService shellService;
-  final BuiltInSshKeyService? keyService;
-  final ExplorerContext? context;
+  final TrashTabController controller;
 
   @override
   State<TrashTab> createState() => _TrashTabState();
 }
 
 class _TrashTabState extends State<TrashTab> {
-  final TrashTabBinding _binding = const TrashTabBinding();
-  late final TrashTabController _controller;
+  late TrashTabController _controller;
   late Future<List<TrashedEntry>> _entriesFuture;
   late final VoidCallback _changesListener;
 
   @override
   void initState() {
     super.initState();
-    _controller = _binding.create(
-      context: context,
-      manager: widget.manager,
-      shellService: widget.shellService,
-      keyService: widget.keyService,
-      explorerContext: widget.context,
+    _controller = widget.controller;
+    _entriesFuture = _controller.manager.loadEntries(
+      contextId: _controller.context?.id,
     );
-    _entriesFuture = widget.manager.loadEntries(contextId: widget.context?.id);
     _changesListener = () {
       if (!mounted) return;
       setState(() {
-        _entriesFuture = widget.manager.loadEntries(
-          contextId: widget.context?.id,
+        _entriesFuture = _controller.manager.loadEntries(
+          contextId: _controller.context?.id,
         );
       });
     };
-    widget.manager.changes.addListener(_changesListener);
+    _controller.manager.changes.addListener(_changesListener);
   }
 
   @override
   void didUpdateWidget(covariant TrashTab oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.context?.id != widget.context?.id) {
-      _entriesFuture = widget.manager.loadEntries(
-        contextId: widget.context?.id,
+    if (oldWidget.controller.context?.id != widget.controller.context?.id) {
+      _entriesFuture = _controller.manager.loadEntries(
+        contextId: widget.controller.context?.id,
       );
+    }
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.manager.changes.removeListener(_changesListener);
+      _controller = widget.controller;
+      _controller.manager.changes.addListener(_changesListener);
     }
   }
 
   @override
   void dispose() {
-    widget.manager.changes.removeListener(_changesListener);
+    _controller.manager.changes.removeListener(_changesListener);
     _controller.dispose();
     super.dispose();
   }
 
   Future<void> _refresh() async {
     setState(() {
-      _entriesFuture = widget.manager.loadEntries(
-        contextId: widget.context?.id,
+      _entriesFuture = _controller.manager.loadEntries(
+        contextId: _controller.context?.id,
       );
     });
     await _entriesFuture;
@@ -173,9 +160,11 @@ class _TrashTabState extends State<TrashTab> {
   }
 
   Future<void> _deleteEntry(TrashedEntry entry) async {
-    await widget.manager.deleteEntry(entry);
+    await _controller.manager.deleteEntry(entry);
     if (!mounted) return;
-    _controller.uiAdapter.showSnackBar('Deleted ${entry.displayName} permanently');
+    _controller.uiAdapter.showSnackBar(
+      'Deleted ${entry.displayName} permanently',
+    );
   }
 
   Future<void> _restoreEntry(TrashedEntry entry) async {
@@ -189,10 +178,10 @@ class _TrashTabState extends State<TrashTab> {
         if (!exists) {
           throw Exception('Local trash payload missing at ${entry.localPath}');
         }
-        return widget.manager.restoreEntry(
+        return _controller.manager.restoreEntry(
           entry: entry,
-          shellService: widget.shellService,
-          hostOverride: widget.context?.host,
+          shellService: _controller.shellService,
+          hostOverride: _controller.context?.host,
         );
       });
       AppLogger().debug(
@@ -200,7 +189,9 @@ class _TrashTabState extends State<TrashTab> {
         tag: 'Trash',
       );
       if (!mounted) return;
-      _controller.uiAdapter.showSnackBar('Restored ${entry.displayName} to ${entry.remotePath}');
+      _controller.uiAdapter.showSnackBar(
+        'Restored ${entry.displayName} to ${entry.remotePath}',
+      );
     } catch (error) {
       if (error is CancelledTrashOperation) return;
       AppLogger().warn(
