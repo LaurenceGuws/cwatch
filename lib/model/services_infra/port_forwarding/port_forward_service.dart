@@ -251,7 +251,7 @@ class PortForwardService extends ChangeNotifier {
     BuiltInSshKeyService? builtInKeyService,
     Map<String, String> hostKeyBindings = const {},
     Future<bool> Function(String keyId, String hostName, String? keyLabel)?
-    promptUnlock,
+    promptDecrypt,
     Duration builtInConnectTimeout = const Duration(seconds: 10),
     SshAuthCoordinator? authCoordinator,
   }) async {
@@ -273,8 +273,8 @@ class PortForwardService extends ChangeNotifier {
         authCoordinator:
             authCoordinator ??
             _authCoordinator ??
-            (promptUnlock != null
-                ? SshAuthCoordinator().withUnlockFallback(promptUnlock)
+            (promptDecrypt != null
+                ? SshAuthCoordinator().withDecryptFallback(promptDecrypt)
                 : const SshAuthCoordinator()),
       );
       final client = await manager.openPersistentClient(host);

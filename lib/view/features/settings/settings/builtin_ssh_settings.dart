@@ -75,8 +75,8 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
     }
   }
 
-  Future<void> _unlockKey(String keyId) async {
-    await widget.controller.unlockBuiltInKey(keyId);
+  Future<void> _decryptKey(String keyId) async {
+    await widget.controller.decryptBuiltInKey(keyId);
   }
 
   Future<void> _removeKeyEntry(String keyId) async {
@@ -86,8 +86,8 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
     }
   }
 
-  void _clearUnlocked() {
-    widget.controller.clearUnlockedKeys();
+  void _clearDecrypted() {
+    widget.controller.clearDecryptedKeys();
   }
 
   void _updateHostBinding(String hostName, String? keyId) {
@@ -119,10 +119,10 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
             final keys = snapshot.data ?? const [];
             _cachedKeys = keys;
 
-            // Auto-unlock plaintext keys
+            // Auto-decrypt plaintext keys
             if (keys.isNotEmpty) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                widget.controller.unlockPlaintextKeysIfNeeded(keys);
+                widget.controller.decryptPlaintextKeysIfNeeded(keys);
               });
             }
 
@@ -140,8 +140,8 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton(
-            onPressed: _clearUnlocked,
-            child: const Text('Clear unlocked keys'),
+            onPressed: _clearDecrypted,
+            child: const Text('Clear decrypted keys'),
           ),
         ),
         const FormSpacer(),
@@ -315,9 +315,9 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
   }
 
   Widget _buildKeyTile(BuiltInSshKeyEntry entry, BuildContext context) {
-    // Plaintext keys are always considered unlocked
-    final isUnlocked =
-        widget.controller.isKeyUnlocked(entry.id) || !entry.isEncrypted;
+    // Plaintext keys are always considered decrypted
+    final isDecrypted =
+        widget.controller.isKeyDecrypted(entry.id) || !entry.isEncrypted;
     final fingerprint = entry.fingerprint.length > 12
         ? '${entry.fingerprint.substring(0, 12)}…'
         : entry.fingerprint;
@@ -344,14 +344,14 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (isUnlocked)
+          if (isDecrypted)
             Tooltip(
               message: entry.isEncrypted
-                  ? 'Lock this key to remove it from memory'
+                  ? 'Clear decrypted key from memory'
                   : 'Plaintext storage is a security risk. Encrypt this key to protect it.',
               child: TextButton(
                 onPressed: entry.isEncrypted
-                    ? () => _lockKey(entry.id)
+                    ? () => _clearKey(entry.id)
                     : () => _encryptKey(entry.id),
                 style: TextButton.styleFrom(
                   foregroundColor: entry.isEncrypted
@@ -361,18 +361,18 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: Text(entry.isEncrypted ? 'Lock' : 'Encrypt'),
+                child: Text(entry.isEncrypted ? 'Clear' : 'Encrypt'),
               ),
             )
           else
             TextButton(
-              onPressed: () => _unlockKey(entry.id),
+              onPressed: () => _decryptKey(entry.id),
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: const Text('Unlock'),
+              child: const Text('Decrypt'),
             ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
@@ -383,8 +383,8 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
     );
   }
 
-  void _lockKey(String keyId) {
-    widget.controller.lockBuiltInKey(keyId);
+  void _clearKey(String keyId) {
+    widget.controller.clearDecryptedKey(keyId);
   }
 
   Future<void> _encryptKey(String keyId) async {

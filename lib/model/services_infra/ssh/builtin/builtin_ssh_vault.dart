@@ -11,16 +11,17 @@ class BuiltInSshVault extends ChangeNotifier {
   BuiltInSshVault({required this.keyStore});
 
   final BuiltInSshKeyStore keyStore;
-  final Map<String, Uint8List> _unlocked = {};
-  final Map<String, BuiltInSshKeyEntry> _unlockedEntries = {};
+  final Map<String, Uint8List> _decrypted = {};
+  final Map<String, BuiltInSshKeyEntry> _decryptedEntries = {};
 
-  bool isUnlocked(String keyId) => _unlocked.containsKey(keyId);
+  bool isDecrypted(String keyId) => _decrypted.containsKey(keyId);
 
-  Uint8List? getUnlockedKey(String keyId) => _unlocked[keyId];
-  BuiltInSshKeyEntry? getUnlockedEntry(String keyId) => _unlockedEntries[keyId];
+  Uint8List? getDecryptedKey(String keyId) => _decrypted[keyId];
+  BuiltInSshKeyEntry? getDecryptedEntry(String keyId) =>
+      _decryptedEntries[keyId];
 
-  /// Checks if a key requires a password to unlock (i.e., if storage is encrypted).
-  Future<bool> needsPassword(String keyId) async {
+  /// Checks if a key requires a password to decrypt (i.e., if storage is encrypted).
+  Future<bool> isEncrypted(String keyId) async {
     final entry = await keyStore.loadEntry(keyId);
     return entry?.isEncrypted ?? false;
   }
@@ -28,7 +29,7 @@ class BuiltInSshVault extends ChangeNotifier {
   /// Fully decrypts a PEM key into unencrypted PEM so dartssh2 will NOT re-prompt.
   /// For unencrypted storage, password can be null.
   /// For keys with passphrases, the passphrase should be provided separately when needed.
-  Future<void> unlock(String keyId, String? password) async {
+  Future<void> decrypt(String keyId, String? password) async {
     final entry = await keyStore.loadEntry(keyId);
     if (entry == null) {
       throw StateError('Key $keyId does not exist');
@@ -61,8 +62,8 @@ class BuiltInSshVault extends ChangeNotifier {
       if (e.message == 'passphrase is required for encrypted key') {
         // Key has passphrase - store the encrypted PEM as-is
         // The passphrase will be requested when the key is actually used
-        _unlocked[keyId] = Uint8List.fromList(utf8.encode(pem));
-        _unlockedEntries[keyId] = entry;
+        _decrypted[keyId] = Uint8List.fromList(utf8.encode(pem));
+        _decryptedEntries[keyId] = entry;
         notifyListeners();
         return;
       }
@@ -76,36 +77,36 @@ class BuiltInSshVault extends ChangeNotifier {
       );
       if (e.message.contains('encrypted')) {
         // Key has passphrase - store the encrypted PEM as-is
-        _unlocked[keyId] = Uint8List.fromList(utf8.encode(pem));
-        _unlockedEntries[keyId] = entry;
+        _decrypted[keyId] = Uint8List.fromList(utf8.encode(pem));
+        _decryptedEntries[keyId] = entry;
         notifyListeners();
         return;
       }
       rethrow;
     }
 
-    // Convert to UNENCRYPTED PEM
-    final unencryptedPem = keyPair.toPem();
+    // Convert to decrypted PEM
+    final decryptedPem = keyPair.toPem();
 
-    // Store unencrypted pem as bytes
-    _unlocked[keyId] = Uint8List.fromList(utf8.encode(unencryptedPem));
-    _unlockedEntries[keyId] = entry;
+    // Store decrypted pem as bytes
+    _decrypted[keyId] = Uint8List.fromList(utf8.encode(decryptedPem));
+    _decryptedEntries[keyId] = entry;
 
     notifyListeners();
   }
 
-  void forget(String keyId) {
-    final removedKey = _unlocked.remove(keyId);
-    final removedEntry = _unlockedEntries.remove(keyId);
+  void clearDecrypted(String keyId) {
+    final removedKey = _decrypted.remove(keyId);
+    final removedEntry = _decryptedEntries.remove(keyId);
     if (removedKey != null || removedEntry != null) {
       notifyListeners();
     }
   }
 
-  void forgetAll() {
-    if (_unlocked.isNotEmpty || _unlockedEntries.isNotEmpty) {
-      _unlocked.clear();
-      _unlockedEntries.clear();
+  void clearAllDecrypted() {
+    if (_decrypted.isNotEmpty || _decryptedEntries.isNotEmpty) {
+      _decrypted.clear();
+      _decryptedEntries.clear();
       notifyListeners();
     }
   }

@@ -10,11 +10,11 @@ import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 import 'package:cwatch/controller/adapters/explorer_ui_adapter.dart';
 
-class SshUnlockCancelled implements Exception {
-  const SshUnlockCancelled();
+class SshDecryptCancelled implements Exception {
+  const SshDecryptCancelled();
 
   @override
-  String toString() => 'SshUnlockCancelled';
+  String toString() => 'SshDecryptCancelled';
 }
 
 class TrashTabController extends ChangeNotifier {
@@ -32,7 +32,7 @@ class TrashTabController extends ChangeNotifier {
   final BuiltInSshKeyService? keyService;
   final ExplorerContext? context;
 
-  bool _unlockInProgress = false;
+  bool _decryptInProgress = false;
   final Map<String, Future<String?>> _pendingPassphrasePrompts = {};
 
   Future<T> runShell<T>(Future<T> Function() action) async {
@@ -40,25 +40,25 @@ class TrashTabController extends ChangeNotifier {
       return action();
     }
     try {
-      return await _withBuiltinUnlock(action);
-    } on SshUnlockCancelled {
+      return await _withBuiltinDecrypt(action);
+    } on SshDecryptCancelled {
       rethrow;
     }
   }
 
-  Future<T> _withBuiltinUnlock<T>(Future<T> Function() action) async {
+  Future<T> _withBuiltinDecrypt<T>(Future<T> Function() action) async {
     while (true) {
       try {
         return await action();
-      } on BuiltInSshKeyLockedException catch (error) {
+      } on BuiltInSshKeyDecryptionRequired catch (error) {
         AppLogger().warn(
-          'Built-in key locked for ${error.hostName}',
+          'Built-in key requires decryption for ${error.hostName}',
           tag: 'Trash',
           error: error,
         );
-        final unlocked = await _promptUnlock(error.keyId);
-        if (!unlocked) {
-          throw const SshUnlockCancelled();
+        final decrypted = await _promptDecrypt(error.keyId);
+        if (!decrypted) {
+          throw const SshDecryptCancelled();
         }
         continue;
       } on BuiltInSshKeyPassphraseRequired catch (error) {
@@ -73,7 +73,7 @@ class TrashTabController extends ChangeNotifier {
           'built-in key $keyLabel',
         );
         if (passphrase == null) {
-          throw const SshUnlockCancelled();
+          throw const SshDecryptCancelled();
         }
         final service = shellService;
         if (service is BuiltInRemoteShellService) {
@@ -104,7 +104,7 @@ class TrashTabController extends ChangeNotifier {
           error.identityPath,
         );
         if (passphrase == null) {
-          throw const SshUnlockCancelled();
+          throw const SshDecryptCancelled();
         }
         final service = shellService;
         if (service is BuiltInRemoteShellService) {
@@ -127,58 +127,64 @@ class TrashTabController extends ChangeNotifier {
     }
   }
 
-  Future<bool> _promptUnlock(String keyId) async {
-    if (_unlockInProgress) {
+  Future<bool> _promptDecrypt(String keyId) async {
+    if (_decryptInProgress) {
       return false;
     }
     final service = keyService;
     if (service == null) {
       return false;
     }
-    _unlockInProgress = true;
-    AppLogger().debug('Prompting unlock for key $keyId', tag: 'Trash');
+    _decryptInProgress = true;
+    AppLogger().debug('Prompting decryption for key $keyId', tag: 'Trash');
     try {
-      final initial = await service.unlock(keyId, password: null);
-      if (initial.status == BuiltInSshKeyUnlockStatus.unlocked) {
-        uiAdapter.showSnackBar('Key unlocked for this session.');
-        AppLogger().debug('Unlock succeeded for key $keyId', tag: 'Trash');
+      final initial = await service.decrypt(keyId, password: null);
+      if (initial.status == BuiltInSshKeyDecryptStatus.decrypted) {
+        uiAdapter.showSnackBar('Key decrypted for this session.');
+        AppLogger().debug('Decryption succeeded for key $keyId', tag: 'Trash');
         return true;
       }
       String? password;
-      password = await _showUnlockDialog(keyId);
+      password = await _showDecryptDialog(keyId);
       if (password == null) {
-        AppLogger().debug('Unlock cancelled for key $keyId', tag: 'Trash');
+        AppLogger().debug('Decryption cancelled for key $keyId', tag: 'Trash');
         return false;
       }
-      final result = await service.unlock(keyId, password: password);
-      if (result.status == BuiltInSshKeyUnlockStatus.unlocked) {
-        uiAdapter.showSnackBar('Key unlocked for this session.');
-        AppLogger().debug('Unlock succeeded for key $keyId', tag: 'Trash');
+      final result = await service.decrypt(keyId, password: password);
+      if (result.status == BuiltInSshKeyDecryptStatus.decrypted) {
+        uiAdapter.showSnackBar('Key decrypted for this session.');
+        AppLogger().debug('Decryption succeeded for key $keyId', tag: 'Trash');
         return true;
       }
       final message = result.message ?? 'Incorrect password for that key.';
       uiAdapter.showSnackBar(message);
-      AppLogger().warn('Unlock failed for key $keyId: $message', tag: 'Trash');
+      AppLogger().warn(
+        'Decryption failed for key $keyId: $message',
+        tag: 'Trash',
+      );
       return false;
     } catch (error) {
-      uiAdapter.showSnackBar('Failed to unlock key: $error');
+      uiAdapter.showSnackBar('Failed to decrypt key: $error');
       AppLogger().warn(
-        'Unlock failed for key $keyId',
+        'Decryption failed for key $keyId',
         tag: 'Trash',
         error: error,
       );
       return false;
     } finally {
-      _unlockInProgress = false;
-      AppLogger().debug('Unlock flow completed for key $keyId', tag: 'Trash');
+      _decryptInProgress = false;
+      AppLogger().debug(
+        'Decryption flow completed for key $keyId',
+        tag: 'Trash',
+      );
     }
   }
 
-  Future<String?> _showUnlockDialog(String keyId) async {
+  Future<String?> _showDecryptDialog(String keyId) async {
     return uiAdapter.showTextInputDialog(
-      title: 'Unlock key $keyId',
+      title: 'Decrypt key $keyId',
       label: 'Password',
-      submitLabel: 'Unlock',
+      submitLabel: 'Decrypt',
     );
   }
 

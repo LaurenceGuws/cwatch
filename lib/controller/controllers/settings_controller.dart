@@ -142,18 +142,18 @@ class SettingsController extends ChangeNotifier {
 
   Listenable get keyVaultListenable => keyService.vault;
 
-  bool isKeyUnlocked(String keyId) => keyService.isUnlocked(keyId);
+  bool isKeyDecrypted(String keyId) => keyService.isDecrypted(keyId);
 
   Future<List<BuiltInSshKeyEntry>> listBuiltInKeys() => keyService.listKeys();
 
-  void unlockPlaintextKeysIfNeeded(List<BuiltInSshKeyEntry> keys) {
+  void decryptPlaintextKeysIfNeeded(List<BuiltInSshKeyEntry> keys) {
     for (final entry in keys) {
-      if (!entry.isEncrypted && !keyService.isUnlocked(entry.id)) {
+      if (!entry.isEncrypted && !keyService.isDecrypted(entry.id)) {
         keyService
-            .unlock(entry.id, password: null)
+            .decrypt(entry.id, password: null)
             .catchError(
-              (_) => const BuiltInSshKeyUnlockResult(
-                status: BuiltInSshKeyUnlockStatus.failed,
+              (_) => const BuiltInSshKeyDecryptResult(
+                status: BuiltInSshKeyDecryptStatus.failed,
               ),
             );
       }
@@ -231,22 +231,22 @@ class SettingsController extends ChangeNotifier {
     }
   }
 
-  Future<void> unlockBuiltInKey(String keyId) async {
+  Future<void> decryptBuiltInKey(String keyId) async {
     final entry = await keyService.loadKey(keyId);
     String? password;
     if (entry != null && entry.isEncrypted) {
-      password = await uiAdapter.promptForPassword(title: 'Unlock key');
+      password = await uiAdapter.promptForPassword(title: 'Decrypt key');
       if (password == null) {
         return;
       }
     }
-    AppLogger().debug('Unlocking built-in key $keyId', tag: 'Settings');
-    final result = await keyService.unlock(keyId, password: password);
+    AppLogger().debug('Decrypting built-in key $keyId', tag: 'Settings');
+    final result = await keyService.decrypt(keyId, password: password);
     switch (result.status) {
-      case BuiltInSshKeyUnlockStatus.unlocked:
-        uiAdapter.showSnackBar('Key unlocked for this session.');
+      case BuiltInSshKeyDecryptStatus.decrypted:
+        uiAdapter.showSnackBar('Key decrypted for this session.');
         break;
-      case BuiltInSshKeyUnlockStatus.incorrectPassword:
+      case BuiltInSshKeyDecryptStatus.incorrectPassword:
         uiAdapter.showSnackBar(
           result.message ?? 'Incorrect password.',
           isError: true,
@@ -254,7 +254,7 @@ class SettingsController extends ChangeNotifier {
         break;
       default:
         uiAdapter.showSnackBar(
-          result.message ?? 'Failed to unlock key.',
+          result.message ?? 'Failed to decrypt key.',
           isError: true,
         );
         break;
@@ -297,13 +297,13 @@ class SettingsController extends ChangeNotifier {
     return true;
   }
 
-  void clearUnlockedKeys() {
-    keyService.lockAll();
+  void clearDecryptedKeys() {
+    keyService.clearAllDecrypted();
     AppLogger().debug(
-      'Cleared unlocked built-in keys from memory',
+      'Cleared decrypted built-in keys from memory',
       tag: 'Settings',
     );
-    uiAdapter.showSnackBar('Unlocked keys cleared from memory.');
+    uiAdapter.showSnackBar('Decrypted keys cleared from memory.');
   }
 
   void updateHostBinding(String hostName, String? keyId) {
@@ -321,9 +321,9 @@ class SettingsController extends ChangeNotifier {
     update((current) => current.copyWith(builtinSshHostKeyBindings: updated));
   }
 
-  void lockBuiltInKey(String keyId) {
-    keyService.lock(keyId);
-    uiAdapter.showSnackBar('Key locked.');
+  void clearDecryptedKey(String keyId) {
+    keyService.clearDecrypted(keyId);
+    uiAdapter.showSnackBar('Key cleared from memory.');
   }
 
   Future<bool> encryptBuiltInKey(String keyId) async {

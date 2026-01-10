@@ -36,7 +36,6 @@ class BuiltInSshKeyService {
     required String keyPem,
     String? storagePassword,
     String? keyPassphrase,
-    bool allowPlaintext = false,
   }) async {
     final validation = _validatePem(keyPem, passphrase: keyPassphrase);
     switch (validation.status) {
@@ -58,13 +57,6 @@ class BuiltInSshKeyService {
         storagePassword != null && storagePassword.isNotEmpty
         ? storagePassword
         : null;
-    if (effectivePassword == null && !allowPlaintext) {
-      return const BuiltInSshKeyAddResult(
-        status: BuiltInSshKeyAddStatus.invalid,
-        message:
-            'Set a storage password to encrypt this key or explicitly allow plaintext storage.',
-      );
-    }
 
     try {
       final entry = await _keyStore.addEntry(
@@ -91,58 +83,58 @@ class BuiltInSshKeyService {
     }
   }
 
-  /// Removes a key from storage and forgets it from the vault.
+  /// Removes a key from storage and clears it from the vault.
   Future<void> deleteKey(String id) async {
     await _keyStore.deleteEntry(id);
-    _vault.forget(id);
+    _vault.clearDecrypted(id);
   }
 
-  /// Unlocks a key for this session.
-  Future<BuiltInSshKeyUnlockResult> unlock(
+  /// Decrypts a key for this session.
+  Future<BuiltInSshKeyDecryptResult> decrypt(
     String keyId, {
     String? password,
   }) async {
     final entry = await _keyStore.loadEntry(keyId);
     if (entry == null) {
-      return const BuiltInSshKeyUnlockResult(
-        status: BuiltInSshKeyUnlockStatus.missing,
+      return const BuiltInSshKeyDecryptResult(
+        status: BuiltInSshKeyDecryptStatus.missing,
         message: 'Key not found',
       );
     }
     if (entry.isEncrypted && (password == null || password.isEmpty)) {
-      return const BuiltInSshKeyUnlockResult(
-        status: BuiltInSshKeyUnlockStatus.passwordRequired,
+      return const BuiltInSshKeyDecryptResult(
+        status: BuiltInSshKeyDecryptStatus.passwordRequired,
       );
     }
     try {
-      await _vault.unlock(keyId, password);
-      return const BuiltInSshKeyUnlockResult(
-        status: BuiltInSshKeyUnlockStatus.unlocked,
+      await _vault.decrypt(keyId, password);
+      return const BuiltInSshKeyDecryptResult(
+        status: BuiltInSshKeyDecryptStatus.decrypted,
       );
     } on BuiltInSshKeyDecryptException {
-      return const BuiltInSshKeyUnlockResult(
-        status: BuiltInSshKeyUnlockStatus.incorrectPassword,
+      return const BuiltInSshKeyDecryptResult(
+        status: BuiltInSshKeyDecryptStatus.incorrectPassword,
         message: 'Incorrect password for that key.',
       );
     } catch (error, stackTrace) {
       AppLogger().warn(
-        'Failed to unlock built-in SSH key $keyId',
+        'Failed to decrypt built-in SSH key $keyId',
         tag: 'BuiltInSSHKey',
         error: error,
         stackTrace: stackTrace,
       );
-      return BuiltInSshKeyUnlockResult(
-        status: BuiltInSshKeyUnlockStatus.failed,
+      return BuiltInSshKeyDecryptResult(
+        status: BuiltInSshKeyDecryptStatus.failed,
         message: error.toString(),
       );
     }
   }
 
-  bool isUnlocked(String keyId) => _vault.isUnlocked(keyId);
+  bool isDecrypted(String keyId) => _vault.isDecrypted(keyId);
 
-  void lock(String keyId) => _vault.forget(keyId);
+  void clearDecrypted(String keyId) => _vault.clearDecrypted(keyId);
 
-  void lockAll() => _vault.forgetAll();
+  void clearAllDecrypted() => _vault.clearAllDecrypted();
 
   /// Builds a ready-to-use [BuiltInRemoteShellService] wired to this key vault.
   BuiltInRemoteShellService buildShellService({
@@ -150,7 +142,7 @@ class BuiltInSshKeyService {
     bool debugMode = false,
     RemoteCommandObserver? observer,
     Future<bool> Function(String keyId, String hostName, String? keyLabel)?
-    promptUnlock,
+    promptDecrypt,
     KnownHostsStore? knownHostsStore,
     SshAuthCoordinator? authCoordinator,
   }) {
@@ -159,7 +151,7 @@ class BuiltInSshKeyService {
       hostKeyBindings: hostKeyBindings,
       debugMode: debugMode,
       observer: observer,
-      promptUnlock: promptUnlock,
+      promptDecrypt: promptDecrypt,
       knownHostsStore: knownHostsStore,
       authCoordinator: authCoordinator,
     );
@@ -186,7 +178,7 @@ class BuiltInSshKeyService {
       password: password,
     );
     await _keyStore.writeEntry(newEntry);
-    await _vault.unlock(keyId, password);
+    await _vault.decrypt(keyId, password);
     return newEntry;
   }
 
@@ -270,21 +262,21 @@ class BuiltInSshKeyAddResult {
   bool get isSuccess => status == BuiltInSshKeyAddStatus.success;
 }
 
-enum BuiltInSshKeyUnlockStatus {
-  unlocked,
+enum BuiltInSshKeyDecryptStatus {
+  decrypted,
   passwordRequired,
   incorrectPassword,
   missing,
   failed,
 }
 
-class BuiltInSshKeyUnlockResult {
-  const BuiltInSshKeyUnlockResult({required this.status, this.message});
+class BuiltInSshKeyDecryptResult {
+  const BuiltInSshKeyDecryptResult({required this.status, this.message});
 
-  final BuiltInSshKeyUnlockStatus status;
+  final BuiltInSshKeyDecryptStatus status;
   final String? message;
 
-  bool get isUnlocked => status == BuiltInSshKeyUnlockStatus.unlocked;
+  bool get isDecrypted => status == BuiltInSshKeyDecryptStatus.decrypted;
 }
 
 class _KeyValidationResult {

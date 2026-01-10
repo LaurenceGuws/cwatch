@@ -74,7 +74,7 @@ class _TrashTabState extends State<TrashTab> {
   Future<T> _runShell<T>(Future<T> Function() action) async {
     try {
       return await _controller.runShell(action);
-    } on SshUnlockCancelled {
+    } on SshDecryptCancelled {
       throw const CancelledTrashOperation();
     }
   }

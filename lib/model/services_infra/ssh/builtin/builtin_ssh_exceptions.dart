@@ -1,7 +1,7 @@
 import 'package:dartssh2/dartssh2.dart';
 
-class BuiltInSshKeyLockedException implements Exception {
-  BuiltInSshKeyLockedException(this.hostName, this.keyId, [this.keyLabel]);
+class BuiltInSshKeyDecryptionRequired implements Exception {
+  BuiltInSshKeyDecryptionRequired(this.hostName, this.keyId, [this.keyLabel]);
 
   final String hostName;
   final String keyId;

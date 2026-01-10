@@ -25,7 +25,7 @@ class BuiltInRemoteShellService extends RemoteShellService {
     this.connectTimeout = const Duration(seconds: 10),
     super.debugMode = false,
     super.observer,
-    this.promptUnlock,
+    this.promptDecrypt,
     KnownHostsStore? knownHostsStore,
     SshAuthCoordinator? authCoordinator,
   }) : _clientManager = BuiltInSshClientManager(
@@ -35,8 +35,8 @@ class BuiltInRemoteShellService extends RemoteShellService {
          knownHostsStore: knownHostsStore,
          authCoordinator:
              authCoordinator ??
-             (promptUnlock != null
-                 ? SshAuthCoordinator().withUnlockFallback(promptUnlock)
+             (promptDecrypt != null
+                 ? SshAuthCoordinator().withDecryptFallback(promptDecrypt)
                  : const SshAuthCoordinator()),
        ) {
     _sftpTransfer = BuiltInSftpTransfer(_clientManager);
@@ -45,7 +45,7 @@ class BuiltInRemoteShellService extends RemoteShellService {
   final BuiltInSshVault vault;
   final Duration connectTimeout;
   final Future<bool> Function(String keyId, String hostName, String? keyLabel)?
-  promptUnlock;
+  promptDecrypt;
   final BuiltInSshClientManager _clientManager;
   late final BuiltInSftpTransfer _sftpTransfer;
 

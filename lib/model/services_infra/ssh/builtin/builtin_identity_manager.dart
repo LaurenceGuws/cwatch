@@ -13,17 +13,17 @@ class BuiltInSshIdentityManager {
   BuiltInSshIdentityManager({
     required this.vault,
     required Map<String, String> hostKeyBindings,
-    this.promptUnlock,
+    this.promptDecrypt,
   }) : _hostKeyBindings = Map.unmodifiable(hostKeyBindings);
 
   final BuiltInSshVault vault;
   final Map<String, String> _hostKeyBindings;
   final Future<bool> Function(String keyId, String hostName, String? keyLabel)?
-  promptUnlock;
+  promptDecrypt;
 
   final Map<String, String> _identityPassphrases = {};
   final Map<String, String> _builtInKeyPassphrases = {};
-  static final Map<String, Future<void>> _pendingUnlocks = {};
+  static final Map<String, Future<void>> _pendingDecrypts = {};
 
   String? boundKeyForHost(String hostName) => _hostKeyBindings[hostName];
 
@@ -35,54 +35,56 @@ class BuiltInSshIdentityManager {
     _builtInKeyPassphrases[keyId] = passphrase;
   }
 
-  Future<void> _withPendingUnlock(
+  Future<void> _withPendingDecrypt(
     String keyId,
     Future<void> Function() action,
   ) {
-    final pending = _pendingUnlocks[keyId];
+    final pending = _pendingDecrypts[keyId];
     if (pending != null) {
       return pending;
     }
     final future = action();
-    _pendingUnlocks[keyId] = future;
-    return future.whenComplete(() => _pendingUnlocks.remove(keyId));
+    _pendingDecrypts[keyId] = future;
+    return future.whenComplete(() => _pendingDecrypts.remove(keyId));
   }
 
-  Future<void> ensureUnlocked(SshHost host) async {
+  Future<void> ensureDecrypted(SshHost host) async {
     final keyId = _hostKeyBindings[host.name];
     if (keyId == null) {
       return;
     }
-    return _withPendingUnlock(keyId, () async {
-      if (vault.isUnlocked(keyId)) {
+    return _withPendingDecrypt(keyId, () async {
+      if (vault.isDecrypted(keyId)) {
         return;
       }
       final entry = await vault.keyStore.loadEntry(keyId);
       if (entry == null) {
         logBuiltInSshWarning(
           'Key $keyId bound to ${host.name} no longer exists. '
-          'Skipping unlock and continuing.',
+          'Skipping decryption and continuing.',
         );
         return;
       }
-      final needsPassword = await vault.needsPassword(keyId);
-      if (!needsPassword) {
+      final isEncrypted = await vault.isEncrypted(keyId);
+      if (!isEncrypted) {
         try {
-          await vault.unlock(keyId, null);
+          await vault.decrypt(keyId, null);
           return;
         } catch (error) {
-          logBuiltInSsh(
-            'Failed to unlock built-in key $keyId without passphrase: $error',
+          logBuiltInSshWarning(
+            'Failed to decrypt key $keyId for ${host.name}',
+            error: error,
           );
+          throw Exception('Failed to decrypt key for ${host.name}: $error');
         }
       }
-      if (promptUnlock != null) {
-        final unlocked = await promptUnlock!(keyId, host.name, entry.label);
-        if (unlocked && vault.isUnlocked(keyId)) {
+      if (promptDecrypt != null) {
+        final decrypted = await promptDecrypt!(keyId, host.name, entry.label);
+        if (decrypted && vault.isDecrypted(keyId)) {
           return;
         }
       }
-      throw BuiltInSshKeyLockedException(host.name, keyId, entry.label);
+      throw BuiltInSshKeyDecryptionRequired(host.name, keyId, entry.label);
     });
   }
 
@@ -169,44 +171,50 @@ class BuiltInSshIdentityManager {
         return identities;
       }
 
-      await _withPendingUnlock(keyId, () async {
-        if (vault.isUnlocked(keyId)) {
+      await _withPendingDecrypt(keyId, () async {
+        if (vault.isDecrypted(keyId)) {
           return;
         }
-        final needsPassword = await vault.needsPassword(keyId);
-        if (!needsPassword) {
+        final isEncrypted = await vault.isEncrypted(keyId);
+        if (!isEncrypted) {
           try {
-            await vault.unlock(keyId, null);
+            await vault.decrypt(keyId, null);
           } catch (error) {
             logBuiltInSsh(
-              'Failed to unlock built-in key $keyId without passphrase: $error',
+              'Failed to decrypt built-in key $keyId without passphrase: $error',
             );
           }
         }
-        if (!vault.isUnlocked(keyId) && promptUnlock != null) {
-          final unlockedViaPrompt = await promptUnlock!(
+        if (!vault.isDecrypted(keyId) && promptDecrypt != null) {
+          final decryptedViaPrompt = await promptDecrypt!(
             keyId,
             host.name,
             entry.label,
           );
-          if (!unlockedViaPrompt) {
-            throw BuiltInSshKeyLockedException(host.name, keyId, entry.label);
+          if (!decryptedViaPrompt) {
+            throw BuiltInSshKeyDecryptionRequired(
+              host.name,
+              keyId,
+              entry.label,
+            );
           }
         }
-        if (!vault.isUnlocked(keyId)) {
-          throw BuiltInSshKeyLockedException(host.name, keyId, entry.label);
+        if (!vault.isDecrypted(keyId)) {
+          throw BuiltInSshKeyDecryptionRequired(host.name, keyId, entry.label);
         }
-        logBuiltInSsh('Unlocked built-in key $keyId for host ${host.name}');
+        logBuiltInSsh('Decrypted built-in key $keyId for host ${host.name}');
       });
 
-      var unlockedKey = vault.getUnlockedKey(keyId);
+      var decryptedKey = vault.getDecryptedKey(keyId);
 
-      if (unlockedKey == null) {
-        throw BuiltInSshKeyLockedException(host.name, keyId, entry.label);
+      if (decryptedKey == null) {
+        throw BuiltInSshKeyDecryptionRequired(host.name, keyId, entry.label);
       }
 
-      logBuiltInSsh('Using unlocked built-in key $keyId for host ${host.name}');
-      final pem = utf8.decode(unlockedKey, allowMalformed: true);
+      logBuiltInSsh(
+        'Using decrypted built-in key $keyId for host ${host.name}',
+      );
+      final pem = utf8.decode(decryptedKey, allowMalformed: true);
       final passphrase = _builtInKeyPassphrases[keyId];
       try {
         identities.addAll(
@@ -219,7 +227,7 @@ class BuiltInSshIdentityManager {
           'Passphrase required for built-in key $keyId',
           error: error,
         );
-        final label = vault.getUnlockedEntry(keyId)?.label;
+        final label = vault.getDecryptedEntry(keyId)?.label;
         throw BuiltInSshKeyPassphraseRequired(
           hostName: host.name,
           keyId: keyId,
@@ -227,7 +235,7 @@ class BuiltInSshIdentityManager {
           error: error,
         );
       } on UnsupportedError catch (error) {
-        final label = vault.getUnlockedEntry(keyId)?.label;
+        final label = vault.getDecryptedEntry(keyId)?.label;
         logBuiltInSshWarning(
           'Unsupported cipher for built-in key $keyId',
           error: error,
@@ -241,7 +249,7 @@ class BuiltInSshIdentityManager {
       } on ArgumentError catch (error) {
         logBuiltInSshWarning('Error parsing built-in key $keyId', error: error);
         if (error.message == 'passphrase is required for encrypted key') {
-          final label = vault.getUnlockedEntry(keyId)?.label;
+          final label = vault.getDecryptedEntry(keyId)?.label;
           throw BuiltInSshKeyPassphraseRequired(
             hostName: host.name,
             keyId: keyId,
@@ -253,7 +261,7 @@ class BuiltInSshIdentityManager {
       } on StateError catch (error) {
         logBuiltInSshWarning('Error parsing built-in key $keyId', error: error);
         if (error.message.contains('encrypted')) {
-          final label = vault.getUnlockedEntry(keyId)?.label;
+          final label = vault.getDecryptedEntry(keyId)?.label;
           throw BuiltInSshKeyPassphraseRequired(
             hostName: host.name,
             keyId: keyId,

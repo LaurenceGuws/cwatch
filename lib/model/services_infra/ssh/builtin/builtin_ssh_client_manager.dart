@@ -33,7 +33,7 @@ class BuiltInSshClientManager {
   final BuiltInSshIdentityManager _identityManager;
   final SshAuthCoordinator authCoordinator;
   final KnownHostsStore knownHostsStore;
-  final Map<String, Future<bool>> _pendingUnlockRequests = {};
+  final Map<String, Future<bool>> _pendingDecryptRequests = {};
 
   String? boundKeyForHost(String hostName) =>
       _identityManager.boundKeyForHost(hostName);
@@ -288,7 +288,7 @@ class BuiltInSshClientManager {
 
   Future<SSHClient> openPersistentClient(SshHost host) {
     return _wrapSshErrors(host, () async {
-      await _identityManager.ensureUnlocked(host);
+      await _identityManager.ensureDecrypted(host);
       return _openClient(host);
     });
   }
@@ -300,7 +300,7 @@ class BuiltInSshClientManager {
     return _wrapSshErrors(host, () async {
       SSHClient? client;
       try {
-        await _identityManager.ensureUnlocked(host);
+        await _identityManager.ensureDecrypted(host);
         client = await _openClient(host);
         return await action(client);
       } finally {
@@ -336,11 +336,11 @@ class BuiltInSshClientManager {
         throw Exception('SSH connection failed for ${host.name}: $error');
       } catch (e) {
         logBuiltInSshWarning('SSH operation failed for ${host.name}', error: e);
-        if (e is BuiltInSshKeyLockedException) {
+        if (e is BuiltInSshKeyDecryptionRequired) {
           if (retries > 2) rethrow;
-          final unlocked = await _handleLockedKey(e);
+          final decrypted = await _handleDecryptRequired(e);
           retries++;
-          if (unlocked) {
+          if (decrypted) {
             continue;
           }
         } else if (e is BuiltInSshKeyPassphraseRequired) {
@@ -470,43 +470,45 @@ class BuiltInSshClientManager {
     return 'HISTFILE=/dev/null HISTSIZE=0 HISTFILESIZE=0; $command';
   }
 
-  Future<bool> _handleLockedKey(BuiltInSshKeyLockedException error) async {
-    if (vault.isUnlocked(error.keyId)) {
+  Future<bool> _handleDecryptRequired(
+    BuiltInSshKeyDecryptionRequired error,
+  ) async {
+    if (vault.isDecrypted(error.keyId)) {
       return true;
     }
-    final pending = _pendingUnlockRequests[error.keyId];
+    final pending = _pendingDecryptRequests[error.keyId];
     if (pending != null) {
       return pending;
     }
     final future = () async {
-      final request = SshKeyUnlockRequest(
+      final request = SshKeyDecryptRequest(
         keyId: error.keyId,
         hostName: error.hostName,
         keyLabel: error.keyLabel,
-        storageEncrypted: await vault.needsPassword(error.keyId),
+        storageEncrypted: await vault.isEncrypted(error.keyId),
       );
-      final result = await authCoordinator.onUnlockKey?.call(request);
-      if (result == null || result.unlocked != true) {
+      final result = await authCoordinator.onDecryptKey?.call(request);
+      if (result == null || result.decrypted != true) {
         return false;
       }
-      if (!vault.isUnlocked(error.keyId) && result.password != null) {
+      if (!vault.isDecrypted(error.keyId) && result.password != null) {
         try {
-          await vault.unlock(error.keyId, result.password);
+          await vault.decrypt(error.keyId, result.password);
         } catch (e) {
           logBuiltInSshWarning(
-            'Failed to unlock built-in key ${error.keyId}',
+            'Failed to decrypt built-in key ${error.keyId}',
             error: e,
           );
           return false;
         }
       }
-      return vault.isUnlocked(error.keyId);
+      return vault.isDecrypted(error.keyId);
     }();
-    _pendingUnlockRequests[error.keyId] = future;
+    _pendingDecryptRequests[error.keyId] = future;
     try {
       return await future;
     } finally {
-      _pendingUnlockRequests.remove(error.keyId);
+      _pendingDecryptRequests.remove(error.keyId);
     }
   }
 

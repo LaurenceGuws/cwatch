@@ -11,7 +11,7 @@ import 'package:cwatch/controller/di/bindings/terminal_tab_binding.dart';
 
 import 'package:cwatch/model/models/app_settings.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
-import 'package:cwatch/model/services_infra/ssh/builtin/builtin_remote_shell_service.dart';
+import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_exceptions.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_base.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
@@ -275,10 +275,10 @@ class _TerminalTabState extends State<TerminalTab> {
   }
 
   String _friendlyError(Object error) {
-    if (error is BuiltInSshKeyLockedException) {
+    if (error is BuiltInSshKeyDecryptionRequired) {
       final keyLabel = (error.keyLabel ?? error.keyId).trim();
       final label = keyLabel.isNotEmpty ? keyLabel : error.keyId;
-      return 'Unlock SSH key "$label" to start a terminal.';
+      return 'Decrypt SSH key "$label" to start a terminal.';
     }
     return error.toString();
   }

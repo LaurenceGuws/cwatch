@@ -1,36 +1,36 @@
-/// Coordinates SSH authentication prompts so UI code can centralize unlock and
+/// Coordinates SSH authentication prompts so UI code can centralize decrypt and
 /// passphrase handling while services retry internally.
 class SshAuthCoordinator {
-  const SshAuthCoordinator({this.onUnlockKey, this.onRequestPassphrase});
+  const SshAuthCoordinator({this.onDecryptKey, this.onRequestPassphrase});
 
-  final Future<SshKeyUnlockResult?> Function(SshKeyUnlockRequest request)?
-  onUnlockKey;
+  final Future<SshKeyDecryptResult?> Function(SshKeyDecryptRequest request)?
+  onDecryptKey;
   final Future<String?> Function(SshPassphraseRequest request)?
   onRequestPassphrase;
 
-  SshAuthCoordinator withUnlockFallback(
+  SshAuthCoordinator withDecryptFallback(
     Future<bool> Function(String keyId, String hostName, String? keyLabel)
-    promptUnlock,
+    promptDecrypt,
   ) {
-    if (onUnlockKey != null) {
+    if (onDecryptKey != null) {
       return this;
     }
     return SshAuthCoordinator(
-      onUnlockKey: (request) async {
-        final unlocked = await promptUnlock(
+      onDecryptKey: (request) async {
+        final decrypted = await promptDecrypt(
           request.keyId,
           request.hostName,
           request.keyLabel,
         );
-        return SshKeyUnlockResult(unlocked: unlocked);
+        return SshKeyDecryptResult(decrypted: decrypted);
       },
       onRequestPassphrase: onRequestPassphrase,
     );
   }
 }
 
-class SshKeyUnlockRequest {
-  const SshKeyUnlockRequest({
+class SshKeyDecryptRequest {
+  const SshKeyDecryptRequest({
     required this.keyId,
     required this.hostName,
     this.keyLabel,
@@ -43,10 +43,10 @@ class SshKeyUnlockRequest {
   final bool storageEncrypted;
 }
 
-class SshKeyUnlockResult {
-  const SshKeyUnlockResult({required this.unlocked, this.password});
+class SshKeyDecryptResult {
+  const SshKeyDecryptResult({required this.decrypted, this.password});
 
-  final bool unlocked;
+  final bool decrypted;
   final String? password;
 }
 

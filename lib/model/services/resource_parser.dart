@@ -5,8 +5,8 @@ import 'dart:math';
 import 'package:cwatch/model/data/models/resource_models.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
-import 'package:cwatch/model/services_infra/ssh/builtin/builtin_remote_shell_service.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
+import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_exceptions.dart';
 
 /// Service for parsing resource data from SSH output
 class ResourceParser {
@@ -346,14 +346,16 @@ class ResourceParser {
         timeout: timeout,
       );
       return output.trim();
-    } on BuiltInSshKeyLockedException catch (error, stackTrace) {
+    } on BuiltInSshKeyDecryptionRequired catch (error, stackTrace) {
       AppLogger().warn(
-        'SSH key locked for ${host.name}',
+        'SSH key requires decryption for ${host.name}',
         tag: 'Resources',
         error: error,
         stackTrace: stackTrace,
       );
-      throw Exception('SSH key locked for ${host.name}: ${error.keyId}');
+      throw Exception(
+        'SSH key requires decryption for ${host.name}: ${error.keyId}',
+      );
     } catch (error, stackTrace) {
       AppLogger().warn(
         'SSH command failed for ${host.name}',
