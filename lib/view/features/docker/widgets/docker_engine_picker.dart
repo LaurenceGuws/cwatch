@@ -10,6 +10,10 @@ import 'package:cwatch/model/shared/theme/distro_icons.dart';
 import 'package:cwatch/view/shared/widgets/data_table/structured_data_table.dart';
 import 'package:cwatch/view/shared/widgets/distro_leading_slot.dart';
 import 'package:cwatch/view/shared/widgets/lists/section_list.dart';
+import 'package:cwatch/model/features/docker/services/docker_client_service.dart';
+import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
+import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
+import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
 import 'docker_shared.dart';
 import '../remote_docker_status.dart';
 
@@ -28,6 +32,8 @@ class EnginePicker extends StatefulWidget {
     required this.onOpenContext,
     required this.onOpenHost,
     required this.settingsController,
+    this.dockerService,
+    this.shellFactory,
   });
 
   final String tabId;
@@ -42,6 +48,8 @@ class EnginePicker extends StatefulWidget {
   final void Function(String contextName, Offset? anchor) onOpenContext;
   final void Function(SshHost host, Offset? anchor) onOpenHost;
   final AppSettingsController settingsController;
+  final DockerClientService? dockerService;
+  final SshShellFactory? shellFactory;
 
   @override
   State<EnginePicker> createState() => _EnginePickerState();
@@ -203,7 +211,8 @@ class _EnginePickerState extends State<EnginePicker> {
     return [
       StructuredDataColumn<LocalDockerContextStatus>(
         label: 'Context',
-        autoFitText: (status) => status.context.name,
+        autoFitText: (status) =>
+            '${status.context.name} ${status.context.dockerEndpoint}',
         cellBuilder: (context, status) => Opacity(
           opacity: status.available ? 1.0 : opacity,
           child: Row(
@@ -215,21 +224,25 @@ class _EnginePickerState extends State<EnginePicker> {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  status.context.name,
-                  style: Theme.of(context).textTheme.titleMedium,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      status.context.name,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    Text(
+                      status.context.dockerEndpoint,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-        ),
-      ),
-      StructuredDataColumn<LocalDockerContextStatus>(
-        label: 'Endpoint',
-        autoFitText: (status) => status.context.dockerEndpoint,
-        cellBuilder: (context, status) => Opacity(
-          opacity: status.available ? 1.0 : opacity,
-          child: Text(status.context.dockerEndpoint),
         ),
       ),
       StructuredDataColumn<LocalDockerContextStatus>(
@@ -262,6 +275,7 @@ class _EnginePickerState extends State<EnginePicker> {
       ),
     ];
   }
+
 
   List<StructuredDataChip> _contextMetadata(
     LocalDockerContextStatus status,
@@ -296,6 +310,8 @@ class RemoteSection extends StatelessWidget {
     required this.onScan,
     required this.onOpenHost,
     required this.settingsController,
+    this.dockerService,
+    this.shellFactory,
     required this.collapsed,
     required this.onToggleCollapsed,
     required this.backgroundColor,
@@ -308,6 +324,8 @@ class RemoteSection extends StatelessWidget {
   final VoidCallback onScan;
   final void Function(SshHost host, Offset? anchor) onOpenHost;
   final AppSettingsController settingsController;
+  final DockerClientService? dockerService;
+  final SshShellFactory? shellFactory;
   final bool collapsed;
   final VoidCallback onToggleCollapsed;
   final Color backgroundColor;
@@ -330,12 +348,13 @@ class RemoteSection extends StatelessWidget {
               ),
             );
           }
-          return RemoteHostList(
-            hosts: hosts,
-            onOpenHost: onOpenHost,
-            settingsController: settingsController,
-            backgroundColor: backgroundColor,
-          );
+              return RemoteHostList(
+                hosts: hosts,
+                onOpenHost: onOpenHost,
+                settingsController: settingsController,
+                dockerService: dockerService,
+                backgroundColor: backgroundColor,
+              );
         },
       );
     } else {
@@ -375,6 +394,8 @@ class RemoteSection extends StatelessWidget {
                 hosts: hosts,
                 onOpenHost: onOpenHost,
                 settingsController: settingsController,
+                dockerService: dockerService,
+                shellFactory: shellFactory,
                 backgroundColor: backgroundColor,
               );
             },
@@ -418,32 +439,42 @@ class RemoteSection extends StatelessWidget {
   }
 }
 
-class RemoteHostList extends StatelessWidget {
+class RemoteHostList extends StatefulWidget {
   const RemoteHostList({
     super.key,
     required this.hosts,
     required this.onOpenHost,
     required this.settingsController,
+    this.dockerService,
+    this.shellFactory,
     required this.backgroundColor,
   });
 
   final List<RemoteDockerStatus> hosts;
   final void Function(SshHost host, Offset? anchor) onOpenHost;
   final AppSettingsController settingsController;
+  final DockerClientService? dockerService;
+  final SshShellFactory? shellFactory;
   final Color backgroundColor;
+
+  @override
+  State<RemoteHostList> createState() => _RemoteHostListState();
+}
+
+class _RemoteHostListState extends State<RemoteHostList> {
 
   @override
   Widget build(BuildContext context) {
     return StructuredDataTable<RemoteDockerStatus>(
-      rows: hosts,
+      rows: widget.hosts,
       columns: _columns(context),
       rowHeight: 64,
       shrinkToContent: true,
       useZebraStripes: false,
-      surfaceBackgroundColor: backgroundColor,
+      surfaceBackgroundColor: widget.backgroundColor,
       primaryDoubleClickOpensContextMenu: true,
-      refreshListenable: settingsController,
-      onRowContextMenu: (status, anchor) => onOpenHost(status.host, anchor),
+      refreshListenable: widget.settingsController,
+      onRowContextMenu: (status, anchor) => widget.onOpenHost(status.host, anchor),
       emptyState: Padding(
         padding: EdgeInsets.all(context.appTheme.spacing.xl),
         child: const Text('No Docker-ready remote hosts found.'),
@@ -498,7 +529,7 @@ class RemoteHostList extends StatelessWidget {
     final address = _hostAddress(host);
     final iconSize = _leadingIconSize(context);
     return AnimatedBuilder(
-      animation: settingsController,
+      animation: widget.settingsController,
       builder: (context, _) {
         final slug = _slugForHost(host);
         final iconColor = colorForDistro(slug, context.appTheme);
@@ -556,7 +587,7 @@ class RemoteHostList extends StatelessWidget {
   }
 
   String? _slugForHost(SshHost host) {
-    return settingsController.settings.serverDistroMap[hostDistroCacheKey(
+    return widget.settingsController.settings.serverDistroMap[hostDistroCacheKey(
       host,
     )];
   }

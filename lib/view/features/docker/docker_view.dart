@@ -227,6 +227,8 @@ class _DockerViewState extends State<DockerView> {
               _openContextDashboard(tabId, contextName, anchor),
           onOpenHost: (host, anchor) => _openHostDashboard(tabId, host, anchor),
           settingsController: widget.settingsController,
+          dockerService: _docker,
+          shellFactory: widget.shellFactory,
         ),
         if (_showListSettings)
           FloatingSettingsWindow(

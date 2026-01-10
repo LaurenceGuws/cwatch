@@ -310,6 +310,8 @@ class _DockerOverviewState extends State<DockerOverview>
                                       ? (_) => _actions.stopForwardsForHost()
                                       : null,
                                   settingsController: widget.settingsController,
+                                  dockerService: _controller.docker,
+                                  contextName: _controller.contextName,
                                 ),
                               ),
                             ],

@@ -601,6 +601,146 @@ class DockerClientService {
     return _parseStats(output);
   }
 
+  /// Get aggregate CPU and RAM usage for a Docker context.
+  /// Returns a map with 'cpu' (percentage as double) and 'ram' (percentage as double).
+  /// Returns null if stats cannot be retrieved.
+  Future<Map<String, double>?> getAggregateStats({
+    String? context,
+    Duration timeout = const Duration(seconds: 6),
+  }) async {
+    _log('Getting aggregate stats context=$context');
+    try {
+      // First get total memory
+      final infoArgs = <String>[
+        if (context != null && context.trim().isNotEmpty) ...[
+          '--context',
+          context.trim(),
+        ],
+        'info',
+        '--format',
+        '{{.MemTotal}}',
+      ];
+      final infoResult = await _runDockerProcess(
+        infoArgs,
+        timeout: timeout,
+        operation: 'get docker info',
+      );
+      if (infoResult.exitCode != 0) {
+        return null;
+      }
+      final memTotalStr = (infoResult.stdout as String?)?.trim() ?? '';
+      if (memTotalStr.isEmpty) {
+        return null;
+      }
+
+      // Parse total memory (e.g., "15.5GiB" -> bytes)
+      final memTotalBytes = _parseMemoryBytes(memTotalStr);
+      if (memTotalBytes == null || memTotalBytes == 0) {
+        return null;
+      }
+
+      // Get container stats
+      final statsArgs = <String>[
+        if (context != null && context.trim().isNotEmpty) ...[
+          '--context',
+          context.trim(),
+        ],
+        'stats',
+        '--no-stream',
+        '--format',
+        '{{.CPUPerc}} {{.MemUsage}}',
+      ];
+      final statsResult = await _runDockerProcess(
+        statsArgs,
+        timeout: timeout,
+        operation: 'get docker stats',
+      );
+      if (statsResult.exitCode != 0) {
+        final stderr = (statsResult.stderr as String?)?.trim();
+        _log('docker stats failed: exitCode=${statsResult.exitCode}, stderr=$stderr');
+        return null;
+      }
+
+      final output = (statsResult.stdout as String?) ?? '';
+      _log('docker stats output length=${output.length}');
+      if (output.trim().isEmpty) {
+        // No containers running
+        return {'cpu': 0.0, 'ram': 0.0};
+      }
+
+      // Parse stats: sum CPU percentages, sum memory usage
+      double totalCpu = 0.0;
+      int totalMemBytes = 0;
+
+      for (final line in const LineSplitter().convert(output)) {
+        final trimmed = line.trim();
+        if (trimmed.isEmpty) continue;
+
+        final parts = trimmed.split(RegExp(r'\s+'));
+        if (parts.length < 2) continue;
+
+        // Parse CPU percentage (remove % sign)
+        final cpuStr = parts[0].replaceAll('%', '').trim();
+        final cpu = double.tryParse(cpuStr) ?? 0.0;
+        totalCpu += cpu;
+
+        // Parse memory usage (e.g., "1.2GiB / 15.5GiB" -> use first part)
+        final memUsageStr = parts[1];
+        final memBytes = _parseMemoryBytes(memUsageStr);
+        if (memBytes != null) {
+          totalMemBytes += memBytes;
+        }
+      }
+
+      final ramPercent = (totalMemBytes / memTotalBytes) * 100.0;
+
+      return {
+        'cpu': totalCpu,
+        'ram': ramPercent,
+      };
+    } catch (error, stackTrace) {
+      AppLogger().warn(
+        'Failed to get aggregate stats',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return null;
+    }
+  }
+
+  /// Parse memory string (e.g., "15.5GiB", "1.2MiB", "512KiB") to bytes.
+  int? _parseMemoryBytes(String memoryStr) {
+    final trimmed = memoryStr.trim();
+    if (trimmed.isEmpty) return null;
+
+    // Handle formats like "1.2GiB / 15.5GiB" - take first part
+    final parts = trimmed.split('/');
+    final memStr = parts[0].trim();
+
+    // Extract number and unit
+    final match = RegExp(r'^([\d.]+)\s*(GiB|MiB|KiB|B)$', caseSensitive: false)
+        .firstMatch(memStr);
+    if (match == null) return null;
+
+    final value = double.tryParse(match.group(1) ?? '');
+    if (value == null) return null;
+
+    final unit = (match.group(2) ?? '').toLowerCase();
+    switch (unit) {
+      case 'gib':
+        return (value * 1024 * 1024 * 1024).round();
+      case 'mib':
+        return (value * 1024 * 1024).round();
+      case 'kib':
+        return (value * 1024).round();
+      case 'b':
+        return value.round();
+      default:
+        return null;
+    }
+  }
+
   List<DockerVolume> _parseVolumes(String output) {
     final items = <DockerVolume>[];
     for (final line in const LineSplitter().convert(output)) {

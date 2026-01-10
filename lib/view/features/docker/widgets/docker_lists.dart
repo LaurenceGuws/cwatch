@@ -5,6 +5,7 @@ import 'package:cwatch/model/models/docker_container.dart';
 import 'package:cwatch/model/models/docker_image.dart';
 import 'package:cwatch/model/models/docker_network.dart';
 import 'package:cwatch/model/models/docker_volume.dart';
+import 'package:cwatch/model/features/docker/services/docker_client_service.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/shared/theme/distro_icons.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
@@ -117,6 +118,8 @@ class ContainerPeek extends StatefulWidget {
     this.onComposeForward,
     this.onComposeStopForward,
     required this.settingsController,
+    this.dockerService,
+    this.contextName,
   });
 
   final List<DockerContainer> containers;
@@ -131,6 +134,8 @@ class ContainerPeek extends StatefulWidget {
   final void Function(String project)? onComposeForward;
   final void Function(String project)? onComposeStopForward;
   final AppSettingsController settingsController;
+  final DockerClientService? dockerService;
+  final String? contextName;
 
   @override
   State<ContainerPeek> createState() => _ContainerPeekState();
@@ -138,6 +143,8 @@ class ContainerPeek extends StatefulWidget {
 
 class _ContainerPeekState extends State<ContainerPeek> {
   final Set<String> _collapsed = {};
+  Future<Map<String, Map<String, double>>>? _allStatsFuture;
+  Map<String, Map<String, double>>? _cachedStats;
 
   @override
   Widget build(BuildContext context) {
@@ -316,7 +323,8 @@ class _ContainerPeekState extends State<ContainerPeek> {
   List<StructuredDataColumn<DockerContainer>> _containerColumns(
     BuildContext context,
   ) {
-    return [
+    // Always return all 6 columns: Container, Image, Status, Action, CPU, RAM
+    final columns = [
       StructuredDataColumn<DockerContainer>(
         label: 'Container',
         autoFitText: (container) => _displayName(container),
@@ -337,7 +345,168 @@ class _ContainerPeekState extends State<ContainerPeek> {
         autoFitText: (container) => _actionLabel(container),
         cellBuilder: _buildActionCell,
       ),
+      StructuredDataColumn<DockerContainer>(
+        label: 'CPU',
+        width: 80,
+        autoFitText: (container) => '--',
+        cellBuilder: (context, container) => _buildCpuCell(context, container),
+      ),
+      StructuredDataColumn<DockerContainer>(
+        label: 'RAM',
+        width: 80,
+        autoFitText: (container) => '--',
+        cellBuilder: (context, container) => _buildRamCell(context, container),
+      ),
     ];
+    assert(columns.length == 6, 'Expected 6 columns but got ${columns.length}');
+    return columns;
+  }
+  
+  Future<Map<String, Map<String, double>>> _fetchAllStats() async {
+    // Return cached stats if available
+    if (_cachedStats != null) {
+      return Future.value(_cachedStats!);
+    }
+    
+    // Use existing future if already loading
+    if (_allStatsFuture != null) {
+      return _allStatsFuture!;
+    }
+    
+    // Start loading stats lazily
+    _allStatsFuture = _loadAllStats();
+    final stats = await _allStatsFuture!;
+    _cachedStats = stats;
+    return stats;
+  }
+  
+  Future<Map<String, Map<String, double>>> _loadAllStats() async {
+    final dockerService = widget.dockerService;
+    if (dockerService == null) {
+      return {};
+    }
+    try {
+      // Fetch stats for all containers at once
+      final stats = await dockerService.listContainerStats(
+        context: widget.contextName,
+      );
+      
+      final statsMap = <String, Map<String, double>>{};
+      for (final stat in stats) {
+        // Parse CPU percentage (remove % sign)
+        final cpuStr = stat.cpu.replaceAll('%', '').trim();
+        final cpu = double.tryParse(cpuStr) ?? 0.0;
+        
+        // Parse RAM percentage (remove % sign)
+        final ramStr = stat.memPercent.replaceAll('%', '').trim();
+        final ram = double.tryParse(ramStr) ?? 0.0;
+        
+        // Index by both ID and name for lookup
+        statsMap[stat.id] = {'cpu': cpu, 'ram': ram};
+        statsMap[stat.name] = {'cpu': cpu, 'ram': ram};
+      }
+      
+      return statsMap;
+    } catch (error) {
+      // Return empty map if stats can't be loaded
+      return {};
+    }
+  }
+  
+  Map<String, double> _getContainerStats(
+    Map<String, Map<String, double>>? allStats,
+    DockerContainer container,
+  ) {
+    if (allStats == null) {
+      return {'cpu': 0.0, 'ram': 0.0};
+    }
+    return allStats[container.id] ?? 
+           allStats[container.name] ?? 
+           {'cpu': 0.0, 'ram': 0.0};
+  }
+  
+  Widget _buildCpuCell(BuildContext context, DockerContainer container) {
+    // Show placeholder immediately if no service or container not running
+    if (widget.dockerService == null || !container.isRunning) {
+      return Text(
+        '--',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      );
+    }
+    
+    // Show placeholder while loading stats
+    return FutureBuilder<Map<String, Map<String, double>>>(
+      future: _fetchAllStats(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          // Show placeholder text while loading
+          return Text(
+            '--',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          );
+        }
+        if (snapshot.hasError || snapshot.data == null) {
+          return Text(
+            '--',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          );
+        }
+        final stats = _getContainerStats(snapshot.data, container);
+        final cpu = stats['cpu'] ?? 0.0;
+        return Text(
+          '${cpu.toStringAsFixed(1)}%',
+          style: Theme.of(context).textTheme.bodySmall,
+        );
+      },
+    );
+  }
+  
+  Widget _buildRamCell(BuildContext context, DockerContainer container) {
+    // Show placeholder immediately if no service or container not running
+    if (widget.dockerService == null || !container.isRunning) {
+      return Text(
+        '--',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      );
+    }
+    
+    // Show placeholder while loading stats
+    return FutureBuilder<Map<String, Map<String, double>>>(
+      future: _fetchAllStats(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          // Show placeholder text while loading
+          return Text(
+            '--',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          );
+        }
+        if (snapshot.hasError || snapshot.data == null) {
+          return Text(
+            '--',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          );
+        }
+        final stats = _getContainerStats(snapshot.data, container);
+        final ram = stats['ram'] ?? 0.0;
+        return Text(
+          '${ram.toStringAsFixed(1)}%',
+          style: Theme.of(context).textTheme.bodySmall,
+        );
+      },
+    );
   }
 
   String _displayName(DockerContainer container) {
