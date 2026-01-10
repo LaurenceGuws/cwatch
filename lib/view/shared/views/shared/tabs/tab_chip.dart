@@ -284,7 +284,7 @@ class _TabChipState extends State<TabChip> {
                               onTap: widget.closable
                                   ? () => _handleClose(context)
                                   : null,
-                              child: SizedBox(
+                              childBuilder: (isHovering) => SizedBox(
                                 width: actionWidth,
                                 height: actionHeight,
                                 child: Center(
@@ -292,11 +292,9 @@ class _TabChipState extends State<TabChip> {
                                     NerdIcon.close.data,
                                     size: 14,
                                     color: widget.closable
-                                        ? (widget.selected
+                                        ? (isHovering
                                               ? closeColor
-                                              : (_hovering
-                                                    ? closeColor
-                                                    : foreground))
+                                              : Colors.white)
                                         : foreground.withValues(alpha: 0.4),
                                   ),
                                 ),
@@ -485,14 +483,17 @@ class _TabChipState extends State<TabChip> {
 
 class _TabChipAction extends StatefulWidget {
   const _TabChipAction({
-    required this.child,
+    this.child,
     required this.hoverColor,
     this.onTap,
-  });
+    this.childBuilder,
+  }) : assert(child != null || childBuilder != null,
+           'Either child or childBuilder must be provided');
 
-  final Widget child;
+  final Widget? child;
   final Color hoverColor;
   final VoidCallback? onTap;
+  final Widget Function(bool isHovering)? childBuilder;
 
   @override
   State<_TabChipAction> createState() => _TabChipActionState();
@@ -503,6 +504,9 @@ class _TabChipActionState extends State<_TabChipAction> {
 
   @override
   Widget build(BuildContext context) {
+    final child = widget.childBuilder != null
+        ? widget.childBuilder!(_hovering)
+        : widget.child!;
     final content = AnimatedContainer(
       duration: const Duration(milliseconds: 150),
       padding: EdgeInsets.zero,
@@ -511,7 +515,7 @@ class _TabChipActionState extends State<_TabChipAction> {
         shape: BoxShape.rectangle,
         borderRadius: const RoundedRectangleBorder().borderRadius,
       ),
-      child: widget.child,
+      child: child,
     );
 
     return MouseRegion(
