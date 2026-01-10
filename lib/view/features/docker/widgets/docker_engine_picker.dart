@@ -137,9 +137,8 @@ class _EnginePickerState extends State<EnginePicker> {
                         builder: (context, statusSnapshot) {
                           // Show contexts immediately, readiness will update when available
                           final statuses = statusSnapshot.data;
-                          final rows = statuses != null
-                              ? statuses
-                              : contexts
+                          final rows = statuses ??
+                              contexts
                                   .map((ctx) => LocalDockerContextStatus(
                                         context: ctx,
                                         available: false,
