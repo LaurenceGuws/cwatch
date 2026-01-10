@@ -183,7 +183,6 @@ class _SshAuthDialogState<T> extends State<_SshAuthDialog<T>> {
   bool _obscureText = true;
   bool _hasFocus = true;
   bool _hasText = false;
-  TextSelection _lastSelection = const TextSelection.collapsed(offset: -1);
   bool _isTogglingObscure = false;
 
   @override
@@ -217,7 +216,6 @@ class _SshAuthDialogState<T> extends State<_SshAuthDialog<T>> {
     if (_isTogglingObscure) return;
     final selection = _controller.selection;
     if (selection.isValid) {
-      _lastSelection = selection;
     }
   }
 
@@ -230,13 +228,11 @@ class _SshAuthDialogState<T> extends State<_SshAuthDialog<T>> {
       _focusNode.requestFocus();
       if (selection.isValid && selection.baseOffset >= 0) {
         _controller.selection = selection;
-        _lastSelection = selection;
       } else {
         final fallback = TextSelection.collapsed(
           offset: _controller.text.length,
         );
         _controller.selection = fallback;
-        _lastSelection = fallback;
       }
       _isTogglingObscure = false;
     });

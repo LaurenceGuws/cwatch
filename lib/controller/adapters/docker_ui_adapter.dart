@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:flutter/material.dart';
-
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/view/features/docker/remote_docker_status.dart';

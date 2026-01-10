@@ -13,7 +13,6 @@ import 'package:cwatch/view/shared/widgets/lists/section_list.dart';
 import 'package:cwatch/model/features/docker/services/docker_client_service.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
-import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
 import 'docker_shared.dart';
 import '../remote_docker_status.dart';
 
