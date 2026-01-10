@@ -56,17 +56,6 @@ class _KubernetesContextPickerState extends State<KubernetesContextPicker> {
   String _contextSelectionKey(KubeconfigContext ctx) =>
       '${ctx.configPath}|${ctx.name}';
 
-  List<KubeconfigContext> _selectedContextsForAction(
-    KubeconfigContext fallback,
-  ) {
-    final selected = widget.cachedContexts
-        .where(
-          (ctx) => _selectedContextKeys.contains(_contextSelectionKey(ctx)),
-        )
-        .toList(growable: false);
-    return selected.isEmpty ? [fallback] : selected;
-  }
-
   Future<void> _copyText(String text) => _uiAdapter.copyToClipboard(text);
 
   @override
@@ -250,7 +239,8 @@ class _KubernetesContextPickerState extends State<KubernetesContextPicker> {
     List<KubeconfigContext> selected,
     Offset? anchor,
   ) {
-    final selection = _selectedContextsForAction(ctx);
+    // Use the selectedRows parameter from StructuredDataTable
+    final selection = selected.isNotEmpty ? selected : [ctx];
     final singleSelection = selection.length == 1;
 
     return [

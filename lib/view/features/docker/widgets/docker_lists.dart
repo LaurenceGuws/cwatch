@@ -22,6 +22,7 @@ typedef ItemTapDown<T> =
       TapDownDetails details, {
       bool secondary,
       int? flatIndex,
+      List<T>? selectedRows,
     });
 
 PopupMenuItem<String> _actionMenuItem(
@@ -285,7 +286,11 @@ class _ContainerPeekState extends State<ContainerPeek> {
     );
   }
 
-  void _handleContainerContextMenu(DockerContainer container, Offset? anchor) {
+  void _handleContainerContextMenu(
+    DockerContainer container,
+    List<DockerContainer> selectedRows,
+    Offset? anchor,
+  ) {
     if (widget.onTapDown == null) {
       return;
     }
@@ -295,6 +300,7 @@ class _ContainerPeekState extends State<ContainerPeek> {
       details,
       secondary: true,
       flatIndex: _flatIndexFor(container),
+      selectedRows: selectedRows,
     );
   }
 
@@ -910,12 +916,16 @@ class _ImagePeekState extends State<ImagePeek> {
     );
   }
 
-  void _handleImageContextMenu(DockerImage image, Offset? anchor) {
+  void _handleImageContextMenu(
+    DockerImage image,
+    List<DockerImage> selectedRows,
+    Offset? anchor,
+  ) {
     if (widget.onTapDown == null) {
       return;
     }
     final details = _tapDetails(anchor: anchor);
-    widget.onTapDown!(image, details, secondary: true);
+    widget.onTapDown!(image, details, secondary: true, selectedRows: selectedRows);
   }
 
   TapDownDetails _tapDetails({
@@ -1177,12 +1187,16 @@ class _NetworkListState extends State<NetworkList> {
     );
   }
 
-  void _handleNetworkContextMenu(DockerNetwork network, Offset? anchor) {
+  void _handleNetworkContextMenu(
+    DockerNetwork network,
+    List<DockerNetwork> selectedRows,
+    Offset? anchor,
+  ) {
     if (widget.onTapDown == null) {
       return;
     }
     final details = _tapDetails(anchor: anchor);
-    widget.onTapDown!(network, details, secondary: true);
+    widget.onTapDown!(network, details, secondary: true, selectedRows: selectedRows);
   }
 
   TapDownDetails _tapDetails({
@@ -1344,12 +1358,16 @@ class _VolumeListState extends State<VolumeList> {
     );
   }
 
-  void _handleVolumeContextMenu(DockerVolume volume, Offset? anchor) {
+  void _handleVolumeContextMenu(
+    DockerVolume volume,
+    List<DockerVolume> selectedRows,
+    Offset? anchor,
+  ) {
     if (widget.onTapDown == null) {
       return;
     }
     final details = _tapDetails(anchor: anchor);
-    widget.onTapDown!(volume, details, secondary: true);
+    widget.onTapDown!(volume, details, secondary: true, selectedRows: selectedRows);
   }
 
   TapDownDetails _tapDetails({

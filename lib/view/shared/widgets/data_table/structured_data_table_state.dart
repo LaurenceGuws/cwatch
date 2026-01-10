@@ -28,6 +28,8 @@ abstract class _StructuredDataTableStateBase<T>
   final GlobalKey _bodyKey = GlobalKey();
   int? _touchDragPointer;
   bool _isTouchDragging = false;
+  int? _dragStartRowIndex;
+  Offset? _dragStartPosition;
   List<double> _lastColumnWidths = const [];
   double _lastGapWidth = 0;
   double _lastRowPaddingX = 0;

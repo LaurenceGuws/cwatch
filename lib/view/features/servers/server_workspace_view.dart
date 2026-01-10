@@ -507,32 +507,25 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
               keyService: widget.keyService,
               onHostVisible: _ensureDistroForHostOnDemand,
               onOpenConnectivity: (host) {
-                if (onAction != null) {
-                  onAction(host, ServerAction.connectivity);
-                } else {
-                  _addTab(host, ServerAction.connectivity);
-                }
+                // Always use _addTab for multi-select support
+                _addTab(host, ServerAction.connectivity);
               },
               onOpenResources: (host) {
-                if (onAction != null) {
-                  onAction(host, ServerAction.resources);
-                } else {
-                  _addTab(host, ServerAction.resources);
-                }
+                // Always use _addTab for multi-select support
+                _addTab(host, ServerAction.resources);
               },
               onOpenTerminal: (host) {
-                if (onAction != null) {
-                  onAction(host, ServerAction.terminal);
-                } else {
-                  _addTab(host, ServerAction.terminal);
-                }
+                AppLogger().debug(
+                  'onOpenTerminal called for: ${host.name}, onAction=${onAction != null}',
+                  tag: 'ServersList',
+                );
+                // Always use _addTab for multi-select support
+                // onAction is only for single-selection in placeholder tabs
+                _addTab(host, ServerAction.terminal);
               },
               onOpenExplorer: (host) {
-                if (onAction != null) {
-                  onAction(host, ServerAction.fileExplorer);
-                } else {
-                  _addTab(host, ServerAction.fileExplorer);
-                }
+                // Always use _addTab for multi-select support
+                _addTab(host, ServerAction.fileExplorer);
               },
               onOpenPortForward: _openPortForwardDialog,
               onHostsChanged: () {
@@ -886,18 +879,45 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
 
   void _addTab(SshHost host, ServerAction action) {
     _ensureDistroOnInteraction(host);
+    // Use a more unique ID to prevent collisions when adding multiple tabs quickly
+    final timestamp = DateTime.now().microsecondsSinceEpoch;
+    final random = (timestamp % 1000000).toString().padLeft(6, '0');
     final tab = _createTab(
-      id: '${host.name}-${DateTime.now().microsecondsSinceEpoch}',
+      id: '${host.name}-$timestamp-$random',
       host: host,
       action: action,
     );
 
-    _workspaceController.addOrReplaceCurrent(
-      tab,
-      shouldReplace: (current) =>
-          (current.workspaceState as ServerTabData?)?.action ==
-          ServerAction.empty,
+    AppLogger().debug(
+      '_addTab: host=${host.name}, action=$action, tabId=${tab.id}, currentTabs=${_tabs.length}, selectedIndex=$_selectedTabIndex',
+      tag: 'ServersList',
     );
+
+    // Always add new tab when opening multiple terminals - don't replace
+    // Only replace if explicitly opening a single terminal and current tab is empty
+    final currentTab = _tabs.isNotEmpty && _selectedTabIndex >= 0 && _selectedTabIndex < _tabs.length
+        ? _tabs[_selectedTabIndex]
+        : null;
+    final shouldReplace = currentTab != null &&
+        (currentTab.workspaceState as ServerTabData?)?.action == ServerAction.empty;
+    
+    if (shouldReplace) {
+      AppLogger().debug(
+        '_addTab: replacing empty tab at index $_selectedTabIndex, tabId=${currentTab.id}',
+        tag: 'ServersList',
+      );
+      _workspaceController.replaceTab(currentTab.id, tab);
+    } else {
+      AppLogger().debug(
+        '_addTab: adding new tab, will have ${_tabs.length + 1} tabs after add',
+        tag: 'ServersList',
+      );
+      _workspaceController.addTab(tab);
+      AppLogger().debug(
+        '_addTab: tab added, now have ${_tabs.length} tabs',
+        tag: 'ServersList',
+      );
+    }
   }
 
   WorkspaceTab _createTab({

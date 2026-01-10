@@ -256,13 +256,6 @@ class _HostListState extends State<HostList> {
       ..addAll(selected.map(_hostSelectionKey));
   }
 
-  List<SshHost> _selectedHostsForAction(SshHost fallback) {
-    final selected = widget.hosts
-        .where((host) => _selectedHostKeys.contains(_hostSelectionKey(host)))
-        .toList();
-    return selected.isEmpty ? [fallback] : selected;
-  }
-
   Set<String> _disabledHostKeys() =>
       widget.settingsController.settings.disabledServerHosts.toSet();
 
@@ -448,7 +441,9 @@ class _HostListState extends State<HostList> {
     List<SshHost> selected,
     Offset? anchor,
   ) {
-    final selection = _selectedHostsForAction(host);
+    // Use the selectedRows parameter from StructuredDataTable
+    // It already includes the right-clicked row if not selected
+    final selection = selected.isNotEmpty ? selected : [host];
     final canRemoveAll = selection.every(
       (item) => item is CustomSshHost || item.source == 'custom',
     );
@@ -463,11 +458,21 @@ class _HostListState extends State<HostList> {
         label: 'Open terminal',
         icon: NerdIcon.terminal.data,
         enabled: selection.isNotEmpty && !selectionHasDisabled,
-        onSelected: (_, _) {
-          for (final target in selection) {
+        onSelected: (selectedRows, primaryRow) {
+          // selectedRows parameter contains all selected servers
+          final targets = selectedRows.isNotEmpty ? selectedRows : selection;
+          AppLogger().debug(
+            'Open terminal action: selectedRows=${selectedRows.length}, targets=${targets.length}, selection=${selection.length}',
+            tag: 'ServersList',
+          );
+          for (final target in targets) {
+            AppLogger().debug(
+              'Opening terminal for: ${target.name}',
+              tag: 'ServersList',
+            );
             if (widget.onOpenTerminal != null) {
               widget.onOpenTerminal!(target);
-            } else if (target == selection.first) {
+            } else if (target == targets.first) {
               widget.onActivate?.call(target);
             }
           }
@@ -477,11 +482,13 @@ class _HostListState extends State<HostList> {
         label: 'Open file explorer',
         icon: NerdIcon.folderOpen.data,
         enabled: selection.isNotEmpty && !selectionHasDisabled,
-        onSelected: (_, _) {
-          for (final target in selection) {
+        onSelected: (selectedRows, _) {
+          // selectedRows parameter contains all selected servers
+          final targets = selectedRows.isNotEmpty ? selectedRows : selection;
+          for (final target in targets) {
             if (widget.onOpenExplorer != null) {
               widget.onOpenExplorer!(target);
-            } else if (target == selection.first) {
+            } else if (target == targets.first) {
               widget.onActivate?.call(target);
             }
           }
@@ -529,8 +536,10 @@ class _HostListState extends State<HostList> {
         label: 'Connectivity',
         icon: NerdIcon.accessPoint.data,
         enabled: selection.isNotEmpty && !selectionHasDisabled,
-        onSelected: (_, _) {
-          for (final target in selection) {
+        onSelected: (selectedRows, _) {
+          // selectedRows parameter contains all selected servers
+          final targets = selectedRows.isNotEmpty ? selectedRows : selection;
+          for (final target in targets) {
             widget.onOpenConnectivity?.call(target);
           }
         },
@@ -539,8 +548,10 @@ class _HostListState extends State<HostList> {
         label: 'Resources',
         icon: NerdIcon.database.data,
         enabled: selection.isNotEmpty && !selectionHasDisabled,
-        onSelected: (_, _) {
-          for (final target in selection) {
+        onSelected: (selectedRows, _) {
+          // selectedRows parameter contains all selected servers
+          final targets = selectedRows.isNotEmpty ? selectedRows : selection;
+          for (final target in targets) {
             widget.onOpenResources?.call(target);
           }
         },
@@ -549,8 +560,10 @@ class _HostListState extends State<HostList> {
         label: allDisabled ? 'Enable server' : 'Disable server',
         icon: allDisabled ? Icons.visibility : Icons.visibility_off,
         enabled: selection.isNotEmpty,
-        onSelected: (_, _) async {
-          await _setHostsDisabled(selection, !allDisabled);
+        onSelected: (selectedRows, _) async {
+          // selectedRows parameter contains all selected servers
+          final targets = selectedRows.isNotEmpty ? selectedRows : selection;
+          await _setHostsDisabled(targets, !allDisabled);
         },
       ),
       StructuredDataMenuAction<SshHost>(
@@ -558,10 +571,12 @@ class _HostListState extends State<HostList> {
         icon: Icons.delete_outline,
         destructive: true,
         enabled: canRemoveAll,
-        onSelected: (_, _) {
+        onSelected: (selectedRows, _) {
           if (!canRemoveAll) return;
+          // selectedRows parameter contains all selected servers
+          final targets = selectedRows.isNotEmpty ? selectedRows : selection;
           final current = widget.settingsController.settings;
-          final removalNames = selection.map((item) => item.name).toSet();
+          final removalNames = targets.map((item) => item.name).toSet();
           final updated = [...current.customSshHosts]
             ..removeWhere((item) => removalNames.contains(item.name));
           widget.settingsController.update(

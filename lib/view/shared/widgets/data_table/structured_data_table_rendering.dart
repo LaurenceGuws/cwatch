@@ -480,9 +480,16 @@ mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
           widget.onRowPointerDown?.call(index, row, event);
           tapPosition = event.position;
           if ((event.buttons & kPrimaryButton) != 0) {
-            if (!widget.cellSelectionEnabled) {
+            if (!widget.cellSelectionEnabled && widget.rowSelectionEnabled) {
               final canDragRows = widget.rowDragPayloadBuilder != null;
               final isShift = HardwareKeyboard.instance.isShiftPressed;
+              // Track drag start for marquee selection
+              if (event.kind == PointerDeviceKind.mouse) {
+                _dragStartRowIndex = index;
+                _dragStartPosition = event.position;
+                _marqueePointer = event.pointer;
+              }
+              // Handle normal selection (will be overridden by drag if movement detected)
               if (!(canDragRows &&
                   _listController.selectedIndices.contains(index) &&
                   !isShift)) {
@@ -492,15 +499,67 @@ mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
             widget.onRowTap?.call(row);
           }
         },
-        onPointerMove: (event) =>
-            widget.onRowPointerMove?.call(index, row, event),
-        onPointerUp: (event) => widget.onRowPointerUp?.call(index, row, event),
-        onPointerCancel: (event) =>
-            widget.onRowPointerCancel?.call(index, row, event),
+        onPointerMove: (event) {
+          widget.onRowPointerMove?.call(index, row, event);
+          // Handle drag selection when moving over rows
+          if (!widget.cellSelectionEnabled && 
+              widget.rowSelectionEnabled &&
+              _marqueePointer == event.pointer &&
+              _dragStartRowIndex != null &&
+              event.kind == PointerDeviceKind.mouse &&
+              (event.buttons & kPrimaryButton) != 0) {
+            // Check if we've moved enough to start drag selection
+            if (_dragStartPosition != null) {
+              final delta = (event.position - _dragStartPosition!).distance;
+              if (delta > 6) {
+                // Start marquee selection if not already started
+                if (!_isMarqueeSelecting) {
+                  _setMarqueeSelecting(true);
+                  // Clear selection and set anchor to start row for proper range selection
+                  _listController.selectSingle(_dragStartRowIndex!);
+                }
+                // Extend selection to current row
+                _listController.extendSelection(index);
+              }
+            }
+          }
+        },
+        onPointerUp: (event) {
+          widget.onRowPointerUp?.call(index, row, event);
+          // Clean up drag state
+          if (_marqueePointer == event.pointer) {
+            _marqueePointer = null;
+            _setMarqueeSelecting(false);
+            _dragStartRowIndex = null;
+            _dragStartPosition = null;
+          }
+        },
+        onPointerCancel: (event) {
+          widget.onRowPointerCancel?.call(index, row, event);
+          // Clean up drag state
+          if (_marqueePointer == event.pointer) {
+            _marqueePointer = null;
+            _setMarqueeSelecting(false);
+            _dragStartRowIndex = null;
+            _dragStartPosition = null;
+          }
+        },
         child: MouseRegion(
-          onEnter: widget.onRowPointerEnter == null
-              ? null
-              : (event) => widget.onRowPointerEnter?.call(index, row, event),
+          onEnter: (event) {
+            // Call custom handler if provided
+            widget.onRowPointerEnter?.call(index, row, event);
+            // Handle drag selection when mouse enters row during drag
+            if (widget.onRowPointerEnter == null &&
+                !widget.cellSelectionEnabled &&
+                widget.rowSelectionEnabled &&
+                _isMarqueeSelecting &&
+                _marqueePointer != null &&
+                event.kind == PointerDeviceKind.mouse &&
+                (event.buttons & kPrimaryMouseButton) != 0) {
+              // Extend selection when dragging over rows
+              _listController.extendSelection(index);
+            }
+          },
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onSecondaryTapDown: (details) {

@@ -417,9 +417,16 @@ class _DockerOverviewState extends State<DockerOverview>
     return selected.isEmpty ? [fallback] : selected;
   }
 
-  void _openContainerMenu(DockerContainer container, TapDownDetails details) {
+  void _openContainerMenu(
+    DockerContainer container,
+    TapDownDetails details, {
+    List<DockerContainer>? selectedRows,
+  }) {
     final scheme = Theme.of(context).colorScheme;
-    final selection = _selectedContainersForAction(container);
+    // Use provided selectedRows if available, otherwise fall back to helper function
+    final selection = selectedRows?.isNotEmpty == true
+        ? selectedRows!
+        : _selectedContainersForAction(container);
     final isMulti = selection.length > 1;
     final title = isMulti
         ? '${selection.length} containers selected'
@@ -586,8 +593,15 @@ class _DockerOverviewState extends State<DockerOverview>
     }
   }
 
-  void _openImageMenu(DockerImage image, TapDownDetails details) {
-    final selection = _selectedImagesForAction(image);
+  void _openImageMenu(
+    DockerImage image,
+    TapDownDetails details, {
+    List<DockerImage>? selectedRows,
+  }) {
+    // Use provided selectedRows if available, otherwise fall back to helper function
+    final selection = selectedRows?.isNotEmpty == true
+        ? selectedRows!
+        : _selectedImagesForAction(image);
     final isMulti = selection.length > 1;
     final ref = [
       image.repository.isNotEmpty ? image.repository : '<none>',
@@ -610,8 +624,15 @@ class _DockerOverviewState extends State<DockerOverview>
     );
   }
 
-  void _openNetworkMenu(DockerNetwork network, TapDownDetails details) {
-    final selection = _selectedNetworksForAction(network);
+  void _openNetworkMenu(
+    DockerNetwork network,
+    TapDownDetails details, {
+    List<DockerNetwork>? selectedRows,
+  }) {
+    // Use provided selectedRows if available, otherwise fall back to helper function
+    final selection = selectedRows?.isNotEmpty == true
+        ? selectedRows!
+        : _selectedNetworksForAction(network);
     final isMulti = selection.length > 1;
     final title = isMulti
         ? '${selection.length} networks selected'
@@ -632,8 +653,15 @@ class _DockerOverviewState extends State<DockerOverview>
     );
   }
 
-  void _openVolumeMenu(DockerVolume volume, TapDownDetails details) {
-    final selection = _selectedVolumesForAction(volume);
+  void _openVolumeMenu(
+    DockerVolume volume,
+    TapDownDetails details, {
+    List<DockerVolume>? selectedRows,
+  }) {
+    // Use provided selectedRows if available, otherwise fall back to helper function
+    final selection = selectedRows?.isNotEmpty == true
+        ? selectedRows!
+        : _selectedVolumesForAction(volume);
     final isMulti = selection.length > 1;
     final title = isMulti
         ? '${selection.length} volumes selected'
@@ -722,9 +750,10 @@ class _DockerOverviewState extends State<DockerOverview>
     TapDownDetails details, {
     bool secondary = false,
     int? flatIndex,
+    List<DockerContainer>? selectedRows,
   }) {
     if (secondary) {
-      _openContainerMenu(container, details);
+      _openContainerMenu(container, details, selectedRows: selectedRows);
     }
   }
 
@@ -733,9 +762,10 @@ class _DockerOverviewState extends State<DockerOverview>
     TapDownDetails details, {
     bool secondary = false,
     int? flatIndex,
+    List<DockerImage>? selectedRows,
   }) {
     if (secondary) {
-      _openImageMenu(image, details);
+      _openImageMenu(image, details, selectedRows: selectedRows);
     }
   }
 
@@ -744,9 +774,10 @@ class _DockerOverviewState extends State<DockerOverview>
     TapDownDetails details, {
     bool secondary = false,
     int? flatIndex,
+    List<DockerNetwork>? selectedRows,
   }) {
     if (secondary) {
-      _openNetworkMenu(network, details);
+      _openNetworkMenu(network, details, selectedRows: selectedRows);
     }
   }
 
@@ -755,9 +786,10 @@ class _DockerOverviewState extends State<DockerOverview>
     TapDownDetails details, {
     bool secondary = false,
     int? flatIndex,
+    List<DockerVolume>? selectedRows,
   }) {
     if (secondary) {
-      _openVolumeMenu(volume, details);
+      _openVolumeMenu(volume, details, selectedRows: selectedRows);
     }
   }
 

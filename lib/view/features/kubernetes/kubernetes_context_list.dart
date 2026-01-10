@@ -95,17 +95,6 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   String _contextSelectionKey(KubeconfigContext ctx) =>
       '${ctx.configPath}|${ctx.name}';
 
-  List<KubeconfigContext> _selectedContextsForAction(
-    KubeconfigContext fallback,
-  ) {
-    final selected = _cachedContexts
-        .where(
-          (ctx) => _selectedContextKeys.contains(_contextSelectionKey(ctx)),
-        )
-        .toList(growable: false);
-    return selected.isEmpty ? [fallback] : selected;
-  }
-
   bool _isPlaceholder(WorkspaceTab tab) {
     final state = _tabData(tab)?.persistedState;
     return state?.kind == 'placeholder';
@@ -426,7 +415,8 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     List<KubeconfigContext> selected,
     Offset? anchor,
   ) {
-    final selection = _selectedContextsForAction(ctx);
+    // Use the selectedRows parameter from StructuredDataTable
+    final selection = selected.isNotEmpty ? selected : [ctx];
     final singleSelection = selection.length == 1;
 
     return [

@@ -94,7 +94,7 @@ class StructuredDataTable<T> extends StatefulWidget {
   final ScrollController? horizontalController;
   final ValueChanged<T>? onRowTap;
   final ValueChanged<T>? onRowDoubleTap;
-  final void Function(T row, Offset? anchor)? onRowContextMenu;
+  final void Function(T row, List<T> selectedRows, Offset? anchor)? onRowContextMenu;
   final void Function(int index, T row, PointerDownEvent event)?
   onRowPointerDown;
   final void Function(int index, T row, PointerMoveEvent event)?

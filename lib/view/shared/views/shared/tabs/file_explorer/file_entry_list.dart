@@ -327,8 +327,11 @@ class _FileEntryListState extends State<FileEntryList> {
           selectedRowsBuilder: (rows) =>
               rows.where((entry) => _isSelected(entry)).toList(),
           onRowDoubleTap: widget.onEntryDoubleTap,
-          onRowContextMenu: (entry, position) =>
-              widget.onEntryContextMenu(entry, position ?? Offset.zero),
+          onRowContextMenu: (entry, selectedRows, position) {
+            // File explorer uses path-based selection, so we get selected entries from selectedRows
+            // The position is already non-null from StructuredDataTable
+            widget.onEntryContextMenu(entry, position ?? Offset.zero);
+          },
           onRowPointerDown: _handleRowPointerDown,
           onRowPointerMove: _handleRowPointerMove,
           onRowPointerUp: _handleRowPointerUp,

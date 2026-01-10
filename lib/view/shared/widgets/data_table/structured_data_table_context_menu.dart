@@ -30,6 +30,10 @@ mixin _StructuredDataTableContextMenu<T> on _StructuredDataTableStateBase<T> {
     Offset position,
     List<T> selectedRows,
   ) async {
+    AppLogger().debug(
+      'Context menu: row=${row.toString()}, selectedRows=${selectedRows.length}',
+      tag: 'StructuredDataTable',
+    );
     final actions = _contextActionsFor(row, selectedRows, position);
     if (actions.isEmpty) return;
     final overlayState = Overlay.of(context, rootOverlay: true);
@@ -74,7 +78,13 @@ mixin _StructuredDataTableContextMenu<T> on _StructuredDataTableStateBase<T> {
           )
           .toList(),
     );
-    selected?.onSelected(selectedRows, row);
+    if (selected != null) {
+      AppLogger().debug(
+        'Context menu action selected: ${selected.label}, selectedRows=${selectedRows.length}, primaryRow=${row.toString()}',
+        tag: 'StructuredDataTable',
+      );
+      selected.onSelected(selectedRows, row);
+    }
   }
 
   void _showContextMenuForIndex(int index, Offset position) {
@@ -92,17 +102,29 @@ mixin _StructuredDataTableContextMenu<T> on _StructuredDataTableStateBase<T> {
         final isAlreadySelected = _listController.selectedIndices.contains(
           index,
         );
+        // If right-clicking on an unselected row when there's already a selection,
+        // preserve the existing selection instead of clearing it
+        // This allows context menu to work on all selected rows
         if (!isAlreadySelected) {
-          _selectSingle(index);
+          if (_listController.selectedIndices.isEmpty) {
+            // No selection exists, select just this row
+            _selectSingle(index);
+          }
+          // If selection exists, don't change it - context menu will work on existing selection
+          // This preserves multi-selection when right-clicking
         }
       }
     }
     final onRowContextMenu = widget.onRowContextMenu;
+    final selectedRows = _selectedRows();
+    AppLogger().debug(
+      '_showContextMenuForIndex: index=$index, selectedRows=${selectedRows.length}, selectedIndices=${_listController.selectedIndices}',
+      tag: 'StructuredDataTable',
+    );
     if (onRowContextMenu != null) {
-      onRowContextMenu(_visibleRows[index], position);
+      onRowContextMenu(_visibleRows[index], selectedRows, position);
       return;
     }
-    final selectedRows = _selectedRows();
     _showContextMenu(_visibleRows[index], position, selectedRows);
   }
 }
