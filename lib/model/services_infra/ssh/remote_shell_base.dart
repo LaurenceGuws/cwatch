@@ -4,6 +4,7 @@ import 'package:meta/meta.dart';
 
 import 'package:cwatch/model/models/remote_file_entry.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
+import 'package:cwatch/model/shared/services/host_shell_policy.dart';
 import '../logging/app_logger.dart';
 import 'terminal_session.dart';
 import 'remote_path_utils.dart';
@@ -44,6 +45,13 @@ abstract class RemoteShellService with RemotePathUtils {
 
   final bool debugMode;
   final RemoteCommandObserver? observer;
+
+  @protected
+  void ensureShellAllowed(SshHost host) {
+    if (isNoShellHost(host)) {
+      throw NoShellHostException(host);
+    }
+  }
 
   void emitDebugEvent({
     required SshHost host,
@@ -330,6 +338,15 @@ class RemoteCommandCancellation {
     }
     _handlers.add(handler);
   }
+}
+
+class NoShellHostException implements Exception {
+  const NoShellHostException(this.host);
+
+  final SshHost host;
+
+  @override
+  String toString() => 'NoShellHostException(${host.name})';
 }
 
 class RemoteCommandCancelled implements Exception {

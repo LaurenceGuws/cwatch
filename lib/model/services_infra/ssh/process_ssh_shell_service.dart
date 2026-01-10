@@ -571,6 +571,7 @@ class ProcessRemoteShellService extends RemoteShellService {
     Duration timeout = const Duration(seconds: 10),
     RunTimeoutHandler? onTimeout,
   }) async {
+    ensureShellAllowed(host);
     _logProcess('Running command on ${host.name}: $command');
     final run = await _runner.runSsh(
       host,
@@ -601,6 +602,7 @@ class ProcessRemoteShellService extends RemoteShellService {
     void Function(String line)? onStdoutLine,
     void Function(String line)? onStderrLine,
   }) async {
+    ensureShellAllowed(host);
     _logProcess('Running command on ${host.name}: $command');
     final run = await _runner.runSshStreaming(
       host,
@@ -629,6 +631,7 @@ class ProcessRemoteShellService extends RemoteShellService {
     SshHost host, {
     required TerminalSessionOptions options,
   }) async {
+    ensureShellAllowed(host);
     final columns = options.columns > 0 ? options.columns : 80;
     final rows = options.rows > 0 ? options.rows : 25;
     try {

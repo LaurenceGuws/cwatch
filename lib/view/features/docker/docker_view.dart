@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/features/docker/services/docker_client_service.dart';
+import 'package:cwatch/model/features/servers/services/host_distro_key.dart';
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
@@ -15,6 +17,8 @@ import 'package:cwatch/model/services_infra/filesystem/explorer_trash_manager.da
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
+import 'package:cwatch/model/shared/services/host_shell_policy.dart';
+import 'package:cwatch/model/services_infra/network/connectivity_probe.dart';
 import 'package:cwatch/view/shared/widgets/dialog_keyboard_shortcuts.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
 import 'package:cwatch/view/core/tabs/tab_view_registry.dart';
@@ -30,6 +34,8 @@ import 'package:cwatch/view/shared/views/shared/tabs/settings/floating_settings_
 import 'docker_tab_builder.dart';
 import 'docker_workspace_controller.dart';
 import 'remote_docker_status.dart';
+import 'local_docker_context_status.dart';
+import 'package:cwatch/model/models/docker_context.dart';
 import 'package:cwatch/model/services_infra/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/view/features/settings/settings/docker_settings_controls.dart';
 import 'package:cwatch/controller/adapters/docker_ui_adapter.dart';
@@ -89,7 +95,10 @@ class _DockerViewState extends State<DockerView> {
   final ValueNotifier<List<RemoteDockerStatus>> _scanStatusesNotifier =
       ValueNotifier<List<RemoteDockerStatus>>(const []);
   final ValueNotifier<bool> _scanningNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<List<RemoteDockerStatus>> _cachedReadyNotifier =
+      ValueNotifier<List<RemoteDockerStatus>>(const []);
   List<RemoteDockerStatus> _cachedReady = const [];
+  Future<List<LocalDockerContextStatus>>? _localContextsStatusFuture;
   bool _showListSettings = false;
 
   List<WorkspaceTab> get _tabs => _workspaceController.tabs;
@@ -206,7 +215,10 @@ class _DockerViewState extends State<DockerView> {
         EnginePicker(
           tabId: tabId,
           contextsFuture: _viewController.contextsFuture,
+          contextsStatusFuture: _localContextsStatusFuture ??=
+              _loadLocalContextsStatus(),
           cachedReady: _cachedReady,
+          cachedReadyNotifier: _cachedReadyNotifier,
           remoteStatusFuture: _remoteStatusFuture,
           remoteScanRequested: _remoteScanRequested,
           onRefreshContexts: _refreshContexts,
@@ -247,6 +259,7 @@ class _DockerViewState extends State<DockerView> {
 
   void _refreshContexts() {
     _viewController.refreshContexts();
+    _localContextsStatusFuture = null; // Reset status future
 
     final pickerIds = _tabs
         .where(
@@ -657,6 +670,7 @@ class _DockerViewState extends State<DockerView> {
     if (!mounted) return;
     setState(() {
       _cachedReady = cached;
+      _cachedReadyNotifier.value = cached;
       _refreshPickerTabs();
     });
   }
@@ -680,14 +694,43 @@ class _DockerViewState extends State<DockerView> {
     if (!mounted || hosts.isEmpty) {
       return const [];
     }
+    final disabledKeys = widget.settingsController.settings.disabledServerHosts
+        .toSet();
+    final disabledPaths = widget
+        .settingsController
+        .settings
+        .disabledSshConfigPaths
+        .toSet();
+    final enabledHosts = hosts
+        .where((host) => _isHostEnabled(host, disabledKeys, disabledPaths))
+        .toList();
+    if (enabledHosts.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _scanHostsNotifier.value = const [];
+          _scanStatusesNotifier.value = const [];
+        });
+      }
+      return const [];
+    }
     setState(() {
-      _scanHostsNotifier.value = hosts;
+      _scanHostsNotifier.value = enabledHosts;
     });
+    void updateScanStatuses(List<RemoteDockerStatus> statuses) {
+      if (!mounted || !manual) return;
+      setState(() {
+        _scanStatusesNotifier.value = statuses;
+      });
+    }
+
     final statuses = await _workspaceController.discoverRemoteStatuses(
-      hostsFuture: widget.hostsFuture,
+      hostsFuture: Future.value(enabledHosts),
       probeHost: _probeHost,
+      disabledHosts: disabledKeys,
+      disabledPaths: disabledPaths,
       manual: manual,
-      cancelled: _isScanCancelled(token),
+      isCancelled: () => _isScanCancelled(token),
+      onProgress: updateScanStatuses,
     );
     final ready = statuses.where((s) => s.available).toList();
     if (manual && !_isScanCancelled(token)) {
@@ -695,6 +738,7 @@ class _DockerViewState extends State<DockerView> {
         setState(() {
           _scanStatusesNotifier.value = statuses;
           _cachedReady = ready;
+          _cachedReadyNotifier.value = ready;
         });
         _refreshPickerTabs();
       }
@@ -703,6 +747,31 @@ class _DockerViewState extends State<DockerView> {
   }
 
   bool _isScanCancelled(int token) => _cancelledScans.contains(token);
+
+  bool _isHostEnabled(
+    SshHost host,
+    Set<String> disabledKeys,
+    Set<String> disabledPaths,
+  ) {
+    if (!host.available) {
+      return false;
+    }
+    if (isNoShellHost(host)) {
+      return false;
+    }
+    final normalized = disabledKeys.map((key) => key.toLowerCase()).toSet();
+    if (normalized.contains(host.hostname.toLowerCase())) {
+      return false;
+    }
+    if (normalized.any((key) => disabledKeyMatchesHost(key, host))) {
+      return false;
+    }
+    final source = host.source;
+    if (source != null && disabledPaths.contains(source)) {
+      return false;
+    }
+    return true;
+  }
 
   bool _isCommandWorkspace(DockerTabData? data) {
     if (data != null) {
@@ -729,40 +798,119 @@ class _DockerViewState extends State<DockerView> {
     unawaited(_workspaceController.persistState());
   }
 
+  Future<bool> _isHostReachable(SshHost host) {
+    const probe = ConnectivityProbe();
+    return probe.canConnect(
+      host: host.hostname,
+      port: host.port,
+      timeout: const Duration(seconds: 1),
+      hostContext: host,
+    );
+  }
+
+  Future<LocalDockerContextStatus> _probeLocalContext(
+    DockerContext context,
+  ) async {
+    try {
+      // Run docker ps with --context to check if the context is ready
+      final result = await Process.run(
+        'docker',
+        ['--context', context.name, 'ps'],
+        runInShell: true,
+      ).timeout(const Duration(seconds: 3));
+      
+      if (result.exitCode == 0) {
+        return LocalDockerContextStatus(
+          context: context,
+          available: true,
+          detail: 'Ready',
+        );
+      } else {
+        final errorMsg = (result.stderr as String?)?.trim() ?? 
+            'docker ps failed with exit code ${result.exitCode}';
+        return LocalDockerContextStatus(
+          context: context,
+          available: false,
+          detail: errorMsg.length > 100
+              ? '${errorMsg.substring(0, 100)}...'
+              : errorMsg,
+        );
+      }
+    } catch (error) {
+      final errorMsg = error.toString();
+      return LocalDockerContextStatus(
+        context: context,
+        available: false,
+        detail: errorMsg.length > 100
+            ? '${errorMsg.substring(0, 100)}...'
+            : errorMsg,
+      );
+    }
+  }
+
+  Future<List<LocalDockerContextStatus>> _loadLocalContextsStatus() async {
+    final contexts = await _viewController.loadContexts();
+    if (contexts.isEmpty) {
+      return const [];
+    }
+    // Probe all contexts in parallel
+    final statuses = await Future.wait(
+      contexts.map((ctx) => _probeLocalContext(ctx)),
+    );
+    return statuses;
+  }
+
   Future<RemoteDockerStatus> _probeHost(SshHost host) async {
-    final shell = _shellCallbacks.shellForHost(host);
-    const probeCommand =
-        "if command -v docker >/dev/null 2>&1; then docker info >/dev/null 2>&1 && echo '__DOCKER_OK__' || echo '__DOCKER_ERROR__'; else echo '__NO_DOCKER__'; fi";
+    if (isNoShellHost(host)) {
+      return RemoteDockerStatus(
+        host: host,
+        available: false,
+        detail: 'Shell access disabled',
+        lastScanDate: DateTime.now(),
+      );
+    }
+    final reachable = await _isHostReachable(host);
+    if (!reachable) {
+      return RemoteDockerStatus(
+        host: host,
+        available: false,
+        detail: 'Host unreachable',
+        lastScanDate: DateTime.now(),
+      );
+    }
+    final shell = widget.shellFactory.forHost(
+      host,
+      connectTimeout: const Duration(seconds: 3),
+    );
+    // Use bash --login to source profile (ensures Docker env vars are set)
+    // Simple check: just run docker -v to see if Docker is accessible
+    const probeCommand = "bash --login -c 'docker -v'";
     try {
       final output = await shell.runCommand(
         host,
         probeCommand,
-        timeout: const Duration(seconds: 8),
+        timeout: const Duration(seconds: 3),
       );
       final trimmed = output.trim();
-      if (trimmed.contains('__DOCKER_OK__')) {
-        return RemoteDockerStatus(host: host, available: true, detail: 'Ready');
-      }
-      if (trimmed.contains('__NO_DOCKER__')) {
+      
+      final now = DateTime.now();
+      // If docker -v succeeds, Docker is available
+      // Output should be like "Docker version 29.1.3, build f52814d"
+      if (trimmed.toLowerCase().contains('docker version')) {
         return RemoteDockerStatus(
           host: host,
-          available: false,
-          detail: 'Docker not installed',
+          available: true,
+          detail: 'Ready',
+          lastScanDate: now,
         );
       }
-      if (trimmed.contains('__DOCKER_ERROR__')) {
-        return RemoteDockerStatus(
-          host: host,
-          available: false,
-          detail: 'Docker command failed',
-        );
-      }
+      
+      // If we got output but it doesn't look like docker version, treat as error
       return RemoteDockerStatus(
         host: host,
         available: false,
-        detail: trimmed.isEmpty
-            ? 'Unknown response'
-            : trimmed.split('\n').first,
+        detail: trimmed.isEmpty ? 'Docker not accessible' : trimmed.split('\n').first,
+        lastScanDate: now,
       );
     } catch (error, stack) {
       AppLogger().warn(
@@ -774,6 +922,7 @@ class _DockerViewState extends State<DockerView> {
         host: host,
         available: false,
         detail: error.toString(),
+        lastScanDate: DateTime.now(),
       );
     }
   }

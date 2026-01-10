@@ -2,6 +2,9 @@ import 'dart:io';
 
 import 'package:cwatch/model/models/custom_ssh_host.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
+import 'package:cwatch/model/services_infra/network/connectivity_probe.dart';
+import 'package:cwatch/model/shared/services/host_shell_policy.dart';
+import 'package:cwatch/model/features/servers/services/host_distro_key.dart';
 import '../logging/app_logger.dart';
 import 'config_sources/config_source.dart';
 
@@ -243,7 +246,11 @@ class SshConfigService {
   final List<String> _additionalEntryPoints;
   final List<String> _disabledEntryPoints;
 
-  Future<List<SshHost>> loadHosts({bool checkAvailability = true}) async {
+  Future<List<SshHost>> loadHosts({
+    bool checkAvailability = true,
+    Set<String> disabledHosts = const {},
+    bool skipNoShellHosts = true,
+  }) async {
     final visited = <String>{};
     final hostsWithSource = <({ParsedHost host, String source})>[];
     final entryPoints = <String>{
@@ -281,36 +288,56 @@ class SshConfigService {
       ));
     }
 
+    final normalizedDisabled = disabledHosts
+        .map((value) => value.toLowerCase())
+        .toSet();
+
     return Future.wait(
       hostsWithSource.map((entry) async {
-        final online = checkAvailability
-            ? await _checkAvailability(entry.host.hostname, entry.host.port)
-            : true;
-        return SshHost(
+        final host = SshHost(
           name: entry.host.name,
           hostname: entry.host.hostname,
           port: entry.host.port,
-          available: online,
+          available: true,
           user: entry.host.user,
           identityFiles: entry.host.identityFiles,
           source: entry.source,
+        );
+        final isDisabled = normalizedDisabled.any(
+          (value) => disabledKeyMatchesHost(value, host),
+        );
+        final skipProbe =
+            (skipNoShellHosts && isNoShellHost(host)) || isDisabled;
+        final online = checkAvailability && !skipProbe
+            ? await _checkAvailability(
+                entry.host.name,
+                entry.host.hostname,
+                entry.host.port,
+              )
+            : checkAvailability
+            ? false
+            : true;
+        return SshHost(
+          name: host.name,
+          hostname: host.hostname,
+          port: host.port,
+          available: online,
+          user: host.user,
+          identityFiles: host.identityFiles,
+          source: host.source,
         );
       }),
     );
   }
 
-  Future<bool> _checkAvailability(String host, int port) async {
-    try {
-      final socket = await Socket.connect(
-        host,
-        port,
-        timeout: const Duration(seconds: 2),
-      );
-      socket.destroy();
-      return true;
-    } catch (error) {
-      return false;
-    }
+  Future<bool> _checkAvailability(String label, String host, int port) {
+    const probe = ConnectivityProbe();
+    return probe.canConnect(
+      host: host,
+      port: port,
+      timeout: const Duration(seconds: 2),
+      hostLabel: label,
+    );
   }
 
   Future<Set<String>> _canonicalizeAll(List<String> paths) async {

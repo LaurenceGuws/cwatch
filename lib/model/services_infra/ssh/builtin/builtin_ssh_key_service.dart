@@ -145,6 +145,7 @@ class BuiltInSshKeyService {
     promptDecrypt,
     KnownHostsStore? knownHostsStore,
     SshAuthCoordinator? authCoordinator,
+    Duration? connectTimeout,
   }) {
     return BuiltInRemoteShellService(
       vault: _vault,
@@ -154,6 +155,7 @@ class BuiltInSshKeyService {
       promptDecrypt: promptDecrypt,
       knownHostsStore: knownHostsStore,
       authCoordinator: authCoordinator,
+      connectTimeout: connectTimeout ?? const Duration(seconds: 10),
     );
   }
 

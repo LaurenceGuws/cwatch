@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:cwatch/model/models/ssh_host.dart';
+import 'package:cwatch/model/shared/services/host_shell_policy.dart';
 
 import '../logging/app_logger.dart';
 import 'remote_shell_base.dart';
@@ -256,6 +257,9 @@ class ProcessSshRunner {
     RunTimeoutHandler? onTimeout,
     String? knownHostsPath,
   }) {
+    if (isNoShellHost(host)) {
+      throw NoShellHostException(host);
+    }
     final sanitizedCommand = _prependNoHistory(command);
     return runProcess(
       buildSshCommand(host, sanitizedCommand, knownHostsPath: knownHostsPath),
@@ -277,6 +281,9 @@ class ProcessSshRunner {
     void Function(String line)? onStdoutLine,
     void Function(String line)? onStderrLine,
   }) {
+    if (isNoShellHost(host)) {
+      throw NoShellHostException(host);
+    }
     final sanitizedCommand = _prependNoHistory(command);
     return runProcessStreaming(
       buildSshCommand(host, sanitizedCommand, knownHostsPath: knownHostsPath),

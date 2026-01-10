@@ -7,6 +7,8 @@ import 'package:cwatch/model/models/app_settings.dart';
 import 'package:cwatch/model/models/docker_workspace_state.dart';
 import 'package:cwatch/model/models/explorer_context.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
+import 'package:cwatch/model/features/servers/services/host_distro_key.dart';
+import 'package:cwatch/model/shared/services/host_shell_policy.dart';
 import 'package:cwatch/view/features/docker/docker_tab_builder.dart';
 import 'package:cwatch/view/features/docker/remote_docker_status.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
@@ -396,6 +398,7 @@ class DockerWorkspaceController
             host: host,
             available: true,
             detail: 'Cached ready',
+            lastScanDate: DateTime.now(),
           ),
         )
         .toList();
@@ -404,8 +407,11 @@ class DockerWorkspaceController
   Future<List<RemoteDockerStatus>> discoverRemoteStatuses({
     required Future<List<SshHost>> hostsFuture,
     required Future<RemoteDockerStatus> Function(SshHost host) probeHost,
+    Set<String> disabledHosts = const {},
+    Set<String> disabledPaths = const {},
     bool manual = false,
-    bool cancelled = false,
+    bool Function()? isCancelled,
+    void Function(List<RemoteDockerStatus> statuses)? onProgress,
   }) async {
     const maxConcurrent = 3;
     List<SshHost> hosts;
@@ -420,21 +426,50 @@ class DockerWorkspaceController
       );
       throw Exception('Failed to load SSH hosts: $error');
     }
-    if (hosts.isEmpty) {
+    final normalizedDisabled = disabledHosts
+        .map((key) => key.toLowerCase())
+        .toSet();
+    bool isDisabled(SshHost host) {
+      if (normalizedDisabled.any((key) => disabledKeyMatchesHost(key, host))) {
+        return true;
+      }
+      if (normalizedDisabled.contains(host.hostname.toLowerCase())) {
+        return true;
+      }
+      final source = host.source;
+      if (source != null && disabledPaths.contains(source)) {
+        return true;
+      }
+      return false;
+    }
+
+    final enabledHosts = hosts
+        .where(
+          (host) => host.available && !isDisabled(host) && !isNoShellHost(host),
+        )
+        .toList();
+    if (enabledHosts.isEmpty) {
       return const [];
     }
     final results = List<RemoteDockerStatus?>.filled(
-      hosts.length,
+      enabledHosts.length,
       null,
       growable: false,
     );
     var nextIndex = 0;
 
+    bool shouldCancel() => isCancelled?.call() ?? false;
+
+    void reportProgress() {
+      if (onProgress == null) return;
+      onProgress(results.whereType<RemoteDockerStatus>().toList());
+    }
+
     Future<void> runNext() async {
-      if (cancelled) return;
+      if (shouldCancel()) return;
       final current = nextIndex++;
-      if (current >= hosts.length) return;
-      final host = hosts[current];
+      if (current >= enabledHosts.length) return;
+      final host = enabledHosts[current];
       try {
         results[current] = await probeHost(host);
       } catch (error) {
@@ -446,19 +481,22 @@ class DockerWorkspaceController
           host: host,
           available: false,
           detail: error.toString(),
+          lastScanDate: DateTime.now(),
         );
       }
+      reportProgress();
+      if (shouldCancel()) return;
       await runNext();
     }
 
     final workers = List.generate(
-      maxConcurrent < hosts.length ? maxConcurrent : hosts.length,
+      maxConcurrent < enabledHosts.length ? maxConcurrent : enabledHosts.length,
       (_) => runNext(),
     );
     await Future.wait(workers);
     final statuses = results.whereType<RemoteDockerStatus>().toList();
     final ready = statuses.where((s) => s.available).toList();
-    if (manual && !cancelled && ready.isNotEmpty) {
+    if (manual && !shouldCancel() && ready.isNotEmpty) {
       await endpointCache.persist(ready.map((s) => s.host.name).toList());
     }
     return statuses;

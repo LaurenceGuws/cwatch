@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:cwatch/model/models/docker_context.dart';
+import '../local_docker_context_status.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/features/servers/services/host_distro_key.dart';
@@ -17,7 +18,9 @@ class EnginePicker extends StatefulWidget {
     super.key,
     required this.tabId,
     required this.contextsFuture,
+    this.contextsStatusFuture,
     required this.cachedReady,
+    this.cachedReadyNotifier,
     required this.remoteStatusFuture,
     required this.remoteScanRequested,
     required this.onRefreshContexts,
@@ -29,7 +32,9 @@ class EnginePicker extends StatefulWidget {
 
   final String tabId;
   final Future<List<DockerContext>>? contextsFuture;
+  final Future<List<LocalDockerContextStatus>>? contextsStatusFuture;
   final List<RemoteDockerStatus> cachedReady;
+  final ValueNotifier<List<RemoteDockerStatus>>? cachedReadyNotifier;
   final Future<List<RemoteDockerStatus>>? remoteStatusFuture;
   final bool remoteScanRequested;
   final VoidCallback onRefreshContexts;
@@ -120,17 +125,44 @@ class _EnginePickerState extends State<EnginePicker> {
               children: collapsed
                   ? const []
                   : [
-                      StructuredDataTable<DockerContext>(
-                        rows: contexts,
-                        columns: _contextColumns(context),
-                        rowHeight: 64,
-                        shrinkToContent: true,
-                        useZebraStripes: false,
-                        surfaceBackgroundColor: sectionColor,
-                        primaryDoubleClickOpensContextMenu: true,
-                        metadataBuilder: _contextMetadata,
-                        onRowContextMenu: (ctx, anchor) =>
-                            widget.onOpenContext(ctx.name, anchor),
+                      FutureBuilder<List<LocalDockerContextStatus>>(
+                        future: widget.contextsStatusFuture,
+                        builder: (context, statusSnapshot) {
+                          // Show contexts immediately, readiness will update when available
+                          final statuses = statusSnapshot.data;
+                          final rows = statuses != null
+                              ? statuses
+                              : contexts
+                                  .map((ctx) => LocalDockerContextStatus(
+                                        context: ctx,
+                                        available: false,
+                                        detail: 'Checking...',
+                                      ))
+                                  .toList();
+                          return StructuredDataTable<LocalDockerContextStatus>(
+                            rows: rows,
+                            columns: _contextColumns(context),
+                            rowHeight: 64,
+                            shrinkToContent: true,
+                            useZebraStripes: false,
+                            surfaceBackgroundColor: sectionColor,
+                            primaryDoubleClickOpensContextMenu: true,
+                            metadataBuilder: _contextMetadata,
+                            onRowContextMenu: (status, anchor) {
+                              // Disable context menu for unavailable contexts
+                              if (status.available) {
+                                widget.onOpenContext(status.context.name, anchor);
+                              }
+                            },
+                            onRowTap: (status) {
+                              // Disable tap for unavailable contexts
+                              if (!status.available) {
+                                return; // Don't allow interaction with unavailable contexts
+                              }
+                            },
+                            rowSelectionPredicate: (status) => status.available,
+                          );
+                        },
                       ),
                     ],
             );
@@ -141,6 +173,7 @@ class _EnginePickerState extends State<EnginePicker> {
           remoteStatusFuture: widget.remoteStatusFuture,
           scanRequested: widget.remoteScanRequested,
           cachedReady: widget.cachedReady,
+          cachedReadyNotifier: widget.cachedReadyNotifier,
           onScan: widget.onScanRemotes,
           onOpenHost: widget.onOpenHost,
           settingsController: widget.settingsController,
@@ -160,42 +193,81 @@ class _EnginePickerState extends State<EnginePicker> {
     return index.isEven ? base : alternate;
   }
 
-  List<StructuredDataColumn<DockerContext>> _contextColumns(
+  List<StructuredDataColumn<LocalDockerContextStatus>> _contextColumns(
     BuildContext context,
   ) {
     final iconSize = _leadingIconSize(context);
     final icons = context.appTheme.icons;
+    final colorScheme = Theme.of(context).colorScheme;
+    final opacity = 0.5; // Opacity for disabled contexts
     return [
-      StructuredDataColumn<DockerContext>(
+      StructuredDataColumn<LocalDockerContextStatus>(
         label: 'Context',
-        autoFitText: (ctx) => ctx.name,
-        cellBuilder: (context, ctx) => Row(
+        autoFitText: (status) => status.context.name,
+        cellBuilder: (context, status) => Opacity(
+          opacity: status.available ? 1.0 : opacity,
+          child: Row(
+            children: [
+              Icon(
+                icons.container,
+                size: iconSize,
+                color: Theme.of(context).iconTheme.color,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  status.context.name,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      StructuredDataColumn<LocalDockerContextStatus>(
+        label: 'Endpoint',
+        autoFitText: (status) => status.context.dockerEndpoint,
+        cellBuilder: (context, status) => Opacity(
+          opacity: status.available ? 1.0 : opacity,
+          child: Text(status.context.dockerEndpoint),
+        ),
+      ),
+      StructuredDataColumn<LocalDockerContextStatus>(
+        label: 'Status',
+        autoFitText: (status) => status.detail ?? '',
+        cellBuilder: (context, status) => Row(
           children: [
             Icon(
-              icons.container,
-              size: iconSize,
-              color: Theme.of(context).iconTheme.color,
+              status.available
+                  ? Icons.check_circle
+                  : Icons.error_outline,
+              size: 16,
+              color: status.available
+                  ? colorScheme.primary
+                  : colorScheme.error,
             ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                ctx.name,
-                style: Theme.of(context).textTheme.titleMedium,
+                status.detail ?? '',
+                style: TextStyle(
+                  color: status.available
+                      ? colorScheme.primary
+                      : colorScheme.error,
+                ),
               ),
             ),
           ],
         ),
       ),
-      StructuredDataColumn<DockerContext>(
-        label: 'Endpoint',
-        autoFitText: (ctx) => ctx.dockerEndpoint,
-        cellBuilder: (context, ctx) => Text(ctx.dockerEndpoint),
-      ),
     ];
   }
 
-  List<StructuredDataChip> _contextMetadata(DockerContext dockerContext) {
+  List<StructuredDataChip> _contextMetadata(
+    LocalDockerContextStatus status,
+  ) {
     final chips = <StructuredDataChip>[];
+    final dockerContext = status.context;
     if (dockerContext.current) {
       chips.add(
         const StructuredDataChip(label: 'Current', icon: Icons.check_circle),
@@ -220,6 +292,7 @@ class RemoteSection extends StatelessWidget {
     required this.remoteStatusFuture,
     required this.scanRequested,
     required this.cachedReady,
+    this.cachedReadyNotifier,
     required this.onScan,
     required this.onOpenHost,
     required this.settingsController,
@@ -231,6 +304,7 @@ class RemoteSection extends StatelessWidget {
   final Future<List<RemoteDockerStatus>>? remoteStatusFuture;
   final bool scanRequested;
   final List<RemoteDockerStatus> cachedReady;
+  final ValueNotifier<List<RemoteDockerStatus>>? cachedReadyNotifier;
   final VoidCallback onScan;
   final void Function(SshHost host, Offset? anchor) onOpenHost;
   final AppSettingsController settingsController;
@@ -243,20 +317,30 @@ class RemoteSection extends StatelessWidget {
     final spacing = context.appTheme.spacing;
     Widget body;
     if (!scanRequested) {
-      body = cachedReady.isEmpty
-          ? Padding(
+      // Use ValueListenableBuilder to hot reload when notifier updates
+      final notifier = cachedReadyNotifier ?? ValueNotifier(cachedReady);
+      body = ValueListenableBuilder<List<RemoteDockerStatus>>(
+        valueListenable: notifier,
+        builder: (context, hosts, _) {
+          if (hosts.isEmpty) {
+            return Padding(
               padding: spacing.inset(horizontal: 1, vertical: 2),
               child: const Text(
                 'Scan to check which servers have Docker available.',
               ),
-            )
-          : RemoteHostList(
-              hosts: cachedReady,
-              onOpenHost: onOpenHost,
-              settingsController: settingsController,
-              backgroundColor: backgroundColor,
             );
+          }
+          return RemoteHostList(
+            hosts: hosts,
+            onOpenHost: onOpenHost,
+            settingsController: settingsController,
+            backgroundColor: backgroundColor,
+          );
+        },
+      );
     } else {
+      // Use ValueListenableBuilder to hot reload when notifier updates
+      final notifier = cachedReadyNotifier ?? ValueNotifier(cachedReady);
       body = FutureBuilder<List<RemoteDockerStatus>>(
         future: remoteStatusFuture,
         builder: (context, snapshot) {
@@ -274,17 +358,26 @@ class RemoteSection extends StatelessWidget {
           }
           final statuses = snapshot.data ?? const <RemoteDockerStatus>[];
           final available = statuses.where((s) => s.available).toList();
-          if (available.isEmpty) {
-            return Padding(
-              padding: spacing.inset(horizontal: 1, vertical: 2),
-              child: const Text('No Docker-ready remote hosts found.'),
-            );
+          // Update notifier when scan completes
+          if (snapshot.connectionState == ConnectionState.done) {
+            notifier.value = available;
           }
-          return RemoteHostList(
-            hosts: available,
-            onOpenHost: onOpenHost,
-            settingsController: settingsController,
-            backgroundColor: backgroundColor,
+          return ValueListenableBuilder<List<RemoteDockerStatus>>(
+            valueListenable: notifier,
+            builder: (context, hosts, _) {
+              if (hosts.isEmpty) {
+                return Padding(
+                  padding: spacing.inset(horizontal: 1, vertical: 2),
+                  child: const Text('No Docker-ready remote hosts found.'),
+                );
+              }
+              return RemoteHostList(
+                hosts: hosts,
+                onOpenHost: onOpenHost,
+                settingsController: settingsController,
+                backgroundColor: backgroundColor,
+              );
+            },
           );
         },
       );
@@ -361,6 +454,7 @@ class RemoteHostList extends StatelessWidget {
   List<StructuredDataColumn<RemoteDockerStatus>> _columns(
     BuildContext context,
   ) {
+    final colorScheme = Theme.of(context).colorScheme;
     return [
       StructuredDataColumn<RemoteDockerStatus>(
         label: 'Host',
@@ -371,7 +465,30 @@ class RemoteHostList extends StatelessWidget {
       StructuredDataColumn<RemoteDockerStatus>(
         label: 'Status',
         autoFitText: (status) => status.detail,
-        cellBuilder: (context, status) => Text(status.detail),
+        cellBuilder: (context, status) => Row(
+          children: [
+            Icon(
+              status.available
+                  ? Icons.check_circle
+                  : Icons.error_outline,
+              size: 16,
+              color: status.available
+                  ? colorScheme.primary
+                  : colorScheme.error,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                status.detail,
+                style: TextStyle(
+                  color: status.available
+                      ? colorScheme.primary
+                      : colorScheme.error,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     ];
   }
@@ -379,9 +496,7 @@ class RemoteHostList extends StatelessWidget {
   Widget _buildCombinedCell(BuildContext context, RemoteDockerStatus status) {
     final host = status.host;
     final address = _hostAddress(host);
-    final scheme = Theme.of(context).colorScheme;
     final iconSize = _leadingIconSize(context);
-    final statusColor = status.available ? scheme.primary : scheme.error;
     return AnimatedBuilder(
       animation: settingsController,
       builder: (context, _) {
@@ -396,8 +511,8 @@ class RemoteHostList extends StatelessWidget {
                   slug: slug,
                   iconSize: iconSize,
                   iconColor: iconColor,
-                  statusColor: statusColor,
-                  statusDotScale: 10 / iconSize,
+                  statusColor: Colors.transparent,
+                  statusDotScale: 0,
                 ),
               ),
               const SizedBox(width: 8),

@@ -164,7 +164,9 @@ class AppLogger {
     }
     buffer.write(reset);
     debugPrint(buffer.toString());
-    if (error != null && stackTrace != null) {
+    if (error != null &&
+        stackTrace != null &&
+        level.index >= LogLevel.error.index) {
       debugPrint('$color$stackTrace$reset');
     }
     _logRemoteIfNeeded(
@@ -207,11 +209,17 @@ class AppLogger {
     StackTrace? stackTrace,
     RemoteCommandDetails? remote,
   }) {
-    if (!remoteService || !_remoteCommandLoggingEnabled) {
+    // If RemoteCommandDetails is provided, log it even if remoteService is false
+    // (e.g., for local connectivity probes that should appear in debug view)
+    if (remote == null) {
+      if (!remoteService || !_remoteCommandLoggingEnabled) {
+        return;
+      }
+      assert(false, 'Remote logger requires RemoteCommandDetails.');
       return;
     }
-    if (remote == null) {
-      assert(false, 'Remote logger requires RemoteCommandDetails.');
+    // RemoteCommandDetails provided - log it if remote command logging is enabled
+    if (!_remoteCommandLoggingEnabled) {
       return;
     }
     if (remote.operation.isEmpty ||

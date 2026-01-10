@@ -9,6 +9,7 @@ import 'package:dartssh2/dartssh2.dart';
 import '../known_hosts_store.dart';
 import '../remote_shell_base.dart';
 import '../ssh_auth_coordinator.dart';
+import 'package:cwatch/model/shared/services/host_shell_policy.dart';
 import 'builtin_identity_manager.dart';
 import 'builtin_ssh_exceptions.dart';
 import 'builtin_ssh_logging.dart';
@@ -85,8 +86,18 @@ class BuiltInSshClientManager {
     Duration timeout = const Duration(seconds: 10),
     RunTimeoutHandler? onTimeout,
   }) async {
+    if (isNoShellHost(host)) {
+      throw NoShellHostException(host);
+    }
     final safeCommand = _prependNoHistory(command);
     logBuiltInSsh('Running command on ${host.name}: $safeCommand');
+    // Ensure decryption completes before starting timeout.
+    // This way password prompts don't count against the command timeout.
+    // Note: _withClient also calls ensureDecrypted, but calling it here first
+    // ensures the timeout only applies to command execution, not password entry.
+    await _wrapSshErrors(host, () async {
+      await _identityManager.ensureDecrypted(host);
+    });
     final bytes = await _withClient(host, (client) async {
       final future = client.run(safeCommand);
       return _waitWithTimeout(
@@ -123,8 +134,18 @@ class BuiltInSshClientManager {
     void Function(String line)? onStdoutLine,
     void Function(String line)? onStderrLine,
   }) async {
+    if (isNoShellHost(host)) {
+      throw NoShellHostException(host);
+    }
     final safeCommand = _prependNoHistory(command);
     logBuiltInSsh('Running command on ${host.name}: $safeCommand');
+    // Ensure decryption completes before starting timeout.
+    // This way password prompts don't count against the command timeout.
+    // Note: _withClient also calls ensureDecrypted, but calling it here first
+    // ensures the timeout only applies to command execution, not password entry.
+    await _wrapSshErrors(host, () async {
+      await _identityManager.ensureDecrypted(host);
+    });
     final stdoutBuffer = StringBuffer();
     final stderrBuffer = StringBuffer();
     var stdoutRemainder = '';
@@ -321,6 +342,9 @@ class BuiltInSshClientManager {
     var retries = 0;
     while (true) {
       try {
+        if (isNoShellHost(host)) {
+          throw NoShellHostException(host);
+        }
         return await action();
       } on SSHAuthFailError catch (error) {
         logBuiltInSshWarning(
@@ -358,7 +382,8 @@ class BuiltInSshClientManager {
             continue;
           }
         } else if (e is BuiltInSshKeyUnsupportedCipher ||
-            e is BuiltInSshAuthenticationFailed) {
+            e is BuiltInSshAuthenticationFailed ||
+            e is NoShellHostException) {
           rethrow;
         }
         logBuiltInSshWarning(

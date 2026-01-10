@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 
@@ -21,6 +20,7 @@ import 'package:cwatch/model/services_infra/port_forwarding/port_forward_service
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/controller/di/bindings/server_workspace_binding.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
+import 'package:cwatch/model/services_infra/network/connectivity_probe.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/view/core/navigation/tab_navigation_registry.dart';
 import 'package:cwatch/view/core/navigation/command_palette_registry.dart';
@@ -110,7 +110,7 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
       customHosts: settings.customSshHosts,
       additionalEntryPoints: settings.customSshConfigPaths,
       disabledEntryPoints: settings.disabledSshConfigPaths,
-    ).loadHosts();
+    ).loadHosts(disabledHosts: settings.disabledServerHosts.toSet());
     _lastHosts = hosts;
     return hosts;
   }
@@ -256,18 +256,14 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
     }
   }
 
-  Future<bool> _checkAvailability(CustomSshHost host) async {
-    try {
-      final socket = await Socket.connect(
-        host.hostname,
-        host.port,
-        timeout: const Duration(seconds: 2),
-      );
-      socket.destroy();
-      return true;
-    } catch (error) {
-      return false;
-    }
+  Future<bool> _checkAvailability(CustomSshHost host) {
+    const probe = ConnectivityProbe();
+    return probe.canConnect(
+      host: host.hostname,
+      port: host.port,
+      timeout: const Duration(seconds: 2),
+      hostLabel: host.name,
+    );
   }
 
   List<WorkspaceTab> get _tabs => _workspaceController.tabs;

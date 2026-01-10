@@ -5,9 +5,11 @@ class RemoteDockerStatus {
     required this.host,
     required this.available,
     required this.detail,
+    this.lastScanDate,
   });
 
   final SshHost host;
   final bool available;
   final String detail;
+  final DateTime? lastScanDate;
 }

@@ -27,13 +27,18 @@ class SshShellFactory {
   final RemoteCommandObserver? _defaultObserver;
 
   RemoteShellService? _builtinShell;
+  RemoteShellService? _builtinShellWithTimeout;
   RemoteShellService? _processShell;
   String? _shellSignature;
+  String? _shellTimeoutSignature;
 
-  RemoteShellService forHost(SshHost host) {
+  RemoteShellService forHost(SshHost host, {Duration? connectTimeout}) {
     final settings = settingsController.settings;
     final usingBuiltIn = settings.sshClientBackend == SshClientBackend.builtin;
     if (usingBuiltIn) {
+      if (connectTimeout != null) {
+        return _ensureBuiltinShellWithTimeout(settings, connectTimeout);
+      }
       return _ensureBuiltinShell(settings);
     }
     return _ensureProcessShell(settings);
@@ -45,6 +50,11 @@ class SshShellFactory {
       _shellSignature = nextSignature;
       _builtinShell = null;
       _processShell = null;
+    }
+    if (_shellTimeoutSignature != null &&
+        !_shellTimeoutSignature!.startsWith(nextSignature)) {
+      _shellTimeoutSignature = null;
+      _builtinShellWithTimeout = null;
     }
   }
 
@@ -63,6 +73,29 @@ class SshShellFactory {
     );
     _shellSignature = signature;
     return _builtinShell!;
+  }
+
+  RemoteShellService _ensureBuiltinShellWithTimeout(
+    AppSettings settings,
+    Duration connectTimeout,
+  ) {
+    final signature =
+        '${_signatureFor(settings)}|timeout:${connectTimeout.inMilliseconds}';
+    if (_builtinShellWithTimeout != null &&
+        _shellTimeoutSignature == signature) {
+      return _builtinShellWithTimeout!;
+    }
+    final observer = settings.debugMode ? _defaultObserver : null;
+    _builtinShellWithTimeout = keyService.buildShellService(
+      hostKeyBindings: settings.builtinSshHostKeyBindings,
+      debugMode: settings.debugMode,
+      observer: observer,
+      knownHostsStore: knownHostsStore,
+      authCoordinator: authCoordinator,
+      connectTimeout: connectTimeout,
+    );
+    _shellTimeoutSignature = signature;
+    return _builtinShellWithTimeout!;
   }
 
   RemoteShellService _ensureProcessShell(AppSettings settings) {
