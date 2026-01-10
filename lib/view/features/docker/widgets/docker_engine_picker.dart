@@ -156,17 +156,8 @@ class _EnginePickerState extends State<EnginePicker> {
                             metadataBuilder: _contextMetadata,
                             onRowContextMenu: (status, selectedRows, anchor) {
                               // Disable context menu for unavailable contexts
-                              if (!status.available) return;
-                              // Use selectedRows if available, otherwise just the right-clicked row
-                              final targets = selectedRows.isNotEmpty
-                                  ? selectedRows
-                                      .where((s) => s.available)
-                                      .map((s) => s.context.name)
-                                      .toList()
-                                  : [status.context.name];
-                              // Open dashboard for each selected context
-                              for (final contextName in targets) {
-                                widget.onOpenContext(contextName, anchor);
+                              if (status.available) {
+                                widget.onOpenContext(status.context.name, anchor);
                               }
                             },
                             onRowTap: (status) {
@@ -481,19 +472,7 @@ class _RemoteHostListState extends State<RemoteHostList> {
       surfaceBackgroundColor: widget.backgroundColor,
       primaryDoubleClickOpensContextMenu: true,
       refreshListenable: widget.settingsController,
-      onRowContextMenu: (status, selectedRows, anchor) {
-        // Use selectedRows if available, otherwise just the right-clicked row
-        final targets = selectedRows.isNotEmpty
-            ? selectedRows
-                .where((s) => s.available)
-                .map((s) => s.host)
-                .toList()
-            : [status.host];
-        // Open dashboard for each selected host
-        for (final host in targets) {
-          widget.onOpenHost(host, anchor);
-        }
-      },
+      onRowContextMenu: (status, selectedRows, anchor) => widget.onOpenHost(status.host, anchor),
       emptyState: Padding(
         padding: EdgeInsets.all(context.appTheme.spacing.xl),
         child: const Text('No Docker-ready remote hosts found.'),

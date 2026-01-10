@@ -555,9 +555,7 @@ class _DockerViewState extends State<DockerView> {
     final icons = context.appTheme.icons;
     final choice = await _pickDashboardTarget(contextName, icons.cloud, anchor);
     if (choice == null || !mounted) return;
-    final timestamp = DateTime.now().microsecondsSinceEpoch;
-    final random = (timestamp % 1000000).toString().padLeft(6, '0');
-    final newId = 'ctx-$contextName-$timestamp-$random';
+    final newId = 'ctx-$contextName-${DateTime.now().microsecondsSinceEpoch}';
     final newTab = choice == _DashboardTarget.resources
         ? _tabBuilder.resources(
             id: newId,
@@ -577,20 +575,7 @@ class _DockerViewState extends State<DockerView> {
             onOpenTab: _openChildTab,
             onCloseTab: _closeTabById,
           );
-    // Check if current tab is a picker/placeholder - if so, replace it for single-select
-    // Otherwise always add new tab for multi-select support
-    final currentTab = _tabs.isNotEmpty && _selectedIndex >= 0 && _selectedIndex < _tabs.length
-        ? _tabs[_selectedIndex]
-        : null;
-    final isPickerTab = currentTab != null &&
-        currentTab.id == tabId &&
-        (currentTab.workspaceState as DockerTabData?)?.kind == DockerTabKind.picker;
-    
-    if (isPickerTab) {
-      _replaceTab(tabId, newTab);
-    } else {
-      _workspaceController.addTab(newTab);
-    }
+    _replaceTab(tabId, newTab);
   }
 
   Future<void> _openHostDashboard(
@@ -606,9 +591,7 @@ class _DockerViewState extends State<DockerView> {
       anchor,
     );
     if (choice == null || !mounted) return;
-    final timestamp = DateTime.now().microsecondsSinceEpoch;
-    final random = (timestamp % 1000000).toString().padLeft(6, '0');
-    final newId = 'host-${host.name}-$timestamp-$random';
+    final newId = 'host-${host.name}-${DateTime.now().microsecondsSinceEpoch}';
     final newTab = choice == _DashboardTarget.resources
         ? _tabBuilder.resources(
             id: newId,
@@ -630,20 +613,7 @@ class _DockerViewState extends State<DockerView> {
             onOpenTab: _openChildTab,
             onCloseTab: _closeTabById,
           );
-    // Check if current tab is a picker/placeholder - if so, replace it for single-select
-    // Otherwise always add new tab for multi-select support
-    final currentTab = _tabs.isNotEmpty && _selectedIndex >= 0 && _selectedIndex < _tabs.length
-        ? _tabs[_selectedIndex]
-        : null;
-    final isPickerTab = currentTab != null &&
-        currentTab.id == tabId &&
-        (currentTab.workspaceState as DockerTabData?)?.kind == DockerTabKind.picker;
-    
-    if (isPickerTab) {
-      _replaceTab(tabId, newTab);
-    } else {
-      _workspaceController.addTab(newTab);
-    }
+    _replaceTab(tabId, newTab);
   }
 
   Future<_DashboardTarget?> _pickDashboardTarget(
