@@ -96,7 +96,6 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   String _pathsSignature = '';
   String _disabledHostsSignature = '';
   bool _showListSettings = false;
-  bool _showDisabledServers = false;
 
   void _toggleListSettings() {
     setState(() {
@@ -106,13 +105,65 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
 
   Future<List<SshHost>> _loadHosts() async {
     final settings = widget.settingsController.settings;
+    // Load hosts without blocking on availability checks for initial render
     final hosts = await SshConfigService(
       customHosts: settings.customSshHosts,
       additionalEntryPoints: settings.customSshConfigPaths,
       disabledEntryPoints: settings.disabledSshConfigPaths,
-    ).loadHosts(disabledHosts: settings.disabledServerHosts.toSet());
+    ).loadHosts(
+      disabledHosts: settings.disabledServerHosts.toSet(),
+      checkAvailability: false, // Defer availability checks to background
+    );
     _lastHosts = hosts;
+    
+    // Update availability in background without blocking
+    _updateAvailabilityInBackground(hosts);
+    
     return hosts;
+  }
+  
+  void _updateAvailabilityInBackground(List<SshHost> hosts) {
+    // Check availability for hosts in background and update as results arrive
+    for (final host in hosts) {
+      if (isNoShellHost(host) || _isHostDisabled(host, _disabledHostKeys())) {
+        continue;
+      }
+      unawaited(
+        _checkAvailabilityForHost(host).then((available) {
+          if (!mounted) return;
+          final index = _lastHosts.indexWhere(
+            (h) => h.name == host.name && h.hostname == host.hostname && h.port == host.port,
+          );
+          if (index != -1 && _lastHosts[index].available != available) {
+            final existing = _lastHosts[index];
+            final updated = SshHost(
+              name: existing.name,
+              hostname: existing.hostname,
+              port: existing.port,
+              available: available,
+              user: existing.user,
+              identityFiles: existing.identityFiles,
+              source: existing.source,
+            );
+            final nextHosts = [..._lastHosts];
+            nextHosts[index] = updated;
+            _lastHosts = nextHosts;
+            _hostsFuture = Future.value(nextHosts);
+            _hostsFutureNotifier.value = _hostsFuture;
+          }
+        }),
+      );
+    }
+  }
+  
+  Future<bool> _checkAvailabilityForHost(SshHost host) async {
+    const probe = ConnectivityProbe();
+    return probe.canConnect(
+      host: host.hostname,
+      port: host.port,
+      timeout: const Duration(seconds: 2),
+      hostLabel: host.name,
+    );
   }
 
   String _buildCustomHostsSignature() {
@@ -442,25 +493,19 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
               return Center(child: Text('Error: ${snapshot.error}'));
             }
             final hosts = snapshot.data ?? cachedHosts;
-            final disabledKeys = _disabledHostKeys();
-            final visibleHosts = _showDisabledServers
-                ? hosts
-                : hosts
-                      .where((host) => !_isHostDisabled(host, disabledKeys))
-                      .toList();
-            final shellCapableHosts = visibleHosts
+            // Filter out no-shell hosts, but let HostList handle disabled server filtering
+            final shellCapableHosts = hosts
                 .where((host) => !isNoShellHost(host))
                 .toList();
             _trackHostDistroChecks(shellCapableHosts);
             return HostList(
-              key: ValueKey(
-                'host-list-${_showDisabledServers ? 'show' : 'hide'}',
-              ),
+              key: const ValueKey('host-list'),
               hosts: shellCapableHosts,
               onSelect: onHostSelected,
               onActivate: onHostActivate ?? _startActionFlowForHost,
               settingsController: widget.settingsController,
               keyService: widget.keyService,
+              onHostVisible: _ensureDistroForHostOnDemand,
               onOpenConnectivity: (host) {
                 if (onAction != null) {
                   onAction(host, ServerAction.connectivity);
@@ -495,11 +540,11 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
               },
               onAddServer: (existingNames) =>
                   _showAddServerDialog(context, existingNames),
-              showDisabledServers: _showDisabledServers,
+              showDisabledServers: false, // Initial state, each HostList manages its own
               onToggleDisabledServersVisibility: () {
-                setState(() => _showDisabledServers = !_showDisabledServers);
+                // Callback for logging, but state is managed in HostList
                 AppLogger().debug(
-                  'Show disabled servers: $_showDisabledServers',
+                  'Toggle disabled servers visibility',
                   tag: 'ServersList',
                 );
               },
@@ -533,10 +578,14 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   }
 
   void _trackHostDistroChecks(List<SshHost> hosts) {
+    // Defer distro detection - only check cached hosts initially
+    // Actual detection will happen on-demand when rows are visible or interacted with
     if (_didProbeHostDistro) {
       return;
     }
     _didProbeHostDistro = true;
+    
+    // Only track availability state, don't trigger distro detection yet
     for (final host in hosts) {
       if (isNoShellHost(host)) {
         continue;
@@ -545,19 +594,31 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
         continue;
       }
       final key = hostDistroCacheKey(host);
-      final wasAvailable = _hostAvailability[key] ?? false;
       _hostAvailability[key] = host.available;
-      final hasCache = _distroManager.hasCached(key);
-      if (hasCache) {
-        continue;
-      }
-      final needsProbe = host.available && !hasCache;
-      if (needsProbe) {
-        unawaited(
-          _distroManager.ensureDistroForHost(host, force: !wasAvailable),
-        );
-      }
+      // Skip immediate distro detection - will be done on-demand
     }
+  }
+  
+  void _ensureDistroForHostOnDemand(SshHost host) {
+    if (isNoShellHost(host)) {
+      return;
+    }
+    if (_isHostDisabled(host, _disabledHostKeys())) {
+      return;
+    }
+    final key = hostDistroCacheKey(host);
+    final hasCache = _distroManager.hasCached(key);
+    if (hasCache) {
+      return;
+    }
+    if (!host.available) {
+      return;
+    }
+    // Only detect if not already in progress
+    final wasAvailable = _hostAvailability[key] ?? false;
+    unawaited(
+      _distroManager.ensureDistroForHost(host, force: !wasAvailable),
+    );
   }
 
   Widget _buildTabWorkspace() {
@@ -883,17 +944,8 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   }
 
   void _ensureDistroOnInteraction(SshHost host) {
-    final key = hostDistroCacheKey(host);
-    if (_distroManager.hasCached(key)) {
-      return;
-    }
-    unawaited(
-      _distroManager.ensureDistroForHost(
-        host,
-        force: true,
-        allowUnavailable: true,
-      ),
-    );
+    // Trigger distro detection on user interaction
+    _ensureDistroForHostOnDemand(host);
   }
 
   Future<void> _openPortForwardDialog(SshHost host) {

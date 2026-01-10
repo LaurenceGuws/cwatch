@@ -35,6 +35,7 @@ class HostList extends StatefulWidget {
     this.onOpenTerminal,
     this.onOpenExplorer,
     this.onOpenPortForward,
+    this.onHostVisible,
   });
 
   final List<SshHost> hosts;
@@ -51,6 +52,7 @@ class HostList extends StatefulWidget {
   final ValueChanged<SshHost>? onOpenTerminal;
   final ValueChanged<SshHost>? onOpenExplorer;
   final ValueChanged<SshHost>? onOpenPortForward;
+  final ValueChanged<SshHost>? onHostVisible;
 
   @override
   State<HostList> createState() => _HostListState();
@@ -60,10 +62,35 @@ class _HostListState extends State<HostList> {
   final Map<String, bool> _collapsedBySource = {};
   final Set<String> _selectedHostKeys = {};
   int _lastHostCount = -1;
+  late bool _showDisabledServers;
+  late final String _instanceId;
+  final Map<String, int> _lastSectionRowCounts = {};
+  // Per-section toggle state - each section can independently show/hide disabled servers
+  final Map<String, bool> _showDisabledBySection = {};
+  
+  @override
+  void initState() {
+    super.initState();
+    _instanceId = '${DateTime.now().microsecondsSinceEpoch}-$hashCode';
+    _showDisabledServers = widget.showDisabledServers;
+    AppLogger().debug(
+      'HostList instance created: $_instanceId',
+      tag: 'ServersList',
+    );
+  }
+  
+  @override
+  void didUpdateWidget(HostList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.showDisabledServers != widget.showDisabledServers) {
+      _showDisabledServers = widget.showDisabledServers;
+    }
+  }
+  
 
-  Map<String, List<SshHost>> _groupHostsBySource() {
+  Map<String, List<SshHost>> _groupHostsBySource(List<SshHost> hosts) {
     final grouped = <String, List<SshHost>>{};
-    for (final host in widget.hosts) {
+    for (final host in hosts) {
       final source = host.source ?? 'unknown';
       grouped.putIfAbsent(source, () => []).add(host);
     }
@@ -89,17 +116,20 @@ class _HostListState extends State<HostList> {
   @override
   Widget build(BuildContext context) {
     final spacing = context.appTheme.spacing;
-    final grouped = _groupHostsBySource();
+    // Get all hosts (unfiltered) - filtering will happen per-section
+    final allHosts = widget.hosts;
+    final grouped = _groupHostsBySource(allHosts);
     final sources = grouped.keys.toList()..sort();
-    if (_lastHostCount != widget.hosts.length) {
-      _lastHostCount = widget.hosts.length;
+    final totalVisibleHosts = grouped.values.expand((h) => h).length;
+    if (_lastHostCount != totalVisibleHosts) {
+      _lastHostCount = totalVisibleHosts;
       AppLogger().debug(
-        'HostList rebuild: hosts=${widget.hosts.length}',
+        'HostList rebuild - Instance: $_instanceId, total hosts=$totalVisibleHosts',
         tag: 'ServersList',
       );
     }
 
-    if (widget.hosts.isEmpty) {
+    if (allHosts.isEmpty) {
       return const StandardEmptyState(
         message: 'No SSH hosts found.',
         icon: Icons.dns,
@@ -107,9 +137,27 @@ class _HostListState extends State<HostList> {
     }
 
     Widget buildSection(String source, int index) {
-      final hosts = grouped[source]!;
+      final allSectionHosts = grouped[source]!;
+      // Filter hosts for this specific section based on its own toggle state
+      final sectionShowDisabled = _showDisabledBySection[source] ?? _showDisabledServers;
+      final sectionHosts = sectionShowDisabled
+          ? allSectionHosts
+          : allSectionHosts
+              .where((host) => !_isHostDisabled(host))
+              .toList();
+      
       final sectionColor = _sectionBackgroundForIndex(context, index);
       final collapsed = _isCollapsed(source);
+      final lastRowCount = _lastSectionRowCounts[source];
+      final rowCountChanged = lastRowCount != sectionHosts.length;
+      if (rowCountChanged) {
+        _lastSectionRowCounts[source] = sectionHosts.length;
+        AppLogger().debug(
+          'Section $source row count changed: $lastRowCount -> ${sectionHosts.length}, Instance: $_instanceId',
+          tag: 'ServersList',
+        );
+      }
+      
       return Padding(
         padding: EdgeInsets.only(bottom: spacing.sm),
         child: SectionList(
@@ -136,7 +184,19 @@ class _HostListState extends State<HostList> {
                     return;
                   }
                   if (value == 'toggleDisabled') {
-                    widget.onToggleDisabledServersVisibility();
+                    final currentState = _showDisabledBySection[source] ?? _showDisabledServers;
+                    final newState = !currentState;
+                    AppLogger().debug(
+                      'Toggle disabled servers - Instance: $_instanceId, Section: $source, Current: $currentState -> $newState',
+                      tag: 'ServersList',
+                    );
+                    // Only update this specific section's state
+                    setState(() {
+                      _showDisabledBySection[source] = newState;
+                      // Clear cache for this section only
+                      _lastSectionRowCounts.remove(source);
+                    });
+                    // Don't call parent callback - state is managed locally per section
                     return;
                   }
                   if (value == 'editConfig') {
@@ -151,7 +211,7 @@ class _HostListState extends State<HostList> {
                   PopupMenuItem<String>(
                     value: 'toggleDisabled',
                     child: Text(
-                      widget.showDisabledServers
+                      (_showDisabledBySection[source] ?? _showDisabledServers)
                           ? 'Hide disabled servers'
                           : 'Show disabled servers',
                     ),
@@ -167,7 +227,7 @@ class _HostListState extends State<HostList> {
           ),
           children: collapsed
               ? const []
-              : [_buildHostTable(context, hosts, surfaceColor: sectionColor)],
+              : [_buildHostTable(context, sectionHosts, surfaceColor: sectionColor, sourceKey: source)],
         ),
       );
     }
@@ -234,9 +294,24 @@ class _HostListState extends State<HostList> {
     BuildContext context,
     List<SshHost> hosts, {
     required Color surfaceColor,
+    required String sourceKey,
   }) {
     final spacing = context.appTheme.spacing;
+    final tableKey = ValueKey('host-table-$sourceKey');
+    final lastRowCount = _lastSectionRowCounts[sourceKey];
+    final rowCountChanged = lastRowCount != hosts.length;
+    
+    if (rowCountChanged || lastRowCount == null) {
+      AppLogger().debug(
+        'Building table for section: $sourceKey, rows: ${hosts.length} (was: $lastRowCount), Instance: $_instanceId',
+        tag: 'ServersList',
+      );
+    }
+    
+    // Use a stable key per section source to avoid unnecessary rebuilds across tabs
+    // The key stays the same for a given source, allowing the table to update rows efficiently
     return StructuredDataTable<SshHost>(
+      key: tableKey,
       rows: hosts,
       columns: _columns(),
       rowHeight: 64,
@@ -244,12 +319,20 @@ class _HostListState extends State<HostList> {
       primaryDoubleClickOpensContextMenu: true,
       useZebraStripes: false,
       surfaceBackgroundColor: surfaceColor,
-      onRowTap: (host) => widget.onSelect?.call(host),
+      onRowTap: (host) {
+        widget.onHostVisible?.call(host);
+        widget.onSelect?.call(host);
+      },
       onRowDoubleTap: (host) {
         if (_isHostDisabled(host)) {
           return;
         }
+        widget.onHostVisible?.call(host);
         widget.onActivate?.call(host);
+      },
+      onRowPointerEnter: (index, host, event) {
+        // Trigger distro detection when row is hovered
+        widget.onHostVisible?.call(host);
       },
       refreshListenable: widget.settingsController,
       rowContextMenuBuilder: _buildContextMenuActions,
