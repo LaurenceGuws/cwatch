@@ -217,11 +217,26 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
       return;
     }
     try {
+      _ensureShellStarted();
       bridge.sendBytes(handle, bytes);
     } catch (_) {
       // For feed-only sessions sendBytes may be ignored by backend, which is
       // acceptable in this prototype widget.
     }
+  }
+
+  void _ensureShellStarted() {
+    if (_shellStarted) {
+      return;
+    }
+    final bridge = _bridge;
+    final handle = _handle;
+    if (bridge == null || handle == null) {
+      return;
+    }
+    bridge.start(handle, shell: '/bin/sh');
+    _shellStarted = true;
+    _commandRunStatus = 'command runner: shell started (interactive)';
   }
 
   void _feedFixture(String vt) {
@@ -322,14 +337,11 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
     });
 
     try {
-      if (!_shellStarted) {
-        bridge.start(handle, shell: '/bin/sh');
-        _shellStarted = true;
-        // Let the shell render first prompt before injecting command bytes.
-        for (var i = 0; i < 12; i++) {
-          bridge.poll(handle);
-          await Future<void>.delayed(const Duration(milliseconds: 15));
-        }
+      _ensureShellStarted();
+      // Let the shell render first prompt before injecting command bytes.
+      for (var i = 0; i < 12; i++) {
+        bridge.poll(handle);
+        await Future<void>.delayed(const Duration(milliseconds: 15));
       }
 
       bridge.sendBytes(handle, utf8.encode(payload));
@@ -378,6 +390,7 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
     if (event is! KeyDownEvent) {
       return;
     }
+    _ensureShellStarted();
 
     final logical = event.logicalKey;
     if (logical == LogicalKeyboardKey.enter) {
@@ -583,7 +596,11 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
                 },
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: () => _focusNode.requestFocus(),
+                  onTap: () {
+                    _focusNode.requestFocus();
+                    _ensureShellStarted();
+                    _refresh();
+                  },
                   child: MouseRegion(
                     onEnter: (_) => widget.onPointerHoverChanged?.call(true),
                     onExit: (_) => widget.onPointerHoverChanged?.call(false),
