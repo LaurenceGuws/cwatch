@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
@@ -9,6 +10,9 @@ import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/services_infra/zide/zide_terminal_ffi_bridge.dart';
 import 'support/overlay_scrollbar.dart';
+import 'support/zide_font_defaults.dart';
+import 'support/terminal_paint_layout.dart';
+import 'support/terminal_paint_runs.dart';
 import 'support/terminal_scrollback_controller.dart';
 import 'support/zide_terminal_session_controller.dart';
 
@@ -28,6 +32,8 @@ class ZideTerminalCanvas extends StatefulWidget {
 
 class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
   static const String _logTag = 'ZideMigrationTerminal';
+  static const int _modelCellWidthPx = 8;
+  static const int _modelCellHeightPx = 16;
   ZideTerminalSessionController? _session;
   Timer? _timer;
   final FocusNode _focusNode = FocusNode(debugLabel: 'zide_terminal_canvas');
@@ -38,6 +44,8 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
   bool _commandRunning = false;
   bool _followLiveOnInput = true;
   bool _wheelScrollRequiresFocus = false;
+  bool _altScreenActive = false;
+  final Map<int, int> _glyphClassFlagsCache = <int, int>{};
   final TerminalScrollbackController _scrollback =
       TerminalScrollbackController();
   int _pendingWheelHistoryRowsDelta = 0;
@@ -46,6 +54,8 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
   int _wheelFlushesSinceLog = 0;
   int _wheelRowsAppliedSinceLog = 0;
   int _wheelLastLogMs = 0;
+  int _lastViewportRows = 0;
+  int _lastViewportCols = 0;
 
   @override
   void initState() {
@@ -108,14 +118,19 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
         return;
       }
       setState(() {
+        _altScreenActive = meta.altActive;
         final mode = _scrollback.modeLabel();
         final scrollbackBackend = poll.usingNativeScrollback
             ? 'native'
             : 'fallback';
+        final rendererMeta = session.bridge.supportsRendererMetadataApi
+            ? 'meta'
+            : 'heuristic';
         _status =
             'rows=${meta.rows} total_rows=${frame.rows} cols=${meta.cols} '
             'title=${meta.title.isEmpty ? '(none)' : meta.title} '
-            'scrollback=$scrollbackBackend mode=$mode';
+            'alt=${meta.altActive ? 'on' : 'off'} '
+            'scrollback=$scrollbackBackend renderer=$rendererMeta mode=$mode';
       });
     } catch (error) {
       if (!mounted) {
@@ -336,6 +351,34 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
     _commandRunStatus = 'command runner: shell started (interactive)';
   }
 
+  void _syncTerminalViewport(Size size) {
+    final session = _session;
+    if (session == null) {
+      return;
+    }
+    final cols = (size.width / _modelCellWidthPx).floor().clamp(20, 800);
+    final rows = (size.height / _modelCellHeightPx).floor().clamp(6, 400);
+    if (cols == _lastViewportCols && rows == _lastViewportRows) {
+      return;
+    }
+    _lastViewportCols = cols;
+    _lastViewportRows = rows;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final active = _session;
+      if (!mounted || active == null) {
+        return;
+      }
+      active.resize(
+        rows: rows,
+        cols: cols,
+        cellWidth: _modelCellWidthPx,
+        cellHeight: _modelCellHeightPx,
+      );
+      AppLogger().debug('viewport resize rows=$rows cols=$cols', tag: _logTag);
+      _refresh();
+    });
+  }
+
   Future<void> _runShellCommand() async {
     final session = _session;
     if (session == null || _commandRunning) {
@@ -524,10 +567,11 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
                 child: compactHeader
                     ? Text(
                         _status,
-                        style: const TextStyle(
-                          fontFamily: 'JetBrainsMono Nerd Font Mono',
-                          color: Color(0xFFDDDDDD),
-                          fontSize: 12,
+                        style: ZideFontDefaults.applyTo(
+                          const TextStyle(
+                            color: Color(0xFFDDDDDD),
+                            fontSize: 12,
+                          ),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -537,10 +581,11 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
                         children: [
                           Text(
                             _status,
-                            style: const TextStyle(
-                              fontFamily: 'JetBrainsMono Nerd Font Mono',
-                              color: Color(0xFFDDDDDD),
-                              fontSize: 12,
+                            style: ZideFontDefaults.applyTo(
+                              const TextStyle(
+                                color: Color(0xFFDDDDDD),
+                                fontSize: 12,
+                              ),
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -614,10 +659,11 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
                               Expanded(
                                 child: TextField(
                                   controller: _commandController,
-                                  style: const TextStyle(
-                                    fontFamily: 'JetBrainsMono Nerd Font Mono',
-                                    fontSize: 12,
-                                    color: Color(0xFFDDDDDD),
+                                  style: ZideFontDefaults.applyTo(
+                                    const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFFDDDDDD),
+                                    ),
                                   ),
                                   decoration: const InputDecoration(
                                     isDense: true,
@@ -638,10 +684,11 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
                           const SizedBox(height: 4),
                           Text(
                             _commandRunStatus,
-                            style: const TextStyle(
-                              fontFamily: 'JetBrainsMono Nerd Font Mono',
-                              color: Color(0xFFC9C9C9),
-                              fontSize: 11,
+                            style: ZideFontDefaults.applyTo(
+                              const TextStyle(
+                                color: Color(0xFFC9C9C9),
+                                fontSize: 11,
+                              ),
                             ),
                           ),
                         ],
@@ -671,61 +718,78 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
                         }
                       }
                     },
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () {
-                              _focusNode.requestFocus();
-                              _ensureShellStarted();
-                              _refresh();
-                            },
-                            child: MouseRegion(
-                              onEnter: (_) =>
-                                  widget.onPointerHoverChanged?.call(true),
-                              onExit: (_) =>
-                                  widget.onPointerHoverChanged?.call(false),
-                              child: CustomPaint(
-                                painter: _ZideTerminalPainter(
-                                  frame: _effectiveFrame,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final viewport = Size(
+                          constraints.maxWidth,
+                          constraints.maxHeight,
+                        );
+                        _syncTerminalViewport(viewport);
+                        final hasScrollableHistory =
+                            _scrollback.totalRows > _scrollback.viewportRows;
+                        final showOverlayScrollbar =
+                            !_altScreenActive && hasScrollableHistory;
+                        return Stack(
+                          children: [
+                            Positioned.fill(
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () {
+                                  _focusNode.requestFocus();
+                                  _ensureShellStarted();
+                                  _refresh();
+                                },
+                                child: MouseRegion(
+                                  onEnter: (_) =>
+                                      widget.onPointerHoverChanged?.call(true),
+                                  onExit: (_) =>
+                                      widget.onPointerHoverChanged?.call(false),
+                                  child: CustomPaint(
+                                    painter: _ZideTerminalPainter(
+                                      frame: _effectiveFrame,
+                                      glyphClassLookup: _glyphClassFlagsFor,
+                                    ),
+                                    child: const SizedBox.expand(),
+                                  ),
                                 ),
-                                child: const SizedBox.expand(),
                               ),
                             ),
-                          ),
-                        ),
-                        Positioned(
-                          right: 0,
-                          top: 0,
-                          bottom: 0,
-                          child: OverlayScrollbar(
-                            viewportExtent:
-                                (_scrollback.viewportRows > 0
-                                        ? _scrollback.viewportRows
-                                        : 1)
-                                    .toDouble(),
-                            contentExtent:
-                                (_scrollback.totalRows > 0
-                                        ? _scrollback.totalRows
-                                        : 1)
-                                    .toDouble(),
-                            offset: _scrollback.currentScrollRows.toDouble(),
-                            onOffsetChanged: (value) =>
-                                _setHistoryOffsetRows(value.round()),
-                            onStepUp: () => _historyUp(
-                              rows: (_effectiveFrame.rows > 0)
-                                  ? _effectiveFrame.rows
-                                  : 12,
-                            ),
-                            onStepDown: () => _historyDown(
-                              rows: (_effectiveFrame.rows > 0)
-                                  ? _effectiveFrame.rows
-                                  : 12,
-                            ),
-                          ),
-                        ),
-                      ],
+                            if (showOverlayScrollbar)
+                              Positioned(
+                                right: 0,
+                                top: 0,
+                                bottom: 0,
+                                child: OverlayScrollbar(
+                                  viewportExtent:
+                                      (_scrollback.viewportRows > 0
+                                              ? _scrollback.viewportRows
+                                              : 1)
+                                          .toDouble(),
+                                  contentExtent:
+                                      (_scrollback.totalRows > 0
+                                              ? _scrollback.totalRows
+                                              : 1)
+                                          .toDouble(),
+                                  offset: _scrollback.currentScrollRows
+                                      .toDouble(),
+                                  onOffsetChanged: (value) =>
+                                      _setHistoryOffsetRows(value.round()),
+                                  onStepUp: () => _historyUp(
+                                    rows: (_effectiveFrame.rows > 0)
+                                        ? _effectiveFrame.rows
+                                        : 12,
+                                  ),
+                                  onStepDown: () => _historyDown(
+                                    rows: (_effectiveFrame.rows > 0)
+                                        ? _effectiveFrame.rows
+                                        : 12,
+                                  ),
+                                  reverse: true,
+                                ),
+                              ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -736,14 +800,39 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
       },
     );
   }
+
+  int _glyphClassFlagsFor(int codepoint) {
+    final cached = _glyphClassFlagsCache[codepoint];
+    if (cached != null) {
+      return cached;
+    }
+    final session = _session;
+    if (session == null || !session.bridge.supportsRendererMetadataApi) {
+      _glyphClassFlagsCache[codepoint] = 0;
+      return 0;
+    }
+    try {
+      final metadata = session.bridge.rendererMetadata(codepoint);
+      final flags = metadata?.glyphClassFlags ?? 0;
+      _glyphClassFlagsCache[codepoint] = flags;
+      return flags;
+    } catch (_) {
+      _glyphClassFlagsCache[codepoint] = 0;
+      return 0;
+    }
+  }
 }
 
 class _ZideTerminalPainter extends CustomPainter {
-  _ZideTerminalPainter({required this.frame});
+  _ZideTerminalPainter({required this.frame, required this.glyphClassLookup});
 
   final ZideTerminalFrameData frame;
+  final int Function(int codepoint) glyphClassLookup;
   static const double _modelCellWidth = 8;
   static const double _modelCellHeight = 16;
+  static const int _boxDrawStart = 0x2500;
+  static const int _gridCharEnd = 0x259F;
+  static const int _boxDrawHardEnd = 0x254B;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -754,86 +843,199 @@ class _ZideTerminalPainter extends CustomPainter {
       return;
     }
 
-    final fitScale = (size.width / (frame.cols * _modelCellWidth)).clamp(
-      0.01,
-      double.infinity,
+    final layout = TerminalPaintLayout.compute(
+      size: size,
+      rows: frame.rows,
+      cols: frame.cols,
+      modelCellWidth: _modelCellWidth,
+      modelCellHeight: _modelCellHeight,
     );
-    final fitScaleY = (size.height / (frame.rows * _modelCellHeight)).clamp(
-      0.01,
-      double.infinity,
+    final cellWidth = layout.cellWidth;
+    final cellHeight = layout.cellHeight;
+    final gridBounds = Rect.fromLTWH(
+      layout.originX,
+      layout.originY,
+      layout.gridWidth,
+      layout.gridHeight,
     );
-    final scale = fitScale < fitScaleY ? fitScale : fitScaleY;
 
-    final cellWidth = _modelCellWidth * scale;
-    final cellHeight = _modelCellHeight * scale;
-    final gridWidth = frame.cols * cellWidth;
-    final gridHeight = frame.rows * cellHeight;
-    final originX = (size.width - gridWidth) / 2;
-    final originY = (size.height - gridHeight) / 2;
-
-    final cellPaint = Paint();
-    final glyphStyle = TextStyle(
-      fontFamily: 'JetBrainsMono Nerd Font Mono',
-      fontSize: cellHeight * 0.78,
-      height: 1.0,
+    final cellPaint = Paint()..isAntiAlias = false;
+    final glyphStyle = ZideFontDefaults.applyTo(
+      TextStyle(fontSize: cellHeight * 0.78, height: 1.0),
     );
+    final glyphCache = <int, TextPainter>{};
+    canvas.save();
+    canvas.clipRect(gridBounds);
     for (var row = 0; row < frame.rows; row++) {
+      final rowCells = List<TerminalPaintCell>.generate(frame.cols, (col) {
+        final index = row * frame.cols + col;
+        if (index >= frame.cells.length) {
+          return const TerminalPaintCell(
+            codepoint: 0,
+            width: 0,
+            fgArgb: 0xFFFFFFFF,
+            bgArgb: 0xFF000000,
+          );
+        }
+        final cell = frame.cells[index];
+        final fg = _toColor(cell.fg, fallback: const Color(0xFFDDDDDD));
+        final bg = _toColor(cell.bg, fallback: const Color(0xFF000000));
+        return TerminalPaintCell(
+          codepoint: cell.codepoint,
+          width: cell.width,
+          fgArgb: fg.toARGB32(),
+          bgArgb: bg.toARGB32(),
+        );
+      });
+      final plan = TerminalPaintRuns.planRow(cells: rowCells, cols: frame.cols);
+
+      for (final bgRun in plan.backgroundRuns) {
+        final fillRect = _snappedRunFillRect(
+          layout: layout,
+          row: row,
+          startCol: bgRun.startCol,
+          endColExclusive: bgRun.endColExclusive,
+        );
+        cellPaint.color = Color(bgRun.bgArgb);
+        canvas.drawRect(fillRect, cellPaint);
+      }
+
+      // Keep terminal cursor/text ownership strictly cell-based.
       for (var col = 0; col < frame.cols; col++) {
         final index = row * frame.cols + col;
         if (index >= frame.cells.length) {
           continue;
         }
         final cell = frame.cells[index];
-        final rect = Rect.fromLTWH(
-          originX + col * cellWidth,
-          originY + row * cellHeight,
-          cellWidth,
-          cellHeight,
-        );
-
-        final bg = _toColor(cell.bg, fallback: const Color(0xFF000000));
-        cellPaint.color = bg;
-        canvas.drawRect(rect, cellPaint);
-
-        if (cell.width == 0 || cell.codepoint == 0) {
+        if (cell.width != 1 || cell.codepoint < 32 || cell.codepoint == 127) {
           continue;
         }
-
+        final rect = layout.cellRect(row: row, col: col);
         final fg = _toColor(cell.fg, fallback: const Color(0xFFDDDDDD));
-        final charCode = cell.codepoint;
-        if (charCode < 32 || charCode == 127) {
+        final glyphFlags = glyphClassLookup(cell.codepoint);
+        if (_paintRoundedBoxCornerGlyph(
+          canvas: canvas,
+          rect: rect,
+          codepoint: cell.codepoint,
+          color: fg,
+          cellWidth: cellWidth,
+          cellHeight: cellHeight,
+        )) {
           continue;
         }
-        final painter = TextPainter(
-          text: TextSpan(
-            text: String.fromCharCode(charCode),
-            style: glyphStyle.copyWith(color: fg),
-          ),
-          textDirection: TextDirection.ltr,
-          maxLines: 1,
-        )..layout(minWidth: 0, maxWidth: cellWidth * (cell.width <= 1 ? 1 : 2));
-
-        painter.paint(
-          canvas,
-          Offset(rect.left + 1, rect.top + (cellHeight - painter.height) / 2),
+        if (_paintBoxLinesGlyph(
+          canvas: canvas,
+          rect: rect,
+          codepoint: cell.codepoint,
+          glyphClassFlags: glyphFlags,
+          color: fg,
+          cellWidth: cellWidth,
+          cellHeight: cellHeight,
+        )) {
+          continue;
+        }
+        final cacheKey = Object.hash(
+          cell.codepoint,
+          fg.toARGB32(),
+          1,
+          glyphStyle.fontSize,
         );
+        var painter = glyphCache[cacheKey];
+        if (painter == null) {
+          painter = TextPainter(
+            text: TextSpan(
+              text: String.fromCharCode(cell.codepoint),
+              style: glyphStyle.copyWith(color: fg),
+            ),
+            textDirection: TextDirection.ltr,
+            maxLines: 1,
+          )..layout(minWidth: 0, maxWidth: cellWidth);
+          glyphCache[cacheKey] = painter;
+        }
+        final useCellOrigin = _shouldUseCellOrigin(
+          codepoint: cell.codepoint,
+          glyphClassFlags: glyphFlags,
+        );
+        final glyphLeft = useCellOrigin
+            ? rect.left
+            : rect.left + math.max(0.0, (cellWidth - painter.width) / 2);
+        final glyphTop = useCellOrigin
+            ? rect.top
+            : rect.top + (cellHeight - painter.height) / 2;
+        painter.paint(canvas, Offset(glyphLeft, glyphTop));
+      }
+
+      for (final glyph in plan.fallbackGlyphs) {
+        final rect = layout.cellRect(row: row, col: glyph.col);
+        final spanCells = glyph.width <= 1 ? 1 : 2;
+        final maxGlyphWidth = cellWidth * spanCells;
+        final glyphFlags = glyphClassLookup(glyph.codepoint);
+        if (_paintRoundedBoxCornerGlyph(
+          canvas: canvas,
+          rect: Rect.fromLTWH(rect.left, rect.top, maxGlyphWidth, cellHeight),
+          codepoint: glyph.codepoint,
+          color: Color(glyph.fgArgb),
+          cellWidth: maxGlyphWidth,
+          cellHeight: cellHeight,
+        )) {
+          continue;
+        }
+        if (_paintBoxLinesGlyph(
+          canvas: canvas,
+          rect: Rect.fromLTWH(rect.left, rect.top, maxGlyphWidth, cellHeight),
+          codepoint: glyph.codepoint,
+          glyphClassFlags: glyphFlags,
+          color: Color(glyph.fgArgb),
+          cellWidth: maxGlyphWidth,
+          cellHeight: cellHeight,
+        )) {
+          continue;
+        }
+        final cacheKey = Object.hash(
+          glyph.codepoint,
+          glyph.fgArgb,
+          spanCells,
+          glyphStyle.fontSize,
+        );
+        var painter = glyphCache[cacheKey];
+        if (painter == null) {
+          painter = TextPainter(
+            text: TextSpan(
+              text: String.fromCharCode(glyph.codepoint),
+              style: glyphStyle.copyWith(color: Color(glyph.fgArgb)),
+            ),
+            textDirection: TextDirection.ltr,
+            maxLines: 1,
+          )..layout(minWidth: 0, maxWidth: maxGlyphWidth);
+          glyphCache[cacheKey] = painter;
+        }
+        final useCellOrigin = _shouldUseCellOrigin(
+          codepoint: glyph.codepoint,
+          glyphClassFlags: glyphFlags,
+        );
+        final glyphLeft = useCellOrigin
+            ? rect.left
+            : rect.left + math.max(0.0, (maxGlyphWidth - painter.width) / 2);
+        final glyphTop = useCellOrigin
+            ? rect.top
+            : rect.top + (cellHeight - painter.height) / 2;
+        painter.paint(canvas, Offset(glyphLeft, glyphTop));
       }
     }
+    canvas.restore();
 
     if (frame.cursorVisible &&
         frame.cursorRow >= 0 &&
         frame.cursorRow < frame.rows &&
         frame.cursorCol >= 0 &&
         frame.cursorCol < frame.cols) {
-      final cursorRect = Rect.fromLTWH(
-        originX + frame.cursorCol * cellWidth,
-        originY + frame.cursorRow * cellHeight,
-        cellWidth,
-        cellHeight,
+      final cursorRect = layout.cellRect(
+        row: frame.cursorRow,
+        col: frame.cursorCol,
       );
       final cursorPaint = Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5
+        ..strokeWidth = math.max(1.0, 1.5 * layout.scale.clamp(0.8, 1.6))
         ..color = const Color(0xFFFFFFFF);
       canvas.drawRect(cursorRect.deflate(1), cursorPaint);
     }
@@ -850,4 +1052,301 @@ class _ZideTerminalPainter extends CustomPainter {
   bool shouldRepaint(covariant _ZideTerminalPainter oldDelegate) {
     return oldDelegate.frame != frame;
   }
+
+  Rect _snappedRunFillRect({
+    required TerminalPaintLayout layout,
+    required int row,
+    required int startCol,
+    required int endColExclusive,
+  }) {
+    final left = layout.originX + startCol * layout.cellWidth;
+    final top = layout.originY + row * layout.cellHeight;
+    final right = layout.originX + endColExclusive * layout.cellWidth;
+    final bottom = top + layout.cellHeight;
+    return Rect.fromLTRB(
+      left.floorToDouble(),
+      top.floorToDouble(),
+      right.ceilToDouble(),
+      bottom.ceilToDouble(),
+    );
+  }
+
+  bool _isGridCodepoint(int codepoint) {
+    return codepoint >= _boxDrawStart && codepoint <= _gridCharEnd;
+  }
+
+  bool _paintRoundedBoxCornerGlyph({
+    required Canvas canvas,
+    required Rect rect,
+    required int codepoint,
+    required Color color,
+    required double cellWidth,
+    required double cellHeight,
+  }) {
+    if (codepoint != 0x256D &&
+        codepoint != 0x256E &&
+        codepoint != 0x256F &&
+        codepoint != 0x2570) {
+      return false;
+    }
+    final stroke = math.max(2.1, math.min(cellWidth, cellHeight) * 0.19);
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.square
+      ..isAntiAlias = true;
+
+    Rect ovalAt(double cx, double cy) => Rect.fromCenter(
+      center: Offset(cx, cy),
+      width: cellWidth,
+      height: cellHeight,
+    );
+
+    switch (codepoint) {
+      case 0x256D: // ╭ : right + down
+        canvas.drawArc(
+          ovalAt(rect.right, rect.bottom),
+          math.pi,
+          math.pi / 2,
+          false,
+          paint,
+        );
+      case 0x256E: // ╮ : left + down
+        canvas.drawArc(
+          ovalAt(rect.left, rect.bottom),
+          3 * math.pi / 2,
+          math.pi / 2,
+          false,
+          paint,
+        );
+      case 0x256F: // ╯ : left + up
+        canvas.drawArc(
+          ovalAt(rect.left, rect.top),
+          0,
+          math.pi / 2,
+          false,
+          paint,
+        );
+      case 0x2570: // ╰ : right + up
+        canvas.drawArc(
+          ovalAt(rect.right, rect.top),
+          math.pi / 2,
+          math.pi / 2,
+          false,
+          paint,
+        );
+      default:
+        return false;
+    }
+    return true;
+  }
+
+  bool _paintBoxLinesGlyph({
+    required Canvas canvas,
+    required Rect rect,
+    required int codepoint,
+    required int glyphClassFlags,
+    required Color color,
+    required double cellWidth,
+    required double cellHeight,
+  }) {
+    if (!_shouldUseCustomBoxLines(
+      codepoint: codepoint,
+      glyphClassFlags: glyphClassFlags,
+    )) {
+      return false;
+    }
+    final spec = _boxSpecFor(codepoint);
+    if (spec == null) {
+      return false;
+    }
+
+    final base = math.max(1.0, math.min(cellWidth, cellHeight) * 0.09);
+    final light = base;
+    final heavy = math.max(light + 0.75, light * 1.7);
+    final centerX = (rect.left + rect.right) / 2;
+    final centerY = (rect.top + rect.bottom) / 2;
+    final paint = Paint()
+      ..color = color
+      ..isAntiAlias = false
+      ..style = PaintingStyle.fill;
+
+    void fillRect(double left, double top, double right, double bottom) {
+      canvas.drawRect(
+        Rect.fromLTRB(
+          left.floorToDouble(),
+          top.floorToDouble(),
+          right.ceilToDouble(),
+          bottom.ceilToDouble(),
+        ),
+        paint,
+      );
+    }
+
+    if (spec.up) {
+      final t = spec.heavyUp ? heavy : light;
+      fillRect(centerX - t / 2, rect.top, centerX + t / 2, centerY);
+    }
+    if (spec.down) {
+      final t = spec.heavyDown ? heavy : light;
+      fillRect(centerX - t / 2, centerY, centerX + t / 2, rect.bottom);
+    }
+    if (spec.left) {
+      final t = spec.heavyLeft ? heavy : light;
+      fillRect(rect.left, centerY - t / 2, centerX, centerY + t / 2);
+    }
+    if (spec.right) {
+      final t = spec.heavyRight ? heavy : light;
+      fillRect(centerX, centerY - t / 2, rect.right, centerY + t / 2);
+    }
+    return true;
+  }
+
+  bool _shouldUseCustomBoxLines({
+    required int codepoint,
+    required int glyphClassFlags,
+  }) {
+    if (glyphClassFlags != 0) {
+      final isBox =
+          (glyphClassFlags & ZideTerminalFfiBridge.glyphClassBox) != 0;
+      final isRounded =
+          (glyphClassFlags & ZideTerminalFfiBridge.glyphClassBoxRounded) != 0;
+      return isBox && !isRounded && codepoint <= _boxDrawHardEnd;
+    }
+    return codepoint >= _boxDrawStart && codepoint <= _boxDrawHardEnd;
+  }
+
+  bool _shouldUseCellOrigin({
+    required int codepoint,
+    required int glyphClassFlags,
+  }) {
+    if (glyphClassFlags != 0) {
+      return (glyphClassFlags &
+              (ZideTerminalFfiBridge.glyphClassBoxRounded |
+                  ZideTerminalFfiBridge.glyphClassGraph |
+                  ZideTerminalFfiBridge.glyphClassBraille |
+                  ZideTerminalFfiBridge.glyphClassPowerline |
+                  ZideTerminalFfiBridge.glyphClassPowerlineRounded)) !=
+          0;
+    }
+    return _isGridCodepoint(codepoint);
+  }
+
+  _BoxSpec? _boxSpecFor(int codepoint) {
+    return switch (codepoint) {
+      0x2500 => const _BoxSpec(left: true, right: true),
+      0x2501 => const _BoxSpec(
+        left: true,
+        right: true,
+        heavyLeft: true,
+        heavyRight: true,
+      ),
+      0x2502 => const _BoxSpec(up: true, down: true),
+      0x2503 => const _BoxSpec(
+        up: true,
+        down: true,
+        heavyUp: true,
+        heavyDown: true,
+      ),
+      0x250C => const _BoxSpec(right: true, down: true),
+      0x250F => const _BoxSpec(
+        right: true,
+        down: true,
+        heavyRight: true,
+        heavyDown: true,
+      ),
+      0x2510 => const _BoxSpec(left: true, down: true),
+      0x2513 => const _BoxSpec(
+        left: true,
+        down: true,
+        heavyLeft: true,
+        heavyDown: true,
+      ),
+      0x2514 => const _BoxSpec(up: true, right: true),
+      0x2517 => const _BoxSpec(
+        up: true,
+        right: true,
+        heavyUp: true,
+        heavyRight: true,
+      ),
+      0x2518 => const _BoxSpec(up: true, left: true),
+      0x251B => const _BoxSpec(
+        up: true,
+        left: true,
+        heavyUp: true,
+        heavyLeft: true,
+      ),
+      0x251C => const _BoxSpec(up: true, down: true, right: true),
+      0x2523 => const _BoxSpec(
+        up: true,
+        down: true,
+        right: true,
+        heavyUp: true,
+        heavyDown: true,
+        heavyRight: true,
+      ),
+      0x2524 => const _BoxSpec(up: true, down: true, left: true),
+      0x252B => const _BoxSpec(
+        up: true,
+        down: true,
+        left: true,
+        heavyUp: true,
+        heavyDown: true,
+        heavyLeft: true,
+      ),
+      0x252C => const _BoxSpec(left: true, right: true, down: true),
+      0x2533 => const _BoxSpec(
+        left: true,
+        right: true,
+        down: true,
+        heavyLeft: true,
+        heavyRight: true,
+        heavyDown: true,
+      ),
+      0x2534 => const _BoxSpec(left: true, right: true, up: true),
+      0x253B => const _BoxSpec(
+        left: true,
+        right: true,
+        up: true,
+        heavyLeft: true,
+        heavyRight: true,
+        heavyUp: true,
+      ),
+      0x253C => const _BoxSpec(up: true, down: true, left: true, right: true),
+      0x254B => const _BoxSpec(
+        up: true,
+        down: true,
+        left: true,
+        right: true,
+        heavyUp: true,
+        heavyDown: true,
+        heavyLeft: true,
+        heavyRight: true,
+      ),
+      _ => null,
+    };
+  }
+}
+
+class _BoxSpec {
+  const _BoxSpec({
+    this.up = false,
+    this.down = false,
+    this.left = false,
+    this.right = false,
+    this.heavyUp = false,
+    this.heavyDown = false,
+    this.heavyLeft = false,
+    this.heavyRight = false,
+  });
+
+  final bool up;
+  final bool down;
+  final bool left;
+  final bool right;
+  final bool heavyUp;
+  final bool heavyDown;
+  final bool heavyLeft;
+  final bool heavyRight;
 }

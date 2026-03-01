@@ -47,22 +47,46 @@ class ZideTerminalSessionController {
       cellHeight: cellHeight,
     );
     bridge.feedOutput(handle, utf8.encode('\x1b]0;zide-migration\x07'));
-    return ZideTerminalSessionController._(
+    final session = ZideTerminalSessionController._(
       bridge: bridge,
       handle: handle,
       libraryPath: bridge.libraryPath,
     );
+    session._rows = rows;
+    session._cols = cols;
+    return session;
   }
 
   final ZideTerminalFfiBridge bridge;
   final Pointer<ZideTerminalHandle> handle;
   final String libraryPath;
   bool _shellStarted = false;
+  int _rows = 18;
+  int _cols = 72;
 
   bool get shellStarted => _shellStarted;
+  int get rows => _rows;
+  int get cols => _cols;
 
   void dispose() {
     bridge.destroy(handle);
+  }
+
+  void resize({
+    required int rows,
+    required int cols,
+    required int cellWidth,
+    required int cellHeight,
+  }) {
+    _rows = rows;
+    _cols = cols;
+    bridge.resize(
+      handle,
+      cols: cols,
+      rows: rows,
+      cellWidth: cellWidth,
+      cellHeight: cellHeight,
+    );
   }
 
   ZideTerminalPollResult pollFrame() {

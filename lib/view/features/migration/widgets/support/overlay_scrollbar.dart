@@ -12,6 +12,7 @@ class OverlayScrollbar extends StatelessWidget {
     this.onStepUp,
     this.onStepDown,
     this.width = 18,
+    this.reverse = false,
   });
 
   final double viewportExtent;
@@ -21,6 +22,7 @@ class OverlayScrollbar extends StatelessWidget {
   final VoidCallback? onStepUp;
   final VoidCallback? onStepDown;
   final double width;
+  final bool reverse;
 
   @override
   Widget build(BuildContext context) {
@@ -61,8 +63,12 @@ class OverlayScrollbar extends StatelessWidget {
                   trackHeight,
                 );
                 final travel = math.max(0.0, trackHeight - thumbHeight);
+                final progress = enabled && maxOffset > 0
+                    ? (effectiveOffset / maxOffset).clamp(0.0, 1.0)
+                    : 0.0;
+                final visualProgress = reverse ? (1.0 - progress) : progress;
                 final thumbTop = enabled && travel > 0
-                    ? (effectiveOffset / maxOffset) * travel
+                    ? visualProgress * travel
                     : 0.0;
 
                 void jumpToLocalY(double localY) {
@@ -73,7 +79,9 @@ class OverlayScrollbar extends StatelessWidget {
                     0.0,
                     travel,
                   );
-                  final next = (centered / travel) * maxOffset;
+                  final visual = centered / travel;
+                  final logical = reverse ? (1.0 - visual) : visual;
+                  final next = logical * maxOffset;
                   onOffsetChanged(next);
                 }
 
@@ -81,17 +89,8 @@ class OverlayScrollbar extends StatelessWidget {
                   behavior: HitTestBehavior.opaque,
                   onTapDown: (details) =>
                       jumpToLocalY(details.localPosition.dy),
-                  onVerticalDragUpdate: (details) {
-                    if (!enabled || travel <= 0) {
-                      return;
-                    }
-                    final deltaOffset = (details.delta.dy / travel) * maxOffset;
-                    final next = (effectiveOffset + deltaOffset).clamp(
-                      0.0,
-                      maxOffset,
-                    );
-                    onOffsetChanged(next);
-                  },
+                  onVerticalDragUpdate: (details) =>
+                      jumpToLocalY(details.localPosition.dy),
                   child: Stack(
                     children: [
                       Positioned.fill(

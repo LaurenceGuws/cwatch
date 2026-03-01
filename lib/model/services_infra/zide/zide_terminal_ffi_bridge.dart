@@ -224,6 +224,23 @@ final class _ZideTerminalStringBuffer extends Struct {
   external Pointer<Void> ctx;
 }
 
+final class ZideTerminalRendererMetadata extends Struct {
+  @Uint32()
+  external int abiVersion;
+
+  @Uint32()
+  external int structSize;
+
+  @Uint32()
+  external int codepoint;
+
+  @Uint32()
+  external int glyphClassFlags;
+
+  @Uint32()
+  external int damagePolicyFlags;
+}
+
 class ZideTerminalChildExitStatusData {
   const ZideTerminalChildExitStatusData({
     required this.code,
@@ -244,6 +261,7 @@ class ZideTerminalSnapshotData {
     required this.cwd,
     required this.cursorRow,
     required this.cursorCol,
+    required this.altActive,
     required this.hasDamage,
   });
 
@@ -255,6 +273,7 @@ class ZideTerminalSnapshotData {
   final String cwd;
   final int cursorRow;
   final int cursorCol;
+  final bool altActive;
   final bool hasDamage;
 }
 
@@ -339,7 +358,29 @@ class ZideTerminalScrollbackData {
   final List<ZideTerminalCellData> cells;
 }
 
+class ZideTerminalRendererMetadataData {
+  const ZideTerminalRendererMetadataData({
+    required this.codepoint,
+    required this.glyphClassFlags,
+    required this.damagePolicyFlags,
+  });
+
+  final int codepoint;
+  final int glyphClassFlags;
+  final int damagePolicyFlags;
+}
+
 class ZideTerminalFfiBridge {
+  static const int glyphClassBox = 1 << 0;
+  static const int glyphClassBoxRounded = 1 << 1;
+  static const int glyphClassGraph = 1 << 2;
+  static const int glyphClassBraille = 1 << 3;
+  static const int glyphClassPowerline = 1 << 4;
+  static const int glyphClassPowerlineRounded = 1 << 5;
+
+  static const int damagePolicyAdvisoryBounds = 1 << 0;
+  static const int damagePolicyFullRedrawSafeDefault = 1 << 1;
+
   ZideTerminalFfiBridge._({
     required DynamicLibrary library,
     required this.libraryPath,
@@ -499,6 +540,14 @@ class ZideTerminalFfiBridge {
          library,
          'zide_terminal_scrollback_abi_version',
        ),
+       _rendererMetadataAbiVersion = _lookupOptionalU32NoArgs(
+         library,
+         'zide_terminal_renderer_metadata_abi_version',
+       ),
+       _rendererMetadata = _lookupOptionalRendererMetadata(
+         library,
+         'zide_terminal_renderer_metadata',
+       ),
        _statusString = library
            .lookupFunction<
              Pointer<Utf8> Function(Int32),
@@ -583,6 +632,9 @@ class ZideTerminalFfiBridge {
   final int Function() _snapshotAbiVersion;
   final int Function() _eventAbiVersion;
   final int Function()? _scrollbackAbiVersion;
+  final int Function()? _rendererMetadataAbiVersion;
+  final int Function(int, Pointer<ZideTerminalRendererMetadata>)?
+  _rendererMetadata;
   final Pointer<Utf8> Function(int) _statusString;
 
   Pointer<ZideTerminalHandle> create({
@@ -698,6 +750,7 @@ class ZideTerminalFfiBridge {
       cwd: _decodeUtf8(value.cwdPtr, value.cwdLen),
       cursorRow: value.cursorRow,
       cursorCol: value.cursorCol,
+      altActive: value.altActive != 0,
       hasDamage: value.hasDamage != 0,
     );
   }
@@ -1060,6 +1113,37 @@ class ZideTerminalFfiBridge {
   int eventAbiVersion() => _eventAbiVersion();
 
   int? scrollbackAbiVersion() => _scrollbackAbiVersion?.call();
+  int? rendererMetadataAbiVersion() => _rendererMetadataAbiVersion?.call();
+
+  bool get supportsRendererMetadataApi => _rendererMetadata != null;
+
+  ZideTerminalRendererMetadataData? rendererMetadata(int codepoint) {
+    final call = _rendererMetadata;
+    if (call == null) {
+      return null;
+    }
+    final out = calloc<ZideTerminalRendererMetadata>();
+    try {
+      out.ref
+        ..abiVersion = rendererMetadataAbiVersion() ?? 1
+        ..structSize = sizeOf<ZideTerminalRendererMetadata>()
+        ..codepoint = codepoint
+        ..glyphClassFlags = 0
+        ..damagePolicyFlags = 0;
+      _throwIfError(
+        call(codepoint, out),
+        operation: 'terminal_renderer_metadata',
+      );
+      final value = out.ref;
+      return ZideTerminalRendererMetadataData(
+        codepoint: value.codepoint,
+        glyphClassFlags: value.glyphClassFlags,
+        damagePolicyFlags: value.damagePolicyFlags,
+      );
+    } finally {
+      calloc.free(out);
+    }
+  }
 
   String statusString(int status) {
     final pointer = _statusString(status);
@@ -1126,6 +1210,18 @@ class ZideTerminalFfiBridge {
   ) {
     try {
       return library.lookupFunction<Uint32 Function(), int Function()>(symbol);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static int Function(int, Pointer<ZideTerminalRendererMetadata>)?
+  _lookupOptionalRendererMetadata(DynamicLibrary library, String symbol) {
+    try {
+      return library.lookupFunction<
+        Int32 Function(Uint32, Pointer<ZideTerminalRendererMetadata>),
+        int Function(int, Pointer<ZideTerminalRendererMetadata>)
+      >(symbol);
     } catch (_) {
       return null;
     }

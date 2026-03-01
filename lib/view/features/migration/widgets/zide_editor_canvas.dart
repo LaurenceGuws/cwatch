@@ -13,6 +13,7 @@ import 'package:cwatch/model/services_infra/zide/zide_editor_ffi_bridge.dart';
 import 'support/editor_caret_layout.dart';
 import 'support/editor_text_navigation.dart';
 import 'support/overlay_scrollbar.dart';
+import 'support/zide_font_defaults.dart';
 
 class ZideEditorCanvas extends StatefulWidget {
   const ZideEditorCanvas({super.key, required this.settingsController});
@@ -1146,7 +1147,8 @@ class _EditorTextWithCaretPainter extends CustomPainter {
   final double lineHeight;
 
   static const TextStyle textStyle = TextStyle(
-    fontFamily: 'JetBrainsMono Nerd Font Mono',
+    fontFamily: ZideFontDefaults.primaryFamily,
+    fontFamilyFallback: [ZideFontDefaults.monoFallbackFamily],
     fontSize: 12,
     height: 1.2,
   );
