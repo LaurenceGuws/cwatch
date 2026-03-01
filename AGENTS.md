@@ -28,7 +28,9 @@ CWatch is a Flutter desktop app with a tabbed workspace shell. Core areas:
 - Add regression coverage for SSH terminal/editor flows and Docker/K8s dashboards when changing those paths.
 
 ## Commit & Pull Request Guidelines
-- Git usage is read‑only for agents (e.g., `git status`, `git log` only).
+- Agents should make incremental commits as they go so each logical step is easy to trace and bisect for regressions.
+- Prefer small, atomic commits scoped to one change theme (for example: one bug fix, one refactor, one test update).
+- Include tests/analyze updates in the same commit when they are directly tied to that code change.
 - Commit messages in this repo are short, lowercase, and descriptive (e.g., “k8s fixed”).
 - PRs should include: change summary, `flutter analyze`/`flutter test` output, and screenshots for UI changes.
 
