@@ -1,10 +1,14 @@
 import 'package:cwatch/model/services_infra/zide/zide_terminal_ffi_bridge.dart';
 
 class TerminalScrollbackController {
-  TerminalScrollbackController();
+  TerminalScrollbackController({this.maxFrames = 400});
+
+  final int maxFrames;
 
   int _scrollOffsetRows = 0;
   ZideTerminalFrameData? _historyFrame;
+  final List<ZideTerminalFrameData> _frames = <ZideTerminalFrameData>[];
+  int? _frameAnchorIndex;
   ZideTerminalFrameData _liveFrame = const ZideTerminalFrameData(
     rows: 0,
     viewportRows: 0,
@@ -15,9 +19,13 @@ class TerminalScrollbackController {
     cells: [],
   );
 
-  bool get isLive => _scrollOffsetRows == 0 && _historyFrame == null;
+  bool get isLive =>
+      _scrollOffsetRows == 0 && _historyFrame == null && _frameAnchorIndex == null;
 
   String modeLabel() {
+    if (_frameAnchorIndex != null) {
+      return 'history(frame=${_frameAnchorIndex! + 1}/${_frames.length})';
+    }
     if (isLive) {
       return 'live';
     }
@@ -27,12 +35,25 @@ class TerminalScrollbackController {
   }
 
   ZideTerminalFrameData effectiveFrame() {
+    if (_frameAnchorIndex != null && _frames.isNotEmpty) {
+      final index = _frameAnchorIndex!.clamp(0, _frames.length - 1);
+      return _frames[index];
+    }
     final source = _historyFrame ?? _liveFrame;
     return _sliceFrame(source, _scrollOffsetRows);
   }
 
   void updateLiveFrame({required ZideTerminalFrameData frame}) {
     _liveFrame = frame;
+    final viewportFrame = _sliceFrame(_liveFrame, 0);
+    _frames.add(viewportFrame);
+    if (_frames.length > maxFrames) {
+      _frames.removeAt(0);
+      if (_frameAnchorIndex != null) {
+        _frameAnchorIndex = (_frameAnchorIndex! - 1).clamp(0, _frames.length - 1);
+      }
+    }
+
     if (!isLive) {
       return;
     }
@@ -41,15 +62,32 @@ class TerminalScrollbackController {
   void scrollUp({int rows = 1}) {
     final source = _historyFrame ?? _liveFrame;
     final max = _maxScrollRows(source);
-    if (max <= 0 || rows <= 0) {
+    if (rows <= 0) {
       return;
     }
+    if (max <= 0) {
+      if (_frames.length < 2) {
+        return;
+      }
+      final anchor = _frameAnchorIndex ?? (_frames.length - 1);
+      _frameAnchorIndex = (anchor - 1).clamp(0, _frames.length - 1);
+      return;
+    }
+    _frameAnchorIndex = null;
     _historyFrame ??= _liveFrame;
     _scrollOffsetRows = (_scrollOffsetRows + rows).clamp(0, max);
   }
 
   void scrollDown({int rows = 1}) {
-    if (isLive || rows <= 0) {
+    if (rows <= 0) {
+      return;
+    }
+    if (_frameAnchorIndex != null) {
+      final next = (_frameAnchorIndex! + 1).clamp(0, _frames.length - 1);
+      _frameAnchorIndex = next == _frames.length - 1 ? null : next;
+      return;
+    }
+    if (isLive) {
       return;
     }
     _scrollOffsetRows = (_scrollOffsetRows - rows).clamp(0, 1 << 30);
@@ -61,6 +99,7 @@ class TerminalScrollbackController {
   void scrollLive() {
     _historyFrame = null;
     _scrollOffsetRows = 0;
+    _frameAnchorIndex = null;
   }
 
   int _maxScrollRows(ZideTerminalFrameData frame) {

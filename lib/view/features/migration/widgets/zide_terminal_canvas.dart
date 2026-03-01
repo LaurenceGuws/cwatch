@@ -580,8 +580,7 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
               ],
             ),
           ),
-          SizedBox(
-            height: 320,
+          Expanded(
             child: KeyboardListener(
               focusNode: _focusNode,
               onKeyEvent: _onKeyEvent,
@@ -589,9 +588,9 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
                 onPointerSignal: (signal) {
                   if (signal is PointerScrollEvent) {
                     if (signal.scrollDelta.dy > 0) {
-                      _historyDown(rows: 3);
-                    } else if (signal.scrollDelta.dy < 0) {
                       _historyUp(rows: 3);
+                    } else if (signal.scrollDelta.dy < 0) {
+                      _historyDown(rows: 3);
                     }
                   }
                 },

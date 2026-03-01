@@ -128,4 +128,32 @@ void main() {
     expect(after.cells.last.codepoint, pinned.cells.last.codepoint);
     expect(controller.modeLabel(), 'history(rows=4/8)');
   });
+
+  test('falls back to frame history when no row scrollback is available', () {
+    final controller = TerminalScrollbackController(maxFrames: 8);
+    controller.updateLiveFrame(
+      frame: _frame(
+        totalRows: 4,
+        viewportRows: 4,
+        cols: 2,
+        cursorRow: 3,
+        cursorCol: 0,
+      ),
+    );
+    controller.updateLiveFrame(
+      frame: _frame(
+        totalRows: 4,
+        viewportRows: 4,
+        cols: 2,
+        cursorRow: 2,
+        cursorCol: 0,
+      ),
+    );
+
+    controller.scrollUp(rows: 2);
+    expect(controller.modeLabel().startsWith('history(frame='), isTrue);
+    final history = controller.effectiveFrame();
+    expect(history.rows, 4);
+    expect(history.viewportRows, 4);
+  });
 }

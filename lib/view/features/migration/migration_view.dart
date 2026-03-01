@@ -30,7 +30,7 @@ class MigrationView extends StatefulWidget {
 class _MigrationViewState extends State<MigrationView> {
   bool _running = false;
   bool _quietRegression = true;
-  bool _suspendPageScroll = false;
+  int _canvasTab = 0;
   String _output = 'No migration checks run yet.';
   String _exportStatus = 'No report exported yet.';
 
@@ -132,208 +132,240 @@ class _MigrationViewState extends State<MigrationView> {
               enableWindowDrag: !settings.windowUseSystemDecorations,
             ),
             Expanded(
-              child: ListView(
-                physics: _suspendPageScroll
-                    ? const NeverScrollableScrollPhysics()
-                    : null,
+              child: Padding(
                 padding: spacing.inset(horizontal: 1.5, vertical: 1),
-                children: [
-                  Card(
-                    child: Padding(
-                      padding: spacing.inset(horizontal: 1.5, vertical: 1),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Experimental backend status',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          SizedBox(height: spacing.sm),
-                          SelectableText(
-                            'enabled=${config.enabled}\n'
-                            'terminal_lib=$terminalPath\n'
-                            'editor_lib=$editorPath',
-                          ),
-                        ],
+                child: Column(
+                  children: [
+                    Card(
+                      child: Padding(
+                        padding: spacing.inset(horizontal: 1.5, vertical: 1),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Experimental backend status',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            SizedBox(height: spacing.sm),
+                            SelectableText(
+                              'enabled=${config.enabled}\n'
+                              'terminal_lib=$terminalPath\n'
+                              'editor_lib=$editorPath',
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  SizedBox(height: spacing.sm),
-                  Card(
-                    child: Padding(
-                      padding: spacing.inset(horizontal: 1.5, vertical: 1),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Terminal Widget Prototype',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          SizedBox(height: spacing.sm),
-                          ZideTerminalCanvas(
-                            settingsController: widget.settingsController,
-                            onPointerHoverChanged: (hovering) {
-                              if (!mounted || _suspendPageScroll == hovering) {
-                                return;
-                              }
-                              setState(() {
-                                _suspendPageScroll = hovering;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: spacing.sm),
-                  Card(
-                    child: Padding(
-                      padding: spacing.inset(horizontal: 1.5, vertical: 1),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Editor Widget Prototype',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          SizedBox(height: spacing.sm),
-                          ZideEditorCanvas(
-                            settingsController: widget.settingsController,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: spacing.sm),
-                  Card(
-                    child: Padding(
-                      padding: spacing.inset(horizontal: 1.5, vertical: 1),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Wrap(
-                            spacing: spacing.sm,
-                            runSpacing: spacing.sm,
-                            children: [
-                              FilledButton.icon(
-                                onPressed: _running
-                                    ? null
-                                    : () => _runTask(
-                                        widget.zideFfiSmokeService.runSmoke,
-                                      ),
-                                icon: const Icon(Icons.science_outlined),
-                                label: const Text('Run full smoke'),
-                              ),
-                              FilledButton.icon(
-                                onPressed: _running
-                                    ? null
-                                    : () => _runTask(
-                                        () => widget.zideFfiSmokeService
-                                            .runSanityCheck(
-                                              quiet: _quietRegression,
-                                            ),
-                                      ),
-                                icon: const Icon(Icons.verified_outlined),
-                                label: const Text('Run sanity'),
-                              ),
-                              FilledButton.icon(
-                                onPressed: _running
-                                    ? null
-                                    : () => _runTask(
-                                        () => widget.zideFfiSmokeService
-                                            .runRegressionPack(
-                                              quiet: _quietRegression,
-                                            ),
-                                      ),
-                                icon: const Icon(Icons.fact_check_outlined),
-                                label: const Text('Run regression pack'),
-                              ),
-                              OutlinedButton.icon(
-                                onPressed: _running
-                                    ? null
-                                    : () => _runTask(
-                                        widget
-                                            .zideFfiSmokeService
-                                            .runTerminalSmokeOnly,
-                                      ),
-                                icon: const Icon(Icons.terminal),
-                                label: const Text('Terminal smoke'),
-                              ),
-                              OutlinedButton.icon(
-                                onPressed: _running
-                                    ? null
-                                    : () => _runTask(
-                                        widget
-                                            .zideFfiSmokeService
-                                            .runEditorSmokeOnly,
-                                      ),
-                                icon: const Icon(Icons.code),
-                                label: const Text('Editor smoke'),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: spacing.sm),
-                          Row(
-                            children: [
-                              Switch(
-                                value: _quietRegression,
-                                onChanged: _running
-                                    ? null
-                                    : (value) {
-                                        setState(() {
-                                          _quietRegression = value;
-                                        });
-                                      },
-                              ),
-                              const SizedBox(width: 8),
-                              const Expanded(
-                                child: Text(
-                                  'Quiet regression mode (reduced terminal lifecycle verbosity)',
+                    SizedBox(height: spacing.sm),
+                    Card(
+                      child: Padding(
+                        padding: spacing.inset(horizontal: 1.5, vertical: 1),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Wrap(
+                              spacing: spacing.sm,
+                              runSpacing: spacing.sm,
+                              children: [
+                                FilledButton.icon(
+                                  onPressed: _running
+                                      ? null
+                                      : () => _runTask(
+                                          widget.zideFfiSmokeService.runSmoke,
+                                        ),
+                                  icon: const Icon(Icons.science_outlined),
+                                  label: const Text('Run full smoke'),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
+                                FilledButton.icon(
+                                  onPressed: _running
+                                      ? null
+                                      : () => _runTask(
+                                          () => widget.zideFfiSmokeService
+                                              .runSanityCheck(
+                                                quiet: _quietRegression,
+                                              ),
+                                        ),
+                                  icon: const Icon(Icons.verified_outlined),
+                                  label: const Text('Run sanity'),
+                                ),
+                                FilledButton.icon(
+                                  onPressed: _running
+                                      ? null
+                                      : () => _runTask(
+                                          () => widget.zideFfiSmokeService
+                                              .runRegressionPack(
+                                                quiet: _quietRegression,
+                                              ),
+                                        ),
+                                  icon: const Icon(Icons.fact_check_outlined),
+                                  label: const Text('Run regression pack'),
+                                ),
+                                OutlinedButton.icon(
+                                  onPressed: _running
+                                      ? null
+                                      : () => _runTask(
+                                          widget
+                                              .zideFfiSmokeService
+                                              .runTerminalSmokeOnly,
+                                        ),
+                                  icon: const Icon(Icons.terminal),
+                                  label: const Text('Terminal smoke'),
+                                ),
+                                OutlinedButton.icon(
+                                  onPressed: _running
+                                      ? null
+                                      : () => _runTask(
+                                          widget.zideFfiSmokeService
+                                              .runEditorSmokeOnly,
+                                        ),
+                                  icon: const Icon(Icons.code),
+                                  label: const Text('Editor smoke'),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: spacing.sm),
+                            Row(
+                              children: [
+                                Switch(
+                                  value: _quietRegression,
+                                  onChanged: _running
+                                      ? null
+                                      : (value) {
+                                          setState(() {
+                                            _quietRegression = value;
+                                          });
+                                        },
+                                ),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text(
+                                    'Quiet regression mode (reduced terminal lifecycle verbosity)',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  SizedBox(height: spacing.sm),
-                  Card(
-                    child: Padding(
-                      padding: spacing.inset(horizontal: 1.5, vertical: 1),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Output',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          SizedBox(height: spacing.sm),
-                          Row(
+                    SizedBox(height: spacing.sm),
+                    Expanded(
+                      child: Card(
+                        child: Padding(
+                          padding: spacing.inset(horizontal: 1.5, vertical: 1),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              OutlinedButton.icon(
-                                onPressed: _exportOutput,
-                                icon: const Icon(Icons.download_outlined),
-                                label: const Text('Export output'),
+                              Text(
+                                'Canvas Workspace',
+                                style: Theme.of(context).textTheme.titleMedium,
                               ),
-                              const SizedBox(width: 12),
+                              SizedBox(height: spacing.sm),
+                              SegmentedButton<int>(
+                                segments: const [
+                                  ButtonSegment<int>(
+                                    value: 0,
+                                    icon: Icon(Icons.terminal),
+                                    label: Text('Terminal'),
+                                  ),
+                                  ButtonSegment<int>(
+                                    value: 1,
+                                    icon: Icon(Icons.code),
+                                    label: Text('Editor'),
+                                  ),
+                                  ButtonSegment<int>(
+                                    value: 2,
+                                    icon: Icon(Icons.view_agenda_outlined),
+                                    label: Text('Split'),
+                                  ),
+                                ],
+                                selected: {_canvasTab},
+                                onSelectionChanged: (selection) {
+                                  setState(() {
+                                    _canvasTab = selection.first;
+                                  });
+                                },
+                              ),
+                              SizedBox(height: spacing.sm),
                               Expanded(
-                                child: Text(
-                                  _exportStatus,
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+                                child: _canvasTab == 0
+                                    ? ZideTerminalCanvas(
+                                        settingsController:
+                                            widget.settingsController,
+                                      )
+                                    : _canvasTab == 1
+                                    ? ZideEditorCanvas(
+                                        settingsController:
+                                            widget.settingsController,
+                                      )
+                                    : Column(
+                                        children: [
+                                          Expanded(
+                                            child: ZideTerminalCanvas(
+                                              settingsController:
+                                                  widget.settingsController,
+                                            ),
+                                          ),
+                                          SizedBox(height: spacing.sm),
+                                          Expanded(
+                                            child: ZideEditorCanvas(
+                                              settingsController:
+                                                  widget.settingsController,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: spacing.sm),
+                    SizedBox(
+                      height: 180,
+                      child: Card(
+                        child: Padding(
+                          padding: spacing.inset(horizontal: 1.5, vertical: 1),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Output',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              SizedBox(height: spacing.sm),
+                              Row(
+                                children: [
+                                  OutlinedButton.icon(
+                                    onPressed: _exportOutput,
+                                    icon: const Icon(Icons.download_outlined),
+                                    label: const Text('Export output'),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      _exportStatus,
+                                      style: Theme.of(context).textTheme.bodySmall,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: spacing.sm),
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  child: SelectableText(_output),
                                 ),
                               ),
                             ],
                           ),
-                          SizedBox(height: spacing.sm),
-                          SelectableText(_output),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
