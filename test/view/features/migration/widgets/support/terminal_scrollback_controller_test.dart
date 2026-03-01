@@ -130,39 +130,8 @@ void main() {
     expect(controller.modeLabel(), 'history(rows=4/8)');
   });
 
-  test('falls back to line history when no row scrollback is available', () {
-    final controller = TerminalScrollbackController(maxFrames: 8);
-    controller.updateLiveFrame(
-      frame: _frame(
-        totalRows: 4,
-        viewportRows: 4,
-        cols: 2,
-        cursorRow: 3,
-        cursorCol: 0,
-        seed: 0,
-      ),
-    );
-    controller.updateLiveFrame(
-      frame: _frame(
-        totalRows: 4,
-        viewportRows: 4,
-        cols: 2,
-        cursorRow: 2,
-        cursorCol: 0,
-        seed: 1,
-      ),
-    );
-
-    controller.scrollUp(rows: 2);
-    expect(controller.modeLabel().startsWith('history(lines='), isTrue);
-    final history = controller.effectiveFrame();
-    expect(history.rows, 4);
-    expect(history.viewportRows, 4);
-    expect(history.cursorVisible, isFalse);
-  });
-
-  test('identical fallback viewport snapshots do not create fake history', () {
-    final controller = TerminalScrollbackController(maxFrames: 8);
+  test('scroll up is a no-op when frame has no extra rows', () {
+    final controller = TerminalScrollbackController();
     final frame = _frame(
       totalRows: 4,
       viewportRows: 4,
@@ -171,9 +140,9 @@ void main() {
       cursorCol: 0,
     );
     controller.updateLiveFrame(frame: frame);
-    controller.updateLiveFrame(frame: frame);
     controller.scrollUp(rows: 3);
-    // Only identical viewport content has been observed; no line growth.
+
     expect(controller.modeLabel(), 'live');
+    expect(controller.isLive, isTrue);
   });
 }

@@ -60,7 +60,6 @@ class ZideTerminalSessionController {
   bool _shellStarted = false;
 
   bool get shellStarted => _shellStarted;
-  bool get supportsNativeScrollback => bridge.supportsScrollbackApi;
 
   void dispose() {
     bridge.destroy(handle);
