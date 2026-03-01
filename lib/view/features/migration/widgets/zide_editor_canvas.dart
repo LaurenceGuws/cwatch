@@ -666,12 +666,18 @@ class _EditorTextWithCaretPainter extends CustomPainter {
         );
         final left = math.min(leftCaret.dx, rightCaret.dx);
         final right = math.max(leftCaret.dx, rightCaret.dx);
-        if (right - left < 1) {
-          continue;
-        }
         final top = leftCaret.dy;
         final bottom = top + layout.lineHeight;
-        final rect = Rect.fromLTRB(left, top, right, bottom);
+        final rect = (right - left < 1)
+            // Empty selected lines/newline-only slices have no visual width.
+            // Render a small first-cell stub so selection remains visible.
+            ? Rect.fromLTWH(
+                0,
+                top,
+                math.max(6.0, layout.lineHeight * 0.42),
+                layout.lineHeight,
+              )
+            : Rect.fromLTRB(left, top, right, bottom);
         canvas.drawRect(rect, selectionFill);
       }
     }
