@@ -661,175 +661,200 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: scheme.outlineVariant),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_status, style: Theme.of(context).textTheme.bodySmall),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+    return LayoutBuilder(
+      builder: (context, rootConstraints) {
+        final compactHeader = rootConstraints.maxHeight < 300;
+        return Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                OutlinedButton(
-                  onPressed: _focusKeyboard,
-                  child: const Text('Focus keyboard'),
+                SelectableText(
+                  _status,
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
-                OutlinedButton(
-                  onPressed: _reloadMainZig,
-                  child: const Text('Reload main.zig'),
-                ),
-                OutlinedButton(onPressed: _undo, child: const Text('Undo')),
-                OutlinedButton(onPressed: _redo, child: const Text('Redo')),
-              ],
-            ),
-            const SizedBox(height: 8),
-            SelectableText(
-              'state: lines=$_lineCount primary=$_primaryCaret aux=$_auxCount '
-              'matches=$_matchCount active=$_activeMatch '
-              'selection=${_selectionRange() == null ? 'none' : '${_selectionRange()!.start}-${_selectionRange()!.end}'}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 4),
-            SelectableText(
-              _keyStatus,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 4),
-            SelectableText(
-              'shortcuts: ctrl+z/ctrl+y redo, ctrl+a, arrows, ctrl+left/right words, shift+arrows select, home/end, pageup/down, ctrl+home/end(viewport)',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: Focus(
-                focusNode: _focusNode,
-                onKeyEvent: (_, event) {
-                  return _onEditorKeyEvent(event)
-                      ? KeyEventResult.handled
-                      : KeyEventResult.ignored;
-                },
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final viewportContentWidth = (constraints.maxWidth - 16)
-                        .clamp(1.0, double.infinity)
-                        .toDouble();
-                    final contentWidth = _measureContentWidth(
-                      text: _text,
-                      textScaler: MediaQuery.textScalerOf(context),
-                      minWidth: viewportContentWidth,
-                    );
-                    _editorContentWidth = contentWidth;
-                    final lineHeight =
-                        12 * 1.2 * MediaQuery.textScalerOf(context).scale(1.0);
-                    final contentHeight = math
-                        .max(
-                          120,
-                          (_text.split('\n').length + 1) * lineHeight + 16,
-                        )
-                        .toDouble();
-                    return Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: scheme.outlineVariant),
-                        borderRadius: BorderRadius.circular(6),
-                        color: Colors.black.withValues(alpha: 0.82),
+                const SizedBox(height: 6),
+                if (!compactHeader)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      OutlinedButton(
+                        onPressed: _focusKeyboard,
+                        child: const Text('Focus keyboard'),
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: Listener(
-                          onPointerSignal: (signal) {
-                            if (signal is! PointerScrollEvent) {
-                              return;
-                            }
-                            if (!_horizontalScrollController.hasClients) {
-                              return;
-                            }
-                            var deltaX = signal.scrollDelta.dx;
-                            if (deltaX == 0 &&
-                                HardwareKeyboard.instance.isShiftPressed) {
-                              deltaX = signal.scrollDelta.dy;
-                            }
-                            if (deltaX == 0) {
-                              return;
-                            }
-                            final position =
-                                _horizontalScrollController.position;
-                            final target = (position.pixels + deltaX).clamp(
-                              position.minScrollExtent,
-                              position.maxScrollExtent,
-                            );
-                            _horizontalScrollController.jumpTo(
-                              target.toDouble(),
-                            );
-                          },
-                          child: Scrollbar(
-                            controller: _horizontalScrollController,
-                            thumbVisibility: true,
-                            notificationPredicate: (notification) =>
-                                notification.metrics.axis == Axis.horizontal,
-                            child: SingleChildScrollView(
-                              controller: _horizontalScrollController,
-                              scrollDirection: Axis.horizontal,
-                              child: SizedBox(
-                                width: contentWidth + 16,
-                                child: Scrollbar(
-                                  controller: _verticalScrollController,
-                                  thumbVisibility: true,
-                                  child: SingleChildScrollView(
-                                    controller: _verticalScrollController,
-                                    padding: const EdgeInsets.all(8),
-                                    child: GestureDetector(
-                                      behavior: HitTestBehavior.opaque,
-                                      onTap: _focusKeyboard,
-                                      onTapDown: (details) {
-                                        _focusKeyboard();
-                                        _setCaretFromTap(
-                                          details.localPosition,
-                                          contentWidth,
-                                        );
-                                      },
-                                      onPanStart: (details) {
-                                        _focusKeyboard();
-                                        _updateSelectionFromDrag(
-                                          localPosition: details.localPosition,
-                                          contentWidth: contentWidth,
-                                          start: true,
-                                        );
-                                      },
-                                      onPanUpdate: (details) {
-                                        _updateSelectionFromDrag(
-                                          localPosition: details.localPosition,
-                                          contentWidth: contentWidth,
-                                          start: false,
-                                        );
-                                      },
-                                      onPanEnd: (_) {
-                                        _refresh(revealCaret: true);
-                                      },
-                                      child: CustomPaint(
-                                        painter: _EditorTextWithCaretPainter(
-                                          text: _text,
-                                          primaryOffset: _primaryCaret,
-                                          auxiliaryOffsets: _auxOffsets,
-                                          selectionStart:
-                                              _selectionRange()?.start,
-                                          selectionEnd: _selectionRange()?.end,
-                                          textScaler: MediaQuery.textScalerOf(
-                                            context,
+                      OutlinedButton(
+                        onPressed: _reloadMainZig,
+                        child: const Text('Reload main.zig'),
+                      ),
+                      OutlinedButton(
+                        onPressed: _undo,
+                        child: const Text('Undo'),
+                      ),
+                      OutlinedButton(
+                        onPressed: _redo,
+                        child: const Text('Redo'),
+                      ),
+                    ],
+                  ),
+                if (!compactHeader) const SizedBox(height: 8),
+                if (!compactHeader)
+                  SelectableText(
+                    'state: lines=$_lineCount primary=$_primaryCaret aux=$_auxCount '
+                    'matches=$_matchCount active=$_activeMatch '
+                    'selection=${_selectionRange() == null ? 'none' : '${_selectionRange()!.start}-${_selectionRange()!.end}'}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                if (!compactHeader) const SizedBox(height: 4),
+                SelectableText(
+                  _keyStatus,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                if (!compactHeader) const SizedBox(height: 4),
+                if (!compactHeader)
+                  SelectableText(
+                    'shortcuts: ctrl+z/ctrl+y redo, ctrl+a, arrows, ctrl+left/right words, shift+arrows select, home/end, pageup/down, ctrl+home/end(viewport)',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: Focus(
+                    focusNode: _focusNode,
+                    onKeyEvent: (_, event) {
+                      return _onEditorKeyEvent(event)
+                          ? KeyEventResult.handled
+                          : KeyEventResult.ignored;
+                    },
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final viewportContentWidth = (constraints.maxWidth - 16)
+                            .clamp(1.0, double.infinity)
+                            .toDouble();
+                        final contentWidth = _measureContentWidth(
+                          text: _text,
+                          textScaler: MediaQuery.textScalerOf(context),
+                          minWidth: viewportContentWidth,
+                        );
+                        _editorContentWidth = contentWidth;
+                        final lineHeight =
+                            12 *
+                            1.2 *
+                            MediaQuery.textScalerOf(context).scale(1.0);
+                        final contentHeight = math
+                            .max(
+                              120,
+                              (_text.split('\n').length + 1) * lineHeight + 16,
+                            )
+                            .toDouble();
+                        return Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: scheme.outlineVariant),
+                            borderRadius: BorderRadius.circular(6),
+                            color: Colors.black.withValues(alpha: 0.82),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: Listener(
+                              onPointerSignal: (signal) {
+                                if (signal is! PointerScrollEvent) {
+                                  return;
+                                }
+                                if (!_horizontalScrollController.hasClients) {
+                                  return;
+                                }
+                                var deltaX = signal.scrollDelta.dx;
+                                if (deltaX == 0 &&
+                                    HardwareKeyboard.instance.isShiftPressed) {
+                                  deltaX = signal.scrollDelta.dy;
+                                }
+                                if (deltaX == 0) {
+                                  return;
+                                }
+                                final position =
+                                    _horizontalScrollController.position;
+                                final target = (position.pixels + deltaX).clamp(
+                                  position.minScrollExtent,
+                                  position.maxScrollExtent,
+                                );
+                                _horizontalScrollController.jumpTo(
+                                  target.toDouble(),
+                                );
+                              },
+                              child: Scrollbar(
+                                controller: _horizontalScrollController,
+                                thumbVisibility: true,
+                                notificationPredicate: (notification) =>
+                                    notification.metrics.axis ==
+                                    Axis.horizontal,
+                                child: SingleChildScrollView(
+                                  controller: _horizontalScrollController,
+                                  scrollDirection: Axis.horizontal,
+                                  child: SizedBox(
+                                    width: contentWidth + 16,
+                                    child: Scrollbar(
+                                      controller: _verticalScrollController,
+                                      thumbVisibility: true,
+                                      child: SingleChildScrollView(
+                                        controller: _verticalScrollController,
+                                        padding: const EdgeInsets.all(8),
+                                        child: GestureDetector(
+                                          behavior: HitTestBehavior.opaque,
+                                          onTap: _focusKeyboard,
+                                          onTapDown: (details) {
+                                            _focusKeyboard();
+                                            _setCaretFromTap(
+                                              details.localPosition,
+                                              contentWidth,
+                                            );
+                                          },
+                                          onPanStart: (details) {
+                                            _focusKeyboard();
+                                            _updateSelectionFromDrag(
+                                              localPosition:
+                                                  details.localPosition,
+                                              contentWidth: contentWidth,
+                                              start: true,
+                                            );
+                                          },
+                                          onPanUpdate: (details) {
+                                            _updateSelectionFromDrag(
+                                              localPosition:
+                                                  details.localPosition,
+                                              contentWidth: contentWidth,
+                                              start: false,
+                                            );
+                                          },
+                                          onPanEnd: (_) {
+                                            _refresh(revealCaret: true);
+                                          },
+                                          child: CustomPaint(
+                                            painter:
+                                                _EditorTextWithCaretPainter(
+                                                  text: _text,
+                                                  primaryOffset: _primaryCaret,
+                                                  auxiliaryOffsets: _auxOffsets,
+                                                  selectionStart:
+                                                      _selectionRange()?.start,
+                                                  selectionEnd:
+                                                      _selectionRange()?.end,
+                                                  textScaler:
+                                                      MediaQuery.textScalerOf(
+                                                        context,
+                                                      ),
+                                                ),
+                                            child: SizedBox(
+                                              width: contentWidth,
+                                              height: contentHeight,
+                                            ),
                                           ),
-                                        ),
-                                        child: SizedBox(
-                                          width: contentWidth,
-                                          height: contentHeight,
                                         ),
                                       ),
                                     ),
@@ -838,16 +863,16 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                    );
-                  },
+                        );
+                      },
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
