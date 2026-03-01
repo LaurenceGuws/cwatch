@@ -367,6 +367,12 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
         moveCursor(next: next, baseLabel: 'down', shiftSelect: shift);
         return true;
       }
+      if (logical == LogicalKeyboardKey.escape) {
+        _clearSelection();
+        _keyStatus = 'keyboard: escape (clear selection)';
+        _refresh(revealCaret: true);
+        return true;
+      }
       if (logical == LogicalKeyboardKey.backspace) {
         if (selection != null) {
           bridge.deleteRange(
