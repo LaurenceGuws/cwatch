@@ -999,6 +999,19 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
                                                 }
                                                 _refresh(revealCaret: true);
                                               },
+                                              onLongPressStart: (_) {
+                                                _focusKeyboard();
+                                              },
+                                              onLongPressEnd: (_) {
+                                                _focusKeyboard();
+                                                WidgetsBinding.instance
+                                                    .addPostFrameCallback((_) {
+                                                      if (!mounted) {
+                                                        return;
+                                                      }
+                                                      _focusKeyboard();
+                                                    });
+                                              },
                                               child: CustomPaint(
                                                 painter:
                                                     _EditorTextWithCaretPainter(

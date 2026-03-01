@@ -32,11 +32,17 @@ class ZideTerminalCanvas extends StatefulWidget {
 
 class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
   static const String _logTag = 'ZideMigrationTerminal';
-  static const int _modelCellWidthPx = 8;
-  static const int _modelCellHeightPx = 16;
+  static const int _baseCellWidthPx = 8;
+  static const int _baseCellHeightPx = 16;
+  static const double _zoomMin = 0.75;
+  static const double _zoomMax = 2.5;
+  static const double _zoomStep = 0.1;
   ZideTerminalSessionController? _session;
   Timer? _timer;
   final FocusNode _focusNode = FocusNode(debugLabel: 'zide_terminal_canvas');
+  final FocusNode _commandFocusNode = FocusNode(
+    debugLabel: 'zide_terminal_command',
+  );
   late final TextEditingController _commandController;
 
   String _status = 'Initializing terminal...';
@@ -44,8 +50,11 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
   bool _commandRunning = false;
   bool _followLiveOnInput = true;
   bool _wheelScrollRequiresFocus = false;
+  bool _terminalFocusLocked = false;
+  double _zoom = 1.0;
   bool _altScreenActive = false;
   final Map<int, int> _glyphClassFlagsCache = <int, int>{};
+  final Map<int, int> _pointerButtonByDevice = <int, int>{};
   final TerminalScrollbackController _scrollback =
       TerminalScrollbackController();
   int _pendingWheelHistoryRowsDelta = 0;
@@ -56,11 +65,14 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
   int _wheelLastLogMs = 0;
   int _lastViewportRows = 0;
   int _lastViewportCols = 0;
+  int _lastViewportCellWidthPx = -1;
+  int _lastViewportCellHeightPx = -1;
 
   @override
   void initState() {
     super.initState();
     _focusNode.addListener(_onFocusChanged);
+    _commandFocusNode.addListener(_onCommandFocusChanged);
     _commandController = TextEditingController(
       text: "printf '[{ts}] hello-from-pty\\n'",
     );
@@ -70,6 +82,8 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
   @override
   void dispose() {
     _timer?.cancel();
+    _commandFocusNode.removeListener(_onCommandFocusChanged);
+    _commandFocusNode.dispose();
     _focusNode.removeListener(_onFocusChanged);
     _focusNode.dispose();
     _commandController.dispose();
@@ -82,6 +96,22 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
       'focus=${_focusNode.hasFocus} mode=${_scrollback.modeLabel()}',
       tag: _logTag,
     );
+    if (!_focusNode.hasFocus &&
+        _terminalFocusLocked &&
+        !_commandFocusNode.hasFocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _focusNode.hasFocus || _commandFocusNode.hasFocus) {
+          return;
+        }
+        _focusNode.requestFocus();
+      });
+    }
+  }
+
+  void _onCommandFocusChanged() {
+    if (_commandFocusNode.hasFocus) {
+      _terminalFocusLocked = false;
+    }
   }
 
   void _initTerminal() {
@@ -351,18 +381,43 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
     _commandRunStatus = 'command runner: shell started (interactive)';
   }
 
+  void _ensureTerminalFocus() {
+    if (_focusNode.hasFocus) {
+      return;
+    }
+    _focusNode.requestFocus();
+  }
+
+  void _lockTerminalFocus() {
+    _terminalFocusLocked = true;
+    _ensureTerminalFocus();
+  }
+
+  int get _modelCellWidthPx =>
+      (_baseCellWidthPx * _zoom).round().clamp(4, 64).toInt();
+
+  int get _modelCellHeightPx =>
+      (_baseCellHeightPx * _zoom).round().clamp(8, 128).toInt();
+
   void _syncTerminalViewport(Size size) {
     final session = _session;
     if (session == null) {
       return;
     }
-    final cols = (size.width / _modelCellWidthPx).floor().clamp(20, 800);
-    final rows = (size.height / _modelCellHeightPx).floor().clamp(6, 400);
-    if (cols == _lastViewportCols && rows == _lastViewportRows) {
+    final cellWidth = _modelCellWidthPx;
+    final cellHeight = _modelCellHeightPx;
+    final cols = (size.width / cellWidth).floor().clamp(20, 800);
+    final rows = (size.height / cellHeight).floor().clamp(6, 400);
+    if (cols == _lastViewportCols &&
+        rows == _lastViewportRows &&
+        cellWidth == _lastViewportCellWidthPx &&
+        cellHeight == _lastViewportCellHeightPx) {
       return;
     }
     _lastViewportCols = cols;
     _lastViewportRows = rows;
+    _lastViewportCellWidthPx = cellWidth;
+    _lastViewportCellHeightPx = cellHeight;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final active = _session;
       if (!mounted || active == null) {
@@ -371,10 +426,13 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
       active.resize(
         rows: rows,
         cols: cols,
-        cellWidth: _modelCellWidthPx,
-        cellHeight: _modelCellHeightPx,
+        cellWidth: cellWidth,
+        cellHeight: cellHeight,
       );
-      AppLogger().debug('viewport resize rows=$rows cols=$cols', tag: _logTag);
+      AppLogger().debug(
+        'viewport resize rows=$rows cols=$cols cell=${cellWidth}x$cellHeight zoom=${_zoom.toStringAsFixed(2)}',
+        tag: _logTag,
+      );
       _refresh();
     });
   }
@@ -449,45 +507,35 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
   }
 
   bool _onKeyEvent(KeyEvent event) {
-    if (event is! KeyDownEvent) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return false;
     }
     AppLogger().debug(
       'key down key=${event.logicalKey.keyLabel} focus=${_focusNode.hasFocus} mode=${_scrollback.modeLabel()}',
       tag: _logTag,
     );
+    if (_handleZoomShortcut(event)) {
+      return true;
+    }
     if (_handleHistoryShortcut(event)) {
       return true;
     }
     _ensureShellStarted();
 
+    final keyboard = HardwareKeyboard.instance;
+    final shift = keyboard.isShiftPressed;
+    final alt = keyboard.isAltPressed;
+    final control = keyboard.isControlPressed;
+
     final logical = event.logicalKey;
-    if (logical == LogicalKeyboardKey.enter) {
-      _sendBytes(const [13]);
-      return true;
-    }
-    if (logical == LogicalKeyboardKey.backspace) {
-      _sendBytes(const [127]);
-      return true;
-    }
-    if (logical == LogicalKeyboardKey.tab) {
-      _sendBytes(const [9]);
-      return true;
-    }
-    if (logical == LogicalKeyboardKey.arrowUp) {
-      _sendBytes(const [27, 91, 65]);
-      return true;
-    }
-    if (logical == LogicalKeyboardKey.arrowDown) {
-      _sendBytes(const [27, 91, 66]);
-      return true;
-    }
-    if (logical == LogicalKeyboardKey.arrowRight) {
-      _sendBytes(const [27, 91, 67]);
-      return true;
-    }
-    if (logical == LogicalKeyboardKey.arrowLeft) {
-      _sendBytes(const [27, 91, 68]);
+    final special = _encodeSpecialKey(
+      logical: logical,
+      shift: shift,
+      alt: alt,
+      control: control,
+    );
+    if (special != null) {
+      _sendBytes(special);
       return true;
     }
 
@@ -496,19 +544,193 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
       return false;
     }
 
-    if (HardwareKeyboard.instance.isControlPressed && character.length == 1) {
-      final codeUnit = character.toUpperCase().codeUnitAt(0);
-      if (codeUnit >= 65 && codeUnit <= 90) {
-        _sendBytes([codeUnit - 64]);
-        return true;
+    final ctrlByte = _encodeControlCharacter(
+      character: character,
+      logical: logical,
+      control: control,
+    );
+    if (ctrlByte != null) {
+      final out = <int>[];
+      if (alt) {
+        out.add(27);
       }
+      out.add(ctrlByte);
+      _sendBytes(out);
+      return true;
     }
 
-    _sendBytes(utf8.encode(character));
+    final out = <int>[];
+    if (alt) {
+      out.add(27);
+    }
+    out.addAll(utf8.encode(character));
+    _sendBytes(out);
     return true;
   }
 
-  bool _handleHistoryShortcut(KeyDownEvent event) {
+  bool _handleZoomShortcut(KeyEvent event) {
+    final keyboard = HardwareKeyboard.instance;
+    final control = keyboard.isControlPressed;
+    final alt = keyboard.isAltPressed;
+    if (!control || alt) {
+      return false;
+    }
+    final logical = event.logicalKey;
+    if (logical == LogicalKeyboardKey.minus ||
+        logical == LogicalKeyboardKey.numpadSubtract) {
+      _setZoom(_zoom - _zoomStep);
+      return true;
+    }
+    if (logical == LogicalKeyboardKey.equal ||
+        logical == LogicalKeyboardKey.numpadAdd) {
+      _setZoom(_zoom + _zoomStep);
+      return true;
+    }
+    if (logical == LogicalKeyboardKey.digit0 ||
+        logical == LogicalKeyboardKey.numpad0) {
+      _setZoom(1.0);
+      return true;
+    }
+    return false;
+  }
+
+  void _setZoom(double next) {
+    final clamped = next.clamp(_zoomMin, _zoomMax);
+    if ((clamped - _zoom).abs() < 0.001) {
+      return;
+    }
+    setState(() {
+      _zoom = clamped;
+      _lastViewportCols = 0;
+      _lastViewportRows = 0;
+      _lastViewportCellWidthPx = -1;
+      _lastViewportCellHeightPx = -1;
+    });
+    AppLogger().debug(
+      'zoom set=${_zoom.toStringAsFixed(2)} cell=${_modelCellWidthPx}x$_modelCellHeightPx',
+      tag: _logTag,
+    );
+  }
+
+  int _modifierParam({
+    required bool shift,
+    required bool alt,
+    required bool control,
+  }) {
+    var m = 1;
+    if (shift) {
+      m += 1;
+    }
+    if (alt) {
+      m += 2;
+    }
+    if (control) {
+      m += 4;
+    }
+    return m;
+  }
+
+  List<int>? _encodeSpecialKey({
+    required LogicalKeyboardKey logical,
+    required bool shift,
+    required bool alt,
+    required bool control,
+  }) {
+    final mod = _modifierParam(shift: shift, alt: alt, control: control);
+
+    List<int> csiFinal(int code) {
+      if (mod == 1) {
+        return <int>[27, 91, code];
+      }
+      return utf8.encode('\x1b[1;$mod${String.fromCharCode(code)}');
+    }
+
+    List<int> csiTilde(int n) {
+      if (mod == 1) {
+        return utf8.encode('\x1b[$n~');
+      }
+      return utf8.encode('\x1b[$n;$mod~');
+    }
+
+    if (logical == LogicalKeyboardKey.enter) {
+      return alt ? const <int>[27, 13] : const <int>[13];
+    }
+    if (logical == LogicalKeyboardKey.escape) {
+      return const <int>[27];
+    }
+    if (logical == LogicalKeyboardKey.backspace) {
+      return alt ? const <int>[27, 127] : const <int>[127];
+    }
+    if (logical == LogicalKeyboardKey.tab) {
+      if (shift && mod == 2) {
+        return const <int>[27, 91, 90]; // CSI Z
+      }
+      return alt ? const <int>[27, 9] : const <int>[9];
+    }
+    if (logical == LogicalKeyboardKey.arrowUp) {
+      return csiFinal(65);
+    }
+    if (logical == LogicalKeyboardKey.arrowDown) {
+      return csiFinal(66);
+    }
+    if (logical == LogicalKeyboardKey.arrowRight) {
+      return csiFinal(67);
+    }
+    if (logical == LogicalKeyboardKey.arrowLeft) {
+      return csiFinal(68);
+    }
+    if (logical == LogicalKeyboardKey.home) {
+      return mod == 1 ? const <int>[27, 91, 72] : csiFinal(72);
+    }
+    if (logical == LogicalKeyboardKey.end) {
+      return mod == 1 ? const <int>[27, 91, 70] : csiFinal(70);
+    }
+    if (logical == LogicalKeyboardKey.insert) {
+      return csiTilde(2);
+    }
+    if (logical == LogicalKeyboardKey.delete) {
+      return csiTilde(3);
+    }
+    if (logical == LogicalKeyboardKey.pageUp) {
+      return csiTilde(5);
+    }
+    if (logical == LogicalKeyboardKey.pageDown) {
+      return csiTilde(6);
+    }
+    return null;
+  }
+
+  int? _encodeControlCharacter({
+    required String character,
+    required LogicalKeyboardKey logical,
+    required bool control,
+  }) {
+    if (!control) {
+      return null;
+    }
+    if (logical == LogicalKeyboardKey.space) {
+      return 0x00;
+    }
+    if (character.length != 1) {
+      return null;
+    }
+    final codeUnit = character.codeUnitAt(0);
+    final upper = String.fromCharCode(codeUnit).toUpperCase().codeUnitAt(0);
+    if (upper >= 65 && upper <= 90) {
+      return upper - 64; // Ctrl+A..Ctrl+Z
+    }
+    return switch (codeUnit) {
+      0x40 => 0x00, // Ctrl+@
+      0x5B => 0x1B, // Ctrl+[
+      0x5C => 0x1C, // Ctrl+\
+      0x5D => 0x1D, // Ctrl+]
+      0x5E => 0x1E, // Ctrl+^
+      0x5F => 0x1F, // Ctrl+_
+      _ => null,
+    };
+  }
+
+  bool _handleHistoryShortcut(KeyEvent event) {
     final logical = event.logicalKey;
     final keyboard = HardwareKeyboard.instance;
     final shift = keyboard.isShiftPressed;
@@ -658,7 +880,11 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
                             children: [
                               Expanded(
                                 child: TextField(
+                                  focusNode: _commandFocusNode,
                                   controller: _commandController,
+                                  onTap: () {
+                                    _terminalFocusLocked = false;
+                                  },
                                   style: ZideFontDefaults.applyTo(
                                     const TextStyle(
                                       fontSize: 12,
@@ -708,6 +934,10 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
                         if (_wheelScrollRequiresFocus && !_focusNode.hasFocus) {
                           return;
                         }
+                        if (_altScreenActive) {
+                          _sendMouseWheel(signal);
+                          return;
+                        }
                         final dy = signal.scrollDelta.dy;
                         final steps = (dy.abs() / 24.0).ceil().clamp(1, 8);
                         final rows = steps * 3;
@@ -717,6 +947,36 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
                           _queueWheelHistoryDelta(-rows);
                         }
                       }
+                    },
+                    onPointerDown: (event) {
+                      _lockTerminalFocus();
+                      _sendMouseFromPointer(
+                        event: event,
+                        kind: ZideTerminalFfiBridge.mouseKindPress,
+                        button: _buttonFromButtons(event.buttons),
+                        buttonsDown: _buttonsDownMask(event.buttons),
+                      );
+                    },
+                    onPointerUp: (event) => _sendMouseFromPointer(
+                      event: event,
+                      kind: ZideTerminalFfiBridge.mouseKindRelease,
+                      button:
+                          _pointerButtonByDevice[event.device] ??
+                          ZideTerminalFfiBridge.mouseButtonLeft,
+                      buttonsDown: 0,
+                    ),
+                    onPointerMove: (event) {
+                      if (event.buttons == 0) {
+                        return;
+                      }
+                      _sendMouseFromPointer(
+                        event: event,
+                        kind: ZideTerminalFfiBridge.mouseKindMove,
+                        button:
+                            _pointerButtonByDevice[event.device] ??
+                            _buttonFromButtons(event.buttons),
+                        buttonsDown: _buttonsDownMask(event.buttons),
+                      );
                     },
                     child: LayoutBuilder(
                       builder: (context, constraints) {
@@ -735,9 +995,41 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
                               child: GestureDetector(
                                 behavior: HitTestBehavior.opaque,
                                 onTap: () {
-                                  _focusNode.requestFocus();
+                                  _lockTerminalFocus();
                                   _ensureShellStarted();
                                   _refresh();
+                                },
+                                onLongPressStart: (details) {
+                                  _lockTerminalFocus();
+                                  // Touch long-press maps to right-click press/release.
+                                  final local = details.localPosition;
+                                  _sendMouseSynthetic(
+                                    localPosition: local,
+                                    kind: ZideTerminalFfiBridge.mouseKindPress,
+                                    button:
+                                        ZideTerminalFfiBridge.mouseButtonRight,
+                                    buttonsDown:
+                                        ZideTerminalFfiBridge.mouseButtonRight,
+                                  );
+                                },
+                                onLongPressEnd: (details) {
+                                  _lockTerminalFocus();
+                                  final local = details.localPosition;
+                                  _sendMouseSynthetic(
+                                    localPosition: local,
+                                    kind:
+                                        ZideTerminalFfiBridge.mouseKindRelease,
+                                    button:
+                                        ZideTerminalFfiBridge.mouseButtonRight,
+                                    buttonsDown: 0,
+                                  );
+                                  WidgetsBinding.instance
+                                      .addPostFrameCallback((_) {
+                                        if (!mounted) {
+                                          return;
+                                        }
+                                        _lockTerminalFocus();
+                                      });
                                 },
                                 child: MouseRegion(
                                   onEnter: (_) =>
@@ -820,6 +1112,146 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
       _glyphClassFlagsCache[codepoint] = 0;
       return 0;
     }
+  }
+
+  int _buttonFromButtons(int buttons) {
+    if ((buttons & kPrimaryMouseButton) != 0) {
+      return ZideTerminalFfiBridge.mouseButtonLeft;
+    }
+    if ((buttons & kMiddleMouseButton) != 0) {
+      return ZideTerminalFfiBridge.mouseButtonMiddle;
+    }
+    if ((buttons & kSecondaryMouseButton) != 0) {
+      return ZideTerminalFfiBridge.mouseButtonRight;
+    }
+    return ZideTerminalFfiBridge.mouseButtonNone;
+  }
+
+  int _buttonsDownMask(int buttons) {
+    var down = 0;
+    if ((buttons & kPrimaryMouseButton) != 0) {
+      down |= 1;
+    }
+    if ((buttons & kMiddleMouseButton) != 0) {
+      down |= 2;
+    }
+    if ((buttons & kSecondaryMouseButton) != 0) {
+      down |= 4;
+    }
+    return down;
+  }
+
+  int _modifierMask() {
+    final keyboard = HardwareKeyboard.instance;
+    var mask = 0;
+    if (keyboard.isShiftPressed) {
+      mask |= ZideTerminalFfiBridge.modifierShift;
+    }
+    if (keyboard.isAltPressed) {
+      mask |= ZideTerminalFfiBridge.modifierAlt;
+    }
+    if (keyboard.isControlPressed) {
+      mask |= ZideTerminalFfiBridge.modifierCtrl;
+    }
+    return mask;
+  }
+
+  ({int row, int col, int px, int py}) _mapLocalToTerminal(Offset local) {
+    final x = local.dx.clamp(0.0, _lastViewportCols * _modelCellWidthPx - 1.0);
+    final y = local.dy.clamp(0.0, _lastViewportRows * _modelCellHeightPx - 1.0);
+    final col = (x / _modelCellWidthPx).floor().clamp(0, _lastViewportCols - 1);
+    final row = (y / _modelCellHeightPx).floor().clamp(
+      0,
+      _lastViewportRows - 1,
+    );
+    return (row: row, col: col, px: x.floor(), py: y.floor());
+  }
+
+  void _sendMouseFromPointer({
+    required PointerEvent event,
+    required int kind,
+    required int button,
+    required int buttonsDown,
+  }) {
+    final session = _session;
+    if (session == null || !session.supportsMouseApi) {
+      return;
+    }
+    if (_lastViewportRows <= 0 || _lastViewportCols <= 0) {
+      return;
+    }
+    if (kind == ZideTerminalFfiBridge.mouseKindPress) {
+      _pointerButtonByDevice[event.device] = button;
+    } else if (kind == ZideTerminalFfiBridge.mouseKindRelease) {
+      _pointerButtonByDevice.remove(event.device);
+    }
+    _ensureShellStarted();
+    final mapped = _mapLocalToTerminal(event.localPosition);
+    session.sendMouse(
+      kind: kind,
+      button: button,
+      row: mapped.row,
+      col: mapped.col,
+      pixelX: mapped.px,
+      pixelY: mapped.py,
+      hasPixel: true,
+      modifiers: _modifierMask(),
+      buttonsDown: buttonsDown,
+    );
+  }
+
+  void _sendMouseSynthetic({
+    required Offset localPosition,
+    required int kind,
+    required int button,
+    required int buttonsDown,
+  }) {
+    final session = _session;
+    if (session == null || !session.supportsMouseApi) {
+      return;
+    }
+    if (_lastViewportRows <= 0 || _lastViewportCols <= 0) {
+      return;
+    }
+    _ensureShellStarted();
+    final mapped = _mapLocalToTerminal(localPosition);
+    session.sendMouse(
+      kind: kind,
+      button: button,
+      row: mapped.row,
+      col: mapped.col,
+      pixelX: mapped.px,
+      pixelY: mapped.py,
+      hasPixel: true,
+      modifiers: _modifierMask(),
+      buttonsDown: buttonsDown,
+    );
+  }
+
+  void _sendMouseWheel(PointerScrollEvent event) {
+    final session = _session;
+    if (session == null || !session.supportsMouseApi) {
+      return;
+    }
+    if (_lastViewportRows <= 0 || _lastViewportCols <= 0) {
+      return;
+    }
+    _ensureShellStarted();
+    final mapped = _mapLocalToTerminal(event.localPosition);
+    final button = event.scrollDelta.dy < 0
+        ? ZideTerminalFfiBridge.mouseButtonWheelUp
+        : ZideTerminalFfiBridge.mouseButtonWheelDown;
+    session.sendMouse(
+      kind: ZideTerminalFfiBridge.mouseKindWheel,
+      button: button,
+      row: mapped.row,
+      col: mapped.col,
+      pixelX: mapped.px,
+      pixelY: mapped.py,
+      hasPixel: true,
+      modifiers: _modifierMask(),
+      buttonsDown: _buttonsDownMask(event.buttons),
+    );
   }
 }
 
@@ -913,6 +1345,15 @@ class _ZideTerminalPainter extends CustomPainter {
         final rect = layout.cellRect(row: row, col: col);
         final fg = _toColor(cell.fg, fallback: const Color(0xFFDDDDDD));
         final glyphFlags = glyphClassLookup(cell.codepoint);
+        if (_paintGraphGlyph(
+          canvas: canvas,
+          rect: rect,
+          codepoint: cell.codepoint,
+          glyphClassFlags: glyphFlags,
+          color: fg,
+        )) {
+          continue;
+        }
         if (_paintRoundedBoxCornerGlyph(
           canvas: canvas,
           rect: rect,
@@ -970,6 +1411,15 @@ class _ZideTerminalPainter extends CustomPainter {
         final spanCells = glyph.width <= 1 ? 1 : 2;
         final maxGlyphWidth = cellWidth * spanCells;
         final glyphFlags = glyphClassLookup(glyph.codepoint);
+        if (_paintGraphGlyph(
+          canvas: canvas,
+          rect: Rect.fromLTWH(rect.left, rect.top, maxGlyphWidth, cellHeight),
+          codepoint: glyph.codepoint,
+          glyphClassFlags: glyphFlags,
+          color: Color(glyph.fgArgb),
+        )) {
+          continue;
+        }
         if (_paintRoundedBoxCornerGlyph(
           canvas: canvas,
           rect: Rect.fromLTWH(rect.left, rect.top, maxGlyphWidth, cellHeight),
@@ -1073,6 +1523,188 @@ class _ZideTerminalPainter extends CustomPainter {
 
   bool _isGridCodepoint(int codepoint) {
     return codepoint >= _boxDrawStart && codepoint <= _gridCharEnd;
+  }
+
+  bool _paintGraphGlyph({
+    required Canvas canvas,
+    required Rect rect,
+    required int codepoint,
+    required int glyphClassFlags,
+    required Color color,
+  }) {
+    final inBrailleRange = codepoint >= 0x2800 && codepoint <= 0x28FF;
+    final hasBrailleClass =
+        (glyphClassFlags & ZideTerminalFfiBridge.glyphClassBraille) != 0;
+    if (inBrailleRange || hasBrailleClass) {
+      if (!inBrailleRange) {
+        return false;
+      }
+      final pattern = codepoint - 0x2800;
+      if (pattern == 0) {
+        return true;
+      }
+
+      final paint = Paint()
+        ..color = color
+        ..style = PaintingStyle.fill
+        ..isAntiAlias = false;
+      final w = rect.width;
+      final h = rect.height;
+      final subW = w / 2;
+      final subH = h / 4;
+
+      if (pattern == 0xFF) {
+        canvas.drawRect(
+          Rect.fromLTRB(
+            rect.left.floorToDouble(),
+            rect.top.floorToDouble(),
+            rect.right.ceilToDouble(),
+            rect.bottom.ceilToDouble(),
+          ),
+          paint,
+        );
+        return true;
+      }
+
+      // Braille dot bit ordering:
+      // 1 4
+      // 2 5
+      // 3 6
+      // 7 8
+      const dotGrid = <(int row, int col)>[
+        (0, 0), // bit 0
+        (1, 0), // bit 1
+        (2, 0), // bit 2
+        (0, 1), // bit 3
+        (1, 1), // bit 4
+        (2, 1), // bit 5
+        (3, 0), // bit 6
+        (3, 1), // bit 7
+      ];
+
+      for (var bit = 0; bit < 8; bit++) {
+        if ((pattern & (1 << bit)) == 0) {
+          continue;
+        }
+        final (row, col) = dotGrid[bit];
+        final left = rect.left + (col * subW);
+        final top = rect.top + (row * subH);
+        final right = left + subW;
+        final bottom = top + subH;
+        canvas.drawRect(
+          Rect.fromLTRB(
+            left.floorToDouble(),
+            top.floorToDouble(),
+            right.ceilToDouble(),
+            bottom.ceilToDouble(),
+          ),
+          paint,
+        );
+      }
+      return true;
+    }
+
+    final looksGraph =
+        (glyphClassFlags &
+            (ZideTerminalFfiBridge.glyphClassGraph |
+                ZideTerminalFfiBridge.glyphClassBraille)) !=
+        0;
+    final inBlockRange = codepoint >= 0x2580 && codepoint <= 0x259F;
+    if (!looksGraph && !inBlockRange) {
+      return false;
+    }
+
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = false;
+
+    void fill(double l, double t, double r, double b) {
+      canvas.drawRect(
+        Rect.fromLTRB(
+          l.floorToDouble(),
+          t.floorToDouble(),
+          r.ceilToDouble(),
+          b.ceilToDouble(),
+        ),
+        paint,
+      );
+    }
+
+    final w = rect.width;
+    final h = rect.height;
+
+    if (codepoint >= 0x2581 && codepoint <= 0x2588) {
+      final steps = codepoint - 0x2580; // 1..8
+      final top = rect.bottom - (h * (steps / 8.0));
+      fill(rect.left, top, rect.right, rect.bottom);
+      return true;
+    }
+    if (codepoint == 0x2580) {
+      fill(rect.left, rect.top, rect.right, rect.top + h / 2);
+      return true;
+    }
+    if (codepoint >= 0x2589 && codepoint <= 0x258F) {
+      final steps = 0x2590 - codepoint; // 7..1
+      final right = rect.left + (w * (steps / 8.0));
+      fill(rect.left, rect.top, right, rect.bottom);
+      return true;
+    }
+    if (codepoint == 0x2590) {
+      fill(rect.left + w / 2, rect.top, rect.right, rect.bottom);
+      return true;
+    }
+    if (codepoint == 0x258C) {
+      fill(rect.left, rect.top, rect.left + w / 2, rect.bottom);
+      return true;
+    }
+    if (codepoint == 0x2584) {
+      fill(rect.left, rect.top + h / 2, rect.right, rect.bottom);
+      return true;
+    }
+    if (codepoint == 0x2594) {
+      fill(rect.left, rect.top, rect.right, rect.top + h / 8);
+      return true;
+    }
+    if (codepoint == 0x2595) {
+      fill(rect.right - w / 8, rect.top, rect.right, rect.bottom);
+      return true;
+    }
+
+    // Shade characters as deterministic dither patterns.
+    if (codepoint == 0x2591 || codepoint == 0x2592 || codepoint == 0x2593) {
+      final stepX = math.max(2.0, w / 8).floorToDouble();
+      final stepY = math.max(2.0, h / 8).floorToDouble();
+      final threshold = switch (codepoint) {
+        0x2591 => 1, // 25%
+        0x2592 => 2, // 50%
+        _ => 3, // 75%
+      };
+      var y = rect.top;
+      var row = 0;
+      while (y < rect.bottom) {
+        var x = rect.left;
+        var col = 0;
+        while (x < rect.right) {
+          final parity = (row + col) & 3;
+          if (parity < threshold) {
+            fill(
+              x,
+              y,
+              math.min(x + stepX, rect.right),
+              math.min(y + stepY, rect.bottom),
+            );
+          }
+          x += stepX;
+          col++;
+        }
+        y += stepY;
+        row++;
+      }
+      return true;
+    }
+
+    return false;
   }
 
   bool _paintRoundedBoxCornerGlyph({
