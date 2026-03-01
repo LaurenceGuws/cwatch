@@ -19,10 +19,11 @@ ZideTerminalFrameData _frame({
   required int cols,
   required int cursorRow,
   required int cursorCol,
+  int seed = 0,
 }) {
   final cells = List<ZideTerminalCellData>.generate(
     totalRows * cols,
-    (index) => _cell(65 + (index % 26)),
+    (index) => _cell(65 + ((index + seed) % 26)),
   );
   return ZideTerminalFrameData(
     rows: totalRows,
@@ -138,6 +139,7 @@ void main() {
         cols: 2,
         cursorRow: 3,
         cursorCol: 0,
+        seed: 0,
       ),
     );
     controller.updateLiveFrame(
@@ -147,6 +149,7 @@ void main() {
         cols: 2,
         cursorRow: 2,
         cursorCol: 0,
+        seed: 1,
       ),
     );
 
@@ -155,5 +158,21 @@ void main() {
     final history = controller.effectiveFrame();
     expect(history.rows, 4);
     expect(history.viewportRows, 4);
+  });
+
+  test('deduplicates identical fallback frames to reduce noisy timeline', () {
+    final controller = TerminalScrollbackController(maxFrames: 8);
+    final frame = _frame(
+      totalRows: 4,
+      viewportRows: 4,
+      cols: 2,
+      cursorRow: 3,
+      cursorCol: 0,
+    );
+    controller.updateLiveFrame(frame: frame);
+    controller.updateLiveFrame(frame: frame);
+    controller.scrollUp(rows: 3);
+    // Only one distinct frame is stored; fallback history cannot move.
+    expect(controller.modeLabel(), 'live');
   });
 }

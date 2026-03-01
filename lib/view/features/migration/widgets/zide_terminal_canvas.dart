@@ -151,6 +151,12 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
       'scrollUp rows=$rows mode="$before" -> "${_scrollback.modeLabel()}"',
       tag: _logTag,
     );
+    if (_scrollback.modeLabel().startsWith('history(frame=')) {
+      AppLogger().debug(
+        'frame-history fallback active (ffi snapshot has no extra rows)',
+        tag: _logTag,
+      );
+    }
   }
 
   void _historyDown({int rows = 1}) {

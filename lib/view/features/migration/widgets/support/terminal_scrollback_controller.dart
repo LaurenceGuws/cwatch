@@ -46,11 +46,17 @@ class TerminalScrollbackController {
   void updateLiveFrame({required ZideTerminalFrameData frame}) {
     _liveFrame = frame;
     final viewportFrame = _sliceFrame(_liveFrame, 0);
-    _frames.add(viewportFrame);
-    if (_frames.length > maxFrames) {
-      _frames.removeAt(0);
-      if (_frameAnchorIndex != null) {
-        _frameAnchorIndex = (_frameAnchorIndex! - 1).clamp(0, _frames.length - 1);
+    final last = _frames.isEmpty ? null : _frames.last;
+    if (last == null || !_sameFrame(last, viewportFrame)) {
+      _frames.add(viewportFrame);
+      if (_frames.length > maxFrames) {
+        _frames.removeAt(0);
+        if (_frameAnchorIndex != null) {
+          _frameAnchorIndex = (_frameAnchorIndex! - 1).clamp(
+            0,
+            _frames.length - 1,
+          );
+        }
       }
     }
 
@@ -70,7 +76,8 @@ class TerminalScrollbackController {
         return;
       }
       final anchor = _frameAnchorIndex ?? (_frames.length - 1);
-      _frameAnchorIndex = (anchor - 1).clamp(0, _frames.length - 1);
+      final step = rows.clamp(1, 32);
+      _frameAnchorIndex = (anchor - step).clamp(0, _frames.length - 1);
       return;
     }
     _frameAnchorIndex = null;
@@ -83,7 +90,8 @@ class TerminalScrollbackController {
       return;
     }
     if (_frameAnchorIndex != null) {
-      final next = (_frameAnchorIndex! + 1).clamp(0, _frames.length - 1);
+      final step = rows.clamp(1, 32);
+      final next = (_frameAnchorIndex! + step).clamp(0, _frames.length - 1);
       _frameAnchorIndex = next == _frames.length - 1 ? null : next;
       return;
     }
@@ -135,5 +143,28 @@ class TerminalScrollbackController {
       cursorVisible: cursorInWindow,
       cells: cells,
     );
+  }
+
+  bool _sameFrame(ZideTerminalFrameData a, ZideTerminalFrameData b) {
+    if (a.rows != b.rows || a.cols != b.cols || a.cells.length != b.cells.length) {
+      return false;
+    }
+    for (var i = 0; i < a.cells.length; i++) {
+      final ac = a.cells[i];
+      final bc = b.cells[i];
+      if (ac.codepoint != bc.codepoint ||
+          ac.width != bc.width ||
+          ac.fg.r != bc.fg.r ||
+          ac.fg.g != bc.fg.g ||
+          ac.fg.b != bc.fg.b ||
+          ac.fg.a != bc.fg.a ||
+          ac.bg.r != bc.bg.r ||
+          ac.bg.g != bc.bg.g ||
+          ac.bg.b != bc.bg.b ||
+          ac.bg.a != bc.bg.a) {
+        return false;
+      }
+    }
+    return true;
   }
 }
