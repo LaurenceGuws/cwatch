@@ -254,8 +254,13 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
       _selectionFocus = offset;
     }
     bridge.setCursorOffset(handle, _selectionFocus ?? offset);
-    _keyStatus = 'keyboard: drag selection';
-    _refresh(revealCaret: true);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _primaryCaret = _selectionFocus ?? offset;
+      _keyStatus = 'keyboard: drag selection';
+    });
   }
 
   bool _onEditorKeyEvent(KeyEvent event) {
@@ -806,6 +811,9 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
                                           contentWidth: contentWidth,
                                           start: false,
                                         );
+                                      },
+                                      onPanEnd: (_) {
+                                        _refresh(revealCaret: true);
                                       },
                                       child: CustomPaint(
                                         painter: _EditorTextWithCaretPainter(
