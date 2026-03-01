@@ -130,7 +130,7 @@ void main() {
     expect(controller.modeLabel(), 'history(rows=4/8)');
   });
 
-  test('falls back to frame history when no row scrollback is available', () {
+  test('falls back to line history when no row scrollback is available', () {
     final controller = TerminalScrollbackController(maxFrames: 8);
     controller.updateLiveFrame(
       frame: _frame(
@@ -154,13 +154,14 @@ void main() {
     );
 
     controller.scrollUp(rows: 2);
-    expect(controller.modeLabel().startsWith('history(frame='), isTrue);
+    expect(controller.modeLabel().startsWith('history(lines='), isTrue);
     final history = controller.effectiveFrame();
     expect(history.rows, 4);
     expect(history.viewportRows, 4);
+    expect(history.cursorVisible, isFalse);
   });
 
-  test('deduplicates identical fallback frames to reduce noisy timeline', () {
+  test('identical fallback viewport snapshots do not create fake history', () {
     final controller = TerminalScrollbackController(maxFrames: 8);
     final frame = _frame(
       totalRows: 4,
@@ -172,7 +173,7 @@ void main() {
     controller.updateLiveFrame(frame: frame);
     controller.updateLiveFrame(frame: frame);
     controller.scrollUp(rows: 3);
-    // Only one distinct frame is stored; fallback history cannot move.
+    // Only identical viewport content has been observed; no line growth.
     expect(controller.modeLabel(), 'live');
   });
 }

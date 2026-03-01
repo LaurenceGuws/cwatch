@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:cwatch/model/services_infra/zide/zide_terminal_ffi_bridge.dart';
 
 class TerminalScrollbackController {
@@ -7,8 +9,6 @@ class TerminalScrollbackController {
 
   int _scrollOffsetRows = 0;
   ZideTerminalFrameData? _historyFrame;
-  final List<ZideTerminalFrameData> _frames = <ZideTerminalFrameData>[];
-  int? _frameAnchorIndex;
   ZideTerminalFrameData _liveFrame = const ZideTerminalFrameData(
     rows: 0,
     viewportRows: 0,
@@ -19,88 +19,82 @@ class TerminalScrollbackController {
     cells: [],
   );
 
-  bool get isLive =>
-      _scrollOffsetRows == 0 && _historyFrame == null && _frameAnchorIndex == null;
+  // Fallback scrollback for backends that only expose viewport rows.
+  final List<String> _fallbackLines = <String>[];
+  List<String> _lastViewportLines = const <String>[];
+
+  bool get isLive => _scrollOffsetRows == 0 && _historyFrame == null;
 
   String modeLabel() {
-    if (_frameAnchorIndex != null) {
-      return 'history(frame=${_frameAnchorIndex! + 1}/${_frames.length})';
-    }
     if (isLive) {
       return 'live';
     }
+
+    if (_usesFallback(_liveFrame)) {
+      final max = _fallbackMaxScrollRows();
+      return 'history(lines=$_scrollOffsetRows/$max)';
+    }
+
     final source = _historyFrame ?? _liveFrame;
     final max = _maxScrollRows(source);
     return 'history(rows=$_scrollOffsetRows/$max)';
   }
 
   ZideTerminalFrameData effectiveFrame() {
-    if (_frameAnchorIndex != null && _frames.isNotEmpty) {
-      final index = _frameAnchorIndex!.clamp(0, _frames.length - 1);
-      return _frames[index];
+    if (isLive) {
+      return _sliceFrame(_liveFrame, 0);
     }
+
+    if (_usesFallback(_liveFrame)) {
+      return _fallbackSliceFrame(_scrollOffsetRows);
+    }
+
     final source = _historyFrame ?? _liveFrame;
     return _sliceFrame(source, _scrollOffsetRows);
   }
 
   void updateLiveFrame({required ZideTerminalFrameData frame}) {
     _liveFrame = frame;
-    final viewportFrame = _sliceFrame(_liveFrame, 0);
-    final last = _frames.isEmpty ? null : _frames.last;
-    if (last == null || !_sameFrame(last, viewportFrame)) {
-      _frames.add(viewportFrame);
-      if (_frames.length > maxFrames) {
-        _frames.removeAt(0);
-        if (_frameAnchorIndex != null) {
-          _frameAnchorIndex = (_frameAnchorIndex! - 1).clamp(
-            0,
-            _frames.length - 1,
-          );
-        }
+    if (_usesFallback(frame)) {
+      _ingestFallbackViewport(_sliceFrame(frame, 0));
+      if (_scrollOffsetRows > _fallbackMaxScrollRows()) {
+        _scrollOffsetRows = _fallbackMaxScrollRows();
       }
     }
-
     if (!isLive) {
       return;
     }
   }
 
   void scrollUp({int rows = 1}) {
-    final source = _historyFrame ?? _liveFrame;
-    final max = _maxScrollRows(source);
     if (rows <= 0) {
       return;
     }
-    if (max <= 0) {
-      if (_frames.length < 2) {
+
+    if (_usesFallback(_liveFrame)) {
+      final max = _fallbackMaxScrollRows();
+      if (max <= 0) {
         return;
       }
-      final anchor = _frameAnchorIndex ?? (_frames.length - 1);
-      // In frame-fallback mode, scroll by one frame per wheel event.
-      // Mapping row-sized deltas here causes large jumps and unstable UX.
-      const step = 1;
-      _frameAnchorIndex = (anchor - step).clamp(0, _frames.length - 1);
+      _scrollOffsetRows = (_scrollOffsetRows + rows).clamp(0, max);
       return;
     }
-    _frameAnchorIndex = null;
+
+    final source = _historyFrame ?? _liveFrame;
+    final max = _maxScrollRows(source);
+    if (max <= 0) {
+      return;
+    }
+
     _historyFrame ??= _liveFrame;
     _scrollOffsetRows = (_scrollOffsetRows + rows).clamp(0, max);
   }
 
   void scrollDown({int rows = 1}) {
-    if (rows <= 0) {
+    if (rows <= 0 || isLive) {
       return;
     }
-    if (_frameAnchorIndex != null) {
-      // In frame-fallback mode, scroll by one frame per wheel event.
-      const step = 1;
-      final next = (_frameAnchorIndex! + step).clamp(0, _frames.length - 1);
-      _frameAnchorIndex = next == _frames.length - 1 ? null : next;
-      return;
-    }
-    if (isLive) {
-      return;
-    }
+
     _scrollOffsetRows = (_scrollOffsetRows - rows).clamp(0, 1 << 30);
     if (_scrollOffsetRows == 0) {
       _historyFrame = null;
@@ -110,7 +104,110 @@ class TerminalScrollbackController {
   void scrollLive() {
     _historyFrame = null;
     _scrollOffsetRows = 0;
-    _frameAnchorIndex = null;
+  }
+
+  bool _usesFallback(ZideTerminalFrameData frame) {
+    return _maxScrollRows(frame) <= 0;
+  }
+
+  int _fallbackMaxScrollRows() {
+    final viewportRows = _liveFrame.viewportRows <= 0
+        ? _liveFrame.rows
+        : _liveFrame.viewportRows;
+    return (_fallbackLines.length - viewportRows).clamp(0, 1 << 30);
+  }
+
+  void _ingestFallbackViewport(ZideTerminalFrameData viewportFrame) {
+    if (viewportFrame.rows <= 0 || viewportFrame.cols <= 0) {
+      return;
+    }
+
+    final lines = _frameToLines(viewportFrame);
+    if (_fallbackLines.isEmpty) {
+      _fallbackLines.addAll(lines);
+      _lastViewportLines = lines;
+      return;
+    }
+
+    var overlap = math.min(_lastViewportLines.length, lines.length);
+    while (overlap > 0) {
+      var matches = true;
+      for (var i = 0; i < overlap; i++) {
+        final a = _lastViewportLines[_lastViewportLines.length - overlap + i];
+        final b = lines[i];
+        if (a != b) {
+          matches = false;
+          break;
+        }
+      }
+      if (matches) {
+        break;
+      }
+      overlap--;
+    }
+
+    _fallbackLines.addAll(lines.skip(overlap));
+    _lastViewportLines = lines;
+
+    final maxFallbackLines = math.max(1200, maxFrames * 8);
+    if (_fallbackLines.length > maxFallbackLines) {
+      final removeCount = _fallbackLines.length - maxFallbackLines;
+      _fallbackLines.removeRange(0, removeCount);
+    }
+  }
+
+  ZideTerminalFrameData _fallbackSliceFrame(int offsetRows) {
+    final cols = _liveFrame.cols;
+    final viewportRows = _liveFrame.viewportRows <= 0
+        ? _liveFrame.rows
+        : _liveFrame.viewportRows;
+
+    if (cols <= 0 || viewportRows <= 0 || _fallbackLines.isEmpty) {
+      return _sliceFrame(_liveFrame, 0);
+    }
+
+    final maxOffset = _fallbackMaxScrollRows();
+    final clampedOffset = offsetRows.clamp(0, maxOffset);
+    final start = (_fallbackLines.length - viewportRows - clampedOffset).clamp(
+      0,
+      _fallbackLines.length,
+    );
+
+    final lines = <String>[];
+    for (var i = 0; i < viewportRows; i++) {
+      final index = start + i;
+      lines.add(index < _fallbackLines.length ? _fallbackLines[index] : '');
+    }
+
+    const fg = ZideTerminalColorData(r: 221, g: 221, b: 221, a: 255);
+    const bg = ZideTerminalColorData(r: 0, g: 0, b: 0, a: 255);
+
+    final cells = <ZideTerminalCellData>[];
+    for (final rawLine in lines) {
+      final padded = rawLine.padRight(cols);
+      final line = padded.length > cols ? padded.substring(0, cols) : padded;
+      for (var col = 0; col < cols; col++) {
+        final codepoint = line.codeUnitAt(col);
+        cells.add(
+          ZideTerminalCellData(
+            codepoint: codepoint,
+            width: 1,
+            fg: fg,
+            bg: bg,
+          ),
+        );
+      }
+    }
+
+    return ZideTerminalFrameData(
+      rows: viewportRows,
+      viewportRows: viewportRows,
+      cols: cols,
+      cursorRow: 0,
+      cursorCol: 0,
+      cursorVisible: false,
+      cells: cells,
+    );
   }
 
   int _maxScrollRows(ZideTerminalFrameData frame) {
@@ -148,26 +245,28 @@ class TerminalScrollbackController {
     );
   }
 
-  bool _sameFrame(ZideTerminalFrameData a, ZideTerminalFrameData b) {
-    if (a.rows != b.rows || a.cols != b.cols || a.cells.length != b.cells.length) {
-      return false;
-    }
-    for (var i = 0; i < a.cells.length; i++) {
-      final ac = a.cells[i];
-      final bc = b.cells[i];
-      if (ac.codepoint != bc.codepoint ||
-          ac.width != bc.width ||
-          ac.fg.r != bc.fg.r ||
-          ac.fg.g != bc.fg.g ||
-          ac.fg.b != bc.fg.b ||
-          ac.fg.a != bc.fg.a ||
-          ac.bg.r != bc.bg.r ||
-          ac.bg.g != bc.bg.g ||
-          ac.bg.b != bc.bg.b ||
-          ac.bg.a != bc.bg.a) {
-        return false;
+  List<String> _frameToLines(ZideTerminalFrameData frame) {
+    final lines = <String>[];
+    for (var row = 0; row < frame.rows; row++) {
+      final chars = StringBuffer();
+      for (var col = 0; col < frame.cols; col++) {
+        final index = row * frame.cols + col;
+        if (index >= frame.cells.length) {
+          continue;
+        }
+        final cell = frame.cells[index];
+        if (cell.width == 0) {
+          continue;
+        }
+        final codepoint = cell.codepoint;
+        if (codepoint == 0 || codepoint < 32) {
+          chars.write(' ');
+        } else {
+          chars.write(String.fromCharCode(codepoint));
+        }
       }
+      lines.add(chars.toString().trimRight());
     }
-    return true;
+    return lines;
   }
 }
