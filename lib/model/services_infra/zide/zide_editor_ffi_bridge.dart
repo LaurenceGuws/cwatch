@@ -7,6 +7,7 @@ import 'package:cwatch/model/models/app_settings.dart';
 
 import 'zide_ffi_backend_config.dart';
 import 'zide_ffi_exception.dart';
+import 'zide_ffi_log_config.dart';
 
 final class ZideEditorHandle extends Opaque {}
 
@@ -277,6 +278,7 @@ class ZideEditorFfiBridge {
     required AppSettings settings,
     String? overrideLibraryPath,
   }) {
+    ZideFfiLogConfig.apply(settings: settings);
     final config = ZideFfiBackendConfig(settings: settings);
     final path = config.resolveEditorLibraryPath(
       overridePath: overrideLibraryPath,
