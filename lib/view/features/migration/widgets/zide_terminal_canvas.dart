@@ -36,6 +36,7 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
   String _inputMatrixStatus = 'input matrix: not run';
   String _commandRunStatus = 'command runner: idle';
   bool _commandRunning = false;
+  bool _followLiveOnInput = true;
   final TerminalScrollbackController _scrollback =
       TerminalScrollbackController();
 
@@ -222,7 +223,7 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
     }
     try {
       _ensureShellStarted();
-      if (!_scrollback.isLive) {
+      if (_followLiveOnInput && !_scrollback.isLive) {
         _scrollback.scrollLive();
         if (mounted) {
           setState(() {});
@@ -528,6 +529,30 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
                     color: Color(0xFF999999),
                     fontSize: 10,
                   ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Switch(
+                      value: _followLiveOnInput,
+                      onChanged: (value) {
+                        setState(() {
+                          _followLiveOnInput = value;
+                        });
+                        AppLogger().debug(
+                          'followLiveOnInput=$value',
+                          tag: _logTag,
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Follow live on input (jump to tail when typing while viewing history)',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Row(
