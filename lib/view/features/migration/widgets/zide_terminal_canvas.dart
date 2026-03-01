@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 
+import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/services_infra/zide/zide_terminal_ffi_bridge.dart';
 import 'support/terminal_scrollback_controller.dart';
@@ -25,6 +26,7 @@ class ZideTerminalCanvas extends StatefulWidget {
 }
 
 class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
+  static const String _logTag = 'ZideMigrationTerminal';
   ZideTerminalFfiBridge? _bridge;
   Pointer<ZideTerminalHandle>? _handle;
   Timer? _timer;
@@ -42,6 +44,7 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
   @override
   void initState() {
     super.initState();
+    _focusNode.addListener(_onFocusChanged);
     _commandController = TextEditingController(
       text: "printf '[{ts}] hello-from-pty\\n'",
     );
@@ -51,6 +54,7 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
   @override
   void dispose() {
     _timer?.cancel();
+    _focusNode.removeListener(_onFocusChanged);
     _focusNode.dispose();
     _commandController.dispose();
     final handle = _handle;
@@ -59,6 +63,13 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
       bridge.destroy(handle);
     }
     super.dispose();
+  }
+
+  void _onFocusChanged() {
+    AppLogger().debug(
+      'focus=${_focusNode.hasFocus} mode=${_scrollback.modeLabel()}',
+      tag: _logTag,
+    );
   }
 
   void _initTerminal() {
@@ -132,15 +143,25 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
   }
 
   void _historyUp({int rows = 1}) {
+    final before = _scrollback.modeLabel();
     setState(() {
       _scrollback.scrollUp(rows: rows);
     });
+    AppLogger().debug(
+      'scrollUp rows=$rows mode="$before" -> "${_scrollback.modeLabel()}"',
+      tag: _logTag,
+    );
   }
 
   void _historyDown({int rows = 1}) {
+    final before = _scrollback.modeLabel();
     setState(() {
       _scrollback.scrollDown(rows: rows);
     });
+    AppLogger().debug(
+      'scrollDown rows=$rows mode="$before" -> "${_scrollback.modeLabel()}"',
+      tag: _logTag,
+    );
   }
 
   void _historyLive() {
@@ -219,6 +240,16 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
     }
     try {
       _ensureShellStarted();
+      if (!_scrollback.isLive) {
+        _scrollback.scrollLive();
+        if (mounted) {
+          setState(() {});
+        }
+        AppLogger().debug(
+          'input while history pinned -> forced live tail',
+          tag: _logTag,
+        );
+      }
       bridge.sendBytes(handle, bytes);
     } catch (_) {
       // For feed-only sessions sendBytes may be ignored by backend, which is
@@ -391,6 +422,10 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
     if (event is! KeyDownEvent) {
       return;
     }
+    AppLogger().debug(
+      'key down key=${event.logicalKey.keyLabel} focus=${_focusNode.hasFocus} mode=${_scrollback.modeLabel()}',
+      tag: _logTag,
+    );
     _ensureShellStarted();
 
     final logical = event.logicalKey;
@@ -587,11 +622,17 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
               child: Listener(
                 onPointerSignal: (signal) {
                   if (signal is PointerScrollEvent) {
-                    _focusNode.requestFocus();
-                    if (signal.scrollDelta.dy < 0) {
-                      _historyUp(rows: 3);
-                    } else if (signal.scrollDelta.dy > 0) {
-                      _historyDown(rows: 3);
+                    final dy = signal.scrollDelta.dy;
+                    final steps = (dy.abs() / 24.0).ceil().clamp(1, 8);
+                    final rows = steps * 3;
+                    AppLogger().debug(
+                      'wheel dy=${dy.toStringAsFixed(2)} steps=$steps rows=$rows focus=${_focusNode.hasFocus} mode=${_scrollback.modeLabel()}',
+                      tag: _logTag,
+                    );
+                    if (dy < 0) {
+                      _historyUp(rows: rows);
+                    } else if (dy > 0) {
+                      _historyDown(rows: rows);
                     }
                   }
                 },
