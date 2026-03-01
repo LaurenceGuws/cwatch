@@ -20,6 +20,9 @@ Modes:
   input-debug         Run app with terminal input/scroll/pty logs.
   analyze             Run flutter analyze.
   test-scrollback     Run targeted terminal scrollback controller test.
+  test-editor-caret   Run targeted editor caret layout test.
+  migration-regression
+                      Run migration pre-push checks (analyze + targeted tests).
   check               Run analyze + targeted test.
   help                Show this help.
 
@@ -74,6 +77,24 @@ case "$mode" in
     ;;
   test-scrollback)
     flutter test test/view/features/migration/widgets/support/terminal_scrollback_controller_test.dart
+    ;;
+  test-editor-caret)
+    flutter test test/view/features/migration/widgets/support/editor_caret_layout_test.dart
+    ;;
+  migration-regression|regression)
+    require_file "$DEFAULT_TERMINAL_LIB" "terminal ffi lib"
+    require_file "$DEFAULT_EDITOR_LIB" "editor ffi lib"
+    flutter analyze
+    flutter test test/view/features/migration/widgets/support/terminal_scrollback_controller_test.dart
+    flutter test test/view/features/migration/widgets/support/editor_caret_layout_test.dart
+    cat <<EOF
+
+migration regression checks passed.
+manual ui run:
+  CWATCH_ZIDE_TERMINAL_LIB="$DEFAULT_TERMINAL_LIB" \\
+  CWATCH_ZIDE_EDITOR_LIB="$DEFAULT_EDITOR_LIB" \\
+  flutter run -d "$DEFAULT_DEVICE"
+EOF
     ;;
   check)
     flutter analyze
