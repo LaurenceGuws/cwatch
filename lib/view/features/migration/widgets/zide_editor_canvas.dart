@@ -326,12 +326,16 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
       }
 
       if (logical == LogicalKeyboardKey.arrowLeft) {
-        final next = cursor > 0 ? cursor - 1 : 0;
+        final next = ctrl
+            ? _previousWordOffset(_text, cursor)
+            : (cursor > 0 ? cursor - 1 : 0);
         moveCursor(next: next, baseLabel: 'left', shiftSelect: shift);
         return true;
       }
       if (logical == LogicalKeyboardKey.arrowRight) {
-        final next = cursor < totalLen ? cursor + 1 : totalLen;
+        final next = ctrl
+            ? _nextWordOffset(_text, cursor)
+            : (cursor < totalLen ? cursor + 1 : totalLen);
         moveCursor(next: next, baseLabel: 'right', shiftSelect: shift);
         return true;
       }
@@ -614,6 +618,35 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
     return (nextStart + column).clamp(nextStart, nextEnd);
   }
 
+  bool _isWordChar(int codeUnit) {
+    return (codeUnit >= 48 && codeUnit <= 57) ||
+        (codeUnit >= 65 && codeUnit <= 90) ||
+        (codeUnit >= 97 && codeUnit <= 122) ||
+        codeUnit == 95;
+  }
+
+  int _previousWordOffset(String text, int offset) {
+    var i = offset.clamp(0, text.length);
+    while (i > 0 && !_isWordChar(text.codeUnitAt(i - 1))) {
+      i--;
+    }
+    while (i > 0 && _isWordChar(text.codeUnitAt(i - 1))) {
+      i--;
+    }
+    return i;
+  }
+
+  int _nextWordOffset(String text, int offset) {
+    var i = offset.clamp(0, text.length);
+    while (i < text.length && !_isWordChar(text.codeUnitAt(i))) {
+      i++;
+    }
+    while (i < text.length && _isWordChar(text.codeUnitAt(i))) {
+      i++;
+    }
+    return i;
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -661,7 +694,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
             ),
             const SizedBox(height: 4),
             SelectableText(
-              'shortcuts: ctrl+z/ctrl+y redo, ctrl+a, arrows, shift+arrows, home/end, pageup/down, ctrl+home/end(viewport)',
+              'shortcuts: ctrl+z/ctrl+y redo, ctrl+a, arrows, ctrl+left/right words, shift+arrows select, home/end, pageup/down, ctrl+home/end(viewport)',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 8),
