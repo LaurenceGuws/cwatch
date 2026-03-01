@@ -160,4 +160,25 @@ void main() {
     controller.scrollTop();
     expect(controller.modeLabel(), 'history(rows=15/15)');
   });
+
+  test('set scroll offset rows pins and unpins history', () {
+    final controller = TerminalScrollbackController();
+    controller.updateLiveFrame(
+      frame: _frame(
+        totalRows: 20,
+        viewportRows: 5,
+        cols: 2,
+        cursorRow: 19,
+        cursorCol: 0,
+      ),
+    );
+
+    controller.setScrollOffsetRows(7);
+    expect(controller.modeLabel(), 'history(rows=7/15)');
+    expect(controller.currentScrollRows, 7);
+
+    controller.setScrollOffsetRows(0);
+    expect(controller.modeLabel(), 'live');
+    expect(controller.currentScrollRows, 0);
+  });
 }

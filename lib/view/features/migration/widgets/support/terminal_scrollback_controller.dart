@@ -14,6 +14,14 @@ class TerminalScrollbackController {
   );
 
   bool get isLive => _scrollOffsetRows == 0 && _historyFrame == null;
+  int get currentScrollRows => _scrollOffsetRows;
+  int get maxScrollRows => _maxScrollRows(_historyFrame ?? _liveFrame);
+  int get viewportRows {
+    final source = _historyFrame ?? _liveFrame;
+    return source.viewportRows <= 0 ? source.rows : source.viewportRows;
+  }
+
+  int get totalRows => (_historyFrame ?? _liveFrame).rows;
 
   String modeLabel() {
     if (isLive) {
@@ -79,6 +87,20 @@ class TerminalScrollbackController {
     }
     _historyFrame ??= _liveFrame;
     _scrollOffsetRows = max;
+  }
+
+  void setScrollOffsetRows(int rows) {
+    final source = _historyFrame ?? _liveFrame;
+    final max = _maxScrollRows(source);
+    if (max <= 0) {
+      scrollLive();
+      return;
+    }
+    _historyFrame ??= _liveFrame;
+    _scrollOffsetRows = rows.clamp(0, max);
+    if (_scrollOffsetRows == 0) {
+      _historyFrame = null;
+    }
   }
 
   int _maxScrollRows(ZideTerminalFrameData frame) {

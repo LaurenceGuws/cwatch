@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/services_infra/zide/zide_terminal_ffi_bridge.dart';
+import 'support/overlay_scrollbar.dart';
 import 'support/terminal_scrollback_controller.dart';
 import 'support/zide_terminal_session_controller.dart';
 
@@ -36,8 +37,15 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
   String _commandRunStatus = 'command runner: idle';
   bool _commandRunning = false;
   bool _followLiveOnInput = true;
+  bool _wheelScrollRequiresFocus = false;
   final TerminalScrollbackController _scrollback =
       TerminalScrollbackController();
+  int _pendingWheelHistoryRowsDelta = 0;
+  bool _wheelHistoryFrameScheduled = false;
+  int _wheelEventsSinceLog = 0;
+  int _wheelFlushesSinceLog = 0;
+  int _wheelRowsAppliedSinceLog = 0;
+  int _wheelLastLogMs = 0;
 
   @override
   void initState() {
@@ -160,6 +168,95 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
       'scrollTop mode="$before" -> "${_scrollback.modeLabel()}"',
       tag: _logTag,
     );
+  }
+
+  void _setHistoryOffsetRows(int rows) {
+    final before = _scrollback.modeLabel();
+    setState(() {
+      _scrollback.setScrollOffsetRows(rows);
+    });
+    AppLogger().debug(
+      'scrollOverlaySet rows=$rows mode="$before" -> "${_scrollback.modeLabel()}"',
+      tag: _logTag,
+    );
+  }
+
+  void _queueWheelHistoryDelta(int rowsDelta) {
+    if (rowsDelta == 0) {
+      return;
+    }
+    _wheelEventsSinceLog++;
+    _pendingWheelHistoryRowsDelta += rowsDelta;
+    _maybeLogWheelPerf();
+    if (_wheelHistoryFrameScheduled) {
+      return;
+    }
+    _wheelHistoryFrameScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _wheelHistoryFrameScheduled = false;
+      final delta = _pendingWheelHistoryRowsDelta;
+      _pendingWheelHistoryRowsDelta = 0;
+      if (!mounted || delta == 0) {
+        return;
+      }
+      _wheelFlushesSinceLog++;
+      _wheelRowsAppliedSinceLog += delta.abs();
+      final before = _scrollback.modeLabel();
+      setState(() {
+        if (delta > 0) {
+          _scrollback.scrollUp(rows: delta);
+        } else {
+          _scrollback.scrollDown(rows: -delta);
+        }
+      });
+      AppLogger().debug(
+        'scrollWheelFrame rows_delta=$delta mode="$before" -> "${_scrollback.modeLabel()}"',
+        tag: _logTag,
+      );
+      _maybeLogWheelPerf();
+    });
+  }
+
+  void _maybeLogWheelPerf() {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (_wheelLastLogMs == 0) {
+      _wheelLastLogMs = now;
+      return;
+    }
+    if (now - _wheelLastLogMs < 1000) {
+      return;
+    }
+    if (_wheelEventsSinceLog == 0 &&
+        _wheelFlushesSinceLog == 0 &&
+        _wheelRowsAppliedSinceLog == 0) {
+      _wheelLastLogMs = now;
+      return;
+    }
+    AppLogger().debug(
+      'wheelPerf events=$_wheelEventsSinceLog flushes=$_wheelFlushesSinceLog '
+      'rowsApplied=$_wheelRowsAppliedSinceLog pendingRows=$_pendingWheelHistoryRowsDelta '
+      'frameScheduled=$_wheelHistoryFrameScheduled',
+      tag: _logTag,
+    );
+    AppLogger.emitPerformanceSample(
+      source: 'zide_terminal',
+      metric: 'wheel_events_per_sec',
+      value: _wheelEventsSinceLog.toDouble(),
+      attributes: {
+        'flushes': _wheelFlushesSinceLog,
+        'rows_applied': _wheelRowsAppliedSinceLog,
+      },
+    );
+    AppLogger.emitPerformanceSample(
+      source: 'zide_terminal',
+      metric: 'wheel_rows_per_sec',
+      value: _wheelRowsAppliedSinceLog.toDouble(),
+      attributes: {'events': _wheelEventsSinceLog},
+    );
+    _wheelEventsSinceLog = 0;
+    _wheelFlushesSinceLog = 0;
+    _wheelRowsAppliedSinceLog = 0;
+    _wheelLastLogMs = now;
   }
 
   Future<void> _copyVisible() async {
@@ -490,6 +587,30 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
                           const SizedBox(height: 8),
                           Row(
                             children: [
+                              Switch(
+                                value: _wheelScrollRequiresFocus,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _wheelScrollRequiresFocus = value;
+                                  });
+                                  AppLogger().debug(
+                                    'wheelScrollRequiresFocus=$value',
+                                    tag: _logTag,
+                                  );
+                                },
+                              ),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'Wheel scroll requires terminal focus',
+                                  style: TextStyle(fontSize: 11),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
                               Expanded(
                                 child: TextField(
                                   controller: _commandController,
@@ -537,37 +658,74 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
                   child: Listener(
                     onPointerSignal: (signal) {
                       if (signal is PointerScrollEvent) {
+                        if (_wheelScrollRequiresFocus && !_focusNode.hasFocus) {
+                          return;
+                        }
                         final dy = signal.scrollDelta.dy;
                         final steps = (dy.abs() / 24.0).ceil().clamp(1, 8);
                         final rows = steps * 3;
-                        AppLogger().debug(
-                          'wheel dy=${dy.toStringAsFixed(2)} steps=$steps rows=$rows focus=${_focusNode.hasFocus} mode=${_scrollback.modeLabel()}',
-                          tag: _logTag,
-                        );
                         if (dy < 0) {
-                          _historyUp(rows: rows);
+                          _queueWheelHistoryDelta(rows);
                         } else if (dy > 0) {
-                          _historyDown(rows: rows);
+                          _queueWheelHistoryDelta(-rows);
                         }
                       }
                     },
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () {
-                        _focusNode.requestFocus();
-                        _ensureShellStarted();
-                        _refresh();
-                      },
-                      child: MouseRegion(
-                        onEnter: (_) =>
-                            widget.onPointerHoverChanged?.call(true),
-                        onExit: (_) =>
-                            widget.onPointerHoverChanged?.call(false),
-                        child: CustomPaint(
-                          painter: _ZideTerminalPainter(frame: _effectiveFrame),
-                          child: const SizedBox.expand(),
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () {
+                              _focusNode.requestFocus();
+                              _ensureShellStarted();
+                              _refresh();
+                            },
+                            child: MouseRegion(
+                              onEnter: (_) =>
+                                  widget.onPointerHoverChanged?.call(true),
+                              onExit: (_) =>
+                                  widget.onPointerHoverChanged?.call(false),
+                              child: CustomPaint(
+                                painter: _ZideTerminalPainter(
+                                  frame: _effectiveFrame,
+                                ),
+                                child: const SizedBox.expand(),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          bottom: 0,
+                          child: OverlayScrollbar(
+                            viewportExtent:
+                                (_scrollback.viewportRows > 0
+                                        ? _scrollback.viewportRows
+                                        : 1)
+                                    .toDouble(),
+                            contentExtent:
+                                (_scrollback.totalRows > 0
+                                        ? _scrollback.totalRows
+                                        : 1)
+                                    .toDouble(),
+                            offset: _scrollback.currentScrollRows.toDouble(),
+                            onOffsetChanged: (value) =>
+                                _setHistoryOffsetRows(value.round()),
+                            onStepUp: () => _historyUp(
+                              rows: (_effectiveFrame.rows > 0)
+                                  ? _effectiveFrame.rows
+                                  : 12,
+                            ),
+                            onStepDown: () => _historyDown(
+                              rows: (_effectiveFrame.rows > 0)
+                                  ? _effectiveFrame.rows
+                                  : 12,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

@@ -127,6 +127,8 @@ class AppLogger {
 
   static final RemoteCommandLogController remoteCommandLog =
       RemoteCommandLogController();
+  static final PerformanceLogController performanceLog =
+      PerformanceLogController();
 
   static bool _remoteCommandLoggingEnabled = false;
 
@@ -137,6 +139,22 @@ class AppLogger {
   }
 
   static RemoteCommandObserver get remoteCommandObserver => _addRemoteCommand;
+
+  static void emitPerformanceSample({
+    required String source,
+    required String metric,
+    required double value,
+    Map<String, num>? attributes,
+  }) {
+    performanceLog.add(
+      PerformanceMetricSample(
+        source: source,
+        metric: metric,
+        value: value,
+        attributes: attributes,
+      ),
+    );
+  }
 
   void _log(
     LogLevel level,
@@ -339,6 +357,50 @@ class RemoteCommandLogController extends ChangeNotifier {
       return;
     }
     _events.clear();
+    notifyListeners();
+  }
+}
+
+class PerformanceMetricSample {
+  PerformanceMetricSample({
+    required this.source,
+    required this.metric,
+    required this.value,
+    this.attributes,
+    DateTime? timestamp,
+  }) : timestamp = timestamp ?? DateTime.now();
+
+  final String source;
+  final String metric;
+  final double value;
+  final Map<String, num>? attributes;
+  final DateTime timestamp;
+}
+
+class PerformanceLogController extends ChangeNotifier {
+  PerformanceLogController({this.maxEntries = 2000});
+
+  final int maxEntries;
+  final List<PerformanceMetricSample> _samples = [];
+
+  UnmodifiableListView<PerformanceMetricSample> get samples =>
+      UnmodifiableListView(_samples);
+
+  bool get isEmpty => _samples.isEmpty;
+
+  void add(PerformanceMetricSample sample) {
+    _samples.add(sample);
+    if (_samples.length > maxEntries) {
+      _samples.removeRange(0, _samples.length - maxEntries);
+    }
+    notifyListeners();
+  }
+
+  void clear() {
+    if (_samples.isEmpty) {
+      return;
+    }
+    _samples.clear();
     notifyListeners();
   }
 }

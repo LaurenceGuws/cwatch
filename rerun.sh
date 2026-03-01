@@ -22,6 +22,7 @@ Modes:
   analyze             Run flutter analyze.
   test-scrollback     Run targeted terminal scrollback controller test.
   test-editor-caret   Run targeted editor caret layout test.
+  test-editor-nav     Run targeted editor text navigation test.
   migration-regression
                       Run migration pre-push checks (analyze + targeted tests).
   check               Run analyze + targeted test.
@@ -91,12 +92,16 @@ case "$mode" in
   test-editor-caret)
     flutter test test/view/features/migration/widgets/support/editor_caret_layout_test.dart
     ;;
+  test-editor-nav)
+    flutter test test/view/features/migration/widgets/support/editor_text_navigation_test.dart
+    ;;
   migration-regression|regression)
     require_file "$DEFAULT_TERMINAL_LIB" "terminal ffi lib"
     require_file "$DEFAULT_EDITOR_LIB" "editor ffi lib"
     flutter analyze
     flutter test test/view/features/migration/widgets/support/terminal_scrollback_controller_test.dart
     flutter test test/view/features/migration/widgets/support/editor_caret_layout_test.dart
+    flutter test test/view/features/migration/widgets/support/editor_text_navigation_test.dart
     cat <<EOF
 
 migration regression checks passed.
@@ -109,6 +114,8 @@ EOF
   check)
     flutter analyze
     flutter test test/view/features/migration/widgets/support/terminal_scrollback_controller_test.dart
+    flutter test test/view/features/migration/widgets/support/editor_caret_layout_test.dart
+    flutter test test/view/features/migration/widgets/support/editor_text_navigation_test.dart
     ;;
   help|-h|--help)
     print_help

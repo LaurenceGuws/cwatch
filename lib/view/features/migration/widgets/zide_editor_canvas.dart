@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ffi' show Pointer;
 import 'dart:io';
 import 'dart:math' as math;
@@ -6,9 +7,12 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/services_infra/zide/zide_editor_ffi_bridge.dart';
 import 'support/editor_caret_layout.dart';
+import 'support/editor_text_navigation.dart';
+import 'support/overlay_scrollbar.dart';
 
 class ZideEditorCanvas extends StatefulWidget {
   const ZideEditorCanvas({super.key, required this.settingsController});
@@ -20,12 +24,22 @@ class ZideEditorCanvas extends StatefulWidget {
 }
 
 class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
+  static const String _logTag = 'ZideMigrationEditor';
   ZideEditorFfiBridge? _bridge;
   Pointer<ZideEditorHandle>? _handle;
   final FocusNode _focusNode = FocusNode(debugLabel: 'zide_editor_canvas');
   final ScrollController _verticalScrollController = ScrollController();
   final ScrollController _horizontalScrollController = ScrollController();
   double _editorContentWidth = 0;
+  TextPainter? _cachedTextPainter;
+  String _cachedPainterText = '';
+  double _cachedPainterWidth = -1;
+  double _cachedPainterScale = -1;
+  bool _dragSelectionFrameScheduled = false;
+  int? _pendingDragSelectionCaret;
+  int _dragEventsSinceLog = 0;
+  int _dragFlushesSinceLog = 0;
+  int _dragLastLogMs = 0;
 
   String _status = 'Initializing editor...';
   String _text = '';
@@ -189,12 +203,11 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
   }
 
   ({int start, int end})? _selectionRange() {
-    final anchor = _selectionAnchor;
-    final focus = _selectionFocus;
-    if (anchor == null || focus == null || anchor == focus) {
-      return null;
-    }
-    return (start: math.min(anchor, focus), end: math.max(anchor, focus));
+    return EditorTextNavigation.normalizedSelectionRange(
+      anchor: _selectionAnchor,
+      focus: _selectionFocus,
+      maxLength: _text.length,
+    );
   }
 
   void _clearSelection() {
@@ -211,12 +224,9 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
     try {
       // The editable surface uses 8px content padding around text paint.
       final textPoint = Offset(localPosition.dx - 8, localPosition.dy - 8);
-      final offset = EditorCaretLayout.offsetFromPoint(
-        text: _text,
+      final offset = _offsetFromPointFast(
         point: textPoint,
-        textScaler: MediaQuery.textScalerOf(context),
-        maxWidth: contentWidth,
-        style: _EditorTextWithCaretPainter.textStyle,
+        contentWidth: contentWidth,
       );
       bridge.setCursorOffset(handle, offset);
       _clearSelection();
@@ -240,12 +250,9 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
       return;
     }
     final textPoint = Offset(localPosition.dx - 8, localPosition.dy - 8);
-    final offset = EditorCaretLayout.offsetFromPoint(
-      text: _text,
+    final offset = _offsetFromPointFast(
       point: textPoint,
-      textScaler: MediaQuery.textScalerOf(context),
-      maxWidth: contentWidth,
-      style: _EditorTextWithCaretPainter.textStyle,
+      contentWidth: contentWidth,
     );
     if (start || _selectionAnchor == null) {
       _selectionAnchor = offset;
@@ -253,14 +260,113 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
     } else {
       _selectionFocus = offset;
     }
-    bridge.setCursorOffset(handle, _selectionFocus ?? offset);
-    if (!mounted) {
+    _dragEventsSinceLog++;
+    _pendingDragSelectionCaret = _selectionFocus ?? offset;
+    _maybeLogDragPerf();
+    _scheduleDragSelectionRepaint();
+  }
+
+  void _scheduleDragSelectionRepaint() {
+    if (_dragSelectionFrameScheduled) {
       return;
     }
+    _dragSelectionFrameScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _dragSelectionFrameScheduled = false;
+      _flushPendingDragSelectionRepaint();
+    });
+  }
+
+  void _flushPendingDragSelectionRepaint() {
+    final pending = _pendingDragSelectionCaret;
+    if (pending == null || !mounted) {
+      return;
+    }
+    _dragFlushesSinceLog++;
+    _pendingDragSelectionCaret = null;
     setState(() {
-      _primaryCaret = _selectionFocus ?? offset;
+      _primaryCaret = pending;
       _keyStatus = 'keyboard: drag selection';
     });
+    _maybeLogDragPerf();
+  }
+
+  void _maybeLogDragPerf() {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (_dragLastLogMs == 0) {
+      _dragLastLogMs = now;
+      return;
+    }
+    if (now - _dragLastLogMs < 1000) {
+      return;
+    }
+    if (_dragEventsSinceLog == 0 && _dragFlushesSinceLog == 0) {
+      _dragLastLogMs = now;
+      return;
+    }
+    AppLogger().debug(
+      'dragPerf events=$_dragEventsSinceLog flushes=$_dragFlushesSinceLog '
+      'frameScheduled=$_dragSelectionFrameScheduled pending=${_pendingDragSelectionCaret != null}',
+      tag: _logTag,
+    );
+    AppLogger.emitPerformanceSample(
+      source: 'zide_editor',
+      metric: 'drag_events_per_sec',
+      value: _dragEventsSinceLog.toDouble(),
+      attributes: {'flushes': _dragFlushesSinceLog},
+    );
+    AppLogger.emitPerformanceSample(
+      source: 'zide_editor',
+      metric: 'drag_flushes_per_sec',
+      value: _dragFlushesSinceLog.toDouble(),
+      attributes: {'events': _dragEventsSinceLog},
+    );
+    _dragEventsSinceLog = 0;
+    _dragFlushesSinceLog = 0;
+    _dragLastLogMs = now;
+  }
+
+  TextPainter _ensureCachedTextPainter({
+    required double contentWidth,
+    required TextScaler textScaler,
+  }) {
+    final normalizedText = _text.isEmpty ? ' ' : _text;
+    final scale = textScaler.scale(1.0);
+    final shouldRebuild =
+        _cachedTextPainter == null ||
+        _cachedPainterText != normalizedText ||
+        (_cachedPainterWidth - contentWidth).abs() > 0.5 ||
+        (_cachedPainterScale - scale).abs() > 0.001;
+
+    if (shouldRebuild) {
+      final painter = TextPainter(
+        text: TextSpan(
+          text: normalizedText,
+          style: _EditorTextWithCaretPainter.textStyle,
+        ),
+        textDirection: TextDirection.ltr,
+        textScaler: textScaler,
+        maxLines: null,
+      )..layout(maxWidth: contentWidth);
+      _cachedTextPainter = painter;
+      _cachedPainterText = normalizedText;
+      _cachedPainterWidth = contentWidth;
+      _cachedPainterScale = scale;
+    }
+
+    return _cachedTextPainter!;
+  }
+
+  int _offsetFromPointFast({
+    required Offset point,
+    required double contentWidth,
+  }) {
+    final painter = _ensureCachedTextPainter(
+      contentWidth: contentWidth,
+      textScaler: MediaQuery.textScalerOf(context),
+    );
+    final position = painter.getPositionForOffset(point);
+    return position.offset.clamp(0, _text.length);
   }
 
   bool _onEditorKeyEvent(KeyEvent event) {
@@ -306,6 +412,18 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
         _refresh(revealCaret: true);
         return true;
       }
+      if (ctrl && logical == LogicalKeyboardKey.keyC) {
+        unawaited(_copySelectionToClipboard());
+        return true;
+      }
+      if (ctrl && logical == LogicalKeyboardKey.keyX) {
+        unawaited(_cutSelectionToClipboard());
+        return true;
+      }
+      if (ctrl && logical == LogicalKeyboardKey.keyV) {
+        unawaited(_pasteFromClipboard());
+        return true;
+      }
 
       var cursor = bridge.cursorOffset(handle);
       final totalLen = bridge.totalLength(handle);
@@ -332,20 +450,22 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
 
       if (logical == LogicalKeyboardKey.arrowLeft) {
         final next = ctrl
-            ? _previousWordOffset(_text, cursor)
+            ? EditorTextNavigation.previousWordOffset(_text, cursor)
             : (cursor > 0 ? cursor - 1 : 0);
         moveCursor(next: next, baseLabel: 'left', shiftSelect: shift);
         return true;
       }
       if (logical == LogicalKeyboardKey.arrowRight) {
         final next = ctrl
-            ? _nextWordOffset(_text, cursor)
+            ? EditorTextNavigation.nextWordOffset(_text, cursor)
             : (cursor < totalLen ? cursor + 1 : totalLen);
         moveCursor(next: next, baseLabel: 'right', shiftSelect: shift);
         return true;
       }
       if (logical == LogicalKeyboardKey.home) {
-        final next = ctrl ? 0 : _lineStartOffset(_text, cursor);
+        final next = ctrl
+            ? 0
+            : EditorTextNavigation.lineStartOffset(_text, cursor);
         moveCursor(
           next: next,
           baseLabel: ctrl ? 'ctrl+home' : 'home',
@@ -354,7 +474,9 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
         return true;
       }
       if (logical == LogicalKeyboardKey.end) {
-        final next = ctrl ? totalLen : _lineEndOffset(_text, cursor);
+        final next = ctrl
+            ? totalLen
+            : EditorTextNavigation.lineEndOffset(_text, cursor);
         moveCursor(
           next: next,
           baseLabel: ctrl ? 'ctrl+end' : 'end',
@@ -363,12 +485,12 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
         return true;
       }
       if (logical == LogicalKeyboardKey.arrowUp) {
-        final next = _verticalMoveOffset(_text, cursor, -1);
+        final next = EditorTextNavigation.verticalMoveOffset(_text, cursor, -1);
         moveCursor(next: next, baseLabel: 'up', shiftSelect: shift);
         return true;
       }
       if (logical == LogicalKeyboardKey.arrowDown) {
-        final next = _verticalMoveOffset(_text, cursor, 1);
+        final next = EditorTextNavigation.verticalMoveOffset(_text, cursor, 1);
         moveCursor(next: next, baseLabel: 'down', shiftSelect: shift);
         return true;
       }
@@ -387,11 +509,20 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
           );
           bridge.setCursorOffset(handle, selection.start);
           _clearSelection();
+        } else if (ctrl) {
+          final range = EditorTextNavigation.previousWordDeleteRange(
+            _text,
+            cursor,
+          );
+          if (range != null) {
+            bridge.deleteRange(handle, start: range.start, end: range.end);
+            bridge.setCursorOffset(handle, range.start);
+          }
         } else if (cursor > 0) {
           bridge.deleteRange(handle, start: cursor - 1, end: cursor);
           bridge.setCursorOffset(handle, cursor - 1);
         }
-        _keyStatus = 'keyboard: backspace';
+        _keyStatus = ctrl ? 'keyboard: ctrl+backspace' : 'keyboard: backspace';
         _refresh(revealCaret: true);
         return true;
       }
@@ -404,11 +535,17 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
           );
           bridge.setCursorOffset(handle, selection.start);
           _clearSelection();
+        } else if (ctrl) {
+          final range = EditorTextNavigation.nextWordDeleteRange(_text, cursor);
+          if (range != null) {
+            bridge.deleteRange(handle, start: range.start, end: range.end);
+            bridge.setCursorOffset(handle, range.start);
+          }
         } else if (cursor < totalLen) {
           bridge.deleteRange(handle, start: cursor, end: cursor + 1);
           bridge.setCursorOffset(handle, cursor);
         }
-        _keyStatus = 'keyboard: delete';
+        _keyStatus = ctrl ? 'keyboard: ctrl+delete' : 'keyboard: delete';
         _refresh(revealCaret: true);
         return true;
       }
@@ -504,6 +641,77 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
     return false;
   }
 
+  Future<void> _copySelectionToClipboard() async {
+    final selection = _selectionRange();
+    if (selection == null) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _keyStatus = 'keyboard: ctrl+c (no selection)';
+      });
+      return;
+    }
+    final slice = _text.substring(selection.start, selection.end);
+    await Clipboard.setData(ClipboardData(text: slice));
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _keyStatus = 'keyboard: ctrl+c';
+    });
+  }
+
+  Future<void> _cutSelectionToClipboard() async {
+    final bridge = _bridge;
+    final handle = _handle;
+    final selection = _selectionRange();
+    if (bridge == null || handle == null || selection == null) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _keyStatus = 'keyboard: ctrl+x (no selection)';
+      });
+      return;
+    }
+    final slice = _text.substring(selection.start, selection.end);
+    await Clipboard.setData(ClipboardData(text: slice));
+    bridge.deleteRange(handle, start: selection.start, end: selection.end);
+    bridge.setCursorOffset(handle, selection.start);
+    _clearSelection();
+    _keyStatus = 'keyboard: ctrl+x';
+    _refresh(revealCaret: true);
+  }
+
+  Future<void> _pasteFromClipboard() async {
+    final bridge = _bridge;
+    final handle = _handle;
+    if (bridge == null || handle == null) {
+      return;
+    }
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text;
+    if (text == null || text.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _keyStatus = 'keyboard: ctrl+v (clipboard empty)';
+      });
+      return;
+    }
+    final selection = _selectionRange();
+    if (selection != null) {
+      bridge.deleteRange(handle, start: selection.start, end: selection.end);
+      bridge.setCursorOffset(handle, selection.start);
+      _clearSelection();
+    }
+    bridge.insertText(handle, text);
+    _keyStatus = 'keyboard: ctrl+v';
+    _refresh(revealCaret: true);
+  }
+
   void _ensurePrimaryCaretVisible() {
     if (_editorContentWidth <= 0 ||
         !_verticalScrollController.hasClients ||
@@ -594,70 +802,6 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
     return math.max(minWidth, maxLineWidth + 16);
   }
 
-  int _lineStartOffset(String text, int offset) {
-    final clamped = offset.clamp(0, text.length);
-    final index = text.lastIndexOf('\n', clamped - 1);
-    return index < 0 ? 0 : index + 1;
-  }
-
-  int _lineEndOffset(String text, int offset) {
-    final clamped = offset.clamp(0, text.length);
-    final index = text.indexOf('\n', clamped);
-    return index < 0 ? text.length : index;
-  }
-
-  int _verticalMoveOffset(String text, int offset, int direction) {
-    final clamped = offset.clamp(0, text.length);
-    final lineStart = _lineStartOffset(text, clamped);
-    final lineEnd = _lineEndOffset(text, clamped);
-    final column = clamped - lineStart;
-
-    if (direction < 0) {
-      if (lineStart == 0) {
-        return clamped;
-      }
-      final prevEnd = lineStart - 1;
-      final prevStart = _lineStartOffset(text, prevEnd);
-      return (prevStart + column).clamp(prevStart, prevEnd);
-    }
-
-    if (lineEnd >= text.length) {
-      return clamped;
-    }
-    final nextStart = lineEnd + 1;
-    final nextEnd = _lineEndOffset(text, nextStart);
-    return (nextStart + column).clamp(nextStart, nextEnd);
-  }
-
-  bool _isWordChar(int codeUnit) {
-    return (codeUnit >= 48 && codeUnit <= 57) ||
-        (codeUnit >= 65 && codeUnit <= 90) ||
-        (codeUnit >= 97 && codeUnit <= 122) ||
-        codeUnit == 95;
-  }
-
-  int _previousWordOffset(String text, int offset) {
-    var i = offset.clamp(0, text.length);
-    while (i > 0 && !_isWordChar(text.codeUnitAt(i - 1))) {
-      i--;
-    }
-    while (i > 0 && _isWordChar(text.codeUnitAt(i - 1))) {
-      i--;
-    }
-    return i;
-  }
-
-  int _nextWordOffset(String text, int offset) {
-    var i = offset.clamp(0, text.length);
-    while (i < text.length && !_isWordChar(text.codeUnitAt(i))) {
-      i++;
-    }
-    while (i < text.length && _isWordChar(text.codeUnitAt(i))) {
-      i++;
-    }
-    return i;
-  }
-
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -720,7 +864,9 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
                 if (!compactHeader) const SizedBox(height: 4),
                 if (!compactHeader)
                   SelectableText(
-                    'shortcuts: ctrl+z/ctrl+y redo, ctrl+a, arrows, ctrl+left/right words, shift+arrows select, home/end, pageup/down, ctrl+home/end(viewport)',
+                    'shortcuts: ctrl+z/ctrl+y redo, ctrl+a, arrows, ctrl+left/right words, '
+                    'shift+arrows select, home/end, pageup/down, ctrl+home/end(viewport), '
+                    'ctrl+backspace/delete, ctrl+c/x/v',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 const SizedBox(height: 8),
@@ -747,6 +893,10 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
                             12 *
                             1.2 *
                             MediaQuery.textScalerOf(context).scale(1.0);
+                        final cachedPainter = _ensureCachedTextPainter(
+                          contentWidth: contentWidth,
+                          textScaler: MediaQuery.textScalerOf(context),
+                        );
                         final contentHeight = math
                             .max(
                               120,
@@ -799,64 +949,163 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
                                   scrollDirection: Axis.horizontal,
                                   child: SizedBox(
                                     width: contentWidth + 16,
-                                    child: Scrollbar(
-                                      controller: _verticalScrollController,
-                                      thumbVisibility: true,
-                                      child: SingleChildScrollView(
-                                        controller: _verticalScrollController,
-                                        padding: const EdgeInsets.all(8),
-                                        child: GestureDetector(
-                                          behavior: HitTestBehavior.opaque,
-                                          onTap: _focusKeyboard,
-                                          onTapDown: (details) {
-                                            _focusKeyboard();
-                                            _setCaretFromTap(
-                                              details.localPosition,
-                                              contentWidth,
-                                            );
-                                          },
-                                          onPanStart: (details) {
-                                            _focusKeyboard();
-                                            _updateSelectionFromDrag(
-                                              localPosition:
+                                    child: Stack(
+                                      children: [
+                                        Positioned.fill(
+                                          child: SingleChildScrollView(
+                                            controller:
+                                                _verticalScrollController,
+                                            padding: const EdgeInsets.all(8),
+                                            child: GestureDetector(
+                                              behavior: HitTestBehavior.opaque,
+                                              onTap: _focusKeyboard,
+                                              onTapDown: (details) {
+                                                _focusKeyboard();
+                                                _setCaretFromTap(
                                                   details.localPosition,
-                                              contentWidth: contentWidth,
-                                              start: true,
-                                            );
-                                          },
-                                          onPanUpdate: (details) {
-                                            _updateSelectionFromDrag(
-                                              localPosition:
-                                                  details.localPosition,
-                                              contentWidth: contentWidth,
-                                              start: false,
-                                            );
-                                          },
-                                          onPanEnd: (_) {
-                                            _refresh(revealCaret: true);
-                                          },
-                                          child: CustomPaint(
-                                            painter:
-                                                _EditorTextWithCaretPainter(
-                                                  text: _text,
-                                                  primaryOffset: _primaryCaret,
-                                                  auxiliaryOffsets: _auxOffsets,
-                                                  selectionStart:
-                                                      _selectionRange()?.start,
-                                                  selectionEnd:
-                                                      _selectionRange()?.end,
-                                                  textScaler:
-                                                      MediaQuery.textScalerOf(
-                                                        context,
-                                                      ),
+                                                  contentWidth,
+                                                );
+                                              },
+                                              onPanStart: (details) {
+                                                _focusKeyboard();
+                                                _updateSelectionFromDrag(
+                                                  localPosition:
+                                                      details.localPosition,
+                                                  contentWidth: contentWidth,
+                                                  start: true,
+                                                );
+                                              },
+                                              onPanUpdate: (details) {
+                                                _updateSelectionFromDrag(
+                                                  localPosition:
+                                                      details.localPosition,
+                                                  contentWidth: contentWidth,
+                                                  start: false,
+                                                );
+                                              },
+                                              onPanEnd: (_) {
+                                                _flushPendingDragSelectionRepaint();
+                                                final bridge = _bridge;
+                                                final handle = _handle;
+                                                final focus = _selectionFocus;
+                                                if (bridge != null &&
+                                                    handle != null &&
+                                                    focus != null) {
+                                                  bridge.setCursorOffset(
+                                                    handle,
+                                                    focus,
+                                                  );
+                                                }
+                                                _refresh(revealCaret: true);
+                                              },
+                                              child: CustomPaint(
+                                                painter:
+                                                    _EditorTextWithCaretPainter(
+                                                      text: _text,
+                                                      primaryOffset:
+                                                          _primaryCaret,
+                                                      auxiliaryOffsets:
+                                                          _auxOffsets,
+                                                      selectionStart:
+                                                          _selectionRange()
+                                                              ?.start,
+                                                      selectionEnd:
+                                                          _selectionRange()
+                                                              ?.end,
+                                                      textPainter:
+                                                          cachedPainter,
+                                                      lineHeight: cachedPainter
+                                                          .preferredLineHeight,
+                                                    ),
+                                                child: SizedBox(
+                                                  width: contentWidth,
+                                                  height: contentHeight,
                                                 ),
-                                            child: SizedBox(
-                                              width: contentWidth,
-                                              height: contentHeight,
+                                              ),
                                             ),
                                           ),
                                         ),
-                                      ),
+                                        if (_verticalScrollController
+                                            .hasClients)
+                                          Positioned(
+                                            right: 0,
+                                            top: 0,
+                                            bottom: 0,
+                                            child: OverlayScrollbar(
+                                              viewportExtent:
+                                                  _verticalScrollController
+                                                      .position
+                                                      .viewportDimension,
+                                              contentExtent:
+                                                  (_verticalScrollController
+                                                      .position
+                                                      .maxScrollExtent +
+                                                  _verticalScrollController
+                                                      .position
+                                                      .viewportDimension),
+                                              offset: _verticalScrollController
+                                                  .position
+                                                  .pixels,
+                                              onOffsetChanged: (value) {
+                                                if (!_verticalScrollController
+                                                    .hasClients) {
+                                                  return;
+                                                }
+                                                final position =
+                                                    _verticalScrollController
+                                                        .position;
+                                                final target = value.clamp(
+                                                  position.minScrollExtent,
+                                                  position.maxScrollExtent,
+                                                );
+                                                _verticalScrollController
+                                                    .jumpTo(target.toDouble());
+                                              },
+                                              onStepUp: () {
+                                                if (!_verticalScrollController
+                                                    .hasClients) {
+                                                  return;
+                                                }
+                                                final position =
+                                                    _verticalScrollController
+                                                        .position;
+                                                final step =
+                                                    position.viewportDimension;
+                                                final target =
+                                                    (position.pixels - step)
+                                                        .clamp(
+                                                          position
+                                                              .minScrollExtent,
+                                                          position
+                                                              .maxScrollExtent,
+                                                        );
+                                                _verticalScrollController
+                                                    .jumpTo(target.toDouble());
+                                              },
+                                              onStepDown: () {
+                                                if (!_verticalScrollController
+                                                    .hasClients) {
+                                                  return;
+                                                }
+                                                final position =
+                                                    _verticalScrollController
+                                                        .position;
+                                                final step =
+                                                    position.viewportDimension;
+                                                final target =
+                                                    (position.pixels + step)
+                                                        .clamp(
+                                                          position
+                                                              .minScrollExtent,
+                                                          position
+                                                              .maxScrollExtent,
+                                                        );
+                                                _verticalScrollController
+                                                    .jumpTo(target.toDouble());
+                                              },
+                                            ),
+                                          ),
+                                      ],
                                     ),
                                   ),
                                 ),
@@ -884,7 +1133,8 @@ class _EditorTextWithCaretPainter extends CustomPainter {
     required this.auxiliaryOffsets,
     required this.selectionStart,
     required this.selectionEnd,
-    required this.textScaler,
+    required this.textPainter,
+    required this.lineHeight,
   });
 
   final String text;
@@ -892,7 +1142,8 @@ class _EditorTextWithCaretPainter extends CustomPainter {
   final List<int> auxiliaryOffsets;
   final int? selectionStart;
   final int? selectionEnd;
-  final TextScaler textScaler;
+  final TextPainter textPainter;
+  final double lineHeight;
 
   static const TextStyle textStyle = TextStyle(
     fontFamily: 'JetBrainsMono Nerd Font Mono',
@@ -902,15 +1153,6 @@ class _EditorTextWithCaretPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final layout = EditorCaretLayout.compute(
-      text: text,
-      primaryOffset: primaryOffset,
-      auxiliaryOffsets: auxiliaryOffsets,
-      textScaler: textScaler,
-      maxWidth: size.width,
-      style: textStyle,
-    );
-
     final selectionFill = Paint()
       ..color = const Color(0xFF64B5F6).withValues(alpha: 0.25)
       ..style = PaintingStyle.fill;
@@ -922,7 +1164,7 @@ class _EditorTextWithCaretPainter extends CustomPainter {
       final slices = <({int start, int end})>[];
       var offset = selectionMin;
       while (offset < selectionMax) {
-        final boundary = layout.textPainter.getLineBoundary(
+        final boundary = textPainter.getLineBoundary(
           TextPosition(offset: offset),
         );
         final sliceStart = math.max(selectionMin, boundary.start);
@@ -941,36 +1183,35 @@ class _EditorTextWithCaretPainter extends CustomPainter {
       }
 
       for (final slice in slices) {
-        final leftCaret = layout.textPainter.getOffsetForCaret(
+        final leftCaret = textPainter.getOffsetForCaret(
           TextPosition(offset: slice.start),
           Rect.zero,
         );
-        final rightCaret = layout.textPainter.getOffsetForCaret(
+        final rightCaret = textPainter.getOffsetForCaret(
           TextPosition(offset: slice.end),
           Rect.zero,
         );
         final left = math.min(leftCaret.dx, rightCaret.dx);
         final right = math.max(leftCaret.dx, rightCaret.dx);
         final top = leftCaret.dy;
-        final bottom = top + layout.lineHeight;
+        final bottom = top + lineHeight;
         final rect = (right - left < 1)
             // Empty selected lines/newline-only slices have no visual width.
             // Render a small first-cell stub so selection remains visible.
             ? Rect.fromLTWH(
                 0,
                 top,
-                math.max(6.0, layout.lineHeight * 0.42),
-                layout.lineHeight,
+                math.max(6.0, lineHeight * 0.42),
+                lineHeight,
               )
             : Rect.fromLTRB(left, top, right, bottom);
         canvas.drawRect(rect, selectionFill);
       }
     }
 
-    layout.textPainter.paint(canvas, Offset.zero);
+    textPainter.paint(canvas, Offset.zero);
 
-    final textScale = textScaler.scale(1.0);
-    final lineHeight = layout.lineHeight;
+    final textScale = textPainter.textScaler.scale(1.0);
     final primaryPaint = Paint()
       ..color = const Color(0xFF4FC3F7)
       ..strokeWidth = 1.5 * textScale.clamp(1.0, 2.0);
@@ -978,13 +1219,23 @@ class _EditorTextWithCaretPainter extends CustomPainter {
       ..color = const Color(0xFFFFB74D)
       ..strokeWidth = 1.25 * textScale.clamp(1.0, 2.0);
 
+    final safePrimary = primaryOffset.clamp(0, text.length);
+    final primaryCaret = textPainter.getOffsetForCaret(
+      TextPosition(offset: safePrimary),
+      Rect.zero,
+    );
     canvas.drawLine(
-      Offset(layout.primaryCaret.dx, layout.primaryCaret.dy),
-      Offset(layout.primaryCaret.dx, layout.primaryCaret.dy + lineHeight),
+      Offset(primaryCaret.dx, primaryCaret.dy),
+      Offset(primaryCaret.dx, primaryCaret.dy + lineHeight),
       primaryPaint,
     );
 
-    for (final caret in layout.auxiliaryCarets) {
+    for (final offset in auxiliaryOffsets) {
+      final safeOffset = offset.clamp(0, text.length);
+      final caret = textPainter.getOffsetForCaret(
+        TextPosition(offset: safeOffset),
+        Rect.zero,
+      );
       canvas.drawLine(
         Offset(caret.dx, caret.dy),
         Offset(caret.dx, caret.dy + lineHeight),
@@ -999,7 +1250,8 @@ class _EditorTextWithCaretPainter extends CustomPainter {
         oldDelegate.primaryOffset != primaryOffset ||
         oldDelegate.selectionStart != selectionStart ||
         oldDelegate.selectionEnd != selectionEnd ||
-        oldDelegate.textScaler != textScaler ||
+        oldDelegate.textPainter != textPainter ||
+        oldDelegate.lineHeight != lineHeight ||
         oldDelegate.auxiliaryOffsets.join(',') != auxiliaryOffsets.join(',');
   }
 }
