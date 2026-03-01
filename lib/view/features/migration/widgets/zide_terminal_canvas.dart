@@ -308,63 +308,64 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
     }
   }
 
-  void _onKeyEvent(KeyEvent event) {
+  bool _onKeyEvent(KeyEvent event) {
     if (event is! KeyDownEvent) {
-      return;
+      return false;
     }
     AppLogger().debug(
       'key down key=${event.logicalKey.keyLabel} focus=${_focusNode.hasFocus} mode=${_scrollback.modeLabel()}',
       tag: _logTag,
     );
     if (_handleHistoryShortcut(event)) {
-      return;
+      return true;
     }
     _ensureShellStarted();
 
     final logical = event.logicalKey;
     if (logical == LogicalKeyboardKey.enter) {
       _sendBytes(const [13]);
-      return;
+      return true;
     }
     if (logical == LogicalKeyboardKey.backspace) {
       _sendBytes(const [127]);
-      return;
+      return true;
     }
     if (logical == LogicalKeyboardKey.tab) {
       _sendBytes(const [9]);
-      return;
+      return true;
     }
     if (logical == LogicalKeyboardKey.arrowUp) {
       _sendBytes(const [27, 91, 65]);
-      return;
+      return true;
     }
     if (logical == LogicalKeyboardKey.arrowDown) {
       _sendBytes(const [27, 91, 66]);
-      return;
+      return true;
     }
     if (logical == LogicalKeyboardKey.arrowRight) {
       _sendBytes(const [27, 91, 67]);
-      return;
+      return true;
     }
     if (logical == LogicalKeyboardKey.arrowLeft) {
       _sendBytes(const [27, 91, 68]);
-      return;
+      return true;
     }
 
     final character = event.character;
     if (character == null || character.isEmpty) {
-      return;
+      return false;
     }
 
     if (HardwareKeyboard.instance.isControlPressed && character.length == 1) {
       final codeUnit = character.toUpperCase().codeUnitAt(0);
       if (codeUnit >= 65 && codeUnit <= 90) {
         _sendBytes([codeUnit - 64]);
-        return;
+        return true;
       }
     }
 
     _sendBytes(utf8.encode(character));
+    return true;
   }
 
   bool _handleHistoryShortcut(KeyDownEvent event) {
@@ -505,9 +506,13 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
             ),
           ),
           Expanded(
-            child: KeyboardListener(
+            child: Focus(
               focusNode: _focusNode,
-              onKeyEvent: _onKeyEvent,
+              onKeyEvent: (_, event) {
+                return _onKeyEvent(event)
+                    ? KeyEventResult.handled
+                    : KeyEventResult.ignored;
+              },
               child: Listener(
                 onPointerSignal: (signal) {
                   if (signal is PointerScrollEvent) {

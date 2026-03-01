@@ -255,14 +255,14 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
     _refresh(revealCaret: true);
   }
 
-  void _onEditorKeyEvent(KeyEvent event) {
+  bool _onEditorKeyEvent(KeyEvent event) {
     if (event is! KeyDownEvent) {
-      return;
+      return false;
     }
     final bridge = _bridge;
     final handle = _handle;
     if (bridge == null || handle == null) {
-      return;
+      return false;
     }
 
     try {
@@ -271,14 +271,14 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
       final shift = HardwareKeyboard.instance.isShiftPressed;
 
       if (_handleViewportShortcut(logical: logical, ctrl: ctrl)) {
-        return;
+        return true;
       }
 
       if (ctrl && logical == LogicalKeyboardKey.keyZ) {
         bridge.undo(handle);
         _keyStatus = 'keyboard: ctrl+z';
         _refresh(revealCaret: true);
-        return;
+        return true;
       }
       if (ctrl &&
           (logical == LogicalKeyboardKey.keyY ||
@@ -287,7 +287,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
         bridge.redo(handle);
         _keyStatus = 'keyboard: redo';
         _refresh(revealCaret: true);
-        return;
+        return true;
       }
       if (ctrl && logical == LogicalKeyboardKey.keyA) {
         final totalLen = bridge.totalLength(handle);
@@ -296,7 +296,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
         bridge.setCursorOffset(handle, totalLen);
         _keyStatus = 'keyboard: ctrl+a';
         _refresh(revealCaret: true);
-        return;
+        return true;
       }
 
       var cursor = bridge.cursorOffset(handle);
@@ -325,12 +325,12 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
       if (logical == LogicalKeyboardKey.arrowLeft) {
         final next = cursor > 0 ? cursor - 1 : 0;
         moveCursor(next: next, baseLabel: 'left', shiftSelect: shift);
-        return;
+        return true;
       }
       if (logical == LogicalKeyboardKey.arrowRight) {
         final next = cursor < totalLen ? cursor + 1 : totalLen;
         moveCursor(next: next, baseLabel: 'right', shiftSelect: shift);
-        return;
+        return true;
       }
       if (logical == LogicalKeyboardKey.home) {
         final next = ctrl ? 0 : _lineStartOffset(_text, cursor);
@@ -339,7 +339,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
           baseLabel: ctrl ? 'ctrl+home' : 'home',
           shiftSelect: shift,
         );
-        return;
+        return true;
       }
       if (logical == LogicalKeyboardKey.end) {
         final next = ctrl ? totalLen : _lineEndOffset(_text, cursor);
@@ -348,17 +348,17 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
           baseLabel: ctrl ? 'ctrl+end' : 'end',
           shiftSelect: shift,
         );
-        return;
+        return true;
       }
       if (logical == LogicalKeyboardKey.arrowUp) {
         final next = _verticalMoveOffset(_text, cursor, -1);
         moveCursor(next: next, baseLabel: 'up', shiftSelect: shift);
-        return;
+        return true;
       }
       if (logical == LogicalKeyboardKey.arrowDown) {
         final next = _verticalMoveOffset(_text, cursor, 1);
         moveCursor(next: next, baseLabel: 'down', shiftSelect: shift);
-        return;
+        return true;
       }
       if (logical == LogicalKeyboardKey.backspace) {
         if (selection != null) {
@@ -375,7 +375,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
         }
         _keyStatus = 'keyboard: backspace';
         _refresh(revealCaret: true);
-        return;
+        return true;
       }
       if (logical == LogicalKeyboardKey.delete) {
         if (selection != null) {
@@ -392,7 +392,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
         }
         _keyStatus = 'keyboard: delete';
         _refresh(revealCaret: true);
-        return;
+        return true;
       }
       if (logical == LogicalKeyboardKey.enter) {
         if (selection != null) {
@@ -407,7 +407,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
         bridge.insertText(handle, '\n');
         _keyStatus = 'keyboard: enter';
         _refresh(revealCaret: true);
-        return;
+        return true;
       }
 
       final character = event.character;
@@ -424,12 +424,14 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
         bridge.insertText(handle, character);
         _keyStatus = 'keyboard: char "${character.replaceAll('\n', r'\n')}"';
         _refresh(revealCaret: true);
+        return true;
       }
     } catch (error) {
       setState(() {
         _keyStatus = 'keyboard error: $error';
       });
     }
+    return false;
   }
 
   bool _handleViewportShortcut({
@@ -611,9 +613,13 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
             ),
             const SizedBox(height: 8),
             Expanded(
-              child: KeyboardListener(
+              child: Focus(
                 focusNode: _focusNode,
-                onKeyEvent: _onEditorKeyEvent,
+                onKeyEvent: (_, event) {
+                  return _onEditorKeyEvent(event)
+                      ? KeyEventResult.handled
+                      : KeyEventResult.ignored;
+                },
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final contentWidth = (constraints.maxWidth - 16)
