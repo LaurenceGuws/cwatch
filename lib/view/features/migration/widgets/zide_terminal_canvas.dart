@@ -152,6 +152,17 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
     });
   }
 
+  void _historyTop() {
+    final before = _scrollback.modeLabel();
+    setState(() {
+      _scrollback.scrollTop();
+    });
+    AppLogger().debug(
+      'scrollTop mode="$before" -> "${_scrollback.modeLabel()}"',
+      tag: _logTag,
+    );
+  }
+
   Future<void> _copyVisible() async {
     final frame = _effectiveFrame;
     final text = _frameToPlainText(frame);
@@ -299,9 +310,12 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
       'ctrl+a': [1],
       'ctrl+z': [26],
     };
-    return matrix.entries
+    final transport = matrix.entries
         .map((entry) => '${entry.key}=${entry.value.join(",")}')
         .join('  ');
+    const historyKeys =
+        'history: shift+pageup/down, ctrl+home(top), ctrl+end(live)';
+    return '$transport  $historyKeys';
   }
 
   Future<void> _runShellCommand() async {
@@ -381,6 +395,9 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
       'key down key=${event.logicalKey.keyLabel} focus=${_focusNode.hasFocus} mode=${_scrollback.modeLabel()}',
       tag: _logTag,
     );
+    if (_handleHistoryShortcut(event)) {
+      return;
+    }
     _ensureShellStarted();
 
     final logical = event.logicalKey;
@@ -427,6 +444,32 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
     }
 
     _sendBytes(utf8.encode(character));
+  }
+
+  bool _handleHistoryShortcut(KeyDownEvent event) {
+    final logical = event.logicalKey;
+    final keyboard = HardwareKeyboard.instance;
+    final shift = keyboard.isShiftPressed;
+    final control = keyboard.isControlPressed;
+    final pageRows = (_effectiveFrame.rows > 0) ? _effectiveFrame.rows : 12;
+
+    if (shift && logical == LogicalKeyboardKey.pageUp) {
+      _historyUp(rows: pageRows);
+      return true;
+    }
+    if (shift && logical == LogicalKeyboardKey.pageDown) {
+      _historyDown(rows: pageRows);
+      return true;
+    }
+    if (control && logical == LogicalKeyboardKey.home) {
+      _historyTop();
+      return true;
+    }
+    if (control && logical == LogicalKeyboardKey.end) {
+      _historyLive();
+      return true;
+    }
+    return false;
   }
 
   @override

@@ -71,6 +71,16 @@ class TerminalScrollbackController {
     _scrollOffsetRows = 0;
   }
 
+  void scrollTop() {
+    final source = _historyFrame ?? _liveFrame;
+    final max = _maxScrollRows(source);
+    if (max <= 0) {
+      return;
+    }
+    _historyFrame ??= _liveFrame;
+    _scrollOffsetRows = max;
+  }
+
   int _maxScrollRows(ZideTerminalFrameData frame) {
     final viewportRows = frame.viewportRows <= 0
         ? frame.rows

@@ -145,4 +145,19 @@ void main() {
     expect(controller.modeLabel(), 'live');
     expect(controller.isLive, isTrue);
   });
+
+  test('scroll top jumps to max history offset', () {
+    final controller = TerminalScrollbackController();
+    controller.updateLiveFrame(
+      frame: _frame(
+        totalRows: 20,
+        viewportRows: 5,
+        cols: 2,
+        cursorRow: 19,
+        cursorCol: 0,
+      ),
+    );
+    controller.scrollTop();
+    expect(controller.modeLabel(), 'history(rows=15/15)');
+  });
 }
