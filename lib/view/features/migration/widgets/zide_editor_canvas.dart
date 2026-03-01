@@ -2,6 +2,7 @@ import 'dart:ffi' show Pointer;
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -23,6 +24,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
   Pointer<ZideEditorHandle>? _handle;
   final FocusNode _focusNode = FocusNode(debugLabel: 'zide_editor_canvas');
   final ScrollController _verticalScrollController = ScrollController();
+  final ScrollController _horizontalScrollController = ScrollController();
   double _editorContentWidth = 0;
 
   String _status = 'Initializing editor...';
@@ -47,6 +49,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
   void dispose() {
     _focusNode.dispose();
     _verticalScrollController.dispose();
+    _horizontalScrollController.dispose();
     final bridge = _bridge;
     final handle = _handle;
     if (bridge != null && handle != null) {
@@ -487,7 +490,9 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
   }
 
   void _ensurePrimaryCaretVisible() {
-    if (!_verticalScrollController.hasClients || _editorContentWidth <= 0) {
+    if (_editorContentWidth <= 0 ||
+        !_verticalScrollController.hasClients ||
+        !_horizontalScrollController.hasClients) {
       return;
     }
 
@@ -501,12 +506,33 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
     );
 
     final position = _verticalScrollController.position;
+    final horizontalPosition = _horizontalScrollController.position;
     const contentTopPadding = 8.0;
+    const contentLeftPadding = 8.0;
     const margin = 6.0;
+    final caretLeft = layout.primaryCaret.dx + contentLeftPadding;
+    final caretRight = caretLeft + 2.0;
     final caretTop = layout.primaryCaret.dy + contentTopPadding;
     final caretBottom = caretTop + layout.lineHeight;
     final viewTop = position.pixels;
     final viewBottom = viewTop + position.viewportDimension;
+    final viewLeft = horizontalPosition.pixels;
+    final viewRight = viewLeft + horizontalPosition.viewportDimension;
+
+    if (caretLeft < viewLeft + margin) {
+      final target = (caretLeft - margin).clamp(
+        horizontalPosition.minScrollExtent,
+        horizontalPosition.maxScrollExtent,
+      );
+      _horizontalScrollController.jumpTo(target.toDouble());
+    } else if (caretRight > viewRight - margin) {
+      final target =
+          (caretRight - horizontalPosition.viewportDimension + margin).clamp(
+            horizontalPosition.minScrollExtent,
+            horizontalPosition.maxScrollExtent,
+          );
+      _horizontalScrollController.jumpTo(target.toDouble());
+    }
 
     if (caretTop < viewTop + margin) {
       final target = (caretTop - margin).clamp(
@@ -524,6 +550,33 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
       );
       _verticalScrollController.jumpTo(target.toDouble());
     }
+  }
+
+  double _measureContentWidth({
+    required String text,
+    required TextScaler textScaler,
+    required double minWidth,
+  }) {
+    final lines = text.split('\n');
+    final painter = TextPainter(
+      textDirection: TextDirection.ltr,
+      textScaler: textScaler,
+      maxLines: 1,
+    );
+
+    var maxLineWidth = 0.0;
+    for (final line in lines) {
+      final sample = line.isEmpty ? ' ' : line;
+      painter.text = TextSpan(
+        text: sample,
+        style: _EditorTextWithCaretPainter.textStyle,
+      );
+      painter.layout(minWidth: 0, maxWidth: double.infinity);
+      if (painter.width > maxLineWidth) {
+        maxLineWidth = painter.width;
+      }
+    }
+    return math.max(minWidth, maxLineWidth + 16);
   }
 
   int _lineStartOffset(String text, int offset) {
@@ -622,9 +675,14 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
                 },
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final contentWidth = (constraints.maxWidth - 16)
+                    final viewportContentWidth = (constraints.maxWidth - 16)
                         .clamp(1.0, double.infinity)
                         .toDouble();
+                    final contentWidth = _measureContentWidth(
+                      text: _text,
+                      textScaler: MediaQuery.textScalerOf(context),
+                      minWidth: viewportContentWidth,
+                    );
                     _editorContentWidth = contentWidth;
                     final lineHeight =
                         12 * 1.2 * MediaQuery.textScalerOf(context).scale(1.0);
@@ -643,49 +701,92 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(6),
-                        child: Scrollbar(
-                          controller: _verticalScrollController,
-                          thumbVisibility: true,
-                          child: SingleChildScrollView(
-                            controller: _verticalScrollController,
-                            padding: const EdgeInsets.all(8),
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: _focusKeyboard,
-                              onTapDown: (details) {
-                                _focusKeyboard();
-                                _setCaretFromTap(
-                                  details.localPosition,
-                                  contentWidth,
-                                );
-                              },
-                              onPanStart: (details) {
-                                _focusKeyboard();
-                                _updateSelectionFromDrag(
-                                  localPosition: details.localPosition,
-                                  contentWidth: contentWidth,
-                                  start: true,
-                                );
-                              },
-                              onPanUpdate: (details) {
-                                _updateSelectionFromDrag(
-                                  localPosition: details.localPosition,
-                                  contentWidth: contentWidth,
-                                  start: false,
-                                );
-                              },
-                              child: CustomPaint(
-                                painter: _EditorTextWithCaretPainter(
-                                  text: _text,
-                                  primaryOffset: _primaryCaret,
-                                  auxiliaryOffsets: _auxOffsets,
-                                  selectionStart: _selectionRange()?.start,
-                                  selectionEnd: _selectionRange()?.end,
-                                  textScaler: MediaQuery.textScalerOf(context),
-                                ),
-                                child: SizedBox(
-                                  width: contentWidth,
-                                  height: contentHeight,
+                        child: Listener(
+                          onPointerSignal: (signal) {
+                            if (signal is! PointerScrollEvent) {
+                              return;
+                            }
+                            if (!_horizontalScrollController.hasClients) {
+                              return;
+                            }
+                            var deltaX = signal.scrollDelta.dx;
+                            if (deltaX == 0 &&
+                                HardwareKeyboard.instance.isShiftPressed) {
+                              deltaX = signal.scrollDelta.dy;
+                            }
+                            if (deltaX == 0) {
+                              return;
+                            }
+                            final position =
+                                _horizontalScrollController.position;
+                            final target = (position.pixels + deltaX).clamp(
+                              position.minScrollExtent,
+                              position.maxScrollExtent,
+                            );
+                            _horizontalScrollController.jumpTo(
+                              target.toDouble(),
+                            );
+                          },
+                          child: Scrollbar(
+                            controller: _horizontalScrollController,
+                            thumbVisibility: true,
+                            notificationPredicate: (notification) =>
+                                notification.metrics.axis == Axis.horizontal,
+                            child: SingleChildScrollView(
+                              controller: _horizontalScrollController,
+                              scrollDirection: Axis.horizontal,
+                              child: SizedBox(
+                                width: contentWidth + 16,
+                                child: Scrollbar(
+                                  controller: _verticalScrollController,
+                                  thumbVisibility: true,
+                                  child: SingleChildScrollView(
+                                    controller: _verticalScrollController,
+                                    padding: const EdgeInsets.all(8),
+                                    child: GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: _focusKeyboard,
+                                      onTapDown: (details) {
+                                        _focusKeyboard();
+                                        _setCaretFromTap(
+                                          details.localPosition,
+                                          contentWidth,
+                                        );
+                                      },
+                                      onPanStart: (details) {
+                                        _focusKeyboard();
+                                        _updateSelectionFromDrag(
+                                          localPosition: details.localPosition,
+                                          contentWidth: contentWidth,
+                                          start: true,
+                                        );
+                                      },
+                                      onPanUpdate: (details) {
+                                        _updateSelectionFromDrag(
+                                          localPosition: details.localPosition,
+                                          contentWidth: contentWidth,
+                                          start: false,
+                                        );
+                                      },
+                                      child: CustomPaint(
+                                        painter: _EditorTextWithCaretPainter(
+                                          text: _text,
+                                          primaryOffset: _primaryCaret,
+                                          auxiliaryOffsets: _auxOffsets,
+                                          selectionStart:
+                                              _selectionRange()?.start,
+                                          selectionEnd: _selectionRange()?.end,
+                                          textScaler: MediaQuery.textScalerOf(
+                                            context,
+                                          ),
+                                        ),
+                                        child: SizedBox(
+                                          width: contentWidth,
+                                          height: contentHeight,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
