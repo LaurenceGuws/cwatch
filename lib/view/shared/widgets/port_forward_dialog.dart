@@ -132,7 +132,7 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
                       children: _activeForwards
                           .map(
                             (f) => Chip(
-                              avatar: const Icon(Icons.link, size: 16),
+                              avatar: Icon(Icons.link, size: context.appTheme.iconSizes.small),
                               label: Text(
                                 '${f.host.name}: ${f.requests.map((r) => '${r.localPort}->${r.remotePort}').join(', ')}',
                               ),
@@ -208,7 +208,7 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
         children: [
           _SortableHeader(
             label: 'Use',
-            width: 40,
+            width: context.appTheme.dimensions.portForwardUseColumnWidth,
             onTap: () => _sortBy(_SortKey.use),
             direction: _sortDirectionFor(_SortKey.use),
           ),
@@ -228,14 +228,14 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
           ),
           _SortableHeader(
             label: 'Service',
-            width: 200,
+            width: context.appTheme.dimensions.portForwardServiceColumnWidth,
             onTap: () => _sortBy(_SortKey.service),
             direction: _sortDirectionFor(_SortKey.service),
             textStyle: textStyle,
           ),
           _SortableHeader(
             label: 'Status',
-            width: 140,
+            width: context.appTheme.dimensions.portForwardStatusColumnWidth,
             onTap: () => _sortBy(_SortKey.status),
             direction: _sortDirectionFor(_SortKey.status),
             textStyle: textStyle,
@@ -274,7 +274,7 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
                     decoration: InputDecoration(
                       labelText: 'Remote port',
                       errorText: _remoteErrors[index],
-                      prefixIcon: const Icon(Icons.cloud_outlined, size: 18),
+                      prefixIcon: Icon(Icons.cloud_outlined, size: context.appTheme.iconSizes.medium),
                     ),
                     onChanged: (value) {
                       final parsed = int.tryParse(value);
@@ -288,7 +288,7 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
                 ),
                 SizedBox(
                   width: spacing.base * 5,
-                  child: const Icon(Icons.arrow_forward, size: 16),
+                  child: Icon(Icons.arrow_forward, size: context.appTheme.iconSizes.small),
                 ),
                 Expanded(
                   flex: 2,
@@ -301,7 +301,7 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
                       errorText: _errors[index],
                       prefixIcon: Icon(
                         Icons.lan_outlined,
-                        size: 18,
+                        size: context.appTheme.iconSizes.medium,
                         color: scheme.primary,
                       ),
                     ),
@@ -317,17 +317,17 @@ class _PortForwardDialogState extends State<_PortForwardDialog> {
                 ),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: spacing.md),
-                  child: const Icon(Icons.swap_horiz, size: 18),
+                  child: Icon(Icons.swap_horiz, size: context.appTheme.iconSizes.medium),
                 ),
                 SizedBox(
-                  width: 200,
+                  width: context.appTheme.dimensions.portForwardServiceColumnWidth,
                   child: Text(
                     serviceLabel.isNotEmpty ? serviceLabel : '—',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
                 SizedBox(
-                  width: 140,
+                  width: context.appTheme.dimensions.portForwardStatusColumnWidth,
                   child: Text(
                     _statusFor(index),
                     style: Theme.of(context).textTheme.bodySmall,

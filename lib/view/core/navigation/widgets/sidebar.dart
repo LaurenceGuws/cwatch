@@ -5,8 +5,6 @@ import '../shell_module.dart';
 import 'navigation_button.dart';
 
 class Sidebar extends StatelessWidget {
-  static const double width = 48;
-
   const Sidebar({
     required this.primaryModules,
     required this.secondaryModules,
@@ -24,10 +22,16 @@ class Sidebar extends StatelessWidget {
   final bool alignRight;
   final ValueChanged<Offset>? onShowOptions;
 
+  static double width(BuildContext context) {
+    // Base width of 48px, scaled with zoom
+    return context.scale(48);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final spacing = context.appTheme.spacing;
+    final sidebarWidth = width(context);
     final decoration = BoxDecoration(
       color: context.appTheme.section.toolbarBackground,
       border: alignRight
@@ -43,7 +47,7 @@ class Sidebar extends StatelessWidget {
             ),
     );
     final content = Container(
-      width: width,
+      width: sidebarWidth,
       margin: alignRight
           ? EdgeInsets.only(left: spacing.xs)
           : EdgeInsets.only(right: spacing.xs),
@@ -63,7 +67,7 @@ class Sidebar extends StatelessWidget {
                     selected: selected == module.id,
                     onSelect: onSelect,
                     vertical: true,
-                    verticalWidth: width,
+                    verticalWidth: sidebarWidth,
                   ),
                 )
                 .toList(),
@@ -80,7 +84,7 @@ class Sidebar extends StatelessWidget {
                     selected: selected == module.id,
                     onSelect: onSelect,
                     vertical: true,
-                    verticalWidth: width,
+                    verticalWidth: sidebarWidth,
                   ),
                 )
                 .toList(),

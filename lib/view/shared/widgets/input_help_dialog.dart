@@ -168,7 +168,7 @@ Future<void> showInputHelpDialog(
       return AlertDialog(
         title: const Text('Input, shortcuts, and gestures'),
         content: SizedBox(
-          width: 560,
+          width: context.scale(560),
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

@@ -33,7 +33,7 @@ class ActionPicker {
         return AlertDialog(
           title: Text(title),
           content: SizedBox(
-            width: 360,
+            width: dialogContext.appTheme.dimensions.dialogMinWidth,
             child: SectionList(
               children: List.generate(options.length, (index) {
                 final option = options[index];

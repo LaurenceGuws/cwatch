@@ -449,7 +449,7 @@ class _TransferToast extends StatelessWidget {
                     Text('Parallel', style: typography.caption),
                     SizedBox(width: spacing.sm),
                     IconButton(
-                      icon: const Icon(Icons.remove_circle_outline, size: 18),
+                      icon: Icon(Icons.remove_circle_outline, size: context.appTheme.iconSizes.medium),
                       tooltip: 'Decrease',
                       onPressed: () => controller.setMaxConcurrency(
                         controller.maxConcurrency - 1,
@@ -460,7 +460,7 @@ class _TransferToast extends StatelessWidget {
                       style: typography.caption,
                     ),
                     IconButton(
-                      icon: const Icon(Icons.add_circle_outline, size: 18),
+                      icon: Icon(Icons.add_circle_outline, size: context.appTheme.iconSizes.medium),
                       tooltip: 'Increase',
                       onPressed: () => controller.setMaxConcurrency(
                         controller.maxConcurrency + 1,
@@ -484,12 +484,12 @@ class _TransferToast extends StatelessWidget {
               SizedBox(height: spacing.sm),
               LinearPercentIndicator(
                 padding: EdgeInsets.zero,
-                lineHeight: 8,
+                lineHeight: context.scale(8),
                 percent: overallProgress,
                 animation: false,
                 backgroundColor: progressTrack,
                 progressColor: colorScheme.primary,
-                barRadius: const Radius.circular(8),
+                barRadius: Radius.circular(8 * context.zoomFactor),
               ),
               if (items.isEmpty && controller.currentItem != null) ...[
                 SizedBox(height: spacing.sm),
@@ -612,11 +612,11 @@ class _SectionHeader extends StatelessWidget {
     final typography = context.appTheme.typography;
     final colorScheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: EdgeInsets.only(bottom: context.appTheme.spacing.sm),
       child: Row(
         children: [
           Text(title, style: typography.tabLabel),
-          const SizedBox(width: 6),
+          SizedBox(width: context.appTheme.spacing.sm),
           Text(
             '$count',
             style: typography.caption.copyWith(
@@ -651,8 +651,8 @@ class _TransferItemRow extends StatelessWidget {
       children: [
         Row(
           children: [
-            _statusIcon(item.status),
-            const SizedBox(width: 6),
+            _statusIcon(context, item.status),
+            SizedBox(width: context.appTheme.spacing.sm),
             Expanded(
               child: Text(
                 item.label,
@@ -675,18 +675,19 @@ class _TransferItemRow extends StatelessWidget {
     );
   }
 
-  static Widget _statusIcon(FileOperationStatus status) {
+  Widget _statusIcon(BuildContext context, FileOperationStatus status) {
+    final iconSizes = context.appTheme.iconSizes;
     switch (status) {
       case FileOperationStatus.pending:
-        return const Icon(Icons.pause_circle_outline, size: 16);
+        return Icon(Icons.pause_circle_outline, size: iconSizes.small);
       case FileOperationStatus.inProgress:
-        return const Icon(Icons.upload, size: 16);
+        return Icon(Icons.upload, size: iconSizes.small);
       case FileOperationStatus.completed:
-        return const Icon(Icons.check_circle, color: Colors.green, size: 16);
+        return Icon(Icons.check_circle, color: Colors.green, size: iconSizes.small);
       case FileOperationStatus.failed:
-        return const Icon(Icons.error_outline, color: Colors.red, size: 16);
+        return Icon(Icons.error_outline, color: Colors.red, size: iconSizes.small);
       case FileOperationStatus.skipped:
-        return const Icon(Icons.skip_next, size: 16);
+        return Icon(Icons.skip_next, size: iconSizes.small);
     }
   }
 }

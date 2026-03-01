@@ -9,7 +9,8 @@ class ThemeFactory {
     required Brightness brightness,
   }) {
     final appFontFamily = settings.appFontFamily;
-    final baseRadius = BorderRadius.circular(2);
+    final zoomFactor = settings.zoomFactor.clamp(0.5, 2.0).toDouble();
+    final baseRadius = BorderRadius.circular(2 * zoomFactor);
     final spacingBase = settings.uiDensity == AppUiDensity.comfy ? 5.0 : 4.0;
     final seed = seedForKey(settings.appThemeKey);
 
@@ -24,12 +25,14 @@ class ThemeFactory {
             fontFamily: appFontFamily,
             surfaceRadius: baseRadius,
             spacingBase: spacingBase,
+            zoomFactor: zoomFactor,
           )
         : AppThemeTokens.dark(
             scheme,
             fontFamily: appFontFamily,
             surfaceRadius: baseRadius,
             spacingBase: spacingBase,
+            zoomFactor: zoomFactor,
           );
 
     return _buildThemeData(
@@ -112,8 +115,8 @@ class ThemeFactory {
         ),
       ),
       scrollbarTheme: ScrollbarThemeData(
-        radius: const Radius.circular(2),
-        thickness: WidgetStateProperty.all(4),
+        radius: Radius.circular(2 * tokens.dimensions.zoomFactor),
+        thickness: WidgetStateProperty.all(tokens.dimensions.scrollbarThickness),
         thumbVisibility: WidgetStateProperty.all(true),
         thumbColor: WidgetStateProperty.all(
           scheme.outlineVariant.withValues(alpha: 0.7),

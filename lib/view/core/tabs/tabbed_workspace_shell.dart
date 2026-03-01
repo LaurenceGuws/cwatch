@@ -14,7 +14,7 @@ class TabbedWorkspaceShell<T> extends StatelessWidget {
     required this.registry,
     required this.buildChip,
     required this.buildBody,
-    this.tabBarHeight = 36,
+    this.tabBarHeight,
     this.leading,
     this.onAddTab,
     this.onReorder,
@@ -24,7 +24,7 @@ class TabbedWorkspaceShell<T> extends StatelessWidget {
 
   final TabHostController<T> controller;
   final TabViewRegistry<T> registry;
-  final double tabBarHeight;
+  final double? tabBarHeight;
   final Widget? leading;
   final void Function()? onAddTab;
   final void Function(int oldIndex, int newIndex)? onReorder;
@@ -36,11 +36,13 @@ class TabbedWorkspaceShell<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final spacing = context.appTheme.spacing;
+    final effectiveTabBarHeight =
+        tabBarHeight ?? context.appTheme.dimensions.tabBarHeight;
     return Padding(
       padding: EdgeInsets.only(right: spacing.xs * 0.25),
       child: TabHostView<T>(
         controller: controller,
-        tabBarHeight: tabBarHeight,
+        tabBarHeight: effectiveTabBarHeight,
         leading: leading,
         onAddTab: onAddTab,
         onReorder: onReorder,

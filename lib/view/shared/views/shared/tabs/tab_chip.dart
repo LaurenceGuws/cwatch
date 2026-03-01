@@ -134,6 +134,7 @@ class _TabChipState extends State<TabChip> {
             defaultTargetPlatform == TargetPlatform.linux);
     final showHoverActions = !isDesktop || _hovering;
     final appTheme = context.appTheme;
+    final iconSizes = appTheme.iconSizes;
     final colorScheme = Theme.of(context).colorScheme;
     final spacing = appTheme.spacing;
     final chipStyle = appTheme.tabChip.style(
@@ -166,30 +167,30 @@ class _TabChipState extends State<TabChip> {
             // Top/left shadow (darker) - creates inset effect
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.3),
-              blurRadius: 4,
+              blurRadius: 4 * context.zoomFactor,
               spreadRadius: 0,
-              offset: const Offset(-1, -1),
+              offset: Offset(-1 * context.zoomFactor, -1 * context.zoomFactor),
             ),
             // Bottom/right highlight (lighter) - creates depth
             BoxShadow(
               color: Colors.white.withValues(alpha: 0.1),
-              blurRadius: 2,
+              blurRadius: 2 * context.zoomFactor,
               spreadRadius: 0,
-              offset: const Offset(1, 1),
+              offset: Offset(1 * context.zoomFactor, 1 * context.zoomFactor),
             ),
             // Overall depth shadow
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.15),
-              blurRadius: 8,
+              blurRadius: 8 * context.zoomFactor,
               spreadRadius: 0,
-              offset: const Offset(0, 2),
+              offset: Offset(0, 2 * context.zoomFactor),
             ),
           ]
         : const <BoxShadow>[];
     final menuOptions = _buildMenuOptions();
     final edgeBreathingSpace = spacing.xs * 0.4;
-    final actionWidth = 28.0;
-    final actionHeight = 24.0;
+    final actionWidth = context.scale(28);
+    final actionHeight = context.scale(24);
     final padding = EdgeInsets.only(
       left: chipStyle.padding.left + spacing.xs * 0.6 + edgeBreathingSpace,
       right: chipStyle.padding.right + spacing.xs * 0.6 + edgeBreathingSpace,
@@ -243,7 +244,7 @@ class _TabChipState extends State<TabChip> {
                               children: [
                                 Icon(
                                   widget.icon,
-                                  size: 18,
+                                  size: iconSizes.medium,
                                   color: colorScheme.primary,
                                 ),
                                 Text(
@@ -290,7 +291,7 @@ class _TabChipState extends State<TabChip> {
                                 child: Center(
                                   child: Icon(
                                     NerdIcon.close.data,
-                                    size: 14,
+                                    size: iconSizes.small,
                                     color: widget.closable
                                         ? (isHovering
                                               ? closeColor
@@ -310,7 +311,7 @@ class _TabChipState extends State<TabChip> {
                     right: 0,
                     top: 0,
                     child: Container(
-                      height: 2,
+                      height: context.scale(2),
                       decoration: BoxDecoration(
                         color: widget.selected
                             ? colorScheme.primary
@@ -324,7 +325,7 @@ class _TabChipState extends State<TabChip> {
                     bottom: 0,
                     right: 0,
                     child: Container(
-                      width: 1,
+                      width: context.scale(1),
                       color: colorScheme.primary.withValues(
                         alpha: _hovering ? 0.3 : 0.2,
                       ),
@@ -371,13 +372,22 @@ class _TabChipState extends State<TabChip> {
         padding: EdgeInsets.zero,
         constraints: const BoxConstraints(minWidth: 0, minHeight: 0),
         tooltip: 'Tab options',
-        child: SizedBox(
-          width: 28,
-          height: 24,
-          child: Center(
-            child: Icon(Icons.more_vert, size: 16, color: iconColor),
+          child: Builder(
+            builder: (context) {
+              final iconSizes = context.appTheme.iconSizes;
+              return SizedBox(
+                width: context.scale(28),
+                height: context.scale(24),
+                child: Center(
+                  child: Icon(
+                    Icons.more_vert,
+                    size: iconSizes.medium,
+                    color: iconColor,
+                  ),
+                ),
+              );
+            },
           ),
-        ),
         onSelected: (value) => menuOptions[value].onSelected(),
         itemBuilder: (context) {
           return List.generate(menuOptions.length, (index) {
@@ -388,14 +398,24 @@ class _TabChipState extends State<TabChip> {
             return PopupMenuItem<int>(
               value: index,
               enabled: option.enabled,
-              child: Row(
-                children: [
-                  if (option.icon != null) ...[
-                    Icon(option.icon, size: 18, color: option.color),
-                    const SizedBox(width: 8),
-                  ],
-                  Text(option.label, style: textStyle),
-                ],
+              child: Builder(
+                builder: (context) {
+                  final iconSizes = context.appTheme.iconSizes;
+                  final spacing = context.appTheme.spacing;
+                  return Row(
+                    children: [
+                      if (option.icon != null) ...[
+                        Icon(
+                          option.icon,
+                          size: iconSizes.medium,
+                          color: option.color,
+                        ),
+                        SizedBox(width: spacing.md),
+                      ],
+                      Text(option.label, style: textStyle),
+                    ],
+                  );
+                },
               ),
             );
           });
@@ -432,8 +452,12 @@ class _TabChipState extends State<TabChip> {
           child: Row(
             children: [
               if (option.icon != null) ...[
-                Icon(option.icon, size: 18, color: option.color),
-                const SizedBox(width: 8),
+                Icon(
+                  option.icon,
+                  size: context.appTheme.iconSizes.medium,
+                  color: option.color,
+                ),
+                SizedBox(width: context.appTheme.spacing.md),
               ],
               Text(option.label, style: textStyle),
             ],

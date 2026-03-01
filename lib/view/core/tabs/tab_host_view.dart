@@ -21,7 +21,7 @@ class TabHostView<T> extends StatefulWidget {
     this.leading,
     this.onReorder,
     this.onAddTab,
-    this.tabBarHeight = 36,
+    this.tabBarHeight,
     this.showTabBar,
     this.enableWindowDrag = true,
   });
@@ -33,7 +33,7 @@ class TabHostView<T> extends StatefulWidget {
   final String Function(T tab) tabId;
   final void Function(int oldIndex, int newIndex)? onReorder;
   final VoidCallback? onAddTab;
-  final double tabBarHeight;
+  final double? tabBarHeight;
   final ValueListenable<bool>? showTabBar;
   final bool enableWindowDrag;
 
@@ -93,9 +93,11 @@ class _TabHostViewState<T> extends State<TabHostView<T>> {
     final selectedIndex = tabs.isEmpty
         ? 0
         : widget.controller.selectedIndex.clamp(0, tabs.length - 1);
+    final effectiveTabBarHeight =
+        widget.tabBarHeight ?? context.appTheme.dimensions.tabBarHeight;
     final tabBar = _TabBarRow<T>(
       tabs: tabs,
-      tabBarHeight: widget.tabBarHeight,
+      tabBarHeight: effectiveTabBarHeight,
       leading: widget.leading,
       onAddTab: widget.onAddTab,
       onReorder: widget.onReorder,
@@ -307,13 +309,14 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
     final dragGutterWidth = enableDrag
         ? WindowControlsConstants.dragRegionWidth
         : 0.0;
-    // Match window controls height (32px) when custom chrome is enabled to eliminate dead space
-    final effectiveHeight = useCustomChrome
-        ? WindowControlsConstants.tabBarHeight
-        : tabBarHeight + 2;
-    final effectiveTabBarHeight = useCustomChrome
-        ? WindowControlsConstants.tabBarHeight
+    // Match window controls height when custom chrome is enabled to eliminate dead space
+    final zoomAwareTabBarHeight = useCustomChrome
+        ? WindowControlsConstants.tabBarHeightFor(context)
         : tabBarHeight;
+    final effectiveHeight = useCustomChrome
+        ? zoomAwareTabBarHeight
+        : tabBarHeight + (2 * context.zoomFactor);
+    final effectiveTabBarHeight = zoomAwareTabBarHeight;
 
     final overlayButtonSize = effectiveTabBarHeight;
     final bool showScrollbar = _hasOverflow;
@@ -395,12 +398,14 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
                                 controller: _scrollController,
                                 thumbVisibility: showThumb,
                                 trackVisibility: showScrollbar,
-                                thickness: 6,
+                                thickness: context.scale(6),
                                 interactive: true,
                                 scrollbarOrientation:
                                     ScrollbarOrientation.bottom,
                                 notificationPredicate: (_) => true,
-                                radius: const Radius.circular(2),
+                                radius: Radius.circular(
+                                  2 * context.zoomFactor,
+                                ),
                                 thumbColor: Theme.of(context)
                                     .colorScheme
                                     .primary
@@ -642,7 +647,16 @@ class _AddTabSliceButtonState extends State<_AddTabSliceButton> {
           behavior: HitTestBehavior.opaque,
           onTap: widget.enabled ? widget.onTap : null,
           child: Center(
-            child: Icon(Icons.add, size: 18, color: scheme.onSurface),
+            child: Builder(
+            builder: (context) {
+              final iconSizes = context.appTheme.iconSizes;
+              return Icon(
+                Icons.add,
+                size: iconSizes.medium,
+                color: scheme.onSurface,
+              );
+            },
+          ),
           ),
         ),
       ),

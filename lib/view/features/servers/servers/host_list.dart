@@ -307,7 +307,7 @@ class _HostListState extends State<HostList> {
       key: tableKey,
       rows: hosts,
       columns: _columns(),
-      rowHeight: 64,
+      rowHeight: context.scale(64),
       shrinkToContent: true,
       primaryDoubleClickOpensContextMenu: true,
       useZebraStripes: false,
@@ -392,32 +392,36 @@ class _HostListState extends State<HostList> {
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    host.name,
-                    style: Theme.of(context).textTheme.titleMedium,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text.rich(
-                    TextSpan(
-                      text: host.hostname,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(height: 1.0),
-                      children: [
-                        if (isDisabled)
-                          TextSpan(
-                            text: ' · Disabled',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                  height: 1.0,
-                                ),
-                          ),
-                      ],
+                  Flexible(
+                    child: Text(
+                      host.name,
+                      style: Theme.of(context).textTheme.titleMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Flexible(
+                    child: Text.rich(
+                      TextSpan(
+                        text: host.hostname,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(height: 1.0),
+                        children: [
+                          if (isDisabled)
+                            TextSpan(
+                              text: ' · Disabled',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: scheme.onSurfaceVariant,
+                                    height: 1.0,
+                                  ),
+                            ),
+                        ],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
@@ -590,6 +594,7 @@ class _HostListState extends State<HostList> {
   double _distroIconSize(BuildContext context) {
     final titleSize = Theme.of(context).textTheme.titleMedium?.fontSize ?? 14;
     // Larger than text without overflowing the row.
-    return titleSize * 1.9;
+    // Scale with zoom factor to match text scaling
+    return (titleSize * 1.9) * context.zoomFactor;
   }
 }

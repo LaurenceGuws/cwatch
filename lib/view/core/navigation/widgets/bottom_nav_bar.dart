@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:cwatch/model/shared/theme/app_theme.dart';
 import '../shell_module.dart';
 import 'navigation_button.dart';
 
@@ -17,18 +18,22 @@ class BottomNavBar extends StatelessWidget {
   final ValueChanged<String> onSelect;
   final ValueChanged<Offset>? onShowOptions;
 
-  static const double height = 72;
+  static double height(BuildContext context) {
+    // Base height of 72px, scaled with zoom
+    return context.scale(72);
+  }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final navBarHeight = height(context);
     return GestureDetector(
       onLongPressStart: (details) =>
           onShowOptions?.call(details.globalPosition),
       onSecondaryTapDown: (details) =>
           onShowOptions?.call(details.globalPosition),
       child: Container(
-        height: height,
+        height: navBarHeight,
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.18),
           border: Border(

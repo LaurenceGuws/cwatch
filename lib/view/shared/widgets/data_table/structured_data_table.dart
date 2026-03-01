@@ -63,7 +63,7 @@ class StructuredDataTable<T> extends StatefulWidget {
     this.allowMultiSelect = true,
 
     this.rowHeight = 60,
-    this.headerHeight = 38,
+    this.headerHeight,
     this.autoRowHeight = false,
     this.shrinkToContent = false,
     this.primaryDoubleClickOpensContextMenu = true,
@@ -130,7 +130,7 @@ class StructuredDataTable<T> extends StatefulWidget {
   final Listenable? refreshListenable;
   final bool allowMultiSelect;
   final double rowHeight;
-  final double headerHeight;
+  final double? headerHeight;
   final bool autoRowHeight;
   final bool shrinkToContent;
   final bool primaryDoubleClickOpensContextMenu;

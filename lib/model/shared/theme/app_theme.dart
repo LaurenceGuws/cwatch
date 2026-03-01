@@ -11,6 +11,8 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
     required this.section,
     required this.typography,
     required this.icons,
+    required this.iconSizes,
+    required this.dimensions,
     required this.docker,
     required this.distroColors,
   });
@@ -21,6 +23,8 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
   final AppSectionTokens section;
   final AppTypographyTokens typography;
   final AppIcons icons;
+  final AppIconsTokens iconSizes;
+  final AppDimensionsTokens dimensions;
   final AppDockerTokens docker;
   final DistroColors distroColors;
 
@@ -29,20 +33,30 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
     String? fontFamily,
     BorderRadius? surfaceRadius,
     double? spacingBase,
+    double zoomFactor = 1.0,
   }) {
     final baseTheme = ThemeData(
       colorScheme: scheme,
       useMaterial3: true,
       fontFamily: fontFamily,
     );
-    final radius = surfaceRadius ?? BorderRadius.circular(2);
+    final radius = surfaceRadius ?? BorderRadius.circular(2 * zoomFactor);
     return AppThemeTokens(
-      spacing: AppSpacing(base: spacingBase ?? 4),
-      tabChip: AppTabChipTokens.fromScheme(scheme),
+      spacing: AppSpacing(base: spacingBase ?? 4, zoomFactor: zoomFactor),
+      tabChip: AppTabChipTokens.fromScheme(scheme, zoomFactor: zoomFactor),
       list: AppListTokens.fromScheme(scheme),
-      section: AppSectionTokens.fromScheme(scheme, surfaceRadius: radius),
-      typography: AppTypographyTokens.fromTextTheme(baseTheme.textTheme),
+      section: AppSectionTokens.fromScheme(
+        scheme,
+        surfaceRadius: radius,
+        zoomFactor: zoomFactor,
+      ),
+      typography: AppTypographyTokens.fromTextTheme(
+        baseTheme.textTheme,
+        zoomFactor: zoomFactor,
+      ),
       icons: AppIcons.nerd(),
+      iconSizes: AppIconsTokens(zoomFactor: zoomFactor),
+      dimensions: AppDimensionsTokens(zoomFactor: zoomFactor),
       docker: AppDockerTokens.fromScheme(scheme),
       distroColors: DistroColors.standard(),
     );
@@ -53,20 +67,30 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
     String? fontFamily,
     BorderRadius? surfaceRadius,
     double? spacingBase,
+    double zoomFactor = 1.0,
   }) {
     final baseTheme = ThemeData(
       colorScheme: scheme,
       useMaterial3: true,
       fontFamily: fontFamily,
     );
-    final radius = surfaceRadius ?? BorderRadius.circular(2);
+    final radius = surfaceRadius ?? BorderRadius.circular(2 * zoomFactor);
     return AppThemeTokens(
-      spacing: AppSpacing(base: spacingBase ?? 4),
-      tabChip: AppTabChipTokens.fromScheme(scheme),
+      spacing: AppSpacing(base: spacingBase ?? 4, zoomFactor: zoomFactor),
+      tabChip: AppTabChipTokens.fromScheme(scheme, zoomFactor: zoomFactor),
       list: AppListTokens.fromScheme(scheme),
-      section: AppSectionTokens.fromScheme(scheme, surfaceRadius: radius),
-      typography: AppTypographyTokens.fromTextTheme(baseTheme.textTheme),
+      section: AppSectionTokens.fromScheme(
+        scheme,
+        surfaceRadius: radius,
+        zoomFactor: zoomFactor,
+      ),
+      typography: AppTypographyTokens.fromTextTheme(
+        baseTheme.textTheme,
+        zoomFactor: zoomFactor,
+      ),
       icons: AppIcons.nerd(),
+      iconSizes: AppIconsTokens(zoomFactor: zoomFactor),
+      dimensions: AppDimensionsTokens(zoomFactor: zoomFactor),
       docker: AppDockerTokens.fromScheme(scheme),
       distroColors: DistroColors.standard(),
     );
@@ -80,6 +104,8 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
     AppSectionTokens? section,
     AppTypographyTokens? typography,
     AppIcons? icons,
+    AppIconsTokens? iconSizes,
+    AppDimensionsTokens? dimensions,
     AppDockerTokens? docker,
     DistroColors? distroColors,
   }) {
@@ -90,6 +116,8 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
       section: section ?? this.section,
       typography: typography ?? this.typography,
       icons: icons ?? this.icons,
+      iconSizes: iconSizes ?? this.iconSizes,
+      dimensions: dimensions ?? this.dimensions,
       docker: docker ?? this.docker,
       distroColors: distroColors ?? this.distroColors,
     );
@@ -110,6 +138,8 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
       section: AppSectionTokens.lerp(section, other.section, t),
       typography: AppTypographyTokens.lerp(typography, other.typography, t),
       icons: icons,
+      iconSizes: AppIconsTokens.lerp(iconSizes, other.iconSizes, t),
+      dimensions: AppDimensionsTokens.lerp(dimensions, other.dimensions, t),
       docker: AppDockerTokens.lerp(docker, other.docker, t),
       distroColors: DistroColors.lerp(distroColors, other.distroColors, t),
     );
@@ -117,24 +147,27 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
 }
 
 class AppSpacing {
-  const AppSpacing({this.base = 4});
+  const AppSpacing({this.base = 4, this.zoomFactor = 1.0});
 
   final double base;
+  final double zoomFactor;
 
-  double get xs => base * 0.5;
-  double get sm => base;
-  double get md => base * 2;
-  double get lg => base * 3;
-  double get xl => base * 4;
+  double get effectiveBase => base * zoomFactor;
+
+  double get xs => effectiveBase * 0.5;
+  double get sm => effectiveBase;
+  double get md => effectiveBase * 2;
+  double get lg => effectiveBase * 3;
+  double get xl => effectiveBase * 4;
 
   EdgeInsets inset({double horizontal = 1, double vertical = 1}) {
     return EdgeInsets.symmetric(
-      horizontal: base * horizontal,
-      vertical: base * vertical,
+      horizontal: effectiveBase * horizontal,
+      vertical: effectiveBase * vertical,
     );
   }
 
-  EdgeInsets all(double factor) => EdgeInsets.all(base * factor);
+  EdgeInsets all(double factor) => EdgeInsets.all(effectiveBase * factor);
 }
 
 class AppListTokens {
@@ -254,6 +287,114 @@ class _NerdIcons extends AppIcons {
         network: nerdIconData[NerdIcon.accessPoint]!,
         volume: nerdIconData[NerdIcon.database]!,
       );
+}
+
+/// Icon size tokens that scale with zoom factor.
+class AppIconsTokens {
+  const AppIconsTokens({this.zoomFactor = 1.0});
+
+  final double zoomFactor;
+
+  /// Small icons (16px base) - for inline icons, chips, small buttons
+  double get small => 16 * zoomFactor;
+
+  /// Medium icons (18px base) - most common size for buttons, dialogs
+  double get medium => 18 * zoomFactor;
+
+  /// Large icons (20px base) - for section headers, prominent buttons
+  double get large => 20 * zoomFactor;
+
+  /// Extra large icons (24px base) - for emphasis
+  double get xlarge => 24 * zoomFactor;
+
+  /// Extra extra large icons (30px base) - for navigation buttons
+  double get xxlarge => 30 * zoomFactor;
+
+  /// Navigation icons (30px base) - specifically for sidebar navigation
+  double get navigation => 30 * zoomFactor;
+
+  /// Empty state icons (48px base) - for empty states, illustrations
+  double get emptyState => 48 * zoomFactor;
+
+  /// Extra large empty state icons (64px base) - for hero illustrations
+  double get emptyStateXlarge => 64 * zoomFactor;
+
+  static AppIconsTokens lerp(AppIconsTokens a, AppIconsTokens b, double t) {
+    return AppIconsTokens(
+      zoomFactor: lerpDouble(a.zoomFactor, b.zoomFactor, t),
+    );
+  }
+}
+
+/// Dimension tokens for common fixed sizes that scale with zoom factor.
+class AppDimensionsTokens {
+  const AppDimensionsTokens({this.zoomFactor = 1.0});
+
+  final double zoomFactor;
+
+  /// Navigation button height (56px base)
+  double get navigationButtonHeight => 56 * zoomFactor;
+
+  /// Navigation indicator width (4px base)
+  double get navigationIndicatorWidth => 4 * zoomFactor;
+
+  /// Divider height (1px base)
+  double get dividerHeight => 1 * zoomFactor;
+
+  /// Dialog minimum width (360px base)
+  double get dialogMinWidth => 360 * zoomFactor;
+
+  /// Dialog minimum height (240px base)
+  double get dialogMinHeight => 240 * zoomFactor;
+
+  /// Table minimum width breakpoint (720px base)
+  double get tableMinWidth => 720 * zoomFactor;
+
+  /// Scrollbar thickness (4px base)
+  double get scrollbarThickness => 4 * zoomFactor;
+
+  /// Explorer row height (36px base)
+  double get explorerRowHeight => 36 * zoomFactor;
+
+  /// Tab bar height (36px base)
+  double get tabBarHeight => 36 * zoomFactor;
+
+  /// Data table row height (60px base)
+  double get dataTableRowHeight => 60 * zoomFactor;
+
+  /// Data table header height (38px base)
+  double get dataTableHeaderHeight => 38 * zoomFactor;
+
+  /// Data table scrollbar space (14px base)
+  double get dataTableScrollbarSpace => 14 * zoomFactor;
+
+  /// Common small spacing (4px base)
+  double get spacingSmall => 4 * zoomFactor;
+
+  /// Common medium spacing (8px base)
+  double get spacingMedium => 8 * zoomFactor;
+
+  /// Common large spacing (16px base)
+  double get spacingLarge => 16 * zoomFactor;
+
+  /// Port forward dialog column widths
+  double get portForwardUseColumnWidth => 40 * zoomFactor;
+  double get portForwardServiceColumnWidth => 200 * zoomFactor;
+  double get portForwardStatusColumnWidth => 140 * zoomFactor;
+
+  /// Docker table column widths
+  double get dockerTableCpuColumnWidth => 80 * zoomFactor;
+  double get dockerTableRamColumnWidth => 80 * zoomFactor;
+
+  static AppDimensionsTokens lerp(
+    AppDimensionsTokens a,
+    AppDimensionsTokens b,
+    double t,
+  ) {
+    return AppDimensionsTokens(
+      zoomFactor: lerpDouble(a.zoomFactor, b.zoomFactor, t),
+    );
+  }
 }
 
 class AppDockerTokens {
@@ -434,7 +575,10 @@ class AppTabChipTokens {
   final double horizontalPadding;
   final double verticalPadding;
 
-  factory AppTabChipTokens.fromScheme(ColorScheme scheme) {
+  factory AppTabChipTokens.fromScheme(
+    ColorScheme scheme, {
+    double zoomFactor = 1.0,
+  }) {
     return AppTabChipTokens(
       selectedBackground: scheme.primaryContainer,
       unselectedBackground: Colors.transparent,
@@ -442,7 +586,7 @@ class AppTabChipTokens {
       unselectedForeground: scheme.onSurfaceVariant,
       selectedBorder: scheme.primary,
       unselectedBorder: scheme.outlineVariant,
-      borderRadius: BorderRadius.circular(2),
+      borderRadius: BorderRadius.circular(2 * zoomFactor),
       horizontalPadding: 0.4,
       verticalPadding: 0.12,
     );
@@ -529,6 +673,7 @@ class AppSectionTokens {
   factory AppSectionTokens.fromScheme(
     ColorScheme scheme, {
     required BorderRadius surfaceRadius,
+    double zoomFactor = 1.0,
   }) {
     return AppSectionTokens(
       toolbarBackground: scheme.surface,
@@ -537,7 +682,10 @@ class AppSectionTokens {
         background: scheme.surfaceContainerHigh,
         borderColor: scheme.outlineVariant.withValues(alpha: 0.6),
         radius: surfaceRadius,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        padding: EdgeInsets.symmetric(
+          horizontal: 6 * zoomFactor,
+          vertical: 4 * zoomFactor,
+        ),
         margin: EdgeInsets.zero,
         elevation: 0.5,
       ),
@@ -603,19 +751,28 @@ class AppTypographyTokens {
   final TextStyle code;
   final TextStyle tabLabel;
 
-  factory AppTypographyTokens.fromTextTheme(TextTheme textTheme) {
+  factory AppTypographyTokens.fromTextTheme(
+    TextTheme textTheme, {
+    double zoomFactor = 1.0,
+  }) {
+    // Note: TextScaler in MediaQuery handles text scaling, but we ensure
+    // fallback sizes also scale for consistency
     return AppTypographyTokens(
-      sectionTitle:
-          textTheme.titleLarge ??
-          const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-      body: textTheme.bodyMedium ?? const TextStyle(fontSize: 14),
-      caption: textTheme.bodySmall ?? const TextStyle(fontSize: 12),
-      code: (textTheme.bodySmall ?? const TextStyle()).copyWith(
-        fontFamily: 'monospace',
-      ),
-      tabLabel:
-          textTheme.labelLarge ??
-          const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      sectionTitle: (textTheme.titleLarge ??
+              const TextStyle(fontSize: 20, fontWeight: FontWeight.w600))
+          .copyWith(fontSize: 20 * zoomFactor),
+      body: (textTheme.bodyMedium ?? const TextStyle(fontSize: 14))
+          .copyWith(fontSize: 14 * zoomFactor),
+      caption: (textTheme.bodySmall ?? const TextStyle(fontSize: 12))
+          .copyWith(fontSize: 12 * zoomFactor),
+      code: (textTheme.bodySmall ?? const TextStyle())
+          .copyWith(
+            fontFamily: 'monospace',
+            fontSize: 12 * zoomFactor,
+          ),
+      tabLabel: (textTheme.labelLarge ??
+              const TextStyle(fontSize: 14, fontWeight: FontWeight.w600))
+          .copyWith(fontSize: 14 * zoomFactor),
     );
   }
 
@@ -637,6 +794,37 @@ class AppTypographyTokens {
 
 extension BuildContextAppTheme on BuildContext {
   AppThemeTokens get appTheme => Theme.of(this).extension<AppThemeTokens>()!;
+
+  /// Get the current zoom factor from MediaQuery text scaler
+  double get zoomFactor => MediaQuery.of(this).textScaler.scale(1.0);
+
+  /// Scale a value by the current zoom factor
+  double scale(double value) => value * zoomFactor;
+
+  /// Get spacing that dynamically scales with current zoom factor
+  /// This ensures spacing updates immediately when zoom changes,
+  /// unlike the theme's baked-in spacing values.
+  /// Use this instead of appTheme.spacing for responsive spacing.
+  AppSpacing get spacing {
+    final themeSpacing = appTheme.spacing;
+    // Use current zoom factor from MediaQuery instead of baked-in value
+    // This ensures spacing updates immediately when zoom changes
+    return AppSpacing(base: themeSpacing.base, zoomFactor: zoomFactor);
+  }
+
+  /// Get icon sizes that dynamically scale with current zoom factor
+  /// Use this instead of appTheme.iconSizes for responsive icon sizes.
+  AppIconsTokens get iconSizes {
+    // Use current zoom factor from MediaQuery instead of baked-in value
+    return AppIconsTokens(zoomFactor: zoomFactor);
+  }
+
+  /// Get dimensions that dynamically scale with current zoom factor
+  /// Use this instead of appTheme.dimensions for responsive dimensions.
+  AppDimensionsTokens get dimensions {
+    // Use current zoom factor from MediaQuery instead of baked-in value
+    return AppDimensionsTokens(zoomFactor: zoomFactor);
+  }
 }
 
 double lerpDouble(double a, double b, double t) => a + (b - a) * t;

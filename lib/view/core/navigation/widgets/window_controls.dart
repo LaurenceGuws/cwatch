@@ -113,7 +113,11 @@ class _CaptionButtonState extends State<_CaptionButton> {
             width: WindowControlsConstants.buttonWidth,
             height: WindowControlsConstants.height,
             color: _hovering ? hoverColor : Colors.transparent,
-            child: Icon(widget.icon, size: 18, color: iconColor),
+            child: Icon(
+              widget.icon,
+              size: context.appTheme.iconSizes.medium,
+              color: iconColor,
+            ),
           ),
         ),
       ),

@@ -87,7 +87,9 @@ class HomeShellView extends StatelessWidget {
               onShowOptions: onShowSidebarOptions,
             );
             navigationAlignment = Alignment.bottomCenter;
-            contentPadding = const EdgeInsets.only(bottom: BottomNavBar.height);
+            contentPadding = EdgeInsets.only(
+              bottom: BottomNavBar.height(context),
+            );
           } else {
             navigationBar = Sidebar(
               primaryModules: primaryModules,
@@ -97,7 +99,9 @@ class HomeShellView extends StatelessWidget {
               onShowOptions: onShowSidebarOptions,
             );
             navigationAlignment = Alignment.centerLeft;
-            contentPadding = EdgeInsets.only(left: Sidebar.width + spacing.xs);
+            contentPadding = EdgeInsets.only(
+              left: Sidebar.width(context) + spacing.xs,
+            );
           }
           break;
         case SidebarPlacement.left:
@@ -109,7 +113,9 @@ class HomeShellView extends StatelessWidget {
             onShowOptions: onShowSidebarOptions,
           );
           navigationAlignment = Alignment.centerLeft;
-          contentPadding = EdgeInsets.only(left: Sidebar.width + spacing.xs);
+          contentPadding = EdgeInsets.only(
+            left: Sidebar.width(context) + spacing.xs,
+          );
           break;
         case SidebarPlacement.right:
           navigationBar = Sidebar(
@@ -121,7 +127,9 @@ class HomeShellView extends StatelessWidget {
             onShowOptions: onShowSidebarOptions,
           );
           navigationAlignment = Alignment.centerRight;
-          contentPadding = EdgeInsets.only(right: Sidebar.width + spacing.xs);
+          contentPadding = EdgeInsets.only(
+            right: Sidebar.width(context) + spacing.xs,
+          );
           break;
         case SidebarPlacement.bottom:
           navigationBar = BottomNavBar(
@@ -131,7 +139,9 @@ class HomeShellView extends StatelessWidget {
             onShowOptions: onShowSidebarOptions,
           );
           navigationAlignment = Alignment.bottomCenter;
-          contentPadding = const EdgeInsets.only(bottom: BottomNavBar.height);
+          contentPadding = EdgeInsets.only(
+            bottom: BottomNavBar.height(context),
+          );
           break;
       }
     }

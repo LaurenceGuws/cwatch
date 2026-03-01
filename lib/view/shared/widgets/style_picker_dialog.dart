@@ -126,11 +126,13 @@ class _StylePickerDialogState extends State<_StylePickerDialog> {
       onConfirm: _apply,
       child: Dialog(
         insetPadding: EdgeInsets.all(spacing.md),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(2 * context.zoomFactor),
+        ),
         clipBehavior: Clip.antiAlias,
         child: SizedBox(
-          width: 520,
-          height: 460,
+          width: context.scale(520),
+          height: context.scale(460),
           child: Column(
             children: [
               Container(
@@ -208,7 +210,7 @@ class _StylePickerDialogState extends State<_StylePickerDialog> {
                           decoration: BoxDecoration(
                             color: bg,
                             border: Border.all(color: borderColor),
-                            borderRadius: BorderRadius.circular(2),
+                            borderRadius: BorderRadius.circular(2 * context.zoomFactor),
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,

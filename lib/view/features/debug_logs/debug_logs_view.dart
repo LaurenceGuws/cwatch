@@ -200,7 +200,7 @@ class _DebugLogsPanelState extends State<_DebugLogsPanel> {
                   ),
                 ],
                 fitColumnsToWidth: true,
-                headerHeight: 32,
+                headerHeight: context.scale(32),
                 autoRowHeight: true,
                 shrinkToContent: false,
                 useZebraStripes: false,

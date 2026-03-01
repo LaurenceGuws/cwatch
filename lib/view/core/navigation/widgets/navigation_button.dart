@@ -48,9 +48,15 @@ class _NavigationButtonState extends State<NavigationButton> {
         ? colorScheme.primary
         : Colors.transparent;
 
-    final iconWidget = Icon(widget.icon.data, size: 30, color: iconColor);
+    final iconSizes = context.appTheme.iconSizes;
+    final dimensions = context.appTheme.dimensions;
+    final iconWidget = Icon(
+      widget.icon.data,
+      size: iconSizes.navigation,
+      color: iconColor,
+    );
     final iconPadding = widget.vertical
-        ? const EdgeInsets.only(right: 4)
+        ? EdgeInsets.only(right: spacing.sm)
         : EdgeInsets.zero;
 
     final buttonWidth = widget.vertical
@@ -63,11 +69,15 @@ class _NavigationButtonState extends State<NavigationButton> {
       highlightColor: Colors.transparent,
       child: SizedBox(
         width: buttonWidth,
-        height: 56,
+        height: dimensions.navigationButtonHeight,
         child: widget.vertical
             ? Row(
                 children: [
-                  Container(width: 4, height: 56, color: indicatorColor),
+                  Container(
+                    width: dimensions.navigationIndicatorWidth,
+                    height: dimensions.navigationButtonHeight,
+                    color: indicatorColor,
+                  ),
                   Expanded(
                     child: Center(
                       child: Padding(padding: iconPadding, child: iconWidget),
@@ -79,7 +89,7 @@ class _NavigationButtonState extends State<NavigationButton> {
                 children: [
                   Container(
                     width: double.infinity,
-                    height: 4,
+                    height: dimensions.navigationIndicatorWidth,
                     color: indicatorColor,
                   ),
                   const Spacer(),

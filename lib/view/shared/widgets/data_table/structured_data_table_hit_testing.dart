@@ -2,12 +2,13 @@
 part of 'structured_data_table.dart';
 
 mixin _StructuredDataTableHitTesting<T> on _StructuredDataTableStateBase<T> {
-  void _applyEdgeScroll(Offset localPosition) {
+  void _applyEdgeScroll(Offset localPosition, BuildContext context) {
     final renderBox = _bodyKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
     final size = renderBox.size;
-    const edgeThreshold = 24.0;
-    const scrollStep = 18.0;
+    final zoomFactor = context.zoomFactor;
+    final edgeThreshold = 24.0 * zoomFactor;
+    final scrollStep = 18.0 * zoomFactor;
 
     var verticalDelta = 0.0;
     if (localPosition.dy < edgeThreshold) {
@@ -42,11 +43,15 @@ mixin _StructuredDataTableHitTesting<T> on _StructuredDataTableStateBase<T> {
     }
   }
 
-  StructuredDataCellCoordinate? _cellCoordinateForOffset(Offset localPosition) {
+  StructuredDataCellCoordinate? _cellCoordinateForOffset(
+    Offset localPosition,
+    BuildContext context,
+  ) {
     if (_visibleRows.isEmpty || _columns.isEmpty || _lastColumnWidths.isEmpty) {
       return null;
     }
-    final rowExtent = widget.rowHeight + 1;
+    final dividerHeight = context.appTheme.dimensions.dividerHeight;
+    final rowExtent = widget.rowHeight + dividerHeight;
     final contentY = localPosition.dy + _verticalController.offset;
     final rowIndex = (contentY / rowExtent).floor();
     if (rowIndex < 0 || rowIndex >= _visibleRows.length) {
@@ -86,9 +91,10 @@ mixin _StructuredDataTableHitTesting<T> on _StructuredDataTableStateBase<T> {
     return _lastColumnWidths.length - 1;
   }
 
-  int? _rowIndexForOffset(Offset localPosition) {
+  int? _rowIndexForOffset(Offset localPosition, BuildContext context) {
     if (_visibleRows.isEmpty) return null;
-    final rowExtent = widget.rowHeight + 1;
+    final dividerHeight = context.appTheme.dimensions.dividerHeight;
+    final rowExtent = widget.rowHeight + dividerHeight;
     final contentY = localPosition.dy + _verticalController.offset;
     final rowIndex = (contentY / rowExtent).floor();
     if (rowIndex < 0 || rowIndex >= _visibleRows.length) {

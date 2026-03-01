@@ -75,24 +75,31 @@ abstract class _StructuredDataTableStateBase<T>
   void _ensureCellFocus();
   bool _isCellSelected(int rowIndex, int columnIndex);
   bool _isHoveredCell(int rowIndex, int columnIndex);
-  void _beginMarqueeSelection(Offset localPosition);
-  void _updateMarqueeSelection(Offset localPosition);
+  void _beginMarqueeSelection(Offset localPosition, BuildContext context);
+  void _updateMarqueeSelection(Offset localPosition, BuildContext context);
   void _updateCellFocus({required int rowIndex, required int columnIndex});
   void _enterCellEditMode(StructuredDataCellCoordinate coordinate);
   void _exitCellEditMode({required bool commit});
-  void _applyEdgeScroll(Offset localPosition);
-  StructuredDataCellCoordinate? _cellCoordinateForOffset(Offset localPosition);
+  void _applyEdgeScroll(Offset localPosition, BuildContext context);
+  StructuredDataCellCoordinate? _cellCoordinateForOffset(
+    Offset localPosition,
+    BuildContext context,
+  );
   int _columnIndexForLocalDx(double localDx);
-  int? _rowIndexForOffset(Offset localPosition);
-  int _pageStep();
-  void _scrollToRow(int rowIndex);
+  int? _rowIndexForOffset(Offset localPosition, BuildContext context);
+  int _pageStep(BuildContext context);
+  void _scrollToRow(int rowIndex, BuildContext context);
   void _scrollToColumn(int columnIndex);
-  void _scheduleScrollToRow(int rowIndex);
+  void _scheduleScrollToRow(int rowIndex, BuildContext context);
   void _scheduleScrollToColumn(int columnIndex);
   bool _cellHasValue(int rowIndex, int columnIndex);
   int _jumpRow(int startRow, int columnIndex, int delta);
   int _jumpColumn(int rowIndex, int startColumn, int delta);
-  KeyEventResult _handleCellKeyEvent(FocusNode node, KeyEvent event);
+  KeyEventResult _handleCellKeyEvent(
+    FocusNode node,
+    KeyEvent event,
+    BuildContext context,
+  );
   List<StructuredDataMenuAction<T>> _contextActionsFor(
     T row,
     List<T> selectedRows,

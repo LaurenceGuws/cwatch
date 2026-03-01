@@ -82,7 +82,11 @@ mixin _StructuredDataTableKeyboard<T> on _StructuredDataTableStateBase<T> {
     return col;
   }
 
-  KeyEventResult _handleCellKeyEvent(FocusNode node, KeyEvent event) {
+  KeyEventResult _handleCellKeyEvent(
+    FocusNode node,
+    KeyEvent event,
+    BuildContext context,
+  ) {
     if (event is! KeyDownEvent &&
         event is! KeyUpEvent &&
         event is! KeyRepeatEvent) {
@@ -186,7 +190,7 @@ mixin _StructuredDataTableKeyboard<T> on _StructuredDataTableStateBase<T> {
           _focusedCell = _selectedCell;
           _additionalSelectedCells.clear();
         });
-        _scheduleScrollToRow(_visibleRows.length - 1);
+        _scheduleScrollToRow(_visibleRows.length - 1, context);
       }
       return KeyEventResult.handled;
     }
@@ -205,7 +209,7 @@ mixin _StructuredDataTableKeyboard<T> on _StructuredDataTableStateBase<T> {
           _focusedCell = current;
           _additionalSelectedCells.clear();
         });
-        _scheduleScrollToRow(_visibleRows.length - 1);
+        _scheduleScrollToRow(_visibleRows.length - 1, context);
       } else if (isShift) {
         setState(() {
           _cellSelectionAnchor = StructuredDataCellCoordinate(
@@ -347,13 +351,13 @@ mixin _StructuredDataTableKeyboard<T> on _StructuredDataTableStateBase<T> {
     if (key == LogicalKeyboardKey.pageUp) {
       if (isShift) {
         _updateCellSelection(
-          rowIndex: current.rowIndex - _pageStep(),
+          rowIndex: current.rowIndex - _pageStep(context),
           columnIndex: current.columnIndex,
           extend: true,
         );
       } else {
         _updateCellFocus(
-          rowIndex: current.rowIndex - _pageStep(),
+          rowIndex: current.rowIndex - _pageStep(context),
           columnIndex: current.columnIndex,
         );
       }
@@ -362,13 +366,13 @@ mixin _StructuredDataTableKeyboard<T> on _StructuredDataTableStateBase<T> {
     if (key == LogicalKeyboardKey.pageDown) {
       if (isShift) {
         _updateCellSelection(
-          rowIndex: current.rowIndex + _pageStep(),
+          rowIndex: current.rowIndex + _pageStep(context),
           columnIndex: current.columnIndex,
           extend: true,
         );
       } else {
         _updateCellFocus(
-          rowIndex: current.rowIndex + _pageStep(),
+          rowIndex: current.rowIndex + _pageStep(context),
           columnIndex: current.columnIndex,
         );
       }

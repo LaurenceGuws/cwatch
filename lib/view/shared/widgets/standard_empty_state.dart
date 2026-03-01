@@ -27,7 +27,7 @@ class StandardEmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 48),
+              Icon(icon, size: context.appTheme.iconSizes.emptyState),
               SizedBox(height: spacing.md),
             ],
             Text(

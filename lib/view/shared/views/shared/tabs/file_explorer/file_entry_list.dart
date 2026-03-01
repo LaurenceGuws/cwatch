@@ -314,7 +314,7 @@ class _FileEntryListState extends State<FileEntryList> {
           rows: widget.entries,
           columns: _columns(context),
           fitColumnsToWidth: true,
-          headerHeight: 28,
+          headerHeight: context.scale(28),
           rowHeight: widget.rowHeight,
           shrinkToContent: false,
           useZebraStripes: false,

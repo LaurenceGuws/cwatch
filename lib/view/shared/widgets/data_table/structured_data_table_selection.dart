@@ -23,8 +23,8 @@ mixin _StructuredDataTableSelection<T> on _StructuredDataTableStateBase<T> {
     widget.onSelectionChanged?.call(_selectedRows());
     if (!widget.cellSelectionEnabled) {
       final focused = _listController.focusedIndex;
-      if (focused != null) {
-        _scheduleScrollToRow(focused);
+      if (focused != null && mounted) {
+        _scheduleScrollToRow(focused, context);
       }
     }
   }
@@ -130,7 +130,7 @@ mixin _StructuredDataTableSelection<T> on _StructuredDataTableStateBase<T> {
     if (notify) {
       widget.onCellTap?.call(coordinate);
     }
-    _scheduleScrollToRow(clampedRow);
+    _scheduleScrollToRow(clampedRow, context);
     _scheduleScrollToColumn(clampedColumn);
   }
 
@@ -175,8 +175,8 @@ mixin _StructuredDataTableSelection<T> on _StructuredDataTableStateBase<T> {
     return hovered.rowIndex == rowIndex && hovered.columnIndex == columnIndex;
   }
 
-  void _beginMarqueeSelection(Offset localPosition) {
-    final coordinate = _cellCoordinateForOffset(localPosition);
+  void _beginMarqueeSelection(Offset localPosition, BuildContext context) {
+    final coordinate = _cellCoordinateForOffset(localPosition, context);
     if (coordinate == null) return;
     final isShift = HardwareKeyboard.instance.isShiftPressed;
     if (!isShift &&
@@ -198,8 +198,8 @@ mixin _StructuredDataTableSelection<T> on _StructuredDataTableStateBase<T> {
     });
   }
 
-  void _updateMarqueeSelection(Offset localPosition) {
-    final coordinate = _cellCoordinateForOffset(localPosition);
+  void _updateMarqueeSelection(Offset localPosition, BuildContext context) {
+    final coordinate = _cellCoordinateForOffset(localPosition, context);
     if (coordinate == null) return;
     setState(() {
       _selectedCell = coordinate;
@@ -229,7 +229,7 @@ mixin _StructuredDataTableSelection<T> on _StructuredDataTableStateBase<T> {
     if (!_focusNode.hasFocus) {
       _focusNode.requestFocus();
     }
-    _scheduleScrollToRow(clampedRow);
+    _scheduleScrollToRow(clampedRow, context);
     _scheduleScrollToColumn(clampedColumn);
   }
 

@@ -2,7 +2,7 @@
 
 **The science of infrastructure as files.**
 
-Inodics is an operating-system-independent desktop control plane for Linux-native environments. Built with Flutter and powered by SSH, Docker, Kubernetes, and virtual filesystem abstractions, it treats every remote system, container, and cluster as part of one unified file-centric graph — because on Linux, **everything is a file**.
+Inodics is an operating-system-independent desktop control plane for Linux-native environments. Built with Flutter and powered by SSH, Docker, Kubernetes, and virtual filesystem abstractions, it treats every remote system, container, and cluster as part of one unified file-centric graph  because on Linux, **everything is a file**.
 
 ---
 
@@ -14,7 +14,7 @@ Modern infrastructure is fragmented across servers, container engines, cluster c
 
 This enables:
 
-* cross-module resource integration (servers ↔ containers ↔ clusters)
+* cross-module resource integration (servers � containers � clusters)
 * shared terminal and file workspaces
 * seamless I/O interoperability across environments
 * OS-independent clients operating on Linux-native primitives
@@ -99,7 +99,7 @@ lib/ui/bindings/
 
 ## Linux-First Interoperability Model
 
-The product’s integration power comes from modeling remote resources using **virtual filesystem and inode-level operations**:
+The products integration power comes from modeling remote resources using **virtual filesystem and inode-level operations**:
 
 * Docker and Kubernetes artifacts are linked to host systems through file primitives
 * SSH file explorers and container terminals share a common I/O workspace layer
@@ -138,7 +138,7 @@ The product’s integration power comes from modeling remote resources using **v
 
 * 2-space indentation
 * Trailing commas in widgets
-* Ordered imports: SDK → third-party → project
+* Ordered imports: SDK � third-party � project
 * No UI logic inside services or repositories
 * All cross-environment interactions should preserve file/inode-centric semantics
 * `flutter analyze` must pass before commits
@@ -159,7 +159,7 @@ The product’s integration power comes from modeling remote resources using **v
 
 ## License
 
-MIT — with a commitment to keep infrastructure interaction open, deterministic, and filesystem-native.
+MIT  with a commitment to keep infrastructure interaction open, deterministic, and filesystem-native.
 
 ---
 

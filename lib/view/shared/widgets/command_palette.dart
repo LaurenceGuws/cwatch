@@ -20,7 +20,6 @@ class _CommandPaletteState extends State<CommandPalette> {
   late List<CommandPaletteEntry> _filtered;
   int _selectedIndex = 0;
   final ScrollController _scrollController = ScrollController();
-  static const double _itemExtent = 64;
 
   @override
   void initState() {
@@ -73,11 +72,12 @@ class _CommandPaletteState extends State<CommandPalette> {
     });
   }
 
-  void _select(int index) {
+  void _select(int index, BuildContext context) {
     if (index < 0 || index >= _filtered.length) return;
+    final itemExtent = context.scale(64);
     setState(() => _selectedIndex = index);
     _scrollController.animateTo(
-      (index.clamp(0, _filtered.length - 1)) * _itemExtent,
+      (index.clamp(0, _filtered.length - 1)) * itemExtent,
       duration: const Duration(milliseconds: 150),
       curve: Curves.easeOut,
     );
@@ -105,20 +105,22 @@ class _CommandPaletteState extends State<CommandPalette> {
       ),
       child: CallbackShortcuts(
         bindings: {
-          const SingleActivator(LogicalKeyboardKey.arrowDown): () {
+          SingleActivator(LogicalKeyboardKey.arrowDown): () {
             _select(
               (_selectedIndex + 1).clamp(
                 0,
                 (filtered.length - 1).clamp(0, 9999),
               ),
+              context,
             );
           },
-          const SingleActivator(LogicalKeyboardKey.arrowUp): () {
+          SingleActivator(LogicalKeyboardKey.arrowUp): () {
             _select(
               (_selectedIndex - 1).clamp(
                 0,
                 (filtered.length - 1).clamp(0, 9999),
               ),
+              context,
             );
           },
           const SingleActivator(LogicalKeyboardKey.enter): () {
@@ -126,7 +128,10 @@ class _CommandPaletteState extends State<CommandPalette> {
           },
         },
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 520, minWidth: 640),
+          constraints: BoxConstraints(
+            maxHeight: context.scale(520),
+            minWidth: context.scale(640),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -137,14 +142,14 @@ class _CommandPaletteState extends State<CommandPalette> {
                   focusNode: _focusNode,
                   decoration: InputDecoration(
                     hintText: 'Type a command…',
-                    prefixIcon: const Icon(Icons.search),
+                    prefixIcon: Icon(Icons.search, size: appTheme.iconSizes.medium),
                     isDense: true,
                   ),
                   onSubmitted: (_) => _activate(_selectedIndex),
                   onEditingComplete: () {},
                 ),
               ),
-              const Divider(height: 1),
+              Divider(height: appTheme.dimensions.dividerHeight),
               Expanded(
                 child: filtered.isEmpty
                     ? Center(
@@ -160,7 +165,7 @@ class _CommandPaletteState extends State<CommandPalette> {
                         controller: _scrollController,
                         itemCount: filtered.length,
                         separatorBuilder: (context, index) => Divider(
-                          height: 1,
+                          height: appTheme.dimensions.dividerHeight,
                           color: scheme.outlineVariant.withValues(alpha: 0.4),
                         ),
                         itemBuilder: (context, index) {
@@ -175,7 +180,7 @@ class _CommandPaletteState extends State<CommandPalette> {
                             leading: entry.icon != null
                                 ? Icon(
                                     entry.icon,
-                                    size: 18,
+                                    size: appTheme.iconSizes.medium,
                                     color: selected
                                         ? scheme.primary
                                         : scheme.onSurfaceVariant,
@@ -188,7 +193,7 @@ class _CommandPaletteState extends State<CommandPalette> {
                               ),
                               decoration: BoxDecoration(
                                 color: scheme.surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(2),
+                                borderRadius: BorderRadius.circular(2 * context.zoomFactor),
                               ),
                               child: Text(
                                 entry.category,

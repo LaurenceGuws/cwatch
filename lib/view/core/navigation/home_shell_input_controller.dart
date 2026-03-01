@@ -109,7 +109,7 @@ class HomeShellInputController {
 
   Future<void> changeAppZoom(double delta) async {
     await settingsController.update((current) {
-      final next = (current.zoomFactor + delta).clamp(0.8, 1.5).toDouble();
+      final next = (current.zoomFactor + delta).clamp(0.5, 2.0).toDouble();
       return current.copyWith(zoomFactor: next);
     });
   }

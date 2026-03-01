@@ -24,7 +24,7 @@ class SectionList extends StatelessWidget {
       margin: EdgeInsets.zero,
       color: cardColor,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(2),
+        borderRadius: BorderRadius.circular(2 * context.zoomFactor),
         side: BorderSide(color: scheme.outlineVariant),
       ),
       child: Column(
@@ -53,7 +53,7 @@ class SectionList extends StatelessWidget {
               ),
             ),
           if (title != null || trailing != null)
-            Divider(height: 1, color: scheme.outlineVariant),
+            Divider(height: context.appTheme.dimensions.dividerHeight, color: scheme.outlineVariant),
           ..._withDividers(context, children),
         ],
       ),
@@ -66,7 +66,10 @@ class SectionList extends StatelessWidget {
     for (var i = 0; i < items.length; i++) {
       result.add(items[i]);
       if (i < items.length - 1) {
-        result.add(Divider(height: 1, color: scheme.outlineVariant));
+        result.add(Divider(
+          height: context.appTheme.dimensions.dividerHeight,
+          color: scheme.outlineVariant,
+        ));
       }
     }
     return result;

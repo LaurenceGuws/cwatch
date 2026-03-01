@@ -269,7 +269,7 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.warning_amber, size: 18),
+          Icon(Icons.warning_amber, size: context.appTheme.iconSizes.medium),
           SizedBox(width: spacing.sm),
           Expanded(
             child: Column(
@@ -921,7 +921,7 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14),
+          Icon(icon, size: context.appTheme.iconSizes.small),
           SizedBox(width: spacing.xs),
           Text(label, style: Theme.of(context).textTheme.bodySmall),
         ],

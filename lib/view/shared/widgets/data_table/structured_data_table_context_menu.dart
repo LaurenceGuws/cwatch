@@ -66,9 +66,9 @@ mixin _StructuredDataTableContextMenu<T> on _StructuredDataTableStateBase<T> {
                     color: action.destructive
                         ? Theme.of(context).colorScheme.error
                         : null,
-                    size: 18,
+                    size: context.appTheme.iconSizes.medium,
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: context.appTheme.spacing.md + context.appTheme.spacing.xs),
                   Flexible(
                     child: Text(action.label, overflow: TextOverflow.ellipsis),
                   ),

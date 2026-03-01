@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:cwatch/view/core/navigation/window_controls_constants.dart';
+import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'window_drag_region.dart';
 
 /// Tab data for SectionNavBar
@@ -54,12 +55,14 @@ class SectionNavBar extends StatelessWidget {
     final dragGutterWidth = useCustomChrome && enableWindowDrag
         ? WindowControlsConstants.dragRegionWidth
         : 0.0;
-    // Match window controls height (32px) when custom chrome is enabled to eliminate dead space
+    // Match window controls height when custom chrome is enabled to eliminate dead space
     final tabBarHeight = useCustomChrome
-        ? WindowControlsConstants.tabBarHeight
-        : 42.0;
+        ? WindowControlsConstants.tabBarHeightFor(context)
+        : context.scale(42.0);
     // Reduce vertical padding when custom chrome is enabled to match button height
-    final verticalPadding = useCustomChrome ? 0.0 : (compact ? 6.0 : 8.0);
+    final verticalPadding = useCustomChrome
+        ? 0.0
+        : (compact ? context.scale(6.0) : context.scale(8.0));
 
     return Material(
       elevation: useCustomChrome ? 0 : 1,
@@ -89,7 +92,8 @@ class SectionNavBar extends StatelessWidget {
                 children: [
                   if (leading != null) ...[
                     leading!,
-                    if (showTitle && title.isNotEmpty) const SizedBox(width: 8),
+                    if (showTitle && title.isNotEmpty)
+                      SizedBox(width: context.appTheme.spacing.md),
                   ],
                   if (showTitle && title.isNotEmpty)
                     Text(title, style: Theme.of(context).textTheme.titleLarge),
@@ -124,7 +128,7 @@ class SectionNavBar extends StatelessWidget {
                   else
                     const Spacer(),
                   if (trailing != null) ...[
-                    const SizedBox(width: 8),
+                    SizedBox(width: context.appTheme.spacing.md),
                     trailing!,
                   ],
                 ],
@@ -148,8 +152,8 @@ class SectionNavBar extends StatelessWidget {
             defaultTargetPlatform == TargetPlatform.macOS ||
             defaultTargetPlatform == TargetPlatform.linux);
     final tabHeight = useCustomChrome
-        ? WindowControlsConstants.tabBarHeight
-        : 42.0;
+        ? WindowControlsConstants.tabBarHeightFor(context)
+        : context.scale(42.0);
 
     return List.generate(tabs.length, (index) {
       final tab = tabs[index];

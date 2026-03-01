@@ -2,11 +2,12 @@
 part of 'structured_data_table.dart';
 
 mixin _StructuredDataTableScrolling<T> on _StructuredDataTableStateBase<T> {
-  int _pageStep() {
+  int _pageStep(BuildContext context) {
     if (!_verticalController.hasClients) {
       return 10;
     }
-    final rowExtent = widget.rowHeight + 1;
+    final dividerHeight = context.appTheme.dimensions.dividerHeight;
+    final rowExtent = widget.rowHeight + dividerHeight;
     final viewport = _verticalController.position.viewportDimension;
     if (viewport <= 0) {
       return 10;
@@ -14,11 +15,12 @@ mixin _StructuredDataTableScrolling<T> on _StructuredDataTableStateBase<T> {
     return max(1, (viewport / rowExtent).floor());
   }
 
-  void _scrollToRow(int rowIndex) {
+  void _scrollToRow(int rowIndex, BuildContext context) {
     if (!_verticalController.hasClients) {
       return;
     }
-    final rowExtent = widget.rowHeight + 1;
+    final dividerHeight = context.appTheme.dimensions.dividerHeight;
+    final rowExtent = widget.rowHeight + dividerHeight;
     final position = _verticalController.position;
     final viewport = position.viewportDimension;
     final minOffset = position.minScrollExtent;
@@ -68,7 +70,7 @@ mixin _StructuredDataTableScrolling<T> on _StructuredDataTableStateBase<T> {
     _horizontalController.jumpTo(target);
   }
 
-  void _scheduleScrollToRow(int rowIndex) {
+  void _scheduleScrollToRow(int rowIndex, BuildContext context) {
     _pendingScrollToRow = rowIndex;
     if (_scrollToRowScheduled) {
       return;
@@ -81,7 +83,7 @@ mixin _StructuredDataTableScrolling<T> on _StructuredDataTableStateBase<T> {
       if (!mounted || targetRow == null) {
         return;
       }
-      _scrollToRow(targetRow);
+      _scrollToRow(targetRow, context);
     });
   }
 

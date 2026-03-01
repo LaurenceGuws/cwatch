@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../window_controls_constants.dart';
+import 'package:cwatch/model/shared/theme/app_theme.dart';
 
 class SidebarMenuButton extends StatefulWidget {
   const SidebarMenuButton({
@@ -46,8 +47,8 @@ class _SidebarMenuButtonState extends State<SidebarMenuButton> {
             defaultTargetPlatform == TargetPlatform.macOS ||
             defaultTargetPlatform == TargetPlatform.linux);
     final buttonSize = useCustomChrome
-        ? WindowControlsConstants.tabBarHeight
-        : 48.0;
+        ? WindowControlsConstants.tabBarHeightFor(context)
+        : context.scale(48.0);
 
     final colorScheme = Theme.of(context).colorScheme;
     // Use the same hover color as tab chips
@@ -69,7 +70,10 @@ class _SidebarMenuButtonState extends State<SidebarMenuButton> {
             width: buttonSize,
             height: buttonSize,
             color: _hovering ? hoverColor : Colors.transparent,
-            child: Icon(widget.collapsed ? Icons.menu : Icons.menu_open),
+            child: Icon(
+              widget.collapsed ? Icons.menu : Icons.menu_open,
+              size: context.appTheme.iconSizes.medium,
+            ),
           ),
         ),
       ),
