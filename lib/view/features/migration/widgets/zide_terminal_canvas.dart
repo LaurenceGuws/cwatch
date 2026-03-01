@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ffi' show Pointer;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
@@ -10,6 +9,7 @@ import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/services_infra/zide/zide_terminal_ffi_bridge.dart';
 import 'support/terminal_scrollback_controller.dart';
+import 'support/zide_terminal_session_controller.dart';
 
 class ZideTerminalCanvas extends StatefulWidget {
   const ZideTerminalCanvas({
@@ -27,8 +27,7 @@ class ZideTerminalCanvas extends StatefulWidget {
 
 class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
   static const String _logTag = 'ZideMigrationTerminal';
-  ZideTerminalFfiBridge? _bridge;
-  Pointer<ZideTerminalHandle>? _handle;
+  ZideTerminalSessionController? _session;
   Timer? _timer;
   final FocusNode _focusNode = FocusNode(debugLabel: 'zide_terminal_canvas');
   late final TextEditingController _commandController;
@@ -36,7 +35,6 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
   String _status = 'Initializing terminal...';
   String _inputMatrixStatus = 'input matrix: not run';
   String _commandRunStatus = 'command runner: idle';
-  bool _shellStarted = false;
   bool _commandRunning = false;
   final TerminalScrollbackController _scrollback =
       TerminalScrollbackController();
@@ -57,11 +55,7 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
     _focusNode.removeListener(_onFocusChanged);
     _focusNode.dispose();
     _commandController.dispose();
-    final handle = _handle;
-    final bridge = _bridge;
-    if (handle != null && bridge != null) {
-      bridge.destroy(handle);
-    }
+    _session?.dispose();
     super.dispose();
   }
 
@@ -74,22 +68,11 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
 
   void _initTerminal() {
     try {
-      final bridge = ZideTerminalFfiBridge.open(
+      final session = ZideTerminalSessionController.open(
         settings: widget.settingsController.settings,
       );
-      final handle = bridge.create(
-        rows: 18,
-        cols: 72,
-        scrollbackRows: 512,
-        cursorShape: 0,
-        cursorBlink: true,
-      );
-      bridge.resize(handle, cols: 72, rows: 18, cellWidth: 8, cellHeight: 16);
-      bridge.feedOutput(handle, utf8.encode('\x1b]0;zide-migration\x07'));
-
-      _bridge = bridge;
-      _handle = handle;
-      _status = 'Connected: ${bridge.libraryPath}';
+      _session = session;
+      _status = 'Connected: ${session.libraryPath}';
       _refresh();
       _timer = Timer.periodic(const Duration(milliseconds: 66), (_) {
         _refresh();
@@ -103,31 +86,25 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
   }
 
   void _refresh() {
-    final bridge = _bridge;
-    final handle = _handle;
-    if (bridge == null || handle == null) {
+    final session = _session;
+    if (session == null) {
       return;
     }
 
     try {
-      bridge.poll(handle);
-      final snapshot = bridge.acquireSnapshot(handle);
-      try {
-        final meta = bridge.readSnapshot(snapshot);
-        final frame = bridge.snapshotToFrame(snapshot);
-        _scrollback.updateLiveFrame(frame: frame);
-        if (!mounted) {
-          return;
-        }
-        setState(() {
-          final mode = _scrollback.modeLabel();
-          _status =
-              'rows=${meta.rows} total_rows=${frame.rows} cols=${meta.cols} '
-              'title=${meta.title.isEmpty ? '(none)' : meta.title} mode=$mode';
-        });
-      } finally {
-        bridge.releaseSnapshot(snapshot);
+      final poll = session.pollFrame();
+      final meta = poll.snapshot;
+      final frame = poll.frame;
+      _scrollback.updateLiveFrame(frame: frame);
+      if (!mounted) {
+        return;
       }
+      setState(() {
+        final mode = _scrollback.modeLabel();
+        _status =
+            'rows=${meta.rows} total_rows=${frame.rows} cols=${meta.cols} '
+            'title=${meta.title.isEmpty ? '(none)' : meta.title} mode=$mode';
+      });
     } catch (error) {
       if (!mounted) {
         return;
@@ -239,9 +216,8 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
   }
 
   void _sendBytes(List<int> bytes) {
-    final bridge = _bridge;
-    final handle = _handle;
-    if (bridge == null || handle == null || bytes.isEmpty) {
+    final session = _session;
+    if (session == null || bytes.isEmpty) {
       return;
     }
     try {
@@ -256,7 +232,7 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
           tag: _logTag,
         );
       }
-      bridge.sendBytes(handle, bytes);
+      session.sendBytes(bytes);
     } catch (_) {
       // For feed-only sessions sendBytes may be ignored by backend, which is
       // acceptable in this prototype widget.
@@ -264,67 +240,42 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
   }
 
   void _ensureShellStarted() {
-    if (_shellStarted) {
+    final session = _session;
+    if (session == null || session.shellStarted) {
       return;
     }
-    final bridge = _bridge;
-    final handle = _handle;
-    if (bridge == null || handle == null) {
-      return;
-    }
-    bridge.start(handle, shell: '/bin/sh');
-    _shellStarted = true;
+    session.startShellIfNeeded();
     _commandRunStatus = 'command runner: shell started (interactive)';
   }
 
   void _feedFixture(String vt) {
-    final bridge = _bridge;
-    final handle = _handle;
-    if (bridge == null || handle == null) {
+    final session = _session;
+    if (session == null) {
       return;
     }
-    bridge.feedOutput(handle, utf8.encode(vt));
+    session.feedOutput(utf8.encode(vt));
     _refresh();
   }
 
   void _runInputMatrixProbe() {
-    final bridge = _bridge;
-    final handle = _handle;
-    if (bridge == null || handle == null) {
+    final session = _session;
+    if (session == null) {
       return;
     }
 
     try {
-      final beforeSnapshot = bridge.acquireSnapshot(handle);
-      late final ZideTerminalSnapshotData before;
-      try {
-        before = bridge.readSnapshot(beforeSnapshot);
-      } finally {
-        bridge.releaseSnapshot(beforeSnapshot);
-      }
-
-      bridge.feedOutput(handle, utf8.encode('\x1b[2A\x1b[5C'));
-      bridge.poll(handle);
-
-      final afterSnapshot = bridge.acquireSnapshot(handle);
-      try {
-        final after = bridge.readSnapshot(afterSnapshot);
-        final expectedRow = (before.cursorRow - 2)
-            .clamp(0, before.rows - 1)
-            .toInt();
-        final expectedCol = (before.cursorCol + 5)
-            .clamp(0, before.cols - 1)
-            .toInt();
-        final pass =
-            after.cursorRow == expectedRow && after.cursorCol == expectedCol;
-        setState(() {
-          _inputMatrixStatus =
-              'input matrix probe ${pass ? 'PASS' : 'FAIL'} '
-              'expected=$expectedRow,$expectedCol actual=${after.cursorRow},${after.cursorCol}';
-        });
-      } finally {
-        bridge.releaseSnapshot(afterSnapshot);
-      }
+      final before = session.readSnapshotMeta();
+      session.feedOutput(utf8.encode('\x1b[2A\x1b[5C'));
+      session.pollFrame();
+      final after = session.readSnapshotMeta();
+      final expectedRow = (before.cursorRow - 2).clamp(0, before.rows - 1).toInt();
+      final expectedCol = (before.cursorCol + 5).clamp(0, before.cols - 1).toInt();
+      final pass = after.cursorRow == expectedRow && after.cursorCol == expectedCol;
+      setState(() {
+        _inputMatrixStatus =
+            'input matrix probe ${pass ? 'PASS' : 'FAIL'} '
+            'expected=$expectedRow,$expectedCol actual=${after.cursorRow},${after.cursorCol}';
+      });
     } catch (error) {
       setState(() {
         _inputMatrixStatus = 'input matrix probe error: $error';
@@ -350,9 +301,8 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
   }
 
   Future<void> _runShellCommand() async {
-    final bridge = _bridge;
-    final handle = _handle;
-    if (bridge == null || handle == null || _commandRunning) {
+    final session = _session;
+    if (session == null || _commandRunning) {
       return;
     }
 
@@ -378,24 +328,19 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
       _ensureShellStarted();
       // Let the shell render first prompt before injecting command bytes.
       for (var i = 0; i < 12; i++) {
-        bridge.poll(handle);
+        session.pollFrame();
         await Future<void>.delayed(const Duration(milliseconds: 15));
       }
 
-      bridge.sendBytes(handle, utf8.encode(payload));
+      session.sendBytes(utf8.encode(payload));
 
       var sawMarker = false;
       for (var i = 0; i < 80; i++) {
-        bridge.poll(handle);
-        final snapshot = bridge.acquireSnapshot(handle);
-        try {
-          final text = bridge.snapshotToPlainText(snapshot);
-          if (text.contains(marker)) {
-            sawMarker = true;
-            break;
-          }
-        } finally {
-          bridge.releaseSnapshot(snapshot);
+        session.pollFrame();
+        final text = session.snapshotPlainText();
+        if (text.contains(marker)) {
+          sawMarker = true;
+          break;
         }
         await Future<void>.delayed(const Duration(milliseconds: 15));
       }
