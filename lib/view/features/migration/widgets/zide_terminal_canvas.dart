@@ -33,7 +33,6 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
   late final TextEditingController _commandController;
 
   String _status = 'Initializing terminal...';
-  String _inputMatrixStatus = 'input matrix: not run';
   String _commandRunStatus = 'command runner: idle';
   bool _commandRunning = false;
   bool _followLiveOnInput = true;
@@ -167,33 +166,15 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
     final frame = _effectiveFrame;
     final text = _frameToPlainText(frame);
     await Clipboard.setData(ClipboardData(text: text));
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _inputMatrixStatus = 'copy visible: ${text.length} chars copied';
-    });
   }
 
   Future<void> _pasteClipboard() async {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final text = data?.text ?? '';
     if (text.isEmpty) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _inputMatrixStatus = 'paste clipboard: empty';
-      });
       return;
     }
     _sendBytes(utf8.encode(text));
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _inputMatrixStatus = 'paste clipboard: sent ${text.length} chars';
-    });
   }
 
   String _frameToPlainText(ZideTerminalFrameData frame) {
@@ -256,66 +237,6 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
     }
     session.startShellIfNeeded();
     _commandRunStatus = 'command runner: shell started (interactive)';
-  }
-
-  void _feedFixture(String vt) {
-    final session = _session;
-    if (session == null) {
-      return;
-    }
-    session.feedOutput(utf8.encode(vt));
-    _refresh();
-  }
-
-  void _runInputMatrixProbe() {
-    final session = _session;
-    if (session == null) {
-      return;
-    }
-
-    try {
-      final before = session.readSnapshotMeta();
-      session.feedOutput(utf8.encode('\x1b[2A\x1b[5C'));
-      session.pollFrame();
-      final after = session.readSnapshotMeta();
-      final expectedRow = (before.cursorRow - 2)
-          .clamp(0, before.rows - 1)
-          .toInt();
-      final expectedCol = (before.cursorCol + 5)
-          .clamp(0, before.cols - 1)
-          .toInt();
-      final pass =
-          after.cursorRow == expectedRow && after.cursorCol == expectedCol;
-      setState(() {
-        _inputMatrixStatus =
-            'input matrix probe ${pass ? 'PASS' : 'FAIL'} '
-            'expected=$expectedRow,$expectedCol actual=${after.cursorRow},${after.cursorCol}';
-      });
-    } catch (error) {
-      setState(() {
-        _inputMatrixStatus = 'input matrix probe error: $error';
-      });
-    }
-  }
-
-  String _inputMatrixLegend() {
-    const matrix = <String, List<int>>{
-      'enter': [13],
-      'tab': [9],
-      'backspace': [127],
-      'arrow_up': [27, 91, 65],
-      'arrow_down': [27, 91, 66],
-      'arrow_right': [27, 91, 67],
-      'arrow_left': [27, 91, 68],
-      'ctrl+a': [1],
-      'ctrl+z': [26],
-    };
-    final transport = matrix.entries
-        .map((entry) => '${entry.key}=${entry.value.join(",")}')
-        .join('  ');
-    const historyKeys =
-        'history: shift+pageup/down, ctrl+home(top), ctrl+end(live)';
-    return '$transport  $historyKeys';
   }
 
   Future<void> _runShellCommand() async {
@@ -513,30 +434,6 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
                   runSpacing: 8,
                   children: [
                     OutlinedButton(
-                      onPressed: () => _feedFixture('fixture: hello world\r\n'),
-                      child: const Text('Fixture hello'),
-                    ),
-                    OutlinedButton(
-                      onPressed: () => _feedFixture(
-                        '\x1b[31mRED\x1b[0m \x1b[32mGREEN\x1b[0m '
-                        '\x1b[34mBLUE\x1b[0m\r\n',
-                      ),
-                      child: const Text('Fixture colors'),
-                    ),
-                    OutlinedButton(
-                      onPressed: () => _feedFixture(
-                        'cursor demo: start\r\n'
-                        '\x1b[2A'
-                        '\x1b[15C'
-                        'X',
-                      ),
-                      child: const Text('Fixture cursor'),
-                    ),
-                    OutlinedButton(
-                      onPressed: _runInputMatrixProbe,
-                      child: const Text('Input matrix probe'),
-                    ),
-                    OutlinedButton(
                       onPressed: _copyVisible,
                       child: const Text('Copy visible'),
                     ),
@@ -544,37 +441,7 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
                       onPressed: _pasteClipboard,
                       child: const Text('Paste clipboard'),
                     ),
-                    OutlinedButton(
-                      onPressed: _historyUp,
-                      child: const Text('Scrollback up'),
-                    ),
-                    OutlinedButton(
-                      onPressed: _historyDown,
-                      child: const Text('Scrollback down'),
-                    ),
-                    OutlinedButton(
-                      onPressed: _historyLive,
-                      child: const Text('Scrollback live'),
-                    ),
                   ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _inputMatrixStatus,
-                  style: const TextStyle(
-                    fontFamily: 'JetBrainsMono Nerd Font Mono',
-                    color: Color(0xFFC9C9C9),
-                    fontSize: 11,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _inputMatrixLegend(),
-                  style: const TextStyle(
-                    fontFamily: 'JetBrainsMono Nerd Font Mono',
-                    color: Color(0xFF999999),
-                    fontSize: 10,
-                  ),
                 ),
                 const SizedBox(height: 8),
                 Row(
