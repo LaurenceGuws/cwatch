@@ -8,6 +8,7 @@ import 'package:tray_manager/tray_manager.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/shared/gestures/gesture_activators.dart';
 import 'package:cwatch/model/shared/gestures/gesture_service.dart';
+import 'package:cwatch/model/services_infra/zide/zide_ffi_exception.dart';
 import 'package:cwatch/view/shared/widgets/command_palette.dart';
 import 'home_shell_command_palette.dart';
 import 'home_shell_sidebar_menu.dart';
@@ -120,6 +121,9 @@ class _HomeShellState extends State<HomeShell>
       toggleSidebar: _toggleSidebar,
       showSidebar: () => _setSidebarCollapsed(false),
       hideSidebar: () => _setSidebarCollapsed(true),
+      showDeveloperEntries:
+          kDebugMode || widget.settingsController.settings.debugMode,
+      runZideFfiSmoke: _runZideFfiSmoke,
     );
 
     final moduleEntries = await HomeShellCommandPalette.loadModuleEntries(
@@ -257,10 +261,69 @@ class _HomeShellState extends State<HomeShell>
     );
   }
 
+  Future<void> _runZideFfiSmoke() async {
+    if (!mounted) {
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Running Zide FFI smoke checks...')),
+    );
+
+    try {
+      final report = await _controller.services.zideFfiSmokeService.runSmoke();
+      if (!mounted) {
+        return;
+      }
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Zide FFI Smoke'),
+          content: SingleChildScrollView(child: SelectableText(report)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    } on ZideFfiException catch (error, stackTrace) {
+      AppLogger().warn(
+        'Zide FFI smoke failed',
+        tag: 'ZideFFI',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (!mounted) {
+        return;
+      }
+      messenger.showSnackBar(
+        SnackBar(content: Text(error.message), backgroundColor: Colors.red),
+      );
+    } catch (error, stackTrace) {
+      AppLogger().warn(
+        'Unexpected Zide FFI smoke failure',
+        tag: 'ZideFFI',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (!mounted) {
+        return;
+      }
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Zide FFI smoke failed: $error'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   void _handleScaleUpdate(ScaleUpdateDetails details) {
     final start = _scaleStartZoom;
     if (start == null || details.pointerCount < 2) return;
-    final next = (start * details.scale).clamp(0.8, 1.5).toDouble();
+    final next = (start * details.scale).clamp(0.5, 2.0).toDouble();
     GestureService.instance.handle(Gestures.globalPinchZoom, payload: next);
   }
 

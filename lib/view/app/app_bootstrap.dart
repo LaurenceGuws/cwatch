@@ -57,7 +57,7 @@ class _CwatchAppState extends State<CwatchApp> {
           ),
           builder: (context, child) {
             final mediaQuery = MediaQuery.of(context);
-            final zoom = settings.zoomFactor.clamp(0.8, 1.5).toDouble();
+            final zoom = settings.zoomFactor.clamp(0.5, 2.0).toDouble();
             return MediaQuery(
               data: mediaQuery.copyWith(textScaler: TextScaler.linear(zoom)),
               child: child ?? const SizedBox.shrink(),

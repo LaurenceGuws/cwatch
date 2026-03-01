@@ -6,6 +6,7 @@ import 'package:cwatch/model/services_infra/ssh/ssh_auth_coordinator.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/model/services_infra/window/tray_service.dart';
 import 'package:cwatch/model/services_infra/window/window_chrome_service.dart';
+import 'package:cwatch/model/services_infra/zide/zide_ffi_smoke_service.dart';
 import 'gesture_detector_factory.dart';
 
 class HomeShellServices {
@@ -17,6 +18,7 @@ class HomeShellServices {
   late final WindowChromeService windowChrome;
   late final TrayService trayService;
   late final GestureDetectorFactory gestureDetectorFactory;
+  late final ZideFfiSmokeService zideFfiSmokeService;
 
   void handleSettingsChanged(AppSettings settings) {
     shellFactory.handleSettingsChanged(settings);

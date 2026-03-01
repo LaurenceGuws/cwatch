@@ -4,10 +4,12 @@ import 'package:cwatch/controller/features/wsl/view.dart';
 import 'package:cwatch/controller/features/docker/view.dart';
 import 'package:cwatch/controller/features/kubernetes/view.dart';
 import 'package:cwatch/controller/features/debug_logs/view.dart';
+import 'package:cwatch/controller/features/migration/view.dart';
 import 'package:cwatch/controller/features/settings/view.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
+import 'package:cwatch/model/services_infra/zide/zide_ffi_smoke_service.dart';
 import 'shell_module.dart';
 
 List<ShellModuleView> buildHomeShellModules({
@@ -15,6 +17,7 @@ List<ShellModuleView> buildHomeShellModules({
   required AppSettingsController settingsController,
   required BuiltInSshKeyService keyService,
   required SshShellFactory shellFactory,
+  required ZideFfiSmokeService zideFfiSmokeService,
   required bool isWindows,
 }) {
   final modules = <ShellModuleView>[
@@ -39,6 +42,10 @@ List<ShellModuleView> buildHomeShellModules({
       settingsController: settingsController,
       keyService: keyService,
       hostsFuture: hostsFuture,
+    ),
+    MigrationModule(
+      settingsController: settingsController,
+      zideFfiSmokeService: zideFfiSmokeService,
     ),
     DebugLogsModule(settingsController: settingsController),
     SettingsModule(

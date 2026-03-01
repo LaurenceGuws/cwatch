@@ -142,10 +142,10 @@ class GeneralSettingsTab extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Slider(
-                value: zoomFactor.clamp(0.8, 1.5).toDouble(),
-                min: 0.8,
-                max: 1.5,
-                divisions: 7,
+                value: zoomFactor.clamp(0.5, 2.0).toDouble(),
+                min: 0.5,
+                max: 2.0,
+                divisions: 15,
                 label: '${(zoomFactor * 100).round()}%',
                 onChanged: onZoomChanged,
               ),
@@ -247,6 +247,22 @@ class GeneralSettingsTab extends StatelessWidget {
             ),
             value: debugMode,
             onChanged: onDebugModeChanged,
+          ),
+        ),
+        SettingsSection(
+          title: 'Experimental: Zide FFI backend',
+          description:
+              'Enable host-side terminal/editor backend smoke checks for the Zide beta libraries.',
+          child: SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Enable Zide FFI backend'),
+            subtitle: const Text(
+              'Uses CWATCH_ZIDE_TERMINAL_LIB and CWATCH_ZIDE_EDITOR_LIB when set.',
+            ),
+            value: settings.zideFfiBackendEnabled,
+            onChanged: (value) => settingsController.update(
+              (current) => current.copyWith(zideFfiBackendEnabled: value),
+            ),
           ),
         ),
         if (isDesktop)
