@@ -261,6 +261,10 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
       final ctrl = HardwareKeyboard.instance.isControlPressed;
       final shift = HardwareKeyboard.instance.isShiftPressed;
 
+      if (_handleViewportShortcut(logical: logical, ctrl: ctrl)) {
+        return;
+      }
+
       if (ctrl && logical == LogicalKeyboardKey.keyZ) {
         bridge.undo(handle);
         _keyStatus = 'keyboard: ctrl+z';
@@ -419,6 +423,58 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
     }
   }
 
+  bool _handleViewportShortcut({
+    required LogicalKeyboardKey logical,
+    required bool ctrl,
+  }) {
+    if (!_verticalScrollController.hasClients) {
+      return false;
+    }
+
+    final position = _verticalScrollController.position;
+    final page = position.viewportDimension > 0
+        ? position.viewportDimension
+        : 240;
+
+    if (logical == LogicalKeyboardKey.pageUp) {
+      final target = (position.pixels - page).clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      );
+      _verticalScrollController.jumpTo(target.toDouble());
+      setState(() {
+        _keyStatus = 'keyboard: pageup (viewport)';
+      });
+      return true;
+    }
+    if (logical == LogicalKeyboardKey.pageDown) {
+      final target = (position.pixels + page).clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      );
+      _verticalScrollController.jumpTo(target.toDouble());
+      setState(() {
+        _keyStatus = 'keyboard: pagedown (viewport)';
+      });
+      return true;
+    }
+    if (ctrl && logical == LogicalKeyboardKey.home) {
+      _verticalScrollController.jumpTo(position.minScrollExtent);
+      setState(() {
+        _keyStatus = 'keyboard: ctrl+home (viewport top)';
+      });
+      return true;
+    }
+    if (ctrl && logical == LogicalKeyboardKey.end) {
+      _verticalScrollController.jumpTo(position.maxScrollExtent);
+      setState(() {
+        _keyStatus = 'keyboard: ctrl+end (viewport bottom)';
+      });
+      return true;
+    }
+    return false;
+  }
+
   int _lineStartOffset(String text, int offset) {
     final clamped = offset.clamp(0, text.length);
     final index = text.lastIndexOf('\n', clamped - 1);
@@ -501,7 +557,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
             ),
             const SizedBox(height: 4),
             SelectableText(
-              'shortcuts: ctrl+z/ctrl+y redo, ctrl+a, arrows, shift+arrows, home/end, ctrl+home/end',
+              'shortcuts: ctrl+z/ctrl+y redo, ctrl+a, arrows, shift+arrows, home/end, pageup/down, ctrl+home/end(viewport)',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 8),
