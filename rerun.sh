@@ -16,6 +16,7 @@ Usage:
 Modes:
   app                 Run flutter app on Linux with current environment.
   native              Run app with Zide native terminal+editor FFI libs.
+  ui-smoke            Run app with focused migration UI logs.
   scroll-debug        Run app with focused terminal scroll logs.
   input-debug         Run app with terminal input/scroll/pty logs.
   analyze             Run flutter analyze.
@@ -53,6 +54,15 @@ case "$mode" in
     CWATCH_ZIDE_TERMINAL_LIB="$DEFAULT_TERMINAL_LIB" \
     CWATCH_ZIDE_EDITOR_LIB="$DEFAULT_EDITOR_LIB" \
     flutter run -d "$DEFAULT_DEVICE"
+    ;;
+  ui-smoke)
+    require_file "$DEFAULT_TERMINAL_LIB" "terminal ffi lib"
+    require_file "$DEFAULT_EDITOR_LIB" "editor ffi lib"
+    CWATCH_ZIDE_TERMINAL_LIB="$DEFAULT_TERMINAL_LIB" \
+    CWATCH_ZIDE_EDITOR_LIB="$DEFAULT_EDITOR_LIB" \
+    CWATCH_ZIDE_LOG_CONSOLE="${CWATCH_ZIDE_LOG_CONSOLE:-terminal.scroll,terminal.input}" \
+    CWATCH_ZIDE_LOG_FILE="${CWATCH_ZIDE_LOG_FILE:-none}" \
+    flutter run -d "$DEFAULT_DEVICE" 2>&1 | rg "ZideMigrationTerminal|keyboard:|mode=|\\[terminal\\.scroll\\]|\\[terminal\\.input\\]"
     ;;
   scroll-debug)
     require_file "$DEFAULT_TERMINAL_LIB" "terminal ffi lib"
