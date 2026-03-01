@@ -291,9 +291,12 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
         _refresh();
         return;
       }
-      if (ctrl && logical == LogicalKeyboardKey.keyY) {
+      if (ctrl &&
+          (logical == LogicalKeyboardKey.keyY ||
+              (HardwareKeyboard.instance.isShiftPressed &&
+                  logical == LogicalKeyboardKey.keyZ))) {
         bridge.redo(handle);
-        _keyStatus = 'keyboard: ctrl+y';
+        _keyStatus = 'keyboard: redo';
         _refresh();
         return;
       }
@@ -311,34 +314,61 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
       final totalLen = bridge.totalLength(handle);
       final selection = _selectionRange();
 
-      if (logical == LogicalKeyboardKey.arrowLeft) {
-        final next = cursor > 0 ? cursor - 1 : 0;
-        if (shift) {
+      void moveCursor({
+        required int next,
+        required String baseLabel,
+        required bool shiftSelect,
+      }) {
+        final clamped = next.clamp(0, totalLen);
+        if (shiftSelect) {
           _selectionAnchor ??= cursor;
-          _selectionFocus = next;
-          bridge.setCursorOffset(handle, next);
-          _keyStatus = 'keyboard: shift+left';
+          _selectionFocus = clamped;
+          bridge.setCursorOffset(handle, clamped);
+          _keyStatus = 'keyboard: shift+$baseLabel';
         } else {
           _clearSelection();
-          bridge.setCursorOffset(handle, next);
-          _keyStatus = 'keyboard: left';
+          bridge.setCursorOffset(handle, clamped);
+          _keyStatus = 'keyboard: $baseLabel';
         }
         _refresh();
+      }
+
+      if (logical == LogicalKeyboardKey.arrowLeft) {
+        final next = cursor > 0 ? cursor - 1 : 0;
+        moveCursor(next: next, baseLabel: 'left', shiftSelect: shift);
         return;
       }
       if (logical == LogicalKeyboardKey.arrowRight) {
         final next = cursor < totalLen ? cursor + 1 : totalLen;
-        if (shift) {
-          _selectionAnchor ??= cursor;
-          _selectionFocus = next;
-          bridge.setCursorOffset(handle, next);
-          _keyStatus = 'keyboard: shift+right';
-        } else {
-          _clearSelection();
-          bridge.setCursorOffset(handle, next);
-          _keyStatus = 'keyboard: right';
-        }
-        _refresh();
+        moveCursor(next: next, baseLabel: 'right', shiftSelect: shift);
+        return;
+      }
+      if (logical == LogicalKeyboardKey.home) {
+        final next = ctrl ? 0 : _lineStartOffset(_text, cursor);
+        moveCursor(
+          next: next,
+          baseLabel: ctrl ? 'ctrl+home' : 'home',
+          shiftSelect: shift,
+        );
+        return;
+      }
+      if (logical == LogicalKeyboardKey.end) {
+        final next = ctrl ? totalLen : _lineEndOffset(_text, cursor);
+        moveCursor(
+          next: next,
+          baseLabel: ctrl ? 'ctrl+end' : 'end',
+          shiftSelect: shift,
+        );
+        return;
+      }
+      if (logical == LogicalKeyboardKey.arrowUp) {
+        final next = _verticalMoveOffset(_text, cursor, -1);
+        moveCursor(next: next, baseLabel: 'up', shiftSelect: shift);
+        return;
+      }
+      if (logical == LogicalKeyboardKey.arrowDown) {
+        final next = _verticalMoveOffset(_text, cursor, 1);
+        moveCursor(next: next, baseLabel: 'down', shiftSelect: shift);
         return;
       }
       if (logical == LogicalKeyboardKey.backspace) {
@@ -411,6 +441,41 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
         _keyStatus = 'keyboard error: $error';
       });
     }
+  }
+
+  int _lineStartOffset(String text, int offset) {
+    final clamped = offset.clamp(0, text.length);
+    final index = text.lastIndexOf('\n', clamped - 1);
+    return index < 0 ? 0 : index + 1;
+  }
+
+  int _lineEndOffset(String text, int offset) {
+    final clamped = offset.clamp(0, text.length);
+    final index = text.indexOf('\n', clamped);
+    return index < 0 ? text.length : index;
+  }
+
+  int _verticalMoveOffset(String text, int offset, int direction) {
+    final clamped = offset.clamp(0, text.length);
+    final lineStart = _lineStartOffset(text, clamped);
+    final lineEnd = _lineEndOffset(text, clamped);
+    final column = clamped - lineStart;
+
+    if (direction < 0) {
+      if (lineStart == 0) {
+        return clamped;
+      }
+      final prevEnd = lineStart - 1;
+      final prevStart = _lineStartOffset(text, prevEnd);
+      return (prevStart + column).clamp(prevStart, prevEnd);
+    }
+
+    if (lineEnd >= text.length) {
+      return clamped;
+    }
+    final nextStart = lineEnd + 1;
+    final nextEnd = _lineEndOffset(text, nextStart);
+    return (nextStart + column).clamp(nextStart, nextEnd);
   }
 
   void _runScriptPresets() {
@@ -546,6 +611,11 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
             const SizedBox(height: 4),
             SelectableText(
               _keyStatus,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 4),
+            SelectableText(
+              'shortcuts: ctrl+z/ctrl+y redo, ctrl+a, arrows, shift+arrows, home/end, ctrl+home/end',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 8),
