@@ -1,15 +1,13 @@
 import 'package:cwatch/model/services_infra/zide/zide_terminal_ffi_bridge.dart';
 
 class TerminalScrollbackController {
-  TerminalScrollbackController({this.maxFrames = 400});
+  TerminalScrollbackController();
 
-  final int maxFrames;
-
-  final List<ZideTerminalFrameData> _frames = <ZideTerminalFrameData>[];
-  int _lastGeneration = -1;
-  int? _anchorIndex;
+  int _scrollOffsetRows = 0;
+  ZideTerminalFrameData? _historyFrame;
   ZideTerminalFrameData _liveFrame = const ZideTerminalFrameData(
     rows: 0,
+    viewportRows: 0,
     cols: 0,
     cursorRow: 0,
     cursorCol: 0,
@@ -17,61 +15,86 @@ class TerminalScrollbackController {
     cells: [],
   );
 
-  bool get isLive => _anchorIndex == null;
+  bool get isLive => _scrollOffsetRows == 0 && _historyFrame == null;
 
   String modeLabel() {
-    if (_anchorIndex == null) {
+    if (isLive) {
       return 'live';
     }
-    return 'history(${_anchorIndex! + 1}/${_frames.length})';
+    final source = _historyFrame ?? _liveFrame;
+    final max = _maxScrollRows(source);
+    return 'history(rows=$_scrollOffsetRows/$max)';
   }
 
   ZideTerminalFrameData effectiveFrame() {
-    if (_anchorIndex == null || _frames.isEmpty) {
-      return _liveFrame;
-    }
-    final index = _anchorIndex!.clamp(0, _frames.length - 1);
-    return _frames[index];
+    final source = _historyFrame ?? _liveFrame;
+    return _sliceFrame(source, _scrollOffsetRows);
   }
 
-  void updateLiveFrame({
-    required int generation,
-    required ZideTerminalFrameData frame,
-  }) {
+  void updateLiveFrame({required ZideTerminalFrameData frame}) {
     _liveFrame = frame;
-    if (_anchorIndex != null) {
+    if (!isLive) {
       return;
-    }
-    if (generation == _lastGeneration) {
-      return;
-    }
-    _lastGeneration = generation;
-    _frames.add(frame);
-    if (_frames.length > maxFrames) {
-      _frames.removeAt(0);
-      if (_anchorIndex != null) {
-        _anchorIndex = (_anchorIndex! - 1).clamp(0, _frames.length - 1);
-      }
     }
   }
 
-  void scrollUp() {
-    if (_frames.length < 2) {
+  void scrollUp({int rows = 1}) {
+    final source = _historyFrame ?? _liveFrame;
+    final max = _maxScrollRows(source);
+    if (max <= 0 || rows <= 0) {
       return;
     }
-    final anchor = _anchorIndex ?? (_frames.length - 1);
-    _anchorIndex = (anchor - 1).clamp(0, _frames.length - 1);
+    _historyFrame ??= _liveFrame;
+    _scrollOffsetRows = (_scrollOffsetRows + rows).clamp(0, max);
   }
 
-  void scrollDown() {
-    if (_anchorIndex == null) {
+  void scrollDown({int rows = 1}) {
+    if (isLive || rows <= 0) {
       return;
     }
-    final next = (_anchorIndex! + 1).clamp(0, _frames.length - 1);
-    _anchorIndex = next == _frames.length - 1 ? null : next;
+    _scrollOffsetRows = (_scrollOffsetRows - rows).clamp(0, 1 << 30);
+    if (_scrollOffsetRows == 0) {
+      _historyFrame = null;
+    }
   }
 
   void scrollLive() {
-    _anchorIndex = null;
+    _historyFrame = null;
+    _scrollOffsetRows = 0;
+  }
+
+  int _maxScrollRows(ZideTerminalFrameData frame) {
+    final viewportRows = frame.viewportRows <= 0 ? frame.rows : frame.viewportRows;
+    return (frame.rows - viewportRows).clamp(0, 1 << 30);
+  }
+
+  ZideTerminalFrameData _sliceFrame(ZideTerminalFrameData source, int offsetRows) {
+    if (source.rows <= 0 || source.cols <= 0 || source.cells.isEmpty) {
+      return source;
+    }
+    final viewportRows = source.viewportRows <= 0 ? source.rows : source.viewportRows;
+    final clampedViewport = viewportRows.clamp(1, source.rows);
+    final maxOffset = _maxScrollRows(source);
+    final clampedOffset = offsetRows.clamp(0, maxOffset);
+    final startRow = (source.rows - clampedViewport - clampedOffset).clamp(0, source.rows);
+    final startCell = startRow * source.cols;
+    final endCell = (startRow + clampedViewport) * source.cols;
+    final cells = source.cells.sublist(startCell, endCell);
+
+    final cursorInWindow =
+        source.cursorVisible &&
+        source.cursorRow >= startRow &&
+        source.cursorRow < startRow + clampedViewport;
+    final cursorRow = cursorInWindow ? source.cursorRow - startRow : 0;
+
+    return ZideTerminalFrameData(
+      rows: clampedViewport,
+      viewportRows: clampedViewport,
+      cols: source.cols,
+      cursorRow: cursorRow,
+      cursorCol: source.cursorCol,
+      cursorVisible: cursorInWindow,
+      cells: cells,
+    );
   }
 }

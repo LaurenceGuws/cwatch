@@ -3,61 +3,129 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:cwatch/model/services_infra/zide/zide_terminal_ffi_bridge.dart';
 import 'package:cwatch/view/features/migration/widgets/support/terminal_scrollback_controller.dart';
 
-ZideTerminalFrameData _frame(int rows, int cols, int cursorRow, int cursorCol) {
+ZideTerminalCellData _cell(int codepoint) {
+  const color = ZideTerminalColorData(r: 255, g: 255, b: 255, a: 255);
+  return ZideTerminalCellData(
+    codepoint: codepoint,
+    width: 1,
+    fg: color,
+    bg: color,
+  );
+}
+
+ZideTerminalFrameData _frame({
+  required int totalRows,
+  required int viewportRows,
+  required int cols,
+  required int cursorRow,
+  required int cursorCol,
+}) {
+  final cells = List<ZideTerminalCellData>.generate(
+    totalRows * cols,
+    (index) => _cell(65 + (index % 26)),
+  );
   return ZideTerminalFrameData(
-    rows: rows,
+    rows: totalRows,
+    viewportRows: viewportRows,
     cols: cols,
     cursorRow: cursorRow,
     cursorCol: cursorCol,
     cursorVisible: true,
-    cells: const [],
+    cells: cells,
   );
 }
 
 void main() {
-  test('stays pinned while scrolled up and live frames continue', () {
-    final controller = TerminalScrollbackController(maxFrames: 16);
-    controller.updateLiveFrame(generation: 1, frame: _frame(10, 10, 0, 0));
-    controller.updateLiveFrame(generation: 2, frame: _frame(10, 10, 1, 0));
-    controller.updateLiveFrame(generation: 3, frame: _frame(10, 10, 2, 0));
+  test('live frame defaults to viewport rows at tail', () {
+    final controller = TerminalScrollbackController();
+    controller.updateLiveFrame(
+      frame: _frame(
+        totalRows: 10,
+        viewportRows: 4,
+        cols: 3,
+        cursorRow: 9,
+        cursorCol: 1,
+      ),
+    );
 
-    controller.scrollUp();
+    final frame = controller.effectiveFrame();
+    expect(controller.modeLabel(), 'live');
+    expect(frame.rows, 4);
+    expect(frame.viewportRows, 4);
+    expect(frame.cells.length, 12);
+    expect(frame.cursorVisible, isTrue);
+    expect(frame.cursorRow, 3);
+  });
+
+  test('scroll up moves window into history rows', () {
+    final controller = TerminalScrollbackController();
+    controller.updateLiveFrame(
+      frame: _frame(
+        totalRows: 10,
+        viewportRows: 4,
+        cols: 3,
+        cursorRow: 9,
+        cursorCol: 0,
+      ),
+    );
+
+    controller.scrollUp(rows: 2);
+    final frame = controller.effectiveFrame();
+    expect(controller.modeLabel(), 'history(rows=2/6)');
+    expect(frame.rows, 4);
+    expect(frame.cells.length, 12);
+    // Cursor is no longer in this window.
+    expect(frame.cursorVisible, isFalse);
+  });
+
+  test('scroll down returns to live mode at offset zero', () {
+    final controller = TerminalScrollbackController();
+    controller.updateLiveFrame(
+      frame: _frame(
+        totalRows: 8,
+        viewportRows: 4,
+        cols: 2,
+        cursorRow: 7,
+        cursorCol: 0,
+      ),
+    );
+    controller.scrollUp(rows: 3);
+    expect(controller.modeLabel().startsWith('history('), isTrue);
+
+    controller.scrollDown(rows: 3);
+    expect(controller.modeLabel(), 'live');
+    final frame = controller.effectiveFrame();
+    expect(frame.rows, 4);
+    expect(frame.cursorVisible, isTrue);
+    expect(frame.cursorRow, 3);
+  });
+
+  test('pinned history remains stable while live frames advance', () {
+    final controller = TerminalScrollbackController();
+    controller.updateLiveFrame(
+      frame: _frame(
+        totalRows: 12,
+        viewportRows: 4,
+        cols: 2,
+        cursorRow: 11,
+        cursorCol: 0,
+      ),
+    );
+    controller.scrollUp(rows: 4);
     final pinned = controller.effectiveFrame();
-    expect(controller.modeLabel().startsWith('history('), isTrue);
 
-    controller.updateLiveFrame(generation: 4, frame: _frame(10, 10, 3, 0));
-    controller.updateLiveFrame(generation: 5, frame: _frame(10, 10, 4, 0));
-
-    final afterUpdates = controller.effectiveFrame();
-    expect(afterUpdates.cursorRow, pinned.cursorRow);
-    expect(afterUpdates.cursorCol, pinned.cursorCol);
-  });
-
-  test('returns to live tail when scrolling down to end', () {
-    final controller = TerminalScrollbackController(maxFrames: 16);
-    controller.updateLiveFrame(generation: 1, frame: _frame(10, 10, 0, 0));
-    controller.updateLiveFrame(generation: 2, frame: _frame(10, 10, 1, 0));
-    controller.updateLiveFrame(generation: 3, frame: _frame(10, 10, 2, 0));
-
-    controller.scrollUp();
-    controller.scrollDown();
-    expect(controller.modeLabel(), 'live');
-
-    controller.updateLiveFrame(generation: 4, frame: _frame(10, 10, 3, 0));
-    expect(controller.effectiveFrame().cursorRow, 3);
-  });
-
-  test('keeps valid anchor when old frames are trimmed', () {
-    final controller = TerminalScrollbackController(maxFrames: 3);
-    controller.updateLiveFrame(generation: 1, frame: _frame(10, 10, 0, 0));
-    controller.updateLiveFrame(generation: 2, frame: _frame(10, 10, 1, 0));
-    controller.updateLiveFrame(generation: 3, frame: _frame(10, 10, 2, 0));
-    controller.scrollUp();
-    expect(controller.modeLabel().startsWith('history('), isTrue);
-
-    controller.updateLiveFrame(generation: 4, frame: _frame(10, 10, 3, 0));
-    controller.scrollLive();
-    expect(controller.modeLabel(), 'live');
-    expect(controller.effectiveFrame().cursorRow, 3);
+    controller.updateLiveFrame(
+      frame: _frame(
+        totalRows: 14,
+        viewportRows: 4,
+        cols: 2,
+        cursorRow: 13,
+        cursorCol: 0,
+      ),
+    );
+    final after = controller.effectiveFrame();
+    expect(after.cells.first.codepoint, pinned.cells.first.codepoint);
+    expect(after.cells.last.codepoint, pinned.cells.last.codepoint);
+    expect(controller.modeLabel(), 'history(rows=4/8)');
   });
 }

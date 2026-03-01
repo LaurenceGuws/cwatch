@@ -104,14 +104,15 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
       try {
         final meta = bridge.readSnapshot(snapshot);
         final frame = bridge.snapshotToFrame(snapshot);
-        _scrollback.updateLiveFrame(generation: meta.generation, frame: frame);
+        _scrollback.updateLiveFrame(frame: frame);
         if (!mounted) {
           return;
         }
         setState(() {
           final mode = _scrollback.modeLabel();
           _status =
-              'rows=${meta.rows} cols=${meta.cols} title=${meta.title.isEmpty ? '(none)' : meta.title} mode=$mode';
+              'rows=${meta.rows} total_rows=${frame.rows} cols=${meta.cols} '
+              'title=${meta.title.isEmpty ? '(none)' : meta.title} mode=$mode';
         });
       } finally {
         bridge.releaseSnapshot(snapshot);
@@ -130,15 +131,15 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
     return _scrollback.effectiveFrame();
   }
 
-  void _historyUp() {
+  void _historyUp({int rows = 1}) {
     setState(() {
-      _scrollback.scrollUp();
+      _scrollback.scrollUp(rows: rows);
     });
   }
 
-  void _historyDown() {
+  void _historyDown({int rows = 1}) {
     setState(() {
-      _scrollback.scrollDown();
+      _scrollback.scrollDown(rows: rows);
     });
   }
 
@@ -588,9 +589,9 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
                 onPointerSignal: (signal) {
                   if (signal is PointerScrollEvent) {
                     if (signal.scrollDelta.dy > 0) {
-                      _historyUp();
+                      _historyDown(rows: 3);
                     } else if (signal.scrollDelta.dy < 0) {
-                      _historyDown();
+                      _historyUp(rows: 3);
                     }
                   }
                 },

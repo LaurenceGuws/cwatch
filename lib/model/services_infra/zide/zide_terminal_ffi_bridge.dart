@@ -276,13 +276,18 @@ class ZideTerminalFrameData {
   const ZideTerminalFrameData({
     required this.rows,
     required this.cols,
+    required this.viewportRows,
     required this.cursorRow,
     required this.cursorCol,
     required this.cursorVisible,
     required this.cells,
   });
 
+  /// Total row count represented by [cells] (`rows * cols` cells expected).
   final int rows;
+
+  /// Viewport row count (visible terminal height).
+  final int viewportRows;
   final int cols;
   final int cursorRow;
   final int cursorCol;
@@ -644,12 +649,16 @@ class ZideTerminalFfiBridge {
 
   String snapshotToPlainText(Pointer<ZideTerminalSnapshot> snapshot) {
     final value = snapshot.ref;
-    if (value.cells == nullptr || value.rows <= 0 || value.cols <= 0) {
+    if (value.cells == nullptr || value.cols <= 0) {
+      return '';
+    }
+    final totalRows = _snapshotTotalRows(value);
+    if (totalRows <= 0) {
       return '';
     }
 
     final buffer = StringBuffer();
-    for (var row = 0; row < value.rows; row++) {
+    for (var row = 0; row < totalRows; row++) {
       for (var col = 0; col < value.cols; col++) {
         final index = row * value.cols + col;
         final cell = (value.cells + index).ref;
@@ -659,7 +668,7 @@ class ZideTerminalFfiBridge {
         final codepoint = cell.codepoint;
         buffer.write(codepoint == 0 ? ' ' : String.fromCharCode(codepoint));
       }
-      if (row < value.rows - 1) {
+      if (row < totalRows - 1) {
         buffer.writeln();
       }
     }
@@ -670,11 +679,13 @@ class ZideTerminalFfiBridge {
     Pointer<ZideTerminalSnapshot> snapshot,
   ) {
     final value = snapshot.ref;
-    final totalCells = value.rows * value.cols;
+    final totalRows = _snapshotTotalRows(value);
+    final totalCells = totalRows * value.cols;
     if (value.cells == nullptr || totalCells <= 0) {
       return ZideTerminalFrameData(
-        rows: value.rows,
+        rows: totalRows,
         cols: value.cols,
+        viewportRows: value.rows,
         cursorRow: value.cursorRow,
         cursorCol: value.cursorCol,
         cursorVisible: value.cursorVisible != 0,
@@ -702,14 +713,29 @@ class ZideTerminalFfiBridge {
       );
     });
 
+    final viewportStart = (totalRows - value.rows).clamp(0, totalRows);
+    final absoluteCursorRow = viewportStart + value.cursorRow;
+
     return ZideTerminalFrameData(
-      rows: value.rows,
+      rows: totalRows,
       cols: value.cols,
-      cursorRow: value.cursorRow,
+      viewportRows: value.rows,
+      cursorRow: absoluteCursorRow,
       cursorCol: value.cursorCol,
       cursorVisible: value.cursorVisible != 0,
       cells: cells,
     );
+  }
+
+  int _snapshotTotalRows(ZideTerminalSnapshot value) {
+    if (value.cols <= 0) {
+      return value.rows;
+    }
+    final byCount = (value.cellCount ~/ value.cols);
+    if (byCount >= value.rows && byCount > 0) {
+      return byCount;
+    }
+    return value.rows;
   }
 
   List<ZideTerminalEventData> drainEvents(Pointer<ZideTerminalHandle> handle) {
