@@ -76,7 +76,9 @@ class TerminalScrollbackController {
         return;
       }
       final anchor = _frameAnchorIndex ?? (_frames.length - 1);
-      final step = rows.clamp(1, 32);
+      // In frame-fallback mode, scroll by one frame per wheel event.
+      // Mapping row-sized deltas here causes large jumps and unstable UX.
+      const step = 1;
       _frameAnchorIndex = (anchor - step).clamp(0, _frames.length - 1);
       return;
     }
@@ -90,7 +92,8 @@ class TerminalScrollbackController {
       return;
     }
     if (_frameAnchorIndex != null) {
-      final step = rows.clamp(1, 32);
+      // In frame-fallback mode, scroll by one frame per wheel event.
+      const step = 1;
       final next = (_frameAnchorIndex! + step).clamp(0, _frames.length - 1);
       _frameAnchorIndex = next == _frames.length - 1 ? null : next;
       return;
