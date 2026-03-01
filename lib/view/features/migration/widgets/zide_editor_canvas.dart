@@ -23,6 +23,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
   Pointer<ZideEditorHandle>? _handle;
   final FocusNode _focusNode = FocusNode(debugLabel: 'zide_editor_canvas');
   final ScrollController _verticalScrollController = ScrollController();
+  double _editorContentWidth = 0;
 
   String _status = 'Initializing editor...';
   String _text = '';
@@ -105,10 +106,10 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
     bridge.setCursorOffset(handle, 0);
     _clearSelection();
     _keyStatus = 'keyboard: reloaded main.zig';
-    _refresh();
+    _refresh(revealCaret: true);
   }
 
-  void _refresh() {
+  void _refresh({bool revealCaret = false}) {
     final bridge = _bridge;
     final handle = _handle;
     if (bridge == null || handle == null) {
@@ -139,6 +140,14 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
         _status =
             'lines=$lineCount primary_caret=$primary aux=$auxCount matches=$matchCount active=$_activeMatch';
       });
+      if (revealCaret) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) {
+            return;
+          }
+          _ensurePrimaryCaretVisible();
+        });
+      }
     } catch (error) {
       if (!mounted) {
         return;
@@ -156,7 +165,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
       return;
     }
     bridge.undo(handle);
-    _refresh();
+    _refresh(revealCaret: true);
   }
 
   void _redo() {
@@ -166,7 +175,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
       return;
     }
     bridge.redo(handle);
-    _refresh();
+    _refresh(revealCaret: true);
   }
 
   void _focusKeyboard() {
@@ -209,7 +218,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
       bridge.setCursorOffset(handle, offset);
       _clearSelection();
       _keyStatus = 'keyboard: click caret=$offset';
-      _refresh();
+      _refresh(revealCaret: true);
     } catch (error) {
       setState(() {
         _keyStatus = 'keyboard click error: $error';
@@ -243,7 +252,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
     }
     bridge.setCursorOffset(handle, _selectionFocus ?? offset);
     _keyStatus = 'keyboard: drag selection';
-    _refresh();
+    _refresh(revealCaret: true);
   }
 
   void _onEditorKeyEvent(KeyEvent event) {
@@ -268,7 +277,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
       if (ctrl && logical == LogicalKeyboardKey.keyZ) {
         bridge.undo(handle);
         _keyStatus = 'keyboard: ctrl+z';
-        _refresh();
+        _refresh(revealCaret: true);
         return;
       }
       if (ctrl &&
@@ -277,7 +286,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
                   logical == LogicalKeyboardKey.keyZ))) {
         bridge.redo(handle);
         _keyStatus = 'keyboard: redo';
-        _refresh();
+        _refresh(revealCaret: true);
         return;
       }
       if (ctrl && logical == LogicalKeyboardKey.keyA) {
@@ -286,7 +295,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
         _selectionFocus = totalLen;
         bridge.setCursorOffset(handle, totalLen);
         _keyStatus = 'keyboard: ctrl+a';
-        _refresh();
+        _refresh(revealCaret: true);
         return;
       }
 
@@ -310,7 +319,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
           bridge.setCursorOffset(handle, clamped);
           _keyStatus = 'keyboard: $baseLabel';
         }
-        _refresh();
+        _refresh(revealCaret: true);
       }
 
       if (logical == LogicalKeyboardKey.arrowLeft) {
@@ -365,7 +374,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
           bridge.setCursorOffset(handle, cursor - 1);
         }
         _keyStatus = 'keyboard: backspace';
-        _refresh();
+        _refresh(revealCaret: true);
         return;
       }
       if (logical == LogicalKeyboardKey.delete) {
@@ -382,7 +391,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
           bridge.setCursorOffset(handle, cursor);
         }
         _keyStatus = 'keyboard: delete';
-        _refresh();
+        _refresh(revealCaret: true);
         return;
       }
       if (logical == LogicalKeyboardKey.enter) {
@@ -397,7 +406,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
         }
         bridge.insertText(handle, '\n');
         _keyStatus = 'keyboard: enter';
-        _refresh();
+        _refresh(revealCaret: true);
         return;
       }
 
@@ -414,7 +423,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
         }
         bridge.insertText(handle, character);
         _keyStatus = 'keyboard: char "${character.replaceAll('\n', r'\n')}"';
-        _refresh();
+        _refresh(revealCaret: true);
       }
     } catch (error) {
       setState(() {
@@ -473,6 +482,46 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
       return true;
     }
     return false;
+  }
+
+  void _ensurePrimaryCaretVisible() {
+    if (!_verticalScrollController.hasClients || _editorContentWidth <= 0) {
+      return;
+    }
+
+    final layout = EditorCaretLayout.compute(
+      text: _text,
+      primaryOffset: _primaryCaret,
+      auxiliaryOffsets: const [],
+      textScaler: MediaQuery.textScalerOf(context),
+      maxWidth: _editorContentWidth,
+      style: _EditorTextWithCaretPainter.textStyle,
+    );
+
+    final position = _verticalScrollController.position;
+    const contentTopPadding = 8.0;
+    const margin = 6.0;
+    final caretTop = layout.primaryCaret.dy + contentTopPadding;
+    final caretBottom = caretTop + layout.lineHeight;
+    final viewTop = position.pixels;
+    final viewBottom = viewTop + position.viewportDimension;
+
+    if (caretTop < viewTop + margin) {
+      final target = (caretTop - margin).clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      );
+      _verticalScrollController.jumpTo(target.toDouble());
+      return;
+    }
+
+    if (caretBottom > viewBottom - margin) {
+      final target = (caretBottom - position.viewportDimension + margin).clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      );
+      _verticalScrollController.jumpTo(target.toDouble());
+    }
   }
 
   int _lineStartOffset(String text, int offset) {
@@ -570,6 +619,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
                     final contentWidth = (constraints.maxWidth - 16)
                         .clamp(1.0, double.infinity)
                         .toDouble();
+                    _editorContentWidth = contentWidth;
                     final lineHeight =
                         12 * 1.2 * MediaQuery.textScalerOf(context).scale(1.0);
                     final contentHeight = math
