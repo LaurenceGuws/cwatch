@@ -1,4 +1,5 @@
 import 'dart:ffi' show Pointer;
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -21,6 +22,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
   ZideEditorFfiBridge? _bridge;
   Pointer<ZideEditorHandle>? _handle;
   final FocusNode _focusNode = FocusNode(debugLabel: 'zide_editor_canvas');
+  final ScrollController _verticalScrollController = ScrollController();
 
   String _status = 'Initializing editor...';
   String _text = '';
@@ -43,6 +45,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
   @override
   void dispose() {
     _focusNode.dispose();
+    _verticalScrollController.dispose();
     final bridge = _bridge;
     final handle = _handle;
     if (bridge != null && handle != null) {
@@ -57,7 +60,8 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
         settings: widget.settingsController.settings,
       );
       final handle = bridge.create();
-      bridge.setText(handle, 'migration canvas\nline two\n');
+      final initialText = _loadMainZigText();
+      bridge.setText(handle, initialText);
       _bridge = bridge;
       _handle = handle;
       _status = 'Connected: ${bridge.libraryPath}';
@@ -68,6 +72,40 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
         _status = 'Editor unavailable: $error';
       });
     }
+  }
+
+  String _loadMainZigText() {
+    final home = Platform.environment['HOME']?.trim();
+    if (home == null || home.isEmpty) {
+      return 'migration canvas\nline two\n';
+    }
+    final file = File('$home/personal/zide/src/main.zig');
+    if (!file.existsSync()) {
+      return 'migration canvas\nline two\n';
+    }
+    try {
+      final content = file.readAsStringSync();
+      if (content.trim().isEmpty) {
+        return 'migration canvas\nline two\n';
+      }
+      return content;
+    } catch (_) {
+      return 'migration canvas\nline two\n';
+    }
+  }
+
+  void _reloadMainZig() {
+    final bridge = _bridge;
+    final handle = _handle;
+    if (bridge == null || handle == null) {
+      return;
+    }
+    final text = _loadMainZigText();
+    bridge.setText(handle, text);
+    bridge.setCursorOffset(handle, 0);
+    _clearSelection();
+    _keyStatus = 'keyboard: reloaded main.zig';
+    _refresh();
   }
 
   void _refresh() {
@@ -152,7 +190,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
     _selectionFocus = null;
   }
 
-  void _setCaretFromTap(Offset localPosition, double maxWidth) {
+  void _setCaretFromTap(Offset localPosition, double contentWidth) {
     final bridge = _bridge;
     final handle = _handle;
     if (bridge == null || handle == null) {
@@ -165,7 +203,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
         text: _text,
         point: textPoint,
         textScaler: MediaQuery.textScalerOf(context),
-        maxWidth: maxWidth - 16,
+        maxWidth: contentWidth,
         style: _EditorTextWithCaretPainter.textStyle,
       );
       bridge.setCursorOffset(handle, offset);
@@ -181,7 +219,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
 
   void _updateSelectionFromDrag({
     required Offset localPosition,
-    required double maxWidth,
+    required double contentWidth,
     required bool start,
   }) {
     final bridge = _bridge;
@@ -194,7 +232,7 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
       text: _text,
       point: textPoint,
       textScaler: MediaQuery.textScalerOf(context),
-      maxWidth: maxWidth - 16,
+      maxWidth: contentWidth,
       style: _EditorTextWithCaretPainter.textStyle,
     );
     if (start || _selectionAnchor == null) {
@@ -441,6 +479,10 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
                   onPressed: _focusKeyboard,
                   child: const Text('Focus keyboard'),
                 ),
+                OutlinedButton(
+                  onPressed: _reloadMainZig,
+                  child: const Text('Reload main.zig'),
+                ),
                 OutlinedButton(onPressed: _undo, child: const Text('Undo')),
                 OutlinedButton(onPressed: _redo, child: const Text('Redo')),
               ],
@@ -463,69 +505,84 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 8),
-            KeyboardListener(
-              focusNode: _focusNode,
-              onKeyEvent: _onEditorKeyEvent,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: _focusKeyboard,
-                    onTapDown: (details) {
-                      _focusKeyboard();
-                      _setCaretFromTap(
-                        details.localPosition,
-                        constraints.maxWidth,
-                      );
-                    },
-                    onPanStart: (details) {
-                      _focusKeyboard();
-                      _updateSelectionFromDrag(
-                        localPosition: details.localPosition,
-                        maxWidth: constraints.maxWidth,
-                        start: true,
-                      );
-                    },
-                    onPanUpdate: (details) {
-                      _updateSelectionFromDrag(
-                        localPosition: details.localPosition,
-                        maxWidth: constraints.maxWidth,
-                        start: false,
-                      );
-                    },
-                    child: Container(
+            Expanded(
+              child: KeyboardListener(
+                focusNode: _focusNode,
+                onKeyEvent: _onEditorKeyEvent,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final contentWidth = (constraints.maxWidth - 16)
+                        .clamp(1.0, double.infinity)
+                        .toDouble();
+                    final lineHeight =
+                        12 * 1.2 * MediaQuery.textScalerOf(context).scale(1.0);
+                    final contentHeight = math
+                        .max(
+                          120,
+                          (_text.split('\n').length + 1) * lineHeight + 16,
+                        )
+                        .toDouble();
+                    return Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         border: Border.all(color: scheme.outlineVariant),
                         borderRadius: BorderRadius.circular(6),
                         color: Colors.black.withValues(alpha: 0.82),
                       ),
-                      child: CustomPaint(
-                        painter: _EditorTextWithCaretPainter(
-                          text: _text,
-                          primaryOffset: _primaryCaret,
-                          auxiliaryOffsets: _auxOffsets,
-                          selectionStart: _selectionRange()?.start,
-                          selectionEnd: _selectionRange()?.end,
-                          textScaler: MediaQuery.textScalerOf(context),
-                        ),
-                        child: SizedBox(
-                          width: double.infinity,
-                          height: math.max(
-                            120,
-                            (_text.split('\n').length + 1) *
-                                (12 *
-                                    1.2 *
-                                    MediaQuery.textScalerOf(
-                                      context,
-                                    ).scale(1.0)),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Scrollbar(
+                          controller: _verticalScrollController,
+                          thumbVisibility: true,
+                          child: SingleChildScrollView(
+                            controller: _verticalScrollController,
+                            padding: const EdgeInsets.all(8),
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: _focusKeyboard,
+                              onTapDown: (details) {
+                                _focusKeyboard();
+                                _setCaretFromTap(
+                                  details.localPosition,
+                                  contentWidth,
+                                );
+                              },
+                              onPanStart: (details) {
+                                _focusKeyboard();
+                                _updateSelectionFromDrag(
+                                  localPosition: details.localPosition,
+                                  contentWidth: contentWidth,
+                                  start: true,
+                                );
+                              },
+                              onPanUpdate: (details) {
+                                _updateSelectionFromDrag(
+                                  localPosition: details.localPosition,
+                                  contentWidth: contentWidth,
+                                  start: false,
+                                );
+                              },
+                              child: CustomPaint(
+                                painter: _EditorTextWithCaretPainter(
+                                  text: _text,
+                                  primaryOffset: _primaryCaret,
+                                  auxiliaryOffsets: _auxOffsets,
+                                  selectionStart: _selectionRange()?.start,
+                                  selectionEnd: _selectionRange()?.end,
+                                  textScaler: MediaQuery.textScalerOf(context),
+                                ),
+                                child: SizedBox(
+                                  width: contentWidth,
+                                  height: contentHeight,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ),
           ],
