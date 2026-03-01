@@ -308,6 +308,253 @@ class DockerOverviewActionsController {
     }
   }
 
+  Future<void> removeImages({
+    required List<String> imageIds,
+    bool force = false,
+  }) async {
+    // Mark images as busy
+    for (final id in imageIds) {
+      controller.markImageBusy(id, 'removing');
+    }
+
+    try {
+      if (_remoteHost != null && _shellService != null) {
+        final forceFlag = force ? '-f ' : '';
+        final ids = imageIds.join(' ');
+        final cmd = 'docker rmi $forceFlag$ids';
+        await _shellService!.runCommand(
+          _remoteHost!,
+          cmd,
+          timeout: const Duration(seconds: 30),
+        );
+      } else {
+        for (final id in imageIds) {
+          await docker.removeImage(
+            imageId: id,
+            context: _contextName,
+            force: force,
+          );
+        }
+      }
+      final count = imageIds.length;
+      final plural = count == 1 ? '' : 's';
+      
+      // Clear busy state first
+      for (final id in imageIds) {
+        controller.clearImageAction(id);
+      }
+      
+      // Hot reload to update data without full view rebuild
+      await controller.hotReload();
+      
+      uiAdapter.showSnackBar(
+        'Removed $count image$plural successfully.',
+      );
+    } catch (error, stackTrace) {
+      AppLogger().warn(
+        'Failed to remove images',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      uiAdapter.showSnackBar('Failed to remove images: $error');
+      
+      // Clear busy state on error
+      for (final id in imageIds) {
+        controller.clearImageAction(id);
+      }
+    }
+  }
+
+  Future<void> pruneImages({bool all = false}) async {
+    uiAdapter.showSnackBar('Pruning images...');
+    
+    try {
+      if (_remoteHost != null && _shellService != null) {
+        final allFlag = all ? '-a ' : '';
+        final cmd = 'docker image prune $allFlag-f';
+        await _shellService!.runCommand(
+          _remoteHost!,
+          cmd,
+          timeout: const Duration(minutes: 1),
+        );
+      } else {
+        await docker.pruneImages(
+          context: _contextName,
+          all: all,
+        );
+      }
+      await controller.hotReload();
+      uiAdapter.showSnackBar('Image prune completed.');
+    } catch (error, stackTrace) {
+      AppLogger().warn(
+        'Image prune failed',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      uiAdapter.showSnackBar('Image prune failed: $error');
+    }
+  }
+
+  Future<void> pullImage(String imageName) async {
+    uiAdapter.showSnackBar('Pulling image $imageName...');
+    
+    try {
+      if (_remoteHost != null && _shellService != null) {
+        final cmd = 'docker pull $imageName';
+        await _shellService!.runCommand(
+          _remoteHost!,
+          cmd,
+          timeout: const Duration(minutes: 10),
+        );
+      } else {
+        await docker.pullImage(
+          imageName: imageName,
+          context: _contextName,
+        );
+      }
+      await controller.hotReload();
+      uiAdapter.showSnackBar('Image $imageName pulled successfully.');
+    } catch (error, stackTrace) {
+      AppLogger().warn(
+        'Failed to pull image $imageName',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      uiAdapter.showSnackBar('Failed to pull image: $error');
+    }
+  }
+
+  Future<void> tagImage({
+    required String sourceImage,
+    required String targetImage,
+    String? sourceImageId,
+  }) async {
+    if (sourceImageId != null) {
+      controller.markImageBusy(sourceImageId, 'tagging');
+    }
+    
+    try {
+      if (_remoteHost != null && _shellService != null) {
+        final cmd = 'docker tag $sourceImage $targetImage';
+        await _shellService!.runCommand(
+          _remoteHost!,
+          cmd,
+          timeout: const Duration(seconds: 10),
+        );
+      } else {
+        await docker.tagImage(
+          sourceImage: sourceImage,
+          targetImage: targetImage,
+          context: _contextName,
+        );
+      }
+      if (sourceImageId != null) {
+        controller.clearImageAction(sourceImageId);
+      }
+      
+      await controller.hotReload();
+      uiAdapter.showSnackBar('Image tagged as $targetImage.');
+    } catch (error, stackTrace) {
+      AppLogger().warn(
+        'Failed to tag image',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      uiAdapter.showSnackBar('Failed to tag image: $error');
+      
+      if (sourceImageId != null) {
+        controller.clearImageAction(sourceImageId);
+      }
+    }
+  }
+
+  Future<void> pushImage(String imageName, {String? imageId}) async {
+    if (imageId != null) {
+      controller.markImageBusy(imageId, 'pushing');
+    }
+    
+    uiAdapter.showSnackBar('Pushing image $imageName...');
+    
+    try {
+      if (_remoteHost != null && _shellService != null) {
+        final cmd = 'docker push $imageName';
+        await _shellService!.runCommand(
+          _remoteHost!,
+          cmd,
+          timeout: const Duration(minutes: 10),
+        );
+      } else {
+        await docker.pushImage(
+          imageName: imageName,
+          context: _contextName,
+        );
+      }
+      uiAdapter.showSnackBar('Image $imageName pushed successfully.');
+      
+      if (imageId != null) {
+        controller.clearImageAction(imageId);
+      }
+    } catch (error, stackTrace) {
+      AppLogger().warn(
+        'Failed to push image $imageName',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      uiAdapter.showSnackBar('Failed to push image: $error');
+      
+      if (imageId != null) {
+        controller.clearImageAction(imageId);
+      }
+    }
+  }
+
+  Future<void> inspectImage(String imageId) async {
+    try {
+      final output = await docker.inspectImage(
+        imageId: imageId,
+        context: _contextName,
+      );
+      uiAdapter.showInspectDialog(
+        title: 'Image Inspect: $imageId',
+        content: output,
+      );
+    } catch (error, stackTrace) {
+      AppLogger().warn(
+        'Failed to inspect image $imageId',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      uiAdapter.showSnackBar('Failed to inspect image: $error');
+    }
+  }
+
+  Future<void> showImageHistory(String imageId) async {
+    try {
+      final output = await docker.imageHistory(
+        imageId: imageId,
+        context: _contextName,
+      );
+      uiAdapter.showInspectDialog(
+        title: 'Image History: $imageId',
+        content: output,
+      );
+    } catch (error, stackTrace) {
+      AppLogger().warn(
+        'Failed to get image history for $imageId',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      uiAdapter.showSnackBar('Failed to get image history: $error');
+    }
+  }
+
   Future<void> forwardContainerPorts({
     required DockerContainer container,
   }) async {

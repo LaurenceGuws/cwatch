@@ -107,14 +107,17 @@ class _EnginePickerState extends State<EnginePicker> {
                   IconButton(
                     icon: Icon(
                       collapsed ? Icons.expand_more : Icons.expand_less,
-                      size: 18,
+                      size: context.appTheme.iconSizes.medium,
                     ),
                     tooltip: collapsed ? 'Expand' : 'Collapse',
                     onPressed: _toggleLocalCollapsed,
                   ),
                   PopupMenuButton<String>(
                     tooltip: 'Section options',
-                    icon: const Icon(Icons.more_horiz, size: 18),
+                    icon: Icon(
+                      Icons.more_horiz,
+                      size: context.appTheme.iconSizes.medium,
+                    ),
                     onSelected: (value) {
                       if (value == 'reloadContexts') {
                         widget.onRefreshContexts();
@@ -148,7 +151,7 @@ class _EnginePickerState extends State<EnginePicker> {
                           return StructuredDataTable<LocalDockerContextStatus>(
                             rows: rows,
                             columns: _contextColumns(context),
-                            rowHeight: 64,
+                            rowHeight: context.scale(64),
                             shrinkToContent: true,
                             useZebraStripes: false,
                             surfaceBackgroundColor: sectionColor,
@@ -220,21 +223,29 @@ class _EnginePickerState extends State<EnginePicker> {
                 size: iconSize,
                 color: Theme.of(context).iconTheme.color,
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: context.appTheme.spacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      status.context.name,
-                      style: Theme.of(context).textTheme.titleMedium,
+                    Flexible(
+                      child: Text(
+                        status.context.name,
+                        style: Theme.of(context).textTheme.titleMedium,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    Text(
-                      status.context.dockerEndpoint,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+                    Flexible(
+                      child: Text(
+                        status.context.dockerEndpoint,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
@@ -252,12 +263,12 @@ class _EnginePickerState extends State<EnginePicker> {
               status.available
                   ? Icons.check_circle
                   : Icons.error_outline,
-              size: 16,
+              size: context.appTheme.iconSizes.small,
               color: status.available
                   ? colorScheme.primary
                   : colorScheme.error,
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: context.appTheme.spacing.md),
             Expanded(
               child: Text(
                 status.detail ?? '',
@@ -295,7 +306,8 @@ class _EnginePickerState extends State<EnginePicker> {
 
 double _leadingIconSize(BuildContext context) {
   final titleSize = Theme.of(context).textTheme.titleMedium?.fontSize ?? 14;
-  return titleSize * 1.9;
+  // Scale with zoom factor to match text scaling
+  return (titleSize * 1.9) * context.zoomFactor;
 }
 
 class RemoteSection extends StatelessWidget {
@@ -410,14 +422,17 @@ class RemoteSection extends StatelessWidget {
           IconButton(
             icon: Icon(
               collapsed ? Icons.expand_more : Icons.expand_less,
-              size: 18,
+              size: context.appTheme.iconSizes.medium,
             ),
             tooltip: collapsed ? 'Expand' : 'Collapse',
             onPressed: onToggleCollapsed,
           ),
           PopupMenuButton<String>(
             tooltip: 'Section options',
-            icon: const Icon(Icons.more_horiz, size: 18),
+            icon: Icon(
+              Icons.more_horiz,
+              size: context.appTheme.iconSizes.medium,
+            ),
             onSelected: (value) {
               if (value == 'scanServers') {
                 onScan();
@@ -466,7 +481,7 @@ class _RemoteHostListState extends State<RemoteHostList> {
     return StructuredDataTable<RemoteDockerStatus>(
       rows: widget.hosts,
       columns: _columns(context),
-      rowHeight: 64,
+      rowHeight: context.scale(64),
       shrinkToContent: true,
       useZebraStripes: false,
       surfaceBackgroundColor: widget.backgroundColor,
@@ -500,12 +515,12 @@ class _RemoteHostListState extends State<RemoteHostList> {
               status.available
                   ? Icons.check_circle
                   : Icons.error_outline,
-              size: 16,
+              size: context.appTheme.iconSizes.small,
               color: status.available
                   ? colorScheme.primary
                   : colorScheme.error,
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: context.appTheme.spacing.md),
             Expanded(
               child: Text(
                 status.detail,
@@ -544,7 +559,7 @@ class _RemoteHostListState extends State<RemoteHostList> {
                   statusDotScale: 0,
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: context.appTheme.spacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -615,19 +630,19 @@ class EngineButton extends StatelessWidget {
     final borderColor = selected ? scheme.primary : scheme.outlineVariant;
     return Material(
       color: bg,
-      borderRadius: BorderRadius.circular(2),
+      borderRadius: BorderRadius.circular(2 * context.zoomFactor),
       child: InkWell(
         onDoubleTap: onDoubleTap,
-        borderRadius: BorderRadius.circular(2),
+        borderRadius: BorderRadius.circular(2 * context.zoomFactor),
         child: Container(
-          width: 200,
+          width: context.scale(200),
           padding: EdgeInsets.symmetric(
             horizontal: spacing.base * 3,
             vertical: spacing.base * 2.5,
           ),
           decoration: BoxDecoration(
             border: Border.all(color: borderColor),
-            borderRadius: BorderRadius.circular(2),
+            borderRadius: BorderRadius.circular(2 * context.zoomFactor),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -639,7 +654,7 @@ class EngineButton extends StatelessWidget {
                 ),
               ),
               if (subtitle != null && subtitle!.isNotEmpty) ...[
-                const SizedBox(height: 4),
+                SizedBox(height: context.appTheme.spacing.sm),
                 Text(subtitle!, style: Theme.of(context).textTheme.bodySmall),
               ],
             ],
@@ -663,7 +678,7 @@ class EmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icons.dns, size: 64),
+          Icon(icons.dns, size: context.appTheme.iconSizes.emptyStateXlarge),
           SizedBox(height: spacing.lg),
           const Text('No Docker contexts found.'),
           SizedBox(height: spacing.lg),

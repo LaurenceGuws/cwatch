@@ -97,6 +97,91 @@ class DockerOverviewUiAdapter {
     showSnackBar(successMessage);
   }
 
+  Future<void> showInspectDialog({
+    required String title,
+    required String content,
+  }) async {
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Expanded(child: Text(title)),
+              IconButton(
+                icon: const Icon(Icons.copy, size: 18),
+                tooltip: 'Copy to clipboard',
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: content));
+                  if (dialogContext.mounted) {
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      const SnackBar(content: Text('Copied to clipboard')),
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 700,
+            height: 500,
+            child: SingleChildScrollView(
+              child: SelectableText(
+                content,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<String?> showTextInputDialog({
+    required String title,
+    required String label,
+    String? initialValue,
+    String? hintText,
+  }) async {
+    if (!context.mounted) return null;
+    final controller = TextEditingController(text: initialValue);
+    return showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(title),
+          content: TextField(
+            controller: controller,
+            decoration: InputDecoration(
+              labelText: label,
+              hintText: hintText,
+            ),
+            autofocus: true,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(controller.text.trim());
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   SshAuthCoordinator buildSshAuthCoordinator({
     required BuiltInSshKeyService keyService,
   }) {

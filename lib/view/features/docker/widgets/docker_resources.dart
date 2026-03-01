@@ -378,7 +378,7 @@ class _DockerResourcesState extends State<DockerResources>
               ),
               SizedBox(height: spacing.md),
               SizedBox(
-                height: 240,
+                height: context.scale(240),
                 child: hasPoints
                     ? LineChart(
                         _lineChartData(series, unitSuffix: unitSuffix),
@@ -581,11 +581,11 @@ class _ChartLegend extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 12,
-          height: 12,
+          width: context.scale(12),
+          height: context.scale(12),
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(2),
+            borderRadius: BorderRadius.circular(2 * context.zoomFactor),
           ),
         ),
         SizedBox(width: spacing.base * 1.5),

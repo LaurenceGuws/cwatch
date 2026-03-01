@@ -326,6 +326,11 @@ class _DockerOverviewState extends State<DockerOverview>
                                 onSelectionChanged:
                                     _handleImageSelectionChanged,
                                 selectedIds: _controller.selectedImageKeys,
+                                busyIds: _controller.imageActionInProgress.keys.toSet(),
+                                actionLabels: _controller.imageActionInProgress,
+                                onRemoveImages: _handleRemoveImages,
+                                onPruneImages: _handlePruneImages,
+                                onPullImage: _handlePullImage,
                               ),
                             ],
                           ),
@@ -598,6 +603,7 @@ class _DockerOverviewState extends State<DockerOverview>
     TapDownDetails details, {
     List<DockerImage>? selectedRows,
   }) {
+    final scheme = Theme.of(context).colorScheme;
     // Use provided selectedRows if available, otherwise fall back to helper function
     final selection = selectedRows?.isNotEmpty == true
         ? selectedRows!
@@ -615,12 +621,79 @@ class _DockerOverviewState extends State<DockerOverview>
         ? selection.map((item) => item.id).join('\n')
         : image.id;
     final copyLabel = isMulti ? 'Image IDs' : 'Image ID';
+    final extraActions = <PopupMenuEntry<String>>[
+      _menus.menuItem('pull', 'Pull image', Icons.download_outlined),
+      _menus.menuItem('tag', 'Tag image', Icons.label_outline),
+      _menus.menuItem('push', 'Push to registry', Icons.upload_outlined),
+      _menus.menuItem('inspect', 'Inspect', Icons.info_outline),
+      _menus.menuItem('history', 'View history', Icons.history),
+      const PopupMenuDivider(),
+      _menus.menuItem(
+        'remove',
+        'Remove',
+        Icons.delete_outline,
+        color: scheme.error,
+      ),
+    ];
     _menus.showItemMenu(
       globalPosition: details.globalPosition,
       title: title,
       details: detailsMap,
       copyValue: copyValue,
       copyLabel: copyLabel,
+      extraActions: extraActions,
+      onAction: (action) async {
+        switch (action) {
+          case 'pull':
+            final imageName = await _uiAdapter.showTextInputDialog(
+              title: 'Pull Image',
+              label: 'Image name',
+              hintText: 'e.g., nginx:latest, ubuntu:22.04',
+            );
+            if (imageName != null && imageName.isNotEmpty) {
+              await _actions.pullImage(imageName);
+            }
+            break;
+          case 'tag':
+            final imageRef = [
+              selection.first.repository,
+              selection.first.tag,
+            ].where((s) => s.isNotEmpty).join(':');
+            final newTag = await _uiAdapter.showTextInputDialog(
+              title: 'Tag Image',
+              label: 'New tag',
+              hintText: 'e.g., myregistry.com/myimage:v1.0',
+              initialValue: imageRef,
+            );
+            if (newTag != null && newTag.isNotEmpty) {
+              await _actions.tagImage(
+                sourceImage: imageRef,
+                targetImage: newTag,
+                sourceImageId: selection.first.id,
+              );
+            }
+            break;
+          case 'push':
+            final imageRef = [
+              selection.first.repository,
+              selection.first.tag,
+            ].where((s) => s.isNotEmpty).join(':');
+            await _actions.pushImage(imageRef, imageId: selection.first.id);
+            break;
+          case 'inspect':
+            await _actions.inspectImage(selection.first.id);
+            break;
+          case 'history':
+            await _actions.showImageHistory(selection.first.id);
+            break;
+          case 'remove':
+            final imageIds = selection.map((img) => img.id).toList();
+            await _handleRemoveImages(imageIds);
+            break;
+          default:
+            break;
+        }
+      },
     );
   }
 
@@ -837,6 +910,18 @@ class _DockerOverviewState extends State<DockerOverview>
       tableKeys,
       selected.map((volume) => volume.name),
     );
+  }
+
+  Future<void> _handleRemoveImages(List<String> imageIds) async {
+    await _actions.removeImages(imageIds: imageIds, force: true);
+  }
+
+  Future<void> _handlePruneImages() async {
+    await _actions.pruneImages(all: false);
+  }
+
+  Future<void> _handlePullImage(String imageName) async {
+    await _actions.pullImage(imageName);
   }
 
   KeyEventResult _handleContainerKey(FocusNode node, KeyEvent event) {

@@ -184,7 +184,7 @@ class _ContainerPeekState extends State<ContainerPeek> {
                 if (isCompose && widget.onComposeAction != null)
                   PopupMenuButton<String>(
                     tooltip: 'Compose actions',
-                    icon: const Icon(Icons.more_horiz, size: 18),
+                    icon: Icon(Icons.more_horiz, size: context.appTheme.iconSizes.medium),
                     onSelected: (action) {
                       final name = projectName;
                       if (name != null) {
@@ -540,7 +540,7 @@ class _ContainerPeekState extends State<ContainerPeek> {
             statusColor: statusColor,
           ),
         ),
-        const SizedBox(width: 8),
+        SizedBox(width: context.appTheme.spacing.md),
         Expanded(
           child: Text(
             _displayName(container),
@@ -821,6 +821,28 @@ class ContainerList extends StatelessWidget {
   }
 }
 
+class _ImageRow {
+  const _ImageRow({
+    required this.repository,
+    required this.images,
+  });
+
+  final String repository;
+  final List<DockerImage> images;
+
+  String get displayName => repository.isNotEmpty ? repository : '<none>';
+  int get tagCount => images.length;
+  String get totalSize => _calculateTotalSize(images);
+
+  static String _calculateTotalSize(List<DockerImage> images) {
+    if (images.isEmpty) return '—';
+    // Show the largest image size as representative
+    if (images.length == 1) return images.first.size;
+    // For multiple tags, show count
+    return '${images.length} tag${images.length == 1 ? '' : 's'}';
+  }
+}
+
 class ImagePeek extends StatefulWidget {
   const ImagePeek({
     super.key,
@@ -829,6 +851,11 @@ class ImagePeek extends StatefulWidget {
     this.onTapDown,
     this.onSelectionChanged,
     required this.selectedIds,
+    required this.busyIds,
+    required this.actionLabels,
+    this.onRemoveImages,
+    this.onPruneImages,
+    this.onPullImage,
   });
 
   final List<DockerImage> images;
@@ -837,95 +864,646 @@ class ImagePeek extends StatefulWidget {
   final void Function(Set<String> tableKeys, List<DockerImage> selected)?
   onSelectionChanged;
   final Set<String> selectedIds;
+  final Set<String> busyIds;
+  final Map<String, String> actionLabels;
+  final Future<void> Function(List<String> imageIds)? onRemoveImages;
+  final Future<void> Function()? onPruneImages;
+  final Future<void> Function(String imageName)? onPullImage;
 
   @override
   State<ImagePeek> createState() => _ImagePeekState();
 }
 
 class _ImagePeekState extends State<ImagePeek> {
-  final Set<String> _collapsed = {};
+  final Map<String, ValueNotifier<bool>> _expandedRows = {};
+
+  ValueNotifier<bool> _expansionFor(String repository) {
+    return _expandedRows.putIfAbsent(
+      repository,
+      () => ValueNotifier<bool>(false),
+    );
+  }
+
+  void _syncExpandedRows(List<_ImageRow> rows) {
+    if (_expandedRows.isEmpty) {
+      return;
+    }
+    final active = rows.map((r) => r.repository).toSet();
+    _expandedRows.removeWhere((repo, _) => !active.contains(repo));
+  }
+
+  @override
+  void dispose() {
+    for (final notifier in _expandedRows.values) {
+      notifier.dispose();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     if (widget.images.isEmpty) {
       return const EmptyCard(message: 'No images found.');
     }
-    final spacing = context.appTheme.spacing;
+
     final groups = _groupImages(widget.images);
-    final entries = groups.entries.toList();
+    final rows = groups.entries
+        .map((e) => _ImageRow(repository: e.key, images: e.value))
+        .toList();
+    _syncExpandedRows(rows);
+
+    final totalTags = widget.images.length;
+    final totalRepos = rows.length;
+    final selectedCount = widget.selectedIds.length;
+    final totalSize = _calculateTotalSize(widget.images);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: List.generate(entries.length, (index) {
-        final entry = entries[index];
-        final repo = entry.key;
-        final items = entry.value;
-        final collapsed = _collapsed.contains(repo);
-        final sectionColor = _sectionBackgroundForIndex(context, index);
-        return Padding(
-          padding: EdgeInsets.only(bottom: spacing.sm),
-          child: SectionList(
-            title: repo,
-            backgroundColor: sectionColor,
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '${items.length} images',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: Icon(
-                    collapsed ? Icons.expand_more : Icons.expand_less,
-                    size: 18,
-                  ),
-                  tooltip: collapsed ? 'Expand' : 'Collapse',
-                  onPressed: () {
-                    setState(() {
-                      if (collapsed) {
-                        _collapsed.remove(repo);
-                      } else {
-                        _collapsed.add(repo);
-                      }
-                    });
-                  },
-                ),
-              ],
-            ),
-            children: collapsed
-                ? const []
-                : [
-                    StructuredDataTable<DockerImage>(
-                      rows: items,
-                      columns: _imageColumns(context),
-                      rowHeight: 64,
-                      shrinkToContent: true,
-                      useZebraStripes: false,
-                      surfaceBackgroundColor: sectionColor,
-                      primaryDoubleClickOpensContextMenu: false,
-                      onRowContextMenu: _handleImageContextMenu,
-                      onSelectionChanged: (selectedRows) {
-                        final keys = items.map(_imageKey).toSet();
-                        widget.onSelectionChanged?.call(keys, selectedRows);
-                      },
-                    ),
-                  ],
+      children: [
+        Card(
+          margin: EdgeInsets.zero,
+          child: _ImageActionsBar(
+            totalRepos: totalRepos,
+            totalTags: totalTags,
+            totalSize: totalSize,
+            selectedCount: selectedCount,
+            onClearSelection: () {
+              widget.onSelectionChanged?.call({}, []);
+            },
+            onRemoveSelected: selectedCount > 0
+                ? () => _handleRemoveSelected(context)
+                : null,
+            onPruneUnused: () => _handlePruneUnused(context),
+            onPullImage: () => _handlePullImage(context),
           ),
-        );
-      }),
+        ),
+        Card(
+          margin: EdgeInsets.only(top: context.appTheme.spacing.xs),
+          child: StructuredDataTable<_ImageRow>(
+            rows: rows,
+            columns: _imageColumns(context, totalTags, totalSize),
+            autoRowHeight: true,
+            shrinkToContent: true,
+            useZebraStripes: false,
+            rowSelectionEnabled: false,
+            enableKeyboardNavigation: false,
+            primaryDoubleClickOpensContextMenu: false,
+          ),
+        ),
+      ],
     );
   }
 
-  void _handleImageContextMenu(
-    DockerImage image,
-    List<DockerImage> selectedRows,
-    Offset? anchor,
-  ) {
-    if (widget.onTapDown == null) {
+  Future<void> _handleRemoveSelected(BuildContext context) async {
+    if (widget.onRemoveImages == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Remove action not available')),
+      );
       return;
     }
-    final details = _tapDetails(anchor: anchor);
-    widget.onTapDown!(image, details, secondary: true, selectedRows: selectedRows);
+
+    // Get selected image IDs
+    final selectedImages = widget.images
+        .where((img) => widget.selectedIds.contains(_imageKey(img)))
+        .toList();
+
+    if (selectedImages.isEmpty) return;
+
+    // Confirm deletion
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Remove Images'),
+        content: Text(
+          'Are you sure you want to remove ${selectedImages.length} '
+          'image${selectedImages.length == 1 ? '' : 's'}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+            ),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final imageIds = selectedImages.map((img) => img.id).toList();
+    await widget.onRemoveImages!(imageIds);
+  }
+
+  Future<void> _handlePruneUnused(BuildContext context) async {
+    if (widget.onPruneImages == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Prune action not available')),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Prune Unused Images'),
+        content: const Text(
+          'This will remove all dangling images (not tagged and not '
+          'referenced by any container). Continue?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Prune'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    await widget.onPruneImages!();
+  }
+
+  Future<void> _handlePullImage(BuildContext context) async {
+    if (widget.onPullImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pull action not available')),
+      );
+      return;
+    }
+
+    final imageName = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        final controller = TextEditingController();
+        return AlertDialog(
+          title: const Text('Pull Image'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              labelText: 'Image name',
+              hintText: 'e.g., nginx:latest, ubuntu:22.04',
+            ),
+            autofocus: true,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(controller.text.trim());
+              },
+              child: const Text('Pull'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (imageName == null || imageName.isEmpty) return;
+
+    await widget.onPullImage!(imageName);
+  }
+
+  List<StructuredDataColumn<_ImageRow>> _imageColumns(
+    BuildContext context,
+    int totalTags,
+    String totalSize,
+  ) {
+    return [
+      StructuredDataColumn<_ImageRow>(
+        label: '',
+        width: 44,
+        alignment: Alignment.topCenter,
+        cellBuilder: (context, row) => _ExpandToggleCell(
+          expanded: _expansionFor(row.repository),
+        ),
+      ),
+      StructuredDataColumn<_ImageRow>(
+        label: 'Repository',
+        flex: 2,
+        alignment: Alignment.topLeft,
+        cellBuilder: (context, row) => _RepositoryCell(
+          row: row,
+          expanded: _expansionFor(row.repository),
+          onTapDown: widget.onTapDown,
+          onSelectionChanged: widget.onSelectionChanged,
+          selectedIds: widget.selectedIds,
+          busyIds: widget.busyIds,
+          actionLabels: widget.actionLabels,
+        ),
+      ),
+      StructuredDataColumn<_ImageRow>(
+        label: 'Tags ($totalTags)',
+        width: 100,
+        alignment: Alignment.topLeft,
+        cellBuilder: (context, row) => Padding(
+          padding: const EdgeInsets.only(top: 8.0),
+          child: Text(
+            '${row.tagCount}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+      ),
+      StructuredDataColumn<_ImageRow>(
+        label: 'Size ($totalSize)',
+        width: 140,
+        alignment: Alignment.topLeft,
+        cellBuilder: (context, row) => Padding(
+          padding: const EdgeInsets.only(top: 8.0),
+          child: Text(
+            row.totalSize,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+      ),
+    ];
+  }
+
+  Map<String, List<DockerImage>> _groupImages(List<DockerImage> images) {
+    final map = <String, List<DockerImage>>{};
+    for (final img in images) {
+      final key = img.repository.isNotEmpty ? img.repository : '<none>';
+      map.putIfAbsent(key, () => []).add(img);
+    }
+    final keys = map.keys.toList()..sort();
+    return {for (final k in keys) k: map[k]!};
+  }
+
+  String _calculateTotalSize(List<DockerImage> images) {
+    if (images.isEmpty) return '0 B';
+    
+    double totalBytes = 0;
+    int parsedCount = 0;
+    
+    for (final image in images) {
+      final bytes = _parseSizeToBytes(image.size);
+      if (bytes != null) {
+        totalBytes += bytes;
+        parsedCount++;
+      }
+    }
+    
+    if (parsedCount == 0) return '—';
+    
+    return _formatBytes(totalBytes);
+  }
+
+  double? _parseSizeToBytes(String size) {
+    final trimmed = size.trim();
+    if (trimmed.isEmpty || trimmed == '—') return null;
+    
+    // Parse sizes like "1.5GB", "500MB", "10.2KB", etc.
+    final regex = RegExp(r'^([\d.]+)\s*([KMGT]?B)$', caseSensitive: false);
+    final match = regex.firstMatch(trimmed);
+    
+    if (match == null) return null;
+    
+    final value = double.tryParse(match.group(1) ?? '');
+    if (value == null) return null;
+    
+    final unit = match.group(2)?.toUpperCase() ?? 'B';
+    
+    switch (unit) {
+      case 'B':
+        return value;
+      case 'KB':
+        return value * 1024;
+      case 'MB':
+        return value * 1024 * 1024;
+      case 'GB':
+        return value * 1024 * 1024 * 1024;
+      case 'TB':
+        return value * 1024 * 1024 * 1024 * 1024;
+      default:
+        return null;
+    }
+  }
+
+  String _formatBytes(double bytes) {
+    if (bytes < 1024) return '${bytes.toStringAsFixed(0)} B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+    if (bytes < 1024 * 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+    }
+    return '${(bytes / (1024 * 1024 * 1024 * 1024)).toStringAsFixed(2)} TB';
+  }
+}
+
+class _ImageActionsBar extends StatelessWidget {
+  const _ImageActionsBar({
+    required this.totalRepos,
+    required this.totalTags,
+    required this.totalSize,
+    required this.selectedCount,
+    required this.onClearSelection,
+    this.onRemoveSelected,
+    required this.onPruneUnused,
+    this.onPullImage,
+  });
+
+  final int totalRepos;
+  final int totalTags;
+  final String totalSize;
+  final int selectedCount;
+  final VoidCallback onClearSelection;
+  final VoidCallback? onRemoveSelected;
+  final VoidCallback onPruneUnused;
+  final Future<void> Function()? onPullImage;
+
+  @override
+  Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
+    final scheme = Theme.of(context).colorScheme;
+    final icons = context.appTheme.icons;
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: spacing.base,
+        vertical: spacing.sm,
+      ),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Summary info
+          Icon(
+            Icons.layers_outlined,
+            size: 18,
+            color: scheme.primary,
+          ),
+          SizedBox(width: spacing.sm),
+          Text(
+            '$totalRepos repositories • $totalTags tags • $totalSize',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          if (selectedCount > 0) ...[
+            SizedBox(width: spacing.base),
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: spacing.sm,
+                vertical: spacing.xs,
+              ),
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '$selectedCount selected',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: scheme.onPrimaryContainer,
+                ),
+              ),
+            ),
+          ],
+          const Spacer(),
+          // Actions
+          if (selectedCount > 0) ...[
+            TextButton.icon(
+              onPressed: onClearSelection,
+              icon: Icon(Icons.clear, size: context.appTheme.iconSizes.small),
+              label: const Text('Clear'),
+            ),
+            SizedBox(width: spacing.xs),
+            FilledButton.tonalIcon(
+              onPressed: onRemoveSelected,
+              icon: Icon(Icons.delete_outline, size: context.appTheme.iconSizes.medium),
+              label: const Text('Remove'),
+              style: FilledButton.styleFrom(
+                foregroundColor: scheme.error,
+              ),
+            ),
+            SizedBox(width: spacing.xs),
+          ],
+          IconButton(
+            icon: Icon(icons.refresh, size: context.appTheme.iconSizes.medium),
+            tooltip: 'Prune unused images',
+            onPressed: onPruneUnused,
+          ),
+          SizedBox(width: spacing.xs),
+          PopupMenuButton<String>(
+            icon: Icon(Icons.more_vert, size: context.appTheme.iconSizes.medium),
+            tooltip: 'More actions',
+            onSelected: (action) async {
+              switch (action) {
+                case 'pull':
+                  await onPullImage?.call();
+                  break;
+                case 'prune':
+                  onPruneUnused();
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'pull',
+                child: Row(
+                  children: [
+                    Icon(Icons.download_outlined, size: context.appTheme.iconSizes.medium),
+                    SizedBox(width: context.appTheme.spacing.md),
+                    Text('Pull image...'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'prune',
+                child: Row(
+                  children: [
+                    Icon(Icons.cleaning_services_outlined, size: context.appTheme.iconSizes.medium),
+                    SizedBox(width: context.appTheme.spacing.md),
+                    Text('Prune unused'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExpandToggleCell extends StatelessWidget {
+  const _ExpandToggleCell({required this.expanded});
+
+  final ValueNotifier<bool> expanded;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: expanded,
+      builder: (context, isExpanded, _) {
+        return IconButton(
+          icon: Icon(
+            isExpanded ? Icons.expand_less : Icons.expand_more,
+            size: 18,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          tooltip: isExpanded ? 'Collapse' : 'Expand',
+          onPressed: () => expanded.value = !expanded.value,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        );
+      },
+    );
+  }
+}
+
+class _RepositoryCell extends StatelessWidget {
+  const _RepositoryCell({
+    required this.row,
+    required this.expanded,
+    required this.onTapDown,
+    required this.onSelectionChanged,
+    required this.selectedIds,
+    required this.busyIds,
+    required this.actionLabels,
+  });
+
+  final _ImageRow row;
+  final ValueNotifier<bool> expanded;
+  final ItemTapDown<DockerImage>? onTapDown;
+  final void Function(Set<String> tableKeys, List<DockerImage> selected)?
+  onSelectionChanged;
+  final Set<String> selectedIds;
+  final Set<String> busyIds;
+  final Map<String, String> actionLabels;
+
+  @override
+  Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
+    final scheme = Theme.of(context).colorScheme;
+    
+    return ValueListenableBuilder<bool>(
+      valueListenable: expanded,
+      builder: (context, isExpanded, _) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Repository name row
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: spacing.sm),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.layers_outlined,
+                    size: context.appTheme.iconSizes.large,
+                    color: scheme.primary,
+                  ),
+                  SizedBox(width: spacing.sm),
+                  Expanded(
+                    child: Text(
+                      row.displayName,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Expanded child table (spans across remaining columns)
+            if (isExpanded) ...[
+              SizedBox(height: spacing.xs),
+              // Negative margin to span back to the left edge
+              Transform.translate(
+                offset: Offset(-44 - spacing.base, 0),
+                child: SizedBox(
+                  width: context.scale(2000), // Large width to span across
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      spacing.lg * 2 + 44,
+                      0,
+                      spacing.lg,
+                      spacing.sm,
+                    ),
+                    child:                 _TagsTable(
+                  images: row.images,
+                  onTapDown: onTapDown,
+                  onSelectionChanged: onSelectionChanged,
+                  selectedIds: selectedIds,
+                  busyIds: busyIds,
+                  actionLabels: actionLabels,
+                ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _TagsTable extends StatelessWidget {
+  const _TagsTable({
+    required this.images,
+    required this.onTapDown,
+    required this.onSelectionChanged,
+    required this.selectedIds,
+    required this.busyIds,
+    required this.actionLabels,
+  });
+
+  final List<DockerImage> images;
+  final ItemTapDown<DockerImage>? onTapDown;
+  final void Function(Set<String> tableKeys, List<DockerImage> selected)?
+  onSelectionChanged;
+  final Set<String> selectedIds;
+  final Set<String> busyIds;
+  final Map<String, String> actionLabels;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.3),
+        ),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: StructuredDataTable<DockerImage>(
+        rows: images,
+        columns: _tagColumns(context),
+        rowHeight: 48,
+        headerHeight: context.scale(32),
+        shrinkToContent: true,
+        useZebraStripes: false,
+        surfaceBackgroundColor: scheme.surface,
+        primaryDoubleClickOpensContextMenu: false,
+        onRowContextMenu: (image, selectedRows, anchor) {
+          if (onTapDown == null) return;
+          final details = _tapDetails(anchor: anchor);
+          onTapDown!(image, details, secondary: true, selectedRows: selectedRows);
+        },
+        onSelectionChanged: (selectedRows) {
+          final keys = images.map(_imageKey).toSet();
+          onSelectionChanged?.call(keys, selectedRows);
+        },
+      ),
+    );
   }
 
   TapDownDetails _tapDetails({
@@ -940,21 +1518,24 @@ class _ImagePeekState extends State<ImagePeek> {
     );
   }
 
-  List<StructuredDataColumn<DockerImage>> _imageColumns(BuildContext context) {
+  List<StructuredDataColumn<DockerImage>> _tagColumns(BuildContext context) {
     return [
       StructuredDataColumn<DockerImage>(
         label: 'Tag',
+        flex: 2,
         autoFitText: _tagLabel,
-        cellBuilder: _buildTagCell,
+        cellBuilder: (context, image) => _buildTagCell(context, image),
       ),
       StructuredDataColumn<DockerImage>(
         label: 'Size',
+        flex: 1,
         alignment: Alignment.centerRight,
         autoFitText: (image) => image.size,
         cellBuilder: (context, image) => Text(image.size),
       ),
       StructuredDataColumn<DockerImage>(
         label: 'Created',
+        flex: 1,
         alignment: Alignment.center,
         autoFitText: _createdLabel,
         cellBuilder: (context, image) => Text(_createdLabel(image)),
@@ -966,19 +1547,43 @@ class _ImagePeekState extends State<ImagePeek> {
     final slug = slugForImage(image.repository, image.tag);
     final iconSize = _distroIconSize(context);
     final iconColor = colorForDistro(slug, context.appTheme);
+    final isBusy = busyIds.contains(image.id);
+    final action = actionLabels[image.id];
+    
     return Row(
       children: [
-        Tooltip(
-          message: labelForDistro(slug),
-          child: Icon(iconForDistro(slug), size: iconSize, color: iconColor),
-        ),
-        const SizedBox(width: 8),
+        if (isBusy) ...[
+          SizedBox(
+            width: context.scale(16),
+            height: context.scale(16),
+            child: CircularProgressIndicator(
+              strokeWidth: 2 * context.zoomFactor,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          SizedBox(width: context.appTheme.spacing.md),
+        ] else ...[
+          Tooltip(
+            message: labelForDistro(slug),
+            child: Icon(iconForDistro(slug), size: iconSize, color: iconColor),
+          ),
+          SizedBox(width: context.appTheme.spacing.md),
+        ],
         Expanded(
           child: Text(
             _tagLabel(image),
-            style: Theme.of(context).textTheme.titleMedium,
+            style: Theme.of(context).textTheme.bodyMedium,
           ),
         ),
+        if (isBusy && action != null) ...[
+          SizedBox(width: context.appTheme.spacing.md),
+          Text(
+            action,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -989,16 +1594,6 @@ class _ImagePeekState extends State<ImagePeek> {
 
   String _createdLabel(DockerImage image) {
     return _valueOrDash(image.createdSince);
-  }
-
-  Map<String, List<DockerImage>> _groupImages(List<DockerImage> images) {
-    final map = <String, List<DockerImage>>{};
-    for (final img in images) {
-      final key = img.repository.isNotEmpty ? img.repository : '<none>';
-      map.putIfAbsent(key, () => []).add(img);
-    }
-    final keys = map.keys.toList()..sort();
-    return {for (final k in keys) k: map[k]!};
   }
 }
 
@@ -1071,7 +1666,7 @@ class ImageList extends StatelessWidget {
                       minWidth: 32,
                       minHeight: 32,
                     ),
-                    icon: Icon(Icons.more_vert, size: 20),
+                    icon: Icon(Icons.more_vert, size: context.appTheme.iconSizes.large),
                     tooltip: 'Actions',
                     onPressed: () => onTapDown!(
                       image,
@@ -1490,7 +2085,8 @@ String? _slugForContainer(
 
 double _distroIconSize(BuildContext context) {
   final titleSize = Theme.of(context).textTheme.titleMedium?.fontSize ?? 14;
-  return titleSize * 1.9;
+  // Scale with zoom factor to match text scaling
+  return (titleSize * 1.9) * context.zoomFactor;
 }
 
 Color _sectionBackgroundForIndex(BuildContext context, int index) {

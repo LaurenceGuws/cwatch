@@ -33,6 +33,7 @@ class DockerOverviewController extends ChangeNotifier {
   final Set<String> selectedNetworkKeys = {};
   final Set<String> selectedVolumeKeys = {};
   final Map<String, String> containerActionInProgress = {};
+  final Map<String, String> imageActionInProgress = {};
   int? focusedContainerIndex;
   int? containerAnchorIndex;
 
@@ -57,6 +58,24 @@ class DockerOverviewController extends ChangeNotifier {
     containersHydrated = false;
     snapshot = loadSnapshot();
     notifyListeners();
+  }
+
+  Future<void> hotReload() async {
+    try {
+      final newSnapshot = await loadSnapshot();
+      snapshot = Future.value(newSnapshot);
+      containersHydrated = false;
+      notifyListeners();
+    } catch (error, stackTrace) {
+      AppLogger().warn(
+        'Hot reload failed',
+        tag: 'Docker',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      // On error, fall back to full refresh
+      refresh();
+    }
   }
 
   List<DockerContainer> ensureHydrated(EngineSnapshot data) {
@@ -185,6 +204,24 @@ class DockerOverviewController extends ChangeNotifier {
 
   void clearContainerAction(String id) {
     if (containerActionInProgress.remove(id) != null) {
+      notifyListeners();
+    }
+  }
+
+  void markImageBusy(String imageId, String action) {
+    imageActionInProgress[imageId] = action;
+    notifyListeners();
+  }
+
+  void clearImageAction(String imageId) {
+    if (imageActionInProgress.remove(imageId) != null) {
+      notifyListeners();
+    }
+  }
+
+  void clearAllImageActions() {
+    if (imageActionInProgress.isNotEmpty) {
+      imageActionInProgress.clear();
       notifyListeners();
     }
   }

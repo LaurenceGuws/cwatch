@@ -54,8 +54,8 @@ class RemoteScanDialog extends StatelessWidget {
                         ),
                       ),
                       SizedBox(
-                        width: 360,
-                        height: 320,
+                        width: context.scale(360),
+                        height: context.scale(320),
                         child: ListView.builder(
                           itemCount: hosts.length,
                           itemBuilder: (context, index) {

@@ -569,6 +569,139 @@ class DockerClientService {
     await _runDockerCommand(args, context: context, op: 'prune');
   }
 
+  Future<void> removeImage({
+    required String imageId,
+    String? context,
+    bool force = false,
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    final args = ['rmi'];
+    if (force) args.add('-f');
+    args.add(imageId);
+    await _runDockerCommand(
+      args,
+      context: context,
+      op: 'remove image',
+      timeout: timeout,
+    );
+  }
+
+  Future<void> pruneImages({
+    String? context,
+    bool all = false,
+    Duration timeout = const Duration(seconds: 60),
+  }) async {
+    final args = ['image', 'prune', '-f'];
+    if (all) args.add('-a');
+    await _runDockerCommand(
+      args,
+      context: context,
+      op: 'prune images',
+      timeout: timeout,
+    );
+  }
+
+  Future<void> pullImage({
+    required String imageName,
+    String? context,
+    Duration timeout = const Duration(minutes: 10),
+  }) async {
+    await _runDockerCommand(
+      ['pull', imageName],
+      context: context,
+      op: 'pull image',
+      timeout: timeout,
+    );
+  }
+
+  Future<void> tagImage({
+    required String sourceImage,
+    required String targetImage,
+    String? context,
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    await _runDockerCommand(
+      ['tag', sourceImage, targetImage],
+      context: context,
+      op: 'tag image',
+      timeout: timeout,
+    );
+  }
+
+  Future<void> pushImage({
+    required String imageName,
+    String? context,
+    Duration timeout = const Duration(minutes: 10),
+  }) async {
+    await _runDockerCommand(
+      ['push', imageName],
+      context: context,
+      op: 'push image',
+      timeout: timeout,
+    );
+  }
+
+  Future<String> inspectImage({
+    required String imageId,
+    String? context,
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    final args = <String>[
+      if (context != null && context.trim().isNotEmpty) ...[
+        '--context',
+        context.trim(),
+      ],
+      'inspect',
+      imageId,
+    ];
+    final result = await _runDockerProcess(
+      args,
+      timeout: timeout,
+      operation: 'inspect image',
+      contextLabel: context,
+    );
+    if (result.exitCode != 0) {
+      final stderr = (result.stderr as String?)?.trim();
+      throw Exception(
+        stderr?.isNotEmpty == true
+            ? stderr
+            : 'docker inspect failed with exit code ${result.exitCode}',
+      );
+    }
+    return (result.stdout as String?) ?? '';
+  }
+
+  Future<String> imageHistory({
+    required String imageId,
+    String? context,
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    final args = <String>[
+      if (context != null && context.trim().isNotEmpty) ...[
+        '--context',
+        context.trim(),
+      ],
+      'history',
+      '--no-trunc',
+      imageId,
+    ];
+    final result = await _runDockerProcess(
+      args,
+      timeout: timeout,
+      operation: 'image history',
+      contextLabel: context,
+    );
+    if (result.exitCode != 0) {
+      final stderr = (result.stderr as String?)?.trim();
+      throw Exception(
+        stderr?.isNotEmpty == true
+            ? stderr
+            : 'docker history failed with exit code ${result.exitCode}',
+      );
+    }
+    return (result.stdout as String?) ?? '';
+  }
+
   Future<List<DockerContainerStat>> listContainerStats({
     String? context,
     Duration timeout = const Duration(seconds: 6),
