@@ -30,7 +30,6 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
   List<int> _auxOffsets = const [];
   int _matchCount = 0;
   String _activeMatch = 'none';
-  List<String> _scriptResults = const [];
   String _keyStatus = 'keyboard: idle';
   int? _selectionAnchor;
   int? _selectionFocus;
@@ -110,67 +109,6 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
         _status = 'Refresh failed: $error';
       });
     }
-  }
-
-  void _insertSample() {
-    final bridge = _bridge;
-    final handle = _handle;
-    if (bridge == null || handle == null) {
-      return;
-    }
-    bridge.insertText(handle, 'ffi ');
-    _refresh();
-  }
-
-  void _setScriptSample() {
-    final bridge = _bridge;
-    final handle = _handle;
-    if (bridge == null || handle == null) {
-      return;
-    }
-    bridge.setText(handle, 'alpha beta alpha beta\nline two\n');
-    bridge.setCarets(handle, primaryOffset: 1, auxiliaryOffsets: [2, 8]);
-    _refresh();
-  }
-
-  void _searchBeta() {
-    final bridge = _bridge;
-    final handle = _handle;
-    if (bridge == null || handle == null) {
-      return;
-    }
-    bridge.searchSetQuery(handle, query: 'beta');
-    _refresh();
-  }
-
-  void _searchNext() {
-    final bridge = _bridge;
-    final handle = _handle;
-    if (bridge == null || handle == null) {
-      return;
-    }
-    bridge.searchNext(handle);
-    _refresh();
-  }
-
-  void _searchPrev() {
-    final bridge = _bridge;
-    final handle = _handle;
-    if (bridge == null || handle == null) {
-      return;
-    }
-    bridge.searchPrev(handle);
-    _refresh();
-  }
-
-  void _replaceActive() {
-    final bridge = _bridge;
-    final handle = _handle;
-    if (bridge == null || handle == null) {
-      return;
-    }
-    bridge.searchReplaceActive(handle, replacement: 'BETA');
-    _refresh();
   }
 
   void _undo() {
@@ -478,72 +416,6 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
     return (nextStart + column).clamp(nextStart, nextEnd);
   }
 
-  void _runScriptPresets() {
-    final bridge = _bridge;
-    final handle = _handle;
-    if (bridge == null || handle == null) {
-      return;
-    }
-
-    final results = <String>[];
-
-    void runCase({
-      required String name,
-      required void Function() action,
-      required String expected,
-    }) {
-      try {
-        action();
-        final actual = bridge.textAlloc(handle);
-        final pass = actual == expected;
-        results.add('${pass ? 'PASS' : 'FAIL'} $name');
-        if (!pass) {
-          results.add('  expected=${expected.replaceAll('\n', r'\n')}');
-          results.add('  actual=${actual.replaceAll('\n', r'\n')}');
-        }
-      } catch (error) {
-        results.add('FAIL $name');
-        results.add('  error=$error');
-      }
-    }
-
-    runCase(
-      name: 'insert_at_cursor',
-      action: () {
-        bridge.setText(handle, 'abc\n');
-        bridge.setCursorOffset(handle, 1);
-        bridge.insertText(handle, 'X');
-      },
-      expected: 'aXbc\n',
-    );
-
-    runCase(
-      name: 'replace_and_delete',
-      action: () {
-        bridge.setText(handle, 'hello world\n');
-        bridge.replaceRange(handle, start: 6, end: 11, text: 'ffi');
-        bridge.deleteRange(handle, start: 0, end: 1);
-      },
-      expected: 'ello ffi\n',
-    );
-
-    runCase(
-      name: 'search_replace_active',
-      action: () {
-        bridge.setText(handle, 'beta alpha beta\n');
-        bridge.searchSetQuery(handle, query: 'beta');
-        bridge.searchNext(handle);
-        bridge.searchReplaceActive(handle, replacement: 'B');
-      },
-      expected: 'B alpha beta\n',
-    );
-
-    setState(() {
-      _scriptResults = results;
-    });
-    _refresh();
-  }
-
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -566,36 +438,8 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
               runSpacing: 8,
               children: [
                 OutlinedButton(
-                  onPressed: _setScriptSample,
-                  child: const Text('Set sample'),
-                ),
-                OutlinedButton(
-                  onPressed: _insertSample,
-                  child: const Text('Insert sample'),
-                ),
-                OutlinedButton(
-                  onPressed: _searchBeta,
-                  child: const Text('Search beta'),
-                ),
-                OutlinedButton(
-                  onPressed: _searchNext,
-                  child: const Text('Search next'),
-                ),
-                OutlinedButton(
-                  onPressed: _searchPrev,
-                  child: const Text('Search prev'),
-                ),
-                OutlinedButton(
-                  onPressed: _replaceActive,
-                  child: const Text('Replace active'),
-                ),
-                OutlinedButton(
                   onPressed: _focusKeyboard,
                   child: const Text('Focus keyboard'),
-                ),
-                OutlinedButton(
-                  onPressed: _runScriptPresets,
-                  child: const Text('Run presets'),
                 ),
                 OutlinedButton(onPressed: _undo, child: const Text('Undo')),
                 OutlinedButton(onPressed: _redo, child: const Text('Redo')),
@@ -619,16 +463,6 @@ class _ZideEditorCanvasState extends State<ZideEditorCanvas> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 8),
-            if (_scriptResults.isNotEmpty)
-              SelectableText(
-                _scriptResults.join('\n'),
-                style: const TextStyle(
-                  fontFamily: 'JetBrainsMono Nerd Font Mono',
-                  fontSize: 11,
-                  height: 1.2,
-                ),
-              ),
-            if (_scriptResults.isNotEmpty) const SizedBox(height: 8),
             KeyboardListener(
               focusNode: _focusNode,
               onKeyEvent: _onEditorKeyEvent,
