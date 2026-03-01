@@ -919,21 +919,58 @@ class ZideTerminalFfiBridge {
         return viewport;
       }
 
-      final viewportRows = snapshot.ref.rows;
-      final viewportStart =
-          (scrollback.startRow + scrollback.rowCount - viewportRows).clamp(
-            0,
-            scrollback.startRow + scrollback.rowCount,
+      final snapshotValue = snapshot.ref;
+      if (snapshotValue.cols <= 0 ||
+          snapshotValue.rows <= 0 ||
+          snapshotValue.cells == nullptr) {
+        return viewport;
+      }
+      if (scrollback.cols != snapshotValue.cols) {
+        // Columns should match, but keep host robust if backend is mid-resize.
+        return viewport;
+      }
+
+      final viewportCellCount = snapshotValue.rows * snapshotValue.cols;
+      if (viewportCellCount <= 0) {
+        return viewport;
+      }
+      final viewportCells = List<ZideTerminalCellData>.generate(
+        viewportCellCount,
+        (index) {
+          final raw = (snapshotValue.cells + index).ref;
+          return ZideTerminalCellData(
+            codepoint: raw.codepoint,
+            width: raw.width,
+            fg: ZideTerminalColorData(
+              r: raw.fg.r,
+              g: raw.fg.g,
+              b: raw.fg.b,
+              a: raw.fg.a,
+            ),
+            bg: ZideTerminalColorData(
+              r: raw.bg.r,
+              g: raw.bg.g,
+              b: raw.bg.b,
+              a: raw.bg.a,
+            ),
           );
-      final absoluteCursorRow = viewportStart + snapshot.ref.cursorRow;
+        },
+      );
+
+      final combinedCells = <ZideTerminalCellData>[
+        ...scrollback.cells,
+        ...viewportCells,
+      ];
+      final totalRows = scrollback.rowCount + snapshotValue.rows;
+      final absoluteCursorRow = scrollback.rowCount + snapshotValue.cursorRow;
       return ZideTerminalFrameData(
-        rows: scrollback.rowCount,
+        rows: totalRows,
         cols: scrollback.cols,
-        viewportRows: viewportRows,
+        viewportRows: snapshotValue.rows,
         cursorRow: absoluteCursorRow,
-        cursorCol: snapshot.ref.cursorCol,
-        cursorVisible: snapshot.ref.cursorVisible != 0,
-        cells: scrollback.cells,
+        cursorCol: snapshotValue.cursorCol,
+        cursorVisible: snapshotValue.cursorVisible != 0,
+        cells: combinedCells,
       );
     } catch (_) {
       return viewport;
