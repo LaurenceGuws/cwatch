@@ -102,9 +102,13 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
       }
       setState(() {
         final mode = _scrollback.modeLabel();
+        final scrollbackBackend = poll.usingNativeScrollback
+            ? 'native'
+            : 'fallback';
         _status =
             'rows=${meta.rows} total_rows=${frame.rows} cols=${meta.cols} '
-            'title=${meta.title.isEmpty ? '(none)' : meta.title} mode=$mode';
+            'title=${meta.title.isEmpty ? '(none)' : meta.title} '
+            'scrollback=$scrollbackBackend mode=$mode';
       });
     } catch (error) {
       if (!mounted) {
@@ -129,9 +133,10 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
       'scrollUp rows=$rows mode="$before" -> "${_scrollback.modeLabel()}"',
       tag: _logTag,
     );
-    if (_scrollback.modeLabel().startsWith('history(frame=')) {
+    if (_session?.supportsNativeScrollback != true &&
+        _scrollback.modeLabel().startsWith('history(lines=')) {
       AppLogger().debug(
-        'frame-history fallback active (ffi snapshot has no extra rows)',
+        'line-history fallback active (ffi scrollback api unavailable)',
         tag: _logTag,
       );
     }
@@ -269,9 +274,14 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
       session.feedOutput(utf8.encode('\x1b[2A\x1b[5C'));
       session.pollFrame();
       final after = session.readSnapshotMeta();
-      final expectedRow = (before.cursorRow - 2).clamp(0, before.rows - 1).toInt();
-      final expectedCol = (before.cursorCol + 5).clamp(0, before.cols - 1).toInt();
-      final pass = after.cursorRow == expectedRow && after.cursorCol == expectedCol;
+      final expectedRow = (before.cursorRow - 2)
+          .clamp(0, before.rows - 1)
+          .toInt();
+      final expectedCol = (before.cursorCol + 5)
+          .clamp(0, before.cols - 1)
+          .toInt();
+      final pass =
+          after.cursorRow == expectedRow && after.cursorCol == expectedCol;
       setState(() {
         _inputMatrixStatus =
             'input matrix probe ${pass ? 'PASS' : 'FAIL'} '

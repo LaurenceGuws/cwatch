@@ -8,10 +8,12 @@ class ZideTerminalPollResult {
   const ZideTerminalPollResult({
     required this.snapshot,
     required this.frame,
+    required this.usingNativeScrollback,
   });
 
   final ZideTerminalSnapshotData snapshot;
   final ZideTerminalFrameData frame;
+  final bool usingNativeScrollback;
 }
 
 class ZideTerminalSessionController {
@@ -58,6 +60,7 @@ class ZideTerminalSessionController {
   bool _shellStarted = false;
 
   bool get shellStarted => _shellStarted;
+  bool get supportsNativeScrollback => bridge.supportsScrollbackApi;
 
   void dispose() {
     bridge.destroy(handle);
@@ -68,8 +71,15 @@ class ZideTerminalSessionController {
     final snapshotPtr = bridge.acquireSnapshot(handle);
     try {
       final snapshot = bridge.readSnapshot(snapshotPtr);
-      final frame = bridge.snapshotToFrame(snapshotPtr);
-      return ZideTerminalPollResult(snapshot: snapshot, frame: frame);
+      final usingNativeScrollback = bridge.supportsScrollbackApi;
+      final frame = usingNativeScrollback
+          ? bridge.snapshotToFrameWithScrollback(handle, snapshotPtr)
+          : bridge.snapshotToFrame(snapshotPtr);
+      return ZideTerminalPollResult(
+        snapshot: snapshot,
+        frame: frame,
+        usingNativeScrollback: usingNativeScrollback,
+      );
     } finally {
       bridge.releaseSnapshot(snapshotPtr);
     }

@@ -163,6 +163,33 @@ final class ZideTerminalSnapshot extends Struct {
   external Pointer<Void> ctx;
 }
 
+final class ZideTerminalScrollbackBuffer extends Struct {
+  @Uint32()
+  external int abiVersion;
+
+  @Uint32()
+  external int structSize;
+
+  @Uint32()
+  external int totalRows;
+
+  @Uint32()
+  external int startRow;
+
+  @Uint32()
+  external int rowCount;
+
+  @Uint32()
+  external int cols;
+
+  @IntPtr()
+  external int cellCount;
+
+  external Pointer<ZideTerminalCell> cells;
+
+  external Pointer<Void> ctx;
+}
+
 final class _ZideTerminalEvent extends Struct {
   @Int32()
   external int kind;
@@ -296,6 +323,22 @@ class ZideTerminalFrameData {
   final List<ZideTerminalCellData> cells;
 }
 
+class ZideTerminalScrollbackData {
+  const ZideTerminalScrollbackData({
+    required this.totalRows,
+    required this.startRow,
+    required this.rowCount,
+    required this.cols,
+    required this.cells,
+  });
+
+  final int totalRows;
+  final int startRow;
+  final int rowCount;
+  final int cols;
+  final List<ZideTerminalCellData> cells;
+}
+
 class ZideTerminalFfiBridge {
   ZideTerminalFfiBridge._({
     required DynamicLibrary library,
@@ -371,6 +414,18 @@ class ZideTerminalFfiBridge {
              Void Function(Pointer<ZideTerminalSnapshot>),
              void Function(Pointer<ZideTerminalSnapshot>)
            >('zide_terminal_snapshot_release'),
+       _scrollbackCount = _lookupOptionalScrollbackCount(
+         library,
+         'zide_terminal_scrollback_count',
+       ),
+       _scrollbackAcquire = _lookupOptionalScrollbackAcquire(
+         library,
+         'zide_terminal_scrollback_acquire',
+       ),
+       _scrollbackRelease = _lookupOptionalScrollbackRelease(
+         library,
+         'zide_terminal_scrollback_release',
+       ),
        _eventDrain = library
            .lookupFunction<
              Int32 Function(
@@ -440,6 +495,10 @@ class ZideTerminalFfiBridge {
            .lookupFunction<Uint32 Function(), int Function()>(
              'zide_terminal_event_abi_version',
            ),
+       _scrollbackAbiVersion = _lookupOptionalU32NoArgs(
+         library,
+         'zide_terminal_scrollback_abi_version',
+       ),
        _statusString = library
            .lookupFunction<
              Pointer<Utf8> Function(Int32),
@@ -486,6 +545,17 @@ class ZideTerminalFfiBridge {
   final int Function(Pointer<ZideTerminalHandle>, Pointer<ZideTerminalSnapshot>)
   _snapshotAcquire;
   final void Function(Pointer<ZideTerminalSnapshot>) _snapshotRelease;
+  final int Function(Pointer<ZideTerminalHandle>, Pointer<Uint32>)?
+  _scrollbackCount;
+  final int Function(
+    Pointer<ZideTerminalHandle>,
+    int,
+    int,
+    Pointer<ZideTerminalScrollbackBuffer>,
+  )?
+  _scrollbackAcquire;
+  final void Function(Pointer<ZideTerminalScrollbackBuffer>)?
+  _scrollbackRelease;
   final int Function(
     Pointer<ZideTerminalHandle>,
     Pointer<_ZideTerminalEventBuffer>,
@@ -512,6 +582,7 @@ class ZideTerminalFfiBridge {
   _childExitStatus;
   final int Function() _snapshotAbiVersion;
   final int Function() _eventAbiVersion;
+  final int Function()? _scrollbackAbiVersion;
   final Pointer<Utf8> Function(int) _statusString;
 
   Pointer<ZideTerminalHandle> create({
@@ -729,6 +800,148 @@ class ZideTerminalFfiBridge {
     );
   }
 
+  bool get supportsScrollbackApi =>
+      _scrollbackCount != null &&
+      _scrollbackAcquire != null &&
+      _scrollbackRelease != null;
+
+  int scrollbackCount(Pointer<ZideTerminalHandle> handle) {
+    final call = _scrollbackCount;
+    if (call == null) {
+      return 0;
+    }
+    final outCount = calloc<Uint32>();
+    try {
+      _throwIfError(
+        call(handle, outCount),
+        operation: 'terminal_scrollback_count',
+      );
+      return outCount.value;
+    } finally {
+      calloc.free(outCount);
+    }
+  }
+
+  Pointer<ZideTerminalScrollbackBuffer>? acquireScrollback(
+    Pointer<ZideTerminalHandle> handle, {
+    int startRow = 0,
+    int maxRows = 0,
+  }) {
+    final call = _scrollbackAcquire;
+    if (call == null) {
+      return null;
+    }
+    final buffer = calloc<ZideTerminalScrollbackBuffer>();
+    try {
+      _throwIfError(
+        call(handle, startRow, maxRows, buffer),
+        operation: 'terminal_scrollback_acquire',
+      );
+      return buffer;
+    } catch (_) {
+      calloc.free(buffer);
+      rethrow;
+    }
+  }
+
+  void releaseScrollback(Pointer<ZideTerminalScrollbackBuffer>? scrollback) {
+    if (scrollback == null) {
+      return;
+    }
+    final release = _scrollbackRelease;
+    if (release != null) {
+      release(scrollback);
+    }
+    calloc.free(scrollback);
+  }
+
+  ZideTerminalScrollbackData readScrollback(
+    Pointer<ZideTerminalScrollbackBuffer> scrollback,
+  ) {
+    final value = scrollback.ref;
+    final rowCount = value.rowCount;
+    final cols = value.cols;
+    final totalCells = rowCount * cols;
+    final cells = value.cells == nullptr || totalCells <= 0
+        ? const <ZideTerminalCellData>[]
+        : List<ZideTerminalCellData>.generate(totalCells, (index) {
+            final raw = (value.cells + index).ref;
+            return ZideTerminalCellData(
+              codepoint: raw.codepoint,
+              width: raw.width,
+              fg: ZideTerminalColorData(
+                r: raw.fg.r,
+                g: raw.fg.g,
+                b: raw.fg.b,
+                a: raw.fg.a,
+              ),
+              bg: ZideTerminalColorData(
+                r: raw.bg.r,
+                g: raw.bg.g,
+                b: raw.bg.b,
+                a: raw.bg.a,
+              ),
+            );
+          });
+    return ZideTerminalScrollbackData(
+      totalRows: value.totalRows,
+      startRow: value.startRow,
+      rowCount: rowCount,
+      cols: cols,
+      cells: cells,
+    );
+  }
+
+  ZideTerminalFrameData snapshotToFrameWithScrollback(
+    Pointer<ZideTerminalHandle> handle,
+    Pointer<ZideTerminalSnapshot> snapshot,
+  ) {
+    final viewport = snapshotToFrame(snapshot);
+    if (!supportsScrollbackApi) {
+      return viewport;
+    }
+
+    final count = scrollbackCount(handle);
+    if (count <= 0) {
+      return viewport;
+    }
+
+    Pointer<ZideTerminalScrollbackBuffer>? scrollbackPtr;
+    try {
+      scrollbackPtr = acquireScrollback(handle, startRow: 0, maxRows: count);
+      if (scrollbackPtr == null) {
+        return viewport;
+      }
+      final scrollback = readScrollback(scrollbackPtr);
+      if (scrollback.rowCount <= 0 ||
+          scrollback.cols <= 0 ||
+          scrollback.cells.length < scrollback.rowCount * scrollback.cols) {
+        return viewport;
+      }
+
+      final viewportRows = snapshot.ref.rows;
+      final viewportStart =
+          (scrollback.startRow + scrollback.rowCount - viewportRows).clamp(
+            0,
+            scrollback.startRow + scrollback.rowCount,
+          );
+      final absoluteCursorRow = viewportStart + snapshot.ref.cursorRow;
+      return ZideTerminalFrameData(
+        rows: scrollback.rowCount,
+        cols: scrollback.cols,
+        viewportRows: viewportRows,
+        cursorRow: absoluteCursorRow,
+        cursorCol: snapshot.ref.cursorCol,
+        cursorVisible: snapshot.ref.cursorVisible != 0,
+        cells: scrollback.cells,
+      );
+    } catch (_) {
+      return viewport;
+    } finally {
+      releaseScrollback(scrollbackPtr);
+    }
+  }
+
   int _snapshotTotalRows(ZideTerminalSnapshot value) {
     if (value.cols <= 0) {
       return value.rows;
@@ -809,12 +1022,76 @@ class ZideTerminalFfiBridge {
 
   int eventAbiVersion() => _eventAbiVersion();
 
+  int? scrollbackAbiVersion() => _scrollbackAbiVersion?.call();
+
   String statusString(int status) {
     final pointer = _statusString(status);
     if (pointer == nullptr) {
       return 'unknown';
     }
     return pointer.toDartString();
+  }
+
+  static int Function(Pointer<ZideTerminalHandle>, Pointer<Uint32>)?
+  _lookupOptionalScrollbackCount(DynamicLibrary library, String symbol) {
+    try {
+      return library.lookupFunction<
+        Int32 Function(Pointer<ZideTerminalHandle>, Pointer<Uint32>),
+        int Function(Pointer<ZideTerminalHandle>, Pointer<Uint32>)
+      >(symbol);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static int Function(
+    Pointer<ZideTerminalHandle>,
+    int,
+    int,
+    Pointer<ZideTerminalScrollbackBuffer>,
+  )?
+  _lookupOptionalScrollbackAcquire(DynamicLibrary library, String symbol) {
+    try {
+      return library.lookupFunction<
+        Int32 Function(
+          Pointer<ZideTerminalHandle>,
+          Uint32,
+          Uint32,
+          Pointer<ZideTerminalScrollbackBuffer>,
+        ),
+        int Function(
+          Pointer<ZideTerminalHandle>,
+          int,
+          int,
+          Pointer<ZideTerminalScrollbackBuffer>,
+        )
+      >(symbol);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static void Function(Pointer<ZideTerminalScrollbackBuffer>)?
+  _lookupOptionalScrollbackRelease(DynamicLibrary library, String symbol) {
+    try {
+      return library.lookupFunction<
+        Void Function(Pointer<ZideTerminalScrollbackBuffer>),
+        void Function(Pointer<ZideTerminalScrollbackBuffer>)
+      >(symbol);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static int Function()? _lookupOptionalU32NoArgs(
+    DynamicLibrary library,
+    String symbol,
+  ) {
+    try {
+      return library.lookupFunction<Uint32 Function(), int Function()>(symbol);
+    } catch (_) {
+      return null;
+    }
   }
 
   void _throwIfError(int status, {required String operation}) {
