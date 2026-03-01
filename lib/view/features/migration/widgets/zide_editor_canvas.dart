@@ -642,7 +642,7 @@ class _EditorTextWithCaretPainter extends CustomPainter {
         );
         final sliceStart = math.max(selectionMin, boundary.start);
         final sliceEnd = math.min(selectionMax, boundary.end);
-        if (sliceStart >= sliceEnd) {
+        if (sliceStart > sliceEnd) {
           offset++;
           continue;
         }
