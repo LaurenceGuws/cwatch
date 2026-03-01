@@ -397,160 +397,185 @@ class _ZideTerminalCanvasState extends State<ZideTerminalCanvas> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: scheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF111111),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(8),
-              ),
-              border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _status,
-                  style: const TextStyle(
-                    fontFamily: 'JetBrainsMono Nerd Font Mono',
-                    color: Color(0xFFDDDDDD),
-                    fontSize: 12,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compactHeader = constraints.maxHeight < 320;
+        return Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF111111),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(8),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  border: Border(
+                    bottom: BorderSide(color: scheme.outlineVariant),
+                  ),
                 ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    OutlinedButton(
-                      onPressed: _copyVisible,
-                      child: const Text('Copy visible'),
-                    ),
-                    OutlinedButton(
-                      onPressed: _pasteClipboard,
-                      child: const Text('Paste clipboard'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Switch(
-                      value: _followLiveOnInput,
-                      onChanged: (value) {
-                        setState(() {
-                          _followLiveOnInput = value;
-                        });
-                        AppLogger().debug(
-                          'followLiveOnInput=$value',
-                          tag: _logTag,
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text(
-                        'Follow live on input (jump to tail when typing while viewing history)',
-                        style: TextStyle(fontSize: 11),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _commandController,
+                child: compactHeader
+                    ? Text(
+                        _status,
                         style: const TextStyle(
                           fontFamily: 'JetBrainsMono Nerd Font Mono',
-                          fontSize: 12,
                           color: Color(0xFFDDDDDD),
+                          fontSize: 12,
                         ),
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          border: OutlineInputBorder(),
-                          labelText: 'PTY command',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _status,
+                            style: const TextStyle(
+                              fontFamily: 'JetBrainsMono Nerd Font Mono',
+                              color: Color(0xFFDDDDDD),
+                              fontSize: 12,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              OutlinedButton(
+                                onPressed: _copyVisible,
+                                child: const Text('Copy visible'),
+                              ),
+                              OutlinedButton(
+                                onPressed: _pasteClipboard,
+                                child: const Text('Paste clipboard'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Switch(
+                                value: _followLiveOnInput,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _followLiveOnInput = value;
+                                  });
+                                  AppLogger().debug(
+                                    'followLiveOnInput=$value',
+                                    tag: _logTag,
+                                  );
+                                },
+                              ),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'Follow live on input (jump to tail when typing while viewing history)',
+                                  style: TextStyle(fontSize: 11),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _commandController,
+                                  style: const TextStyle(
+                                    fontFamily: 'JetBrainsMono Nerd Font Mono',
+                                    fontSize: 12,
+                                    color: Color(0xFFDDDDDD),
+                                  ),
+                                  decoration: const InputDecoration(
+                                    isDense: true,
+                                    border: OutlineInputBorder(),
+                                    labelText: 'PTY command',
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              OutlinedButton(
+                                onPressed: _commandRunning
+                                    ? null
+                                    : _runShellCommand,
+                                child: const Text('Run command'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _commandRunStatus,
+                            style: const TextStyle(
+                              fontFamily: 'JetBrainsMono Nerd Font Mono',
+                              color: Color(0xFFC9C9C9),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+              Expanded(
+                child: Focus(
+                  focusNode: _focusNode,
+                  onKeyEvent: (_, event) {
+                    return _onKeyEvent(event)
+                        ? KeyEventResult.handled
+                        : KeyEventResult.ignored;
+                  },
+                  child: Listener(
+                    onPointerSignal: (signal) {
+                      if (signal is PointerScrollEvent) {
+                        final dy = signal.scrollDelta.dy;
+                        final steps = (dy.abs() / 24.0).ceil().clamp(1, 8);
+                        final rows = steps * 3;
+                        AppLogger().debug(
+                          'wheel dy=${dy.toStringAsFixed(2)} steps=$steps rows=$rows focus=${_focusNode.hasFocus} mode=${_scrollback.modeLabel()}',
+                          tag: _logTag,
+                        );
+                        if (dy < 0) {
+                          _historyUp(rows: rows);
+                        } else if (dy > 0) {
+                          _historyDown(rows: rows);
+                        }
+                      }
+                    },
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        _focusNode.requestFocus();
+                        _ensureShellStarted();
+                        _refresh();
+                      },
+                      child: MouseRegion(
+                        onEnter: (_) =>
+                            widget.onPointerHoverChanged?.call(true),
+                        onExit: (_) =>
+                            widget.onPointerHoverChanged?.call(false),
+                        child: CustomPaint(
+                          painter: _ZideTerminalPainter(frame: _effectiveFrame),
+                          child: const SizedBox.expand(),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    OutlinedButton(
-                      onPressed: _commandRunning ? null : _runShellCommand,
-                      child: const Text('Run command'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _commandRunStatus,
-                  style: const TextStyle(
-                    fontFamily: 'JetBrainsMono Nerd Font Mono',
-                    color: Color(0xFFC9C9C9),
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Focus(
-              focusNode: _focusNode,
-              onKeyEvent: (_, event) {
-                return _onKeyEvent(event)
-                    ? KeyEventResult.handled
-                    : KeyEventResult.ignored;
-              },
-              child: Listener(
-                onPointerSignal: (signal) {
-                  if (signal is PointerScrollEvent) {
-                    final dy = signal.scrollDelta.dy;
-                    final steps = (dy.abs() / 24.0).ceil().clamp(1, 8);
-                    final rows = steps * 3;
-                    AppLogger().debug(
-                      'wheel dy=${dy.toStringAsFixed(2)} steps=$steps rows=$rows focus=${_focusNode.hasFocus} mode=${_scrollback.modeLabel()}',
-                      tag: _logTag,
-                    );
-                    if (dy < 0) {
-                      _historyUp(rows: rows);
-                    } else if (dy > 0) {
-                      _historyDown(rows: rows);
-                    }
-                  }
-                },
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    _focusNode.requestFocus();
-                    _ensureShellStarted();
-                    _refresh();
-                  },
-                  child: MouseRegion(
-                    onEnter: (_) => widget.onPointerHoverChanged?.call(true),
-                    onExit: (_) => widget.onPointerHoverChanged?.call(false),
-                    child: CustomPaint(
-                      painter: _ZideTerminalPainter(frame: _effectiveFrame),
-                      child: const SizedBox.expand(),
                     ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
