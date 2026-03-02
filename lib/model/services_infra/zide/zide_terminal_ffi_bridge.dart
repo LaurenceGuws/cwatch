@@ -241,6 +241,35 @@ final class ZideTerminalRendererMetadata extends Struct {
   external int damagePolicyFlags;
 }
 
+final class _ZideTerminalMouseEvent extends Struct {
+  @Uint8()
+  external int kind;
+
+  @Uint8()
+  external int button;
+
+  @Uint32()
+  external int row;
+
+  @Uint32()
+  external int col;
+
+  @Uint32()
+  external int pixelX;
+
+  @Uint32()
+  external int pixelY;
+
+  @Uint8()
+  external int hasPixel;
+
+  @Uint8()
+  external int modifiers;
+
+  @Uint8()
+  external int buttonsDown;
+}
+
 class ZideTerminalChildExitStatusData {
   const ZideTerminalChildExitStatusData({
     required this.code,
@@ -381,6 +410,22 @@ class ZideTerminalFfiBridge {
   static const int damagePolicyAdvisoryBounds = 1 << 0;
   static const int damagePolicyFullRedrawSafeDefault = 1 << 1;
 
+  static const int mouseKindPress = 0;
+  static const int mouseKindRelease = 1;
+  static const int mouseKindMove = 2;
+  static const int mouseKindWheel = 3;
+
+  static const int mouseButtonNone = 0;
+  static const int mouseButtonLeft = 1;
+  static const int mouseButtonMiddle = 2;
+  static const int mouseButtonRight = 3;
+  static const int mouseButtonWheelUp = 4;
+  static const int mouseButtonWheelDown = 5;
+
+  static const int modifierShift = 1;
+  static const int modifierAlt = 2;
+  static const int modifierCtrl = 4;
+
   ZideTerminalFfiBridge._({
     required DynamicLibrary library,
     required this.libraryPath,
@@ -439,6 +484,10 @@ class ZideTerminalFfiBridge {
              ),
              int Function(Pointer<ZideTerminalHandle>, Pointer<Uint8>, int)
            >('zide_terminal_feed_output'),
+       _sendMouse = _lookupOptionalSendMouse(
+         library,
+         'zide_terminal_send_mouse',
+       ),
        _snapshotAcquire = library
            .lookupFunction<
              Int32 Function(
@@ -591,6 +640,11 @@ class ZideTerminalFfiBridge {
   _sendBytes;
   final int Function(Pointer<ZideTerminalHandle>, Pointer<Uint8>, int)
   _feedOutput;
+  final int Function(
+    Pointer<ZideTerminalHandle>,
+    Pointer<_ZideTerminalMouseEvent>,
+  )?
+  _sendMouse;
   final int Function(Pointer<ZideTerminalHandle>, Pointer<ZideTerminalSnapshot>)
   _snapshotAcquire;
   final void Function(Pointer<ZideTerminalSnapshot>) _snapshotRelease;
@@ -714,6 +768,45 @@ class ZideTerminalFfiBridge {
         operation: 'terminal_feed_output',
       );
     });
+  }
+
+  bool get supportsMouseApi => _sendMouse != null;
+
+  void sendMouse(
+    Pointer<ZideTerminalHandle> handle, {
+    required int kind,
+    required int button,
+    required int row,
+    required int col,
+    required int pixelX,
+    required int pixelY,
+    required bool hasPixel,
+    required int modifiers,
+    required int buttonsDown,
+  }) {
+    final sendMouseFn = _sendMouse;
+    if (sendMouseFn == null) {
+      return;
+    }
+    final event = calloc<_ZideTerminalMouseEvent>();
+    try {
+      event.ref
+        ..kind = kind
+        ..button = button
+        ..row = row
+        ..col = col
+        ..pixelX = pixelX
+        ..pixelY = pixelY
+        ..hasPixel = hasPixel ? 1 : 0
+        ..modifiers = modifiers
+        ..buttonsDown = buttonsDown;
+      _throwIfError(
+        sendMouseFn(handle, event),
+        operation: 'terminal_send_mouse',
+      );
+    } finally {
+      calloc.free(event);
+    }
   }
 
   Pointer<ZideTerminalSnapshot> acquireSnapshot(
@@ -1221,6 +1314,27 @@ class ZideTerminalFfiBridge {
       return library.lookupFunction<
         Int32 Function(Uint32, Pointer<ZideTerminalRendererMetadata>),
         int Function(int, Pointer<ZideTerminalRendererMetadata>)
+      >(symbol);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static int Function(
+    Pointer<ZideTerminalHandle>,
+    Pointer<_ZideTerminalMouseEvent>,
+  )?
+  _lookupOptionalSendMouse(DynamicLibrary library, String symbol) {
+    try {
+      return library.lookupFunction<
+        Int32 Function(
+          Pointer<ZideTerminalHandle>,
+          Pointer<_ZideTerminalMouseEvent>,
+        ),
+        int Function(
+          Pointer<ZideTerminalHandle>,
+          Pointer<_ZideTerminalMouseEvent>,
+        )
       >(symbol);
     } catch (_) {
       return null;

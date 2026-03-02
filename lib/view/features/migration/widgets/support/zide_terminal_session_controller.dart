@@ -147,4 +147,31 @@ class ZideTerminalSessionController {
     }
     bridge.feedOutput(handle, bytes);
   }
+
+  bool get supportsMouseApi => bridge.supportsMouseApi;
+
+  void sendMouse({
+    required int kind,
+    required int button,
+    required int row,
+    required int col,
+    required int pixelX,
+    required int pixelY,
+    required bool hasPixel,
+    required int modifiers,
+    required int buttonsDown,
+  }) {
+    bridge.sendMouse(
+      handle,
+      kind: kind,
+      button: button,
+      row: row,
+      col: col,
+      pixelX: pixelX,
+      pixelY: pixelY,
+      hasPixel: hasPixel,
+      modifiers: modifiers,
+      buttonsDown: buttonsDown,
+    );
+  }
 }
