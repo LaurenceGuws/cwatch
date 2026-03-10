@@ -307,6 +307,29 @@ Verification:
 - `flutter test test/model/features/docker/services/docker_client_service_test.dart`
 - `flutter analyze`
 
+### Task 13.8: add `kubernetes_dashboard_service_test.dart`
+Status: completed
+
+What landed:
+- [kubernetes_dashboard_service_test.dart](/home/home/personal/cwatch/test/model/services_infra/kubernetes/kubernetes_dashboard_service_test.dart)
+
+Coverage added:
+- CLI backend data shaping for nodes, namespaces, workloads, pods, services, and events
+- CLI backend graceful degradation to warnings and empty sections when `kubectl` calls fail
+- API backend empty snapshot behavior when kubeconfig auth cannot be resolved
+- API backend warning accumulation when some API calls fail but others succeed
+
+Why this matters:
+- it locks down Kubernetes dashboard shaping without needing widget tests
+- it matches the intended capability model:
+  - CLI/API integrations are optional runtime capabilities
+  - missing or failing backends should degrade into warnings and empty states that UI layers can surface cleanly
+- it gives later Kubernetes cleanup work a regression floor around both shaping and graceful-unavailable behavior
+
+Verification:
+- `flutter test test/model/services_infra/kubernetes/kubernetes_dashboard_service_test.dart`
+- `flutter analyze`
+
 ## Test Organization
 
 Recommended structure:
