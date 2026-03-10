@@ -225,3 +225,30 @@ Next executable batch:
 - re-scope whether the dialog/settings hotspot should:
   - checkpoint here
   - or continue into `ExplorerDialogBuilders`
+
+## Task 14.18: re-scope the dialog/settings hotspot after `ExplorerUiAdapter`
+Status: completed
+
+Goal:
+- decide whether the shared prompt-helper rollout should continue into `ExplorerDialogBuilders` or stop at the current shared/local boundary
+
+Result:
+- the hotspot is ready for a checkpoint
+- `ExplorerDialogBuilders` should stay local for now because it still owns richer explorer-specific flows:
+  - rename tied to `RemoteFileEntry`
+  - move dialog with explorer-specific path semantics
+  - single-entry delete/trash wording
+  - navigate-to-subdirectory picker
+- pushing the helper further here would risk flattening valid explorer-local behavior into generic prompt infrastructure
+
+Checkpoint outcome:
+- shared prompt helper now covers:
+  - settings prompt flows
+  - WSL rename
+  - Docker overview generic text input
+  - Explorer generic text input
+  - Explorer multi-delete confirmation
+- richer domain dialogs remain on their local builder paths
+
+Next executable batch:
+- choose the next integration-smell hotspot after dialog/settings scaffolding

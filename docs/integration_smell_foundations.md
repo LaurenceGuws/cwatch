@@ -273,7 +273,8 @@ Current implementation checkpoint:
 - `ExplorerUiAdapter` now proves shared prompt adoption without absorbing richer explorer-specific dialogs
 
 Current next normalization direction:
-- adopt the shared prompt helper in smaller generic text-input adapters before exploring richer dialog flows
+- dialog/settings scaffolding is now at a checkpoint
+- the next hotspot should be chosen after this subsystem, not by pushing the helper into richer local dialog flows
 
 ## Success Criteria
 

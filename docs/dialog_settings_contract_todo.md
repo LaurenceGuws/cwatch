@@ -227,3 +227,22 @@ Result:
 
 Next executable batch:
 - re-scope whether the dialog/settings hotspot is ready for a checkpoint
+
+## Task 14.18: re-scope the dialog/settings hotspot after `ExplorerUiAdapter`
+Status: completed
+
+Goal:
+- decide whether this hotspot still needs another cleanup pass or is ready to checkpoint
+
+Result:
+- this hotspot is at a good checkpoint
+- the canonical shared prompt path is now explicit and adopted where the fit is clean
+- richer dialogs remain valid local exceptions and should not be flattened further in this pass
+
+Checkpoint summary:
+- shared prompt helper covers the small prompt/confirm cases
+- `ExplorerDialogBuilders` remains local for richer explorer-specific dialog flows
+- SSH auth, merge-conflict, and port-forward dialogs remain explicit exceptions
+
+Next executable batch:
+- choose the next integration-smell hotspot after dialog/settings scaffolding

@@ -467,3 +467,18 @@ Current follow-up doc:
 
 Next executable batch:
 - re-scope whether the dialog/settings hotspot should checkpoint or continue into `ExplorerDialogBuilders`
+
+### Task 14.18: re-scope the dialog/settings hotspot after `ExplorerUiAdapter`
+Status: completed
+
+What this task established:
+- the dialog/settings hotspot is at a good checkpoint
+- the canonical shared prompt path is now clear and adopted across the simple prompt cases
+- continuing immediately into `ExplorerDialogBuilders` would start collapsing valid explorer-local behavior into generic infrastructure
+
+Current follow-up docs:
+- [dialog_settings_contract_todo.md](/home/home/personal/cwatch/docs/dialog_settings_contract_todo.md)
+- [shared_prompt_helper_todo.md](/home/home/personal/cwatch/docs/shared_prompt_helper_todo.md)
+
+Next executable batch:
+- choose the next integration-smell hotspot after dialog/settings scaffolding
