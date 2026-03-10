@@ -97,6 +97,9 @@ Current implementation checkpoint:
 Current tab-shell status:
 - first chip-building normalization pass complete
 
+Current next integration hotspot:
+- shared dialog/settings scaffolding
+
 ## Development
 1. `flutter pub get`
 2. `flutter run -d <device>`

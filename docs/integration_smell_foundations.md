@@ -254,6 +254,9 @@ Current tab-shell status:
 - first chip-building normalization pass complete
 - generic tab command contribution remains a queued follow-up, not the active blocker
 
+Current next hotspot:
+- shared dialog/settings scaffolding
+
 ## Success Criteria
 
 This layer is working when:

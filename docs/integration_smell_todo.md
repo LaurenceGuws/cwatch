@@ -344,3 +344,34 @@ Next best direction:
 - move to the next integration-smell hotspot, likely:
   - explorer shared-surface contract
   - or shared dialog/settings scaffolding
+
+### Task 14.11: choose the next integration-smell hotspot after tab shell
+Status: completed
+
+What this task checked:
+- whether the next shared subsystem should be:
+  - explorer shared-surface contract
+  - shared dialog/settings scaffolding
+
+Result:
+- the next hotspot is `shared dialog/settings scaffolding`
+
+Why this wins:
+- it is already partly centralized through:
+  - `DialogKeyboardShortcuts`
+  - `ExplorerDialogBuilders`
+  - `SettingsUiAdapter`
+  - `port_forward_dialog.dart`
+- it already has initial regression coverage
+- the remaining duplication is visible and bounded:
+  - repeated text/password/confirm dialog patterns
+  - repeated settings-side prompt flows
+- it is narrower and safer than the full explorer surface, which is richer and more behavior-heavy
+
+Why explorer waits:
+- explorer is still an important hotspot
+- but it mixes more interaction, list behavior, path/search behavior, and shell/file semantics
+- it is a better next target after the dialog/settings surface is made more explicit
+
+Next executable batch:
+- `Task 14.12`: define the shared dialog/settings scaffolding contract
