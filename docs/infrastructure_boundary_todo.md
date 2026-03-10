@@ -699,3 +699,27 @@ Result:
 Validation:
 - `flutter test test/model/services_infra/ssh/process_ssh_failure_mapper_test.dart test/model/services_infra/ssh/ssh_shell_factory_test.dart`
 - `flutter analyze`
+
+## Task 19.13: re-scope the next infrastructure batch
+Status: completed
+
+Goal:
+- choose the highest-value next infrastructure boundary after the first Docker, Kubernetes, and SSH runtime splits
+
+Candidates considered:
+- deeper Docker parsing extraction
+- deeper Kubernetes transport/parser split
+- builtin-SSH failure convergence onto the shared runtime failure shape
+
+Result:
+- the next infrastructure seam should remain on SSH, specifically builtin-SSH failure convergence
+
+Why this wins:
+- Docker now has a transport/failure seam and its remaining parsing cleanup is mostly local to one gateway
+- Kubernetes now has a backend-policy seam and its remaining transport/parser cleanup is also narrower and more local
+- SSH now has a shared runtime failure vocabulary, but only the process provider is using it
+- until builtin SSH converges on the same failure shape, higher layers still face uneven provider-specific runtime behavior
+- that makes builtin-SSH failure convergence the stronger remaining cross-cutting infrastructure seam
+
+Next step:
+- Task 19.14: define the builtin-SSH failure convergence target
