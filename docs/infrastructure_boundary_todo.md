@@ -562,3 +562,106 @@ Why this wins:
 
 Next step:
 - Task 19.11: define the SSH runtime/failure-policy target
+
+## Task 19.11: define the SSH runtime/failure-policy target
+Status: completed
+
+Goal:
+- describe what part of the current SSH path is runtime cache ownership, what part is provider-specific failure mapping, and what part is capability/degradation policy
+
+Questions to answer:
+- what should remain in `SshShellFactory`
+- what should remain in provider-specific shell services
+- what should move to a narrower runtime/failure seam
+- what should remain feature-owned in callers
+
+Done definition:
+- the next SSH infra target is explicit
+- one concrete implementation batch is chosen
+
+Result:
+- the next SSH infrastructure target is now explicit
+
+### Current responsibility mix after the provider split
+
+After `SshShellProviderSelector`, the remaining SSH ambiguity is concentrated in provider-specific runtime behavior:
+
+1. runtime cache ownership
+- `SshShellFactory` still owns cache lifecycle for builtin/process runtime instances
+- timeout variants are still treated as special-case runtime instances inside the factory
+
+2. provider-specific failure mapping
+- `ProcessRemoteShellService` converts process exit patterns into generic auth/runtime exceptions inline
+- `BuiltInRemoteShellService` and `BuiltInSshClientManager` surface builtin-specific exception types and timeout/auth behavior through a different path
+
+3. capability/degradation policy
+- higher layers still depend on uneven failure shapes depending on which provider is selected
+- the boundary between infra failure classification and feature-level unavailable/error rendering is still not uniform enough
+
+That is now the main SSH infrastructure smell.
+
+### What should stay stable in the next SSH infra batch
+
+These areas should stay stable for the first runtime/failure pass:
+- feature call sites that consume `RemoteShellService`
+- existing auth coordinator ownership and prompt gating
+- transport implementations themselves (`ProcessSshRunner`, builtin client manager command execution)
+- feature-level error wording and remediation decisions
+
+Why they stay stable:
+- the next batch should not reopen auth or transport implementation together with runtime failure policy
+- the problem to solve now is failure-shape ownership, not terminal/editor UX
+
+### Proposed target boundary
+
+For the next pass, split the current SSH runtime responsibility into:
+- runtime request/cache seam
+  - keep `SshShellFactory` as the gateway, but make runtime cache keys and runtime kind explicit rather than implicit special cases
+- failure classification seam
+  - introduce one narrow SSH runtime failure shape that can represent:
+    - auth failure
+    - unavailable provider/runtime
+    - timeout
+    - generic command/runtime failure
+- provider-specific adapters
+  - builtin/process services convert their low-level failures into the shared runtime failure shape
+
+### What should remain in `SshShellFactory` after the next pass
+
+`SshShellFactory` should still own:
+- `RemoteShellService` gateway API
+- combining selector output with runtime construction/caching
+
+It should not keep owning:
+- ad hoc timeout/runtime variant cache branching
+- implicit provider/runtime kind handling without explicit runtime request semantics
+
+### What should remain feature-owned
+
+Feature layers should still own:
+- how SSH unavailable/auth/runtime failure states are surfaced to users
+- whether a failure becomes a disabled action, banner, dialog, or breadcrumb
+- domain-specific remediation wording
+
+They should not need to know:
+- whether failure came from builtin or process transport internals
+- how provider-specific runtime exceptions are normalized
+- how timeout/runtime variants are cached
+
+### First implementation batch
+
+The first SSH runtime/failure batch should extract:
+- one explicit SSH runtime failure type
+- one failure mapper/adaptor seam starting with `ProcessRemoteShellService`
+- keep builtin exception behavior stable for now, but make the shared failure shape available so the second pass can converge builtin onto it
+
+Runtime cache refactoring can stay inside `SshShellFactory` for this first failure batch.
+
+Why this is the right cut:
+- `ProcessRemoteShellService` is the smallest concrete failure-policy seam
+- it starts normalizing provider-specific failure behavior without reopening builtin auth/runtime internals immediately
+- it gives a shared failure vocabulary the rest of the SSH stack can converge on
+- it avoids a broader rewrite of runtime caching and builtin transport in one step
+
+Next step:
+- Task 19.12: implement the first SSH runtime failure split
