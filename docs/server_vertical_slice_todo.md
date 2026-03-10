@@ -232,7 +232,7 @@ Result:
   - settings-driven reload decisions
 
 ## Task 17.6: re-scope the first Server slice checkpoint
-Status: queued
+Status: completed
 
 Goal:
 - decide whether the first Server slice should continue or checkpoint at the current shell seam
@@ -244,3 +244,36 @@ Questions to answer:
 Done definition:
 - the next Server slice move is explicit
 - the choice is based on the post-test seam shape, not file-length pressure
+
+Result:
+- the first Server slice should checkpoint here
+- it should not extract another seam from [server_workspace_view.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_view.dart) in this pass
+
+Why this is the right stop:
+- the remaining weight in `server_workspace_view.dart` is mostly true Server-local behavior:
+  - host list rendering
+  - host availability probing
+  - distro warmup
+  - tab/body composition
+  - add-server flow
+- extracting more right now would likely create a fake host/workspace manager layer instead of a better feature boundary
+
+## Task 17.7: checkpoint the first Server vertical slice
+Status: completed
+
+Goal:
+- stop the Server slice at a defensible architectural boundary instead of continuing for file-length reduction
+
+Done definition:
+- the current Server slice result is explicit
+- the next rewrite move should come from the broader sequence, not more Server decomposition by default
+
+Result:
+- the first Server vertical slice is now checkpointed
+
+What this slice proved:
+- top-level Server workspace orchestration can move into a dedicated seam:
+  - [server_workspace_shell.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_shell.dart)
+- that seam is directly covered by:
+  - [server_workspace_shell_test.dart](/home/home/personal/cwatch/test/view/features/servers/server_workspace_shell_test.dart)
+- [server_workspace_view.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_view.dart) is now narrower and the remaining weight is mostly true Server-local behavior, not shell/runtime ambiguity
