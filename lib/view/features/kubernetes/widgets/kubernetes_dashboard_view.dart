@@ -39,7 +39,7 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
     super.initState();
     _controller = _binding.create(
       context: widget.context,
-      initialBackend: widget.settingsController.settings.kubernetesBackend,
+      initialBackend: widget.settingsController.settings.kubernetesPreferences.backend,
     );
     _controllerListener = () {
       if (!mounted) return;
@@ -63,7 +63,7 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
   }
 
   void _handleSettingsChanged() {
-    final next = widget.settingsController.settings.kubernetesBackend;
+    final next = widget.settingsController.settings.kubernetesPreferences.backend;
     _controller.setBackend(next);
   }
 

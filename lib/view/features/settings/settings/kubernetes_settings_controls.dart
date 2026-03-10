@@ -18,7 +18,8 @@ class KubernetesSettingsControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final configs = settings.kubernetesConfigPaths;
+    final kubernetes = settings.kubernetesPreferences;
+    final configs = kubernetes.configPaths;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -26,7 +27,7 @@ class KubernetesSettingsControls extends StatelessWidget {
         const Text('Backend'),
         const SizedBox(height: 8),
         DropdownButtonFormField<KubernetesBackend>(
-          initialValue: settings.kubernetesBackend,
+          initialValue: kubernetes.backend,
           items: const [
             DropdownMenuItem(
               value: KubernetesBackend.cli,
@@ -37,7 +38,11 @@ class KubernetesSettingsControls extends StatelessWidget {
           onChanged: (value) {
             if (value == null) return;
             settingsController.update(
-              (s) => s.copyWith(kubernetesBackend: value),
+              (s) => s.copyWith(
+                kubernetesPreferences: s.kubernetesPreferences.copyWith(
+                  backend: value,
+                ),
+              ),
             );
           },
         ),
@@ -66,7 +71,7 @@ class KubernetesSettingsControls extends StatelessWidget {
         ),
         const FormSpacer(),
         Text(
-          settings.kubernetesBackend == KubernetesBackend.api
+          kubernetes.backend == KubernetesBackend.api
               ? 'API backend uses kubeconfig auth (token/certs). exec/auth-provider not supported yet.'
               : 'Using kubectl on this host for Kubernetes data.',
           style: Theme.of(context).textTheme.bodySmall,

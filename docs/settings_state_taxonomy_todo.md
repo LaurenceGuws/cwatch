@@ -482,6 +482,32 @@ Verification:
 - `flutter analyze`
 - result: no issues found
 
+### Task 12.21: introduce a Kubernetes configuration/preferences seam
+Status: completed
+
+What landed:
+- [kubernetes_preferences.dart](/home/home/personal/cwatch/lib/model/models/kubernetes_preferences.dart)
+- [app_settings.dart](/home/home/personal/cwatch/lib/model/models/app_settings.dart) now stores Kubernetes config under `kubernetesPreferences`
+- shared Kubernetes consumers now read the grouped seam instead of root-level flat Kubernetes config fields:
+  - [kubernetes_context_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/kubernetes_context_controller.dart)
+  - [settings_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/settings_controller.dart)
+  - [kubernetes_settings_controls.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/kubernetes_settings_controls.dart)
+  - [kubernetes_dashboard_view.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/widgets/kubernetes_dashboard_view.dart)
+
+Kubernetes cluster now grouped under one model:
+- kubeconfig discovery paths
+- backend selection (`cli` vs `api`)
+
+Result:
+- Kubernetes config is no longer a pair of root-level stragglers in `AppSettings`
+- the remaining infra-config tail is now smaller and clearer:
+  - Docker remote-host configuration
+  - migration-only cache/workspace compatibility fields
+
+Verification:
+- `flutter analyze`
+- result: no issues found
+
 ### Task 12.8: scope `settingsTabIndex` removal from root settings
 Status: completed
 

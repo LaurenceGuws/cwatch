@@ -23,8 +23,8 @@ class KubernetesContextController {
   }
 
   List<String> resolveConfigPaths(AppSettings settings) {
-    if (settings.kubernetesConfigPaths.isNotEmpty) {
-      return settings.kubernetesConfigPaths;
+    if (settings.kubernetesPreferences.configPaths.isNotEmpty) {
+      return settings.kubernetesPreferences.configPaths;
     }
     final env = Platform.environment['KUBECONFIG']?.trim();
     if (env != null && env.isNotEmpty) {

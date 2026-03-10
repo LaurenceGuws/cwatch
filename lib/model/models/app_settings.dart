@@ -5,6 +5,7 @@ import 'custom_ssh_host.dart';
 import 'docker_workspace_state.dart';
 import 'editor_preferences.dart';
 import 'explorer_preferences.dart';
+import 'kubernetes_preferences.dart';
 import 'shell_preferences.dart';
 import 'ssh_preferences.dart';
 import 'ssh_client_backend.dart';
@@ -30,8 +31,7 @@ class AppSettings {
     this.sshPreferences = const SshPreferences(),
     this.serverDistroMap = const {},
     this.dockerDistroMap = const {},
-    this.kubernetesConfigPaths = const [],
-    this.kubernetesBackend = KubernetesBackend.cli,
+    this.kubernetesPreferences = const KubernetesPreferences(),
     this.serverWorkspace,
     this.kubernetesWorkspace,
     this.wslWorkspace,
@@ -60,8 +60,7 @@ class AppSettings {
   final SshPreferences sshPreferences;
   final Map<String, String> serverDistroMap;
   final Map<String, String> dockerDistroMap;
-  final List<String> kubernetesConfigPaths;
-  final KubernetesBackend kubernetesBackend;
+  final KubernetesPreferences kubernetesPreferences;
   final ServerWorkspaceState? serverWorkspace;
   final KubernetesWorkspaceState? kubernetesWorkspace;
   final WslWorkspaceState? wslWorkspace;
@@ -92,8 +91,7 @@ class AppSettings {
     SshPreferences? sshPreferences,
     Map<String, String>? serverDistroMap,
     Map<String, String>? dockerDistroMap,
-    List<String>? kubernetesConfigPaths,
-    KubernetesBackend? kubernetesBackend,
+    KubernetesPreferences? kubernetesPreferences,
     ServerWorkspaceState? serverWorkspace,
     KubernetesWorkspaceState? kubernetesWorkspace,
     WslWorkspaceState? wslWorkspace,
@@ -122,9 +120,8 @@ class AppSettings {
       sshPreferences: sshPreferences ?? this.sshPreferences,
       serverDistroMap: serverDistroMap ?? this.serverDistroMap,
       dockerDistroMap: dockerDistroMap ?? this.dockerDistroMap,
-      kubernetesConfigPaths:
-          kubernetesConfigPaths ?? this.kubernetesConfigPaths,
-      kubernetesBackend: kubernetesBackend ?? this.kubernetesBackend,
+      kubernetesPreferences:
+          kubernetesPreferences ?? this.kubernetesPreferences,
       serverWorkspace: serverWorkspace ?? this.serverWorkspace,
       kubernetesWorkspace: kubernetesWorkspace ?? this.kubernetesWorkspace,
       wslWorkspace: wslWorkspace ?? this.wslWorkspace,
@@ -188,6 +185,7 @@ class AppSettings {
 
     final shellJson = asJsonMap(json['shellPreferences']);
     final sshJson = asJsonMap(json['sshPreferences']);
+    final kubernetesJson = asJsonMap(json['kubernetesPreferences']);
     final editorJson = asJsonMap(json['editorPreferences']);
     final terminalJson = asJsonMap(json['terminalPreferences']);
     final explorerJson = asJsonMap(json['explorerPreferences']);
@@ -252,13 +250,15 @@ class AppSettings {
             (key, value) => MapEntry(key, value.toString()),
           ) ??
           const {},
-      kubernetesConfigPaths:
-          (json['kubernetesConfigPaths'] as List<dynamic>?)
-              ?.whereType<String>()
-              .toList() ??
-          const [],
-      kubernetesBackend: KubernetesBackendParsing.fromJson(
-        json['kubernetesBackend'] as String?,
+      kubernetesPreferences: KubernetesPreferences(
+        configPaths:
+            (kubernetesJson?['configPaths'] as List<dynamic>?)
+                ?.whereType<String>()
+                .toList() ??
+            const [],
+        backend: KubernetesBackendParsing.fromJson(
+          kubernetesJson?['backend'] as String?,
+        ),
       ),
       serverWorkspace: () {
         final raw = json['serverWorkspace'];
@@ -397,9 +397,10 @@ class AppSettings {
         'disabledConfigPaths': sshPreferences.disabledConfigPaths,
         'disabledServerHosts': sshPreferences.disabledServerHosts,
       },
-
-      'kubernetesConfigPaths': kubernetesConfigPaths,
-      'kubernetesBackend': kubernetesBackend.name,
+      'kubernetesPreferences': {
+        'configPaths': kubernetesPreferences.configPaths,
+        'backend': kubernetesPreferences.backend.name,
+      },
       'shortcutBindings': shortcutBindings,
       'editorPreferences': {
         if (editor.themeLight != null) 'themeLight': editor.themeLight,

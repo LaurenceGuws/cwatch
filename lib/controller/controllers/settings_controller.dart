@@ -151,18 +151,27 @@ class SettingsController extends ChangeNotifier {
     final path = await uiAdapter.pickKubeconfigFile();
     if (path == null) return;
     final normalized = p.normalize(path);
-    final current = settings.kubernetesConfigPaths;
+    final current = settings.kubernetesPreferences.configPaths;
     if (current.contains(normalized)) return;
     await update(
-      (settings) =>
-          settings.copyWith(kubernetesConfigPaths: [...current, normalized]),
+      (settings) => settings.copyWith(
+        kubernetesPreferences: settings.kubernetesPreferences.copyWith(
+          configPaths: [...current, normalized],
+        ),
+      ),
     );
   }
 
   Future<void> removeKubeconfigPath(String path) async {
-    final current = settings.kubernetesConfigPaths;
+    final current = settings.kubernetesPreferences.configPaths;
     final next = [...current]..remove(path);
-    await update((settings) => settings.copyWith(kubernetesConfigPaths: next));
+    await update(
+      (settings) => settings.copyWith(
+        kubernetesPreferences: settings.kubernetesPreferences.copyWith(
+          configPaths: next,
+        ),
+      ),
+    );
   }
 
   Listenable get keyVaultListenable => keyService.vault;
