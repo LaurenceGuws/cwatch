@@ -191,7 +191,8 @@ Current follow-up:
 - `Task 14.45` shared scaffolding contract is complete
 - `Task 14.46` first normalization batch scope is complete
 - `Task 14.47` first normalization batch implementation is complete
-- `Task 14.48` next scaffolding batch re-scope is queued
+- `Task 14.48` next scaffolding batch re-scope is complete
+- `Task 14.49` shared action/menu scaffolding scope is queued
 
 ## Next Re-scope
 

@@ -266,7 +266,7 @@ What this proved:
 - empty-state normalization is a better first shell polish seam than forcing table/card unification
 
 ## Task 14.48: re-scope the next shared scaffolding batch
-Status: queued
+Status: completed
 
 Goal:
 - decide whether the next scaffolding pass should target another empty-state/menu/settings seam or checkpoint this hotspot
@@ -278,3 +278,39 @@ Likely candidates:
 
 Done definition:
 - the next narrow batch is chosen or the hotspot is checkpointed
+
+Result:
+- the next shared scaffolding batch should target:
+  - shared action/menu scaffolding
+- not another empty-state pass yet
+
+Why this wins:
+- the simple empty-state shadowing case is already normalized enough for now
+- the remaining repeated shell-facing scaffolding is more visible in:
+  - action pickers
+  - popup menus
+  - section-level option menus
+- this is a better shell polish target than pushing `StandardEmptyState` into richer domain guidance states
+
+Why the other candidates wait:
+- another empty-state batch
+  - remaining cases are more domain-specific and less obviously shell-owned
+- broader settings-section consistency
+  - the main wrapper smell has already been removed
+
+## Task 14.49: scope shared action/menu scaffolding
+Status: queued
+
+Goal:
+- identify the smallest shared shell action/menu seam that reduces repeated popup/action assembly without flattening domain-specific menu logic
+
+Likely first candidates:
+- `ActionPicker` adoption/extension rules
+- repeated simple `PopupMenuButton<String>` assembly in:
+  - server host list
+  - Docker engine picker
+  - Docker list sections
+
+Done definition:
+- the first action/menu normalization batch is chosen
+- the batch stays narrower than “generic menu system”
