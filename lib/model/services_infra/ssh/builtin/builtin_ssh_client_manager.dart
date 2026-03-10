@@ -9,6 +9,7 @@ import 'package:dartssh2/dartssh2.dart';
 import '../known_hosts_store.dart';
 import '../remote_shell_base.dart';
 import '../ssh_auth_coordinator.dart';
+import 'builtin_ssh_failure_mapper.dart';
 import 'package:cwatch/model/shared/services/host_shell_policy.dart';
 import 'builtin_identity_manager.dart';
 import 'builtin_ssh_exceptions.dart';
@@ -34,6 +35,7 @@ class BuiltInSshClientManager {
   final BuiltInSshIdentityManager _identityManager;
   final SshAuthCoordinator authCoordinator;
   final KnownHostsStore knownHostsStore;
+  final BuiltInSshFailureMapper _failureMapper = const BuiltInSshFailureMapper();
   final Map<String, Future<bool>> _pendingDecryptRequests = {};
 
   String? boundKeyForHost(String hostName) =>
@@ -351,13 +353,19 @@ class BuiltInSshClientManager {
           'Authentication failed for ${host.name}',
           error: error,
         );
-        throw BuiltInSshAuthenticationFailed(
+        throw _failureMapper.map(
+          host,
+          BuiltInSshAuthenticationFailed(
           hostName: host.name,
           message: error.toString(),
+          ),
         );
       } on SSHStateError catch (error) {
         logBuiltInSshWarning('SSH state error for ${host.name}', error: error);
-        throw Exception('SSH connection failed for ${host.name}: $error');
+        throw _failureMapper.map(
+          host,
+          Exception('SSH connection failed for ${host.name}: $error'),
+        );
       } catch (e) {
         logBuiltInSshWarning('SSH operation failed for ${host.name}', error: e);
         if (e is BuiltInSshKeyDecryptionRequired) {
@@ -382,7 +390,6 @@ class BuiltInSshClientManager {
             continue;
           }
         } else if (e is BuiltInSshKeyUnsupportedCipher ||
-            e is BuiltInSshAuthenticationFailed ||
             e is NoShellHostException) {
           rethrow;
         }
@@ -390,7 +397,7 @@ class BuiltInSshClientManager {
           'Error in SSH operation for ${host.name}',
           error: e,
         );
-        throw Exception('SSH operation failed for ${host.name}: $e');
+        throw _failureMapper.map(host, e);
       }
     }
   }

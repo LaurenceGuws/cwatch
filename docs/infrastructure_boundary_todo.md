@@ -819,3 +819,37 @@ Why this is the right cut:
 
 Next step:
 - Task 19.15: implement builtin-SSH failure convergence
+
+## Task 19.15: implement builtin-SSH failure convergence
+Status: completed
+
+Goal:
+- normalize caller-visible builtin SSH runtime failures onto `SshRuntimeFailure` while keeping internal retry/prompt signals intact
+
+First code targets:
+- `BuiltInSshClientManager`
+- a new builtin SSH failure mapper/adaptor seam
+- the main high-level builtin auth-failure catch path in `TrashTabController`
+- focused tests around builtin failure mapping behavior
+
+What stayed stable in this batch:
+- auth coordinator ownership and prompt gating
+- builtin decrypt/passphrase retry behavior
+- builtin transport execution
+- `BuiltInRemoteShellService` public behavior shape
+
+Done definition:
+- caller-visible builtin runtime failures no longer stay as a mix of generic exceptions and builtin-specific auth failures
+- builtin and process providers now share `SshRuntimeFailure` as the outward runtime failure vocabulary
+- internal builtin retry signals remain internal
+
+Result:
+- added `BuiltInSshFailureMapper` as the builtin failure adaptor seam
+- `BuiltInSshClientManager._wrapSshErrors(...)` now normalizes caller-visible builtin auth/runtime failures onto `SshRuntimeFailure`
+- internal retry signals such as decrypt/passphrase/unsupported-cipher remain builtin-specific and internal
+- updated `TrashTabController` to consume shared auth failure shape instead of the old builtin-specific auth failure type
+- added focused coverage for builtin failure mapping behavior in `builtin_ssh_failure_mapper_test.dart`
+
+Validation:
+- `flutter test test/model/services_infra/ssh/builtin/builtin_ssh_failure_mapper_test.dart test/model/services_infra/ssh/process_ssh_failure_mapper_test.dart test/model/services_infra/ssh/ssh_shell_factory_test.dart`
+- `flutter analyze`
