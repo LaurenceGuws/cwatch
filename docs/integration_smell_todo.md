@@ -425,3 +425,17 @@ Current follow-up doc:
 
 Next executable batch:
 - `Task 14.15`: adopt the shared prompt helper in `WslUiAdapter`
+
+### Task 14.15: adopt the shared prompt helper in `WslUiAdapter`
+Status: completed
+
+What this task established:
+- the shared prompt helper also holds for a simple rename flow outside settings
+- the helper can now be treated as the canonical shared path for straightforward one-field prompts
+- no helper expansion was needed for this adoption
+
+Current follow-up doc:
+- [shared_prompt_helper_todo.md](/home/home/personal/cwatch/docs/shared_prompt_helper_todo.md)
+
+Next executable batch:
+- `Task 14.16`: adopt the shared prompt helper in `DockerOverviewUiAdapter`

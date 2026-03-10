@@ -179,3 +179,19 @@ Result:
 
 Next executable batch:
 - `Task 14.15`: adopt the shared prompt helper in `WslUiAdapter`
+
+## Task 14.15: adopt the shared prompt helper in `WslUiAdapter`
+Status: completed
+
+Goal:
+- prove the shared prompt helper on a simpler generic text-input adopter after the settings slice
+
+What landed:
+- [wsl_ui_adapter.dart](/home/home/personal/cwatch/lib/controller/adapters/wsl_ui_adapter.dart)
+
+Result:
+- WSL rename prompt now uses the shared text-input helper
+- the helper stayed narrow and did not need new knobs for this adopter
+
+Next executable batch:
+- `Task 14.16`: adopt the shared prompt helper in `DockerOverviewUiAdapter`

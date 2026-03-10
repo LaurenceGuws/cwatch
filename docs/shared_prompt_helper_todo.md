@@ -170,3 +170,22 @@ Result:
 
 Next executable batch:
 - `Task 14.15`: adopt the shared prompt helper in `WslUiAdapter`
+
+## Task 14.15: adopt the shared prompt helper in `WslUiAdapter`
+Status: completed
+
+Goal:
+- move the WSL rename prompt onto the shared text-input helper without growing the helper API
+
+What landed:
+- [wsl_ui_adapter.dart](/home/home/personal/cwatch/lib/controller/adapters/wsl_ui_adapter.dart)
+
+Result:
+- WSL tab rename now uses the shared text prompt helper
+- the helper API did not need to grow for this adoption
+- the next best adopters are still the generic text-input adapters:
+  - `DockerOverviewUiAdapter`
+  - `ExplorerUiAdapter`
+
+Next executable batch:
+- `Task 14.16`: adopt the shared prompt helper in `DockerOverviewUiAdapter`

@@ -268,6 +268,7 @@ Current implementation checkpoint:
   - password prompts
   - passphrase prompts
   - destructive confirmation prompts
+- `WslUiAdapter` now proves the simple shared text-input adoption case
 
 Current next normalization direction:
 - adopt the shared prompt helper in smaller generic text-input adapters before exploring richer dialog flows
