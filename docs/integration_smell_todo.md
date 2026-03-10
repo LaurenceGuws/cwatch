@@ -130,7 +130,8 @@ Current result:
 
 Current follow-up:
 - [explorer_shared_surface_todo.md](/home/home/personal/cwatch/docs/explorer_shared_surface_todo.md)
-- next executable batch: `Task 14.28` explorer chrome/helper cleanup
+- `Task 14.28` explorer chrome/helper cleanup is now scoped
+- next executable batch: `Task 14.29` shared explorer chrome scaffold extraction
 
 ### Hotspot C: shared dialog/settings scaffolding
 Why it matters:

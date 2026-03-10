@@ -152,16 +152,58 @@ Result:
 - the next cleanup batch is narrowed to explorer chrome/helper extraction, not a broad explorer rewrite
 
 ## Task 14.28: scope explorer chrome/helper cleanup
-Status: queued
+Status: completed
 
 Goal:
 - identify the smallest shared helper extraction inside `FileExplorerTab` that improves explorer polish without flattening valid explorer-local interaction behavior
 
-Likely targets:
+Candidates considered:
 - header/toolbar action row
 - settings panel host wiring
 - entry-list host/scaffold sections around loading/error/drop-overlay states
 
+Decision:
+- the first cleanup batch should target a shared explorer chrome scaffold around:
+  - `PathNavigator` hosting
+  - loading/error/streaming/drop-overlay content hosting
+  - floating settings window hosting
+
+Why this is the right first cut:
+- it is clearly shared explorer chrome, not domain-specific file-operation behavior
+- it sits at the top of `FileExplorerTab`, where shell polish is most visible
+- it avoids destabilizing the denser explorer list/input behavior in `_buildEntriesList()`
+- it does not flatten valid explorer-local dialogs into fake generic prompts
+
+Why the other candidates wait:
+- header/toolbar action row
+  - currently mostly lives inside `PathNavigator`, so extracting it first would cut across a less stable seam
+- entry-list behavior
+  - too tightly coupled to selection/input behavior and should not be the first polish extraction
+
 Done definition:
 - one narrow helper extraction is selected
 - the extraction is justified as shared explorer chrome, not explorer-specific dialog behavior
+
+Result:
+- the next explorer cleanup batch is now explicit: shared explorer chrome scaffold extraction
+
+## Task 14.29: extract shared explorer chrome scaffold
+Status: queued
+
+Goal:
+- pull the top-level shared explorer chrome hosting out of `FileExplorerTab` into a narrower helper/widget without moving explorer-specific list/input behavior
+
+Expected scope:
+- path navigator host
+- loading/error/streaming/drop-overlay host
+- floating settings host
+
+Out of scope:
+- `_buildEntriesList()` selection/list behavior
+- explorer dialog builders
+- merge conflict flow
+
+Done definition:
+- `FileExplorerTab` delegates top-level chrome hosting to one narrower shared helper
+- explorer-specific list/input behavior remains in place
+- the result reads as shared explorer chrome rather than another generic shell widget

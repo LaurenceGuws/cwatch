@@ -319,7 +319,7 @@ Current next hotspot:
 
 Current hotspot status:
 - explorer shared-surface contract is now explicit
-- next step is a narrow explorer chrome/helper cleanup pass
+- next step is a narrow shared explorer chrome scaffold extraction pass
 - richer explorer dialogs remain intentional local exceptions
 
 Current follow-up doc:
