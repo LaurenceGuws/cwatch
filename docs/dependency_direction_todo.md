@@ -240,7 +240,7 @@ Done definition for starting this hotspot:
 Current next-step note:
 - the shell/module ownership deep-dive reached a good checkpoint (`docs/shell_module_ownership_todo.md`)
 - `lib/model` now has no `package:cwatch/controller/` imports
-- the next dependency-direction deep-dive should target docker/workspace ownership seams
+- the next dependency-direction deep-dive is docker/workspace ownership (`docs/docker_workspace_ownership_todo.md`)
 
 ### Docker feature shell
 Track here when ready:

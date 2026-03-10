@@ -170,6 +170,7 @@ Deliverables:
 Create separate follow-up docs for:
 - dependency direction TODO (`docs/dependency_direction_todo.md`)
 - shell/module ownership TODO (`docs/shell_module_ownership_todo.md`)
+- docker/workspace ownership TODO (`docs/docker_workspace_ownership_todo.md`)
 - dependency rules
 - settings/state split
 - first vertical slice plan
