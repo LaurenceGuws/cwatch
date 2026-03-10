@@ -130,7 +130,7 @@ Verification:
 - one concrete follow-up cleanup batch is chosen
 
 ## Task 14.13: scope shared prompt helper/catalog cleanup
-Status: queued
+Status: completed
 
 Goal:
 - define the smallest shared helper/catalog that absorbs duplicated prompt flows without overreaching into richer dialogs
@@ -147,3 +147,16 @@ Done definition:
 - helper responsibilities are explicit
 - first migration slice is chosen
 - the next code batch is implementation-ready rather than exploratory
+
+What landed:
+- [shared_prompt_helper_todo.md](/home/home/personal/cwatch/docs/shared_prompt_helper_todo.md)
+
+Result:
+- the first shared prompt helper should cover:
+  - text input
+  - secret/password input
+  - destructive confirmation
+- the first migration slice is `SettingsUiAdapter`
+
+Next executable batch:
+- `Task 14.14`: implement shared prompt helper for `SettingsUiAdapter`

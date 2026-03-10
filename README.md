@@ -103,6 +103,9 @@ Current next integration hotspot:
 Current follow-up doc:
 - `docs/dialog_settings_contract_todo.md`
 
+Current implementation-ready follow-up:
+- `docs/shared_prompt_helper_todo.md`
+
 ## Development
 1. `flutter pub get`
 2. `flutter run -d <device>`

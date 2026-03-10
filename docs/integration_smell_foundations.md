@@ -260,6 +260,9 @@ Current next hotspot:
 Current follow-up doc:
 - [dialog_settings_contract_todo.md](/home/home/personal/cwatch/docs/dialog_settings_contract_todo.md)
 
+Current implementation-ready follow-up:
+- [shared_prompt_helper_todo.md](/home/home/personal/cwatch/docs/shared_prompt_helper_todo.md)
+
 ## Success Criteria
 
 This layer is working when:

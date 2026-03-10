@@ -394,3 +394,20 @@ Current follow-up doc:
 
 Next executable batch:
 - `Task 14.13`: scope shared prompt helper/catalog cleanup
+
+### Task 14.13: scope shared prompt helper/catalog cleanup
+Status: completed
+
+What this task established:
+- the first shared prompt helper should cover:
+  - text input
+  - secret/password input
+  - destructive confirmation
+- `SettingsUiAdapter` is the right proving slice
+- richer dialogs remain intentionally out of scope
+
+Current follow-up doc:
+- [shared_prompt_helper_todo.md](/home/home/personal/cwatch/docs/shared_prompt_helper_todo.md)
+
+Next executable batch:
+- `Task 14.14`: implement shared prompt helper for `SettingsUiAdapter`
