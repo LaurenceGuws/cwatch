@@ -232,7 +232,7 @@ Result:
 - the next batch should create the annotation types and first descriptor output, not expand the scope
 
 ## Task 14.34: implement config metadata annotations
-Status: queued
+Status: completed
 
 Goal:
 - add the first narrow annotation family and use it on the primitive grouped preference models
@@ -246,3 +246,25 @@ Done definition:
 - annotation types exist
 - the four primitive grouped preference models are annotated
 - the first output target is explicit and still metadata-only
+
+Result:
+- [config_metadata_annotations.dart](/home/home/personal/cwatch/lib/model/config/config_metadata_annotations.dart) now defines `ConfigGroup` and `ConfigField`
+- the four primitive grouped preference models are now annotated
+- [config_metadata_target.dart](/home/home/personal/cwatch/lib/model/config/config_metadata_target.dart) is the explicit first-pass generator input surface
+- the repo now has a real metadata seam without adding runtime behavior
+
+## Task 14.35: define first descriptor output shape
+Status: queued
+
+Goal:
+- define the first generated or generation-ready descriptor output for the annotated config metadata target
+
+Expected scope:
+- one descriptor record shape for config groups and fields
+- one registry output surface for the four primitive grouped preference models
+- still no runtime settings UI generation
+
+Done definition:
+- the first descriptor output shape is explicit
+- the output target file/module is explicit
+- implementation can proceed without broadening the annotation scope

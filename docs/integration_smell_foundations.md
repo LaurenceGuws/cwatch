@@ -330,7 +330,8 @@ Current hotspot status:
 - the first target is now explicitly grouped config/schema metadata
 - the first codegen slice is narrowed to primitive grouped preference models
 - the annotation shape is now explicit and still metadata-only
-- the next step is implementation of the first narrow annotation family
+- the first narrow annotation family is now implemented
+- the next step is descriptor output shape, not broader generator behavior
 
 Why this is next:
 - the main shared-surface hotspots are now at usable checkpoints
