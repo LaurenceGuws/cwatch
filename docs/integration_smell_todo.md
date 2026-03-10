@@ -551,3 +551,17 @@ Current follow-up doc:
 
 Next executable batch:
 - `Task 14.23`: scope high-level SSH auth wiring removal
+
+### Task 14.23: scope high-level SSH auth wiring removal
+Status: completed
+
+What this task established:
+- the remaining high-level SSH auth wiring is now concentrated in server/docker port-forward flows
+- the best next seam is not the home-shell global auth coordinator
+- the best next seam is to remove `buildSshAuthCoordinator(...)` from server/docker UI adapters and push that wiring below the feature/UI layer
+
+Current follow-up doc:
+- [ssh_auth_integration_todo.md](/home/home/personal/cwatch/docs/ssh_auth_integration_todo.md)
+
+Next executable batch:
+- `Task 14.24`: remove high-level auth wiring from port-forward flows

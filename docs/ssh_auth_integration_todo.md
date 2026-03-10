@@ -403,6 +403,95 @@ What remains for this hotspot:
 Next executable batch:
 - `Task 14.23`: scope high-level SSH auth wiring removal
 
+### Task 14.23: scope high-level SSH auth wiring removal
+Status: completed
+
+Goal:
+- define the smallest follow-up batch that removes remaining high-level SSH auth coordinator construction without destabilizing the now-cleaner builtin runtime owner
+
+## Scope Result
+
+The remaining high-level SSH auth wiring is now concentrated in two practical call paths:
+
+### 1. Server-side port forwarding
+- [server_workspace_binding.dart](/home/home/personal/cwatch/lib/controller/di/bindings/server_workspace_binding.dart)
+- [server_workspace_ui_adapter.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_ui_adapter.dart)
+- [server_port_forward_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/server_port_forward_controller.dart)
+
+### 2. Docker-side remote forwarding/actions
+- [docker_overview_ui_adapter.dart](/home/home/personal/cwatch/lib/controller/adapters/docker_overview_ui_adapter.dart)
+- [docker_overview_actions_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/docker_overview_actions_controller.dart)
+- [docker_overview_binding.dart](/home/home/personal/cwatch/lib/controller/di/bindings/docker_overview_binding.dart)
+
+## Best First Wiring Removal Seam
+
+The first wiring-removal seam should be:
+- move auth coordinator ownership to infrastructure/service construction
+- stop UI adapters from exposing `buildSshAuthCoordinator(...)`
+
+The best first target is:
+- port-forwarding flows
+
+Why:
+- both server and docker currently pass auth coordinators into `PortForwardService.startForward(...)`
+- the usage pattern is similar on both sides
+- it is narrower than trying to remove every high-level auth-construction path in one pass
+
+## Why Not Start At Home Shell Binding
+
+[home_shell_services_binding.dart](/home/home/personal/cwatch/lib/controller/di/bindings/home_shell_services_binding.dart) still creates the global `SshAuthCoordinator`, but that is not the same smell as server/docker UI adapters constructing per-flow auth wiring.
+
+That global shell seam should remain for now because:
+- it is already below feature-layer code
+- it is the current source of builtin-shell auth UI integration
+- removing it before the port-forward flows are cleaned up would conflate app-shell composition with feature/service call cleanup
+
+## What Should Change In The Next Code Batch
+
+The next code batch should:
+- remove `buildSshAuthCoordinator(...)` from:
+  - [server_workspace_ui_adapter.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_ui_adapter.dart)
+  - [docker_overview_ui_adapter.dart](/home/home/personal/cwatch/lib/controller/adapters/docker_overview_ui_adapter.dart)
+- stop these controllers from requesting auth wiring from UI adapters:
+  - [server_port_forward_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/server_port_forward_controller.dart)
+  - [docker_overview_actions_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/docker_overview_actions_controller.dart)
+- push auth coordinator sourcing down into the infrastructure/service layer around:
+  - [port_forward_service.dart](/home/home/personal/cwatch/lib/model/services_infra/port_forwarding/port_forward_service.dart)
+  - related bindings/runtime construction
+
+## What Should Not Change Yet
+
+Do not change yet:
+- `SshAuthPrompter` itself
+- home-shell global auth coordinator creation
+- non-port-forward SSH call paths
+
+Reason:
+- the next batch should remove one concentrated high-level auth-wiring pattern
+- expanding beyond that would turn a clean follow-up into another broad auth rewrite
+
+## Next Executable Batch
+
+### Task 14.24: remove high-level auth wiring from port-forward flows
+Status: queued
+
+Goal:
+- remove `buildSshAuthCoordinator(...)` from server/docker port-forward flows and source auth coordination below feature/UI adapters
+
+Likely files in scope:
+- [server_workspace_ui_adapter.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_ui_adapter.dart)
+- [docker_overview_ui_adapter.dart](/home/home/personal/cwatch/lib/controller/adapters/docker_overview_ui_adapter.dart)
+- [server_port_forward_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/server_port_forward_controller.dart)
+- [docker_overview_actions_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/docker_overview_actions_controller.dart)
+- [server_workspace_binding.dart](/home/home/personal/cwatch/lib/controller/di/bindings/server_workspace_binding.dart)
+- [docker_overview_binding.dart](/home/home/personal/cwatch/lib/controller/di/bindings/docker_overview_binding.dart)
+- [port_forward_service.dart](/home/home/personal/cwatch/lib/model/services_infra/port_forwarding/port_forward_service.dart)
+
+Done definition:
+- UI adapters no longer expose SSH auth coordinator construction for port-forward flows
+- port-forward flows no longer ask feature/UI layers for SSH auth state wiring
+- auth coordination is sourced below the feature/UI layer
+
 ## Explicit Concurrency Rules
 
 These rules are now in scope for this hotspot:

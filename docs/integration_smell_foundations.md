@@ -302,6 +302,10 @@ Current implementation checkpoint:
 - trash no longer owns a parallel builtin auth loop
 - the next SSH auth pass should target high-level auth wiring removal rather than more builtin runtime duplication
 
+Current next code direction:
+- remove high-level SSH auth wiring from server/docker port-forward flows
+- keep the home-shell global auth coordinator seam for now
+
 ## Success Criteria
 
 This layer is working when:
