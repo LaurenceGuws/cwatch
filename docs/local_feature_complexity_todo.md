@@ -148,7 +148,7 @@ Result:
 - `HostList`, `ServerWorkspaceShell`, and `ServerTabBuilder` stayed stable in this batch
 
 ## Task 20.4: re-scope the next server local-complexity batch
-Status: pending
+Status: completed
 
 Goal:
 - decide whether the next server-local cleanup should stay in `server_workspace_view.dart` or move to the next hotspot in the local complexity layer
@@ -159,3 +159,46 @@ Questions to answer:
 
 Done definition:
 - the next local-complexity move is explicit
+
+Result:
+- the server local-complexity hotspot is now at a good checkpoint
+- the next active hotspot in this layer should move to explorer entry-list interaction complexity
+
+Why this is the right stop:
+- the previous batch already removed the densest remaining non-rendering server-local coordination
+- what remains in `server_workspace_view.dart` is mostly valid feature-local behavior:
+  - host list rendering and callback wiring
+  - add-server flow
+  - tab restoration and server-specific tab creation
+  - local settings-window state
+- extracting more now would likely create a fake local manager layer instead of a stronger architecture seam
+
+Checkpoint summary:
+- server host refresh/probe/distro coordination is now split into `server_host_surface_controller.dart`
+- server local-complexity hotspot is checkpointed
+
+## Task 20.5: choose the next local complexity hotspot
+Status: completed
+
+Result:
+- the next local complexity hotspot should be explorer entry-list interaction complexity
+
+Why this wins now:
+- it remains one of the densest local interaction surfaces in the repo
+- earlier explorer slice work already removed top-level orchestration and action workflow weight
+- the remaining complexity is now concentrated in list interaction, pointer/keyboard handling, and selection-heavy behavior
+
+## Task 20.6: define the explorer entry-list cleanup boundary
+Status: pending
+
+Goal:
+- define exactly what part of the remaining explorer-local interaction complexity should be addressed first
+
+Questions to answer:
+- what should remain local to `file_explorer_tab.dart`
+- what should be split into a narrower explorer-local seam
+- what interaction behavior should not be pushed into shared shell code
+
+Done definition:
+- one bounded explorer-local cleanup seam is chosen
+- the first implementation batch is clear
