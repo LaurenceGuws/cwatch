@@ -136,7 +136,7 @@ Verification:
 - migration order is justified and incremental
 
 ## Task 14.6: implement the shared tab-shell adapter for WSL
-Status: queued
+Status: completed
 
 Goal:
 - introduce the shared helper and migrate WSL first
@@ -149,3 +149,16 @@ Done definition:
 - WSL no longer hand-assembles routine `TabChip` wiring
 - behavior is unchanged
 - the helper remains narrow enough that Kubernetes can adopt it next without redesign
+
+What landed:
+- [workspace_tab_chip_builder.dart](/home/home/personal/cwatch/lib/view/core/tabs/workspace_tab_chip_builder.dart)
+- [wsl_view.dart](/home/home/personal/cwatch/lib/view/features/wsl/wsl_view.dart) now uses the shared chip builder instead of hand-assembling routine `TabChip` wiring
+
+What this proved:
+- the shared helper can absorb routine chip assembly without flattening feature-owned tab creation
+- the first seam can stay narrow:
+  - shared chip-building only
+  - no premature command-palette unification
+
+Next executable batch:
+- `Task 14.7`: adopt the shared chip builder in Kubernetes

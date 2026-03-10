@@ -244,6 +244,9 @@ Current next normalization direction:
 Current implementation-ready follow-up:
 - [tab_shell_adapter_todo.md](/home/home/personal/cwatch/docs/tab_shell_adapter_todo.md)
 
+Current implementation checkpoint:
+- WSL now proves the first shared chip-building seam
+
 ## Success Criteria
 
 This layer is working when:

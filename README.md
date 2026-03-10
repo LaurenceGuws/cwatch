@@ -88,6 +88,9 @@ Current next normalization direction:
 Current implementation-ready follow-up:
 - `docs/tab_shell_adapter_todo.md`
 
+Current implementation checkpoint:
+- WSL now uses the first shared tab-shell chip builder seam
+
 ## Development
 1. `flutter pub get`
 2. `flutter run -d <device>`

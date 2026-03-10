@@ -298,3 +298,6 @@ Result:
 
 Next executable batch:
 - `Task 14.6`: implement the shared tab-shell adapter for WSL
+
+Current implementation checkpoint:
+- WSL now uses the shared chip builder proving slice

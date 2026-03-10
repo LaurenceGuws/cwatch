@@ -7,6 +7,7 @@ import 'package:cwatch/view/core/navigation/tab_navigation_registry.dart';
 import 'package:cwatch/view/core/tabs/tab_bar_visibility.dart';
 import 'package:cwatch/view/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/view/core/tabs/tabbed_workspace_shell.dart';
+import 'package:cwatch/view/core/tabs/workspace_tab_chip_builder.dart';
 import 'package:cwatch/view/core/widgets/keep_alive.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
 import 'package:cwatch/model/features/wsl/models/wsl_tab_data.dart';
@@ -16,7 +17,6 @@ import 'package:cwatch/model/features/wsl/services/wsl_service_interface.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/tab_chip.dart';
 
 import 'package:cwatch/controller/adapters/wsl_ui_adapter.dart';
 import 'package:cwatch/controller/di/bindings/wsl_terminal_session_binding.dart';
@@ -338,24 +338,14 @@ class _WslViewState extends State<WslView> {
                 onReorder: _workspaceController.reorder,
                 onAddTab: _addPickerTab,
                 buildChip: (context, index, tab) {
-                  return TabChip(
-                    host: SshHost(
-                      name: tab.label,
-                      hostname: '',
-                      port: 0,
-                      available: true,
-                    ),
-                    title: tab.title,
-                    label: tab.label,
-                    icon: tab.icon,
+                  return WorkspaceTabChipBuilder(
+                    tab: tab,
                     selected: index == _selectedIndex,
-                    onSelect: () {
-                      _workspaceController.select(index);
-                    },
+                    host: _chipHostForTab(tab),
+                    onSelect: () => _workspaceController.select(index),
                     onClose: () => _workspaceController.closeTab(index),
-                    closable: true,
-                    onRename: tab.canRename ? () => _renameTab(index) : null,
-                    dragIndex: tab.canDrag ? index : null,
+                    onRename: () => _renameTab(index),
+                    index: index,
                   );
                 },
                 buildBody: (tab) => tab.body,
@@ -368,6 +358,15 @@ class _WslViewState extends State<WslView> {
           ),
         ],
       ),
+    );
+  }
+
+  SshHost _chipHostForTab(WorkspaceTab tab) {
+    return SshHost(
+      name: tab.label,
+      hostname: '',
+      port: 0,
+      available: true,
     );
   }
 }

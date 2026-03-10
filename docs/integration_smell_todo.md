@@ -268,3 +268,17 @@ Current follow-up doc:
 
 Next executable batch:
 - `Task 14.6`: implement the shared tab-shell adapter for WSL
+
+### Task 14.6: implement the shared tab-shell adapter for WSL
+Status: completed
+
+What this task established:
+- the shared chip-building helper works as a narrow first implementation slice
+- WSL no longer hand-assembles routine `TabChip` wiring
+- the adapter can stay focused on shared shell behavior without prematurely absorbing feature runtime logic
+
+Current follow-up doc:
+- [tab_shell_adapter_todo.md](/home/home/personal/cwatch/docs/tab_shell_adapter_todo.md)
+
+Next executable batch:
+- `Task 14.7`: adopt the shared chip builder in Kubernetes
