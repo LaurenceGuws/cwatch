@@ -174,7 +174,7 @@ Result:
   - Kubernetes-specific action wording and remediation
 
 ## Task 18.4: re-scope the next Kubernetes slice batch
-Status: pending
+Status: completed
 
 Goal:
 - decide whether the next Kubernetes batch should deepen the regression floor around the new shell seam or extract another real Kubernetes-local seam
@@ -186,3 +186,37 @@ Questions to answer:
 Done definition:
 - the next Kubernetes batch is explicit
 - the choice is based on the post-split code shape, not file-length pressure
+
+Result:
+- the next Kubernetes batch should deepen the regression floor around the new shell seam
+- it should not split context-list rendering, collapsed-group state, selection state, or dashboard composition yet
+
+Why this is the right next move:
+- the remaining weight in [kubernetes_context_list.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/kubernetes_context_list.dart) is now concentrated in true Kubernetes-local behavior:
+  - context row rendering
+  - collapsed-group and selection state
+  - dashboard widget composition
+  - Kubernetes-specific action wording and remediation
+- extracting that immediately would risk creating a fake context/dashboard manager instead of improving the architecture
+- the new seam:
+  - [kubernetes_workspace_shell.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/kubernetes_workspace_shell.dart)
+  should be locked down first
+
+## Task 18.5: add focused tests for the Kubernetes workspace-shell seam
+Status: pending
+
+Goal:
+- add direct regression coverage around the new Kubernetes workspace-shell seam before deciding whether the slice should continue or checkpoint
+
+First test targets:
+- `kubernetes_workspace_shell_test.dart`
+  - command-palette entry loading
+  - tab-navigation behavior
+  - context reload coordination
+  - placeholder replacement / add-tab behavior
+  - settings-driven reload decisions
+
+Done definition:
+- the Kubernetes shell seam has direct focused tests
+- the tests validate the extracted orchestration boundary rather than broad Kubernetes widget behavior
+- the next slice decision can be made from a safer regression floor
