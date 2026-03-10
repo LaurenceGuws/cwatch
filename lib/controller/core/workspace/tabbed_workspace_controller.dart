@@ -1,4 +1,4 @@
-import 'package:cwatch/view/core/tabs/tab_host.dart';
+import 'package:cwatch/controller/core/workspace/tab_host_controller.dart';
 import 'workspace_tab.dart';
 
 abstract class TabbedWorkspaceController

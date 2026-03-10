@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
-import 'tab_host.dart';
+import 'package:cwatch/controller/core/workspace/tab_host_controller.dart';
 import '../navigation/window_controls_constants.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/view/shared/widgets/window_drag_region.dart';

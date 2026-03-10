@@ -108,7 +108,7 @@ Result of re-scope:
 - the next workspace-core ownership question is `TabHostController` living under `view/core/tabs/`
 
 ### Task 4.3: inspect tab host controller ownership
-Status: queued
+Status: completed
 
 Why this is next:
 - `TabbedWorkspaceController` still extends `TabHostController` from a `view/` path
@@ -127,6 +127,29 @@ Done definition:
 Verification:
 - `rg -n "package:cwatch/view/core/tabs/tab_host.dart" lib/controller`
 - `flutter analyze`
+
+Result of Task 4.3:
+- `TabHostController` now lives in `lib/controller/core/workspace/tab_host_controller.dart`
+- `TabbedWorkspaceController` no longer imports from `view/core/tabs/tab_host.dart`
+- view-side tab rendering code imports the controller-owned type directly
+- `lib/view/core/tabs/tab_host.dart` is now only a compatibility export and not an ownership source
+
+### Task 4.4: re-scope workspace-core follow-up
+Status: queued
+
+Purpose:
+- decide whether the next workspace-core batch should target:
+  - removing the compatibility export in `view/core/tabs/tab_host.dart`
+  - clarifying `WorkspaceTab` metadata vs rendered body ownership
+  - stopping here and shifting to the next hotspot
+- record what we learned from Task 4.3
+
+Done definition:
+- the next workspace-core step is written from the post-4.3 state of the code
+- any intentional compatibility shim or exception is recorded here
+
+Verification:
+- follow-up task added before the next workspace-core structural change starts
 
 ## Later Work In This Hotspot
 
@@ -153,8 +176,9 @@ Track here when ready:
 | --- | --- | --- | --- |
 | 4.1 | Tab option state extraction | completed | `WorkspaceTab` no longer imports from `tab_chip.dart` |
 | 4.2 | Workspace-core re-scope | completed | next task is written from what we learn in 4.1 |
-| 4.3 | Tab host controller ownership | queued | `TabbedWorkspaceController` no longer depends on `view/core/tabs/tab_host.dart`, or the exception is justified |
-| 4.x | Workspace-core follow-up | queued | re-scoped after 4.3 |
+| 4.3 | Tab host controller ownership | completed | `TabbedWorkspaceController` no longer depends on `view/core/tabs/tab_host.dart`, or the exception is justified |
+| 4.4 | Workspace-core re-scope | queued | next step is written from what we learn in 4.3 |
+| 4.x | Workspace-core follow-up | queued | re-scoped after 4.4 |
 
 ## Completion Metric
 

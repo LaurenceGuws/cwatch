@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
-import 'package:cwatch/view/core/tabs/tab_host.dart';
+import 'package:cwatch/controller/core/workspace/tab_host_controller.dart';
 import 'package:cwatch/view/core/tabs/tab_host_view.dart';
 import 'package:cwatch/view/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
