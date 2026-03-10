@@ -100,6 +100,9 @@ Current tab-shell status:
 Current next integration hotspot:
 - shared dialog/settings scaffolding
 
+Current follow-up doc:
+- `docs/dialog_settings_contract_todo.md`
+
 ## Development
 1. `flutter pub get`
 2. `flutter run -d <device>`

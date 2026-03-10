@@ -375,3 +375,22 @@ Why explorer waits:
 
 Next executable batch:
 - `Task 14.12`: define the shared dialog/settings scaffolding contract
+
+### Task 14.12: define the shared dialog/settings scaffolding contract
+Status: completed
+
+What this task established:
+- the shared dialog/settings surface should cover canonical prompt scaffolding:
+  - text input
+  - password/passphrase input
+  - destructive confirmation
+- richer dialogs remain valid local exceptions:
+  - SSH auth dialogs
+  - merge-conflict dialogs
+  - port-forward dialog
+
+Current follow-up doc:
+- [dialog_settings_contract_todo.md](/home/home/personal/cwatch/docs/dialog_settings_contract_todo.md)
+
+Next executable batch:
+- `Task 14.13`: scope shared prompt helper/catalog cleanup
