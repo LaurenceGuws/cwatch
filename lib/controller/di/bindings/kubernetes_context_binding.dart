@@ -25,6 +25,7 @@ class KubernetesContextBinding {
     required AppSettingsController appSettingsController,
     required BuiltInSshKeyService keyService,
     required Future<List<SshHost>> hostsFuture,
+    required KubernetesTabBuilder tabBuilder,
     required WorkspaceTab Function() baseTabBuilder,
     KubeconfigService? kubeconfig,
   }) {
@@ -38,10 +39,6 @@ class KubernetesContextBinding {
       keyService: keyService,
       hostsFuture: hostsFuture,
       uiAdapter: const SettingsBinding().createUiAdapter(context: context),
-    );
-    final tabBuilder = const KubernetesTabBuilder(
-      placeholderName: '__k8s_placeholder__',
-      placeholderConfig: '__k8s_placeholder__',
     );
     final workspaceController = KubernetesWorkspaceController(
       settingsController: appSettingsController,

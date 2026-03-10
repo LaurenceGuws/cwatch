@@ -59,6 +59,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   final KubernetesContextBinding _contextBinding =
       const KubernetesContextBinding();
   late final KubernetesRuntime _runtime;
+  late final KubernetesTabBuilder _tabBuilder;
   late final TabViewRegistry<WorkspaceTab> _tabRegistry;
 
   late final VoidCallback _settingsListener;
@@ -77,7 +78,6 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
 
   KubernetesContextController get _contextController =>
       _runtime.contextController;
-  KubernetesTabBuilder get _tabBuilder => _runtime.tabBuilder;
   KubernetesWorkspaceController get _workspaceController =>
       _runtime.workspaceController;
   SettingsController get _settingsController => _runtime.settingsController;
@@ -104,12 +104,17 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   @override
   void initState() {
     super.initState();
+    _tabBuilder = const KubernetesTabBuilder(
+      placeholderName: '__k8s_placeholder__',
+      placeholderConfig: '__k8s_placeholder__',
+    );
 
     _runtime = _contextBinding.createRuntime(
       context: context,
       appSettingsController: widget.settingsController,
       keyService: widget.keyService,
       hostsFuture: widget.hostsFuture,
+      tabBuilder: _tabBuilder,
       baseTabBuilder: _createPlaceholderTab,
     );
 
