@@ -70,6 +70,7 @@ Target outcome:
 Target outcome:
 - command execution, parsing, transport, and user-facing errors are isolated
 - docker, kubernetes, ssh, and filesystem integrations have clearer interfaces
+- capability detection and graceful degradation are explicit instead of being treated as exceptional app failure
 
 ### Goal 5: make the rewrite testable
 Target outcome:
@@ -212,11 +213,17 @@ Questions to answer:
 - Where are transport, parsing, and policy mixed today?
 - Which command-running services should become gateways?
 - How should fallback behavior be represented explicitly?
+- Which capabilities are optional convenience integrations versus required product paths?
 
 Deliverables:
 - infra boundary map
 - gateway/repository proposal
 - fallback/error-handling policy doc
+
+Infrastructure capability rule:
+- system CLIs and host config integrations are convenience capabilities, not guaranteed runtime prerequisites
+- when Docker/Kubernetes/SSH CLI integrations are unavailable, the app should degrade specific feature affordances and leave breadcrumbs in the UI/settings rather than behave as if the whole app is broken
+- batteries-included paths, such as built-in SSH support, remain valid first-class feature paths
 
 ### Focus Area F: testing foundations
 Questions to answer:

@@ -37,6 +37,12 @@ Add tests that describe current behavior before structural changes in these area
 - Docker context/container parsing and state shaping
 - Kubernetes dashboard/resource shaping
 
+For SSH, Docker, and Kubernetes paths, characterization tests should assume capability variance:
+- missing system CLIs are expected on some client machines
+- missing CLIs should degrade feature availability, not make the app behave as if startup failed
+- tests should prefer "capability unavailable" behavior over "panic if tool is absent"
+- batteries-included paths such as built-in SSH support remain part of the intended product direction
+
 ### Phase 2: seam-level service tests
 After introducing cleaner boundaries, add focused tests around:
 - command execution gateways
@@ -102,11 +108,13 @@ Add widget coverage for the smallest number of user-critical surfaces:
    - context parsing
    - container parsing
    - error handling and timeout behavior
+   - missing Docker CLI is treated as capability unavailability, not app-fatal failure
 
 9. `kubernetes_dashboard_service_test.dart`
    - CLI/API data shaping
    - warning collection
    - empty/error snapshot behavior
+   - missing CLI or API access degrades to warnings/empty states that UI layers can surface cleanly
 
 10. `resource_parser_test.dart`
    - CPU, memory, disk, processes, network parsing
@@ -241,9 +249,9 @@ Why this is next:
 
 What should wait:
 - `docker_client_service_test.dart`
-  - still valuable, but requires process-runner-driven parsing tests
+  - still valuable, but requires process-runner-driven parsing tests and should explicitly cover missing-CLI capability handling
 - `kubernetes_dashboard_service_test.dart`
-  - still valuable, but broader and more data-heavy
+  - still valuable, but broader, more data-heavy, and should explicitly cover graceful degradation when the configured backend is unavailable
 - `terminal_session_controller_test.dart`
   - still valuable, but likely tied to more lifecycle/setup complexity than `ExplorerOps`
 

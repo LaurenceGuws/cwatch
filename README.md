@@ -53,6 +53,11 @@ Feature modules should own:
 - feature-specific workflows and policies
 - feature-specific dialog content and presentation helpers
 
+Capability rule:
+- system CLIs and host-config integration are optional convenience paths for power users
+- missing Docker/Kubernetes/SSH CLIs should degrade feature availability and leave visible breadcrumbs, not be treated as app-fatal conditions
+- batteries-included implementations, such as built-in SSH support, remain valid product paths
+
 Strict shared-shell rule:
 - each tabbed module must provide an initial placeholder tab as its default workspace state
 - the shell enforces that contract
