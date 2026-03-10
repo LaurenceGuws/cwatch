@@ -619,3 +619,70 @@ This document is serving its purpose if:
 - it turns the vague “AppSettings is too big” complaint into an explicit ownership map
 - it separates persisted workspace state from actual application settings
 - it gives the next split step a concrete basis instead of guesswork
+
+## Current Re-scope
+
+The clearly wrong categories that motivated this hotspot are now addressed at a good checkpoint:
+- `workspace_snapshot`
+- `derived_cache`
+- `session_ui`
+
+What remains in [app_settings.dart](/home/home/personal/cwatch/lib/model/models/app_settings.dart) now falls mainly into:
+- `app_pref`
+- `shell_pref`
+- `infra_config`
+- flattened `feature_pref`
+
+That means the next state-taxonomy question is no longer “remove obviously wrong stuff from root settings.”
+
+The next question is:
+- should the remaining root settings stay as one app-settings model for now
+- or should the next split target be one of the still-broad but conceptually valid clusters
+
+## Recommended Next Hotspot
+
+The best next settings-state hotspot is:
+- feature preference clustering
+
+Why:
+- it is now the largest remaining source of unrelated state sharing one namespace
+- it is broad enough to matter, but no longer conceptually wrong in the same way as workspace/cache/session state
+- it needs a scoped taxonomy/design pass before code changes, or it will become another blind field-by-field extraction
+
+The likely first cluster candidates are:
+- editor preferences
+- terminal preferences
+- explorer preferences
+- server/docker feature preferences
+
+### Task 12.10: scope feature-preference clustering
+Status: queued
+
+Goal:
+- decide whether remaining feature preferences should stay flat in `AppSettings` temporarily
+- or move toward feature-scoped settings sections/models
+
+What this task must answer:
+- which feature-pref groups are cohesive enough to become their own settings sections
+- whether grouping should be model-only first or include controller/binding seams
+- which cluster is the safest first extraction candidate
+
+Done definition:
+- the next feature-pref split candidate is chosen from evidence
+- the target boundary is explicit
+- the first code batch is scoped narrowly enough to land without another root-settings churn pass
+
+### Task 12.11: decide whether shell preferences deserve their own root section
+Status: queued
+
+Goal:
+- determine whether `shell_pref` should remain inside `AppSettings`
+- or whether shell/window preferences now justify a shell-scoped settings model
+
+Why this is second:
+- shell preferences are still app-scope enough that leaving them in `AppSettings` is defensible
+- feature-pref flattening is the more active source of ongoing coupling
+
+Done definition:
+- shell preference ownership is explicitly accepted or queued as a later extraction
+- this decision is documented so later cleanup does not drift
