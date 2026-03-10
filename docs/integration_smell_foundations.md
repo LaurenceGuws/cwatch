@@ -410,6 +410,7 @@ Current hotspot status:
 - the shared capability/breadcrumb contract is now explicit
 - simple optional-capability absence is now clearly a shared empty-state-style concern
 - richer dashboard-unavailable states remain valid feature-local exceptions
+- the capability/breadcrumb hotspot is now at a good checkpoint and should not force Kubernetes-style dashboard guidance into shared shell UI
 
 ## Success Criteria
 

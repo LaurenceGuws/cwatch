@@ -147,7 +147,7 @@ Examples:
 - this hotspot should not try to unify all unavailable/error states
 
 ## Task 14.59: re-scope the capability/breadcrumb hotspot
-Status: queued
+Status: completed
 
 Goal:
 - decide whether there is one more narrow normalization batch worth doing now or whether this hotspot is already at a good checkpoint
@@ -158,3 +158,33 @@ Likely outcomes:
 
 Done definition:
 - the next batch is chosen or the hotspot is checkpointed
+
+Result:
+- the capability/breadcrumb hotspot is now at a good checkpoint
+- there is not a second clear simple adopter worth normalizing right now
+
+Why this is the right stop point:
+- Docker engine picker already proves the shared empty-state-style capability path
+- the next visible unavailable surface is Kubernetes dashboard unavailability
+- that surface is richer, dashboard-level, and correctly belongs to the local-exception side of the contract
+
+What this hotspot has now proved:
+- the capability rule is not just a product statement; it now has an explicit UI contract
+- simple optional-capability absence is a shared shell concern
+- richer feature/dashboard unavailable guidance remains intentionally local
+
+Current checkpoint summary:
+- shared shell capability surfacing should stay narrow
+- `StandardEmptyState` is sufficient for simple optional-capability absence
+- dashboard-level unavailable states should not be flattened into a generic shell component yet
+
+## Task 14.60: choose the next integration-smell move after capability/breadcrumb
+Status: queued
+
+Goal:
+- decide whether to:
+  - checkpoint the whole integration-smell layer and roll up the state
+  - or identify one last high-signal hotspot from the current evidence
+
+Done definition:
+- the next move is chosen explicitly
