@@ -314,22 +314,22 @@ Current SSH auth status:
 - hotspot checkpoint reached
 - remaining work has shifted from feature-layer integration smell to composition/compatibility cleanup
 
-Current next hotspot:
-- explorer shared surface
-
-Current hotspot status:
+Current explorer hotspot status:
 - explorer shared-surface contract is now explicit
 - shared explorer chrome scaffold extraction is complete
 - richer explorer dialogs remain intentional local exceptions
 - explorer hotspot is now at a good checkpoint
 
+Current next hotspot:
+- annotation/codegen candidate selection
+
 Current follow-up doc:
-- [explorer_shared_surface_todo.md](/home/home/personal/cwatch/docs/explorer_shared_surface_todo.md)
+- [annotation_codegen_todo.md](/home/home/personal/cwatch/docs/annotation_codegen_todo.md)
 
 Why this is next:
-- explorer remains one of the richest reusable shell/file subsystems
-- its shared/local contract is still implicit even after ownership cleanup
-- annotation/codegen decisions are still better deferred until this larger shared surface is clearer
+- the main shared-surface hotspots are now at usable checkpoints
+- the repo can now distinguish stable metadata from active runtime behavior more clearly
+- config/schema metadata is the first place where annotation/codegen can reduce glue without creating framework sludge
 
 ## Success Criteria
 

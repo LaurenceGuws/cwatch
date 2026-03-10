@@ -75,6 +75,7 @@ That means:
 - polish and reuse existing shell/shared surfaces instead of silently re-creating them
 - keep local overrides explicit when a subsystem genuinely needs different behavior
 - scope annotation/codegen work only around stable metadata, not active runtime behavior
+- start annotation/codegen from grouped settings/preferences metadata, not view/runtime orchestration
 
 Current first hotspot in that layer:
 - tab chip / tab shell contract

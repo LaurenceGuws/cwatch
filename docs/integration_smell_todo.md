@@ -143,15 +143,17 @@ Queued question:
 - which shared dialog/input/settings helpers should become required defaults and which are only convenience helpers
 
 ### Hotspot D: annotation/codegen candidate selection
+Status: active
 Why it matters:
 - annotations can help reduce integration glue, but only if we start at the right seam
 
-Queued question:
-- which stable metadata target comes first:
-  - config/schema fields
-  - command/menu registrations
-  - tab descriptors
-  - capability declarations
+Current result:
+- the first annotation/codegen target is now chosen from stable metadata rather than runtime behavior
+- grouped settings/preferences models are the first candidate
+
+Current follow-up:
+- [annotation_codegen_todo.md](/home/home/personal/cwatch/docs/annotation_codegen_todo.md)
+- next executable batch: `Task 14.32` config/schema annotation metadata scope
 
 ## Next Re-scope
 
