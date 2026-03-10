@@ -287,6 +287,10 @@ Why this is next:
 - builtin SSH auth coordination is partially duplicated across lower layers
 - the next cleanup value is subsystem ownership, not more shared prompt reuse
 
+Current implementation-ready direction:
+- consolidate builtin auth coordination around `BuiltInSshClientManager`
+- then remove duplicated prompt/decrypt coordination from lower and higher layers
+
 ## Success Criteria
 
 This layer is working when:

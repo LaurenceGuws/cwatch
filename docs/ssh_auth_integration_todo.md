@@ -131,8 +131,8 @@ Why:
 - changing auth flow blindly risks subtle regressions in builtin SSH behavior
 - the first useful step is to define the canonical owner and the first migration seam
 
-## Task 14.19: define the SSH auth ownership contract
-Status: queued
+## Task 14.20: define the SSH auth ownership contract
+Status: completed
 
 Goal:
 - define exactly which SSH layer owns auth state, prompt gating, and unlock coordination
@@ -152,6 +152,150 @@ Done definition:
 - duplicated/overlapping coordination points are identified
 - one concrete first migration seam is chosen
 - the user’s concurrency requirements are recorded as explicit rules
+
+## Contract Result
+
+### Canonical owner
+
+The canonical owner of builtin SSH auth coordination should be:
+- the builtin SSH auth/runtime layer rooted at:
+  - [builtin_ssh_client_manager.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/builtin/builtin_ssh_client_manager.dart)
+  - with state backing in the builtin key/vault subsystem
+
+Not the owner:
+- server/docker UI adapters
+- feature controllers
+- trash/explorer high-level flows
+- feature bindings
+
+### What this owner must control
+
+The builtin SSH auth/runtime owner should control:
+- decrypt-needed detection
+- passphrase-needed detection
+- per-key prompt gating
+- per-key unlock coordination
+- session reuse of unlocked keys
+- passphrase reuse for the same auth target when valid
+
+### What higher layers may still own
+
+Higher layers may still own:
+- how to surface final success/failure messages
+- capability breadcrumbs
+- feature-specific recovery messaging after an auth failure
+
+They must not own:
+- decrypt-in-progress flags
+- passphrase prompt dedupe maps
+- key unlock retry loops
+- manual prompt serialization for builtin SSH
+
+## Overlapping Coordination Points Found
+
+### 1. Builtin client manager
+- [builtin_ssh_client_manager.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/builtin/builtin_ssh_client_manager.dart)
+  - `_pendingDecryptRequests`
+
+This is the strongest candidate for the canonical runtime coordination owner because it already handles:
+- auth exceptions
+- decrypt-needed retry
+- passphrase-needed retry
+- auth coordinator callbacks
+
+### 2. Builtin identity manager
+- [builtin_identity_manager.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/builtin/builtin_identity_manager.dart)
+  - `_pendingDecrypts`
+  - `promptDecrypt`
+
+This layer is too low to be the canonical owner of prompt coordination.
+
+Why:
+- it is an identity-loading layer
+- it should not decide UI prompt serialization policy
+- it should not own fallback prompting behavior once a higher builtin auth runtime exists
+
+### 3. High-level controller-owned auth loop
+- [trash_tab_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/trash_tab_controller.dart)
+
+This is explicitly wrong ownership.
+
+Why:
+- it duplicates decrypt and passphrase retry behavior outside the SSH subsystem
+- it owns decrypt/prompt flags directly
+- it re-creates auth-loop policy in a feature controller
+
+### 4. High-level auth coordinator construction
+- [server_workspace_ui_adapter.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_ui_adapter.dart)
+- [docker_overview_ui_adapter.dart](/home/home/personal/cwatch/lib/controller/adapters/docker_overview_ui_adapter.dart)
+- [home_shell_services_binding.dart](/home/home/personal/cwatch/lib/controller/di/bindings/home_shell_services_binding.dart)
+
+These surfaces still build `SshAuthCoordinator` via [ssh_auth_prompter.dart](/home/home/personal/cwatch/lib/controller/adapters/ssh_auth_prompter.dart).
+
+That is better than feature controllers doing the auth loop themselves, but it still keeps auth wiring too high in the stack.
+
+## First Migration Seam
+
+The first migration seam should be:
+- make `BuiltInSshClientManager` the single runtime owner of builtin auth coordination
+- remove duplicated decrypt gating from `BuiltInSshIdentityManager`
+- stop high-level controllers from owning builtin auth loops
+
+This means the first code batch after this contract should target:
+1. `BuiltInSshIdentityManager`
+2. `BuiltInSshClientManager`
+3. `TrashTabController`
+
+Not first target:
+- server/docker UI adapters
+
+Why:
+- until the builtin runtime owner is singular, moving adapter wiring alone would just hide the same ambiguity
+
+## Specific Ownership Decisions
+
+### Decision 1: `BuiltInSshClientManager` becomes the prompt-gating owner
+
+Reason:
+- it already sits at the retry boundary for SSH operations
+- it already translates builtin auth exceptions into retryable auth flows
+- it already has the stronger auth-context view
+
+### Decision 2: `BuiltInSshIdentityManager` should stop owning prompt coordination
+
+Reason:
+- identity loading should prepare identities, not orchestrate prompt races
+- its pending-decrypt map is overlapping state, not a distinct concern
+
+### Decision 3: `TrashTabController` should consume builtin auth behavior, not reimplement it
+
+Reason:
+- the controller is currently compensating for missing subsystem ownership
+- its decrypt/prompt state should collapse into the builtin SSH layer
+
+### Decision 4: `SshAuthPrompter` is still a UI adapter, not the auth-state owner
+
+Reason:
+- the prompt widget layer can remain a UI adapter
+- but it should feed a lower-layer auth subsystem owner rather than leave state policy spread upward
+
+## Next Executable Batch
+
+### Task 14.21: scope builtin SSH auth consolidation
+Status: queued
+
+Goal:
+- define the smallest code batch that consolidates decrypt/prompt ownership into `BuiltInSshClientManager` without broad SSH API churn
+
+Likely files in scope:
+- [builtin_ssh_client_manager.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/builtin/builtin_ssh_client_manager.dart)
+- [builtin_identity_manager.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/builtin/builtin_identity_manager.dart)
+- [trash_tab_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/trash_tab_controller.dart)
+
+Done definition:
+- the first consolidation slice is chosen
+- duplicated coordination points to remove are named
+- the batch is narrow enough to implement incrementally
 
 ## Explicit Concurrency Rules
 

@@ -508,3 +508,18 @@ Current follow-up doc:
 
 Next executable batch:
 - `Task 14.20`: define the SSH auth ownership contract
+
+### Task 14.20: define the SSH auth ownership contract
+Status: completed
+
+What this task established:
+- `BuiltInSshClientManager` should be the canonical runtime owner of builtin SSH auth coordination
+- `BuiltInSshIdentityManager` currently overlaps that concern and should stop owning prompt/decrypt coordination
+- `TrashTabController` is a concrete example of the wrong ownership pattern and should move back onto the builtin SSH auth path
+- high-level adapter/binding auth coordinator construction is still too high, but it is a later follow-up after builtin runtime ownership is singular
+
+Current follow-up doc:
+- [ssh_auth_integration_todo.md](/home/home/personal/cwatch/docs/ssh_auth_integration_todo.md)
+
+Next executable batch:
+- `Task 14.21`: scope builtin SSH auth consolidation
