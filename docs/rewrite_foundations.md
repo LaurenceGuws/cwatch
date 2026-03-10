@@ -226,6 +226,7 @@ Create separate follow-up docs for:
 - tab assembly ownership TODO (`docs/tab_assembly_ownership_todo.md`)
 - theme registry ownership TODO (`docs/theme_registry_ownership_todo.md`)
 - feature UI adapter ownership TODO (`docs/feature_ui_adapter_ownership_todo.md`)
+- composition root ownership TODO (`docs/composition_root_ownership_todo.md`)
 - dependency rules
 - settings/state split
 - first vertical slice plan
