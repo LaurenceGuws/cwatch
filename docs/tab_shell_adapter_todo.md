@@ -232,3 +232,34 @@ What this proved:
 
 Next executable batch:
 - re-scope whether the next tab-shell normalization should target generic tab command contribution or stop the tab-shell hotspot at this checkpoint
+
+## Re-scope After The First Chip-Building Pass
+
+Result:
+- the tab-shell hotspot is at a good checkpoint
+- generic tab command contribution is still duplicated, but it is now a smaller follow-up seam rather than a blocker for shell polish
+
+Why this is a good checkpoint:
+- the most visible shared shell surface, tab chip assembly, now follows one canonical path across:
+  - WSL
+  - Kubernetes
+  - Docker
+  - Servers
+- the remaining duplication is narrower and lives in command-palette integration rather than visible shell chrome
+- stopping here avoids forcing a second helper too quickly before deciding whether command palette integration should be normalized at the tab-shell level or as part of a broader command-system pass
+
+What remains in this hotspot:
+- generic tab command contribution still repeated:
+  - tab options
+  - rename tab
+  - close tab
+  - new tab
+
+Why it should not be auto-continued blindly:
+- WSL currently does not share the full same command set
+- feature command palette ownership may deserve its own integration pass
+- a rushed helper here could couple the tab shell too tightly to command-palette structure
+
+Recommended next move:
+- treat generic tab command contribution as a queued follow-up
+- shift the active integration-smell focus to the next shared subsystem hotspot

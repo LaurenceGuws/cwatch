@@ -322,3 +322,25 @@ Current follow-up doc:
 
 Next executable batch:
 - re-scope whether the next tab-shell normalization should target generic tab command contribution or stop the hotspot at this checkpoint
+
+### Task 14.10: checkpoint the tab-shell hotspot
+Status: completed
+
+What this task established:
+- the first chip-building normalization pass is enough to checkpoint the hotspot
+- the remaining duplication in generic tab command contribution is real, but no longer urgent enough to block moving to the next shared subsystem
+
+Why this is the right pause point:
+- the shared shell’s most visible tab chrome now has a canonical integration path
+- continuing immediately into command-palette helpers would risk merging two subsystems:
+  - tab shell
+  - command system
+- the next pass should be chosen deliberately instead of turning this hotspot into an endless drain
+
+Current follow-up doc:
+- [tab_shell_adapter_todo.md](/home/home/personal/cwatch/docs/tab_shell_adapter_todo.md)
+
+Next best direction:
+- move to the next integration-smell hotspot, likely:
+  - explorer shared-surface contract
+  - or shared dialog/settings scaffolding

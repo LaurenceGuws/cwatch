@@ -250,6 +250,10 @@ Current implementation checkpoint:
 - Docker now proves the picker-restriction and extra-options adoption case
 - Servers now prove the heaviest current adoption case
 
+Current tab-shell status:
+- first chip-building normalization pass complete
+- generic tab command contribution remains a queued follow-up, not the active blocker
+
 ## Success Criteria
 
 This layer is working when:

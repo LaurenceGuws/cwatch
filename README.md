@@ -94,6 +94,9 @@ Current implementation checkpoint:
 - Docker now uses the same seam for picker restrictions and picker-only options
 - Servers now use the same seam for host mapping, extra default options, and close warnings
 
+Current tab-shell status:
+- first chip-building normalization pass complete
+
 ## Development
 1. `flutter pub get`
 2. `flutter run -d <device>`
