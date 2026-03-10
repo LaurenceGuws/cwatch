@@ -21,7 +21,7 @@ class WindowChromeService {
   Future<void> ensureInitialized(AppSettings settings) async {
     if (_initialized || !_isDesktop) return;
     await windowManager.ensureInitialized();
-    final useSystem = settings.windowUseSystemDecorations;
+    final useSystem = settings.shellPreferences.useSystemDecorations;
     final options = WindowOptions(
       titleBarStyle: useSystem ? TitleBarStyle.normal : TitleBarStyle.hidden,
       windowButtonVisibility: useSystem,
@@ -36,7 +36,7 @@ class WindowChromeService {
 
   Future<void> apply(AppSettings settings) async {
     if (!_isDesktop || !_initialized) return;
-    final useSystem = settings.windowUseSystemDecorations;
+    final useSystem = settings.shellPreferences.useSystemDecorations;
     // Best-effort per platform.
     if (Platform.isMacOS || Platform.isWindows) {
       await windowManager.setTitleBarStyle(

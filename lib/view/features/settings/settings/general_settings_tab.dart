@@ -57,6 +57,7 @@ class GeneralSettingsTab extends StatelessWidget {
             defaultTargetPlatform == TargetPlatform.linux ||
             defaultTargetPlatform == TargetPlatform.windows);
     final spacing = context.appTheme.spacing;
+    final shell = settings.shellPreferences;
     return ListView(
       padding: spacing.inset(horizontal: 1.5, vertical: 1),
       children: [
@@ -262,10 +263,13 @@ class GeneralSettingsTab extends StatelessWidget {
                   subtitle: const Text(
                     'Turn off to use a custom/frameless window (where supported). Requires app restart.',
                   ),
-                  value: settings.windowUseSystemDecorations,
+                  value: shell.useSystemDecorations,
                   onChanged: (value) => settingsController.update(
-                    (current) =>
-                        current.copyWith(windowUseSystemDecorations: value),
+                    (current) => current.copyWith(
+                      shellPreferences: current.shellPreferences.copyWith(
+                        useSystemDecorations: value,
+                      ),
+                    ),
                   ),
                 ),
                 const FormSpacer(),
@@ -275,9 +279,13 @@ class GeneralSettingsTab extends StatelessWidget {
                   subtitle: const Text(
                     'Closing the window hides the app in the system tray.',
                   ),
-                  value: settings.closeToTray,
+                  value: shell.closeToTray,
                   onChanged: (value) => settingsController.update(
-                    (current) => current.copyWith(closeToTray: value),
+                    (current) => current.copyWith(
+                      shellPreferences: current.shellPreferences.copyWith(
+                        closeToTray: value,
+                      ),
+                    ),
                   ),
                 ),
               ],

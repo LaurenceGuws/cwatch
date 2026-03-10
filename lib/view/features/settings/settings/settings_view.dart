@@ -154,7 +154,7 @@ class _SettingsViewState extends State<SettingsView>
               controller: _tabController,
               showTitle: false,
               leading: widget.leading,
-              enableWindowDrag: !settings.windowUseSystemDecorations,
+              enableWindowDrag: !settings.shellPreferences.useSystemDecorations,
             ),
             Expanded(
               child: _controller.isLoaded

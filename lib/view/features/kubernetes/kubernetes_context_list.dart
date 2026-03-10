@@ -718,7 +718,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                 enableWindowDrag: !widget
                     .settingsController
                     .settings
-                    .windowUseSystemDecorations,
+                    .shellPreferences.useSystemDecorations,
                 leading: widget.leading,
                 onReorder: _handleTabReorder,
                 onAddTab: _startEmptyTab,

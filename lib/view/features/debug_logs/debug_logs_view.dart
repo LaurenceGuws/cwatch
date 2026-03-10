@@ -56,7 +56,7 @@ class _DebugLogsViewState extends State<DebugLogsView>
               controller: _tabController,
               showTitle: true,
               leading: widget.leading,
-              enableWindowDrag: !settings.windowUseSystemDecorations,
+              enableWindowDrag: !settings.shellPreferences.useSystemDecorations,
             ),
             Expanded(
               child: TabBarView(

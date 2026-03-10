@@ -595,7 +595,7 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
               enableWindowDrag: !widget
                   .settingsController
                   .settings
-                  .windowUseSystemDecorations,
+                  .shellPreferences.useSystemDecorations,
               leading: widget.leading,
               onReorder: _workspaceController.reorder,
               onAddTab: _startEmptyTab,

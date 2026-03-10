@@ -5,6 +5,7 @@ import 'custom_ssh_host.dart';
 import 'docker_workspace_state.dart';
 import 'editor_preferences.dart';
 import 'explorer_preferences.dart';
+import 'shell_preferences.dart';
 import 'server_workspace_state.dart';
 import 'kubernetes_backend.dart';
 import 'kubernetes_workspace_state.dart';
@@ -137,6 +138,14 @@ class AppSettings {
     rowHeight: explorerRowHeight,
     showBreadcrumbs: explorerShowBreadcrumbs,
   );
+  ShellPreferences get shellPreferences => ShellPreferences(
+    sidebarWidth: shellSidebarWidth,
+    destination: shellDestination,
+    sidebarCollapsed: shellSidebarCollapsed,
+    sidebarPlacement: shellSidebarPlacement,
+    useSystemDecorations: windowUseSystemDecorations,
+    closeToTray: closeToTray,
+  );
 
   AppSettings copyWith({
     ThemeMode? themeMode,
@@ -191,6 +200,7 @@ class AppSettings {
     double? explorerRowHeight,
     bool? explorerShowBreadcrumbs,
     ExplorerPreferences? explorerPreferences,
+    ShellPreferences? shellPreferences,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -198,15 +208,28 @@ class AppSettings {
       zoomFactor: zoomFactor ?? this.zoomFactor,
       serverAutoRefresh: serverAutoRefresh ?? this.serverAutoRefresh,
       serverShowOffline: serverShowOffline ?? this.serverShowOffline,
-      shellSidebarWidth: shellSidebarWidth ?? this.shellSidebarWidth,
-      shellDestination: shellDestination ?? this.shellDestination,
+      shellSidebarWidth:
+          shellPreferences?.sidebarWidth ??
+          shellSidebarWidth ??
+          this.shellSidebarWidth,
+      shellDestination:
+          shellPreferences?.destination ??
+          shellDestination ??
+          this.shellDestination,
       shellSidebarCollapsed:
-          shellSidebarCollapsed ?? this.shellSidebarCollapsed,
+          shellPreferences?.sidebarCollapsed ??
+          shellSidebarCollapsed ??
+          this.shellSidebarCollapsed,
       shellSidebarPlacement:
-          shellSidebarPlacement ?? this.shellSidebarPlacement,
+          shellPreferences?.sidebarPlacement ??
+          shellSidebarPlacement ??
+          this.shellSidebarPlacement,
       windowUseSystemDecorations:
-          windowUseSystemDecorations ?? this.windowUseSystemDecorations,
-      closeToTray: closeToTray ?? this.closeToTray,
+          shellPreferences?.useSystemDecorations ??
+          windowUseSystemDecorations ??
+          this.windowUseSystemDecorations,
+      closeToTray:
+          shellPreferences?.closeToTray ?? closeToTray ?? this.closeToTray,
       appFontFamily: appFontFamily ?? this.appFontFamily,
       appThemeKey: appThemeKey ?? this.appThemeKey,
       uiDensity: uiDensity ?? this.uiDensity,

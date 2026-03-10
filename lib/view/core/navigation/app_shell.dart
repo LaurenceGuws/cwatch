@@ -219,7 +219,7 @@ class _HomeShellState extends State<HomeShell>
       builder: (context, _) {
         final bool useCustomChrome =
             _supportsCustomChrome &&
-            !widget.settingsController.settings.windowUseSystemDecorations;
+            !widget.settingsController.settings.shellPreferences.useSystemDecorations;
         final Widget? windowControls = useCustomChrome
             ? WindowControls(
                 isMaximized: _controller.state.isWindowMaximized,
@@ -307,7 +307,7 @@ class _HomeShellState extends State<HomeShell>
 
   Future<void> _closeWindow() async {
     if (!_supportsCustomChrome) return;
-    if (widget.settingsController.settings.closeToTray) {
+    if (widget.settingsController.settings.shellPreferences.closeToTray) {
       await _hideToTray();
       return;
     }
@@ -346,7 +346,7 @@ class _HomeShellState extends State<HomeShell>
     if (!_supportsCustomChrome) {
       return;
     }
-    if (!widget.settingsController.settings.closeToTray) {
+    if (!widget.settingsController.settings.shellPreferences.closeToTray) {
       unawaited(windowManager.destroy());
       return;
     }

@@ -314,7 +314,7 @@ class _WslViewState extends State<WslView> {
                 enableWindowDrag: !widget
                     .settingsController
                     .settings
-                    .windowUseSystemDecorations,
+                    .shellPreferences.useSystemDecorations,
                 leading: widget.leading != null
                     ? Padding(
                         padding: EdgeInsets.symmetric(

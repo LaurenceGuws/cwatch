@@ -158,12 +158,13 @@ class HomeShellController extends ChangeNotifier {
 
   void _applyShellSettings(AppSettings settings) {
     AppLogger.configureRemoteCommandLogging(enabled: settings.debugMode);
+    final shell = settings.shellPreferences;
     state.selectedDestination =
-        _destinationFromName(settings.shellDestination) ??
+        _destinationFromName(shell.destination) ??
         state.selectedDestination;
-    state.sidebarCollapsed = settings.shellSidebarCollapsed;
+    state.sidebarCollapsed = shell.sidebarCollapsed;
     state.sidebarPlacement = state.placementFromString(
-      settings.shellSidebarPlacement,
+      shell.sidebarPlacement,
     );
   }
 
@@ -224,12 +225,13 @@ class HomeShellController extends ChangeNotifier {
   }) {
     final targetDestination = destination ?? state.selectedDestination;
     final settings = settingsController.settings;
+    final shell = settings.shellPreferences;
     final targetCollapsed = collapsed ?? state.sidebarCollapsed;
     final targetPlacement = placement ?? state.sidebarPlacement;
 
-    if (settings.shellDestination == targetDestination &&
-        settings.shellSidebarCollapsed == targetCollapsed &&
-        settings.shellSidebarPlacement ==
+    if (shell.destination == targetDestination &&
+        shell.sidebarCollapsed == targetCollapsed &&
+        shell.sidebarPlacement ==
             state.placementToString(targetPlacement)) {
       return;
     }
@@ -237,9 +239,11 @@ class HomeShellController extends ChangeNotifier {
     unawaited(
       settingsController.update(
         (current) => current.copyWith(
-          shellDestination: targetDestination,
-          shellSidebarCollapsed: targetCollapsed,
-          shellSidebarPlacement: state.placementToString(targetPlacement),
+          shellPreferences: current.shellPreferences.copyWith(
+            destination: targetDestination,
+            sidebarCollapsed: targetCollapsed,
+            sidebarPlacement: state.placementToString(targetPlacement),
+          ),
         ),
       ),
     );

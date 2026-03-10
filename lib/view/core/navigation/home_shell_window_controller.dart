@@ -47,7 +47,7 @@ class HomeShellWindowController {
     if (!supportsCustomChrome) {
       return;
     }
-    final enable = settings.closeToTray;
+    final enable = settings.shellPreferences.closeToTray;
     if (state.closeToTrayEnabled == enable) {
       return;
     }

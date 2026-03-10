@@ -63,7 +63,7 @@ class HomeShellView extends StatelessWidget {
 
     final bool useCustomChrome =
         supportsCustomChrome &&
-        !settingsController.settings.windowUseSystemDecorations;
+        !settingsController.settings.shellPreferences.useSystemDecorations;
 
     final bool showSidebar = !controller.state.sidebarCollapsed;
     Widget? navigationBar;
