@@ -339,10 +339,16 @@ Current hotspot status:
 - the annotation/codegen hotspot is now at a good checkpoint
 - runtime/app-lifecycle metadata such as restart requirements remains explicitly deferred until after the first descriptor output exists
 
+Current next hotspot:
+- shared list/menu/settings scaffolding
+
+Current follow-up doc:
+- [shared_scaffolding_todo.md](/home/home/personal/cwatch/docs/shared_scaffolding_todo.md)
+
 Why this is next:
-- the main shared-surface hotspots are now at usable checkpoints
-- the repo can now distinguish stable metadata from active runtime behavior more clearly
-- config/schema metadata is the first place where annotation/codegen can reduce glue without creating framework sludge
+- the major tab/dialog/explorer/auth/metadata hotspots are now at good checkpoints
+- shared list/table/menu/settings-section surfaces are still under-documented and easy to shadow locally
+- shell polish now depends more on making those canonical shared surfaces explicit than on another metadata pass
 
 ## Success Criteria
 

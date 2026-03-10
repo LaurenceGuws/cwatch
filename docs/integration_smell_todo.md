@@ -167,6 +167,16 @@ Current follow-up:
 - `Task 14.43` re-scope the annotation/codegen track is complete
 - annotation/codegen hotspot is now checkpointed
 
+### Hotspot E: shared list/menu/settings scaffolding
+Status: active
+Why it matters:
+- this is still one of the least explicit shared shell subsystems
+- generic list/table scaffolding, context menus, and settings section layout are easy to shadow locally
+- shell polish will keep drifting if these surfaces stay implicit
+
+Queued question:
+- which shared list/menu/settings primitives should become canonical defaults, and which current feature-local variants are valid exceptions
+
 ## Next Re-scope
 
 ### Task 14.2: choose the first normalization hotspot

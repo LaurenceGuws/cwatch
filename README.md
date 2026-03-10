@@ -99,10 +99,10 @@ Current tab-shell status:
 - first chip-building normalization pass complete
 
 Current next integration hotspot:
-- explorer shared surface
+- shared list/menu/settings scaffolding
 
 Current follow-up doc:
-- `docs/explorer_shared_surface_todo.md`
+- `docs/shared_scaffolding_todo.md`
 
 ## Development
 1. `flutter pub get`
