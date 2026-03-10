@@ -20,7 +20,7 @@ import 'package:cwatch/view/shared/widgets/standard_empty_state.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
 import 'docker_lists.dart';
 import 'docker_shared.dart';
-import 'docker_overview_controller.dart';
+import 'package:cwatch/controller/controllers/docker_overview_controller.dart';
 import 'package:cwatch/controller/adapters/docker_overview_ui_adapter.dart';
 import 'package:cwatch/controller/controllers/docker_overview_actions_controller.dart';
 import 'package:cwatch/model/features/docker/services/container_distro_manager.dart';

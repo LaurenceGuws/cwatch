@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-import 'package:cwatch/model/models/docker_container.dart';
-import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/features/docker/services/docker_client_service.dart';
 import 'package:cwatch/model/features/docker/services/docker_engine_service.dart';
+import 'package:cwatch/model/models/docker_container.dart';
+import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 
@@ -73,7 +73,6 @@ class DockerOverviewController extends ChangeNotifier {
         error: error,
         stackTrace: stackTrace,
       );
-      // On error, fall back to full refresh
       refresh();
     }
   }

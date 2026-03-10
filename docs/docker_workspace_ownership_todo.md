@@ -64,7 +64,7 @@ We are trying to make one ownership rule clearer:
 ## First Batch Candidate
 
 ### Task 3.1: inspect docker overview ownership seam
-Status: pending
+Status: completed
 
 Why this is first:
 - `DockerOverviewActionsController` and `DockerOverviewBinding` currently depend on `view/features/docker/*`
@@ -99,7 +99,29 @@ Verification:
 - manual smoke check of docker overview open-tab actions
 
 ### Task 3.2: re-scope after docker overview cleanup
+Status: completed
+
+### Task 3.3: inspect docker tab builder ownership
 Status: pending
+
+Why this is next:
+- `DockerOverviewController` now lives under `controller/controllers/`
+- the remaining docker-specific `controller -> view` seam is `docker_tab_builder.dart`
+- this is now a narrower question than the original overview knot
+
+Actions:
+- inspect `docker_tab_builder.dart` and the controller/binding call sites that depend on it
+- decide whether the builder is presentation-only or mixed workflow/presentation
+- make one narrow ownership correction or record the exception explicitly
+
+Done definition:
+- the remaining docker-specific `controller -> view` dependency is either reduced or clearly justified
+- docker overview ownership is clearer than it is today
+
+Verification:
+- `rg -n "package:cwatch/view/features/docker" lib/controller/controllers lib/controller/di/bindings`
+- `flutter analyze`
+- manual smoke check of docker overview open-tab actions
 
 Purpose:
 - decide whether the next docker/workspace batch should target:
@@ -114,6 +136,12 @@ Done definition:
 
 Verification:
 - follow-up task added before the next docker/workspace structural change starts
+
+Result of re-scope:
+- `DockerOverviewController` moved out of `view/` into `controller/controllers/`
+- controller/binding ownership for docker overview state is clearer than before
+- the remaining docker-specific controller/binding dependency on `view/` is `docker_tab_builder.dart`
+- workspace-core ownership still stays out of this batch
 
 ## Later Work In This Hotspot
 
@@ -138,9 +166,10 @@ Track here when ready:
 
 | Item | Scope | Status | Done When |
 | --- | --- | --- | --- |
-| 3.1 | Docker overview ownership seam | pending | one misleading docker overview `controller -> view` dependency is removed |
-| 3.2 | Docker/workspace re-scope | pending | next batch is written from what we learned in 3.1 |
-| 3.x | Docker tab/workspace follow-up | queued | re-scoped after 3.1 |
+| 3.1 | Docker overview ownership seam | completed | one misleading docker overview `controller -> view` dependency is removed |
+| 3.2 | Docker/workspace re-scope | completed | next batch is written from what we learned in 3.1 |
+| 3.3 | Docker tab builder ownership | pending | remaining docker-specific controller/binding dependency is reduced or justified |
+| 3.x | Docker tab/workspace follow-up | queued | re-scoped after 3.3 |
 
 ## Completion Metric
 

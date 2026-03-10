@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
 import 'package:cwatch/model/features/docker/services/docker_client_service.dart';
 import 'package:cwatch/view/features/docker/docker_tab_builder.dart';
-import 'package:cwatch/view/features/docker/widgets/docker_overview_controller.dart';
+import 'package:cwatch/controller/controllers/docker_overview_controller.dart';
 import 'package:cwatch/model/services_infra/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
