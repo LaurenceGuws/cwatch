@@ -213,7 +213,16 @@ Current state:
 - shell module descriptors live with the shell
 - controller-side feature module entrypoint wrappers are gone
 - `HomeShellServicesBinding` no longer imports from `view/`
-- the next shell/module work should be re-scoped from the remaining registry/binding ambiguity, not guessed now
+- the main remaining `controller -> view` imports are now outside the narrow shell/module seam
+
+Decision:
+- this hotspot is at a good stopping point
+- the next dependency-direction work should shift to feature/workspace ownership, not continue forcing shell-only cleanup
+
+Likely next targets:
+- docker overview bindings and docker view-side helper ownership
+- workspace core types that still depend on view-owned tab classes
+- explorer adapters/controllers that still depend on concrete view-local helper types
 
 ## Completion Metric
 

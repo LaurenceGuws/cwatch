@@ -238,8 +238,9 @@ Done definition for starting this hotspot:
 - we can describe the next batch concretely from current code, not guesses
 
 Current next-step note:
-- the next deep-dive should target shell/module ownership (`docs/shell_module_ownership_todo.md`)
+- the shell/module ownership deep-dive reached a good checkpoint (`docs/shell_module_ownership_todo.md`)
 - `lib/model` now has no `package:cwatch/controller/` imports
+- the next dependency-direction deep-dive should target docker/workspace ownership seams
 
 ### Docker feature shell
 Track here when ready:
