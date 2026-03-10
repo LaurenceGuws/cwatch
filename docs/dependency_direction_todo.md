@@ -240,8 +240,9 @@ Done definition for starting this hotspot:
 Current next-step note:
 - shell/module ownership reached a checkpoint (`docs/shell_module_ownership_todo.md`)
 - docker overview ownership reached a checkpoint (`docs/docker_workspace_ownership_todo.md`)
+- workspace-core tab ownership reached a checkpoint (`docs/workspace_core_ownership_todo.md`)
 - `lib/model` now has no `package:cwatch/controller/` imports
-- the next dependency-direction batch is workspace-core tab ownership, tracked in `docs/workspace_core_ownership_todo.md`
+- the next dependency-direction batch should be re-scoped from the remaining unresolved seams
 
 ### Docker feature shell
 Track here when ready:
@@ -279,7 +280,8 @@ Current state:
 - explorer hotspot model-side dependency cleanup is complete
 - shell/module ownership reached a checkpoint
 - docker overview ownership reached a checkpoint
-- the next dependency-direction work is workspace-core tab ownership
+- workspace-core tab ownership reached a checkpoint
+- the next dependency-direction work should move to the next unresolved hotspot
 
 ## Completion Metric
 

@@ -135,7 +135,7 @@ Result of Task 4.3:
 - `lib/view/core/tabs/tab_host.dart` is now only a compatibility export and not an ownership source
 
 ### Task 4.4: re-scope workspace-core follow-up
-Status: queued
+Status: completed
 
 Purpose:
 - decide whether the next workspace-core batch should target:
@@ -150,6 +150,21 @@ Done definition:
 
 Verification:
 - follow-up task added before the next workspace-core structural change starts
+
+Result of Task 4.4:
+- no remaining code imports `view/core/tabs/tab_host.dart`
+- the compatibility export in `lib/view/core/tabs/tab_host.dart` is now optional cleanup rather than a live ownership dependency
+- workspace-core no longer has active `controller -> view` ownership pressure in this seam
+- this hotspot is at a good checkpoint and the next dependency-direction work should move to a different area
+
+### Workspace-core checkpoint
+Status: completed
+
+Outcome:
+- reusable tab option state moved out of `tab_chip.dart`
+- `WorkspaceTab` no longer depends on a widget file
+- `TabHostController` moved out of `view/core/tabs/`
+- workspace-core controller state no longer depends on `view/` for these tab primitives
 
 ## Later Work In This Hotspot
 
@@ -177,8 +192,8 @@ Track here when ready:
 | 4.1 | Tab option state extraction | completed | `WorkspaceTab` no longer imports from `tab_chip.dart` |
 | 4.2 | Workspace-core re-scope | completed | next task is written from what we learn in 4.1 |
 | 4.3 | Tab host controller ownership | completed | `TabbedWorkspaceController` no longer depends on `view/core/tabs/tab_host.dart`, or the exception is justified |
-| 4.4 | Workspace-core re-scope | queued | next step is written from what we learn in 4.3 |
-| 4.x | Workspace-core follow-up | queued | re-scoped after 4.4 |
+| 4.4 | Workspace-core re-scope | completed | next step is written from what we learn in 4.3 |
+| 4.x | Workspace-core follow-up | queued | only if a new workspace-core ownership seam appears |
 
 ## Completion Metric
 
