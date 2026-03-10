@@ -189,7 +189,8 @@ Current result:
 Current follow-up:
 - [shared_scaffolding_todo.md](/home/home/personal/cwatch/docs/shared_scaffolding_todo.md)
 - `Task 14.45` shared scaffolding contract is complete
-- `Task 14.46` first normalization batch scope is queued
+- `Task 14.46` first normalization batch scope is complete
+- `Task 14.47` first normalization batch implementation is queued
 
 ## Next Re-scope
 

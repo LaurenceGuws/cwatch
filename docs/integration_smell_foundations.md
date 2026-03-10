@@ -358,7 +358,9 @@ Current hotspot status:
   - `ActionPicker`
   - `StandardEmptyState`
   - `SectionNavBar`
-- the first normalization batch is now being scoped around settings section and empty-state scaffolding
+- the first normalization batch is now scoped around:
+  - empty-state normalization
+  - thin settings-section wrapper cleanup
 
 ## Success Criteria
 

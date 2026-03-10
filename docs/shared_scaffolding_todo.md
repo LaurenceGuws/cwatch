@@ -176,7 +176,7 @@ Examples of valid local exceptions:
 - empty-state and section-card presentation language is split between shared shell widgets and local feature wrappers
 
 ## Task 14.46: scope the first shared scaffolding normalization batch
-Status: queued
+Status: completed
 
 Goal:
 - choose the smallest normalization batch that improves shared shell polish without flattening feature-specific dashboards or tables
@@ -192,3 +192,64 @@ Why this is first:
 Done definition:
 - the first normalization batch is chosen
 - the batch is narrower than “unify all lists and menus”
+
+Result:
+- the first normalization batch should target:
+  - empty-state normalization
+  - thin settings-section wrapper cleanup
+
+### Why these two win first
+
+- both are clearly shell-owned presentation seams
+- both already have canonical shared primitives in the repo
+- both have visible local shadowing that is narrow and easy to reason about
+- neither requires a risky rewrite of richer dashboards, tables, or menu logic
+
+### Concrete first targets
+
+#### Empty-state normalization
+
+Canonical shared primitive:
+- `StandardEmptyState`
+
+Current local shadowing to start with:
+- `docker_engine_picker.dart` local `EmptyState`
+
+Rule for this batch:
+- simple “nothing available / unavailable / refresh” states should use `StandardEmptyState`
+- local empty-state widgets are valid only when they add meaningfully richer domain guidance or interaction
+
+#### Thin settings-section wrapper cleanup
+
+Canonical shared primitive:
+- `SettingsSection`
+
+Current thin wrappers to start with:
+- `EditorSettingsSection`
+- `TerminalSettingsSection`
+
+Rule for this batch:
+- wrappers that only provide a fixed title/description around one controls widget should be treated as cleanup candidates
+- wrappers remain valid only if they add real behavior, composition, or multi-section orchestration
+
+### Explicitly deferred from this first batch
+
+- `StructuredDataTable` adoption pressure
+- feature dashboard card unification such as Docker/Server `SectionCard`
+- domain-specific action/menu surfaces
+- richer domain-specific empty states with custom guidance
+
+## Task 14.47: implement first shared scaffolding normalization batch
+Status: queued
+
+Goal:
+- remove the narrowest local shadowing around shell-owned empty-state and settings-section scaffolding
+
+First code targets:
+- replace Docker engine picker's local `EmptyState` with the shared empty-state path or a thin wrapper over it
+- remove or justify the thin `EditorSettingsSection` and `TerminalSettingsSection` wrappers
+
+Done definition:
+- the first empty-state shadowing case is normalized
+- the first thin settings-section wrappers are removed or explicitly justified
+- the shared scaffolding contract is stronger in code, not only in docs
