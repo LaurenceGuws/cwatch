@@ -1,3 +1,6 @@
+Status: active proposal
+Purpose: scoped plan for the Zide migration lane only. Not part of the main cleanup architecture baseline.
+
 # Zide FFI Migration (0 -> Hero)
 
 Owner: cwatch app team

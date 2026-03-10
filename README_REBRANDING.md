@@ -1,3 +1,6 @@
+Status: archive candidate
+Purpose: branding and product-positioning proposal. This is not the current repository architecture source of truth.
+
 # Inodics
 
 **The science of infrastructure as files.**
@@ -14,7 +17,7 @@ Modern infrastructure is fragmented across servers, container engines, cluster c
 
 This enables:
 
-* cross-module resource integration (servers ” containers ” clusters)
+* cross-module resource integration (servers ï¿½ containers ï¿½ clusters)
 * shared terminal and file workspaces
 * seamless I/O interoperability across environments
 * OS-independent clients operating on Linux-native primitives
@@ -138,7 +141,7 @@ The products integration power comes from modeling remote resources using **vir
 
 * 2-space indentation
 * Trailing commas in widgets
-* Ordered imports: SDK ’ third-party ’ project
+* Ordered imports: SDK ï¿½ third-party ï¿½ project
 * No UI logic inside services or repositories
 * All cross-environment interactions should preserve file/inode-centric semantics
 * `flutter analyze` must pass before commits

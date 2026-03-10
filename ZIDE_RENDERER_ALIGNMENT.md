@@ -1,3 +1,6 @@
+Status: active reference
+Purpose: renderer alignment guidance for the Zide migration lane only. Not a general app architecture document.
+
 # Zide Renderer Alignment (cwatch migration)
 
 Purpose: keep cwatch migration terminal/editor rendering aligned with Zide's renderer architecture and reference repos, instead of drifting into local-only decisions.

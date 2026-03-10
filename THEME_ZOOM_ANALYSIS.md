@@ -1,3 +1,6 @@
+Status: analysis snapshot
+Purpose: zoom/theme analysis for a specific UI improvement track. Validate against current code before implementation work.
+
 # Theme & Zoom Integration Analysis
 
 ## Current State

@@ -1,221 +1,109 @@
 # Testing Roadmap
 
-This document outlines recommended tests to add to improve code coverage and reliability.
+Status: active
+Purpose: define the minimum testing strategy needed to support the structural cleanup safely.
 
-## Priority 1: Critical Business Logic Services
+## Current State
+- The repository currently has no Dart tests under `test/`.
+- A rewrite without characterization coverage will be high-risk.
+- The first goal is not broad coverage. The first goal is to capture current behavior around the highest-risk workflows.
 
-### 1. **ExplorerOps** (`lib/model/services/explorer_ops.dart`)
-**Why**: Core file explorer operations - path loading, navigation, search, selection
-**Test Cases**:
-- `loadPath()` - normal loading, error handling, force reload, skip logic
-- `refreshCurrentPath()` - refresh logic, error handling
-- `navigateBack()` - history navigation
-- `navigateForward()` - forward navigation
-- `searchPath()` - search functionality, cancellation
-- Selection management
-- Path history management
+## Testing Strategy For Cleanup Work
 
-### 2. **PathLoadingService** (`lib/model/services/path_loading_service.dart`)
-**Why**: Handles all path loading logic, caching, error recovery
-**Test Cases**:
-- `loadPath()` - normal load, error handling, path normalization
-- `refreshPath()` - refresh logic
-- `searchPath()` - search with various options
-- `listPath()` - directory listing
-- Path normalization edge cases
-- Cache hydration
+### Phase 1: characterization coverage
+Add tests that describe current behavior before structural changes in these areas:
+- workspace persistence
+- SSH terminal session lifecycle
+- remote file explorer navigation and operations
+- Docker context/container parsing and state shaping
+- Kubernetes dashboard/resource shaping
 
-### 3. **FileEditingService** (`lib/model/services/file_editing_service.dart`)
-**Why**: File editing, caching, sync operations - critical for data integrity
-**Test Cases**:
-- `openEditor()` - file opening, error handling
-- `openLocally()` - local file session creation
-- `syncLocalChanges()` - sync logic, merge conflicts
-- `saveFile()` - file saving, error handling
-- Cache management
-- Merge conflict resolution
+### Phase 2: seam-level service tests
+After introducing cleaner boundaries, add focused tests around:
+- command execution gateways
+- parsing adapters
+- feature coordinators/view-models
+- settings/state split logic
 
-### 4. **ExplorerClipboard** (`lib/model/services/explorer_clipboard.dart`)
-**Why**: Clipboard operations for copy/cut/paste - user-facing feature
-**Test Cases**:
-- `setEntry()` / `setEntries()` - setting clipboard content
-- `clear()` - clearing clipboard
-- `notifyCutCompleted()` - cut operation completion
-- `notifyCutsCompleted()` - multiple cuts
-- Listener notifications
-- Entry retrieval
+### Phase 3: targeted widget tests
+Add widget coverage for the smallest number of user-critical surfaces:
+- file explorer list interactions
+- terminal/editor shell surfaces
+- key dialogs that coordinate destructive or persistence-heavy actions
 
-## Priority 2: Controllers (State Management)
+## Initial Backlog
 
-### 5. **TerminalSessionController** (`lib/controller/controllers/terminal_session_controller.dart`)
-**Why**: Manages terminal sessions - critical for SSH terminal functionality
-**Test Cases**:
-- `start()` - session creation, output subscription
-- `write()` - writing to terminal
-- `resize()` - terminal resizing
-- `reset()` - session cleanup
-- `dispose()` - resource cleanup
-- Error handling
+### Priority 1
+1. `workspace_persistence_test.dart`
+   - persist/restore behavior
+   - signature comparisons
+   - error handling on invalid saved state
 
-### 6. **ResourcesController** (`lib/controller/controllers/resources_controller.dart`)
-**Why**: Manages server resource data (CPU, memory, disk, processes)
-**Test Cases**:
-- Resource data updates
-- Error handling
-- Listener notifications
-- Data refresh logic
+2. `terminal_session_controller_test.dart`
+   - start/write/resize/reset/dispose
+   - output subscription behavior
+   - error propagation
 
-### 7. **DockerViewController** (`lib/controller/controllers/docker_view_controller.dart`)
-**Why**: Manages Docker workspace state and operations
-**Test Cases**:
-- Workspace state management
-- Tab management
-- Error handling
-- State persistence
+3. `explorer_ops_test.dart`
+   - path loading and normalization
+   - navigation history
+   - search behavior
+   - selection state changes
 
-### 8. **KubernetesResourcesController** (`lib/controller/controllers/kubernetes_resources_controller.dart`)
-**Why**: Manages Kubernetes resource data
-**Test Cases**:
-- Resource data updates
-- Error handling
-- Listener notifications
-- Data refresh logic
+4. `path_loading_service_test.dart`
+   - cached load vs forced load
+   - list/search behavior
+   - malformed/partial results
 
-## Priority 3: Infrastructure & Utilities
+5. `file_editing_service_test.dart`
+   - open/save/sync flows
+   - cache behavior
+   - merge conflict handling
 
-### 9. **ResourceParser** (`lib/model/services/resource_parser.dart`)
-**Why**: Parses complex resource data from SSH output - parsing bugs are hard to catch
-**Test Cases**:
-- `collectSnapshot()` - full snapshot collection
-- CPU parsing
-- Memory parsing
-- Disk usage parsing
-- Process tree parsing
-- Network stats parsing
-- Error handling for malformed data
-- Edge cases (empty data, missing sections)
+### Priority 2
+6. `docker_client_service_test.dart`
+   - context parsing
+   - container parsing
+   - error handling and timeout behavior
 
-### 10. **Workspace Persistence** (`lib/controller/core/workspace/workspace_persistence.dart`)
-**Why**: Persists workspace state - data integrity critical
-**Test Cases**:
-- `persist()` - saving workspace state
-- `restore()` - restoring workspace state
-- Signature comparison
-- Tab state extraction
-- Error handling
+7. `kubernetes_dashboard_service_test.dart`
+   - CLI/API data shaping
+   - warning collection
+   - empty/error snapshot behavior
 
-### 11. **SSH Key Service** (`lib/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart`)
-**Why**: Manages SSH keys - security critical
-**Test Cases**:
-- `addKey()` - adding keys with/without passphrase
-- `unlock()` - key unlocking
-- `listKeys()` - listing keys
-- `removeKey()` - key removal
-- Error handling
-- Encryption/decryption
+8. `resource_parser_test.dart`
+   - CPU, memory, disk, processes, network parsing
+   - malformed input handling
 
-### 12. **ExplorerTrashManager** (`lib/model/services_infra/filesystem/explorer_trash_manager.dart`)
-**Why**: Manages trash operations - data safety
-**Test Cases**:
-- `moveToTrash()` - moving files to trash
-- `restoreFromTrash()` - restoring files
-- `emptyTrash()` - clearing trash
-- Trash entry management
-- Error handling
+9. `explorer_trash_manager_test.dart`
+   - move/restore/empty behavior
+   - restore event handling
 
-## Priority 4: Integration & Edge Cases
+### Priority 3
+10. `file_explorer_tab_test.dart`
+    - loading/error/render states
+    - search activation and key interaction
 
-### 13. **FileOperationsService - Extended Tests**
-**Why**: Current test covers basics, but needs more edge cases
-**Additional Test Cases**:
-- Concurrent operations
-- Cross-host operations
-- Large file transfers
-- Error recovery
-- Cancellation
-- Progress callbacks
-
-### 14. **RemoteShellService Implementations**
-**Why**: Test actual SSH implementations
-**Test Cases**:
-- `ProcessRemoteShellService` - process-based SSH
-- `BuiltInRemoteShellService` - built-in SSH
-- Connection handling
-- Timeout handling
-- Error recovery
-
-### 15. **UI Adapters**
-**Why**: Test UI adapter logic (mocking BuildContext)
-**Test Cases**:
-- `FileOperationsUiHandler` - file operation dialogs
-- `ExplorerUiAdapter` - explorer UI operations
-- Error message display
-- Dialog handling
-
-## Priority 5: Widget Tests
-
-### 16. **Critical Widgets**
-**Why**: Test UI behavior and user interactions
-**Widgets to Test**:
-- File explorer list
-- Terminal tab
-- Editor tab
-- Settings views
-- Dialog widgets
-
-## Testing Strategy
-
-### Unit Tests (Current Focus)
-- Test services in isolation with mocks/fakes
-- Test controllers with mocked dependencies
-- Test utilities and parsers
-
-### Integration Tests (Future)
-- Test service interactions
-- Test controller-service integration
-- Test workspace persistence end-to-end
-
-### Widget Tests (Future)
-- Test critical UI components
-- Test user interactions
-- Test state updates
+11. `settings_split_characterization_test.dart`
+    - add once settings responsibilities begin to move out of `AppSettings`
 
 ## Test Organization
 
-```
+Recommended structure:
+
+```text
 test/
-├── services/                    # Business logic services
-│   ├── explorer_ops_test.dart
-│   ├── path_loading_service_test.dart
-│   ├── file_editing_service_test.dart
-│   ├── explorer_clipboard_test.dart
-│   └── resource_parser_test.dart
-├── controller/                 # Controllers
-│   ├── terminal_session_controller_test.dart
-│   ├── resources_controller_test.dart
-│   ├── docker_view_controller_test.dart
-│   └── kubernetes_resources_controller_test.dart
-├── services_infra/             # Infrastructure
-│   ├── ssh/
-│   │   └── builtin_ssh_key_service_test.dart
-│   └── filesystem/
-│       └── explorer_trash_manager_test.dart
-└── core/                       # Core functionality
-    └── workspace/
-        └── workspace_persistence_test.dart
+  core/
+  controller/
+  model/
+  services_infra/
+  widgets/
 ```
 
-## Coverage Goals
+Keep tests close to the layer they validate, but favor business behavior over implementation detail.
 
-- **Current**: ~5% (1 test file)
-- **Phase 1** (Priority 1-2): ~40% coverage
-- **Phase 2** (Priority 3): ~60% coverage
-- **Phase 3** (Priority 4-5): ~80% coverage
-
-## Notes
-
-- Follow existing test patterns (fakes, mocks)
-- Use `flutter_test` package
-- Test error paths as well as happy paths
-- Focus on business logic, not implementation details
-- Keep tests fast and isolated
+## Rules For Rewrite Work
+- Add characterization tests before changing high-risk behavior.
+- When fixing a bug discovered during cleanup, add the regression test in the same change when practical.
+- Prefer fast fakes over heavyweight integration harnesses for early coverage.
+- Keep tests deterministic; avoid depending on live SSH, Docker, or Kubernetes environments in routine test runs.

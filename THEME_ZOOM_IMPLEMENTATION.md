@@ -1,3 +1,6 @@
+Status: implementation snapshot
+Purpose: notes for the theme/zoom work stream. Validate against current code before using as a source of truth.
+
 # Theme & Zoom Integration - Implementation Summary
 
 ## ✅ Phase 1: Core Theme System (Completed)

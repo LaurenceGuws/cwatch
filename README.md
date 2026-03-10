@@ -1,54 +1,57 @@
 # CWatch
 
-Cross‑platform Flutter desktop app for managing servers, Docker, Kubernetes contexts, and remote files over SSH.
+Cross-platform Flutter desktop app for managing servers, Docker engines, Kubernetes contexts, remote files, and terminal/editor workspaces.
 
-## Highlights
-- **Servers**: SSH connectivity, resource panels, process tree, logs, and a remote file explorer with editor + cache.
-- **Docker**: engine picker, remote context dashboards, resource lists, and container terminals.
-- **Kubernetes**: context picker + dashboard views backed by the CLI (`kubectl`) service.
-- **WSL (Windows only)**: WSL distribution views via `lib/view/features/wsl/`.
-- **Debug Logs**: in‑app log viewer for tracing SSH/Docker/K8s activity.
-- **Terminal & Editor**: PTY-backed terminal tabs and a remote file editor with syntax detection and theme presets.
+## Current Status
 
-## Code Map
-- `lib/view/app/` app bootstrap (`app_bootstrap.dart`), navigation shell (`app_shell.dart`).
-- `lib/view/features/` UI modules: `servers/`, `docker/`, `kubernetes/`, `wsl/`, `debug_logs/`, `settings/`.
-- `lib/view/shared/` shared widgets and tab components (terminal, editor, file explorer).
-- `lib/controller/` controllers, UI adapters, DI bindings, repositories.
-  - `controllers/` state management (ChangeNotifier-based).
-  - `adapters/` UI adapters for dialogs, snackbars, menus.
-  - `di/bindings/` dependency injection bindings.
-  - `repositories/` data access layer.
-- `lib/model/` domain models, services, and infrastructure.
-  - `models/` data models (SSH hosts, Docker containers, K8s resources, etc.).
-  - `services/` domain services (file operations, explorer ops, etc.).
-  - `services_infra/` infrastructure services (SSH, logging, settings, etc.).
-    - `ssh/` SSH backends, vault/keys, host key handling, SFTP transfers, terminal sessions.
-  - `shared/` cross-cutting utilities (themes, shortcuts, gestures).
-- `assets/` theme presets and media used by terminal/editor UI.
-- `packages/` patched deps: `xterm_patched`, `flutter_code_editor_patched`.
+The repository is in an active cleanup and structural rewrite planning phase.
 
-## Architecture
-- **UI Layer** (`lib/view/`): Flutter widgets and views. Only communicates with controllers.
-- **Controller Layer** (`lib/controller/`): State management and orchestration.
-  - Controllers extend `ChangeNotifier` for reactive state.
-  - Controllers orchestrate services and call UI adapters for dialogs/snackbars/menus.
-  - UI adapters are the only layer touching Flutter UI APIs (`BuildContext`, dialogs, etc.).
-- **Model Layer** (`lib/model/`): Domain logic and data.
-  - Services contain pure domain logic (no Flutter imports).
-  - Repositories encapsulate data access (filesystem, SSH, caches, config).
-  - Models are plain data classes.
-- **Shared** (`lib/model/shared/`): Cross-cutting utilities (themes, shortcuts, gestures).
+The current codebase is organized into `view`, `controller`, and `model` folders, but those layers are not cleanly separated yet. Treat the current structure as an implementation snapshot, not as a completed architecture.
 
-## SSH Backends
-- **ProcessRemoteShellService**: uses system `ssh`/`scp` for command and file ops.
-- **BuiltInRemoteShellService**: pure Dart SSH with vault‑backed keys, host key verification, and SFTP.
+Primary planning document:
+- `docs/rewrite_foundations.md`
+
+## Features
+- Servers over SSH: host list, connectivity, resource panels, process tree, remote terminals, and remote file explorer flows.
+- Docker: context selection, remote engine discovery, resource lists, overview/dashboard flows, and container terminal support.
+- Kubernetes: context selection, dashboard/resource views, and CLI/API-backed data collection.
+- WSL: Windows-only WSL views and shell support.
+- Debug Logs: in-app log inspection for SSH, Docker, and Kubernetes activity.
+- Shared Tabs: terminal, remote editor, file explorer, trash, and settings surfaces used across modules.
+
+## Repository Map
+- `lib/view/`: Flutter widgets, feature screens, app shell, shared tab UI, and feature workspace views.
+- `lib/controller/`: controllers, UI adapters, workspace orchestration, feature bindings, and repositories.
+- `lib/model/`: data models, domain services, infrastructure services, SSH/Kubernetes/file handling, and shared non-UI utilities.
+- `assets/`: theme presets and other declared assets.
+- `packages/`: patched dependencies (`xterm_patched`, `flutter_code_editor_patched`).
+- `docs/`: active planning and analysis documents for the cleanup/rewrite effort.
+
+## Architectural Reality
+
+Today:
+- feature entrypoints often construct services and manage orchestration directly
+- UI and workflow logic are mixed in several large widgets
+- settings act as a broad shared dependency surface
+- infrastructure concerns and feature policy are not fully separated
+- test coverage is currently inadequate for a large rewrite
+
+This is the reason the repository is being documented and re-scoped before deeper refactors begin.
 
 ## Development
-1) Install Flutter SDK.
-2) `flutter pub get`
-3) `flutter run -d <device>`
-4) `flutter analyze` (required after each change)
-5) `flutter test` or `flutter test --coverage`
+1. `flutter pub get`
+2. `flutter run -d <device>`
+3. `flutter analyze`
+4. `flutter test`
 
-Formatting: 2‑space indentation, trailing commas in widgets, and ordered imports (SDK → third‑party → project).
+## Working Conventions
+- 2-space indentation.
+- Prefer trailing commas in widget trees.
+- Import order: SDK, third-party, project.
+- Use snake_case for Dart filenames.
+- Keep docs honest: if architecture changes, update the relevant planning documents in the same change.
+
+## Related Documents
+- `AGENTS.md`: repository-specific working rules.
+- `docs/rewrite_foundations.md`: current high-level findings, focus areas, and work sequence.
+- `TESTING_ROADMAP.md`: current testing backlog and rewrite-support testing priorities.

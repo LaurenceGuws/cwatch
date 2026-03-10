@@ -1,3 +1,6 @@
+Status: proposal
+Purpose: feature-specific UI proposal for Docker remote scan progress.
+
 # Docker Remote Scan UI Proposal
 
 ## Summary
