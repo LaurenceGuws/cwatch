@@ -108,6 +108,12 @@ Current integration-smell status:
 - major shared-shell contracts are now explicit and checkpointed
 - future integration work should reopen from concrete evidence inside a specific subsystem rather than continuing broad hotspot expansion
 
+Current recommended next rewrite move:
+- start the first true vertical slice with explorer
+
+Current follow-up doc:
+- `docs/explorer_vertical_slice_todo.md`
+
 Current shared scaffolding contract now covers:
 - `SettingsSection`
 - `SectionList`

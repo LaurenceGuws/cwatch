@@ -208,6 +208,15 @@ Deliverables:
 - first-slice implementation plan
 - anti-regression checklist
 
+Current recommendation:
+- start with `file explorer` as the first true vertical slice
+
+Why:
+- explorer already has substantial dependency cleanup behind it
+- explorer already has service/controller/widget regression coverage in place
+- explorer sits at the intersection of shell/shared UI, workflow state, and file operations without dragging in as much infrastructure complexity as servers
+- this makes it the strongest proving slice for the next architecture step
+
 ### Focus Area E: infrastructure boundary cleanup
 Questions to answer:
 - Where are transport, parsing, and policy mixed today?
