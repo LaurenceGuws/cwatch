@@ -11,18 +11,15 @@ import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'package:cwatch/controller/controllers/settings_controller.dart';
 import 'package:cwatch/model/services/explorer_clipboard.dart';
 import 'package:cwatch/model/data/models/local_file_session.dart';
-import 'package:cwatch/model/models/app_settings.dart';
 import 'package:cwatch/model/models/explorer_context.dart';
 import 'package:cwatch/model/models/remote_file_entry.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 
 import 'package:cwatch/view/shared/mixins/tab_options_mixin.dart';
-import 'package:cwatch/model/shared/shortcuts/input_mode_resolver.dart';
-import 'package:cwatch/model/shared/shortcuts/shortcut_actions.dart';
-import 'package:cwatch/model/shared/shortcuts/shortcut_resolver.dart';
 import 'context_menu_builder.dart';
 import 'explorer_chrome_scaffold.dart';
 import 'file_entry_list.dart';
+import 'file_explorer_tab_presenter.dart';
 import 'selection_controller.dart';
 import 'package:cwatch/view/features/settings/settings/explorer_settings_controls.dart';
 import 'path_navigator.dart';
@@ -53,12 +50,11 @@ class _FileExplorerTabState extends State<FileExplorerTab>
   late FileExplorerController _controller;
   late SelectionController _selectionController;
   late SettingsController _settingsController;
+  late FileExplorerTabPresenter _presenter;
   late final VoidCallback _controllerListener;
   final FocusNode _listFocusNode = FocusNode(debugLabel: 'file-explorer-list');
   final ScrollController _scrollController = ScrollController();
   bool _dropHover = false;
-  String? _lastTimeoutNotification;
-  bool _showSettings = false;
 
   @override
   void initState() {
@@ -66,6 +62,10 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     _settingsController = widget.settingsController;
     _controller = widget.controller;
     _selectionController = SelectionController(state: _controller.selectionState);
+    _presenter = FileExplorerTabPresenter(
+      controller: _controller,
+      settingsController: _settingsController,
+    );
     _controllerListener = () {
       if (!mounted) return;
       setState(() {});
@@ -82,13 +82,23 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       oldWidget.controller.removeListener(_controllerListener);
       oldWidget.controller.dispose();
       _controller = widget.controller;
-      _selectionController = SelectionController(state: _controller.selectionState);
+      _selectionController = SelectionController(
+        state: _controller.selectionState,
+      );
+      _presenter = FileExplorerTabPresenter(
+        controller: _controller,
+        settingsController: _settingsController,
+      );
       _controller.addListener(_controllerListener);
       unawaited(_controller.initialize());
     }
     if (oldWidget.settingsController != widget.settingsController) {
       oldWidget.settingsController.dispose();
       _settingsController = widget.settingsController;
+      _presenter = FileExplorerTabPresenter(
+        controller: _controller,
+        settingsController: _settingsController,
+      );
     }
     if (oldWidget.optionsController != widget.optionsController ||
         oldWidget.onOpenTerminalTab != widget.onOpenTerminalTab ||
@@ -110,7 +120,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
 
   void _toggleSettings() {
     setState(() {
-      _showSettings = !_showSettings;
+      _presenter.toggleSettings();
     });
     _updateTabOptions();
   }
@@ -121,28 +131,21 @@ class _FileExplorerTabState extends State<FileExplorerTab>
 
   @override
   Widget build(BuildContext context) {
-    final errorMessage = _controller.state.error;
-    final isTimeoutError = _isTimeoutError(errorMessage);
-    if (isTimeoutError &&
-        errorMessage != null &&
-        errorMessage != _lastTimeoutNotification) {
-      _lastTimeoutNotification = errorMessage;
+    final errorMessage = _presenter.errorMessage;
+    final timeoutNotification = _presenter.consumeTimeoutNotification();
+    if (timeoutNotification != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) {
           return;
         }
-        _showSnackBar(errorMessage);
+        _showSnackBar(timeoutNotification);
       });
     }
-    final showStreamingResults =
-        _controller.state.loading &&
-        _controller.state.searchActive &&
-        _controller.state.searchQuery.trim().isNotEmpty;
     final contentCard = Card(
       clipBehavior: Clip.antiAlias,
-      child: errorMessage != null && !isTimeoutError
+      child: errorMessage != null && !_presenter.isTimeoutError
           ? Center(child: Text(errorMessage))
-          : showStreamingResults
+          : _presenter.showStreamingResults
           ? Stack(
               fit: StackFit.expand,
               children: [
@@ -153,14 +156,14 @@ class _FileExplorerTabState extends State<FileExplorerTab>
                 ),
               ],
             )
-          : _controller.state.loading
+          : _presenter.showLoadingIndicator
           ? const Center(child: CircularProgressIndicator())
           : _buildEntriesList(),
     );
 
     final actions = Actions(
       actions: {
-        _ToggleSearchIntent: CallbackAction<_ToggleSearchIntent>(
+        ToggleSearchIntent: CallbackAction<ToggleSearchIntent>(
           onInvoke: (_) {
             unawaited(
               _controller.setSearchActive(!_controller.state.searchActive),
@@ -168,13 +171,13 @@ class _FileExplorerTabState extends State<FileExplorerTab>
             return null;
           },
         ),
-        _ZoomInIntent: CallbackAction<_ZoomInIntent>(
+        ZoomInIntent: CallbackAction<ZoomInIntent>(
           onInvoke: (_) {
             _adjustRowHeight(4);
             return null;
           },
         ),
-        _ZoomOutIntent: CallbackAction<_ZoomOutIntent>(
+        ZoomOutIntent: CallbackAction<ZoomOutIntent>(
           onInvoke: (_) {
             _adjustRowHeight(-4);
             return null;
@@ -186,7 +189,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
         child: ExplorerChromeScaffold(
           pathNavigator: _buildPathNavigator(context),
           content: contentCard,
-          showSettings: _showSettings,
+          showSettings: _presenter.showSettings,
           settings: ExplorerSettingsControls(
             settings: _settingsController.settings,
             settingsController: _settingsController,
@@ -203,7 +206,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       ),
     );
 
-    final shortcuts = _explorerShortcuts(_settingsController.settings);
+    final shortcuts = _presenter.buildShortcuts(_settingsController.settings);
     if (shortcuts.isEmpty) {
       return actions;
     }
@@ -213,30 +216,6 @@ class _FileExplorerTabState extends State<FileExplorerTab>
   void _adjustRowHeight(double delta) {
     final next = _controller.state.rowHeight + delta;
     _controller.setRowHeight(next);
-  }
-
-  Map<ShortcutActivator, Intent> _explorerShortcuts(AppSettings settings) {
-    final inputMode = resolveInputMode(
-      settings.inputModePreference,
-      defaultTargetPlatform,
-    );
-    if (!inputMode.enableShortcuts) {
-      return const {};
-    }
-    final resolver = ShortcutResolver(settings);
-    final map = <ShortcutActivator, Intent>{};
-
-    void add(String id, Intent intent) {
-      final binding = resolver.bindingFor(id);
-      if (binding == null) return;
-      map[binding.toActivator()] = intent;
-    }
-
-    add(ShortcutActions.explorerSearch, const _ToggleSearchIntent());
-    add(ShortcutActions.explorerZoomIn, const _ZoomInIntent());
-    add(ShortcutActions.explorerZoomOut, const _ZoomOutIntent());
-
-    return map;
   }
 
   Widget _buildPathNavigator(BuildContext context) {
@@ -404,14 +383,6 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       joinPath: PathUtils.joinPath,
     );
     return list;
-  }
-
-  bool _isTimeoutError(String? message) {
-    if (message == null || message.isEmpty) {
-      return false;
-    }
-    return message.contains('TimeoutException') ||
-        message.toLowerCase().contains('timed out');
   }
 
   Future<void> _loadPath(String path, {bool forceReload = false}) async {
@@ -904,23 +875,11 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     }
     options.add(
       TabChipOption(
-        label: _showSettings ? 'Hide settings' : 'Settings',
+        label: _presenter.showSettings ? 'Hide settings' : 'Settings',
         icon: Icons.settings,
         onSelected: _toggleSettings,
       ),
     );
     queueTabOptions(controller, options, useBase: true);
   }
-}
-
-class _ToggleSearchIntent extends Intent {
-  const _ToggleSearchIntent();
-}
-
-class _ZoomInIntent extends Intent {
-  const _ZoomInIntent();
-}
-
-class _ZoomOutIntent extends Intent {
-  const _ZoomOutIntent();
 }

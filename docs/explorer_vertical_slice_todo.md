@@ -132,7 +132,7 @@ This should become a narrower explorer view-model/presenter-style seam for the t
 - it keeps the existing regression floor relevant
 
 ## Task 15.3: implement explorer top-level presentation/orchestration split
-Status: queued
+Status: completed
 
 Goal:
 - extract the top-level explorer tab presentation/orchestration logic out of `file_explorer_tab.dart` while leaving entry-list/input-heavy behavior local for now
@@ -147,3 +147,27 @@ Done definition:
 - `file_explorer_tab.dart` is materially smaller and more focused on rendering/composition
 - the new seam clearly owns top-level explorer tab orchestration
 - entry-list/input behavior remains local and untouched except where needed for the seam
+
+Result:
+- extracted [file_explorer_tab_presenter.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/file_explorer_tab_presenter.dart)
+- moved top-level explorer tab orchestration into the presenter seam:
+  - loading/error/streaming state shaping
+  - settings visibility toggle ownership
+  - timeout snackbar de-duplication
+  - explorer-level shortcut wiring
+- kept dense entry-list, selection, drag/drop, and file-operation initiation local to [file_explorer_tab.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart)
+
+## Task 15.4: re-scope the next explorer slice batch
+Status: queued
+
+Goal:
+- decide the next smallest explorer-local seam after the presenter split without broadening the slice into generic file-manager abstractions
+
+Likely candidates:
+- extract explorer-level action/file-operation handlers out of `file_explorer_tab.dart`
+- split entry-list interaction wiring from row rendering
+- checkpoint the slice and move to tests before further extraction
+
+Done definition:
+- the next explorer batch is chosen from current code shape
+- the choice reflects the presenter split that just landed
