@@ -238,6 +238,9 @@ What this hotspot should establish:
 Current follow-up doc:
 - [tab_shell_contract_todo.md](/home/home/personal/cwatch/docs/tab_shell_contract_todo.md)
 
+Current next normalization direction:
+- shared tab-shell adapter/helper for routine chip assembly and generic tab command contribution
+
 ## Success Criteria
 
 This layer is working when:

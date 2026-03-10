@@ -224,3 +224,27 @@ Result:
 
 Next executable batch:
 - `Task 14.4`: scope shared tab-shell adapter cleanup
+
+### Task 14.4: scope shared tab-shell adapter cleanup
+Status: completed
+
+What this task established:
+- the first normalization batch should target a shared tab-shell adapter/helper
+- that helper should absorb repeated routine chip assembly and generic tab command contribution
+- feature modules should keep only the truly local tab inputs:
+  - host mapping
+  - close warnings
+  - picker restrictions
+  - extra tab options
+  - extra command entries
+
+Why this is the right next batch:
+- it directly attacks the repeated feature-level integration smell we just documented
+- it is narrower than redesigning the tab model or shell
+- it gives shell polish one canonical tab integration path
+
+Current follow-up doc:
+- [tab_shell_contract_todo.md](/home/home/personal/cwatch/docs/tab_shell_contract_todo.md)
+
+Next executable batch:
+- `Task 14.5`: add shared tab-shell adapter TODO

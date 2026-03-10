@@ -82,6 +82,9 @@ Current first hotspot in that layer:
 Current follow-up doc:
 - `docs/tab_shell_contract_todo.md`
 
+Current next normalization direction:
+- shared tab-shell adapter/helper for routine chip assembly and generic tab command contribution
+
 ## Development
 1. `flutter pub get`
 2. `flutter run -d <device>`

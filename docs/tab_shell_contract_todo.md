@@ -179,7 +179,7 @@ Verification:
 - one concrete follow-up cleanup target is chosen
 
 ## Task 14.4: scope shared tab-shell adapter cleanup
-Status: queued
+Status: completed
 
 Goal:
 - define the smallest shared helper/adapter that removes repeated feature-level chip assembly without flattening valid feature differences
@@ -195,3 +195,89 @@ Likely scope:
 Done definition:
 - the first actual normalization batch is scoped
 - the scope is narrower than “rewrite the tab system”
+
+Result:
+- the first normalization batch should introduce a shared tab-shell adapter/helper
+- that helper should standardize routine `WorkspaceTab -> TabChip` assembly and generic tab command contribution
+- feature modules should only supply the small pieces that are truly feature-specific
+
+## Scoped Cleanup Shape
+
+### Shared helper responsibilities
+
+The first shared helper should cover:
+- routine `WorkspaceTab` to `TabChip` mapping
+- `ValueListenableBuilder` wrapping for `tab.optionsController`
+- generic chip callbacks:
+  - select
+  - close
+  - rename trigger
+  - drag index
+- generic command contributions:
+  - tab options
+  - rename tab
+  - close tab
+  - new tab
+
+### Feature-provided inputs
+
+The helper should let features supply only what is actually local:
+- host mapping for chip display
+- extra tab options beyond the shared/default options
+- close warning
+- picker restrictions such as:
+  - not draggable
+  - not renameable
+  - picker-only options
+- feature-owned command-palette entries beyond shared tab actions
+
+### Why this is the right first batch
+
+It matches the repeated patterns already visible in:
+- [server_workspace_view.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_view.dart)
+- [docker_view.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view.dart)
+- [kubernetes_context_list.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/kubernetes_context_list.dart)
+- [wsl_view.dart](/home/home/personal/cwatch/lib/view/features/wsl/wsl_view.dart)
+
+Repeated today:
+- build `TabChip`
+- read `tab.optionsController`
+- pass select/close/rename/drag props
+- append generic tab command entries
+
+Feature-local differences that should remain:
+- host identity mapping
+- close warnings
+- picker restrictions
+- extra module-specific options
+
+## Not In The First Batch
+
+The first batch should not:
+- rewrite `WorkspaceTab`
+- redesign `TabHostController`
+- redesign the placeholder-tab contract
+- flatten all feature command palettes into one shared registry
+- change tab visuals broadly
+
+## Concrete Next Batch
+
+### Task 14.5: add shared tab-shell adapter TODO
+Status: queued
+
+Goal:
+- define the exact helper API and ownership boundary before code changes
+
+Likely scope:
+- shared chip adapter/builder under the tab shell
+- shared generic tab command builder/helper
+- migration plan for:
+  - WSL
+  - Kubernetes
+  - Docker
+  - Servers
+
+Done definition:
+- helper responsibilities are explicit
+- migration starts with the smallest feature first
+- the next code batch is implementation-ready rather than exploratory
