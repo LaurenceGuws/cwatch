@@ -430,7 +430,7 @@ Result:
 - the descriptor registry now has both summary and markdown export consumers
 
 ## Task 14.41: re-scope the next annotation/codegen batch
-Status: queued
+Status: completed
 
 Goal:
 - decide whether the next batch should add a third consumer, add tighter registry characterization tests, or begin minimal generator tooling
@@ -438,3 +438,34 @@ Goal:
 Done definition:
 - the next batch is explicitly chosen
 - the annotation/codegen track stays incremental and evidence-driven
+
+Decision:
+- the next batch should add tighter registry characterization tests
+- not a third consumer yet
+- not generator tooling yet
+
+Why this is the right next step:
+- the descriptor registry now has two real consumers
+- the next risk is descriptor drift between annotations, registry, and consumers
+- characterization tests are now higher value than adding another small export helper
+- generator tooling should still wait until the descriptor surface is better locked down
+
+Result:
+- the next batch should validate the registry shape and invariants directly
+
+## Task 14.42: add config metadata registry tests
+Status: queued
+
+Goal:
+- add characterization tests around the descriptor registry so later generator work can replace the manual registry without changing the public shape silently
+
+Expected scope:
+- validate group ordering and keys
+- validate field uniqueness within groups
+- validate descriptor coverage for the first-pass target models
+- keep the tests focused on public registry shape, not generator internals
+
+Done definition:
+- the registry has direct regression coverage
+- tests lock down the public descriptor shape and basic invariants
+- later generator replacement can target the same behavior
