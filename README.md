@@ -99,10 +99,14 @@ Current tab-shell status:
 - first chip-building normalization pass complete
 
 Current next integration hotspot:
-- capability and breadcrumb surfacing
+- integration-smell layer checkpointed
 
 Current follow-up doc:
-- `docs/capability_breadcrumb_todo.md`
+- `docs/integration_smell_foundations.md`
+
+Current integration-smell status:
+- major shared-shell contracts are now explicit and checkpointed
+- future integration work should reopen from concrete evidence inside a specific subsystem rather than continuing broad hotspot expansion
 
 Current shared scaffolding contract now covers:
 - `SettingsSection`

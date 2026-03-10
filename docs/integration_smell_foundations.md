@@ -419,3 +419,25 @@ This layer is working when:
 - local overrides are explicit and justified
 - the repo stops silently re-creating shared UI patterns
 - the first annotation/codegen target is chosen from stable metadata instead of abstraction hype
+
+## Current Layer Status
+
+This integration-smell layer is now at a good checkpoint.
+
+What is now explicit and materially improved:
+- tab shell contract and shared chip-building seam
+- dialog/settings prompt contract and shared prompt helper
+- builtin SSH auth ownership line
+- explorer shared-surface contract and chrome scaffold
+- shared list/menu/settings scaffolding contract
+- shared section-overflow menu seam
+- command contribution contract and shared generic tab-command seam
+- capability/breadcrumb surfacing contract
+- first metadata-only annotation/codegen proof point
+
+What this means:
+- the shell/shared subsystem is materially more visible as a system
+- the highest-signal integration smells are no longer implicit
+- future integration work should reopen from concrete evidence inside a specific module or subsystem, not by assuming this whole layer still needs broad expansion
+
+The next rewrite move should now come from the broader rewrite sequence rather than from forcing another integration hotspot.

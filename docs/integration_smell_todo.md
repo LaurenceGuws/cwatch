@@ -250,6 +250,39 @@ Current follow-up:
 
 ## Next Re-scope
 
+### Task 14.60: choose the next integration-smell move after capability/breadcrumb
+Status: completed
+
+Goal:
+- decide whether to keep opening new integration-smell hotspots or checkpoint this layer and roll up the current state
+
+Candidates considered:
+- identify one more shell/shared hotspot
+- checkpoint the integration-smell layer and return to broader rewrite sequencing
+
+Result:
+- the integration-smell layer is now at a good checkpoint
+
+Why this is the right stop point:
+- the major shell/shared subsystem seams now have explicit contracts:
+  - tab shell
+  - dialog/settings scaffolding
+  - SSH auth ownership
+  - explorer shared surface
+  - shared list/menu/settings scaffolding
+  - command contribution
+  - capability/breadcrumb surfacing
+- the remaining issues are lower-signal, more distributed, or belong to other rewrite layers such as:
+  - broader composition cleanup
+  - feature decomposition
+  - infra policy cleanup
+  - deeper product polish inside specific modules
+- continuing to open new hotspots here would likely produce weaker abstractions than the ones already landed
+
+Current result:
+- integration-smell cleanup should now be treated as a checkpointed layer
+- future integration work should reopen from concrete evidence, not from the assumption that this layer still needs broad active expansion
+
 ### Task 14.2: choose the first normalization hotspot
 Status: completed
 
