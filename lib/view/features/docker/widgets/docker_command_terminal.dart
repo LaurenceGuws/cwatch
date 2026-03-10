@@ -9,6 +9,7 @@ import 'package:cwatch/controller/adapters/terminal_ui_adapter.dart';
 import 'package:cwatch/controller/controllers/docker_command_terminal_controller.dart';
 import 'package:cwatch/model/models/app_settings.dart';
 import 'package:cwatch/model/models/input_mode_preference.dart';
+import 'package:cwatch/model/models/terminal_preferences.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_base.dart';
 import 'package:cwatch/model/shared/gestures/gesture_activators.dart';
@@ -266,10 +267,10 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
           alwaysShowCursor: true,
           enablePinchZoom: inputMode.enableGestures,
           padding: EdgeInsets.symmetric(
-            horizontal: (resolvedSettings?.terminalPaddingX ?? 8)
+            horizontal: (resolvedSettings?.terminalPreferences.paddingX ?? 8)
                 .clamp(0, 48)
                 .toDouble(),
-            vertical: (resolvedSettings?.terminalPaddingY ?? 10)
+            vertical: (resolvedSettings?.terminalPreferences.paddingY ?? 10)
                 .clamp(0, 48)
                 .toDouble(),
           ),
@@ -328,8 +329,14 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
       return;
     }
     await controller.update((current) {
-      final next = (current.terminalFontSize + delta).clamp(8, 32).toDouble();
-      return current.copyWith(terminalFontSize: next);
+      final next = (current.terminalPreferences.fontSize + delta)
+          .clamp(8, 32)
+          .toDouble();
+      return current.copyWith(
+        terminalPreferences: current.terminalPreferences.copyWith(
+          fontSize: next,
+        ),
+      );
     });
   }
 
@@ -338,8 +345,12 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
     if (controller == null) return;
     await controller.update((current) {
       final next = value.clamp(8, 32).toDouble();
-      if (next == current.terminalFontSize) return current;
-      return current.copyWith(terminalFontSize: next);
+      if (next == current.terminalPreferences.fontSize) return current;
+      return current.copyWith(
+        terminalPreferences: current.terminalPreferences.copyWith(
+          fontSize: next,
+        ),
+      );
     });
   }
 
@@ -588,14 +599,13 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   }
 
   TerminalStyle _textStyle(AppSettings? settings) {
-    final fontSize = (settings?.terminalFontSize ?? 14).clamp(8, 32).toDouble();
-    final lineHeight = (settings?.terminalLineHeight ?? 1.4)
+    final terminal = settings?.terminalPreferences ?? const TerminalPreferences();
+    final fontSize = terminal.fontSize.clamp(8, 32).toDouble();
+    final lineHeight = terminal.lineHeight
         .clamp(0.8, 2.0)
         .toDouble();
     return TerminalStyle(
-      fontFamily: NerdFonts.effectiveTerminalFamily(
-        settings?.terminalFontFamily,
-      ),
+      fontFamily: NerdFonts.effectiveTerminalFamily(terminal.fontFamily),
       fontFamilyFallback: NerdFonts.terminalFallbackFamilies,
       fontSize: fontSize,
       height: lineHeight,
@@ -603,10 +613,11 @@ class _DockerCommandTerminalState extends State<DockerCommandTerminal> {
   }
 
   TerminalTheme _terminalTheme(BuildContext context, AppSettings? settings) {
+    final terminal = settings?.terminalPreferences ?? const TerminalPreferences();
     final brightness = Theme.of(context).colorScheme.brightness;
     final key = brightness == Brightness.dark
-        ? settings?.terminalThemeDark ?? 'dracula'
-        : settings?.terminalThemeLight ?? 'solarized-light';
+        ? terminal.themeDark
+        : terminal.themeLight;
     return terminalThemeForKey(key);
   }
 

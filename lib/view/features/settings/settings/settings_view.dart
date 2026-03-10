@@ -222,43 +222,70 @@ class _SettingsViewState extends State<SettingsView>
                         TerminalSettingsTab(
                           settings: settings,
                           settingsController: _controller,
-                          fontFamily: settings.terminalFontFamily,
-                          fontSize: settings.terminalFontSize,
-                          lineHeight: settings.terminalLineHeight,
-                          paddingX: settings.terminalPaddingX,
-                          paddingY: settings.terminalPaddingY,
-                          darkTheme: settings.terminalThemeDark,
-                          lightTheme: settings.terminalThemeLight,
+                          fontFamily: settings.terminalPreferences.fontFamily,
+                          fontSize: settings.terminalPreferences.fontSize,
+                          lineHeight: settings.terminalPreferences.lineHeight,
+                          paddingX: settings.terminalPreferences.paddingX,
+                          paddingY: settings.terminalPreferences.paddingY,
+                          darkTheme: settings.terminalPreferences.themeDark,
+                          lightTheme: settings.terminalPreferences.themeLight,
                           onFontFamilyChanged: (value) => _controller.update(
                             (current) => current.copyWith(
-                              terminalFontFamily: value.trim().isEmpty
-                                  ? null
-                                  : value.trim(),
+                              terminalPreferences:
+                                  current.terminalPreferences.copyWith(
+                                    fontFamily: value.trim().isEmpty
+                                        ? null
+                                        : value.trim(),
+                                  ),
                             ),
                           ),
                           onFontSizeChanged: (value) => _controller.update(
-                            (current) =>
-                                current.copyWith(terminalFontSize: value),
+                            (current) => current.copyWith(
+                              terminalPreferences:
+                                  current.terminalPreferences.copyWith(
+                                    fontSize: value,
+                                  ),
+                            ),
                           ),
                           onLineHeightChanged: (value) => _controller.update(
-                            (current) =>
-                                current.copyWith(terminalLineHeight: value),
+                            (current) => current.copyWith(
+                              terminalPreferences:
+                                  current.terminalPreferences.copyWith(
+                                    lineHeight: value,
+                                  ),
+                            ),
                           ),
                           onPaddingXChanged: (value) => _controller.update(
-                            (current) =>
-                                current.copyWith(terminalPaddingX: value),
+                            (current) => current.copyWith(
+                              terminalPreferences:
+                                  current.terminalPreferences.copyWith(
+                                    paddingX: value,
+                                  ),
+                            ),
                           ),
                           onPaddingYChanged: (value) => _controller.update(
-                            (current) =>
-                                current.copyWith(terminalPaddingY: value),
+                            (current) => current.copyWith(
+                              terminalPreferences:
+                                  current.terminalPreferences.copyWith(
+                                    paddingY: value,
+                                  ),
+                            ),
                           ),
                           onDarkThemeChanged: (value) => _controller.update(
-                            (current) =>
-                                current.copyWith(terminalThemeDark: value),
+                            (current) => current.copyWith(
+                              terminalPreferences:
+                                  current.terminalPreferences.copyWith(
+                                    themeDark: value,
+                                  ),
+                            ),
                           ),
                           onLightThemeChanged: (value) => _controller.update(
-                            (current) =>
-                                current.copyWith(terminalThemeLight: value),
+                            (current) => current.copyWith(
+                              terminalPreferences:
+                                  current.terminalPreferences.copyWith(
+                                    themeLight: value,
+                                  ),
+                            ),
                           ),
                         ),
                         EditorSettingsTab(

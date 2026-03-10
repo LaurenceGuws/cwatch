@@ -772,7 +772,7 @@ Verification:
 - the first implementation batch is scoped at the shared contract, not at scattered widgets
 
 ### Task 12.13: introduce terminal-preferences model seam
-Status: queued
+Status: completed
 
 Goal:
 - define and adopt a dedicated terminal-preferences model while keeping existing behavior stable
@@ -788,6 +788,23 @@ Done definition:
 - terminal consumers read one coherent preferences object
 - root settings still serialize correctly during the compatibility phase
 - the flat terminal field cluster is no longer the primary read contract
+
+What landed:
+- [terminal_preferences.dart](/home/home/personal/cwatch/lib/model/models/terminal_preferences.dart)
+- [app_settings.dart](/home/home/personal/cwatch/lib/model/models/app_settings.dart) now exposes `terminalPreferences` and accepts that model through `copyWith`
+- primary terminal consumers now read the shared preferences object:
+  - [terminal_tab.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/terminal/terminal_tab.dart)
+  - [docker_command_terminal.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_command_terminal.dart)
+  - [settings_view.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/settings_view.dart)
+
+Result:
+- terminal settings now have a coherent shared read contract
+- serialization remains compatible because the flat fields still back the model during this phase
+- the terminal preference cluster no longer depends on seven separate direct field reads in active consumers
+
+Verification:
+- `flutter analyze`
+- result: no issues found
 
 ### Task 12.11: decide whether shell preferences deserve their own root section
 Status: queued

@@ -6,6 +6,7 @@ import 'docker_workspace_state.dart';
 import 'server_workspace_state.dart';
 import 'kubernetes_backend.dart';
 import 'kubernetes_workspace_state.dart';
+import 'terminal_preferences.dart';
 import 'wsl_workspace_state.dart';
 import 'ssh_client_backend.dart';
 import 'input_mode_preference.dart';
@@ -114,6 +115,15 @@ class AppSettings {
   final bool explorerShowBreadcrumbs;
 
   int get dockerLogsTailClamped => _sanitizeTailLines(dockerLogsTail);
+  TerminalPreferences get terminalPreferences => TerminalPreferences(
+    fontFamily: terminalFontFamily,
+    fontSize: terminalFontSize,
+    lineHeight: terminalLineHeight,
+    paddingX: terminalPaddingX,
+    paddingY: terminalPaddingY,
+    themeDark: terminalThemeDark,
+    themeLight: terminalThemeLight,
+  );
 
   AppSettings copyWith({
     ThemeMode? themeMode,
@@ -161,6 +171,7 @@ class AppSettings {
     double? terminalPaddingY,
     String? terminalThemeDark,
     String? terminalThemeLight,
+    TerminalPreferences? terminalPreferences,
     int? fileTransferUploadConcurrency,
     int? fileTransferDownloadConcurrency,
     double? explorerRowHeight,
@@ -212,13 +223,34 @@ class AppSettings {
           dockerSelectedContext ?? this.dockerSelectedContext,
       dockerWorkspace: dockerWorkspace ?? this.dockerWorkspace,
       dockerLogsTail: _sanitizeTailLines(dockerLogsTail ?? this.dockerLogsTail),
-      terminalFontFamily: terminalFontFamily ?? this.terminalFontFamily,
-      terminalFontSize: terminalFontSize ?? this.terminalFontSize,
-      terminalLineHeight: terminalLineHeight ?? this.terminalLineHeight,
-      terminalPaddingX: terminalPaddingX ?? this.terminalPaddingX,
-      terminalPaddingY: terminalPaddingY ?? this.terminalPaddingY,
-      terminalThemeDark: terminalThemeDark ?? this.terminalThemeDark,
-      terminalThemeLight: terminalThemeLight ?? this.terminalThemeLight,
+      terminalFontFamily:
+          terminalPreferences?.fontFamily ??
+          terminalFontFamily ??
+          this.terminalFontFamily,
+      terminalFontSize:
+          terminalPreferences?.fontSize ??
+          terminalFontSize ??
+          this.terminalFontSize,
+      terminalLineHeight:
+          terminalPreferences?.lineHeight ??
+          terminalLineHeight ??
+          this.terminalLineHeight,
+      terminalPaddingX:
+          terminalPreferences?.paddingX ??
+          terminalPaddingX ??
+          this.terminalPaddingX,
+      terminalPaddingY:
+          terminalPreferences?.paddingY ??
+          terminalPaddingY ??
+          this.terminalPaddingY,
+      terminalThemeDark:
+          terminalPreferences?.themeDark ??
+          terminalThemeDark ??
+          this.terminalThemeDark,
+      terminalThemeLight:
+          terminalPreferences?.themeLight ??
+          terminalThemeLight ??
+          this.terminalThemeLight,
       fileTransferUploadConcurrency: _sanitizeTransferConcurrency(
         fileTransferUploadConcurrency ?? this.fileTransferUploadConcurrency,
       ),

@@ -487,10 +487,10 @@ class _TerminalTabState extends State<TerminalTab> {
                         backgroundOpacity: 1,
                         onKeyEvent: _handleTerminalKeyEvent,
                         padding: EdgeInsets.symmetric(
-                          horizontal: settings.terminalPaddingX
+                          horizontal: settings.terminalPreferences.paddingX
                               .clamp(0, 48)
                               .toDouble(),
-                          vertical: settings.terminalPaddingY
+                          vertical: settings.terminalPreferences.paddingY
                               .clamp(0, 48)
                               .toDouble(),
                         ),
@@ -516,27 +516,69 @@ class _TerminalTabState extends State<TerminalTab> {
                     title: 'Terminal Settings',
                     onClose: _toggleSettings,
                     child: TerminalSettingsControls(
-                      fontFamily: settings.terminalFontFamily,
-                      fontSize: settings.terminalFontSize,
-                      lineHeight: settings.terminalLineHeight,
-                      paddingX: settings.terminalPaddingX,
-                      paddingY: settings.terminalPaddingY,
-                      darkTheme: settings.terminalThemeDark,
-                      lightTheme: settings.terminalThemeLight,
+                      fontFamily: settings.terminalPreferences.fontFamily,
+                      fontSize: settings.terminalPreferences.fontSize,
+                      lineHeight: settings.terminalPreferences.lineHeight,
+                      paddingX: settings.terminalPreferences.paddingX,
+                      paddingY: settings.terminalPreferences.paddingY,
+                      darkTheme: settings.terminalPreferences.themeDark,
+                      lightTheme: settings.terminalPreferences.themeLight,
                       onFontFamilyChanged: (value) => widget.settingsController
-                          .update((s) => s.copyWith(terminalFontFamily: value)),
+                          .update(
+                            (s) => s.copyWith(
+                              terminalPreferences: s.terminalPreferences.copyWith(
+                                fontFamily: value,
+                              ),
+                            ),
+                          ),
                       onFontSizeChanged: (value) => widget.settingsController
-                          .update((s) => s.copyWith(terminalFontSize: value)),
+                          .update(
+                            (s) => s.copyWith(
+                              terminalPreferences: s.terminalPreferences.copyWith(
+                                fontSize: value,
+                              ),
+                            ),
+                          ),
                       onLineHeightChanged: (value) => widget.settingsController
-                          .update((s) => s.copyWith(terminalLineHeight: value)),
+                          .update(
+                            (s) => s.copyWith(
+                              terminalPreferences: s.terminalPreferences.copyWith(
+                                lineHeight: value,
+                              ),
+                            ),
+                          ),
                       onPaddingXChanged: (value) => widget.settingsController
-                          .update((s) => s.copyWith(terminalPaddingX: value)),
+                          .update(
+                            (s) => s.copyWith(
+                              terminalPreferences: s.terminalPreferences.copyWith(
+                                paddingX: value,
+                              ),
+                            ),
+                          ),
                       onPaddingYChanged: (value) => widget.settingsController
-                          .update((s) => s.copyWith(terminalPaddingY: value)),
+                          .update(
+                            (s) => s.copyWith(
+                              terminalPreferences: s.terminalPreferences.copyWith(
+                                paddingY: value,
+                              ),
+                            ),
+                          ),
                       onDarkThemeChanged: (value) => widget.settingsController
-                          .update((s) => s.copyWith(terminalThemeDark: value)),
+                          .update(
+                            (s) => s.copyWith(
+                              terminalPreferences: s.terminalPreferences.copyWith(
+                                themeDark: value,
+                              ),
+                            ),
+                          ),
                       onLightThemeChanged: (value) => widget.settingsController
-                          .update((s) => s.copyWith(terminalThemeLight: value)),
+                          .update(
+                            (s) => s.copyWith(
+                              terminalPreferences: s.terminalPreferences.copyWith(
+                                themeLight: value,
+                              ),
+                            ),
+                          ),
                     ),
                   ),
               ],
@@ -548,21 +590,21 @@ class _TerminalTabState extends State<TerminalTab> {
   }
 
   TerminalStyle _textStyle(AppSettings settings) {
+    final terminal = settings.terminalPreferences;
     return TerminalStyle(
-      fontFamily: NerdFonts.effectiveTerminalFamily(
-        settings.terminalFontFamily,
-      ),
+      fontFamily: NerdFonts.effectiveTerminalFamily(terminal.fontFamily),
       fontFamilyFallback: NerdFonts.terminalFallbackFamilies,
-      fontSize: settings.terminalFontSize.clamp(8, 32),
-      height: settings.terminalLineHeight.clamp(0.8, 2.0),
+      fontSize: terminal.fontSize.clamp(8, 32),
+      height: terminal.lineHeight.clamp(0.8, 2.0),
     );
   }
 
   TerminalTheme _terminalTheme(BuildContext context, AppSettings settings) {
+    final terminal = settings.terminalPreferences;
     final brightness = Theme.of(context).colorScheme.brightness;
     final key = brightness == Brightness.dark
-        ? settings.terminalThemeDark
-        : settings.terminalThemeLight;
+        ? terminal.themeDark
+        : terminal.themeLight;
     return terminalThemeForKey(key);
   }
 
@@ -607,7 +649,8 @@ class _TerminalTabState extends State<TerminalTab> {
   }
 
   Future<void> _changeTerminalFont(double delta) async {
-    final next = (widget.settingsController.settings.terminalFontSize + delta)
+    final next =
+        (widget.settingsController.settings.terminalPreferences.fontSize + delta)
         .clamp(8, 32)
         .toDouble();
     await _setTerminalFontSize(next);
@@ -616,8 +659,12 @@ class _TerminalTabState extends State<TerminalTab> {
   Future<void> _setTerminalFontSize(double value) async {
     await widget.settingsController.update((current) {
       final next = value.clamp(8, 32).toDouble();
-      if (next == current.terminalFontSize) return current;
-      return current.copyWith(terminalFontSize: next);
+      if (next == current.terminalPreferences.fontSize) return current;
+      return current.copyWith(
+        terminalPreferences: current.terminalPreferences.copyWith(
+          fontSize: next,
+        ),
+      );
     });
   }
 
