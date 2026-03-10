@@ -70,7 +70,7 @@ Why this wins:
 - high architectural leverage with lower infra risk than servers
 
 ## Task 15.2: define the explorer target slice boundary
-Status: queued
+Status: completed
 
 Goal:
 - describe what this slice is allowed to change and what it should leave alone in the first pass
@@ -83,3 +83,67 @@ Questions to answer:
 Done definition:
 - the slice boundary is explicit
 - one concrete first implementation batch is chosen
+
+Result:
+- the first explorer slice boundary is now explicit
+
+### What stays shared / out of scope for the first batch
+
+These areas are already in a good enough place and should stay stable for the first slice pass:
+- `ExplorerChromeScaffold`
+- `PathNavigator`
+- `ExplorerUiAdapter`
+- `ExplorerOps`
+- `PathLoadingService`
+- `FileEditingService`
+- dialog builders and shared prompt paths
+
+Why they stay stable:
+- they already reflect the dependency/integration cleanup work
+- changing them in the first slice would broaden the blast radius unnecessarily
+
+### What stays intentionally local to explorer behavior
+
+These remain explorer-local even after the first slice cut:
+- dense entry-list rendering
+- pointer/keyboard selection behavior
+- drag/drop interaction handling
+- file-operation initiation flows tied closely to explorer selection and entries
+
+The goal is not to genericize these.
+
+### What should move out of `file_explorer_tab.dart` first
+
+The first seam is explorer orchestration around top-level tab state, not the entry list itself.
+
+That means extracting the logic that currently coordinates:
+- loading/error/streaming render switching
+- shortcut/action wiring
+- settings-panel toggle state
+- timeout notification side effects
+- controller-to-view state mapping for top-level explorer modes
+
+This should become a narrower explorer view-model/presenter-style seam for the tab surface, while the entry list and selection-heavy rendering can stay local for now.
+
+### Why this is the right first cut
+
+- it reduces the architectural weight of `file_explorer_tab.dart` without destabilizing the densest interaction code
+- it proves the slice on orchestration/state shaping first
+- it keeps the existing regression floor relevant
+
+## Task 15.3: implement explorer top-level presentation/orchestration split
+Status: queued
+
+Goal:
+- extract the top-level explorer tab presentation/orchestration logic out of `file_explorer_tab.dart` while leaving entry-list/input-heavy behavior local for now
+
+First code targets:
+- top-level loading/error/streaming state shaping
+- settings visibility toggle ownership
+- timeout snackbar side-effect handling
+- shortcut/action wiring for explorer-level actions
+
+Done definition:
+- `file_explorer_tab.dart` is materially smaller and more focused on rendering/composition
+- the new seam clearly owns top-level explorer tab orchestration
+- entry-list/input behavior remains local and untouched except where needed for the seam
