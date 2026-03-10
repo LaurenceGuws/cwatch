@@ -366,7 +366,7 @@ Result:
 - the next batch should consume `configMetadataRegistry` in one small non-runtime-control surface
 
 ## Task 14.38: add first config metadata consumer
-Status: queued
+Status: completed
 
 Goal:
 - add one small consumer of the config metadata registry that proves the descriptors are useful without generating live settings UI
@@ -379,3 +379,18 @@ Done definition:
 - the registry has one real consumer
 - the consumer uses the descriptor surface directly
 - no generator tooling is required yet
+
+Result:
+- [config_metadata_summary.dart](/home/home/personal/cwatch/lib/model/config/config_metadata_summary.dart) now provides the first registry-backed consumer
+- [config_metadata_summary_test.dart](/home/home/personal/cwatch/test/model/config/config_metadata_summary_test.dart) proves the registry is usable data, not decorative metadata
+- the descriptor surface now has real product-facing utility for docs/export paths
+
+## Task 14.39: re-scope the next annotation/codegen batch
+Status: queued
+
+Goal:
+- decide whether the next batch should add a second consumer, add registry characterization tests, or start generator tooling
+
+Done definition:
+- the next batch is explicitly chosen
+- the track stays incremental and evidence-driven
