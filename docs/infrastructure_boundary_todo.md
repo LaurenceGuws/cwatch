@@ -369,7 +369,7 @@ Why this is the right first cut:
 - it preserves the current tests as a useful floor
 
 ## Task 19.6: implement the first Kubernetes backend-policy split
-Status: pending
+Status: completed
 
 Goal:
 - extract a narrow Kubernetes backend collection/policy seam while keeping the dashboard-facing gateway API stable
@@ -388,3 +388,14 @@ Done definition:
 - `KubernetesDashboardService` no longer owns inline CLI/API backend-policy and degradation logic in one block
 - the new seam makes backend collection outcomes explicit
 - existing Kubernetes caller behavior stays stable from the feature layer perspective
+
+Result:
+- added `KubernetesDashboardCollector` as the backend collection/policy seam
+- added `KubernetesDashboardCollectionResult` as the explicit collection outcome shape
+- `KubernetesDashboardService` now delegates backend selection, auth-null handling, warning accumulation, and partial/empty collection policy to the collector
+- `KubernetesDashboardService` now focuses on parsing raw payload maps and shaping `KubernetesDashboardSnapshot`
+- existing dashboard behavior stayed stable under service tests
+
+Validation:
+- `flutter test test/model/services_infra/kubernetes/kubernetes_dashboard_service_test.dart`
+- `flutter analyze`
