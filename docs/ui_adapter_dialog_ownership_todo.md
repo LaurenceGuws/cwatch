@@ -154,7 +154,7 @@ Result of Task 7.3:
 - the next batch should re-scope whether to stop here or explicitly document the remaining adapter-side UI exceptions
 
 ### Task 7.4: re-scope adapter dialog/content exceptions
-Status: queued
+Status: completed
 
 Purpose:
 - decide whether the remaining adapter-side imports should be treated as:
@@ -169,6 +169,21 @@ Done definition:
 
 Verification:
 - follow-up task added before the next adapter structural change starts
+
+Result of Task 7.4:
+- the remaining adapter-side imports are mostly shared UI widgets (`dialog_keyboard_shortcuts.dart`, `port_forward_dialog.dart`, progress widgets) rather than misleadingly placed helpers
+- `AddServerDialog` is currently the only remaining feature-local adapter import and is a plausible intentional feature exception because it is a concrete server-specific dialog
+- this hotspot has removed the clearly mislocated helper/content files and is now at a good checkpoint
+- further work here should happen only if we decide to standardize adapter-side UI exceptions across the whole app
+
+### UI adapter dialog/content checkpoint
+Status: completed
+
+Outcome:
+- `RemoteFileInfoDialogContent` moved out of the editor tab subtree
+- `RemoteDockerStatus` moved out of `view/features/docker/` into `model/`
+- remaining adapter-side imports are now mostly explicit shared UI dependencies or a narrow feature-specific dialog exception
+- the misleadingly placed adapter helper/content files addressed by this document are cleared
 
 ## Later Work In This Hotspot
 
@@ -196,8 +211,8 @@ Track here when ready:
 | 7.1 | Shared adapter dialog/content helper ownership | completed | at least one misleading adapter-side view dependency is removed or reclassified |
 | 7.2 | Adapter dialog/content re-scope | completed | next task is written from what we learn in 7.1 |
 | 7.3 | Feature-local adapter content/helper ownership | completed | at least one remaining feature-local adapter-side dependency is reduced or justified |
-| 7.4 | Adapter dialog/content re-scope | queued | next step is written from what we learn in 7.3 |
-| 7.x | Adapter dialog/content follow-up | queued | re-scoped after 7.4 |
+| 7.4 | Adapter dialog/content re-scope | completed | next step is written from what we learn in 7.3 |
+| 7.x | Adapter dialog/content follow-up | queued | only if we choose to standardize adapter-side UI exceptions |
 
 ## Completion Metric
 
