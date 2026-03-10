@@ -5,7 +5,6 @@ import 'package:cwatch/controller/di/bindings/ssh_shell_factory_binding.dart';
 import 'package:cwatch/model/features/servers/services/host_distro_manager.dart';
 import 'package:cwatch/model/services_infra/cache/distro_cache_controller.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
-import 'package:cwatch/model/services_infra/filesystem/explorer_trash_manager.dart';
 import 'package:cwatch/view/features/servers/server_workspace_ui_adapter.dart';
 import 'package:cwatch/controller/controllers/server_port_forward_controller.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
@@ -46,6 +45,7 @@ class ServerWorkspaceBinding {
     required BuiltInSshKeyService keyService,
     required Future<List<SshHost>> hostsFuture,
     required Future<List<SshHost>> Function() hostsLoader,
+    required ServerTabBuilder tabBuilder,
     required WorkspaceTab Function() baseTabBuilder,
   }) {
     final workspaceRootController = WorkspaceRootController(
@@ -83,13 +83,6 @@ class ServerWorkspaceBinding {
       keyService: keyService,
       hostsFuture: hostsFuture,
       uiAdapter: const SettingsBinding().createUiAdapter(context: context),
-    );
-    final tabBuilder = ServerTabBuilder(
-      settingsController: appSettingsController,
-      trashManager: ExplorerTrashManager(),
-      shellServiceForHost: (host) => shellFactory.forHost(host),
-      keyService: keyService,
-      hostsFuture: hostsFuture,
     );
     final workspaceController = ServerWorkspaceController(
       settingsController: appSettingsController,

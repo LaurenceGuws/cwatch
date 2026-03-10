@@ -10,6 +10,7 @@ import 'package:cwatch/model/models/custom_ssh_host.dart';
 import 'package:cwatch/model/models/explorer_context.dart';
 import 'package:cwatch/model/models/server_action.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
+import 'package:cwatch/model/services_infra/filesystem/explorer_trash_manager.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
@@ -67,6 +68,7 @@ class ServerWorkspaceView extends StatefulWidget {
 class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   final ServerWorkspaceBinding _binding = const ServerWorkspaceBinding();
   late final ServerWorkspaceRuntime _runtime;
+  late final ServerTabBuilder _tabBuilder;
   final Map<String, bool> _hostAvailability = {};
   final Set<String> _pendingCustomAvailabilityChecks = {};
   bool _didProbeHostDistro = false;
@@ -90,7 +92,6 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
       _runtime.distroCacheController;
   ServerWorkspaceController get _workspaceController =>
       _runtime.workspaceController;
-  ServerTabBuilder get _tabBuilder => _runtime.tabBuilder;
   SettingsController get _settingsController => _runtime.settingsController;
 
   void _toggleListSettings() {
@@ -338,12 +339,20 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
     super.initState();
     _hostsFuture = _loadHosts();
     _hostsFutureNotifier = ValueNotifier(_hostsFuture);
+    _tabBuilder = ServerTabBuilder(
+      settingsController: widget.settingsController,
+      trashManager: ExplorerTrashManager(),
+      shellServiceForHost: (host) => widget.shellFactory.forHost(host),
+      keyService: widget.keyService,
+      hostsFuture: _hostsFuture,
+    );
     _runtime = _binding.createRuntime(
       context: context,
       appSettingsController: widget.settingsController,
       keyService: widget.keyService,
       hostsFuture: _hostsFuture,
       hostsLoader: _loadHosts,
+      tabBuilder: _tabBuilder,
       baseTabBuilder: _createPlaceholderTab,
     );
 
