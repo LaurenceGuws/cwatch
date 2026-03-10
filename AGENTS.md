@@ -28,7 +28,11 @@ CWatch is a Flutter desktop app with a tabbed workspace shell. Core areas:
 - Add regression coverage for SSH terminal/editor flows and Docker/K8s dashboards when changing those paths.
 
 ## Commit & Pull Request Guidelines
-- Agents should make incremental commits as they go so each logical step is easy to trace and bisect for regressions.
+- Default: do not commit until tests/analyze have been run and the user explicitly approves.
+- If the user explicitly says to commit, treat that instruction as approval and comply without blocking on additional approval.
+- Work on `main` by default. Create a feature branch only when the task is large enough that isolated branch management materially reduces risk or review cost.
+- If you create a feature branch, own it end-to-end: branch from current `main`, keep commits coherent, merge back into `main` after validation, and delete the branch once merged.
+- Once approved to commit, prefer incremental commits per logical step so each change is easy to trace and bisect for regressions.
 - Prefer small, atomic commits scoped to one change theme (for example: one bug fix, one refactor, one test update).
 - Include tests/analyze updates in the same commit when they are directly tied to that code change.
 - Commit messages in this repo are short, lowercase, and descriptive (e.g., “k8s fixed”).

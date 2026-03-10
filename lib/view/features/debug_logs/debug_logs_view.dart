@@ -608,7 +608,7 @@ class _PerformancePanelState extends State<_PerformancePanel> {
               child: Text(
                 widget.debugEnabled
                     ? 'No performance metrics captured yet.'
-                    : 'Enable Debug Mode and interact with migration widgets to capture performance metrics.',
+                    : 'Enable Debug Mode and interact with widgets to capture performance metrics.',
                 textAlign: TextAlign.center,
               ),
             ),

@@ -18,8 +18,6 @@ class HomeShellCommandPalette {
     required VoidCallback toggleSidebar,
     required VoidCallback showSidebar,
     required VoidCallback hideSidebar,
-    bool showDeveloperEntries = false,
-    Future<void> Function()? runZideFfiSmoke,
   }) {
     final entries = <CommandPaletteEntry>[
       CommandPaletteEntry(
@@ -108,18 +106,6 @@ class HomeShellCommandPalette {
         icon: Icons.info_outline,
       ),
     ];
-    if (showDeveloperEntries && runZideFfiSmoke != null) {
-      entries.add(
-        CommandPaletteEntry(
-          id: 'global:developer:zideSmoke',
-          label: 'Developer: run Zide FFI smoke',
-          category: 'Developer',
-          description: 'Runs terminal/editor beta FFI smoke checks.',
-          onSelected: runZideFfiSmoke,
-          icon: Icons.science_outlined,
-        ),
-      );
-    }
     return entries;
   }
 

@@ -10,7 +10,6 @@ import 'package:cwatch/model/services_infra/ssh/ssh_auth_coordinator.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/model/services_infra/window/tray_service.dart';
 import 'package:cwatch/model/services_infra/window/window_chrome_service.dart';
-import 'package:cwatch/model/services_infra/zide/zide_ffi_smoke_service.dart';
 import 'package:cwatch/view/core/navigation/gesture_detector_factory.dart';
 
 class HomeShellServicesBinding {
@@ -62,14 +61,6 @@ class HomeShellServicesBinding {
     return GestureDetectorFactory();
   }
 
-  ZideFfiSmokeService createZideFfiSmokeService({
-    required AppSettingsController settingsController,
-  }) {
-    return ZideFfiSmokeService(
-      settingsProvider: () => settingsController.settings,
-    );
-  }
-
   HomeShellServices create({
     required BuildContext context,
     required AppSettingsController settingsController,
@@ -90,10 +81,6 @@ class HomeShellServicesBinding {
       authCoordinator: authCoordinator,
     );
     final gestureDetectorFactory = createGestureDetectorFactory();
-    final zideFfiSmokeService = createZideFfiSmokeService(
-      settingsController: settingsController,
-    );
-
     services.keyStore = keyStore;
     services.vault = vault;
     services.keyService = keyService;
@@ -102,7 +89,6 @@ class HomeShellServicesBinding {
     services.trayService = trayService;
     services.shellFactory = shellFactory;
     services.gestureDetectorFactory = gestureDetectorFactory;
-    services.zideFfiSmokeService = zideFfiSmokeService;
 
     return services;
   }

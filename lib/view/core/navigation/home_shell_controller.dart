@@ -55,7 +55,6 @@ class HomeShellController extends ChangeNotifier {
         settingsController: settingsController,
         keyService: services.keyService,
         shellFactory: services.shellFactory,
-        zideFfiSmokeService: services.zideFfiSmokeService,
         isWindows: platform == TargetPlatform.windows,
       ),
     );

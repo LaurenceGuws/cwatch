@@ -62,7 +62,6 @@ class AppSettings {
     this.fileTransferDownloadConcurrency = 2,
     this.explorerRowHeight = 36,
     this.explorerShowBreadcrumbs = true,
-    this.zideFfiBackendEnabled = false,
   });
 
   final ThemeMode themeMode;
@@ -115,7 +114,6 @@ class AppSettings {
   final int fileTransferDownloadConcurrency;
   final double explorerRowHeight;
   final bool explorerShowBreadcrumbs;
-  final bool zideFfiBackendEnabled;
 
   int get dockerLogsTailClamped => _sanitizeTailLines(dockerLogsTail);
 
@@ -170,7 +168,6 @@ class AppSettings {
     int? fileTransferDownloadConcurrency,
     double? explorerRowHeight,
     bool? explorerShowBreadcrumbs,
-    bool? zideFfiBackendEnabled,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -237,8 +234,6 @@ class AppSettings {
       ),
       explorerShowBreadcrumbs:
           explorerShowBreadcrumbs ?? this.explorerShowBreadcrumbs,
-      zideFfiBackendEnabled:
-          zideFfiBackendEnabled ?? this.zideFfiBackendEnabled,
     );
   }
 
@@ -431,7 +426,6 @@ class AppSettings {
         (json['explorerRowHeight'] as num?)?.toDouble() ?? 36,
       ),
       explorerShowBreadcrumbs: json['explorerShowBreadcrumbs'] as bool? ?? true,
-      zideFfiBackendEnabled: json['zideFfiBackendEnabled'] as bool? ?? false,
     );
   }
 
@@ -489,7 +483,6 @@ class AppSettings {
       'fileTransferDownloadConcurrency': fileTransferDownloadConcurrency,
       'explorerRowHeight': explorerRowHeight,
       'explorerShowBreadcrumbs': explorerShowBreadcrumbs,
-      'zideFfiBackendEnabled': zideFfiBackendEnabled,
     };
   }
 
