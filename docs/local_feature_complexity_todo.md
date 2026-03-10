@@ -115,7 +115,7 @@ First implementation batch:
 - leave `HostList`, `ServerWorkspaceShell`, and `ServerTabBuilder` stable for the first batch
 
 ## Task 20.3: implement the server host-surface split
-Status: pending
+Status: completed
 
 Goal:
 - extract the server-local host refresh/probe/distro orchestration seam out of `server_workspace_view.dart`
@@ -136,3 +136,26 @@ What stays stable in this batch:
 Done definition:
 - `server_workspace_view.dart` no longer owns the full host refresh/probe lifecycle directly
 - the extracted seam remains server-local and does not become a shared shell abstraction
+
+Result:
+- extracted [server_host_surface_controller.dart](/home/home/personal/cwatch/lib/view/features/servers/server_host_surface_controller.dart) as the server-local host refresh/probe/distro coordination seam
+- `server_workspace_view.dart` now delegates:
+  - host loading
+  - custom-host update flow
+  - background availability checks
+  - host future notifier updates
+  - deferred distro warmup tracking
+- `HostList`, `ServerWorkspaceShell`, and `ServerTabBuilder` stayed stable in this batch
+
+## Task 20.4: re-scope the next server local-complexity batch
+Status: pending
+
+Goal:
+- decide whether the next server-local cleanup should stay in `server_workspace_view.dart` or move to the next hotspot in the local complexity layer
+
+Questions to answer:
+- is there one more bounded server-local seam with real value
+- or is the remaining server view weight now mostly valid local rendering/product behavior
+
+Done definition:
+- the next local-complexity move is explicit

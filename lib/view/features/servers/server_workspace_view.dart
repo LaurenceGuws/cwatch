@@ -1,12 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
 import 'package:cwatch/controller/controllers/settings_controller.dart';
 import 'package:cwatch/model/features/servers/models/server_tab_data.dart';
-import 'package:cwatch/model/models/custom_ssh_host.dart';
 import 'package:cwatch/model/models/explorer_context.dart';
 import 'package:cwatch/model/models/server_action.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
@@ -14,14 +12,11 @@ import 'package:cwatch/model/services_infra/filesystem/explorer_trash_manager.da
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
-import 'package:cwatch/model/services_infra/ssh/ssh_config_service.dart';
-import 'package:cwatch/model/features/servers/services/host_distro_manager.dart';
 import 'package:cwatch/model/services_infra/cache/distro_cache_controller.dart';
 import 'package:cwatch/view/features/servers/server_workspace_ui_adapter.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/controller/di/bindings/server_workspace_binding.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
-import 'package:cwatch/model/services_infra/network/connectivity_probe.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/view/core/tabs/tab_bar_visibility.dart';
 import 'package:cwatch/view/core/tabs/workspace_tab_chip_builder.dart';
@@ -34,11 +29,11 @@ import 'server_workspace_controller.dart';
 import 'package:cwatch/view/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/view/core/widgets/keep_alive.dart';
 import 'package:cwatch/view/core/tabs/tabbed_workspace_shell.dart';
-import 'package:cwatch/model/features/servers/services/host_distro_key.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/settings/floating_settings_window.dart';
 import 'package:cwatch/view/features/settings/settings/server_list_settings_controls.dart';
 import 'package:cwatch/view/features/settings/settings/ssh_settings_controls.dart';
 import 'package:cwatch/model/shared/services/host_shell_policy.dart';
+import 'server_host_surface_controller.dart';
 import 'server_workspace_runtime.dart';
 import 'server_workspace_shell.dart';
 
@@ -68,26 +63,21 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   final ServerWorkspaceBinding _binding = const ServerWorkspaceBinding();
   late final ServerWorkspaceRuntime _runtime;
   late final ServerWorkspaceShell _viewShell;
+  late final ServerHostSurfaceController _hostSurfaceController;
   late final ServerTabBuilder _tabBuilder;
-  final Map<String, bool> _hostAvailability = {};
-  final Set<String> _pendingCustomAvailabilityChecks = {};
-  bool _didProbeHostDistro = false;
   late final VoidCallback _settingsListener;
   late final VoidCallback _tabsListener;
   late final TabViewRegistry<WorkspaceTab> _tabRegistry;
   static int _placeholderSequence = 0;
-  late Future<List<SshHost>> _hostsFuture;
-  late final ValueNotifier<Future<List<SshHost>>> _hostsFutureNotifier;
-  List<SshHost> _lastHosts = const [];
   bool _showListSettings = false;
 
   ServerWorkspaceUiAdapter get _uiAdapter => _runtime.uiAdapter;
-  HostDistroManager get _distroManager => _runtime.distroManager;
   DistroCacheController get _distroCacheController =>
       _runtime.distroCacheController;
   ServerWorkspaceController get _workspaceController =>
       _runtime.workspaceController;
   SettingsController get _settingsController => _runtime.settingsController;
+  List<SshHost> get _lastHosts => _hostSurfaceController.lastHosts;
 
   void _toggleListSettings() {
     setState(() {
@@ -95,219 +85,12 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
     });
   }
 
-  Future<List<SshHost>> _loadHosts() async {
-    final settings = widget.settingsController.settings;
-    final ssh = settings.sshPreferences;
-    // Load hosts without blocking on availability checks for initial render
-    final hosts = await SshConfigService(
-      customHosts: ssh.customHosts,
-      additionalEntryPoints: ssh.customConfigPaths,
-      disabledEntryPoints: ssh.disabledConfigPaths,
-    ).loadHosts(
-      disabledHosts: ssh.disabledServerHosts.toSet(),
-      checkAvailability: false, // Defer availability checks to background
-    );
-    _lastHosts = hosts;
-    
-    // Update availability in background without blocking
-    _updateAvailabilityInBackground(hosts);
-    
-    return hosts;
-  }
-  
-  void _updateAvailabilityInBackground(List<SshHost> hosts) {
-    // Check availability for hosts in background and update as results arrive
-    for (final host in hosts) {
-      if (isNoShellHost(host) || _isHostDisabled(host, _disabledHostKeys())) {
-        continue;
-      }
-      unawaited(
-        _checkAvailabilityForHost(host).then((available) {
-          if (!mounted) return;
-          final index = _lastHosts.indexWhere(
-            (h) => h.name == host.name && h.hostname == host.hostname && h.port == host.port,
-          );
-          if (index != -1 && _lastHosts[index].available != available) {
-            final existing = _lastHosts[index];
-            final updated = SshHost(
-              name: existing.name,
-              hostname: existing.hostname,
-              port: existing.port,
-              available: available,
-              user: existing.user,
-              identityFiles: existing.identityFiles,
-              source: existing.source,
-            );
-            final nextHosts = [..._lastHosts];
-            nextHosts[index] = updated;
-            _lastHosts = nextHosts;
-            _hostsFuture = Future.value(nextHosts);
-            _hostsFutureNotifier.value = _hostsFuture;
-          }
-        }),
-      );
-    }
-  }
-  
-  Future<bool> _checkAvailabilityForHost(SshHost host) async {
-    const probe = ConnectivityProbe();
-    return probe.canConnect(
-      host: host.hostname,
-      port: host.port,
-      timeout: const Duration(seconds: 2),
-      hostLabel: host.name,
-    );
-  }
-
   String _buildCustomHostsSignature() {
-    final settings = widget.settingsController.settings;
-    final customHosts =
-        settings.sshPreferences.customHosts.map((host) {
-            final keyParts = [
-              host.name,
-              host.hostname,
-              host.port.toString(),
-              host.user ?? '',
-              host.identityFile ?? '',
-            ];
-            return {'key': keyParts.join('|'), 'host': host.toJson()};
-          }).toList()
-          ..sort((a, b) => (a['key'] as String).compareTo(b['key'] as String));
-    return jsonEncode(customHosts.map((entry) => entry['host']).toList());
+    return _hostSurfaceController.buildCustomHostsSignature();
   }
 
   String _buildPathsSignature() {
-    final settings = widget.settingsController.settings;
-    final customPaths = [...settings.sshPreferences.customConfigPaths]..sort();
-    final disabledPaths = [...settings.sshPreferences.disabledConfigPaths]..sort();
-    return jsonEncode({
-      'customPaths': customPaths,
-      'disabledPaths': disabledPaths,
-    });
-  }
-
-  String _customHostKey(CustomSshHost host) {
-    return [
-      host.name,
-      host.hostname,
-      host.port.toString(),
-      host.user ?? '',
-      host.identityFile ?? '',
-    ].join('|');
-  }
-
-  String _customHostKeyFromSsh(SshHost host) {
-    return [
-      host.name,
-      host.hostname,
-      host.port.toString(),
-      host.user ?? '',
-      host.identityFiles.isNotEmpty ? host.identityFiles.first : '',
-    ].join('|');
-  }
-
-  Future<List<SshHost>> _updateCustomHosts(List<CustomSshHost> customHosts) {
-    if (_lastHosts.isEmpty) {
-      return _loadHosts();
-    }
-    final existingCustom = <String, SshHost>{
-      for (final host in _lastHosts.where((host) => host.source == 'custom'))
-        _customHostKeyFromSsh(host): host,
-    };
-    final nonCustomHosts = _lastHosts
-        .where((host) => host.source != 'custom')
-        .toList();
-    final updatedCustomHosts = <SshHost>[];
-    for (final customHost in customHosts) {
-      final key = _customHostKey(customHost);
-      final existing = existingCustom[key];
-      final available = existing?.available ?? false;
-      if (existing == null) {
-        _scheduleCustomAvailabilityCheck(customHost, key);
-      }
-      updatedCustomHosts.add(
-        SshHost(
-          name: customHost.name,
-          hostname: customHost.hostname,
-          port: customHost.port,
-          available: available,
-          user: customHost.user,
-          identityFiles: customHost.identityFile != null
-              ? [customHost.identityFile!]
-              : const [],
-          source: 'custom',
-        ),
-      );
-    }
-    final nextHosts = [...nonCustomHosts, ...updatedCustomHosts];
-    _lastHosts = nextHosts;
-    return Future.value(nextHosts);
-  }
-
-  void _scheduleCustomAvailabilityCheck(CustomSshHost host, String key) {
-    if (!_pendingCustomAvailabilityChecks.add(key)) {
-      return;
-    }
-    unawaited(
-      _checkAvailability(host)
-          .then((available) {
-            if (!mounted) {
-              return;
-            }
-            _applyCustomAvailability(host, available);
-          })
-          .whenComplete(() {
-            _pendingCustomAvailabilityChecks.remove(key);
-          }),
-    );
-  }
-
-  void _applyCustomAvailability(CustomSshHost host, bool available) {
-    final key = _customHostKey(host);
-    final index = _lastHosts.indexWhere(
-      (entry) =>
-          entry.source == 'custom' && _customHostKeyFromSsh(entry) == key,
-    );
-    if (index == -1) {
-      return;
-    }
-    final existing = _lastHosts[index];
-    if (existing.available == available) {
-      return;
-    }
-    final updated = SshHost(
-      name: existing.name,
-      hostname: existing.hostname,
-      port: existing.port,
-      available: available,
-      user: existing.user,
-      identityFiles: existing.identityFiles,
-      source: existing.source,
-    );
-    final nextHosts = [..._lastHosts];
-    nextHosts[index] = updated;
-    _lastHosts = nextHosts;
-    _hostsFuture = Future.value(nextHosts);
-    _hostsFutureNotifier.value = _hostsFuture;
-
-    final distroKey = hostDistroCacheKey(updated);
-    final wasAvailable = _hostAvailability[distroKey] ?? false;
-    _hostAvailability[distroKey] = available;
-    if (available && !_distroManager.hasCached(distroKey)) {
-      unawaited(
-        _distroManager.ensureDistroForHost(updated, force: !wasAvailable),
-      );
-    }
-  }
-
-  Future<bool> _checkAvailability(CustomSshHost host) {
-    const probe = ConnectivityProbe();
-    return probe.canConnect(
-      host: host.hostname,
-      port: host.port,
-      timeout: const Duration(seconds: 2),
-      hostLabel: host.name,
-    );
+    return _hostSurfaceController.buildPathsSignature();
   }
 
   List<WorkspaceTab> get _tabs => _workspaceController.tabs;
@@ -333,18 +116,25 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   @override
   void initState() {
     super.initState();
-    _hostsFutureNotifier = ValueNotifier(Future.value(const []));
+    _hostSurfaceController = ServerHostSurfaceController(
+      appSettingsController: widget.settingsController,
+      distroManager: () => _runtime.distroManager,
+    );
     _viewShell = ServerWorkspaceShell(
       moduleId: widget.moduleId,
-      loadHosts: _loadHosts,
-      updateCustomHosts: _updateCustomHosts,
+      loadHosts: _hostSurfaceController.loadHosts,
+      updateCustomHosts: (customHosts) => _hostSurfaceController.updateCustomHosts(
+        customHosts,
+        onHostsChanged: () {
+          if (mounted) {
+            setState(() {});
+          }
+        },
+      ),
       buildCustomHostsSignature: _buildCustomHostsSignature,
       buildPathsSignature: _buildPathsSignature,
       buildDisabledHostsSignature: _buildDisabledHostsSignature,
-      setHostsFuture: (hostsFuture) {
-        _hostsFuture = hostsFuture;
-        _hostsFutureNotifier.value = hostsFuture;
-      },
+      setHostsFuture: _hostSurfaceController.setHostsFuture,
       requestViewRefresh: () {
         if (mounted) {
           setState(() {});
@@ -375,20 +165,21 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
       renameTab: _renameTab,
       customHosts: () => widget.settingsController.settings.sshPreferences.customHosts,
     );
-    _hostsFuture = _viewShell.initializeHosts();
+    final initialHostsFuture = _viewShell.initializeHosts();
+    _hostSurfaceController.setHostsFuture(initialHostsFuture);
     _tabBuilder = ServerTabBuilder(
       settingsController: widget.settingsController,
       trashManager: ExplorerTrashManager(),
       shellServiceForHost: (host) => widget.shellFactory.forHost(host),
       keyService: widget.keyService,
-      hostsFuture: _hostsFuture,
+      hostsFuture: initialHostsFuture,
     );
     _runtime = _binding.createRuntime(
       context: context,
       appSettingsController: widget.settingsController,
       keyService: widget.keyService,
-      hostsFuture: _hostsFuture,
-      hostsLoader: _loadHosts,
+      hostsFuture: initialHostsFuture,
+      hostsLoader: _hostSurfaceController.loadHosts,
       tabBuilder: _tabBuilder,
       baseTabBuilder: _createPlaceholderTab,
     );
@@ -416,15 +207,14 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   void didUpdateWidget(covariant ServerWorkspaceView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.hostsFuture != oldWidget.hostsFuture) {
-      _hostsFuture = _loadHosts();
-      _hostsFutureNotifier.value = _hostsFuture;
+      _hostSurfaceController.setHostsFuture(_hostSurfaceController.loadHosts());
     }
   }
 
   @override
   void dispose() {
     _workspaceController.removeListener(_tabsListener);
-    _hostsFutureNotifier.dispose();
+    _hostSurfaceController.dispose();
     widget.settingsController.removeListener(_settingsListener);
     _viewShell.dispose();
     _runtime.dispose();
@@ -448,7 +238,7 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
     void Function(SshHost, ServerAction)? onAction,
   }) {
     final selection = ValueListenableBuilder<Future<List<SshHost>>>(
-      valueListenable: _hostsFutureNotifier,
+      valueListenable: _hostSurfaceController.hostsFutureNotifier,
       builder: (context, hostsFuture, _) {
         return FutureBuilder<List<SshHost>>(
           future: hostsFuture,
@@ -466,7 +256,10 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
             final shellCapableHosts = hosts
                 .where((host) => !isNoShellHost(host))
                 .toList();
-            _trackHostDistroChecks(shellCapableHosts);
+            _hostSurfaceController.trackHostDistroChecks(
+              shellCapableHosts,
+              disabledHostKeys: _disabledHostKeys(),
+            );
             return HostList(
               key: const ValueKey('host-list'),
               hosts: shellCapableHosts,
@@ -539,48 +332,11 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
       ],
     );
   }
-
-  void _trackHostDistroChecks(List<SshHost> hosts) {
-    // Defer distro detection - only check cached hosts initially
-    // Actual detection will happen on-demand when rows are visible or interacted with
-    if (_didProbeHostDistro) {
-      return;
-    }
-    _didProbeHostDistro = true;
-    
-    // Only track availability state, don't trigger distro detection yet
-    for (final host in hosts) {
-      if (isNoShellHost(host)) {
-        continue;
-      }
-      if (_isHostDisabled(host, _disabledHostKeys())) {
-        continue;
-      }
-      final key = hostDistroCacheKey(host);
-      _hostAvailability[key] = host.available;
-      // Skip immediate distro detection - will be done on-demand
-    }
-  }
   
   void _ensureDistroForHostOnDemand(SshHost host) {
-    if (isNoShellHost(host)) {
-      return;
-    }
-    if (_isHostDisabled(host, _disabledHostKeys())) {
-      return;
-    }
-    final key = hostDistroCacheKey(host);
-    final hasCache = _distroManager.hasCached(key);
-    if (hasCache) {
-      return;
-    }
-    if (!host.available) {
-      return;
-    }
-    // Only detect if not already in progress
-    final wasAvailable = _hostAvailability[key] ?? false;
-    unawaited(
-      _distroManager.ensureDistroForHost(host, force: !wasAvailable),
+    _hostSurfaceController.ensureDistroForHostOnDemand(
+      host,
+      disabledHostKeys: _disabledHostKeys(),
     );
   }
 
@@ -693,8 +449,7 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
     if (!mounted) return;
     AppLogger().debug('ServersList manual reload', tag: 'ServersList');
     _viewShell.reloadServerList();
-    _hostAvailability.clear();
-    _didProbeHostDistro = false;
+    _hostSurfaceController.resetAvailabilityTracking();
   }
 
   void _addServerTab(SshHost host, ServerAction action) {
@@ -896,6 +651,4 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   // Missing helpers
   Set<String> _disabledHostKeys() =>
       widget.settingsController.settings.sshPreferences.disabledServerHosts.toSet();
-  bool _isHostDisabled(SshHost host, Set<String> disabledKeys) =>
-      disabledKeys.any((key) => disabledKeyMatchesHost(key, host));
 }
