@@ -291,33 +291,52 @@ class _SettingsViewState extends State<SettingsView>
                         EditorSettingsTab(
                           settings: settings,
                           settingsController: _controller,
-                          fontFamily: settings.editorFontFamily,
-                          fontSize: settings.editorFontSize,
-                          lineHeight: settings.editorLineHeight,
+                          fontFamily: settings.editorPreferences.fontFamily,
+                          fontSize: settings.editorPreferences.fontSize,
+                          lineHeight: settings.editorPreferences.lineHeight,
                           onFontFamilyChanged: (value) => _controller.update(
                             (current) => current.copyWith(
-                              editorFontFamily: value.trim().isEmpty
-                                  ? null
-                                  : value.trim(),
+                              editorPreferences:
+                                  current.editorPreferences.copyWith(
+                                    fontFamily: value.trim().isEmpty
+                                        ? null
+                                        : value.trim(),
+                                  ),
                             ),
                           ),
                           onFontSizeChanged: (value) => _controller.update(
-                            (current) =>
-                                current.copyWith(editorFontSize: value),
+                            (current) => current.copyWith(
+                              editorPreferences:
+                                  current.editorPreferences.copyWith(
+                                    fontSize: value,
+                                  ),
+                            ),
                           ),
                           onLineHeightChanged: (value) => _controller.update(
-                            (current) =>
-                                current.copyWith(editorLineHeight: value),
+                            (current) => current.copyWith(
+                              editorPreferences:
+                                  current.editorPreferences.copyWith(
+                                    lineHeight: value,
+                                  ),
+                            ),
                           ),
-                          lightTheme: settings.editorThemeLight,
-                          darkTheme: settings.editorThemeDark,
+                          lightTheme: settings.editorPreferences.themeLight,
+                          darkTheme: settings.editorPreferences.themeDark,
                           onLightThemeChanged: (value) => _controller.update(
-                            (current) =>
-                                current.copyWith(editorThemeLight: value),
+                            (current) => current.copyWith(
+                              editorPreferences:
+                                  current.editorPreferences.copyWith(
+                                    themeLight: value,
+                                  ),
+                            ),
                           ),
                           onDarkThemeChanged: (value) => _controller.update(
-                            (current) =>
-                                current.copyWith(editorThemeDark: value),
+                            (current) => current.copyWith(
+                              editorPreferences:
+                                  current.editorPreferences.copyWith(
+                                    themeDark: value,
+                                  ),
+                            ),
                           ),
                         ),
                       ],

@@ -53,17 +53,22 @@ class EditorState extends ChangeNotifier {
   }
 
   String? savedThemeForBrightness(Brightness brightness) {
-    final settings = settingsController.settings;
+    final preferences = settingsController.settings.editorPreferences;
     return brightness == Brightness.dark
-        ? settings.editorThemeDark
-        : settings.editorThemeLight;
+        ? preferences.themeDark
+        : preferences.themeLight;
   }
 
   void saveThemeForBrightness(Brightness brightness, String themeKey) {
     settingsController.update((current) {
+      final preferences = current.editorPreferences;
       return brightness == Brightness.dark
-          ? current.copyWith(editorThemeDark: themeKey)
-          : current.copyWith(editorThemeLight: themeKey);
+          ? current.copyWith(
+              editorPreferences: preferences.copyWith(themeDark: themeKey),
+            )
+          : current.copyWith(
+              editorPreferences: preferences.copyWith(themeLight: themeKey),
+            );
     });
   }
 

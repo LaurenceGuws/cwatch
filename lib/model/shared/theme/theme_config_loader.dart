@@ -41,8 +41,10 @@ Future<void> applyThemeConfigOverrides(AppSettingsController controller) async {
     }
     if (editorOverrides != null) {
       updated = updated.copyWith(
-        editorThemeLight: editorOverrides.themeKeyLight,
-        editorThemeDark: editorOverrides.themeKeyDark,
+        editorPreferences: updated.editorPreferences.copyWith(
+          themeLight: editorOverrides.themeKeyLight,
+          themeDark: editorOverrides.themeKeyDark,
+        ),
       );
     }
     return updated;

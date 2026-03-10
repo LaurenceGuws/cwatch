@@ -114,7 +114,8 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
     return GestureDetector(
       onScaleStart: (details) {
         if (details.pointerCount < 2) return;
-        _scaleStartFontSize = _settingsController.settings.editorFontSize;
+        _scaleStartFontSize =
+            _settingsController.settings.editorPreferences.fontSize;
       },
       onScaleUpdate: (details) {
         if (_scaleStartFontSize == null || details.pointerCount < 2) return;
@@ -226,14 +227,15 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
     final colorScheme = Theme.of(context).colorScheme;
     final theme = _getThemeForColorScheme(colorScheme);
     final settings = _settingsController.settings;
+    final editorPreferences = settings.editorPreferences;
     final inputMode = resolveInputMode(
       settings.inputModePreference,
       defaultTargetPlatform,
     );
     final baseTextStyle = TextStyle(
-      fontFamily: NerdFonts.effectiveFamily(settings.editorFontFamily),
-      fontSize: settings.editorFontSize.clamp(8, 32).toDouble(),
-      height: settings.editorLineHeight.clamp(1.0, 2.0).toDouble(),
+      fontFamily: NerdFonts.effectiveFamily(editorPreferences.fontFamily),
+      fontSize: editorPreferences.fontSize.clamp(8, 32).toDouble(),
+      height: editorPreferences.lineHeight.clamp(1.0, 2.0).toDouble(),
     );
     final spacing = context.appTheme.spacing;
     return Padding(
@@ -278,25 +280,45 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
                   ),
                   const Divider(),
                   EditorSettingsControls(
-                    fontFamily: settings.editorFontFamily,
-                    fontSize: settings.editorFontSize,
-                    lineHeight: settings.editorLineHeight,
-                    lightTheme: settings.editorThemeLight,
-                    darkTheme: settings.editorThemeDark,
+                    fontFamily: editorPreferences.fontFamily,
+                    fontSize: editorPreferences.fontSize,
+                    lineHeight: editorPreferences.lineHeight,
+                    lightTheme: editorPreferences.themeLight,
+                    darkTheme: editorPreferences.themeDark,
                     onFontFamilyChanged: (value) => _settingsController.update(
-                      (s) => s.copyWith(editorFontFamily: value),
+                      (s) => s.copyWith(
+                        editorPreferences: s.editorPreferences.copyWith(
+                          fontFamily: value,
+                        ),
+                      ),
                     ),
                     onFontSizeChanged: (value) => _settingsController.update(
-                      (s) => s.copyWith(editorFontSize: value),
+                      (s) => s.copyWith(
+                        editorPreferences: s.editorPreferences.copyWith(
+                          fontSize: value,
+                        ),
+                      ),
                     ),
                     onLineHeightChanged: (value) => _settingsController.update(
-                      (s) => s.copyWith(editorLineHeight: value),
+                      (s) => s.copyWith(
+                        editorPreferences: s.editorPreferences.copyWith(
+                          lineHeight: value,
+                        ),
+                      ),
                     ),
                     onLightThemeChanged: (value) => _settingsController.update(
-                      (s) => s.copyWith(editorThemeLight: value),
+                      (s) => s.copyWith(
+                        editorPreferences: s.editorPreferences.copyWith(
+                          themeLight: value,
+                        ),
+                      ),
                     ),
                     onDarkThemeChanged: (value) => _settingsController.update(
-                      (s) => s.copyWith(editorThemeDark: value),
+                      (s) => s.copyWith(
+                        editorPreferences: s.editorPreferences.copyWith(
+                          themeDark: value,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -309,16 +331,21 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
 
   Future<void> _changeEditorFont(double delta) async {
     await _settingsController.update((current) {
-      final next = (current.editorFontSize + delta).clamp(8, 32).toDouble();
-      return current.copyWith(editorFontSize: next);
+      final next =
+          (current.editorPreferences.fontSize + delta).clamp(8, 32).toDouble();
+      return current.copyWith(
+        editorPreferences: current.editorPreferences.copyWith(fontSize: next),
+      );
     });
   }
 
   Future<void> _setEditorFontSize(double value) async {
     await _settingsController.update((current) {
       final next = value.clamp(8, 32).toDouble();
-      if (next == current.editorFontSize) return current;
-      return current.copyWith(editorFontSize: next);
+      if (next == current.editorPreferences.fontSize) return current;
+      return current.copyWith(
+        editorPreferences: current.editorPreferences.copyWith(fontSize: next),
+      );
     });
   }
 

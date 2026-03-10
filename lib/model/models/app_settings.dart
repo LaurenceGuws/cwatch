@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'custom_ssh_host.dart';
 import 'docker_workspace_state.dart';
+import 'editor_preferences.dart';
 import 'server_workspace_state.dart';
 import 'kubernetes_backend.dart';
 import 'kubernetes_workspace_state.dart';
@@ -124,6 +125,13 @@ class AppSettings {
     themeDark: terminalThemeDark,
     themeLight: terminalThemeLight,
   );
+  EditorPreferences get editorPreferences => EditorPreferences(
+    themeLight: editorThemeLight,
+    themeDark: editorThemeDark,
+    fontFamily: editorFontFamily,
+    fontSize: editorFontSize,
+    lineHeight: editorLineHeight,
+  );
 
   AppSettings copyWith({
     ThemeMode? themeMode,
@@ -160,6 +168,7 @@ class AppSettings {
     String? editorFontFamily,
     double? editorFontSize,
     double? editorLineHeight,
+    EditorPreferences? editorPreferences,
     List<String>? dockerRemoteHosts,
     String? dockerSelectedContext,
     DockerWorkspaceState? dockerWorkspace,
@@ -213,11 +222,26 @@ class AppSettings {
       kubernetesWorkspace: kubernetesWorkspace ?? this.kubernetesWorkspace,
       wslWorkspace: wslWorkspace ?? this.wslWorkspace,
       shortcutBindings: shortcutBindings ?? this.shortcutBindings,
-      editorThemeLight: editorThemeLight ?? this.editorThemeLight,
-      editorThemeDark: editorThemeDark ?? this.editorThemeDark,
-      editorFontFamily: editorFontFamily ?? this.editorFontFamily,
-      editorFontSize: editorFontSize ?? this.editorFontSize,
-      editorLineHeight: editorLineHeight ?? this.editorLineHeight,
+      editorThemeLight:
+          editorPreferences?.themeLight ??
+          editorThemeLight ??
+          this.editorThemeLight,
+      editorThemeDark:
+          editorPreferences?.themeDark ??
+          editorThemeDark ??
+          this.editorThemeDark,
+      editorFontFamily:
+          editorPreferences?.fontFamily ??
+          editorFontFamily ??
+          this.editorFontFamily,
+      editorFontSize:
+          editorPreferences?.fontSize ??
+          editorFontSize ??
+          this.editorFontSize,
+      editorLineHeight:
+          editorPreferences?.lineHeight ??
+          editorLineHeight ??
+          this.editorLineHeight,
       dockerRemoteHosts: dockerRemoteHosts ?? this.dockerRemoteHosts,
       dockerSelectedContext:
           dockerSelectedContext ?? this.dockerSelectedContext,
