@@ -598,6 +598,12 @@ Verification:
 - the remaining live `AppSettings` categories are named explicitly
 - the next batch is chosen from current evidence rather than continued cleanup momentum
 
+What landed next:
+- [testing_roadmap.md](/home/home/personal/cwatch/docs/testing_roadmap.md) now scopes the first characterization batch around:
+  - `WorkspaceRootController`
+  - `WorkspacePersistence<T>`
+  - grouped `AppSettings` serialization
+
 ### Task 12.8: scope `settingsTabIndex` removal from root settings
 Status: completed
 
