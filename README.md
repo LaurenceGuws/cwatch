@@ -108,17 +108,15 @@ Current integration-smell status:
 - major shared-shell contracts are now explicit and checkpointed
 - future integration work should reopen from concrete evidence inside a specific subsystem rather than continuing broad hotspot expansion
 
-Current recommended next rewrite move:
-- start the first true vertical slice with explorer
+Current vertical-slice sequence:
+- Explorer checkpointed as the first vertical slice
+- Docker checkpointed as the second vertical slice
+- Servers queued as the third vertical slice
 
-Current follow-up doc:
+Current follow-up docs:
 - `docs/explorer_vertical_slice_todo.md`
-
-Current next vertical-slice follow-up:
-- use Docker as the second vertical slice after the explorer checkpoint
-
-Current follow-up doc:
 - `docs/docker_vertical_slice_todo.md`
+- `docs/server_vertical_slice_todo.md`
 
 Current shared scaffolding contract now covers:
 - `SettingsSection`
@@ -159,3 +157,6 @@ Current shared scaffolding contract now covers:
 - `docs/testing_roadmap.md`: current testing backlog and rewrite-support testing priorities.
 - `docs/integration_smell_foundations.md`: high-level scope for shell/shared integration smell cleanup.
 - `docs/integration_smell_todo.md`: actionable integration-smell backlog for the next rewrite layer.
+- `docs/explorer_vertical_slice_todo.md`: first vertical slice checkpoint for explorer.
+- `docs/docker_vertical_slice_todo.md`: second vertical slice checkpoint for Docker.
+- `docs/server_vertical_slice_todo.md`: active TODO for the third vertical slice on servers.

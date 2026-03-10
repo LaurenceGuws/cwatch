@@ -225,6 +225,14 @@ Why:
 - docker has capability-aware behavior and CLI degradation paths that are now explicit
 - docker is a stronger next proof of feature-runtime ownership than explorer, without taking on full server/SSH complexity yet
 
+Next recommendation after the Docker checkpoint:
+- continue with `servers` as the third vertical slice
+
+Why:
+- server workspace still carries one of the heaviest mixed feature-shell seams in the repo
+- it already benefits from earlier runtime, tab-shell, SSH-auth, and settings cleanup
+- it is the strongest next proof of the architecture on a feature with heavier host/workspace lifecycle behavior than Docker
+
 ### Focus Area E: infrastructure boundary cleanup
 Questions to answer:
 - Where are transport, parsing, and policy mixed today?
