@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:cwatch/controller/controllers/docker_overview_tab_factory.dart';
 import 'package:cwatch/model/core/models/tab_state.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
 import 'package:cwatch/model/models/docker_workspace_state.dart';
@@ -26,7 +27,7 @@ import 'package:cwatch/controller/di/bindings/docker_overview_binding.dart';
 import 'package:cwatch/controller/di/bindings/docker_resources_binding.dart';
 import 'widgets/docker_resources.dart';
 
-class DockerTabBuilder {
+class DockerTabBuilder implements DockerOverviewTabFactory {
   const DockerTabBuilder({
     required this.docker,
     required this.settingsController,
@@ -69,7 +70,7 @@ class DockerTabBuilder {
           context: context,
           controller: overviewController,
           docker: docker,
-          tabBuilder: this,
+          tabFactory: this,
           onOpenTab: onOpenTab,
           onCloseTab: onCloseTab,
           settingsController: settingsController,
@@ -165,6 +166,7 @@ class DockerTabBuilder {
     );
   }
 
+  @override
   WorkspaceTab explorer({
     required String id,
     required String title,
@@ -324,6 +326,7 @@ class DockerTabBuilder {
     );
   }
 
+  @override
   WorkspaceTab commandTerminal({
     required String id,
     required String title,
@@ -382,6 +385,7 @@ class DockerTabBuilder {
     );
   }
 
+  @override
   WorkspaceTab composeLogs({
     required String id,
     required String title,

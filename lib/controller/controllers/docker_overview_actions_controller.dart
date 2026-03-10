@@ -8,8 +8,8 @@ import 'package:cwatch/model/models/explorer_context.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/features/docker/services/docker_client_service.dart';
 import 'package:cwatch/model/features/docker/services/docker_container_shell_service.dart';
-import 'package:cwatch/view/features/docker/docker_tab_builder.dart';
 import 'package:cwatch/controller/controllers/docker_overview_controller.dart';
+import 'package:cwatch/controller/controllers/docker_overview_tab_factory.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/services_infra/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
@@ -23,7 +23,7 @@ class DockerOverviewActionsController {
   DockerOverviewActionsController({
     required this.controller,
     required this.docker,
-    required this.tabBuilder,
+    required this.tabFactory,
     required this.onOpenTab,
     required this.onCloseTab,
     required this.settingsController,
@@ -34,7 +34,7 @@ class DockerOverviewActionsController {
 
   final DockerOverviewController controller;
   final DockerClientService docker;
-  final DockerTabBuilder tabBuilder;
+  final DockerOverviewTabFactory tabFactory;
   final void Function(WorkspaceTab tab)? onOpenTab;
   final void Function(String tabId)? onCloseTab;
   final AppSettingsController settingsController;
@@ -757,7 +757,7 @@ class DockerOverviewActionsController {
     if (_canOpenTabs) {
       final tabId =
           'logs-${container.id}-${DateTime.now().microsecondsSinceEpoch}';
-      final tab = tabBuilder.commandTerminal(
+      final tab = tabFactory.commandTerminal(
         id: tabId,
         title: 'Logs • $name',
         label: 'Logs: $name',
@@ -783,7 +783,7 @@ class DockerOverviewActionsController {
     final services = controller.composeServices(project);
     if (_canOpenTabs) {
       final tabId = 'clogs-$project-${DateTime.now().microsecondsSinceEpoch}';
-      final tab = tabBuilder.composeLogs(
+      final tab = tabFactory.composeLogs(
         id: tabId,
         title: 'Compose logs: $project',
         label: 'Compose logs: $project',
@@ -828,7 +828,7 @@ class DockerOverviewActionsController {
     }
     final tabId =
         'exec-${container.id}-${DateTime.now().microsecondsSinceEpoch}';
-    final tab = tabBuilder.commandTerminal(
+    final tab = tabFactory.commandTerminal(
       id: tabId,
       title: 'Shell: $name',
       label: 'Shell: $name',
@@ -878,7 +878,7 @@ class DockerOverviewActionsController {
       containerName: container.name,
       dockerContextName: dockerContextName,
     );
-    final tab = tabBuilder.explorer(
+    final tab = tabFactory.explorer(
       id: 'explore-${container.id}-${DateTime.now().microsecondsSinceEpoch}',
       title:
           'Explore ${container.name.isNotEmpty ? container.name : container.id}',

@@ -102,7 +102,7 @@ Verification:
 Status: completed
 
 ### Task 3.3: inspect docker tab builder ownership
-Status: pending
+Status: completed
 
 Why this is next:
 - `DockerOverviewController` now lives under `controller/controllers/`
@@ -168,8 +168,16 @@ Track here when ready:
 | --- | --- | --- | --- |
 | 3.1 | Docker overview ownership seam | completed | one misleading docker overview `controller -> view` dependency is removed |
 | 3.2 | Docker/workspace re-scope | completed | next batch is written from what we learned in 3.1 |
-| 3.3 | Docker tab builder ownership | pending | remaining docker-specific controller/binding dependency is reduced or justified |
+| 3.3 | Docker tab builder ownership | completed | remaining docker-specific controller/binding dependency is reduced or justified |
 | 3.x | Docker tab/workspace follow-up | queued | re-scoped after 3.3 |
+
+## Docker/workspace checkpoint
+
+Current state:
+- docker overview controller ownership is clarified
+- docker controller/binding code no longer imports from `view/features/docker`
+- `docker_tab_builder.dart` remains view-owned but is now consumed through a controller-owned interface where needed
+- the next work should split docker follow-up from workspace-core ownership instead of treating them as one seam
 
 ## Completion Metric
 
