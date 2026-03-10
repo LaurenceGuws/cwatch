@@ -112,7 +112,7 @@ Why the other candidates wait:
   - that is now lower-level composition cleanup, not the same class of integration smell
 
 ## Task 14.45: define the shared list/menu/settings scaffolding contract
-Status: queued
+Status: completed
 
 Goal:
 - describe the canonical shared shell scaffolding for reusable settings sections, generic lists/tables, and popup/menu surfaces
@@ -127,3 +127,68 @@ Done definition:
 - the canonical shared scaffolding responsibilities are explicit
 - valid local exception categories are explicit
 - one concrete follow-up cleanup batch is chosen
+
+Result:
+- the shared scaffolding contract is now explicit around the current real primitives:
+  - `SettingsSection`
+  - `SectionList`
+  - `StructuredDataTable`
+  - `ActionPicker`
+  - `StandardEmptyState`
+  - `SectionNavBar`
+
+### Canonical shared responsibilities
+
+The shared shell scaffolding should own:
+- repeated settings-section framing and section collapse/expand behavior
+- generic list/card framing with shared divider/title treatment
+- complex reusable table/list infrastructure with selection, keyboard, and context-menu support
+- generic action-picker surfaces for simple option selection
+- canonical empty-state/breadcrumb presentation for non-domain-specific “nothing here / unavailable” messaging
+- section navigation chrome used to move between shared screen subsections
+
+### Feature responsibilities
+
+Feature modules should own:
+- domain rows, columns, and action labels
+- domain-specific validation and side effects
+- domain-specific menu contents and availability rules
+- richer dashboards and cards whose value is in their custom content, not in generic scaffolding
+
+### Allowed local exceptions
+
+Local exceptions are valid when a surface needs:
+- domain-specific data density or rendering contracts
+- domain-specific multi-step controls
+- richer dashboard cards or status panels
+- custom interaction models beyond generic section/list/menu scaffolding
+
+Examples of valid local exceptions:
+- Docker `SectionCard`
+- Kubernetes dashboard cards and direct `DataTable` surfaces
+- server-specific action wording and host presentation
+- domain-specific empty states that carry product-specific guidance
+
+### Current integration smells still visible
+
+- settings sections are canonical, but the repo does not yet state where feature-local section wrappers are no longer acceptable
+- `StructuredDataTable` is a major shared primitive, but some feature tables still bypass it without an explicit reason
+- empty-state and section-card presentation language is split between shared shell widgets and local feature wrappers
+
+## Task 14.46: scope the first shared scaffolding normalization batch
+Status: queued
+
+Goal:
+- choose the smallest normalization batch that improves shared shell polish without flattening feature-specific dashboards or tables
+
+Current best candidate:
+- settings section and empty-state scaffolding
+
+Why this is first:
+- these are the clearest shell-owned presentation contracts
+- they affect multiple settings and utility surfaces directly
+- they are safer to normalize than forcing `StructuredDataTable` adoption or rewriting dashboard cards
+
+Done definition:
+- the first normalization batch is chosen
+- the batch is narrower than “unify all lists and menus”

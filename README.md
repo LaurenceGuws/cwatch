@@ -104,6 +104,14 @@ Current next integration hotspot:
 Current follow-up doc:
 - `docs/shared_scaffolding_todo.md`
 
+Current shared scaffolding contract now covers:
+- `SettingsSection`
+- `SectionList`
+- `StructuredDataTable`
+- `ActionPicker`
+- `StandardEmptyState`
+- `SectionNavBar`
+
 ## Development
 1. `flutter pub get`
 2. `flutter run -d <device>`

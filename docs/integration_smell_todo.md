@@ -177,6 +177,20 @@ Why it matters:
 Queued question:
 - which shared list/menu/settings primitives should become canonical defaults, and which current feature-local variants are valid exceptions
 
+Current result:
+- the shared scaffolding contract is now explicit around:
+  - `SettingsSection`
+  - `SectionList`
+  - `StructuredDataTable`
+  - `ActionPicker`
+  - `StandardEmptyState`
+  - `SectionNavBar`
+
+Current follow-up:
+- [shared_scaffolding_todo.md](/home/home/personal/cwatch/docs/shared_scaffolding_todo.md)
+- `Task 14.45` shared scaffolding contract is complete
+- `Task 14.46` first normalization batch scope is queued
+
 ## Next Re-scope
 
 ### Task 14.2: choose the first normalization hotspot

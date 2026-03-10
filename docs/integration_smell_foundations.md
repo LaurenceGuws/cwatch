@@ -350,6 +350,16 @@ Why this is next:
 - shared list/table/menu/settings-section surfaces are still under-documented and easy to shadow locally
 - shell polish now depends more on making those canonical shared surfaces explicit than on another metadata pass
 
+Current hotspot status:
+- the shared scaffolding contract is now explicit around:
+  - `SettingsSection`
+  - `SectionList`
+  - `StructuredDataTable`
+  - `ActionPicker`
+  - `StandardEmptyState`
+  - `SectionNavBar`
+- the first normalization batch is now being scoped around settings section and empty-state scaffolding
+
 ## Success Criteria
 
 This layer is working when:
