@@ -121,17 +121,71 @@ Result:
 - capability, command/menu, and tab descriptor metadata remain queued later candidates
 
 ## Task 14.32: scope config/schema annotation metadata
-Status: queued
+Status: completed
 
 Goal:
 - define the smallest first annotation/codegen slice around settings/preferences metadata without touching runtime behavior
 
-Likely first slice:
-- annotate grouped preference models with config key metadata
-- generate a registry/schema surface from those models
-- keep settings UI and runtime update logic explicit for now
+Candidates considered:
+- annotate every grouped preference model immediately
+- start with only primitive grouped preference models
+- start at `AppSettings` root section metadata only
+
+Decision:
+- the first codegen slice should target the primitive grouped preference models first:
+  - [shell_preferences.dart](/home/home/personal/cwatch/lib/model/models/shell_preferences.dart)
+  - [editor_preferences.dart](/home/home/personal/cwatch/lib/model/models/editor_preferences.dart)
+  - [terminal_preferences.dart](/home/home/personal/cwatch/lib/model/models/terminal_preferences.dart)
+  - [explorer_preferences.dart](/home/home/personal/cwatch/lib/model/models/explorer_preferences.dart)
+
+Why this is the right first cut:
+- these models are already cohesive and stable
+- their fields are mostly scalar config values with straightforward keys/defaults
+- they are enough to prove schema/descriptor generation without dragging in richer domain types
+- they keep the first pass focused on metadata, not serialization edge cases
+
+Why the other candidates wait:
+- `ssh_preferences.dart`
+  - includes nested host/config collections and backend-specific concerns
+- `kubernetes_preferences.dart`
+  - smaller, but tied to enum/backend semantics better handled after the primitive proof point
+- `docker_preferences.dart`
+  - simple enough later, but less foundational than shell/editor/terminal/explorer
+- `AppSettings` root metadata first
+  - too high-level for the first proof point and too easy to over-design
+
+Proposed first outputs:
+- generated config field descriptors
+- generated grouped schema/export metadata
+- generated default/value documentation surface
+
+Explicit anti-goals:
+- no generated runtime update logic
+- no generated settings UI widgets
+- no reflection-like controller wiring
+- no attempt to describe feature workflow behavior
 
 Done definition:
 - one narrow metadata slice is chosen
 - proposed outputs are concrete
 - anti-goals are explicit so the first codegen pass stays narrow
+
+Result:
+- the first codegen proof point is now explicitly primitive grouped preference metadata
+- the next batch should define the annotation shape, not implement broad codegen
+
+## Task 14.33: define config metadata annotation shape
+Status: queued
+
+Goal:
+- define the smallest annotation surface needed to describe config keys/defaults/docs for the first grouped preference models
+
+Expected scope:
+- one annotation family for config groups and config fields
+- enough metadata for descriptor/schema generation
+- no runtime orchestration hooks
+
+Done definition:
+- the annotation shape is explicit
+- required metadata fields are explicit
+- the first implementation slice is still narrow enough to prove the pattern without framework sludge

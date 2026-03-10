@@ -326,6 +326,11 @@ Current next hotspot:
 Current follow-up doc:
 - [annotation_codegen_todo.md](/home/home/personal/cwatch/docs/annotation_codegen_todo.md)
 
+Current hotspot status:
+- the first target is now explicitly grouped config/schema metadata
+- the first codegen slice is narrowed to primitive grouped preference models
+- the next step is to define annotation shape, not broad generator behavior
+
 Why this is next:
 - the main shared-surface hotspots are now at usable checkpoints
 - the repo can now distinguish stable metadata from active runtime behavior more clearly
