@@ -70,7 +70,7 @@ We are trying to make shell/module ownership less ambiguous by answering:
 ## First Batch Candidate
 
 ### Task 2.1: normalize feature module ownership entrypoints
-Status: pending
+Status: completed
 
 Why this is first:
 - the strongest shell/module ambiguity is the `controller/features/*/view.dart` pattern
@@ -108,7 +108,28 @@ Verification:
 - manual smoke check that shell navigation still loads modules
 
 ### Task 2.2: re-scope after feature entrypoint cleanup
+Status: completed
+
+### Task 2.3: inspect home shell service binding ownership
 Status: pending
+
+Why this is next:
+- module descriptors now live with the shell
+- the next strongest ownership ambiguity is `HomeShellServicesBinding` creating a view-owned service holder and importing view-owned helper types
+
+Actions:
+- inspect `home_shell_services.dart`, `gesture_detector_factory.dart`, and `HomeShellServicesBinding`
+- decide one narrow ownership correction for that seam
+- implement only the smallest change that makes service ownership clearer
+
+Done definition:
+- one shell service ownership rule is clearer than before
+- at least one non-presentation dependency on a view-owned type is removed or explicitly justified
+
+Verification:
+- `rg -n "package:cwatch/view/" lib/controller/di/bindings/home_shell_services_binding.dart`
+- `flutter analyze`
+- manual shell bootstrap smoke check
 
 Purpose:
 - decide whether the next shell/module batch should target:
@@ -123,6 +144,12 @@ Done definition:
 
 Verification:
 - follow-up task added to this document before the next shell/module structural change starts
+
+Result of re-scope:
+- shell module descriptors now live under `view/core/navigation/feature_modules.dart`
+- controller-side feature module entrypoint and barrel files were removed
+- `home_shell_modules.dart` now reads as a shell-owned module list instead of a shell file depending on controller-owned module wrappers
+- the next shell/module batch should focus on `HomeShellServicesBinding` ownership
 
 ## Later Work In This Hotspot
 
@@ -147,9 +174,10 @@ Track here when ready:
 
 | Item | Scope | Status | Done When |
 | --- | --- | --- | --- |
-| 2.1 | Feature module entrypoints | pending | one shell/module ownership rule is clearer and at least one misleading pattern is removed |
-| 2.2 | Shell/module re-scope | pending | next shell/module batch is written from what we learned in 2.1 |
-| 2.x | Module registry/binding follow-up | queued | re-scoped after 2.1 |
+| 2.1 | Feature module entrypoints | completed | one shell/module ownership rule is clearer and at least one misleading pattern is removed |
+| 2.2 | Shell/module re-scope | completed | next shell/module batch is written from what we learned in 2.1 |
+| 2.3 | Home shell service binding ownership | pending | one shell service ownership rule is clearer and at least one non-presentation view dependency is addressed |
+| 2.x | Module registry/binding follow-up | queued | re-scoped after 2.3 |
 
 ## Completion Metric
 
