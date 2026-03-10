@@ -367,28 +367,14 @@ class AppSettings {
       zoomFactor: (json['zoomFactor'] as num?)?.toDouble() ?? 1.0,
       serverAutoRefresh: json['serverAutoRefresh'] as bool? ?? true,
       serverShowOffline: json['serverShowOffline'] as bool? ?? true,
-      shellSidebarWidth:
-          (shellJson?['sidebarWidth'] as num?)?.toDouble() ??
-          (json['shellSidebarWidth'] as num?)?.toDouble(),
-      shellDestination:
-          shellJson?['destination'] as String? ??
-          json['shellDestination'] as String?,
-      shellSidebarCollapsed:
-          shellJson?['sidebarCollapsed'] as bool? ??
-          json['shellSidebarCollapsed'] as bool? ??
-          false,
+      shellSidebarWidth: (shellJson?['sidebarWidth'] as num?)?.toDouble(),
+      shellDestination: shellJson?['destination'] as String?,
+      shellSidebarCollapsed: shellJson?['sidebarCollapsed'] as bool? ?? false,
       shellSidebarPlacement:
-          shellJson?['sidebarPlacement'] as String? ??
-          json['shellSidebarPlacement'] as String? ??
-          'dynamic',
+          shellJson?['sidebarPlacement'] as String? ?? 'dynamic',
       windowUseSystemDecorations:
-          shellJson?['useSystemDecorations'] as bool? ??
-          json['windowUseSystemDecorations'] as bool? ??
-          true,
-      closeToTray:
-          shellJson?['closeToTray'] as bool? ??
-          json['closeToTray'] as bool? ??
-          false,
+          shellJson?['useSystemDecorations'] as bool? ?? true,
+      closeToTray: shellJson?['closeToTray'] as bool? ?? false,
       appFontFamily: json['appFontFamily'] as String?,
       appThemeKey: json['appThemeKey'] as String? ?? 'blue-grey',
       uiDensity: AppUiDensityParsing.fromJson(json['uiDensity'] as String?),
@@ -485,23 +471,12 @@ class AppSettings {
             (key, value) => MapEntry(key, value.toString()),
           ) ??
           const {},
-      editorThemeLight:
-          editorJson?['themeLight'] as String? ??
-          json['editorThemeLight'] as String?,
-      editorThemeDark:
-          editorJson?['themeDark'] as String? ??
-          json['editorThemeDark'] as String?,
-      editorFontFamily:
-          editorJson?['fontFamily'] as String? ??
-          json['editorFontFamily'] as String?,
-      editorFontSize:
-          (editorJson?['fontSize'] as num?)?.toDouble() ??
-          (json['editorFontSize'] as num?)?.toDouble() ??
-          14,
+      editorThemeLight: editorJson?['themeLight'] as String?,
+      editorThemeDark: editorJson?['themeDark'] as String?,
+      editorFontFamily: editorJson?['fontFamily'] as String?,
+      editorFontSize: (editorJson?['fontSize'] as num?)?.toDouble() ?? 14,
       editorLineHeight:
-          (editorJson?['lineHeight'] as num?)?.toDouble() ??
-          (json['editorLineHeight'] as num?)?.toDouble() ??
-          1.35,
+          (editorJson?['lineHeight'] as num?)?.toDouble() ?? 1.35,
       dockerRemoteHosts:
           (json['dockerRemoteHosts'] as List<dynamic>?)
               ?.whereType<String>()
@@ -526,33 +501,17 @@ class AppSettings {
         return null;
       }(),
       terminalFontFamily:
-          terminalJson?['fontFamily'] as String? ??
-          json['terminalFontFamily'] as String? ??
-          'JetBrainsMono Nerd Font',
-      terminalFontSize:
-          (terminalJson?['fontSize'] as num?)?.toDouble() ??
-          (json['terminalFontSize'] as num?)?.toDouble() ??
-          14,
+          terminalJson?['fontFamily'] as String? ?? 'JetBrainsMono Nerd Font',
+      terminalFontSize: (terminalJson?['fontSize'] as num?)?.toDouble() ?? 14,
       terminalLineHeight:
-          (terminalJson?['lineHeight'] as num?)?.toDouble() ??
-          (json['terminalLineHeight'] as num?)?.toDouble() ??
-          1.15,
-      terminalPaddingX:
-          (terminalJson?['paddingX'] as num?)?.toDouble() ??
-          (json['terminalPaddingX'] as num?)?.toDouble() ??
-          8,
+          (terminalJson?['lineHeight'] as num?)?.toDouble() ?? 1.15,
+      terminalPaddingX: (terminalJson?['paddingX'] as num?)?.toDouble() ?? 8,
       terminalPaddingY:
-          (terminalJson?['paddingY'] as num?)?.toDouble() ??
-          (json['terminalPaddingY'] as num?)?.toDouble() ??
-          10,
+          (terminalJson?['paddingY'] as num?)?.toDouble() ?? 10,
       terminalThemeDark:
-          terminalJson?['themeDark'] as String? ??
-          json['terminalThemeDark'] as String? ??
-          'dracula',
+          terminalJson?['themeDark'] as String? ?? 'dracula',
       terminalThemeLight:
-          terminalJson?['themeLight'] as String? ??
-          json['terminalThemeLight'] as String? ??
-          'solarized-light',
+          terminalJson?['themeLight'] as String? ?? 'solarized-light',
       fileTransferUploadConcurrency: _sanitizeTransferConcurrency(
         (json['fileTransferUploadConcurrency'] as num?)?.toInt() ?? 2,
       ),
@@ -563,14 +522,9 @@ class AppSettings {
         (json['dockerLogsTail'] as num?)?.toInt() ?? 200,
       ),
       explorerRowHeight: _sanitizeExplorerRowHeight(
-        (explorerJson?['rowHeight'] as num?)?.toDouble() ??
-            (json['explorerRowHeight'] as num?)?.toDouble() ??
-            36,
+        (explorerJson?['rowHeight'] as num?)?.toDouble() ?? 36,
       ),
-      explorerShowBreadcrumbs:
-          explorerJson?['showBreadcrumbs'] as bool? ??
-          json['explorerShowBreadcrumbs'] as bool? ??
-          true,
+      explorerShowBreadcrumbs: explorerJson?['showBreadcrumbs'] as bool? ?? true,
     );
   }
 

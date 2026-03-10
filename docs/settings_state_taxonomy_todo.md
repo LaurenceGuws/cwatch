@@ -264,7 +264,7 @@ That should drive the next code-facing split.
 | 12.14 | Editor-preferences model seam | completed | active editor consumers use a shared preferences object |
 | 12.15 | Explorer-preferences model seam | completed | active explorer consumers use a shared preferences object |
 | 12.16 | Shell-preferences model seam | completed | active shell/window consumers use a shared preferences object |
-| 12.17 | Preference storage grouping | completed | extracted preference clusters serialize as grouped sections with legacy read fallback |
+| 12.17 | Preference storage grouping | completed | extracted preference clusters serialize and load as grouped sections only |
 | 12.4 | Workspace root seam | completed | workspace persistence flows through `PersistedWorkspaces` / `WorkspaceRootController` |
 | 12.5 | Workspace storage split | completed | workspace snapshots persist through `workspaces.json` |
 | 12.6 | Legacy workspace writes removed | completed | new `settings.json` writes no longer include workspace snapshots |
