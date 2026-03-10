@@ -15,20 +15,25 @@ class ExplorerSettingsControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final explorer = settings.explorerPreferences;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SliderRow(
           label: 'Row height',
-          valueLabel: settings.explorerRowHeight.toStringAsFixed(0),
+          valueLabel: explorer.rowHeight.toStringAsFixed(0),
           child: Slider(
-            value: settings.explorerRowHeight.clamp(24, 88).toDouble(),
+            value: explorer.rowHeight.clamp(24, 88).toDouble(),
             min: 24,
             max: 88,
             divisions: 16,
-            label: settings.explorerRowHeight.toStringAsFixed(0),
+            label: explorer.rowHeight.toStringAsFixed(0),
             onChanged: (value) => settingsController.update(
-              (current) => current.copyWith(explorerRowHeight: value),
+              (current) => current.copyWith(
+                explorerPreferences: current.explorerPreferences.copyWith(
+                  rowHeight: value,
+                ),
+              ),
             ),
           ),
         ),
@@ -39,9 +44,13 @@ class ExplorerSettingsControls extends StatelessWidget {
           subtitle: const Text(
             'Turn off to default to the editable path field.',
           ),
-          value: settings.explorerShowBreadcrumbs,
+          value: explorer.showBreadcrumbs,
           onChanged: (value) => settingsController.update(
-            (current) => current.copyWith(explorerShowBreadcrumbs: value),
+            (current) => current.copyWith(
+              explorerPreferences: current.explorerPreferences.copyWith(
+                showBreadcrumbs: value,
+              ),
+            ),
           ),
         ),
       ],

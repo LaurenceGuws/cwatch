@@ -262,6 +262,7 @@ That should drive the next code-facing split.
 | 12.12 | Terminal-preferences extraction scope | completed | terminal split seam is defined at the shared settings boundary |
 | 12.13 | Terminal-preferences model seam | completed | active terminal consumers use a shared preferences object |
 | 12.14 | Editor-preferences model seam | completed | active editor consumers use a shared preferences object |
+| 12.15 | Explorer-preferences model seam | completed | active explorer consumers use a shared preferences object |
 | 12.4 | Workspace root seam | completed | workspace persistence flows through `PersistedWorkspaces` / `WorkspaceRootController` |
 | 12.5 | Workspace storage split | completed | workspace snapshots persist through `workspaces.json` |
 | 12.6 | Legacy workspace writes removed | completed | new `settings.json` writes no longer include workspace snapshots |

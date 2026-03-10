@@ -89,7 +89,11 @@ class FileExplorerController extends ChangeNotifier {
     if (state.showBreadcrumbs == value) return;
     state.showBreadcrumbs = value;
     settingsController.update(
-      (current) => current.copyWith(explorerShowBreadcrumbs: value),
+      (current) => current.copyWith(
+        explorerPreferences: current.explorerPreferences.copyWith(
+          showBreadcrumbs: value,
+        ),
+      ),
     );
     notifyListeners();
   }
@@ -99,14 +103,19 @@ class FileExplorerController extends ChangeNotifier {
     if (state.rowHeight == next) return;
     state.rowHeight = next;
     settingsController.update(
-      (current) => current.copyWith(explorerRowHeight: next),
+      (current) => current.copyWith(
+        explorerPreferences: current.explorerPreferences.copyWith(
+          rowHeight: next,
+        ),
+      ),
     );
     notifyListeners();
   }
 
   void _syncFromSettings(AppSettings settings) {
-    final nextRowHeight = _sanitizeRowHeight(settings.explorerRowHeight);
-    final nextShowBreadcrumbs = settings.explorerShowBreadcrumbs;
+    final preferences = settings.explorerPreferences;
+    final nextRowHeight = _sanitizeRowHeight(preferences.rowHeight);
+    final nextShowBreadcrumbs = preferences.showBreadcrumbs;
     var changed = false;
     if (state.rowHeight != nextRowHeight) {
       state.rowHeight = nextRowHeight;

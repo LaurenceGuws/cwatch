@@ -4,6 +4,7 @@ import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'custom_ssh_host.dart';
 import 'docker_workspace_state.dart';
 import 'editor_preferences.dart';
+import 'explorer_preferences.dart';
 import 'server_workspace_state.dart';
 import 'kubernetes_backend.dart';
 import 'kubernetes_workspace_state.dart';
@@ -132,6 +133,10 @@ class AppSettings {
     fontSize: editorFontSize,
     lineHeight: editorLineHeight,
   );
+  ExplorerPreferences get explorerPreferences => ExplorerPreferences(
+    rowHeight: explorerRowHeight,
+    showBreadcrumbs: explorerShowBreadcrumbs,
+  );
 
   AppSettings copyWith({
     ThemeMode? themeMode,
@@ -185,6 +190,7 @@ class AppSettings {
     int? fileTransferDownloadConcurrency,
     double? explorerRowHeight,
     bool? explorerShowBreadcrumbs,
+    ExplorerPreferences? explorerPreferences,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -282,10 +288,14 @@ class AppSettings {
         fileTransferDownloadConcurrency ?? this.fileTransferDownloadConcurrency,
       ),
       explorerRowHeight: _sanitizeExplorerRowHeight(
-        explorerRowHeight ?? this.explorerRowHeight,
+        explorerPreferences?.rowHeight ??
+            explorerRowHeight ??
+            this.explorerRowHeight,
       ),
       explorerShowBreadcrumbs:
-          explorerShowBreadcrumbs ?? this.explorerShowBreadcrumbs,
+          explorerPreferences?.showBreadcrumbs ??
+          explorerShowBreadcrumbs ??
+          this.explorerShowBreadcrumbs,
     );
   }
 
