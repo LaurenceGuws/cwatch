@@ -5,27 +5,28 @@ import 'package:cwatch/controller/core/workspace/persistent_workspace_controller
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
 import 'package:cwatch/model/core/models/tab_state.dart';
 import 'package:cwatch/model/features/wsl/models/wsl_tab_data.dart';
-import 'package:cwatch/model/models/app_settings.dart';
+import 'package:cwatch/model/models/persisted_workspaces.dart';
 import 'package:cwatch/model/models/wsl_workspace_state.dart';
 
 class WslWorkspaceController
     extends PersistentWorkspaceController<WslWorkspaceState> {
   WslWorkspaceController({
     required super.settingsController,
+    required super.workspaceRootController,
     required super.baseTabBuilder,
   });
 
   @override
-  WslWorkspaceState? readFromSettings(AppSettings settings) {
-    return settings.wslWorkspace;
+  WslWorkspaceState? readFromRoot(PersistedWorkspaces workspaces) {
+    return workspaces.wsl;
   }
 
   @override
-  AppSettings writeToSettings(
-    AppSettings current,
+  PersistedWorkspaces writeToRoot(
+    PersistedWorkspaces current,
     WslWorkspaceState workspace,
   ) {
-    return current.copyWith(wslWorkspace: workspace);
+    return current.copyWith(wsl: workspace);
   }
 
   @override
@@ -65,7 +66,7 @@ class WslWorkspaceController
     required Widget Function(String tabId) pickerBodyBuilder,
     required WslTabBuilders callbacks,
   }) async {
-    final workspace = settingsController.settings.wslWorkspace;
+    final workspace = workspacePersistence.read();
     if (workspace == null || workspace.tabs.isEmpty) return;
     if (!workspacePersistence.shouldRestore(workspace)) return;
 

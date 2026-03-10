@@ -734,7 +734,7 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
     }
 
     final persistedSignature =
-        widget.settingsController.settings.serverWorkspace?.signature;
+        _workspaceController.workspacePersistence.read()?.signature;
     if (persistedSignature != null &&
         persistedSignature !=
             _workspaceController.currentWorkspaceSignature()) {

@@ -2,8 +2,9 @@ import 'package:cwatch/model/core/models/tab_state.dart';
 import 'package:cwatch/model/core/models/workspace_state.dart';
 import 'package:cwatch/controller/core/workspace/tabbed_workspace_controller.dart';
 import 'package:cwatch/controller/core/workspace/workspace_persistence.dart';
-import 'package:cwatch/model/models/app_settings.dart';
+import 'package:cwatch/model/models/persisted_workspaces.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
+import 'package:cwatch/model/services_infra/settings/workspace_root_controller.dart';
 
 abstract class PersistentWorkspaceController<
   TWorkspaceState extends WorkspaceState
@@ -11,24 +12,29 @@ abstract class PersistentWorkspaceController<
     extends TabbedWorkspaceController {
   PersistentWorkspaceController({
     required this.settingsController,
+    required this.workspaceRootController,
     required super.baseTabBuilder,
   }) {
     workspacePersistence = WorkspacePersistence(
-      settingsController: settingsController,
-      readFromSettings: readFromSettings,
-      writeToSettings: writeToSettings,
+      workspaceRootController: workspaceRootController,
+      readFromRoot: readFromRoot,
+      writeToRoot: writeToRoot,
       signatureOf: (workspace) => workspace.signature,
     );
   }
 
   final AppSettingsController settingsController;
+  final WorkspaceRootController workspaceRootController;
   late final WorkspacePersistence<TWorkspaceState> workspacePersistence;
 
-  /// Reads the workspace state from the global app settings.
-  TWorkspaceState? readFromSettings(AppSettings settings);
+  /// Reads the workspace state from the workspace root container.
+  TWorkspaceState? readFromRoot(PersistedWorkspaces workspaces);
 
-  /// Writes the workspace state to the global app settings.
-  AppSettings writeToSettings(AppSettings current, TWorkspaceState workspace);
+  /// Writes the workspace state to the workspace root container.
+  PersistedWorkspaces writeToRoot(
+    PersistedWorkspaces current,
+    TWorkspaceState workspace,
+  );
 
   /// Creates a new workspace state snapshot from the current list of tab states.
   TWorkspaceState createWorkspaceState(List<TabState> tabs, int selectedIndex);

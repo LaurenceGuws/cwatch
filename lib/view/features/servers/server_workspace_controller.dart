@@ -10,24 +10,27 @@ import 'package:cwatch/model/models/server_workspace_state.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
+import 'package:cwatch/model/services_infra/settings/workspace_root_controller.dart';
 import 'servers/server_models.dart';
 
 class ServerWorkspaceController extends TabbedWorkspaceController {
   ServerWorkspaceController({
     required this.settingsController,
+    required this.workspaceRootController,
     required Future<List<SshHost>> Function() hostsLoader,
     required super.baseTabBuilder,
   }) : _hostsLoader = hostsLoader {
     workspacePersistence = WorkspacePersistence(
-      settingsController: settingsController,
-      readFromSettings: (settings) => settings.serverWorkspace,
-      writeToSettings: (current, workspace) =>
-          current.copyWith(serverWorkspace: workspace),
+      workspaceRootController: workspaceRootController,
+      readFromRoot: (workspaces) => workspaces.server,
+      writeToRoot: (current, workspace) =>
+          current.copyWith(server: workspace),
       signatureOf: (workspace) => workspace.signature,
     );
   }
 
   final AppSettingsController settingsController;
+  final WorkspaceRootController workspaceRootController;
   final Future<List<SshHost>> Function() _hostsLoader;
   late final WorkspacePersistence<ServerWorkspaceState> workspacePersistence;
 
@@ -106,7 +109,7 @@ class ServerWorkspaceController extends TabbedWorkspaceController {
     required Function(ExplorerContext context) onOpenTrash,
     required Widget Function(String tabId) hostListBuilder,
   }) async {
-    final workspace = settingsController.settings.serverWorkspace;
+    final workspace = workspacePersistence.read();
     if (workspace == null || workspace.tabs.isEmpty) return;
     if (!workspacePersistence.shouldRestore(workspace)) return;
 

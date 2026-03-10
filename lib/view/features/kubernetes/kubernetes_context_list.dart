@@ -176,7 +176,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
 
     _refreshContexts();
 
-    final persisted = widget.settingsController.settings.kubernetesWorkspace;
+    final persisted = _workspaceController.workspacePersistence.read();
     if (persisted != null &&
         persisted.signature !=
             _workspaceController.currentWorkspaceSignature()) {
@@ -214,7 +214,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   }
 
   Future<void> _restoreWorkspace() async {
-    final workspace = widget.settingsController.settings.kubernetesWorkspace;
+    final workspace = _workspaceController.workspacePersistence.read();
     if (workspace == null || workspace.tabs.isEmpty) return;
 
     List<KubeconfigContext> contexts;

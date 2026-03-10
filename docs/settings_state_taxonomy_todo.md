@@ -397,6 +397,55 @@ The first implementation batch should:
 
 That is the narrowest shared-seam change that moves the architecture forward without breaking all workspace restore paths at once.
 
+## Task 12.4 Checkpoint
+
+Status: completed
+
+What landed:
+- [persisted_workspaces.dart](/home/home/personal/cwatch/lib/model/models/persisted_workspaces.dart)
+- [workspace_root_controller.dart](/home/home/personal/cwatch/lib/model/services_infra/settings/workspace_root_controller.dart)
+- [workspace_persistence.dart](/home/home/personal/cwatch/lib/controller/core/workspace/workspace_persistence.dart)
+- [persistent_workspace_controller.dart](/home/home/personal/cwatch/lib/controller/core/workspace/persistent_workspace_controller.dart)
+
+What changed:
+- workspace persistence now reads and writes through `WorkspaceRootController`
+- the root workspace container is now explicit as `PersistedWorkspaces`
+- docker, kubernetes, WSL, and server workspace controllers now persist through that seam instead of directly through `AppSettings`
+- feature views now compare persisted workspace signatures through `workspacePersistence.read()` instead of directly reading `settings.*Workspace`
+
+What did not change yet:
+- workspace snapshots still physically live in `AppSettings` as a temporary compatibility backing store
+- `serverWorkspace`, `dockerWorkspace`, `kubernetesWorkspace`, and `wslWorkspace` have not been removed from [app_settings.dart](/home/home/personal/cwatch/lib/model/models/app_settings.dart)
+- storage format migration has not started yet
+
+Why this is the right checkpoint:
+- the shared persistence seam changed first
+- placeholder-tab restore behavior stayed feature-owned
+- future storage migration can now happen behind the seam instead of inside feature modules
+
+Verification:
+- `flutter analyze`
+- result: no issues found
+
+## Next Batch Candidate
+
+### Task 12.5: separate physical storage from `AppSettings`
+Status: queued
+
+Goal:
+- move workspace snapshot storage behind a dedicated persistence backing store
+- keep the compatibility seam stable while storage ownership changes underneath it
+
+Likely scope:
+- settings serialization/loading code
+- `AppSettingsController` interaction boundaries
+- migration fallback from old embedded workspace snapshots to the new workspace root storage
+
+Done definition:
+- `WorkspaceRootController` no longer depends on workspace snapshots being embedded in `AppSettings`
+- old embedded workspace fields are only used for migration or are removed entirely
+- feature workspace controllers remain unchanged across that storage move
+
 ## Completion Metric
 
 This document is serving its purpose if:

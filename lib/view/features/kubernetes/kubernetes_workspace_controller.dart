@@ -3,7 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:cwatch/model/core/models/tab_state.dart';
 import 'package:cwatch/controller/core/workspace/persistent_workspace_controller.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
-import 'package:cwatch/model/models/app_settings.dart';
+import 'package:cwatch/model/models/persisted_workspaces.dart';
 import 'package:cwatch/model/models/kubernetes_workspace_state.dart';
 import 'package:cwatch/model/models/kubernetes/kubeconfig_context.dart';
 import 'kubernetes_tab_builder.dart';
@@ -12,20 +12,21 @@ class KubernetesWorkspaceController
     extends PersistentWorkspaceController<KubernetesWorkspaceState> {
   KubernetesWorkspaceController({
     required super.settingsController,
+    required super.workspaceRootController,
     required super.baseTabBuilder,
   });
 
   @override
-  KubernetesWorkspaceState? readFromSettings(AppSettings settings) {
-    return settings.kubernetesWorkspace;
+  KubernetesWorkspaceState? readFromRoot(PersistedWorkspaces workspaces) {
+    return workspaces.kubernetes;
   }
 
   @override
-  AppSettings writeToSettings(
-    AppSettings current,
+  PersistedWorkspaces writeToRoot(
+    PersistedWorkspaces current,
     KubernetesWorkspaceState workspace,
   ) {
-    return current.copyWith(kubernetesWorkspace: workspace);
+    return current.copyWith(kubernetes: workspace);
   }
 
   @override
@@ -55,7 +56,7 @@ class KubernetesWorkspaceController
     required Widget Function(String tabId) placeholderBuilder,
     required Widget Function(KubeconfigContext context) detailsBuilder,
   }) async {
-    final workspace = settingsController.settings.kubernetesWorkspace;
+    final workspace = workspacePersistence.read();
     if (workspace == null || workspace.tabs.isEmpty) return;
     if (!workspacePersistence.shouldRestore(workspace)) return;
 

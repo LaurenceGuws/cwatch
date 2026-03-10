@@ -10,6 +10,7 @@ import 'package:cwatch/controller/controllers/server_port_forward_controller.dar
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
 import 'package:cwatch/model/services_infra/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
+import 'package:cwatch/model/services_infra/settings/workspace_root_controller.dart';
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/view/features/servers/server_tab_builder.dart';
 import 'package:cwatch/view/features/servers/server_workspace_controller.dart';
@@ -46,6 +47,9 @@ class ServerWorkspaceBinding {
     required Future<List<SshHost>> Function() hostsLoader,
     required WorkspaceTab Function() baseTabBuilder,
   }) {
+    final workspaceRootController = WorkspaceRootController(
+      settingsController: appSettingsController,
+    );
     final uiAdapter = createUiAdapter(context: context);
     final authCoordinator = uiAdapter.buildSshAuthCoordinator(
       keyService: keyService,
@@ -83,6 +87,7 @@ class ServerWorkspaceBinding {
     );
     final workspaceController = ServerWorkspaceController(
       settingsController: appSettingsController,
+      workspaceRootController: workspaceRootController,
       hostsLoader: hostsLoader,
       baseTabBuilder: baseTabBuilder,
     );

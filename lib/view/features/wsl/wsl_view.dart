@@ -240,7 +240,7 @@ class _WslViewState extends State<WslView> {
   void _handleSettingsChanged() {
     if (!mounted) return;
     final persistedSignature =
-        widget.settingsController.settings.wslWorkspace?.signature;
+        _workspaceController.workspacePersistence.read()?.signature;
     if (persistedSignature != null &&
         persistedSignature !=
             _workspaceController.currentWorkspaceSignature()) {

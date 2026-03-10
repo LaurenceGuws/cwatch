@@ -4,6 +4,7 @@ import 'package:cwatch/controller/controllers/kubernetes_context_controller.dart
 import 'package:cwatch/controller/di/bindings/settings_binding.dart';
 import 'package:cwatch/model/services_infra/kubernetes/kubeconfig_service.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
+import 'package:cwatch/model/services_infra/settings/workspace_root_controller.dart';
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
@@ -27,6 +28,9 @@ class KubernetesContextBinding {
     required WorkspaceTab Function() baseTabBuilder,
     KubeconfigService? kubeconfig,
   }) {
+    final workspaceRootController = WorkspaceRootController(
+      settingsController: appSettingsController,
+    );
     final contextController = create(kubeconfig: kubeconfig);
     final uiAdapter = KubernetesUiAdapter(context: context);
     final settingsController = const SettingsBinding().createController(
@@ -41,6 +45,7 @@ class KubernetesContextBinding {
     );
     final workspaceController = KubernetesWorkspaceController(
       settingsController: appSettingsController,
+      workspaceRootController: workspaceRootController,
       baseTabBuilder: baseTabBuilder,
     );
     return KubernetesRuntime(

@@ -1,24 +1,25 @@
-import 'package:cwatch/model/models/app_settings.dart';
-import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
+import 'package:cwatch/model/models/persisted_workspaces.dart';
+import 'package:cwatch/model/services_infra/settings/workspace_root_controller.dart';
 import 'workspace_tracker.dart';
 
 /// Shared helper for persisting and restoring feature workspaces with
 /// signature tracking and pending-save handling.
 class WorkspacePersistence<T> {
   WorkspacePersistence({
-    required this.settingsController,
-    required this.readFromSettings,
-    required this.writeToSettings,
+    required this.workspaceRootController,
+    required this.readFromRoot,
+    required this.writeToRoot,
     required this.signatureOf,
   });
 
-  final AppSettingsController settingsController;
-  final T? Function(AppSettings settings) readFromSettings;
-  final AppSettings Function(AppSettings current, T workspace) writeToSettings;
+  final WorkspaceRootController workspaceRootController;
+  final T? Function(PersistedWorkspaces workspaces) readFromRoot;
+  final PersistedWorkspaces Function(PersistedWorkspaces current, T workspace)
+  writeToRoot;
   final String Function(T workspace) signatureOf;
   final WorkspaceTracker _tracker = WorkspaceTracker();
 
-  T? read() => readFromSettings(settingsController.settings);
+  T? read() => readFromRoot(workspaceRootController.workspaces);
 
   bool shouldRestore(T workspace) =>
       !_tracker.hasRestored(signatureOf(workspace));
@@ -27,7 +28,7 @@ class WorkspacePersistence<T> {
       _tracker.markRestored(signatureOf(workspace));
 
   Future<void> persist(T workspace) async {
-    if (!settingsController.isLoaded) {
+    if (!workspaceRootController.isLoaded) {
       _tracker.deferSave();
       return;
     }
@@ -36,13 +37,13 @@ class WorkspacePersistence<T> {
       return;
     }
     _tracker.markPersisted(signature);
-    await settingsController.update(
-      (current) => writeToSettings(current, workspace),
+    await workspaceRootController.update(
+      (current) => writeToRoot(current, workspace),
     );
   }
 
   void persistIfPending(Future<void> Function() persistCallback) {
-    if (_tracker.pendingSave && settingsController.isLoaded) {
+    if (_tracker.pendingSave && workspaceRootController.isLoaded) {
       persistCallback();
     }
   }

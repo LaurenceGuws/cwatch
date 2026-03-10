@@ -4,6 +4,7 @@ import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/services_infra/filesystem/explorer_trash_manager.dart';
 import 'package:cwatch/model/services_infra/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
+import 'package:cwatch/model/services_infra/settings/workspace_root_controller.dart';
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
@@ -27,6 +28,9 @@ class DockerViewBinding {
     required Future<List<SshHost>> hostsFuture,
     required WorkspaceTab Function() baseTabBuilder,
   }) {
+    final workspaceRootController = WorkspaceRootController(
+      settingsController: settingsController,
+    );
     final docker = const DockerClientServiceBinding().create();
     final viewController = createController(docker: docker);
     final trashManager = ExplorerTrashManager();
@@ -45,6 +49,7 @@ class DockerViewBinding {
     );
     final workspaceController = DockerWorkspaceController(
       settingsController: settingsController,
+      workspaceRootController: workspaceRootController,
       baseTabBuilder: baseTabBuilder,
     );
     return DockerViewRuntime(

@@ -3,8 +3,8 @@ import 'package:flutter/widgets.dart';
 import 'package:cwatch/model/core/models/tab_state.dart';
 import 'package:cwatch/controller/core/workspace/persistent_workspace_controller.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
-import 'package:cwatch/model/models/app_settings.dart';
 import 'package:cwatch/model/models/docker_workspace_state.dart';
+import 'package:cwatch/model/models/persisted_workspaces.dart';
 import 'package:cwatch/model/models/explorer_context.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/features/servers/services/host_distro_key.dart';
@@ -20,22 +20,23 @@ class DockerWorkspaceController
     extends PersistentWorkspaceController<DockerWorkspaceState> {
   DockerWorkspaceController({
     required super.settingsController,
+    required super.workspaceRootController,
     required super.baseTabBuilder,
   }) : endpointCache = RemoteEndpointCache(storage: CacheStorage());
 
   final RemoteEndpointCache endpointCache;
 
   @override
-  DockerWorkspaceState? readFromSettings(AppSettings settings) {
-    return settings.dockerWorkspace;
+  DockerWorkspaceState? readFromRoot(PersistedWorkspaces workspaces) {
+    return workspaces.docker;
   }
 
   @override
-  AppSettings writeToSettings(
-    AppSettings current,
+  PersistedWorkspaces writeToRoot(
+    PersistedWorkspaces current,
     DockerWorkspaceState workspace,
   ) {
-    return current.copyWith(dockerWorkspace: workspace);
+    return current.copyWith(docker: workspace);
   }
 
   @override
@@ -65,7 +66,7 @@ class DockerWorkspaceController
     required Widget Function(String tabId) pickerBuilder,
     required TabBuilders callbacks,
   }) async {
-    final workspace = settingsController.settings.dockerWorkspace;
+    final workspace = workspacePersistence.read();
     if (workspace == null || workspace.tabs.isEmpty) return;
     if (!workspacePersistence.shouldRestore(workspace)) return;
 

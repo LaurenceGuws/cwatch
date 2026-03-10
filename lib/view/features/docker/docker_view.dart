@@ -946,7 +946,7 @@ class _DockerViewState extends State<DockerView> {
     // This avoids a restore loop when our own persistence writes trigger the
     // settings listener (especially noticeable when multiple picker tabs exist).
     final persistedSignature =
-        widget.settingsController.settings.dockerWorkspace?.signature;
+        _workspaceController.workspacePersistence.read()?.signature;
     if (persistedSignature != null &&
         persistedSignature !=
             _workspaceController.currentWorkspaceSignature()) {
