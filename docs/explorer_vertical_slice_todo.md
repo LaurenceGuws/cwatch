@@ -224,7 +224,7 @@ Result:
 - kept entry-list rendering, selection behavior, drag-selection, and row-level interaction local to the tab
 
 ## Task 15.6: re-scope the next explorer slice batch
-Status: queued
+Status: completed
 
 Goal:
 - decide whether the next explorer step should keep splitting view-local seams or stop and deepen the regression floor around the new presenter/actions boundaries
@@ -237,3 +237,40 @@ Likely candidates:
 Done definition:
 - the next explorer batch is chosen from the post-action-split code shape
 - the choice reflects the new presenter and actions seams together, not just line count reduction
+
+Result:
+- the next explorer batch should deepen the regression floor around the new presenter/actions seams
+- it should not split entry-list interaction wiring yet
+
+Why this is the right next move:
+- [file_explorer_tab.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart) is now down to the dense explorer-local interaction surface:
+  - entry-list rendering
+  - pointer and keyboard selection wiring
+  - drag-hover state
+  - drag-selection integration
+- that remaining code is exactly the area most likely to become worse if split prematurely into fake reusable helpers
+- the two new seams:
+  - [file_explorer_tab_presenter.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/file_explorer_tab_presenter.dart)
+  - [file_explorer_tab_actions.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/file_explorer_tab_actions.dart)
+  should be locked down before any deeper explorer-local extraction
+
+## Task 15.7: add focused tests for explorer presenter/actions seams
+Status: queued
+
+Goal:
+- add regression coverage around the two new explorer seams before deciding whether the first slice should continue or checkpoint
+
+First test targets:
+- `file_explorer_tab_presenter_test.dart`
+  - timeout snackbar de-duplication
+  - loading vs streaming state shaping
+  - shortcut map enable/disable behavior
+- `file_explorer_tab_actions_test.dart`
+  - rename/move/delete success/failure routing
+  - paste/upload/download delegation
+  - refresh/drop completion behavior
+
+Done definition:
+- the presenter/actions seams have direct focused tests
+- the tests validate the extracted orchestration boundaries rather than broad widget behavior
+- the next slice decision can be made from a safer regression floor
