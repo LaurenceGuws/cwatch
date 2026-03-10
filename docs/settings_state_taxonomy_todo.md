@@ -716,7 +716,7 @@ Verification:
 - the first extraction candidate is justified from cohesion and usage
 
 ### Task 12.12: scope terminal-preferences extraction
-Status: queued
+Status: completed
 
 Goal:
 - define whether terminal settings should become a dedicated nested section/model while keeping existing consumers stable
@@ -729,6 +729,65 @@ Known current consumers:
 Done definition:
 - the terminal settings owner and model shape are explicit
 - the first code batch is scoped at the shared settings seam, not by editing every consumer ad hoc
+
+What this pass found:
+- terminal preferences are consumed through one stable field cluster:
+  - `terminalFontFamily`
+  - `terminalFontSize`
+  - `terminalLineHeight`
+  - `terminalPaddingX`
+  - `terminalPaddingY`
+  - `terminalThemeDark`
+  - `terminalThemeLight`
+- the main active consumers are:
+  - [settings_view.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/settings_view.dart)
+  - [terminal_tab.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/terminal/terminal_tab.dart)
+  - [docker_command_terminal.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_command_terminal.dart)
+- the settings screen is not the right extraction seam
+- the shared seam is the terminal preference model/value object itself
+
+Recommended extraction shape:
+- introduce a dedicated terminal-preferences model/value object
+- keep `AppSettings` temporarily exposing that cluster through a nested section or adapter seam
+- update shared terminal consumers to read one terminal-preferences object instead of seven flat fields
+- only remove the flat root fields after the seam is in place
+
+Why this is the right first code batch:
+- it reduces coupling without forcing a full settings-controller rewrite
+- it gives terminal surfaces one coherent contract
+- it avoids editing each terminal consumer with bespoke field plumbing
+
+First code batch boundary:
+- shared terminal preference model
+- `AppSettings` read/write seam for that model
+- high-traffic terminal consumers updated to use the shared object
+
+Not in the first batch:
+- editor preference extraction
+- shell preference scoping
+- broader `SettingsController` redesign
+
+Verification:
+- the terminal preference model seam is explicit
+- the first implementation batch is scoped at the shared contract, not at scattered widgets
+
+### Task 12.13: introduce terminal-preferences model seam
+Status: queued
+
+Goal:
+- define and adopt a dedicated terminal-preferences model while keeping existing behavior stable
+
+Likely scope:
+- [app_settings.dart](/home/home/personal/cwatch/lib/model/models/app_settings.dart)
+- shared terminal preference model under `model/`
+- [terminal_tab.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/terminal/terminal_tab.dart)
+- [docker_command_terminal.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_command_terminal.dart)
+- [settings_view.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/settings_view.dart)
+
+Done definition:
+- terminal consumers read one coherent preferences object
+- root settings still serialize correctly during the compatibility phase
+- the flat terminal field cluster is no longer the primary read contract
 
 ### Task 12.11: decide whether shell preferences deserve their own root section
 Status: queued
