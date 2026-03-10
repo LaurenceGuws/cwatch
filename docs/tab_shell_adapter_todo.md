@@ -205,3 +205,30 @@ What this proved:
 
 Next executable batch:
 - `Task 14.9`: adopt the shared chip builder in Servers
+
+## Task 14.9: adopt the shared chip builder in Servers
+Status: completed
+
+Goal:
+- migrate the heaviest chip assembly case onto the shared helper without losing host mapping, extra default options, or close warnings
+
+Done definition:
+- Servers no longer hand-assemble routine `TabChip` wiring
+- the helper still absorbs the shared behavior while keeping server-specific inputs local
+
+What landed:
+- [server_workspace_view.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_view.dart) now uses the shared chip builder instead of hand-assembling routine `TabChip` wiring
+
+What this proved:
+- the helper still holds for the heaviest current case:
+  - host mapping from workspace state
+  - extra default options
+  - terminal close warnings
+- the first chip-building normalization pass is complete across:
+  - WSL
+  - Kubernetes
+  - Docker
+  - Servers
+
+Next executable batch:
+- re-scope whether the next tab-shell normalization should target generic tab command contribution or stop the tab-shell hotspot at this checkpoint

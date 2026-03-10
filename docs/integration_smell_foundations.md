@@ -248,6 +248,7 @@ Current implementation checkpoint:
 - WSL now proves the first shared chip-building seam
 - Kubernetes now proves the routine options-controller adoption case
 - Docker now proves the picker-restriction and extra-options adoption case
+- Servers now prove the heaviest current adoption case
 
 ## Success Criteria
 

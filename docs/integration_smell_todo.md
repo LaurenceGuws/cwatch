@@ -308,3 +308,17 @@ Current follow-up doc:
 
 Next executable batch:
 - `Task 14.9`: adopt the shared chip builder in Servers
+
+### Task 14.9: adopt the shared chip builder in Servers
+Status: completed
+
+What this task established:
+- the shared chip-building helper also works for the heaviest current case
+- Servers no longer hand-assemble routine `TabChip` wiring
+- the first chip-building normalization pass is now complete across the main tabbed modules
+
+Current follow-up doc:
+- [tab_shell_adapter_todo.md](/home/home/personal/cwatch/docs/tab_shell_adapter_todo.md)
+
+Next executable batch:
+- re-scope whether the next tab-shell normalization should target generic tab command contribution or stop the hotspot at this checkpoint

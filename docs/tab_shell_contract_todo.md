@@ -303,3 +303,4 @@ Current implementation checkpoint:
 - WSL now uses the shared chip builder proving slice
 - Kubernetes now uses the shared chip builder for the routine options-controller case
 - Docker now uses the shared chip builder for picker restrictions and picker-only options
+- Servers now use the shared chip builder for host mapping, extra default options, and close warnings

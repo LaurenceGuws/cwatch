@@ -26,11 +26,11 @@ import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/view/core/navigation/tab_navigation_registry.dart';
 import 'package:cwatch/view/core/navigation/command_palette_registry.dart';
 import 'package:cwatch/view/core/tabs/tab_bar_visibility.dart';
+import 'package:cwatch/view/core/tabs/workspace_tab_chip_builder.dart';
 import 'servers/host_list.dart';
 import 'servers/server_models.dart';
 import 'servers/servers_widgets.dart';
 import 'server_tab_builder.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/tab_chip.dart';
 import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'server_workspace_controller.dart';
 import 'package:cwatch/view/core/tabs/tab_view_registry.dart';
@@ -631,17 +631,17 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
                       ),
                     ];
 
-                    return TabChip(
-                      host: host,
-                      title: tab.title,
-                      label: tab.label,
-                      icon: tab.icon,
+                    return WorkspaceTabChipBuilder(
+                      tab: tab,
                       selected: index == _selectedTabIndex,
+                      host: host,
                       onSelect: () => _selectTab(index),
                       onClose: () => _workspaceController.closeTab(index),
-                      onRename: canRename ? () => _renameTab(index) : null,
-                      dragIndex: canDrag ? index : null,
-                      options: chipOptions,
+                      onRename: () => _renameTab(index),
+                      index: index,
+                      canRename: canRename,
+                      canDrag: canDrag,
+                      extraOptions: chipOptions,
                       closeWarning: _closeWarningForTab(tab),
                     );
                   },
