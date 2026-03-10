@@ -114,6 +114,12 @@ Current recommended next rewrite move:
 Current follow-up doc:
 - `docs/explorer_vertical_slice_todo.md`
 
+Current next vertical-slice follow-up:
+- use Docker as the second vertical slice after the explorer checkpoint
+
+Current follow-up doc:
+- `docs/docker_vertical_slice_todo.md`
+
 Current shared scaffolding contract now covers:
 - `SettingsSection`
 - `SectionList`

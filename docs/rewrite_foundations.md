@@ -217,6 +217,14 @@ Why:
 - explorer sits at the intersection of shell/shared UI, workflow state, and file operations without dragging in as much infrastructure complexity as servers
 - this makes it the strongest proving slice for the next architecture step
 
+Next recommendation after the explorer checkpoint:
+- continue with `docker` as the second vertical slice
+
+Why:
+- docker already has meaningful runtime/composition cleanup behind it
+- docker has capability-aware behavior and CLI degradation paths that are now explicit
+- docker is a stronger next proof of feature-runtime ownership than explorer, without taking on full server/SSH complexity yet
+
 ### Focus Area E: infrastructure boundary cleanup
 Questions to answer:
 - Where are transport, parsing, and policy mixed today?
