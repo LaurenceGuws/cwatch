@@ -4,9 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 
-import 'package:cwatch/view/core/navigation/command_palette_registry.dart';
-import 'package:cwatch/view/core/navigation/generic_tab_command_entries.dart';
-import 'package:cwatch/view/core/navigation/tab_navigation_registry.dart';
 import 'package:cwatch/view/core/tabs/tab_bar_visibility.dart';
 import 'package:cwatch/view/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/view/core/tabs/tabbed_workspace_shell.dart';
@@ -34,6 +31,7 @@ import 'package:cwatch/view/features/settings/settings/kubernetes_settings_contr
 import 'package:cwatch/controller/controllers/kubernetes_context_controller.dart';
 import 'kubernetes_tab_builder.dart';
 import 'kubernetes_runtime.dart';
+import 'kubernetes_workspace_shell.dart';
 import 'kubernetes_workspace_controller.dart';
 
 class KubernetesContextList extends StatefulWidget {
@@ -61,12 +59,11 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
       const KubernetesContextBinding();
   late final KubernetesRuntime _runtime;
   late final KubernetesTabBuilder _tabBuilder;
+  late final KubernetesWorkspaceShell _workspaceShell;
   late final TabViewRegistry<WorkspaceTab> _tabRegistry;
 
   late final VoidCallback _settingsListener;
   late final VoidCallback _tabsListener;
-  late final TabNavigationHandle _tabNavigator;
-  late final CommandPaletteHandle _commandPaletteHandle;
 
   final ValueNotifier<List<TabChipOption>> _emptyOptions =
       ValueNotifier<List<TabChipOption>>(const []);
@@ -132,34 +129,40 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     };
     _workspaceController.addListener(_tabsListener);
 
-    _tabNavigator = TabNavigationHandle(
-      next: () {
-        final length = _tabs.length;
-        if (length <= 1) return false;
-        _workspaceController.select((_selectedIndex + 1) % length);
-        return true;
+    _workspaceShell = KubernetesWorkspaceShell(
+      moduleId: widget.moduleId,
+      loadContexts: _loadContexts,
+      setContextsFuture: (contextsFuture) => _contextsFuture = contextsFuture,
+      tabs: () => _tabs,
+      selectedIndex: () => _selectedIndex,
+      selectTab: _workspaceController.select,
+      closeTab: _closeTab,
+      replaceTab: _replaceTab,
+      addTab: _workspaceController.addTab,
+      createPlaceholderTab: _createPlaceholderTab,
+      createContextTab: _createContextTab,
+      isPlaceholder: _isPlaceholder,
+      persistedWorkspaceSignature: () =>
+          _workspaceController.workspacePersistence.read()?.signature,
+      currentWorkspaceSignature: _workspaceController.currentWorkspaceSignature,
+      restoreWorkspace: _restoreWorkspace,
+      persistIfPending: () async {
+        _workspaceController.workspacePersistence.persistIfPending(
+          () => _workspaceController.persistState(),
+        );
       },
-      previous: () {
-        final length = _tabs.length;
-        if (length <= 1) return false;
-        _workspaceController.select((_selectedIndex - 1 + length) % length);
-        return true;
-      },
+      persistState: _workspaceController.persistState,
+      runWithoutPersist: _workspaceController.runWithoutPersist,
     );
-    TabNavigationRegistry.instance.register(widget.moduleId, _tabNavigator);
+    _workspaceShell.initializeWorkspaceChrome();
 
-    _commandPaletteHandle = CommandPaletteHandle(
-      loader: () => _buildCommandPaletteEntries(),
-    );
-    CommandPaletteRegistry.instance.register(
-      widget.moduleId,
-      _commandPaletteHandle,
-    );
-
-    _settingsListener = _handleSettingsChanged;
+    _settingsListener = () {
+      if (!mounted) return;
+      unawaited(_workspaceShell.handleSettingsChanged());
+    };
     widget.settingsController.addListener(_settingsListener);
 
-    _contextsFuture = _loadContexts();
+    _contextsFuture = _workspaceShell.initializeContexts();
     unawaited(_restoreWorkspace());
   }
 
@@ -167,31 +170,10 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   void dispose() {
     widget.settingsController.removeListener(_settingsListener);
     _workspaceController.removeListener(_tabsListener);
+    _workspaceShell.dispose();
     _runtime.dispose();
     _emptyOptions.dispose();
-    TabNavigationRegistry.instance.unregister(widget.moduleId, _tabNavigator);
-    CommandPaletteRegistry.instance.unregister(
-      widget.moduleId,
-      _commandPaletteHandle,
-    );
     super.dispose();
-  }
-
-  void _handleSettingsChanged() {
-    if (!mounted) return;
-
-    _refreshContexts();
-
-    final persisted = _workspaceController.workspacePersistence.read();
-    if (persisted != null &&
-        persisted.signature !=
-            _workspaceController.currentWorkspaceSignature()) {
-      unawaited(_restoreWorkspace());
-    }
-
-    _workspaceController.workspacePersistence.persistIfPending(
-      () => _workspaceController.persistState(),
-    );
   }
 
   Future<List<KubeconfigContext>> _loadContexts() async {
@@ -200,23 +182,6 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     );
     _cachedContexts = contexts;
     return contexts;
-  }
-
-  void _refreshContexts() {
-    _contextsFuture = _loadContexts();
-
-    final placeholderIds = _tabs
-        .where(_isPlaceholder)
-        .map((t) => t.id)
-        .toList(growable: false);
-
-    _workspaceController.runWithoutPersist(() {
-      for (final id in placeholderIds) {
-        _replaceTab(id, _createPlaceholderTab(id: id));
-      }
-    });
-
-    unawaited(_workspaceController.persistState());
   }
 
   Future<void> _restoreWorkspace() async {
@@ -282,7 +247,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
         TabChipOption(
           label: 'Refresh contexts',
           icon: NerdIcon.refresh.data,
-          onSelected: _refreshContexts,
+          onSelected: _workspaceShell.refreshContexts,
         ),
       );
       options.add(
@@ -338,36 +303,6 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     _workspaceController.replaceTab(tabId, tab);
   }
 
-  void _openContextTab(KubeconfigContext context, {String? replaceTabId}) {
-    final replacementId =
-        replaceTabId ??
-        (_selectedIndex >= 0 &&
-                _selectedIndex < _tabs.length &&
-                _isPlaceholder(_tabs[_selectedIndex])
-            ? _tabs[_selectedIndex].id
-            : null);
-
-    final tab = _createContextTab(
-      context: context,
-      id: replacementId,
-      customName: null,
-    );
-
-    if (replacementId != null) {
-      _replaceTab(replacementId, tab);
-      return;
-    }
-
-    if (_selectedIndex >= 0 &&
-        _selectedIndex < _tabs.length &&
-        _isPlaceholder(_tabs[_selectedIndex])) {
-      _replaceTab(_tabs[_selectedIndex].id, tab);
-      return;
-    }
-
-    _workspaceController.addTab(tab);
-  }
-
   void _closeTab(int index) {
     _workspaceController.closeTab(index);
   }
@@ -378,10 +313,6 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
 
   void _handleTabReorder(int oldIndex, int newIndex) {
     _workspaceController.reorder(oldIndex, newIndex);
-  }
-
-  void _startEmptyTab() {
-    _workspaceController.addTab(_createPlaceholderTab());
   }
 
   Future<void> _copyText(String text) async {
@@ -415,7 +346,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
       StructuredDataMenuAction<KubeconfigContext>(
         label: 'Open details',
         icon: NerdIcon.kubernetes.data,
-        onSelected: (_, primary) => _openContextTab(primary),
+        onSelected: (_, primary) => _workspaceShell.openContextTab(primary),
       ),
       StructuredDataMenuAction<KubeconfigContext>(
         label: 'Copy context name',
@@ -466,7 +397,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                 Text('Failed to load contexts: ${snapshot.error}'),
                 SizedBox(height: spacing.lg),
                 FilledButton.icon(
-                  onPressed: _refreshContexts,
+                  onPressed: _workspaceShell.refreshContexts,
                   icon: const Icon(Icons.refresh),
                   label: const Text('Retry'),
                 ),
@@ -484,7 +415,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                 const Text('No Kubernetes contexts found.'),
                 SizedBox(height: spacing.lg),
                 FilledButton.icon(
-                  onPressed: _refreshContexts,
+                  onPressed: _workspaceShell.refreshContexts,
                   icon: const Icon(Icons.refresh),
                   label: const Text('Reload'),
                 ),
@@ -534,7 +465,10 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                           primaryDoubleClickOpensContextMenu: false,
                           metadataBuilder: _contextMetadata,
                           onRowDoubleTap: (ctx) =>
-                              _openContextTab(ctx, replaceTabId: replaceTabId),
+                              _workspaceShell.openContextTab(
+                                ctx,
+                                replaceTabId: replaceTabId,
+                              ),
                           rowContextMenuBuilder: _buildContextMenuActions,
                           onSelectionChanged: (selectedRows) {
                             final tableKeys = contextsForPath
@@ -657,19 +591,6 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
         : theme.section.toolbarBackground;
   }
 
-  List<CommandPaletteEntry> _buildCommandPaletteEntries() {
-    final selectedTab =
-        (_tabs.isNotEmpty && _selectedIndex >= 0 && _selectedIndex < _tabs.length)
-        ? _tabs[_selectedIndex]
-        : null;
-    return buildGenericTabCommandEntries(
-      moduleId: widget.moduleId,
-      selectedTab: selectedTab,
-      onNewTab: _startEmptyTab,
-      onCloseTab: () => _closeTab(_selectedIndex),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final appTheme = context.appTheme;
@@ -693,7 +614,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                     .shellPreferences.useSystemDecorations,
                 leading: widget.leading,
                 onReorder: _handleTabReorder,
-                onAddTab: _startEmptyTab,
+                onAddTab: _workspaceShell.startEmptyTab,
                 buildChip: (context, index, tab) {
                   final data = _tabData(tab);
                   return WorkspaceTabChipBuilder(

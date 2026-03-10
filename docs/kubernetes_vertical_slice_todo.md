@@ -135,7 +135,7 @@ This should become a narrower Kubernetes workspace-shell seam, while context-lis
 - it avoids prematurely splitting the denser context-list and dashboard behavior
 
 ## Task 18.3: implement Kubernetes top-level workspace-shell split
-Status: pending
+Status: completed
 
 Goal:
 - extract top-level Kubernetes workspace orchestration out of `kubernetes_context_list.dart` while leaving context list and dashboard behavior local for now
@@ -157,3 +157,32 @@ Done definition:
 - `kubernetes_context_list.dart` is materially smaller and more focused on hosting/rendering
 - the new seam clearly owns top-level Kubernetes module orchestration
 - context list and dashboard behavior remain local and mostly untouched except where needed for the seam
+
+Result:
+- extracted [kubernetes_workspace_shell.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/kubernetes_workspace_shell.dart)
+- moved top-level Kubernetes workspace orchestration out of [kubernetes_context_list.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/kubernetes_context_list.dart):
+  - context loading kickoff
+  - settings-driven context reload coordination
+  - command-palette registration/loading
+  - tab-navigation registration
+  - placeholder-tab creation/start-empty-tab flow
+  - workspace-level context selection and placeholder replacement helpers
+- kept these local to `kubernetes_context_list.dart`:
+  - context row rendering
+  - collapsed-group and selection state
+  - dashboard widget composition
+  - Kubernetes-specific action wording and remediation
+
+## Task 18.4: re-scope the next Kubernetes slice batch
+Status: pending
+
+Goal:
+- decide whether the next Kubernetes batch should deepen the regression floor around the new shell seam or extract another real Kubernetes-local seam
+
+Questions to answer:
+- is there another architectural seam in `kubernetes_context_list.dart`
+- or is the remaining weight mostly true Kubernetes-local behavior that should stay together for now
+
+Done definition:
+- the next Kubernetes batch is explicit
+- the choice is based on the post-split code shape, not file-length pressure
