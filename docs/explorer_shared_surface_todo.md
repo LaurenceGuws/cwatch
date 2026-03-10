@@ -188,7 +188,7 @@ Result:
 - the next explorer cleanup batch is now explicit: shared explorer chrome scaffold extraction
 
 ## Task 14.29: extract shared explorer chrome scaffold
-Status: queued
+Status: completed
 
 Goal:
 - pull the top-level shared explorer chrome hosting out of `FileExplorerTab` into a narrower helper/widget without moving explorer-specific list/input behavior
@@ -207,3 +207,21 @@ Done definition:
 - `FileExplorerTab` delegates top-level chrome hosting to one narrower shared helper
 - explorer-specific list/input behavior remains in place
 - the result reads as shared explorer chrome rather than another generic shell widget
+
+Result:
+- top-level explorer chrome hosting now lives in [explorer_chrome_scaffold.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/explorer_chrome_scaffold.dart)
+- [file_explorer_tab.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart) now reads more clearly as explorer behavior plus list/input handling
+- the shared explorer chrome seam is now real in code, not only documented
+
+## Task 14.30: re-scope the next explorer integration batch
+Status: queued
+
+Goal:
+- decide whether the next explorer pass should target a second chrome/helper extraction or stop the explorer hotspot at the current checkpoint
+
+Questions:
+- is there another clearly shared explorer chrome/helper seam worth extracting now
+- or is the remaining weight in `FileExplorerTab` mostly list/input behavior that should stay local for now
+
+Done definition:
+- the next explorer batch is either explicitly chosen or the hotspot is checkpointed

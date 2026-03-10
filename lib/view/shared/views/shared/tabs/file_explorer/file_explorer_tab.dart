@@ -17,17 +17,16 @@ import 'package:cwatch/model/models/remote_file_entry.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 
 import 'package:cwatch/view/shared/mixins/tab_options_mixin.dart';
-import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/shared/shortcuts/input_mode_resolver.dart';
 import 'package:cwatch/model/shared/shortcuts/shortcut_actions.dart';
 import 'package:cwatch/model/shared/shortcuts/shortcut_resolver.dart';
 import 'context_menu_builder.dart';
+import 'explorer_chrome_scaffold.dart';
 import 'file_entry_list.dart';
 import 'selection_controller.dart';
 import 'package:cwatch/view/features/settings/settings/explorer_settings_controls.dart';
 import 'path_navigator.dart';
 import 'package:cwatch/model/shared/services/path_utils.dart';
-import '../settings/floating_settings_window.dart';
 
 class FileExplorerTab extends StatefulWidget {
   const FileExplorerTab({
@@ -122,9 +121,6 @@ class _FileExplorerTabState extends State<FileExplorerTab>
 
   @override
   Widget build(BuildContext context) {
-    final spacing = context.appTheme.spacing;
-    final dropOverlayColor = context.appTheme.list.selectedBackground
-        .withValues(alpha: 0.35);
     final errorMessage = _controller.state.error;
     final isTimeoutError = _isTimeoutError(errorMessage);
     if (isTimeoutError &&
@@ -162,87 +158,6 @@ class _FileExplorerTabState extends State<FileExplorerTab>
           : _buildEntriesList(),
     );
 
-    final dropWrapped = _supportsDesktopDrop
-        ? DropTarget(
-            enable: true,
-            onDragEntered: (_) {
-              if (_controller.isOsDragActive ||
-                  _controller.isSelfDragTarget(_controller.currentPath)) {
-                return;
-              }
-              AppLogger().debug(
-                'Drop entered ${_controller.currentPath}',
-                tag: 'Explorer',
-              );
-              if (!_dropHover) {
-                setState(() => _dropHover = true);
-              }
-            },
-            onDragUpdated: (details) {
-              if (_controller.isOsDragActive ||
-                  _controller.isSelfDragTarget(_controller.currentPath)) {
-                return;
-              }
-              if (!_dropHover) {
-                setState(() => _dropHover = true);
-              }
-            },
-            onDragExited: (_) {
-              if (_controller.isOsDragActive ||
-                  _controller.isSelfDragTarget(_controller.currentPath)) {
-                return;
-              }
-              AppLogger().debug(
-                'Drop exited ${_controller.currentPath}',
-                tag: 'Explorer',
-              );
-              if (_dropHover) {
-                setState(() => _dropHover = false);
-              }
-            },
-            onDragDone: (details) async {
-              if (_controller.isSelfDragDrop(
-                paths: details.files.map((file) => file.path).toList(),
-                targetDirectory: _controller.currentPath,
-              )) {
-                AppLogger().debug(
-                  'Drop ignored: source and target match',
-                  tag: 'Explorer',
-                );
-                return;
-              }
-              AppLogger().debug(
-                'Drop done ${details.files.length} files at '
-                '${details.localPosition}',
-                tag: 'Explorer',
-              );
-              if (_dropHover) {
-                setState(() => _dropHover = false);
-              }
-              await _handleLocalDrop(details);
-            },
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                contentCard,
-                if (_dropHover)
-                  Container(
-                    color: dropOverlayColor,
-                    alignment: Alignment.center,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.upload_file, size: 48),
-                        SizedBox(height: spacing.md),
-                        const Text('Drop files or folders to upload'),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          )
-        : contentCard;
-
     final actions = Actions(
       actions: {
         _ToggleSearchIntent: CallbackAction<_ToggleSearchIntent>(
@@ -268,28 +183,22 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       },
       child: Focus(
         autofocus: true,
-        child: Stack(
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: EdgeInsets.only(bottom: spacing.sm),
-                  child: _buildPathNavigator(context),
-                ),
-                Expanded(child: dropWrapped),
-              ],
-            ),
-            if (_showSettings)
-              FloatingSettingsWindow(
-                title: 'Explorer Settings',
-                onClose: _toggleSettings,
-                child: ExplorerSettingsControls(
-                  settings: _settingsController.settings,
-                  settingsController: _settingsController,
-                ),
-              ),
-          ],
+        child: ExplorerChromeScaffold(
+          pathNavigator: _buildPathNavigator(context),
+          content: contentCard,
+          showSettings: _showSettings,
+          settings: ExplorerSettingsControls(
+            settings: _settingsController.settings,
+            settingsController: _settingsController,
+          ),
+          onCloseSettings: _toggleSettings,
+          supportsDesktopDrop: _supportsDesktopDrop,
+          dropEnabled: true,
+          dropHover: _dropHover,
+          onDragEntered: (_) => _handleDropEntered(),
+          onDragUpdated: (_) => _handleDropUpdated(),
+          onDragExited: (_) => _handleDropExited(),
+          onDragDone: _handleDropDone,
         ),
       ),
     );
@@ -534,6 +443,59 @@ class _FileExplorerTabState extends State<FileExplorerTab>
         'Uploading $count dropped item${count == 1 ? '' : 's'} to ${_controller.currentPath}',
       );
     }
+  }
+
+  void _handleDropEntered() {
+    if (_controller.isOsDragActive ||
+        _controller.isSelfDragTarget(_controller.currentPath)) {
+      return;
+    }
+    AppLogger().debug('Drop entered ${_controller.currentPath}', tag: 'Explorer');
+    if (!_dropHover) {
+      setState(() => _dropHover = true);
+    }
+  }
+
+  void _handleDropUpdated() {
+    if (_controller.isOsDragActive ||
+        _controller.isSelfDragTarget(_controller.currentPath)) {
+      return;
+    }
+    if (!_dropHover) {
+      setState(() => _dropHover = true);
+    }
+  }
+
+  void _handleDropExited() {
+    if (_controller.isOsDragActive ||
+        _controller.isSelfDragTarget(_controller.currentPath)) {
+      return;
+    }
+    AppLogger().debug('Drop exited ${_controller.currentPath}', tag: 'Explorer');
+    if (_dropHover) {
+      setState(() => _dropHover = false);
+    }
+  }
+
+  Future<void> _handleDropDone(DropDoneDetails details) async {
+    if (_controller.isSelfDragDrop(
+      paths: details.files.map((file) => file.path).toList(),
+      targetDirectory: _controller.currentPath,
+    )) {
+      AppLogger().debug(
+        'Drop ignored: source and target match',
+        tag: 'Explorer',
+      );
+      return;
+    }
+    AppLogger().debug(
+      'Drop done ${details.files.length} files at ${details.localPosition}',
+      tag: 'Explorer',
+    );
+    if (_dropHover) {
+      setState(() => _dropHover = false);
+    }
+    await _handleLocalDrop(details);
   }
 
   bool get _supportsDesktopDrop {
