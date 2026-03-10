@@ -579,3 +579,20 @@ Current follow-up doc:
 
 Next executable batch:
 - re-scope the remaining SSH auth wiring tail
+
+### Task 14.25: re-scope the remaining SSH auth wiring tail
+Status: completed
+
+What this task established:
+- the SSH auth hotspot is at a good checkpoint
+- the remaining tail is mostly:
+  - app-shell composition
+  - compatibility parameter cleanup
+  - lower-level infra API tightening
+- those are real, but they are no longer the same high-value feature/integration smell we started from
+
+Current follow-up doc:
+- [ssh_auth_integration_todo.md](/home/home/personal/cwatch/docs/ssh_auth_integration_todo.md)
+
+Next executable batch:
+- choose the next integration-smell hotspot after SSH auth ownership

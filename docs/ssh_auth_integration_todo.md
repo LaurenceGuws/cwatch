@@ -514,6 +514,67 @@ Next executable batch:
   - compatibility parameter cleanup in SSH/port-forward infrastructure
   - remaining non-port-forward high-level auth construction
 
+### Task 14.25: re-scope the remaining SSH auth wiring tail
+Status: completed
+
+Goal:
+- decide whether the SSH auth hotspot still has a meaningful next implementation slice or whether it is at a good checkpoint
+
+## Result
+
+The hotspot is now at a good checkpoint.
+
+Why:
+- builtin runtime coordination is singular enough to be defensible
+- high-level controller-owned auth loops have been removed from the active cleanup targets
+- the concentrated server/docker port-forward auth-wiring smell is gone
+
+## What Still Exists
+
+### 1. Home-shell/global auth coordinator construction
+- [home_shell_services_binding.dart](/home/home/personal/cwatch/lib/controller/di/bindings/home_shell_services_binding.dart)
+- [ssh_auth_prompter.dart](/home/home/personal/cwatch/lib/controller/adapters/ssh_auth_prompter.dart)
+
+This is still real, but it is now an app-shell composition seam, not a feature-layer integration smell.
+
+### 2. Compatibility parameters in infrastructure
+- [port_forward_service.dart](/home/home/personal/cwatch/lib/model/services_infra/port_forwarding/port_forward_service.dart)
+  - `authCoordinator`
+  - `promptDecrypt`
+- [builtin_remote_shell_service.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/builtin/builtin_remote_shell_service.dart)
+  - `promptDecrypt`
+- [builtin_ssh_key_service.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart)
+  - `promptDecrypt`
+
+These are now mostly compatibility/cleanup tail, not active high-level ownership failures.
+
+### 3. Remaining non-port-forward high-level composition
+- [server_workspace_binding.dart](/home/home/personal/cwatch/lib/controller/di/bindings/server_workspace_binding.dart)
+
+This still creates an auth coordinator for the server runtime, but it is already below the feature/controller/UI adapter layer. That makes it a lower-priority composition concern rather than the same smell we started with.
+
+## Checkpoint Decision
+
+Do not keep pushing this hotspot right now.
+
+Reason:
+- the remaining work is now mostly:
+  - composition cleanup
+  - compatibility parameter cleanup
+  - lower-level infra API tightening
+- that is no longer the same high-value integration-smell problem that started this hotspot
+
+## Checkpoint Outcome
+
+This hotspot achieved its main goals:
+- high-level layers stopped owning builtin SSH auth state machines
+- concurrent key-unlock coordination is centered in the builtin runtime path
+- server/docker feature/UI layers no longer construct auth coordinators for the main port-forward flows
+
+## Next Executable Batch
+
+- choose the next integration-smell hotspot after SSH auth ownership
+
 ## Explicit Concurrency Rules
 
 These rules are now in scope for this hotspot:

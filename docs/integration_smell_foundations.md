@@ -310,6 +310,10 @@ Current implementation checkpoint:
 - server/docker port-forward flows no longer source SSH auth coordinators from UI adapters
 - the next SSH auth pass should re-scope the remaining global/compatibility wiring tail
 
+Current SSH auth status:
+- hotspot checkpoint reached
+- remaining work has shifted from feature-layer integration smell to composition/compatibility cleanup
+
 ## Success Criteria
 
 This layer is working when:
