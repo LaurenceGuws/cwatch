@@ -223,6 +223,20 @@ Current follow-up:
 - `Task 14.56` next command contribution batch re-scope is complete
 - command contribution hotspot is now checkpointed
 
+### Hotspot G: capability and breadcrumb surfacing
+Status: active
+Why it matters:
+- the product rule for optional CLI/backend capabilities is now explicit
+- service/test coverage already assumes graceful degradation
+- the remaining integration smell is that capability-unavailable UI surfacing is still distributed and inconsistent
+
+Queued question:
+- what belongs in canonical shared capability/breadcrumb surfacing vs feature-local unavailable-state guidance
+- `Task 14.54` generic tab command contribution scope is complete
+- `Task 14.55` shared generic tab command contribution implementation is complete
+- `Task 14.56` next command contribution batch re-scope is complete
+- command contribution hotspot is now checkpointed
+
 ## Next Re-scope
 
 ### Task 14.2: choose the first normalization hotspot

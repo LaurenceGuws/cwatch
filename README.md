@@ -99,10 +99,10 @@ Current tab-shell status:
 - first chip-building normalization pass complete
 
 Current next integration hotspot:
-- command contribution integration
+- capability and breadcrumb surfacing
 
 Current follow-up doc:
-- `docs/command_contribution_todo.md`
+- `docs/capability_breadcrumb_todo.md`
 
 Current shared scaffolding contract now covers:
 - `SettingsSection`

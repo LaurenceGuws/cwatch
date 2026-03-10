@@ -395,6 +395,17 @@ Current hotspot status:
 - the shared generic tab-command helper is now implemented across Docker, Servers, and Kubernetes
 - the command contribution hotspot is now at a good checkpoint and should not grow a second helper for one-off settings tab switching
 
+Current next hotspot:
+- capability and breadcrumb surfacing
+
+Current follow-up doc:
+- [capability_breadcrumb_todo.md](/home/home/personal/cwatch/docs/capability_breadcrumb_todo.md)
+
+Why this is next:
+- the capability rule is already explicit in product/docs/tests
+- the remaining seam is how unavailable capability states are surfaced in the UI
+- this is still distributed enough to benefit from one contract pass before ending the integration-smell layer
+
 ## Success Criteria
 
 This layer is working when:
