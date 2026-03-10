@@ -258,6 +258,66 @@ That should drive the next code-facing split.
 | Item | Scope | Status | Done When |
 | --- | --- | --- | --- |
 | 12.1 | AppSettings taxonomy | completed | every field is classified by state type |
+| 12.4 | Workspace root seam | completed | workspace persistence flows through `PersistedWorkspaces` / `WorkspaceRootController` |
+| 12.5 | Workspace storage split | completed | workspace snapshots persist through `workspaces.json` |
+| 12.6 | Legacy workspace writes removed | completed | new `settings.json` writes no longer include workspace snapshots |
+
+## Next Hotspot Scope
+
+The next clearly wrong categories are now:
+- `derived_cache`
+  - `serverDistroMap`
+  - `dockerDistroMap`
+- `session_ui`
+  - `settingsTabIndex`
+
+Why these are next:
+- workspace snapshots are now separated enough that they no longer dominate `AppSettings`
+- the remaining wrong categories are small, explicit, and used through narrow seams
+- this should let the next split stay surgical instead of turning into another root-model rewrite
+
+### Task 12.7: scope derived-cache extraction
+Status: queued
+
+Goal:
+- separate distro lookup caches from root application settings
+- keep host/container distro consumers stable while changing the persistence owner
+
+Known current seam:
+- [host_distro_manager.dart](/home/home/personal/cwatch/lib/model/features/servers/services/host_distro_manager.dart)
+- [container_distro_manager.dart](/home/home/personal/cwatch/lib/model/features/docker/services/container_distro_manager.dart)
+- [app_settings.dart](/home/home/personal/cwatch/lib/model/models/app_settings.dart)
+
+What this task must answer:
+- whether both distro maps should move into one generic cache root or one infra-specific cache model
+- whether the read/write seam should live beside [workspace_storage.dart](/home/home/personal/cwatch/lib/model/services_infra/settings/workspace_storage.dart) or under the existing cache infrastructure
+- how UI read sites should consume cache data without depending on `AppSettings`
+
+Done definition:
+- the target owner of `serverDistroMap` and `dockerDistroMap` is explicit
+- the first code batch is scoped at the shared cache seam, not at random call sites
+- the next implementation step is narrow enough to land without touching unrelated settings code
+
+### Task 12.8: scope `settingsTabIndex` removal from root settings
+Status: queued
+
+Goal:
+- remove settings-screen local tab/session state from `AppSettings`
+- keep settings-screen behavior stable while moving this to feature-local persistence or transient state
+
+Known current seam:
+- [settings_view.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/settings_view.dart)
+- [settings_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/settings_controller.dart)
+- [app_settings.dart](/home/home/personal/cwatch/lib/model/models/app_settings.dart)
+
+Why this should stay separate from derived-cache work:
+- it is UI/session state, not infrastructure state
+- combining them would blur the taxonomy again
+
+Done definition:
+- the replacement owner for `settingsTabIndex` is explicit
+- it is clear whether this should be transient-only or lightly persisted feature-local state
+- the follow-up code batch does not require changing unrelated settings persistence
 | 12.2 | State-taxonomy re-scope | completed | first split candidate is chosen from the taxonomy |
 | 12.3 | First split candidate | completed | workspace snapshot split is scoped into an executable next batch |
 
