@@ -113,7 +113,7 @@ Result of re-scope:
 - the next batch should stay focused on dialog/presenter ownership before revisiting broader explorer controller cleanup
 
 ### Task 5.3: inspect explorer dialog ownership
-Status: queued
+Status: completed
 
 Why this is next:
 - `ExplorerUiAdapter` still imports `dialog_builders.dart`, `merge_conflict_dialog.dart`, and shared dialog keyboard helpers from `view/`
@@ -131,6 +131,33 @@ Done definition:
 
 Verification:
 - `rg -n "package:cwatch/view/shared/views/shared/tabs/file_explorer" lib/controller/adapters lib/controller/controllers`
+- `flutter analyze`
+
+Result of Task 5.3:
+- explorer dialog helpers no longer live under the file-explorer widget subtree
+- `ExplorerUiAdapter` now depends on shared widget dialogs instead of file-explorer-local helper files
+- the remaining explorer-local controller dependency is `selection_controller.dart` in `FileExplorerController`
+- the next batch should focus on selection/input ownership rather than more dialog cleanup
+
+### Task 5.4: inspect explorer selection/input ownership
+Status: queued
+
+Why this is next:
+- `FileExplorerController` still imports `selection_controller.dart` from the explorer view tree
+- selection state is already split, so the remaining question is whether the input-specific wrapper should be owned directly by the controller
+- this is now the smallest remaining explorer-specific `controller -> view` seam
+
+Actions:
+- inspect how `FileExplorerController` uses `SelectionController`
+- decide whether the controller should depend on `ExplorerSelectionState`, a narrower interface, or an explicit view exception
+- make one narrow ownership correction or record the exception clearly
+
+Done definition:
+- the remaining explorer-local selection/input dependency is reduced or explicitly justified
+- explorer controller ownership is clearer than it is today
+
+Verification:
+- `rg -n "selection_controller.dart" lib/controller`
 - `flutter analyze`
 
 ## Later Work In This Hotspot
@@ -158,8 +185,9 @@ Track here when ready:
 | --- | --- | --- | --- |
 | 5.1 | Explorer drag helper extraction | completed | controller-side explorer code no longer imports drag helpers from the explorer view tree |
 | 5.2 | Explorer re-scope | completed | next task is written from what we learn in 5.1 |
-| 5.3 | Explorer dialog ownership | queued | at least one remaining explorer dialog-related dependency is reduced or justified |
-| 5.x | Explorer adapter follow-up | queued | re-scoped after 5.3 |
+| 5.3 | Explorer dialog ownership | completed | at least one remaining explorer dialog-related dependency is reduced or justified |
+| 5.4 | Explorer selection/input ownership | queued | the remaining explorer-local selection/input dependency is reduced or justified |
+| 5.x | Explorer adapter follow-up | queued | re-scoped after 5.4 |
 
 ## Completion Metric
 

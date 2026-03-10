@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
+
 import 'package:cwatch/model/models/remote_file_entry.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
-import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
-import '../../../../widgets/dialog_keyboard_shortcuts.dart';
 import 'package:cwatch/model/shared/services/path_utils.dart';
+import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 
-/// Builders for file explorer dialogs
-class DialogBuilders {
-  DialogBuilders._();
+import 'dialog_keyboard_shortcuts.dart';
 
-  /// Show rename dialog
+/// Builders for file explorer dialogs.
+class ExplorerDialogBuilders {
+  ExplorerDialogBuilders._();
+
   static Future<String?> showRenameDialog(
     BuildContext context,
     RemoteFileEntry entry,
@@ -44,7 +45,6 @@ class DialogBuilders {
     );
   }
 
-  /// Show move dialog
   static Future<String?> showMoveDialog(
     BuildContext context,
     RemoteFileEntry entry,
@@ -85,7 +85,6 @@ class DialogBuilders {
     );
   }
 
-  /// Show delete confirmation dialog
   static Future<bool?> showDeleteDialog(
     BuildContext context,
     RemoteFileEntry entry,
@@ -123,45 +122,6 @@ class DialogBuilders {
     );
   }
 
-  /// Show multi-delete confirmation dialog
-  static Future<bool?> showMultiDeleteDialog(
-    BuildContext context,
-    int count,
-    SshHost host,
-    bool permanent,
-  ) async {
-    return showDialog<bool>(
-      context: context,
-      builder: (context) => DialogKeyboardShortcuts(
-        onCancel: () => Navigator.of(context).pop(false),
-        onConfirm: () => Navigator.of(context).pop(true),
-        child: AlertDialog(
-          title: Text(
-            permanent
-                ? 'Delete $count items permanently?'
-                : 'Move $count items to trash?',
-          ),
-          content: Text(
-            permanent
-                ? 'This will permanently delete $count items from ${host.name}.'
-                : 'Backups will be stored locally so you can restore them later.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: Text(permanent ? 'Delete' : 'Move to trash'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Show navigate to subdirectory dialog
   static Future<String?> showNavigateToSubdirectoryDialog(
     BuildContext context,
     List<RemoteFileEntry> entries,

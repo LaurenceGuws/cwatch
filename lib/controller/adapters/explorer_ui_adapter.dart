@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:cwatch/model/models/remote_file_entry.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/controller/adapters/explorer_desktop_drag_source.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/file_explorer/dialog_builders.dart';
+import 'package:cwatch/view/shared/widgets/explorer_dialog_builders.dart';
 import 'package:cwatch/controller/adapters/explorer_drag_types.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/file_explorer/merge_conflict_dialog.dart';
+import 'package:cwatch/view/shared/widgets/explorer_merge_conflict_dialog.dart';
 import 'package:cwatch/view/shared/widgets/dialog_keyboard_shortcuts.dart';
 
 class ExplorerUiAdapter {
@@ -75,11 +75,11 @@ class ExplorerUiAdapter {
   }
 
   Future<String?> showRenameDialog(RemoteFileEntry entry) {
-    return DialogBuilders.showRenameDialog(context, entry);
+    return ExplorerDialogBuilders.showRenameDialog(context, entry);
   }
 
   Future<String?> showMoveDialog(RemoteFileEntry entry, String currentPath) {
-    return DialogBuilders.showMoveDialog(context, entry, currentPath);
+    return ExplorerDialogBuilders.showMoveDialog(context, entry, currentPath);
   }
 
   Future<bool?> showDeleteDialog(
@@ -87,7 +87,7 @@ class ExplorerUiAdapter {
     SshHost host,
     bool deletePermanently,
   ) {
-    return DialogBuilders.showDeleteDialog(
+    return ExplorerDialogBuilders.showDeleteDialog(
       context,
       entry,
       host,
@@ -98,7 +98,7 @@ class ExplorerUiAdapter {
   Future<String?> showNavigateToSubdirectoryDialog(
     List<RemoteFileEntry> entries,
   ) {
-    return DialogBuilders.showNavigateToSubdirectoryDialog(
+    return ExplorerDialogBuilders.showNavigateToSubdirectoryDialog(
       context,
       entries,
       showSnackBar,
@@ -112,7 +112,7 @@ class ExplorerUiAdapter {
   }) {
     return showDialog<String>(
       context: context,
-      builder: (context) => MergeConflictDialog(
+      builder: (context) => ExplorerMergeConflictDialog(
         remotePath: remotePath,
         local: local,
         remote: remote,

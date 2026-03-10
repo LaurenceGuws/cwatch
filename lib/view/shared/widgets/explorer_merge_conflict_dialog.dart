@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
-import '../../../../widgets/dialog_keyboard_shortcuts.dart';
 
-class MergeConflictDialog extends StatefulWidget {
-  const MergeConflictDialog({
+import 'dialog_keyboard_shortcuts.dart';
+
+class ExplorerMergeConflictDialog extends StatefulWidget {
+  const ExplorerMergeConflictDialog({
     super.key,
     required this.remotePath,
     required this.local,
@@ -17,10 +18,12 @@ class MergeConflictDialog extends StatefulWidget {
   final String remote;
 
   @override
-  State<MergeConflictDialog> createState() => _MergeConflictDialogState();
+  State<ExplorerMergeConflictDialog> createState() =>
+      _ExplorerMergeConflictDialogState();
 }
 
-class _MergeConflictDialogState extends State<MergeConflictDialog> {
+class _ExplorerMergeConflictDialogState
+    extends State<ExplorerMergeConflictDialog> {
   late final TextEditingController _mergedController;
   late final ScrollController _remoteController;
   late final ScrollController _localController;
