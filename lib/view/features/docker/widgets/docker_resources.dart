@@ -5,7 +5,7 @@ import 'package:fl_chart/fl_chart.dart';
 
 import 'package:cwatch/controller/controllers/docker_resources_controller.dart';
 import 'package:cwatch/model/models/docker_container_stat.dart';
-import 'package:cwatch/model/shared/mixins/tab_options_mixin.dart';
+import 'package:cwatch/view/shared/mixins/tab_options_mixin.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/controller/core/workspace/tab_options.dart';

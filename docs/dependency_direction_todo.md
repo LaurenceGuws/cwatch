@@ -255,6 +255,7 @@ Current next-step note:
 - the next dependency-direction batch is shared theme registry ownership (`docs/theme_registry_ownership_todo.md`)
 - this is the strongest remaining `model -> view` seam and is now a reusable shell/framework ownership issue rather than a feature-module ownership issue
 - shared theme registry ownership reached a checkpoint and removed the `theme_config_loader -> editor view path` dependency
+- `lib/model` now also no longer imports controller workspace tab-option types through `tab_options_mixin.dart`
 
 ### Docker feature shell
 Track here when ready:

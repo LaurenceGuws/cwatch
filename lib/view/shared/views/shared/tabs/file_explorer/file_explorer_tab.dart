@@ -16,7 +16,7 @@ import 'package:cwatch/model/models/explorer_context.dart';
 import 'package:cwatch/model/models/remote_file_entry.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 
-import 'package:cwatch/model/shared/mixins/tab_options_mixin.dart';
+import 'package:cwatch/view/shared/mixins/tab_options_mixin.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/shared/shortcuts/input_mode_resolver.dart';
 import 'package:cwatch/model/shared/shortcuts/shortcut_actions.dart';

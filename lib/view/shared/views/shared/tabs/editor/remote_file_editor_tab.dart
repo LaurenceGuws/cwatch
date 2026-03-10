@@ -15,7 +15,7 @@ import 'package:cwatch/model/shared/shortcuts/shortcut_actions.dart';
 import 'package:cwatch/model/shared/shortcuts/shortcut_service.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
-import 'package:cwatch/model/shared/mixins/tab_options_mixin.dart';
+import 'package:cwatch/view/shared/mixins/tab_options_mixin.dart';
 import 'package:cwatch/view/features/settings/settings/editor_settings_controls.dart';
 import '../settings/floating_settings_window.dart';
 import 'remote_file_editor/code_editor_view.dart';

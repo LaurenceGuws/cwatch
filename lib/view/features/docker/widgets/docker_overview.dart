@@ -12,7 +12,7 @@ import 'package:cwatch/model/features/docker/services/docker_engine_service.dart
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
-import 'package:cwatch/model/shared/mixins/tab_options_mixin.dart';
+import 'package:cwatch/view/shared/mixins/tab_options_mixin.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/view/shared/widgets/section_nav_bar.dart';
