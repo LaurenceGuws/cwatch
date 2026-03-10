@@ -9,6 +9,7 @@ import 'package:cwatch/view/core/navigation/tab_navigation_registry.dart';
 import 'package:cwatch/view/core/tabs/tab_bar_visibility.dart';
 import 'package:cwatch/view/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/view/core/tabs/tabbed_workspace_shell.dart';
+import 'package:cwatch/view/core/tabs/workspace_tab_chip_builder.dart';
 import 'package:cwatch/view/core/widgets/keep_alive.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
@@ -20,7 +21,6 @@ import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/settings/floating_settings_window.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/tab_chip.dart';
 import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'package:cwatch/view/shared/widgets/data_table/structured_data_table.dart';
 import 'package:cwatch/view/shared/widgets/lists/section_list.dart';
@@ -724,42 +724,19 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                 onAddTab: _startEmptyTab,
                 buildChip: (context, index, tab) {
                   final data = _tabData(tab);
-                  final optionsController = tab.optionsController;
-
-                  Widget buildTab(List<TabChipOption> options) {
-                    return TabChip(
-                      host: SshHost(
-                        name: tab.label,
-                        hostname: data?.context?.server ?? '',
-                        port: 0,
-                        available: true,
-                      ),
-                      title: tab.title,
-                      label: tab.label,
-                      icon: tab.icon,
-                      selected: index == _selectedIndex,
-                      onSelect: () => _workspaceController.select(index),
-                      onClose: () => _closeTab(index),
-                      onRename: tab.canRename ? () => _renameTab(index) : null,
-                      dragIndex: tab.canDrag ? index : null,
-                      options: options,
-                      closable: true,
-                    );
-                  }
-
-                  if (optionsController == null) {
-                    return KeyedSubtree(
-                      key: ValueKey(tab.id),
-                      child: buildTab(const []),
-                    );
-                  }
-
-                  return ValueListenableBuilder<List<TabChipOption>>(
-                    key: ValueKey(tab.id),
-                    valueListenable: optionsController,
-                    builder: (context, options, _) {
-                      return buildTab(options);
-                    },
+                  return WorkspaceTabChipBuilder(
+                    tab: tab,
+                    selected: index == _selectedIndex,
+                    host: SshHost(
+                      name: tab.label,
+                      hostname: data?.context?.server ?? '',
+                      port: 0,
+                      available: true,
+                    ),
+                    onSelect: () => _workspaceController.select(index),
+                    onClose: () => _closeTab(index),
+                    onRename: () => _renameTab(index),
+                    index: index,
                   );
                 },
                 buildBody: (tab) => tab.body,

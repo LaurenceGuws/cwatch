@@ -301,3 +301,4 @@ Next executable batch:
 
 Current implementation checkpoint:
 - WSL now uses the shared chip builder proving slice
+- Kubernetes now uses the shared chip builder for the routine options-controller case

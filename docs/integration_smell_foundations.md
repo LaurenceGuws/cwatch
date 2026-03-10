@@ -246,6 +246,7 @@ Current implementation-ready follow-up:
 
 Current implementation checkpoint:
 - WSL now proves the first shared chip-building seam
+- Kubernetes now proves the routine options-controller adoption case
 
 ## Success Criteria
 

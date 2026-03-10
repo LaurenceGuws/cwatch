@@ -162,3 +162,23 @@ What this proved:
 
 Next executable batch:
 - `Task 14.7`: adopt the shared chip builder in Kubernetes
+
+## Task 14.7: adopt the shared chip builder in Kubernetes
+Status: completed
+
+Goal:
+- migrate the routine Kubernetes chip assembly onto the shared helper
+
+Done definition:
+- Kubernetes no longer hand-assembles routine `TabChip` wiring
+- the helper still stays narrow and does not need feature-specific growth for the routine options-controller case
+
+What landed:
+- [kubernetes_context_list.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/kubernetes_context_list.dart) now uses the shared chip builder instead of hand-assembling routine `TabChip` wiring
+
+What this proved:
+- the shared helper still holds when `tab.optionsController` is present
+- Kubernetes did not need extra adapter growth beyond simple host mapping and generic callbacks
+
+Next executable batch:
+- `Task 14.8`: adopt the shared chip builder in Docker

@@ -282,3 +282,16 @@ Current follow-up doc:
 
 Next executable batch:
 - `Task 14.7`: adopt the shared chip builder in Kubernetes
+
+### Task 14.7: adopt the shared chip builder in Kubernetes
+Status: completed
+
+What this task established:
+- the shared chip-building helper also works for the routine options-controller case
+- Kubernetes no longer hand-assembles routine `TabChip` wiring
+
+Current follow-up doc:
+- [tab_shell_adapter_todo.md](/home/home/personal/cwatch/docs/tab_shell_adapter_todo.md)
+
+Next executable batch:
+- `Task 14.8`: adopt the shared chip builder in Docker
