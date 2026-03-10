@@ -349,6 +349,108 @@ Verification:
 - `flutter analyze`
 - result: no issues found
 
+## Re-scope After Grouped Preference Cleanup
+
+Current state after Tasks `12.13` through `12.18`:
+- extracted preference clusters now exist as real grouped models in `AppSettings`
+- grouped preference sections are the only read/write shape for:
+  - shell preferences
+  - editor preferences
+  - terminal preferences
+  - explorer preferences
+- the old flat preference field surface is gone
+
+That means the remaining `AppSettings` problem is no longer flattened feature-pref clutter.
+
+The remaining categories are now much clearer:
+- `app_pref`
+  - `themeMode`
+  - `debugMode`
+  - `zoomFactor`
+  - `appFontFamily`
+  - `appThemeKey`
+  - `uiDensity`
+  - `inputModePreference`
+  - `shortcutBindings`
+- `shell_pref`
+  - `shellPreferences`
+- `infra_config`
+  - `sshClientBackend`
+  - `builtinSshHostKeyBindings`
+  - `customSshHosts`
+  - `customSshConfigPaths`
+  - `disabledSshConfigPaths`
+  - `disabledServerHosts`
+  - `kubernetesConfigPaths`
+  - `kubernetesBackend`
+  - `dockerRemoteHosts`
+- `feature_pref`
+  - `serverAutoRefresh`
+  - `serverShowOffline`
+  - `dockerSelectedContext`
+  - `dockerLogsTail`
+  - `fileTransferUploadConcurrency`
+  - `fileTransferDownloadConcurrency`
+- migration-only compatibility data
+  - `serverDistroMap`
+  - `dockerDistroMap`
+- migration-only workspace compatibility data
+  - `serverWorkspace`
+  - `kubernetesWorkspace`
+  - `wslWorkspace`
+  - `dockerWorkspace`
+
+What this proves:
+- grouped preference cleanup is no longer the bottleneck
+- the remaining live coupling inside `AppSettings` is now mostly:
+  - infrastructure configuration clustering
+  - a small residual feature-pref tail
+  - migration-only legacy fields we have intentionally not deleted yet
+
+### Task 12.19: scope infrastructure-configuration clustering
+Status: completed
+
+Why this is next:
+- `infra_config` is now the largest remaining live category in `AppSettings`
+- it still mixes:
+  - SSH transport selection
+  - SSH host-key policy data
+  - user-managed SSH hosts
+  - SSH config discovery paths
+  - host disablement filters
+  - Kubernetes config discovery
+  - Docker remote host configuration
+- this is the next place where one root model still acts like a broad cross-feature config bucket
+
+Current seam evidence:
+- SSH-heavy consumers:
+  - [settings_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/settings_controller.dart)
+  - [ssh_shell_factory.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_factory.dart)
+  - [server_workspace_view.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_view.dart)
+  - [host_list.dart](/home/home/personal/cwatch/lib/view/features/servers/servers/host_list.dart)
+- Kubernetes config consumers:
+  - [kubernetes_context_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/kubernetes_context_controller.dart)
+  - [kubernetes_settings_controls.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/kubernetes_settings_controls.dart)
+- Docker remote host config consumers:
+  - [remote_endpoint_cache.dart](/home/home/personal/cwatch/lib/model/core/services/remote_endpoint_cache.dart)
+  - docker feature settings/runtime call sites
+
+What this task answers:
+- the next coherent split is not one giant `InfraPreferences`
+- the highest-value first infra cluster is SSH configuration, because it is:
+  - the densest sub-cluster
+  - used across settings, runtime shell creation, and host-management flows
+  - already behaving like a real bounded concern
+- Kubernetes and Docker remote-host config should stay queued until the SSH cluster teaches the right seam
+
+Next executable batch:
+- `Task 12.20`: introduce an `SshPreferences` / `SshConfigPreferences` seam in `AppSettings`
+
+Done definition:
+- the next code batch is explicitly scoped around the SSH configuration cluster
+- Kubernetes and Docker infra config are left out on purpose for now
+- the doc reflects that the remaining problem is now infra-config clustering, not flat preference sprawl
+
 ### Task 12.8: scope `settingsTabIndex` removal from root settings
 Status: completed
 
