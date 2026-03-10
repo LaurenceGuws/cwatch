@@ -710,9 +710,15 @@ class _SortableHeader extends StatelessWidget {
       _ => null,
     };
     final labelWidget = Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: MainAxisSize.max,
       children: [
-        Text(label, style: textStyle),
+        Flexible(
+          child: Text(
+            label,
+            style: textStyle,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
         if (icon != null) ...[
           SizedBox(width: spacing.sm),
           Icon(icon, size: spacing.base * 3.5),

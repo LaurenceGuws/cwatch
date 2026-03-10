@@ -333,10 +333,13 @@ Recent shared/widget regression-floor additions now cover:
 - file editing and trash flows
 - first widget-level explorer states
 - shared dialog keyboard behavior through [dialog_keyboard_shortcuts_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/dialog_keyboard_shortcuts_test.dart)
+- shared port-forward dialog validation and apply behavior through [port_forward_dialog_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/port_forward_dialog_test.dart)
 
 Most recent bug caught by this floor:
 - [dialog_keyboard_shortcuts.dart](/home/home/personal/cwatch/lib/view/shared/widgets/dialog_keyboard_shortcuts.dart) was allowing Enter-to-confirm while a multiline text field was focused because the active focus node could sit below `EditableText`
 - the fix now checks ancestor widgets from the focused element before enabling Enter confirm shortcuts
+- [port_forward_dialog.dart](/home/home/personal/cwatch/lib/view/shared/widgets/port_forward_dialog.dart) was allowing sortable header labels to overflow on narrow widths
+- the fix now ellipsizes header text instead of forcing the row to overflow
 
 ### Task 12.9: remove legacy distro-cache fields from `AppSettings`
 Status: completed

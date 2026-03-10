@@ -531,6 +531,26 @@ Verification:
 - `flutter test test/view/shared/widgets/dialog_keyboard_shortcuts_test.dart`
 - `flutter analyze`
 
+### Task 13.17: add `port_forward_dialog_test.dart`
+Status: completed
+
+What landed:
+- [port_forward_dialog_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/port_forward_dialog_test.dart)
+- [port_forward_dialog.dart](/home/home/personal/cwatch/lib/view/shared/widgets/port_forward_dialog.dart) now ellipsizes sortable header labels instead of overflowing narrow widths
+
+Coverage added:
+- submit is blocked when enabled mappings contain duplicate local ports
+- apply returns only enabled mappings
+
+Why this matters:
+- it covers a shared dialog that coordinates validation and persistence-heavy follow-up behavior without requiring a full server or Docker runtime harness
+- it keeps widget-level coverage on small, reusable seams rather than broad feature screens
+- the new test exposed a real layout bug: sortable header labels could overflow on narrow widths instead of shrinking cleanly
+
+Verification:
+- `flutter test test/view/shared/widgets/port_forward_dialog_test.dart`
+- `flutter analyze`
+
 ## Test Organization
 
 Recommended structure:
