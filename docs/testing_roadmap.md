@@ -551,6 +551,25 @@ Verification:
 - `flutter test test/view/shared/widgets/port_forward_dialog_test.dart`
 - `flutter analyze`
 
+### Task 13.18: add `explorer_dialog_builders_test.dart`
+Status: completed
+
+What landed:
+- [explorer_dialog_builders_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/explorer_dialog_builders_test.dart)
+
+Coverage added:
+- permanent delete dialog shows the destructive wording and returns `true` on confirm
+- navigate-to-subdirectory reports `No subdirectories available` without opening a dialog when no directories exist
+
+Why this matters:
+- it covers reusable explorer dialog builders directly instead of only through larger feature surfaces
+- it locks down one destructive-confirmation path and one breadcrumb/message path that are easy to regress during dialog cleanup
+- it keeps widget-level coverage on small shared seams rather than branching into full explorer interaction tests
+
+Verification:
+- `flutter test test/view/shared/widgets/explorer_dialog_builders_test.dart`
+- `flutter analyze`
+
 ## Test Organization
 
 Recommended structure:
