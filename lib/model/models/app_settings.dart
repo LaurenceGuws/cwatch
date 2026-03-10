@@ -337,6 +337,13 @@ class AppSettings {
       return bindings;
     }
 
+    Map<String, dynamic>? asJsonMap(Object? value) {
+      if (value is Map<String, dynamic>) {
+        return value;
+      }
+      return null;
+    }
+
     ThemeMode parseThemeMode(String? value) {
       switch (value) {
         case 'light':
@@ -349,20 +356,39 @@ class AppSettings {
       }
     }
 
+    final shellJson = asJsonMap(json['shellPreferences']);
+    final editorJson = asJsonMap(json['editorPreferences']);
+    final terminalJson = asJsonMap(json['terminalPreferences']);
+    final explorerJson = asJsonMap(json['explorerPreferences']);
+
     return AppSettings(
       themeMode: parseThemeMode(json['themeMode'] as String?),
       debugMode: json['debugMode'] as bool? ?? false,
       zoomFactor: (json['zoomFactor'] as num?)?.toDouble() ?? 1.0,
       serverAutoRefresh: json['serverAutoRefresh'] as bool? ?? true,
       serverShowOffline: json['serverShowOffline'] as bool? ?? true,
-      shellSidebarWidth: (json['shellSidebarWidth'] as num?)?.toDouble(),
-      shellDestination: json['shellDestination'] as String?,
-      shellSidebarCollapsed: json['shellSidebarCollapsed'] as bool? ?? false,
+      shellSidebarWidth:
+          (shellJson?['sidebarWidth'] as num?)?.toDouble() ??
+          (json['shellSidebarWidth'] as num?)?.toDouble(),
+      shellDestination:
+          shellJson?['destination'] as String? ??
+          json['shellDestination'] as String?,
+      shellSidebarCollapsed:
+          shellJson?['sidebarCollapsed'] as bool? ??
+          json['shellSidebarCollapsed'] as bool? ??
+          false,
       shellSidebarPlacement:
-          json['shellSidebarPlacement'] as String? ?? 'dynamic',
+          shellJson?['sidebarPlacement'] as String? ??
+          json['shellSidebarPlacement'] as String? ??
+          'dynamic',
       windowUseSystemDecorations:
-          json['windowUseSystemDecorations'] as bool? ?? true,
-      closeToTray: json['closeToTray'] as bool? ?? false,
+          shellJson?['useSystemDecorations'] as bool? ??
+          json['windowUseSystemDecorations'] as bool? ??
+          true,
+      closeToTray:
+          shellJson?['closeToTray'] as bool? ??
+          json['closeToTray'] as bool? ??
+          false,
       appFontFamily: json['appFontFamily'] as String?,
       appThemeKey: json['appThemeKey'] as String? ?? 'blue-grey',
       uiDensity: AppUiDensityParsing.fromJson(json['uiDensity'] as String?),
@@ -459,11 +485,23 @@ class AppSettings {
             (key, value) => MapEntry(key, value.toString()),
           ) ??
           const {},
-      editorThemeLight: json['editorThemeLight'] as String?,
-      editorThemeDark: json['editorThemeDark'] as String?,
-      editorFontFamily: json['editorFontFamily'] as String?,
-      editorFontSize: (json['editorFontSize'] as num?)?.toDouble() ?? 14,
-      editorLineHeight: (json['editorLineHeight'] as num?)?.toDouble() ?? 1.35,
+      editorThemeLight:
+          editorJson?['themeLight'] as String? ??
+          json['editorThemeLight'] as String?,
+      editorThemeDark:
+          editorJson?['themeDark'] as String? ??
+          json['editorThemeDark'] as String?,
+      editorFontFamily:
+          editorJson?['fontFamily'] as String? ??
+          json['editorFontFamily'] as String?,
+      editorFontSize:
+          (editorJson?['fontSize'] as num?)?.toDouble() ??
+          (json['editorFontSize'] as num?)?.toDouble() ??
+          14,
+      editorLineHeight:
+          (editorJson?['lineHeight'] as num?)?.toDouble() ??
+          (json['editorLineHeight'] as num?)?.toDouble() ??
+          1.35,
       dockerRemoteHosts:
           (json['dockerRemoteHosts'] as List<dynamic>?)
               ?.whereType<String>()
@@ -488,15 +526,33 @@ class AppSettings {
         return null;
       }(),
       terminalFontFamily:
-          json['terminalFontFamily'] as String? ?? 'JetBrainsMono Nerd Font',
-      terminalFontSize: (json['terminalFontSize'] as num?)?.toDouble() ?? 14,
+          terminalJson?['fontFamily'] as String? ??
+          json['terminalFontFamily'] as String? ??
+          'JetBrainsMono Nerd Font',
+      terminalFontSize:
+          (terminalJson?['fontSize'] as num?)?.toDouble() ??
+          (json['terminalFontSize'] as num?)?.toDouble() ??
+          14,
       terminalLineHeight:
-          (json['terminalLineHeight'] as num?)?.toDouble() ?? 1.15,
-      terminalPaddingX: (json['terminalPaddingX'] as num?)?.toDouble() ?? 8,
-      terminalPaddingY: (json['terminalPaddingY'] as num?)?.toDouble() ?? 10,
-      terminalThemeDark: json['terminalThemeDark'] as String? ?? 'dracula',
+          (terminalJson?['lineHeight'] as num?)?.toDouble() ??
+          (json['terminalLineHeight'] as num?)?.toDouble() ??
+          1.15,
+      terminalPaddingX:
+          (terminalJson?['paddingX'] as num?)?.toDouble() ??
+          (json['terminalPaddingX'] as num?)?.toDouble() ??
+          8,
+      terminalPaddingY:
+          (terminalJson?['paddingY'] as num?)?.toDouble() ??
+          (json['terminalPaddingY'] as num?)?.toDouble() ??
+          10,
+      terminalThemeDark:
+          terminalJson?['themeDark'] as String? ??
+          json['terminalThemeDark'] as String? ??
+          'dracula',
       terminalThemeLight:
-          json['terminalThemeLight'] as String? ?? 'solarized-light',
+          terminalJson?['themeLight'] as String? ??
+          json['terminalThemeLight'] as String? ??
+          'solarized-light',
       fileTransferUploadConcurrency: _sanitizeTransferConcurrency(
         (json['fileTransferUploadConcurrency'] as num?)?.toInt() ?? 2,
       ),
@@ -507,25 +563,36 @@ class AppSettings {
         (json['dockerLogsTail'] as num?)?.toInt() ?? 200,
       ),
       explorerRowHeight: _sanitizeExplorerRowHeight(
-        (json['explorerRowHeight'] as num?)?.toDouble() ?? 36,
+        (explorerJson?['rowHeight'] as num?)?.toDouble() ??
+            (json['explorerRowHeight'] as num?)?.toDouble() ??
+            36,
       ),
-      explorerShowBreadcrumbs: json['explorerShowBreadcrumbs'] as bool? ?? true,
+      explorerShowBreadcrumbs:
+          explorerJson?['showBreadcrumbs'] as bool? ??
+          json['explorerShowBreadcrumbs'] as bool? ??
+          true,
     );
   }
 
   Map<String, dynamic> toJson() {
+    final shell = shellPreferences;
+    final editor = editorPreferences;
+    final terminal = terminalPreferences;
+    final explorer = explorerPreferences;
     return {
       'themeMode': themeMode.name,
       'debugMode': debugMode,
       'zoomFactor': zoomFactor,
       'serverAutoRefresh': serverAutoRefresh,
       'serverShowOffline': serverShowOffline,
-      'shellSidebarWidth': shellSidebarWidth,
-      'shellDestination': shellDestination,
-      'shellSidebarCollapsed': shellSidebarCollapsed,
-      'shellSidebarPlacement': shellSidebarPlacement,
-      'windowUseSystemDecorations': windowUseSystemDecorations,
-      'closeToTray': closeToTray,
+      'shellPreferences': {
+        'sidebarWidth': shell.sidebarWidth,
+        'destination': shell.destination,
+        'sidebarCollapsed': shell.sidebarCollapsed,
+        'sidebarPlacement': shell.sidebarPlacement,
+        'useSystemDecorations': shell.useSystemDecorations,
+        'closeToTray': shell.closeToTray,
+      },
       if (appFontFamily != null) 'appFontFamily': appFontFamily,
       'appThemeKey': appThemeKey,
       'uiDensity': uiDensity.name,
@@ -540,26 +607,32 @@ class AppSettings {
       'kubernetesConfigPaths': kubernetesConfigPaths,
       'kubernetesBackend': kubernetesBackend.name,
       'shortcutBindings': shortcutBindings,
-      if (editorThemeLight != null) 'editorThemeLight': editorThemeLight,
-      if (editorThemeDark != null) 'editorThemeDark': editorThemeDark,
-      if (editorFontFamily != null) 'editorFontFamily': editorFontFamily,
-      'editorFontSize': editorFontSize,
-      'editorLineHeight': editorLineHeight,
+      'editorPreferences': {
+        if (editor.themeLight != null) 'themeLight': editor.themeLight,
+        if (editor.themeDark != null) 'themeDark': editor.themeDark,
+        if (editor.fontFamily != null) 'fontFamily': editor.fontFamily,
+        'fontSize': editor.fontSize,
+        'lineHeight': editor.lineHeight,
+      },
 
       if (dockerSelectedContext != null)
         'dockerSelectedContext': dockerSelectedContext,
       'dockerLogsTail': dockerLogsTailClamped,
-      if (terminalFontFamily != null) 'terminalFontFamily': terminalFontFamily,
-      'terminalFontSize': terminalFontSize,
-      'terminalLineHeight': terminalLineHeight,
-      'terminalPaddingX': terminalPaddingX,
-      'terminalPaddingY': terminalPaddingY,
-      'terminalThemeDark': terminalThemeDark,
-      'terminalThemeLight': terminalThemeLight,
+      'terminalPreferences': {
+        if (terminal.fontFamily != null) 'fontFamily': terminal.fontFamily,
+        'fontSize': terminal.fontSize,
+        'lineHeight': terminal.lineHeight,
+        'paddingX': terminal.paddingX,
+        'paddingY': terminal.paddingY,
+        'themeDark': terminal.themeDark,
+        'themeLight': terminal.themeLight,
+      },
       'fileTransferUploadConcurrency': fileTransferUploadConcurrency,
       'fileTransferDownloadConcurrency': fileTransferDownloadConcurrency,
-      'explorerRowHeight': explorerRowHeight,
-      'explorerShowBreadcrumbs': explorerShowBreadcrumbs,
+      'explorerPreferences': {
+        'rowHeight': explorer.rowHeight,
+        'showBreadcrumbs': explorer.showBreadcrumbs,
+      },
     };
   }
 
