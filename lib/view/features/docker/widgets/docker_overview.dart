@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/tab_chip.dart';
+import 'package:cwatch/controller/core/workspace/tab_options.dart';
 
 import 'package:cwatch/model/models/docker_container.dart';
 import 'package:cwatch/model/models/docker_image.dart';

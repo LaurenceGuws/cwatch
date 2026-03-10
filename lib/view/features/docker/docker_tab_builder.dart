@@ -19,7 +19,7 @@ import 'package:cwatch/view/shared/views/shared/tabs/file_explorer/trash_tab.dar
 import 'package:cwatch/controller/di/bindings/file_explorer_binding.dart';
 import 'package:cwatch/controller/di/bindings/settings_binding.dart';
 import 'package:cwatch/controller/di/bindings/trash_tab_binding.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/tab_chip.dart';
+import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'package:cwatch/controller/di/bindings/docker_command_terminal_binding.dart';
 import 'widgets/docker_command_terminal.dart';
 import 'widgets/docker_overview.dart';

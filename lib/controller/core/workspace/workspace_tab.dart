@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/tab_chip.dart';
+import 'package:cwatch/controller/core/workspace/tab_options.dart';
 
 class WorkspaceTab {
   const WorkspaceTab({

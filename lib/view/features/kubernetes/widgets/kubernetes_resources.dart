@@ -6,7 +6,7 @@ import 'package:cwatch/controller/controllers/kubernetes_resources_controller.da
 import 'package:cwatch/model/models/kubernetes/kubernetes_resource_models.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/tab_chip.dart';
+import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'package:cwatch/controller/di/bindings/kubernetes_resources_binding.dart';
 
 class _SeriesData {

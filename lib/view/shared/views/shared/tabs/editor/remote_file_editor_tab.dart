@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'package:cwatch/controller/adapters/remote_file_editor_ui_adapter.dart';
 import 'package:cwatch/controller/controllers/remote_file_editor_controller.dart';
+import 'package:cwatch/controller/core/workspace/tab_options.dart';
 
 import 'package:cwatch/controller/controllers/settings_controller.dart';
 import 'package:cwatch/model/shared/gestures/gesture_activators.dart';
@@ -16,7 +17,6 @@ import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/model/shared/mixins/tab_options_mixin.dart';
 import 'package:cwatch/view/features/settings/settings/editor_settings_controls.dart';
-import '../tab_chip.dart';
 import '../settings/floating_settings_window.dart';
 import 'remote_file_editor/code_editor_view.dart';
 import 'remote_file_editor/editor_state.dart';

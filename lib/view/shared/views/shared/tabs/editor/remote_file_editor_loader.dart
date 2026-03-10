@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:cwatch/controller/adapters/remote_file_editor_ui_adapter.dart';
 import 'package:cwatch/controller/controllers/remote_file_editor_controller.dart';
+import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'package:cwatch/controller/di/bindings/remote_file_editor_binding.dart';
 
 import 'package:cwatch/controller/controllers/settings_controller.dart';
@@ -11,7 +12,6 @@ import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/controller/di/bindings/settings_binding.dart';
-import '../tab_chip.dart';
 import 'remote_file_editor_tab.dart';
 
 class RemoteFileEditorLoader extends StatefulWidget {

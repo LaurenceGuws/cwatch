@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
 
 import 'package:cwatch/controller/adapters/terminal_ui_adapter.dart';
+import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'package:cwatch/controller/controllers/terminal_session_controller.dart';
 import 'package:cwatch/controller/di/bindings/terminal_tab_binding.dart';
 
@@ -26,7 +27,6 @@ import 'package:cwatch/view/shared/widgets/mobile_focus_manager.dart';
 import 'package:cwatch/view/features/settings/settings/terminal_settings_controls.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 import '../settings/floating_settings_window.dart';
-import '../tab_chip.dart';
 import 'terminal_theme_presets.dart';
 
 /// Terminal tab that spawns an SSH session via a PTY.

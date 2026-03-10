@@ -8,7 +8,7 @@ import 'package:cwatch/model/models/docker_container_stat.dart';
 import 'package:cwatch/model/shared/mixins/tab_options_mixin.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/tab_chip.dart';
+import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'package:cwatch/view/shared/widgets/standard_empty_state.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
 import '../docker_tab_builder.dart';

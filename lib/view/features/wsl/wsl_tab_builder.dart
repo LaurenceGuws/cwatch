@@ -6,7 +6,7 @@ import 'package:cwatch/model/models/wsl_workspace_state.dart';
 import 'package:cwatch/controller/controllers/terminal_session_controller.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/tab_chip.dart';
+import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/terminal/terminal_tab.dart';
 
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';

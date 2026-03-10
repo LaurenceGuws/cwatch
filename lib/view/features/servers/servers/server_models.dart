@@ -4,7 +4,7 @@ import 'package:cwatch/model/models/explorer_context.dart';
 import 'package:cwatch/model/models/server_action.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/tab_chip.dart';
+import 'package:cwatch/controller/core/workspace/tab_options.dart';
 
 /// Server tab data model
 class ServerTab {

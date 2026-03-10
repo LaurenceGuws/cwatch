@@ -21,7 +21,7 @@ import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/view/shared/widgets/dialog_keyboard_shortcuts.dart';
 import 'package:cwatch/view/shared/widgets/mobile_focus_manager.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/tab_chip.dart';
+import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/terminal/terminal_theme_presets.dart';
 
 /// Lightweight terminal view that runs a provided Docker command locally or via SSH.

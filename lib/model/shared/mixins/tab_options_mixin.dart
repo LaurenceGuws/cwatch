@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:cwatch/view/shared/views/shared/tabs/tab_chip.dart';
+import 'package:cwatch/controller/core/workspace/tab_options.dart';
 
 mixin TabOptionsMixin<T extends StatefulWidget> on State<T> {
   List<TabChipOption>? _pendingTabOptions;

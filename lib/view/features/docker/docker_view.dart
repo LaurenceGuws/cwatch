@@ -30,6 +30,7 @@ import 'package:cwatch/model/models/docker_workspace_state.dart';
 import 'package:cwatch/view/core/widgets/keep_alive.dart';
 import 'widgets/docker_engine_picker.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/tab_chip.dart';
+import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/settings/floating_settings_window.dart';
 import 'docker_tab_builder.dart';
 import 'docker_workspace_controller.dart';

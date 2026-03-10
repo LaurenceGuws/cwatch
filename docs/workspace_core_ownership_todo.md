@@ -54,7 +54,7 @@ We are trying to make one ownership rule clearer:
 ## First Batch Candidate
 
 ### Task 4.1: split tab option state from `tab_chip.dart`
-Status: queued
+Status: completed
 
 Why this is first:
 - `WorkspaceTab` currently imports a controller/state type from a widget file
@@ -85,7 +85,7 @@ Verification:
 - manual smoke check of tab menus and tab close warnings in one or two workspace screens
 
 ### Task 4.2: re-scope after tab option extraction
-Status: queued
+Status: completed
 
 Purpose:
 - decide whether the next workspace-core batch should target:
@@ -100,6 +100,33 @@ Done definition:
 
 Verification:
 - follow-up task added before the next workspace-core structural change starts
+
+Result of re-scope:
+- reusable tab option state now lives in `lib/controller/core/workspace/tab_options.dart`
+- `WorkspaceTab` no longer imports from `tab_chip.dart`
+- `tab_chip.dart` is now a widget file again instead of a mixed widget/state file
+- the next workspace-core ownership question is `TabHostController` living under `view/core/tabs/`
+
+### Task 4.3: inspect tab host controller ownership
+Status: queued
+
+Why this is next:
+- `TabbedWorkspaceController` still extends `TabHostController` from a `view/` path
+- `TabHostController` appears to be generic tab state management rather than presentation
+- this is now the clearest remaining workspace-core `controller -> view` seam
+
+Actions:
+- inspect `tab_host.dart` and its call sites
+- decide whether `TabHostController` should move to a neutral/controller-owned location or remain where it is as an explicit exception
+- implement one narrow ownership correction or record the exception clearly
+
+Done definition:
+- the `TabbedWorkspaceController` dependency on `view/core/tabs/tab_host.dart` is either removed or explicitly justified
+- workspace-core ownership is clearer than it is today
+
+Verification:
+- `rg -n "package:cwatch/view/core/tabs/tab_host.dart" lib/controller`
+- `flutter analyze`
 
 ## Later Work In This Hotspot
 
@@ -124,9 +151,10 @@ Track here when ready:
 
 | Item | Scope | Status | Done When |
 | --- | --- | --- | --- |
-| 4.1 | Tab option state extraction | queued | `WorkspaceTab` no longer imports from `tab_chip.dart` |
-| 4.2 | Workspace-core re-scope | queued | next task is written from what we learn in 4.1 |
-| 4.x | Workspace-core follow-up | queued | re-scoped after 4.1 |
+| 4.1 | Tab option state extraction | completed | `WorkspaceTab` no longer imports from `tab_chip.dart` |
+| 4.2 | Workspace-core re-scope | completed | next task is written from what we learn in 4.1 |
+| 4.3 | Tab host controller ownership | queued | `TabbedWorkspaceController` no longer depends on `view/core/tabs/tab_host.dart`, or the exception is justified |
+| 4.x | Workspace-core follow-up | queued | re-scoped after 4.3 |
 
 ## Completion Metric
 

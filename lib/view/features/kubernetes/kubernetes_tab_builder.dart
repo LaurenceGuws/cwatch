@@ -5,7 +5,7 @@ import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
 import 'package:cwatch/model/models/kubernetes_workspace_state.dart';
 import 'package:cwatch/model/models/kubernetes/kubeconfig_context.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/tab_chip.dart';
+import 'package:cwatch/controller/core/workspace/tab_options.dart';
 
 class KubernetesTabBuilder {
   const KubernetesTabBuilder({

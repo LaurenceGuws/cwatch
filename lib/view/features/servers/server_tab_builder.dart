@@ -14,7 +14,7 @@ import 'package:cwatch/view/shared/views/shared/tabs/file_explorer/trash_tab.dar
 import 'package:cwatch/controller/di/bindings/file_explorer_binding.dart';
 import 'package:cwatch/controller/di/bindings/settings_binding.dart';
 import 'package:cwatch/controller/di/bindings/trash_tab_binding.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/tab_chip.dart';
+import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/terminal/terminal_tab.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/controller/controllers/remote_file_editor_controller.dart';
