@@ -656,7 +656,7 @@ The likely first cluster candidates are:
 - server/docker feature preferences
 
 ### Task 12.10: scope feature-preference clustering
-Status: queued
+Status: completed
 
 Goal:
 - decide whether remaining feature preferences should stay flat in `AppSettings` temporarily
@@ -671,6 +671,64 @@ Done definition:
 - the next feature-pref split candidate is chosen from evidence
 - the target boundary is explicit
 - the first code batch is scoped narrowly enough to land without another root-settings churn pass
+
+What this pass found:
+- `editor` preferences are a cohesive cluster:
+  - `editorThemeLight`
+  - `editorThemeDark`
+  - `editorFontFamily`
+  - `editorFontSize`
+  - `editorLineHeight`
+- `terminal` preferences are a cohesive cluster:
+  - `terminalFontFamily`
+  - `terminalFontSize`
+  - `terminalLineHeight`
+  - `terminalPaddingX`
+  - `terminalPaddingY`
+  - `terminalThemeDark`
+  - `terminalThemeLight`
+- `explorer` preferences are a smaller but coherent cluster:
+  - `explorerRowHeight`
+  - `explorerShowBreadcrumbs`
+- `server` and `docker` feature-pref fields are still comparatively thin:
+  - `serverAutoRefresh`
+  - `serverShowOffline`
+  - `dockerSelectedContext`
+  - `dockerLogsTail`
+
+Result:
+- the strongest first extraction candidates are `editor` and `terminal`
+- `explorer` is viable, but lower leverage than `editor` or `terminal`
+- `server` and `docker` do not justify their own settings sections yet without further growth
+
+Recommended order:
+1. `terminal` preferences
+2. `editor` preferences
+3. `explorer` preferences
+
+Why `terminal` first:
+- it is used across multiple high-traffic surfaces
+- it has the densest set of related fields
+- it already behaves like a self-contained settings section in the UI
+
+Verification:
+- preference clusters are explicitly grouped from current field usage
+- the first extraction candidate is justified from cohesion and usage
+
+### Task 12.12: scope terminal-preferences extraction
+Status: queued
+
+Goal:
+- define whether terminal settings should become a dedicated nested section/model while keeping existing consumers stable
+
+Known current consumers:
+- [settings_view.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/settings_view.dart)
+- [terminal_tab.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/terminal/terminal_tab.dart)
+- [docker_command_terminal.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_command_terminal.dart)
+
+Done definition:
+- the terminal settings owner and model shape are explicit
+- the first code batch is scoped at the shared settings seam, not by editing every consumer ad hoc
 
 ### Task 12.11: decide whether shell preferences deserve their own root section
 Status: queued
