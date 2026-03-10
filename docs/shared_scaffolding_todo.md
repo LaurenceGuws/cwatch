@@ -299,7 +299,7 @@ Why the other candidates wait:
   - the main wrapper smell has already been removed
 
 ## Task 14.49: scope shared action/menu scaffolding
-Status: queued
+Status: completed
 
 Goal:
 - identify the smallest shared shell action/menu seam that reduces repeated popup/action assembly without flattening domain-specific menu logic
@@ -314,3 +314,66 @@ Likely first candidates:
 Done definition:
 - the first action/menu normalization batch is chosen
 - the batch stays narrower than “generic menu system”
+
+Result:
+- the shared action/menu contract is now scoped around two distinct shell-owned seams:
+  - `ActionPicker` for simple choose-one action flows
+  - section-level popup action chrome for `SectionList` trailing menus
+
+### Canonical shared responsibilities in this batch
+
+Shared shell scaffolding should own:
+- the generic dialog/list presentation for simple action picking
+- the basic icon/button/menu chrome for section-level overflow actions
+- routine menu item assembly where the behavior is “label + icon + string/id callback”
+
+Feature modules should own:
+- domain-specific action availability
+- domain-specific action ids and handlers
+- richer multi-step menu flows
+- table row context menus and dense domain action menus
+
+### Current repeated integration smell
+
+The clearest repeated local assembly is:
+- `PopupMenuButton<String>` inside `SectionList.trailing`
+- with:
+  - an overflow icon
+  - a short `onSelected` switch
+  - a small list of `PopupMenuItem<String>`
+
+Current concrete repeated cases:
+- server host list section menu
+- Docker engine picker section menu
+- Docker grouped list section menus
+
+### First normalization cut
+
+The first action/menu normalization batch should target:
+- section-level overflow menus for `SectionList`
+
+Why this is first:
+- the shell chrome is visibly repeated
+- it is narrower and safer than normalizing all popup menus
+- it does not interfere with row-level context menus or richer action surfaces
+
+Explicitly deferred:
+- generic row context-menu framework
+- compose/container/domain action unification
+- command-palette integration
+- richer multi-step action dialogs
+
+## Task 14.50: implement shared section-menu scaffolding
+Status: queued
+
+Goal:
+- extract the smallest shared helper for `SectionList` overflow menus without flattening domain-specific action logic
+
+First code targets:
+- server host list section menu
+- Docker engine picker section menu
+
+Done definition:
+- those section-level overflow menus use one shared shell helper
+- action ids/handlers stay feature-owned
+- the helper remains clearly narrower than a general menu framework
