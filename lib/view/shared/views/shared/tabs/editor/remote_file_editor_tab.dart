@@ -76,9 +76,7 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
   void dispose() {
     _shortcutSub?.dispose();
     _gestureSub?.dispose();
-    _settingsController
-      ..removeListener(_settingsListener)
-      ..dispose();
+    _settingsController.removeListener(_settingsListener);
     _state.removeListener(_handleStateChanged);
     _state.dispose();
     super.dispose();
@@ -89,7 +87,6 @@ class _RemoteFileEditorTabState extends State<RemoteFileEditorTab>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.settingsController != widget.settingsController) {
       oldWidget.settingsController.removeListener(_settingsListener);
-      oldWidget.settingsController.dispose();
       _settingsController = widget.settingsController;
       _settingsController.addListener(_settingsListener);
       _configureInputMode();
