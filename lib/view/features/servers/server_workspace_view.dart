@@ -4,20 +4,18 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
+import 'package:cwatch/controller/controllers/settings_controller.dart';
 import 'package:cwatch/model/features/servers/models/server_tab_data.dart';
 import 'package:cwatch/model/models/custom_ssh_host.dart';
 import 'package:cwatch/model/models/explorer_context.dart';
 import 'package:cwatch/model/models/server_action.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
-import 'package:cwatch/model/services_infra/filesystem/explorer_trash_manager.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_config_service.dart';
 import 'package:cwatch/model/features/servers/services/host_distro_manager.dart';
 import 'package:cwatch/view/features/servers/server_workspace_ui_adapter.dart';
-import 'package:cwatch/controller/controllers/server_port_forward_controller.dart';
-import 'package:cwatch/model/services_infra/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/controller/di/bindings/server_workspace_binding.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
@@ -38,12 +36,10 @@ import 'package:cwatch/view/core/widgets/keep_alive.dart';
 import 'package:cwatch/view/core/tabs/tabbed_workspace_shell.dart';
 import 'package:cwatch/model/features/servers/services/host_distro_key.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/settings/floating_settings_window.dart';
-import 'package:cwatch/controller/controllers/settings_controller.dart';
 import 'package:cwatch/view/features/settings/settings/server_list_settings_controls.dart';
 import 'package:cwatch/view/features/settings/settings/ssh_settings_controls.dart';
 import 'package:cwatch/model/shared/services/host_shell_policy.dart';
-import 'package:cwatch/controller/di/bindings/settings_binding.dart';
-import 'package:cwatch/controller/di/bindings/ssh_shell_factory_binding.dart';
+import 'server_workspace_runtime.dart';
 
 class ServerWorkspaceView extends StatefulWidget {
   const ServerWorkspaceView({
@@ -69,15 +65,7 @@ class ServerWorkspaceView extends StatefulWidget {
 
 class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   final ServerWorkspaceBinding _binding = const ServerWorkspaceBinding();
-  final SettingsBinding _settingsBinding = const SettingsBinding();
-  final SshShellFactoryBinding _shellFactoryBinding =
-      const SshShellFactoryBinding();
-  final ExplorerTrashManager _trashManager = ExplorerTrashManager();
-  final PortForwardService _portForwardService = PortForwardService();
-  late ServerWorkspaceUiAdapter _uiAdapter;
-  late ServerPortForwardController _portForwardController;
-  late final SshShellFactory _shellFactory;
-  late final HostDistroManager _distroManager;
+  late final ServerWorkspaceRuntime _runtime;
   final Map<String, bool> _hostAvailability = {};
   final Set<String> _pendingCustomAvailabilityChecks = {};
   bool _didProbeHostDistro = false;
@@ -85,18 +73,22 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   late final VoidCallback _tabsListener;
   late final TabViewRegistry<WorkspaceTab> _tabRegistry;
   static int _placeholderSequence = 0;
-  late final ServerWorkspaceController _workspaceController;
-  late final ServerTabBuilder _tabBuilder;
   late final TabNavigationHandle _tabNavigator;
   late final CommandPaletteHandle _commandPaletteHandle;
   late Future<List<SshHost>> _hostsFuture;
   late final ValueNotifier<Future<List<SshHost>>> _hostsFutureNotifier;
-  late final SettingsController _settingsController;
   List<SshHost> _lastHosts = const [];
   String _customHostsSignature = '';
   String _pathsSignature = '';
   String _disabledHostsSignature = '';
   bool _showListSettings = false;
+
+  ServerWorkspaceUiAdapter get _uiAdapter => _runtime.uiAdapter;
+  HostDistroManager get _distroManager => _runtime.distroManager;
+  ServerWorkspaceController get _workspaceController =>
+      _runtime.workspaceController;
+  ServerTabBuilder get _tabBuilder => _runtime.tabBuilder;
+  SettingsController get _settingsController => _runtime.settingsController;
 
   void _toggleListSettings() {
     setState(() {
@@ -341,50 +333,13 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   @override
   void initState() {
     super.initState();
-    _uiAdapter = _binding.createUiAdapter(context: context);
-    final authCoordinator = _uiAdapter.buildSshAuthCoordinator(
-      keyService: widget.keyService,
-    );
-    _shellFactory = _shellFactoryBinding.create(
-      settingsController: widget.settingsController,
-      keyService: widget.keyService,
-      authCoordinator: authCoordinator,
-    );
-    _distroManager = HostDistroManager(
-      settingsController: widget.settingsController,
-      shellFactory: _shellFactory,
-    );
-    _portForwardService.setAuthCoordinator(_shellFactory.authCoordinator);
-    _portForwardController = _binding.createPortForwardController(
-      context: context,
-      portForwardService: _portForwardService,
-      settingsController: widget.settingsController,
-      keyService: widget.keyService,
-      uiAdapter: _uiAdapter,
-    );
     _hostsFuture = _loadHosts();
     _hostsFutureNotifier = ValueNotifier(_hostsFuture);
-
-    final settingsUiAdapter = _settingsBinding.createUiAdapter(
+    _runtime = _binding.createRuntime(
       context: context,
-    );
-    _settingsController = _settingsBinding.createController(
-      settingsController: widget.settingsController,
+      appSettingsController: widget.settingsController,
       keyService: widget.keyService,
       hostsFuture: _hostsFuture,
-      uiAdapter: settingsUiAdapter,
-    );
-
-    _tabBuilder = ServerTabBuilder(
-      settingsController: widget.settingsController,
-      trashManager: _trashManager,
-      shellServiceForHost: (host) => _shellFactory.forHost(host),
-      keyService: widget.keyService,
-      hostsFuture: _hostsFuture,
-    );
-
-    _workspaceController = ServerWorkspaceController(
-      settingsController: widget.settingsController,
       hostsLoader: _loadHosts,
       baseTabBuilder: _createPlaceholderTab,
     );
@@ -449,11 +404,9 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   @override
   void dispose() {
     _workspaceController.removeListener(_tabsListener);
-    _workspaceController.dispose();
     _hostsFutureNotifier.dispose();
     widget.settingsController.removeListener(_settingsListener);
-    _settingsController.dispose();
-    _portForwardService.dispose();
+    _runtime.dispose();
     TabNavigationRegistry.instance.unregister(widget.moduleId, _tabNavigator);
     CommandPaletteRegistry.instance.unregister(
       widget.moduleId,
@@ -975,7 +928,7 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   }
 
   Future<void> _openPortForwardDialog(SshHost host) {
-    return _portForwardController.openDialog(host);
+    return _runtime.portForwardController.openDialog(host);
   }
 
   Future<void> _showAddServerDialog(

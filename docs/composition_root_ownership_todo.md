@@ -248,7 +248,7 @@ Why this staging is required:
 - host loading is currently intertwined with the server landing surface, not just the service graph
 
 ### Task 11.6: extract the server module runtime without moving placeholder behavior
-Status: queued
+Status: completed
 
 Why this is next:
 - it applies the validated runtime-object pattern to the heaviest remaining shell
@@ -279,6 +279,37 @@ Verification:
 - `flutter analyze`
 - manual smoke check of server landing tab, add-server flow, and one action transition from placeholder to working tab
 
+Result of Task 11.6:
+- `ServerWorkspaceView` now owns one `ServerWorkspaceRuntime` instead of assembling the extracted module-scoped graph field-by-field
+- the extracted runtime now owns:
+  - `ServerWorkspaceUiAdapter`
+  - `SshShellFactory`
+  - `HostDistroManager`
+  - `PortForwardService`
+  - `ServerPortForwardController`
+  - `SettingsController`
+  - `ServerTabBuilder`
+  - `ServerWorkspaceController`
+- placeholder-tab behavior remained in the feature view, including:
+  - host loading
+  - host availability probing
+  - `_hostsFutureNotifier`
+  - placeholder tab creation
+  - landing/list behavior
+  - action flows that replace placeholders with working tabs
+
+This is the important proof:
+- the runtime-object pattern can be applied to the heaviest shell
+- without violating the strict placeholder-tab contract
+
+### Composition-root hotspot checkpoint
+Status: completed
+
+Established rule:
+- shell/workspace layer enforces the initial placeholder-tab contract
+- feature view owns placeholder behavior and landing transitions
+- runtime object owns the module-scoped service/controller graph and its disposal
+
 ## Tracking Table
 
 | Item | Scope | Status | Done When |
@@ -288,7 +319,7 @@ Verification:
 | 11.3 | Next runtime-graph target | completed | next composition-root batch is chosen from current evidence |
 | 11.4 | Kubernetes runtime graph | completed | Kubernetes module-scoped runtime construction is explicit |
 | 11.5 | Server runtime re-scope | completed | next server batch is chosen from the validated runtime-object pattern |
-| 11.6 | Server staged runtime extraction | queued | extracted server runtime graph is explicit while placeholder behavior stays feature-owned |
+| 11.6 | Server staged runtime extraction | completed | extracted server runtime graph is explicit while placeholder behavior stays feature-owned |
 
 ## Completion Metric
 
