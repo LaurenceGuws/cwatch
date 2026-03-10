@@ -23,9 +23,6 @@ import 'package:cwatch/controller/di/bindings/server_workspace_binding.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/services_infra/network/connectivity_probe.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
-import 'package:cwatch/view/core/navigation/tab_navigation_registry.dart';
-import 'package:cwatch/view/core/navigation/command_palette_registry.dart';
-import 'package:cwatch/view/core/navigation/generic_tab_command_entries.dart';
 import 'package:cwatch/view/core/tabs/tab_bar_visibility.dart';
 import 'package:cwatch/view/core/tabs/workspace_tab_chip_builder.dart';
 import 'servers/host_list.dart';
@@ -43,6 +40,7 @@ import 'package:cwatch/view/features/settings/settings/server_list_settings_cont
 import 'package:cwatch/view/features/settings/settings/ssh_settings_controls.dart';
 import 'package:cwatch/model/shared/services/host_shell_policy.dart';
 import 'server_workspace_runtime.dart';
+import 'server_workspace_shell.dart';
 
 class ServerWorkspaceView extends StatefulWidget {
   const ServerWorkspaceView({
@@ -69,6 +67,7 @@ class ServerWorkspaceView extends StatefulWidget {
 class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   final ServerWorkspaceBinding _binding = const ServerWorkspaceBinding();
   late final ServerWorkspaceRuntime _runtime;
+  late final ServerWorkspaceShell _viewShell;
   late final ServerTabBuilder _tabBuilder;
   final Map<String, bool> _hostAvailability = {};
   final Set<String> _pendingCustomAvailabilityChecks = {};
@@ -77,14 +76,9 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   late final VoidCallback _tabsListener;
   late final TabViewRegistry<WorkspaceTab> _tabRegistry;
   static int _placeholderSequence = 0;
-  late final TabNavigationHandle _tabNavigator;
-  late final CommandPaletteHandle _commandPaletteHandle;
   late Future<List<SshHost>> _hostsFuture;
   late final ValueNotifier<Future<List<SshHost>>> _hostsFutureNotifier;
   List<SshHost> _lastHosts = const [];
-  String _customHostsSignature = '';
-  String _pathsSignature = '';
-  String _disabledHostsSignature = '';
   bool _showListSettings = false;
 
   ServerWorkspaceUiAdapter get _uiAdapter => _runtime.uiAdapter;
@@ -330,8 +324,8 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
     return _tabBuilder.emptyTab(
       id: id,
       body: _buildHostSelection(
-        onHostActivate: (host) => _activateEmptyTab(id, host),
-        onAction: (host, action) => _replaceTabWithAction(id, host, action),
+        onHostActivate: (host) => _viewShell.activateEmptyTab(id, host),
+        onAction: (host, action) => _viewShell.replaceTabWithAction(id, host, action),
       ),
     );
   }
@@ -339,8 +333,47 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   @override
   void initState() {
     super.initState();
-    _hostsFuture = _loadHosts();
-    _hostsFutureNotifier = ValueNotifier(_hostsFuture);
+    _hostsFutureNotifier = ValueNotifier(Future.value(const []));
+    _viewShell = ServerWorkspaceShell(
+      moduleId: widget.moduleId,
+      loadHosts: _loadHosts,
+      updateCustomHosts: _updateCustomHosts,
+      buildCustomHostsSignature: _buildCustomHostsSignature,
+      buildPathsSignature: _buildPathsSignature,
+      buildDisabledHostsSignature: _buildDisabledHostsSignature,
+      setHostsFuture: (hostsFuture) {
+        _hostsFuture = hostsFuture;
+        _hostsFutureNotifier.value = hostsFuture;
+      },
+      requestViewRefresh: () {
+        if (mounted) {
+          setState(() {});
+        }
+      },
+      persistedWorkspaceSignature: () =>
+          _workspaceController.workspacePersistence.read()?.signature,
+      currentWorkspaceSignature: _workspaceController.currentWorkspaceSignature,
+      restoreWorkspace: _restoreWorkspace,
+      persistIfPending: () async {
+        _workspaceController.workspacePersistence.persistIfPending(
+          () => _workspaceController.persistState(),
+        );
+      },
+      tabs: () => _tabs,
+      selectedIndex: () => _selectedTabIndex,
+      selectTab: _selectTab,
+      closeTab: (index) => _workspaceController.closeTab(index),
+      replaceTab: _workspaceController.replaceTab,
+      addTab: _workspaceController.addTab,
+      createPlaceholderTab: _createPlaceholderTab,
+      createTab: _createTab,
+      onHostInteraction: _ensureDistroOnInteraction,
+      openPortForwardDialog: _openPortForwardDialog,
+      pickAction: (host) => ActionPickerDialog.show(context, host),
+      renameTab: _renameTab,
+      customHosts: () => widget.settingsController.settings.sshPreferences.customHosts,
+    );
+    _hostsFuture = _viewShell.initializeHosts();
     _tabBuilder = ServerTabBuilder(
       settingsController: widget.settingsController,
       trashManager: ExplorerTrashManager(),
@@ -364,41 +397,12 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
           KeepAliveWrapper(key: key, child: child),
       viewKeyPrefix: 'server-tab',
     );
-
-    _tabNavigator = TabNavigationHandle(
-      next: () {
-        final length = _tabs.length;
-        if (length <= 1) return false;
-        final next = (_selectedTabIndex + 1) % length;
-        _selectTab(next);
-        return true;
-      },
-      previous: () {
-        final length = _tabs.length;
-        if (length <= 1) return false;
-        final prev = (_selectedTabIndex - 1 + length) % length;
-        _selectTab(prev);
-        return true;
-      },
-    );
-
-    TabNavigationRegistry.instance.register(widget.moduleId, _tabNavigator);
-    _commandPaletteHandle = CommandPaletteHandle(
-      loader: () => _buildCommandPaletteEntries(),
-    );
-    CommandPaletteRegistry.instance.register(
-      widget.moduleId,
-      _commandPaletteHandle,
-    );
+    _viewShell.initializeWorkspaceChrome();
 
     _tabsListener = () {
       setState(() {});
     };
     _workspaceController.addListener(_tabsListener);
-
-    _customHostsSignature = _buildCustomHostsSignature();
-    _pathsSignature = _buildPathsSignature();
-    _disabledHostsSignature = _buildDisabledHostsSignature();
 
     _settingsListener = _handleSettingsChanged;
     widget.settingsController.addListener(_settingsListener);
@@ -420,12 +424,8 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
     _workspaceController.removeListener(_tabsListener);
     _hostsFutureNotifier.dispose();
     widget.settingsController.removeListener(_settingsListener);
+    _viewShell.dispose();
     _runtime.dispose();
-    TabNavigationRegistry.instance.unregister(widget.moduleId, _tabNavigator);
-    CommandPaletteRegistry.instance.unregister(
-      widget.moduleId,
-      _commandPaletteHandle,
-    );
     super.dispose();
   }
 
@@ -469,18 +469,18 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
               key: const ValueKey('host-list'),
               hosts: shellCapableHosts,
               onSelect: onHostSelected,
-              onActivate: onHostActivate ?? _startActionFlowForHost,
+              onActivate: onHostActivate ?? _viewShell.startActionFlowForHost,
               settingsController: widget.settingsController,
               distroCacheController: _distroCacheController,
               keyService: widget.keyService,
               onHostVisible: _ensureDistroForHostOnDemand,
               onOpenConnectivity: (host) {
                 // Always use _addTab for multi-select support
-                _addTab(host, ServerAction.connectivity);
+                _addServerTab(host, ServerAction.connectivity);
               },
               onOpenResources: (host) {
                 // Always use _addTab for multi-select support
-                _addTab(host, ServerAction.resources);
+                _addServerTab(host, ServerAction.resources);
               },
               onOpenTerminal: (host) {
                 AppLogger().debug(
@@ -489,11 +489,11 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
                 );
                 // Always use _addTab for multi-select support
                 // onAction is only for single-selection in placeholder tabs
-                _addTab(host, ServerAction.terminal);
+                _addServerTab(host, ServerAction.terminal);
               },
               onOpenExplorer: (host) {
                 // Always use _addTab for multi-select support
-                _addTab(host, ServerAction.fileExplorer);
+                _addServerTab(host, ServerAction.fileExplorer);
               },
               onOpenPortForward: _openPortForwardDialog,
               onHostsChanged: () {
@@ -600,7 +600,7 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
                   .shellPreferences.useSystemDecorations,
               leading: widget.leading,
               onReorder: _workspaceController.reorder,
-              onAddTab: _startEmptyTab,
+              onAddTab: _viewShell.startEmptyTab,
               buildChip: (context, index, tab) {
                 return ValueListenableBuilder<List<TabChipOption>>(
                   key: ValueKey(tab.id),
@@ -674,56 +674,11 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
     return null;
   }
 
-  List<CommandPaletteEntry> _buildCommandPaletteEntries() {
-    return buildGenericTabCommandEntries(
-      moduleId: widget.moduleId,
-      selectedTab: _tabs.isNotEmpty ? _tabs[_selectedTabIndex] : null,
-      onNewTab: _startEmptyTab,
-      onCloseTab: () => _workspaceController.closeTab(_selectedTabIndex),
-      onRenameTab: () => _renameTab(_selectedTabIndex),
-    );
-  }
-
   void _handleSettingsChanged() {
     if (!mounted) {
       return;
     }
-    final nextCustomSignature = _buildCustomHostsSignature();
-    final nextPathsSignature = _buildPathsSignature();
-    final nextDisabledSignature = _buildDisabledHostsSignature();
-    final customHostsChanged = nextCustomSignature != _customHostsSignature;
-    final pathsChanged = nextPathsSignature != _pathsSignature;
-    final disabledChanged = nextDisabledSignature != _disabledHostsSignature;
-    if (pathsChanged) {
-      _customHostsSignature = nextCustomSignature;
-      _pathsSignature = nextPathsSignature;
-      _disabledHostsSignature = nextDisabledSignature;
-      AppLogger().debug('ServersList hosts updated', tag: 'ServersList');
-      _hostsFuture = _loadHosts();
-      _hostsFutureNotifier.value = _hostsFuture;
-    } else if (customHostsChanged) {
-      _customHostsSignature = nextCustomSignature;
-      AppLogger().debug('ServersList custom hosts updated', tag: 'ServersList');
-      _hostsFuture = _updateCustomHosts(
-        widget.settingsController.settings.sshPreferences.customHosts,
-      );
-      _hostsFutureNotifier.value = _hostsFuture;
-    } else if (disabledChanged) {
-      _disabledHostsSignature = nextDisabledSignature;
-      setState(() {});
-    }
-
-    final persistedSignature =
-        _workspaceController.workspacePersistence.read()?.signature;
-    if (persistedSignature != null &&
-        persistedSignature !=
-            _workspaceController.currentWorkspaceSignature()) {
-      unawaited(_restoreWorkspace());
-    }
-
-    _workspaceController.workspacePersistence.persistIfPending(
-      () => _workspaceController.persistState(),
-    );
+    unawaited(_viewShell.handleSettingsChanged());
   }
 
   String _buildDisabledHostsSignature() {
@@ -735,10 +690,14 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   void _reloadServerListView() {
     if (!mounted) return;
     AppLogger().debug('ServersList manual reload', tag: 'ServersList');
-    _hostsFuture = _loadHosts();
-    _hostsFutureNotifier.value = _hostsFuture;
+    _viewShell.reloadServerList();
     _hostAvailability.clear();
     _didProbeHostDistro = false;
+  }
+
+  void _addServerTab(SshHost host, ServerAction action) {
+    _ensureDistroOnInteraction(host);
+    _viewShell.addTab(host, action);
   }
 
   Future<void> _restoreWorkspace() async {
@@ -764,99 +723,11 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
       onOpenTrash: _openTrashTab,
       hostListBuilder: (tabId) => _buildHostSelection(
         onHostActivate: (selectedHost) =>
-            _activateEmptyTab(tabId, selectedHost),
-        onAction: (host, action) => _replaceTabWithAction(tabId, host, action),
+            _viewShell.activateEmptyTab(tabId, selectedHost),
+        onAction: (host, action) =>
+            _viewShell.replaceTabWithAction(tabId, host, action),
       ),
     );
-  }
-
-  void _replaceTabWithAction(String tabId, SshHost host, ServerAction action) {
-    if (action == ServerAction.portForward) {
-      _openPortForwardDialog(host);
-      return;
-    }
-    final index = _tabs.indexWhere((tab) => tab.id == tabId);
-    if (index == -1) return;
-
-    _ensureDistroOnInteraction(host);
-    final tab = _createTab(
-      id: '${host.name}-${DateTime.now().microsecondsSinceEpoch}',
-      host: host,
-      action: action,
-    );
-    _workspaceController.replaceTab(tabId, tab);
-    _selectTab(index);
-  }
-
-  Future<void> _activateEmptyTab(String tabId, SshHost host) async {
-    final index = _tabs.indexWhere((tab) => tab.id == tabId);
-    if (index == -1) {
-      return;
-    }
-    final action = await ActionPickerDialog.show(context, host);
-    if (action == null) {
-      return;
-    }
-    if (action == ServerAction.portForward) {
-      await _openPortForwardDialog(host);
-      return;
-    }
-    final tab = _createTab(id: tabId, host: host, action: action);
-    _workspaceController.replaceTab(tabId, tab);
-    _selectTab(index);
-  }
-
-  Future<void> _startActionFlowForHost(SshHost host) async {
-    final action = await ActionPickerDialog.show(context, host);
-    if (action == null) return;
-    if (action == ServerAction.portForward) {
-      await _openPortForwardDialog(host);
-      return;
-    }
-    _addTab(host, action);
-  }
-
-  void _addTab(SshHost host, ServerAction action) {
-    _ensureDistroOnInteraction(host);
-    // Use a more unique ID to prevent collisions when adding multiple tabs quickly
-    final timestamp = DateTime.now().microsecondsSinceEpoch;
-    final random = (timestamp % 1000000).toString().padLeft(6, '0');
-    final tab = _createTab(
-      id: '${host.name}-$timestamp-$random',
-      host: host,
-      action: action,
-    );
-
-    AppLogger().debug(
-      '_addTab: host=${host.name}, action=$action, tabId=${tab.id}, currentTabs=${_tabs.length}, selectedIndex=$_selectedTabIndex',
-      tag: 'ServersList',
-    );
-
-    // Always add new tab when opening multiple terminals - don't replace
-    // Only replace if explicitly opening a single terminal and current tab is empty
-    final currentTab = _tabs.isNotEmpty && _selectedTabIndex >= 0 && _selectedTabIndex < _tabs.length
-        ? _tabs[_selectedTabIndex]
-        : null;
-    final shouldReplace = currentTab != null &&
-        (currentTab.workspaceState as ServerTabData?)?.action == ServerAction.empty;
-    
-    if (shouldReplace) {
-      AppLogger().debug(
-        '_addTab: replacing empty tab at index $_selectedTabIndex, tabId=${currentTab.id}',
-        tag: 'ServersList',
-      );
-      _workspaceController.replaceTab(currentTab.id, tab);
-    } else {
-      AppLogger().debug(
-        '_addTab: adding new tab, will have ${_tabs.length + 1} tabs after add',
-        tag: 'ServersList',
-      );
-      _workspaceController.addTab(tab);
-      AppLogger().debug(
-        '_addTab: tab added, now have ${_tabs.length} tabs',
-        tag: 'ServersList',
-      );
-    }
   }
 
   WorkspaceTab _createTab({
@@ -895,8 +766,9 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
         return _tabBuilder.emptyTab(
           id: id,
           body: _buildHostSelection(
-            onHostActivate: (host) => _activateEmptyTab(id, host),
-            onAction: (host, action) => _replaceTabWithAction(id, host, action),
+            onHostActivate: (host) => _viewShell.activateEmptyTab(id, host),
+            onAction: (host, action) =>
+                _viewShell.replaceTabWithAction(id, host, action),
           ),
         );
     }
@@ -947,10 +819,6 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
             .map((host) => host.name)
             .toList();
     _showAddServerDialog(context, existingNames);
-  }
-
-  void _startEmptyTab() {
-    _workspaceController.addTab(_createPlaceholderTab());
   }
 
   Future<void> _renameTab(int index) async {

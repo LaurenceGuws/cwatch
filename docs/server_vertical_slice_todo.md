@@ -133,7 +133,7 @@ This should become a narrower Server workspace shell seam, while host-list rende
 - it avoids prematurely splitting the denser host-list UI and server action logic
 
 ## Task 17.3: implement Server top-level workspace-shell split
-Status: queued
+Status: completed
 
 Goal:
 - extract top-level Server workspace orchestration out of `server_workspace_view.dart` while leaving host list and server tab builder behavior local for now
@@ -155,3 +155,33 @@ Done definition:
 - `server_workspace_view.dart` is materially smaller and more focused on hosting/rendering
 - the new seam clearly owns top-level Server module orchestration
 - host list and server tab-builder behavior remain local and mostly untouched except where needed for the seam
+
+Result:
+- extracted [server_workspace_shell.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_shell.dart)
+- moved top-level Server workspace orchestration out of [server_workspace_view.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_view.dart):
+  - host loading kickoff
+  - settings-driven host reload coordination
+  - command-palette registration/loading
+  - tab-navigation registration
+  - placeholder-tab creation/start-empty-tab flow
+  - workspace-level host selection and placeholder replacement helpers
+- kept these local to `server_workspace_view.dart`:
+  - host list rendering
+  - host availability probing
+  - distro on-demand warmup
+  - tab/body composition
+  - add-server dialog flow
+
+## Task 17.4: re-scope the next Server slice batch
+Status: queued
+
+Goal:
+- decide whether the next Server batch should deepen the regression floor around the new shell seam or extract another real server-local orchestration seam
+
+Questions to answer:
+- is there another architectural seam in `server_workspace_view.dart`
+- or is the remaining weight mostly true server-local behavior that should stay together for now
+
+Done definition:
+- the next Server batch is explicit
+- the choice is based on the post-split code shape, not file-length pressure
