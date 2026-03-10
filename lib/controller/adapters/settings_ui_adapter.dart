@@ -3,8 +3,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
-import 'package:cwatch/model/shared/theme/app_theme.dart';
-import 'package:cwatch/view/shared/widgets/dialog_keyboard_shortcuts.dart';
+import 'package:cwatch/view/shared/widgets/shared_prompt_dialogs.dart';
 
 class SettingsPickedFile {
   const SettingsPickedFile({required this.name, this.path, this.bytes});
@@ -85,137 +84,55 @@ class SettingsUiAdapter {
     String cancelLabel = 'Cancel',
   }) async {
     if (!context.mounted) return null;
-    final controller = TextEditingController();
-    return showDialog<String>(
+    return showTextPromptDialog(
       context: context,
-      builder: (context) {
-        return DialogKeyboardShortcuts(
-          onCancel: () => Navigator.of(context).pop(null),
-          onConfirm: () => Navigator.of(context).pop(controller.text.trim()),
-          child: AlertDialog(
-            title: Text(title),
-            content: TextField(
-              controller: controller,
-              autofocus: true,
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: labelText,
-                helperText: helperText,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(null),
-                child: Text(cancelLabel),
-              ),
-              ElevatedButton(
-                onPressed: () =>
-                    Navigator.of(context).pop(controller.text.trim()),
-                child: Text(confirmLabel),
-              ),
-            ],
-          ),
-        );
-      },
+      title: title,
+      label: labelText,
+      helperText: helperText,
+      submitLabel: confirmLabel,
+      cancelLabel: cancelLabel,
+      obscureText: true,
     );
   }
 
   Future<String?> promptForKeyPassphrase({required bool isRequired}) async {
     if (!context.mounted) return null;
-    final controller = TextEditingController();
-    return showDialog<String>(
+    return showTextPromptDialog(
       context: context,
-      builder: (context) {
-        final spacing = context.appTheme.spacing;
-        return DialogKeyboardShortcuts(
-          onCancel: () => Navigator.of(context).pop(null),
-          onConfirm: () => Navigator.of(context).pop(controller.text.trim()),
-          child: AlertDialog(
-            title: Text(
-              isRequired ? 'Key passphrase required' : 'Key validation needed',
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isRequired
-                      ? 'This key is encrypted with a passphrase. '
-                            'Please provide the passphrase to validate the key can be decrypted.'
-                      : 'The key could not be parsed. It may be encrypted with a passphrase, '
-                            'or it may be unsupported. Please try providing a passphrase if the key is encrypted.',
-                ),
-                SizedBox(height: spacing.xl),
-                TextField(
-                  controller: controller,
-                  autofocus: true,
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: 'Key passphrase',
-                    helperText: isRequired
-                        ? 'This will not be stored, only used for validation.'
-                        : 'Leave empty if the key is not encrypted. '
-                              'This will not be stored, only used for validation.',
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              if (!isRequired)
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(''),
-                  child: const Text('Try without passphrase'),
-                ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(null),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () =>
-                    Navigator.of(context).pop(controller.text.trim()),
-                child: const Text('Validate'),
+      title: isRequired ? 'Key passphrase required' : 'Key validation needed',
+      label: 'Key passphrase',
+      helperText: isRequired
+          ? 'This will not be stored, only used for validation.'
+          : 'Leave empty if the key is not encrypted. This will not be stored, only used for validation.',
+      submitLabel: 'Validate',
+      obscureText: true,
+      contentBeforeField: [
+        Text(
+          isRequired
+              ? 'This key is encrypted with a passphrase. Please provide the passphrase to validate the key can be decrypted.'
+              : 'The key could not be parsed. It may be encrypted with a passphrase, or it may be unsupported. Please try providing a passphrase if the key is encrypted.',
+        ),
+      ],
+      extraActions: isRequired
+          ? const []
+          : const [
+              PromptDialogAction(
+                label: 'Try without passphrase',
+                result: '',
               ),
             ],
-          ),
-        );
-      },
     );
   }
 
   Future<bool> confirmDeleteKeyInUse({required List<String> hostNames}) async {
     if (!context.mounted) return false;
-    final confirmed = await showDialog<bool>(
+    return showConfirmPromptDialog(
       context: context,
-      builder: (context) {
-        return DialogKeyboardShortcuts(
-          onCancel: () => Navigator.of(context).pop(false),
-          onConfirm: () => Navigator.of(context).pop(true),
-          child: AlertDialog(
-            title: const Text('Key in use'),
-            content: Text(
-              'This key is currently assigned to ${hostNames.length} '
-              'host${hostNames.length == 1 ? '' : 's'}: '
-              '${hostNames.join(', ')}.\n\n'
-              'Deleting this key will remove it from these hosts. Continue?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.error,
-                  foregroundColor: Theme.of(context).colorScheme.onError,
-                ),
-                child: const Text('Delete'),
-              ),
-            ],
-          ),
-        );
-      },
+      title: 'Key in use',
+      message:
+          'This key is currently assigned to ${hostNames.length} host${hostNames.length == 1 ? '' : 's'}: ${hostNames.join(', ')}.\n\nDeleting this key will remove it from these hosts. Continue?',
+      confirmLabel: 'Delete',
+      destructive: true,
     );
-    return confirmed ?? false;
   }
 }

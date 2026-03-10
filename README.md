@@ -106,6 +106,9 @@ Current follow-up doc:
 Current implementation-ready follow-up:
 - `docs/shared_prompt_helper_todo.md`
 
+Current implementation checkpoint:
+- `SettingsUiAdapter` now uses the first shared prompt helper for password, passphrase, and destructive confirmation prompts
+
 ## Development
 1. `flutter pub get`
 2. `flutter run -d <device>`

@@ -142,7 +142,7 @@ Verification:
 - migration order is incremental
 
 ## Task 14.14: implement shared prompt helper for SettingsUiAdapter
-Status: queued
+Status: completed
 
 Goal:
 - introduce the shared prompt helper/catalog and move `SettingsUiAdapter` to it first
@@ -155,3 +155,18 @@ Done definition:
 - settings-side prompt assembly is routed through the shared helper
 - behavior stays the same
 - the helper remains narrow enough that WSL and generic text-input adapters can adopt it next
+
+What landed:
+- [shared_prompt_dialogs.dart](/home/home/personal/cwatch/lib/view/shared/widgets/shared_prompt_dialogs.dart)
+- [settings_ui_adapter.dart](/home/home/personal/cwatch/lib/controller/adapters/settings_ui_adapter.dart)
+
+Result:
+- settings-side password, passphrase, and destructive confirmation prompts now route through one shared helper
+- the helper remains intentionally narrow:
+  - text input
+  - secret/password input
+  - destructive confirmation
+- richer domain dialogs remain out of scope
+
+Next executable batch:
+- `Task 14.15`: adopt the shared prompt helper in `WslUiAdapter`

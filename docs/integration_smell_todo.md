@@ -411,3 +411,17 @@ Current follow-up doc:
 
 Next executable batch:
 - `Task 14.14`: implement shared prompt helper for `SettingsUiAdapter`
+
+### Task 14.14: implement shared prompt helper for `SettingsUiAdapter`
+Status: completed
+
+What this task established:
+- a narrow shared prompt helper can absorb settings-side prompt assembly cleanly
+- `SettingsUiAdapter` no longer behaves like a one-off local prompt subsystem
+- the dialog/settings hotspot now has a concrete canonical prompt path for simple prompts
+
+Current follow-up doc:
+- [shared_prompt_helper_todo.md](/home/home/personal/cwatch/docs/shared_prompt_helper_todo.md)
+
+Next executable batch:
+- `Task 14.15`: adopt the shared prompt helper in `WslUiAdapter`

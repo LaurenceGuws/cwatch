@@ -160,3 +160,22 @@ Result:
 
 Next executable batch:
 - `Task 14.14`: implement shared prompt helper for `SettingsUiAdapter`
+
+## Task 14.14: implement shared prompt helper for SettingsUiAdapter
+Status: completed
+
+Goal:
+- introduce the shared prompt helper/catalog and move the settings-side prompt flows onto it first
+
+What landed:
+- [shared_prompt_dialogs.dart](/home/home/personal/cwatch/lib/view/shared/widgets/shared_prompt_dialogs.dart)
+- [settings_ui_adapter.dart](/home/home/personal/cwatch/lib/controller/adapters/settings_ui_adapter.dart)
+
+Result:
+- settings-side password prompt uses the shared prompt helper
+- settings-side key passphrase prompt uses the shared prompt helper
+- settings-side destructive key-delete confirmation uses the shared prompt helper
+- the shared helper stayed narrow enough to remain reusable for simpler follow-up adopters
+
+Next executable batch:
+- `Task 14.15`: adopt the shared prompt helper in `WslUiAdapter`

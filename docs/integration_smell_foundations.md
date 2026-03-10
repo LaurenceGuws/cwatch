@@ -263,6 +263,15 @@ Current follow-up doc:
 Current implementation-ready follow-up:
 - [shared_prompt_helper_todo.md](/home/home/personal/cwatch/docs/shared_prompt_helper_todo.md)
 
+Current implementation checkpoint:
+- `SettingsUiAdapter` now proves the first shared prompt-helper slice for:
+  - password prompts
+  - passphrase prompts
+  - destructive confirmation prompts
+
+Current next normalization direction:
+- adopt the shared prompt helper in smaller generic text-input adapters before exploring richer dialog flows
+
 ## Success Criteria
 
 This layer is working when:
