@@ -451,6 +451,37 @@ Done definition:
 - Kubernetes and Docker infra config are left out on purpose for now
 - the doc reflects that the remaining problem is now infra-config clustering, not flat preference sprawl
 
+### Task 12.20: introduce an SSH configuration/preferences seam
+Status: completed
+
+What landed:
+- [ssh_preferences.dart](/home/home/personal/cwatch/lib/model/models/ssh_preferences.dart)
+- [app_settings.dart](/home/home/personal/cwatch/lib/model/models/app_settings.dart) now stores SSH configuration under `sshPreferences`
+- shared SSH consumers now read the grouped seam instead of root-level flat SSH fields:
+  - [settings_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/settings_controller.dart)
+  - [ssh_shell_factory.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_factory.dart)
+  - [home_shell_state.dart](/home/home/personal/cwatch/lib/view/core/navigation/home_shell_state.dart)
+  - [server_workspace_view.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_view.dart)
+  - [host_list.dart](/home/home/personal/cwatch/lib/view/features/servers/servers/host_list.dart)
+  - [ssh_settings_controls.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/ssh_settings_controls.dart)
+
+SSH cluster now grouped under one model:
+- client backend selection
+- built-in host key bindings
+- custom SSH hosts
+- custom SSH config discovery paths
+- disabled SSH config paths
+- disabled server-host filters
+
+Result:
+- the densest remaining infra-config cluster now has one explicit model seam
+- SSH runtime, settings UI, and host-management flows no longer depend on scattered root-level SSH fields
+- Kubernetes config and Docker remote-host config remain intentionally queued as separate follow-up seams
+
+Verification:
+- `flutter analyze`
+- result: no issues found
+
 ### Task 12.8: scope `settingsTabIndex` removal from root settings
 Status: completed
 

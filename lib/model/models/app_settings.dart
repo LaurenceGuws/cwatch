@@ -6,12 +6,13 @@ import 'docker_workspace_state.dart';
 import 'editor_preferences.dart';
 import 'explorer_preferences.dart';
 import 'shell_preferences.dart';
+import 'ssh_preferences.dart';
+import 'ssh_client_backend.dart';
 import 'server_workspace_state.dart';
 import 'kubernetes_backend.dart';
 import 'kubernetes_workspace_state.dart';
 import 'terminal_preferences.dart';
 import 'wsl_workspace_state.dart';
-import 'ssh_client_backend.dart';
 import 'input_mode_preference.dart';
 
 class AppSettings {
@@ -26,12 +27,7 @@ class AppSettings {
     this.appThemeKey = 'blue-grey',
     this.uiDensity = AppUiDensity.compact,
     this.inputModePreference = InputModePreference.auto,
-    this.sshClientBackend = SshClientBackend.platform,
-    this.builtinSshHostKeyBindings = const {},
-    this.customSshHosts = const [],
-    this.customSshConfigPaths = const [],
-    this.disabledSshConfigPaths = const [],
-    this.disabledServerHosts = const [],
+    this.sshPreferences = const SshPreferences(),
     this.serverDistroMap = const {},
     this.dockerDistroMap = const {},
     this.kubernetesConfigPaths = const [],
@@ -61,12 +57,7 @@ class AppSettings {
   final String appThemeKey;
   final AppUiDensity uiDensity;
   final InputModePreference inputModePreference;
-  final SshClientBackend sshClientBackend;
-  final Map<String, String> builtinSshHostKeyBindings;
-  final List<CustomSshHost> customSshHosts;
-  final List<String> customSshConfigPaths;
-  final List<String> disabledSshConfigPaths;
-  final List<String> disabledServerHosts;
+  final SshPreferences sshPreferences;
   final Map<String, String> serverDistroMap;
   final Map<String, String> dockerDistroMap;
   final List<String> kubernetesConfigPaths;
@@ -98,12 +89,7 @@ class AppSettings {
     String? appThemeKey,
     AppUiDensity? uiDensity,
     InputModePreference? inputModePreference,
-    SshClientBackend? sshClientBackend,
-    Map<String, String>? builtinSshHostKeyBindings,
-    List<CustomSshHost>? customSshHosts,
-    List<String>? customSshConfigPaths,
-    List<String>? disabledSshConfigPaths,
-    List<String>? disabledServerHosts,
+    SshPreferences? sshPreferences,
     Map<String, String>? serverDistroMap,
     Map<String, String>? dockerDistroMap,
     List<String>? kubernetesConfigPaths,
@@ -133,14 +119,7 @@ class AppSettings {
       appThemeKey: appThemeKey ?? this.appThemeKey,
       uiDensity: uiDensity ?? this.uiDensity,
       inputModePreference: inputModePreference ?? this.inputModePreference,
-      sshClientBackend: sshClientBackend ?? this.sshClientBackend,
-      builtinSshHostKeyBindings:
-          builtinSshHostKeyBindings ?? this.builtinSshHostKeyBindings,
-      customSshHosts: customSshHosts ?? this.customSshHosts,
-      customSshConfigPaths: customSshConfigPaths ?? this.customSshConfigPaths,
-      disabledSshConfigPaths:
-          disabledSshConfigPaths ?? this.disabledSshConfigPaths,
-      disabledServerHosts: disabledServerHosts ?? this.disabledServerHosts,
+      sshPreferences: sshPreferences ?? this.sshPreferences,
       serverDistroMap: serverDistroMap ?? this.serverDistroMap,
       dockerDistroMap: dockerDistroMap ?? this.dockerDistroMap,
       kubernetesConfigPaths:
@@ -208,6 +187,7 @@ class AppSettings {
     }
 
     final shellJson = asJsonMap(json['shellPreferences']);
+    final sshJson = asJsonMap(json['sshPreferences']);
     final editorJson = asJsonMap(json['editorPreferences']);
     final terminalJson = asJsonMap(json['terminalPreferences']);
     final explorerJson = asJsonMap(json['explorerPreferences']);
@@ -234,32 +214,34 @@ class AppSettings {
       inputModePreference: InputModePreferenceParsing.fromJson(
         json['inputModePreference'] as String?,
       ),
-      sshClientBackend: SshClientBackendParsing.fromJson(
-        json['sshClientBackend'] as String?,
+      sshPreferences: SshPreferences(
+        clientBackend: SshClientBackendParsing.fromJson(
+          sshJson?['clientBackend'] as String?,
+        ),
+        builtinHostKeyBindings: parseBindings(
+          sshJson?['builtinHostKeyBindings'] as Map<String, dynamic>?,
+        ),
+        customHosts:
+            (sshJson?['customHosts'] as List<dynamic>?)
+                ?.map((e) => CustomSshHost.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            const [],
+        customConfigPaths:
+            (sshJson?['customConfigPaths'] as List<dynamic>?)
+                ?.whereType<String>()
+                .toList() ??
+            const [],
+        disabledConfigPaths:
+            (sshJson?['disabledConfigPaths'] as List<dynamic>?)
+                ?.whereType<String>()
+                .toList() ??
+            const [],
+        disabledServerHosts:
+            (sshJson?['disabledServerHosts'] as List<dynamic>?)
+                ?.whereType<String>()
+                .toList() ??
+            const [],
       ),
-      builtinSshHostKeyBindings: parseBindings(
-        json['builtinSshHostKeyBindings'] as Map<String, dynamic>?,
-      ),
-      customSshHosts:
-          (json['customSshHosts'] as List<dynamic>?)
-              ?.map((e) => CustomSshHost.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          const [],
-      customSshConfigPaths:
-          (json['customSshConfigPaths'] as List<dynamic>?)
-              ?.whereType<String>()
-              .toList() ??
-          const [],
-      disabledSshConfigPaths:
-          (json['disabledSshConfigPaths'] as List<dynamic>?)
-              ?.whereType<String>()
-              .toList() ??
-          const [],
-      disabledServerHosts:
-          (json['disabledServerHosts'] as List<dynamic>?)
-              ?.whereType<String>()
-              .toList() ??
-          const [],
       serverDistroMap:
           (json['serverDistroMap'] as Map<String, dynamic>?)?.map(
             (key, value) => MapEntry(key, value.toString()),
@@ -407,12 +389,14 @@ class AppSettings {
       'appThemeKey': appThemeKey,
       'uiDensity': uiDensity.name,
       'inputModePreference': inputModePreference.name,
-      'sshClientBackend': sshClientBackend.name,
-      'builtinSshHostKeyBindings': builtinSshHostKeyBindings,
-      'customSshHosts': customSshHosts.map((h) => h.toJson()).toList(),
-      'customSshConfigPaths': customSshConfigPaths,
-      'disabledSshConfigPaths': disabledSshConfigPaths,
-      'disabledServerHosts': disabledServerHosts,
+      'sshPreferences': {
+        'clientBackend': sshPreferences.clientBackend.name,
+        'builtinHostKeyBindings': sshPreferences.builtinHostKeyBindings,
+        'customHosts': sshPreferences.customHosts.map((h) => h.toJson()).toList(),
+        'customConfigPaths': sshPreferences.customConfigPaths,
+        'disabledConfigPaths': sshPreferences.disabledConfigPaths,
+        'disabledServerHosts': sshPreferences.disabledServerHosts,
+      },
 
       'kubernetesConfigPaths': kubernetesConfigPaths,
       'kubernetesBackend': kubernetesBackend.name,

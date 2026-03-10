@@ -61,14 +61,26 @@ class SettingsController extends ChangeNotifier {
 
   Future<void> ensureSupportedSshBackend() async {
     if (supportsPlatformSsh) return;
-    if (settings.sshClientBackend == SshClientBackend.builtin) return;
+    if (settings.sshPreferences.clientBackend == SshClientBackend.builtin) {
+      return;
+    }
     await update(
-      (current) => current.copyWith(sshClientBackend: SshClientBackend.builtin),
+      (current) => current.copyWith(
+        sshPreferences: current.sshPreferences.copyWith(
+          clientBackend: SshClientBackend.builtin,
+        ),
+      ),
     );
   }
 
   Future<void> setSshClientBackend(SshClientBackend target) async {
-    await update((current) => current.copyWith(sshClientBackend: target));
+    await update(
+      (current) => current.copyWith(
+        sshPreferences: current.sshPreferences.copyWith(
+          clientBackend: target,
+        ),
+      ),
+    );
   }
 
   Future<void> addSshConfigFile() async {
@@ -86,22 +98,31 @@ class SettingsController extends ChangeNotifier {
       return;
     }
     final normalized = p.normalize(path);
-    final current = settings.customSshConfigPaths;
+    final current = settings.sshPreferences.customConfigPaths;
     if (current.contains(normalized)) {
       uiAdapter.showSnackBar('Config already added');
       return;
     }
     await update(
-      (settings) =>
-          settings.copyWith(customSshConfigPaths: [...current, normalized]),
+      (settings) => settings.copyWith(
+        sshPreferences: settings.sshPreferences.copyWith(
+          customConfigPaths: [...current, normalized],
+        ),
+      ),
     );
     uiAdapter.showSnackBar('Added SSH config: ${p.basename(normalized)}');
   }
 
   Future<void> removeSshConfigPath(String path) async {
-    final current = settings.customSshConfigPaths;
+    final current = settings.sshPreferences.customConfigPaths;
     final next = [...current]..remove(path);
-    await update((settings) => settings.copyWith(customSshConfigPaths: next));
+    await update(
+      (settings) => settings.copyWith(
+        sshPreferences: settings.sshPreferences.copyWith(
+          customConfigPaths: next,
+        ),
+      ),
+    );
     uiAdapter.showSnackBar('Removed config');
   }
 
@@ -117,7 +138,11 @@ class SettingsController extends ChangeNotifier {
       next.add(path);
     }
     await update(
-      (settings) => settings.copyWith(disabledSshConfigPaths: next.toList()),
+      (settings) => settings.copyWith(
+        sshPreferences: settings.sshPreferences.copyWith(
+          disabledConfigPaths: next.toList(),
+        ),
+      ),
     );
     uiAdapter.showSnackBar(enabled ? 'Enabled $path' : 'Disabled $path');
   }
@@ -263,7 +288,7 @@ class SettingsController extends ChangeNotifier {
 
   Future<bool> removeBuiltInKey(String keyId) async {
     final hosts = await hostsFuture;
-    final bindings = settings.builtinSshHostKeyBindings;
+    final bindings = settings.sshPreferences.builtinHostKeyBindings;
     final hostsUsingKey = hosts
         .where((host) => bindings[host.name] == keyId)
         .map((host) => host.name)
@@ -286,8 +311,11 @@ class SettingsController extends ChangeNotifier {
         );
       }
       await update(
-        (current) =>
-            current.copyWith(builtinSshHostKeyBindings: updatedBindings),
+        (current) => current.copyWith(
+          sshPreferences: current.sshPreferences.copyWith(
+            builtinHostKeyBindings: updatedBindings,
+          ),
+        ),
       );
     }
 
@@ -307,7 +335,7 @@ class SettingsController extends ChangeNotifier {
   }
 
   void updateHostBinding(String hostName, String? keyId) {
-    final current = settings.builtinSshHostKeyBindings;
+    final current = settings.sshPreferences.builtinHostKeyBindings;
     final updated = Map<String, String>.from(current);
     if (keyId == null) {
       updated.remove(hostName);
@@ -318,7 +346,13 @@ class SettingsController extends ChangeNotifier {
       'Host $hostName now uses ${keyId ?? 'platform default'} for SSH.',
       tag: 'Settings',
     );
-    update((current) => current.copyWith(builtinSshHostKeyBindings: updated));
+    update(
+      (current) => current.copyWith(
+        sshPreferences: current.sshPreferences.copyWith(
+          builtinHostKeyBindings: updated,
+        ),
+      ),
+    );
   }
 
   void clearDecryptedKey(String keyId) {

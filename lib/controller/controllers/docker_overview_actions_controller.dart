@@ -559,7 +559,7 @@ class DockerOverviewActionsController {
     required DockerContainer container,
   }) async {
     final hostKeyBindings =
-        settingsController.settings.builtinSshHostKeyBindings;
+        settingsController.settings.sshPreferences.builtinHostKeyBindings;
     if (!_supportsForwarding) {
       return;
     }
@@ -649,7 +649,7 @@ class DockerOverviewActionsController {
 
   Future<void> forwardComposePorts({required String project}) async {
     final hostKeyBindings =
-        settingsController.settings.builtinSshHostKeyBindings;
+        settingsController.settings.sshPreferences.builtinHostKeyBindings;
     if (!_supportsForwarding) return;
     final ports = <int>{};
     for (final container in controller.cachedContainers) {

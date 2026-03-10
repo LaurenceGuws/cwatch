@@ -21,7 +21,7 @@ class ServerPortForwardController {
   Future<void> openDialog(SshHost host) async {
     final active = portForwardService.forwardsForHost(host).toList();
     final hostKeyBindings =
-        settingsController.settings.builtinSshHostKeyBindings;
+        settingsController.settings.sshPreferences.builtinHostKeyBindings;
     final initial = active.isNotEmpty
         ? active.expand((f) => f.requests.map((r) => r.copy())).toList()
         : [

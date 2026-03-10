@@ -18,23 +18,25 @@ class HomeShellState {
   bool closeToTrayEnabled = false;
 
   void refreshHosts(AppSettings settings) {
+    final ssh = settings.sshPreferences;
     hostsFuture = SshConfigService(
-      customHosts: settings.customSshHosts,
-      additionalEntryPoints: settings.customSshConfigPaths,
-      disabledEntryPoints: settings.disabledSshConfigPaths,
+      customHosts: ssh.customHosts,
+      additionalEntryPoints: ssh.customConfigPaths,
+      disabledEntryPoints: ssh.disabledConfigPaths,
     ).loadHosts(checkAvailability: false);
   }
 
   String hostSettingsSignature(AppSettings settings) {
-    final hosts = settings.customSshHosts
+    final ssh = settings.sshPreferences;
+    final hosts = ssh.customHosts
         .map(
           (host) =>
               '${host.name}|${host.hostname}|${host.port}|${host.user ?? ''}|${host.identityFile ?? ''}',
         )
         .join(';');
-    final customConfigs = List<String>.from(settings.customSshConfigPaths)
+    final customConfigs = List<String>.from(ssh.customConfigPaths)
       ..sort();
-    final disabledConfigs = List<String>.from(settings.disabledSshConfigPaths)
+    final disabledConfigs = List<String>.from(ssh.disabledConfigPaths)
       ..sort();
     return [
       hosts,

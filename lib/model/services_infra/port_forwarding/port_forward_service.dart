@@ -258,7 +258,7 @@ class PortForwardService extends ChangeNotifier {
     _settingsController ??= settingsController;
     final usingBuiltIn =
         _settingsController != null &&
-        _settingsController!.settings.sshClientBackend ==
+        _settingsController!.settings.sshPreferences.clientBackend ==
             SshClientBackend.builtin &&
         builtInKeyService != null;
     if (requests.isEmpty) {

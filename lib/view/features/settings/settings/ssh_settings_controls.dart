@@ -23,9 +23,10 @@ class _SshSettingsControlsState extends State<SshSettingsControls> {
   Widget build(BuildContext context) {
     final spacing = context.appTheme.spacing;
     final settings = widget.controller.settings;
-    final backend = settings.sshClientBackend;
+    final ssh = settings.sshPreferences;
+    final backend = ssh.clientBackend;
     final usingBuiltIn = backend == SshClientBackend.builtin;
-    final customConfigs = settings.customSshConfigPaths;
+    final customConfigs = ssh.customConfigPaths;
     final supportsPlatformSsh = widget.controller.supportsPlatformSsh;
 
     if (!supportsPlatformSsh && backend != SshClientBackend.builtin) {
@@ -91,7 +92,7 @@ class _SshSettingsControlsState extends State<SshSettingsControls> {
               if (sources.isEmpty) {
                 return const Text('No ssh_config files were detected.');
               }
-              final disabled = widget.controller.settings.disabledSshConfigPaths
+              final disabled = widget.controller.settings.sshPreferences.disabledConfigPaths
                   .toSet();
               return Column(
                 children: sources

@@ -260,7 +260,7 @@ class _HostListState extends State<HostList> {
   }
 
   Set<String> _disabledHostKeys() =>
-      widget.settingsController.settings.disabledServerHosts.toSet();
+      widget.settingsController.settings.sshPreferences.disabledServerHosts.toSet();
 
   bool _matchesDisabledKey(SshHost host, Set<String> disabled) =>
       disabled.any((key) => disabledKeyMatchesHost(key, host));
@@ -278,7 +278,11 @@ class _HostListState extends State<HostList> {
       next.addAll(hosts.map(canonicalDisabledHostKey));
     }
     await widget.settingsController.update(
-      (settings) => settings.copyWith(disabledServerHosts: next.toList()),
+      (settings) => settings.copyWith(
+        sshPreferences: settings.sshPreferences.copyWith(
+          disabledServerHosts: next.toList(),
+        ),
+      ),
     );
     AppLogger().debug(
       '${disabled ? 'Disabled' : 'Enabled'} ${hosts.length} server(s)',
@@ -511,9 +515,9 @@ class _HostListState extends State<HostList> {
           label: 'Edit server',
           icon: Icons.edit_outlined,
           onSelected: (_, primary) async {
-            final customHost = widget.settingsController.settings.customSshHosts
+            final customHost = widget.settingsController.settings.sshPreferences.customHosts
                 .firstWhere((h) => h.name == primary.name);
-            final otherNames = widget.settingsController.settings.customSshHosts
+            final otherNames = widget.settingsController.settings.sshPreferences.customHosts
                 .where((h) => h.name != primary.name)
                 .map((h) => h.name)
                 .toList();
@@ -527,12 +531,16 @@ class _HostListState extends State<HostList> {
             );
             if (result != null && mounted) {
               final current = widget.settingsController.settings;
-              final updated = [...current.customSshHosts];
+              final updated = [...current.sshPreferences.customHosts];
               final idx = updated.indexWhere((h) => h.name == customHost.name);
               if (idx != -1) {
                 updated[idx] = result;
                 widget.settingsController.update(
-                  (s) => s.copyWith(customSshHosts: updated),
+                  (s) => s.copyWith(
+                    sshPreferences: s.sshPreferences.copyWith(
+                      customHosts: updated,
+                    ),
+                  ),
                 );
               }
             }
@@ -583,10 +591,14 @@ class _HostListState extends State<HostList> {
           final targets = selectedRows.isNotEmpty ? selectedRows : selection;
           final current = widget.settingsController.settings;
           final removalNames = targets.map((item) => item.name).toSet();
-          final updated = [...current.customSshHosts]
+          final updated = [...current.sshPreferences.customHosts]
             ..removeWhere((item) => removalNames.contains(item.name));
           widget.settingsController.update(
-            (settings) => settings.copyWith(customSshHosts: updated),
+            (settings) => settings.copyWith(
+              sshPreferences: settings.sshPreferences.copyWith(
+                customHosts: updated,
+              ),
+            ),
           );
         },
       ),

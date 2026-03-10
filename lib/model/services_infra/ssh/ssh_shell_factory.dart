@@ -34,7 +34,8 @@ class SshShellFactory {
 
   RemoteShellService forHost(SshHost host, {Duration? connectTimeout}) {
     final settings = settingsController.settings;
-    final usingBuiltIn = settings.sshClientBackend == SshClientBackend.builtin;
+    final usingBuiltIn =
+        settings.sshPreferences.clientBackend == SshClientBackend.builtin;
     if (usingBuiltIn) {
       if (connectTimeout != null) {
         return _ensureBuiltinShellWithTimeout(settings, connectTimeout);
@@ -65,7 +66,7 @@ class SshShellFactory {
     }
     final observer = settings.debugMode ? _defaultObserver : null;
     _builtinShell = keyService.buildShellService(
-      hostKeyBindings: settings.builtinSshHostKeyBindings,
+      hostKeyBindings: settings.sshPreferences.builtinHostKeyBindings,
       debugMode: settings.debugMode,
       observer: observer,
       knownHostsStore: knownHostsStore,
@@ -87,7 +88,7 @@ class SshShellFactory {
     }
     final observer = settings.debugMode ? _defaultObserver : null;
     _builtinShellWithTimeout = keyService.buildShellService(
-      hostKeyBindings: settings.builtinSshHostKeyBindings,
+      hostKeyBindings: settings.sshPreferences.builtinHostKeyBindings,
       debugMode: settings.debugMode,
       observer: observer,
       knownHostsStore: knownHostsStore,
@@ -113,13 +114,13 @@ class SshShellFactory {
   }
 
   String _signatureFor(AppSettings settings) {
-    final bindings = settings.builtinSshHostKeyBindings.entries.toList()
+    final bindings = settings.sshPreferences.builtinHostKeyBindings.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
     final bindingsSig = bindings
         .map((entry) => '${entry.key}:${entry.value}')
         .join(',');
     return [
-      settings.sshClientBackend.name,
+      settings.sshPreferences.clientBackend.name,
       settings.debugMode,
       bindingsSig,
     ].join('|');

@@ -102,13 +102,14 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
 
   Future<List<SshHost>> _loadHosts() async {
     final settings = widget.settingsController.settings;
+    final ssh = settings.sshPreferences;
     // Load hosts without blocking on availability checks for initial render
     final hosts = await SshConfigService(
-      customHosts: settings.customSshHosts,
-      additionalEntryPoints: settings.customSshConfigPaths,
-      disabledEntryPoints: settings.disabledSshConfigPaths,
+      customHosts: ssh.customHosts,
+      additionalEntryPoints: ssh.customConfigPaths,
+      disabledEntryPoints: ssh.disabledConfigPaths,
     ).loadHosts(
-      disabledHosts: settings.disabledServerHosts.toSet(),
+      disabledHosts: ssh.disabledServerHosts.toSet(),
       checkAvailability: false, // Defer availability checks to background
     );
     _lastHosts = hosts;
@@ -166,7 +167,7 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   String _buildCustomHostsSignature() {
     final settings = widget.settingsController.settings;
     final customHosts =
-        settings.customSshHosts.map((host) {
+        settings.sshPreferences.customHosts.map((host) {
             final keyParts = [
               host.name,
               host.hostname,
@@ -182,8 +183,8 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
 
   String _buildPathsSignature() {
     final settings = widget.settingsController.settings;
-    final customPaths = [...settings.customSshConfigPaths]..sort();
-    final disabledPaths = [...settings.disabledSshConfigPaths]..sort();
+    final customPaths = [...settings.sshPreferences.customConfigPaths]..sort();
+    final disabledPaths = [...settings.sshPreferences.disabledConfigPaths]..sort();
     return jsonEncode({
       'customPaths': customPaths,
       'disabledPaths': disabledPaths,
@@ -738,7 +739,7 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
       _customHostsSignature = nextCustomSignature;
       AppLogger().debug('ServersList custom hosts updated', tag: 'ServersList');
       _hostsFuture = _updateCustomHosts(
-        widget.settingsController.settings.customSshHosts,
+        widget.settingsController.settings.sshPreferences.customHosts,
       );
       _hostsFutureNotifier.value = _hostsFuture;
     } else if (disabledChanged) {
@@ -760,7 +761,7 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   }
 
   String _buildDisabledHostsSignature() {
-    final disabled = [...widget.settingsController.settings.disabledServerHosts]
+    final disabled = [...widget.settingsController.settings.sshPreferences.disabledServerHosts]
       ..sort();
     return disabled.join('|');
   }
@@ -954,17 +955,20 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
     );
     if (result != null) {
       final current = widget.settingsController.settings;
-      final hosts = [...current.customSshHosts, result];
+      final ssh = current.sshPreferences;
+      final hosts = [...ssh.customHosts, result];
       final bindings = Map<String, String>.from(
-        current.builtinSshHostKeyBindings,
+        ssh.builtinHostKeyBindings,
       );
       if (result.identityFile != null && result.identityFile!.isNotEmpty) {
         bindings[result.name] = result.identityFile!;
       }
       widget.settingsController.update(
         (settings) => settings.copyWith(
-          customSshHosts: hosts,
-          builtinSshHostKeyBindings: bindings,
+          sshPreferences: settings.sshPreferences.copyWith(
+            customHosts: hosts,
+            builtinHostKeyBindings: bindings,
+          ),
         ),
       );
     }
@@ -973,9 +977,9 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   void _openAddServerDialog() {
     final existingNames = _lastHosts.isNotEmpty
         ? _lastHosts.map((host) => host.name).toList()
-        : widget.settingsController.settings.customSshHosts
-              .map((host) => host.name)
-              .toList();
+        : widget.settingsController.settings.sshPreferences.customHosts
+            .map((host) => host.name)
+            .toList();
     _showAddServerDialog(context, existingNames);
   }
 
@@ -1055,7 +1059,7 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
 
   // Missing helpers
   Set<String> _disabledHostKeys() =>
-      widget.settingsController.settings.disabledServerHosts.toSet();
+      widget.settingsController.settings.sshPreferences.disabledServerHosts.toSet();
   bool _isHostDisabled(SshHost host, Set<String> disabledKeys) =>
       disabledKeys.any((key) => disabledKeyMatchesHost(key, host));
 }

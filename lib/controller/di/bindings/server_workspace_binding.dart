@@ -66,7 +66,7 @@ class ServerWorkspaceBinding {
     );
     final distroManager = HostDistroManager(
       distroCacheController: distroCacheController,
-      disabledHostKeys: () => appSettingsController.settings.disabledServerHosts.toSet(),
+      disabledHostKeys: () => appSettingsController.settings.sshPreferences.disabledServerHosts.toSet(),
       shellFactory: shellFactory,
     );
     final portForwardService = PortForwardService()

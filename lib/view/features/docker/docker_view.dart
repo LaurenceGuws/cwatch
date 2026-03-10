@@ -711,12 +711,13 @@ class _DockerViewState extends State<DockerView> {
     if (!mounted || hosts.isEmpty) {
       return const [];
     }
-    final disabledKeys = widget.settingsController.settings.disabledServerHosts
+    final disabledKeys = widget.settingsController.settings.sshPreferences.disabledServerHosts
         .toSet();
     final disabledPaths = widget
         .settingsController
         .settings
-        .disabledSshConfigPaths
+        .sshPreferences
+        .disabledConfigPaths
         .toSet();
     final enabledHosts = hosts
         .where((host) => _isHostEnabled(host, disabledKeys, disabledPaths))

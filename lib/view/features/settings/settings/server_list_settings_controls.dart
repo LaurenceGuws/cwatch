@@ -25,7 +25,7 @@ class ServerListSettingsControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final disabledHosts = settings.disabledServerHosts;
+    final disabledHosts = settings.sshPreferences.disabledServerHosts;
     final index = _hostIndex();
     return Column(
       children: [
@@ -77,7 +77,11 @@ class ServerListSettingsControls extends StatelessWidget {
                   onPressed: () {
                     final next = [...disabledHosts]..remove(key);
                     settingsController.update(
-                      (s) => s.copyWith(disabledServerHosts: next),
+                      (s) => s.copyWith(
+                        sshPreferences: s.sshPreferences.copyWith(
+                          disabledServerHosts: next,
+                        ),
+                      ),
                     );
                   },
                   child: const Text('Enable'),

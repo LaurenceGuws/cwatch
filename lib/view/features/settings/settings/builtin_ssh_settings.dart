@@ -414,7 +414,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
 
   Widget _buildHostMapping(SshHost host) {
     final mapping =
-        widget.controller.settings.builtinSshHostKeyBindings[host.name];
+        widget.controller.settings.sshPreferences.builtinHostKeyBindings[host.name];
     final seen = <String>{};
     final keyItems = <DropdownMenuItem<String?>>[
       const DropdownMenuItem(
