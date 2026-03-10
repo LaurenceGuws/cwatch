@@ -11,6 +11,7 @@ import 'package:cwatch/model/shared/theme/distro_icons.dart';
 import 'package:cwatch/view/shared/widgets/data_table/structured_data_table.dart';
 import 'package:cwatch/view/shared/widgets/distro_leading_slot.dart';
 import 'package:cwatch/view/shared/widgets/lists/section_list.dart';
+import 'package:cwatch/view/shared/widgets/section_overflow_menu.dart';
 import 'package:cwatch/view/shared/widgets/standard_empty_state.dart';
 import 'package:cwatch/model/features/docker/services/docker_client_service.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
@@ -131,23 +132,19 @@ class _EnginePickerState extends State<EnginePicker> {
                     tooltip: collapsed ? 'Expand' : 'Collapse',
                     onPressed: _toggleLocalCollapsed,
                   ),
-                  PopupMenuButton<String>(
-                    tooltip: 'Section options',
-                    icon: Icon(
-                      Icons.more_horiz,
-                      size: context.appTheme.iconSizes.medium,
-                    ),
+                  SectionOverflowMenu<String>(
+                    iconSize: context.appTheme.iconSizes.medium,
+                    actions: const [
+                      SectionMenuAction(
+                        value: 'reloadContexts',
+                        label: 'Reload contexts',
+                      ),
+                    ],
                     onSelected: (value) {
                       if (value == 'reloadContexts') {
                         widget.onRefreshContexts();
                       }
                     },
-                    itemBuilder: (context) => const [
-                      PopupMenuItem<String>(
-                        value: 'reloadContexts',
-                        child: Text('Reload contexts'),
-                      ),
-                    ],
                   ),
                 ],
               ),

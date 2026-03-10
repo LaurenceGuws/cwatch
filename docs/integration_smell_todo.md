@@ -193,7 +193,8 @@ Current follow-up:
 - `Task 14.47` first normalization batch implementation is complete
 - `Task 14.48` next scaffolding batch re-scope is complete
 - `Task 14.49` shared action/menu scaffolding scope is complete
-- `Task 14.50` shared section-menu scaffolding implementation is queued
+- `Task 14.50` shared section-menu scaffolding implementation is complete
+- `Task 14.51` next scaffolding batch re-scope is queued
 
 ## Next Re-scope
 

@@ -366,6 +366,7 @@ Current hotspot status:
   - thin editor/terminal settings section wrappers are removed
 - the next shared scaffolding batch is now scoped toward shared action/menu scaffolding instead of another empty-state pass
 - the first action/menu normalization slice is now narrowed to section-level overflow menus rather than a generic menu framework
+- the first section-level overflow menu helper is now implemented for server host list and Docker engine picker
 
 ## Success Criteria
 

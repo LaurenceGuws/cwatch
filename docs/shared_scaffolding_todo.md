@@ -364,7 +364,7 @@ Explicitly deferred:
 - richer multi-step action dialogs
 
 ## Task 14.50: implement shared section-menu scaffolding
-Status: queued
+Status: completed
 
 Goal:
 - extract the smallest shared helper for `SectionList` overflow menus without flattening domain-specific action logic
@@ -377,3 +377,30 @@ Done definition:
 - those section-level overflow menus use one shared shell helper
 - action ids/handlers stay feature-owned
 - the helper remains clearly narrower than a general menu framework
+
+Result:
+- [section_overflow_menu.dart](/home/home/personal/cwatch/lib/view/shared/widgets/section_overflow_menu.dart) now exists as the shared shell helper for section-level overflow menus
+- the helper is adopted in:
+  - [host_list.dart](/home/home/personal/cwatch/lib/view/features/servers/servers/host_list.dart)
+  - [docker_engine_picker.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_engine_picker.dart)
+
+What this proved:
+- the repeated section-level overflow chrome can be shared cleanly without touching domain-specific handlers
+- action ids, availability, and side effects remain feature-owned
+- this helper is intentionally narrower than:
+  - row context menus
+  - rich compose/container action menus
+  - command-palette integration
+
+## Task 14.51: re-scope the next shared scaffolding batch
+Status: queued
+
+Goal:
+- decide whether to extend the section-menu helper to another proving slice or checkpoint the shared scaffolding hotspot
+
+Likely candidates:
+- adopt the helper in one Docker grouped-list section
+- checkpoint the hotspot and leave richer action menus local
+
+Done definition:
+- the next narrow action/menu batch is chosen or the hotspot is checkpointed

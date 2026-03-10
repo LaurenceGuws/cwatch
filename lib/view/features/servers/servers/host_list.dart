@@ -12,6 +12,7 @@ import 'package:cwatch/model/shared/theme/distro_icons.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/view/shared/widgets/data_table/structured_data_table.dart';
 import 'package:cwatch/view/shared/widgets/lists/section_list.dart';
+import 'package:cwatch/view/shared/widgets/section_overflow_menu.dart';
 import 'package:cwatch/view/shared/widgets/standard_empty_state.dart';
 import 'package:cwatch/controller/adapters/external_app_launcher.dart';
 import 'package:cwatch/view/shared/widgets/distro_leading_slot.dart';
@@ -177,54 +178,49 @@ class _HostListState extends State<HostList> {
                 tooltip: collapsed ? 'Expand' : 'Collapse',
                 onPressed: () => _toggleCollapsed(source),
               ),
-              PopupMenuButton<String>(
-                tooltip: 'Section options',
-                icon: const Icon(Icons.more_horiz, size: 18),
-
+              SectionOverflowMenu<String>(
+                iconSize: 18,
+                actions: [
+                  const SectionMenuAction(
+                    value: 'reloadHosts',
+                    label: 'Reload server list',
+                  ),
+                  SectionMenuAction(
+                    value: 'toggleDisabled',
+                    label:
+                        (_showDisabledBySection[source] ?? _showDisabledServers)
+                            ? 'Hide disabled servers'
+                            : 'Show disabled servers',
+                  ),
+                  SectionMenuAction(
+                    value: 'editConfig',
+                    label: 'Edit config file',
+                    enabled: source != 'custom',
+                  ),
+                ],
                 onSelected: (value) {
                   if (value == 'reloadHosts') {
                     widget.onHostsChanged();
                     return;
                   }
                   if (value == 'toggleDisabled') {
-                    final currentState = _showDisabledBySection[source] ?? _showDisabledServers;
+                    final currentState =
+                        _showDisabledBySection[source] ?? _showDisabledServers;
                     final newState = !currentState;
                     AppLogger().debug(
                       'Toggle disabled servers - Instance: $_instanceId, Section: $source, Current: $currentState -> $newState',
                       tag: 'ServersList',
                     );
-                    // Only update this specific section's state
                     setState(() {
                       _showDisabledBySection[source] = newState;
-                      // Clear cache for this section only
                       _lastSectionRowCounts.remove(source);
                     });
-                    // Don't call parent callback - state is managed locally per section
                     return;
                   }
                   if (value == 'editConfig') {
                     ExternalAppLauncher.openConfigFile(source, context);
                   }
                 },
-                itemBuilder: (context) => [
-                  const PopupMenuItem<String>(
-                    value: 'reloadHosts',
-                    child: Text('Reload server list'),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'toggleDisabled',
-                    child: Text(
-                      (_showDisabledBySection[source] ?? _showDisabledServers)
-                          ? 'Hide disabled servers'
-                          : 'Show disabled servers',
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'editConfig',
-                    enabled: source != 'custom',
-                    child: const Text('Edit config file'),
-                  ),
-                ],
               ),
             ],
           ),
