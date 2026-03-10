@@ -4,6 +4,7 @@ import 'package:cwatch/controller/controllers/terminal_session_controller.dart';
 import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
 import 'package:cwatch/model/core/models/tab_state.dart';
+import 'package:cwatch/model/features/wsl/models/wsl_tab_data.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/models/wsl_workspace_state.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
@@ -75,11 +76,4 @@ class WslTabBuilder {
       optionsController: controller,
     );
   }
-}
-
-class WslTabData {
-  const WslTabData({required this.kind, required this.persistedState});
-
-  final WslTabKind kind;
-  final TabState persistedState;
 }

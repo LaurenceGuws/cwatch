@@ -4,9 +4,9 @@ import 'package:cwatch/controller/controllers/terminal_session_controller.dart';
 import 'package:cwatch/controller/core/workspace/persistent_workspace_controller.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
 import 'package:cwatch/model/core/models/tab_state.dart';
+import 'package:cwatch/model/features/wsl/models/wsl_tab_data.dart';
 import 'package:cwatch/model/models/app_settings.dart';
 import 'package:cwatch/model/models/wsl_workspace_state.dart';
-import 'package:cwatch/controller/controllers/wsl_tab_builder.dart';
 
 class WslWorkspaceController
     extends PersistentWorkspaceController<WslWorkspaceState> {
@@ -50,8 +50,19 @@ class WslWorkspaceController
   }
 
   Future<void> restore({
-    required WslTabBuilder builder,
-    required Widget Function(String tabId) pickerBuilder,
+    required WorkspaceTab Function({required String id, Widget? body})
+    buildPickerTab,
+    required WorkspaceTab Function({
+      required String id,
+      required String title,
+      required String label,
+      required IconData icon,
+      required String distroName,
+      required TerminalSessionController sessionController,
+      VoidCallback? onExit,
+    })
+    buildTerminalTab,
+    required Widget Function(String tabId) pickerBodyBuilder,
     required WslTabBuilders callbacks,
   }) async {
     final workspace = settingsController.settings.wslWorkspace;
@@ -62,8 +73,9 @@ class WslWorkspaceController
     for (final state in workspace.tabs) {
       final tab = _createTabFromState(
         state: state,
-        builder: builder,
-        pickerBuilder: pickerBuilder,
+        buildPickerTab: buildPickerTab,
+        buildTerminalTab: buildTerminalTab,
+        pickerBodyBuilder: pickerBodyBuilder,
         callbacks: callbacks,
       );
       if (tab != null) {
@@ -79,8 +91,19 @@ class WslWorkspaceController
 
   WorkspaceTab? _createTabFromState({
     required TabState state,
-    required WslTabBuilder builder,
-    required Widget Function(String tabId) pickerBuilder,
+    required WorkspaceTab Function({required String id, Widget? body})
+    buildPickerTab,
+    required WorkspaceTab Function({
+      required String id,
+      required String title,
+      required String label,
+      required IconData icon,
+      required String distroName,
+      required TerminalSessionController sessionController,
+      VoidCallback? onExit,
+    })
+    buildTerminalTab,
+    required Widget Function(String tabId) pickerBodyBuilder,
     required WslTabBuilders callbacks,
   }) {
     final wslState = _wslStateFromTab(state);
@@ -88,9 +111,9 @@ class WslWorkspaceController
 
     switch (wslState.kind) {
       case WslTabKind.distroList:
-        return builder.picker(
+        return buildPickerTab(
           id: wslState.id,
-          body: pickerBuilder(wslState.id),
+          body: pickerBodyBuilder(wslState.id),
         );
       case WslTabKind.terminal:
         if (wslState.distroName == null) return null;
@@ -100,7 +123,7 @@ class WslWorkspaceController
         );
         if (sessionController == null) return null;
 
-        return builder.terminal(
+        return buildTerminalTab(
           id: wslState.id,
           title: title,
           label: title,

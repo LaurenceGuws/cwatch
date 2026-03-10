@@ -43,7 +43,7 @@ Either way, the repo needs one explicit rule instead of leaving this as an ambig
 ## First Batch Candidate
 
 ### Task 8.1: inspect WSL tab assembly ownership against the new boundary
-Status: queued
+Status: completed
 
 Why this is first:
 - `WslTabBuilder` is the smallest remaining tab-assembly seam
@@ -76,7 +76,7 @@ Verification:
 - manual smoke check of WSL tab creation
 
 ### Task 8.2: re-scope after WSL tab assembly review
-Status: queued
+Status: completed
 
 Purpose:
 - decide whether the next batch should:
@@ -91,6 +91,36 @@ Done definition:
 
 Verification:
 - follow-up task added before the next structural change starts
+
+Result of Task 8.1:
+- `WslTabBuilder` was not reusable shell/framework infrastructure
+- it was feature-module tab composition and moved to `lib/view/features/wsl/wsl_tab_builder.dart`
+- `WslWorkspaceController` now depends on narrow tab-building callbacks instead of a concrete feature builder type
+- `WslTabData` moved to `lib/model/features/wsl/models/wsl_tab_data.dart` because it is persistence/state metadata, not feature-view composition
+
+### Task 8.3: apply the same ownership rule to server tab assembly
+Status: queued
+
+Why this is next:
+- the WSL pass established the rule with the smallest seam
+- `ServerTabBuilder` is the remaining controller-owned feature tab composer
+- it likely needs the same treatment, but the heavier server surface should now be approached with the WSL pattern rather than a fresh redesign
+
+Actions:
+- inspect `ServerTabBuilder` against the same shell/framework versus feature-module rule
+- move feature-specific tab assembly out of controller ownership if the same pattern holds
+- keep reusable workspace primitives where they are
+- use narrow callbacks/contracts where controller-owned workspace logic still needs tab reconstruction
+
+Done definition:
+- `ServerTabBuilder` is no longer an ambiguous controller-owned feature composer
+- the server feature/module boundary is clearer than it is today
+- any remaining controller-side tab assembly is either shared infrastructure or an explicit contract
+
+Verification:
+- `rg -n "package:cwatch/view/" lib/controller/controllers/server_tab_builder.dart`
+- `flutter analyze`
+- manual smoke check of server tab creation/restoration paths
 
 ## Later Work In This Hotspot
 
@@ -110,9 +140,9 @@ Track here when ready:
 
 | Item | Scope | Status | Done When |
 | --- | --- | --- | --- |
-| 8.1 | WSL tab assembly ownership | queued | WSL tab assembly is clearly classified as shell/framework, feature-module, or explicit contract code |
-| 8.2 | Tab assembly re-scope | queued | next step is written from what 8.1 proves |
-| 8.x | Tab assembly follow-up | queued | re-scoped after 8.2 |
+| 8.1 | WSL tab assembly ownership | completed | WSL tab assembly is clearly classified as shell/framework, feature-module, or explicit contract code |
+| 8.2 | Tab assembly re-scope | completed | next step is written from what 8.1 proves |
+| 8.3 | Server tab assembly ownership | queued | server tab assembly is no longer an ambiguous controller-owned feature composer |
 
 ## Completion Metric
 

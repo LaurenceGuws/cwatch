@@ -9,6 +9,7 @@ import 'package:cwatch/view/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/view/core/tabs/tabbed_workspace_shell.dart';
 import 'package:cwatch/view/core/widgets/keep_alive.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
+import 'package:cwatch/model/features/wsl/models/wsl_tab_data.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/features/wsl/services/wsl_distribution.dart';
 import 'package:cwatch/model/features/wsl/services/wsl_service_interface.dart';
@@ -19,11 +20,10 @@ import 'package:cwatch/view/shared/views/shared/tabs/tab_chip.dart';
 
 import 'package:cwatch/controller/adapters/wsl_ui_adapter.dart';
 import 'package:cwatch/controller/di/bindings/wsl_terminal_session_binding.dart';
-import 'package:cwatch/controller/di/bindings/wsl_tab_builder_binding.dart';
 import 'package:cwatch/controller/di/bindings/wsl_workspace_controller_binding.dart';
 
-import 'package:cwatch/controller/controllers/wsl_tab_builder.dart';
 import 'package:cwatch/controller/controllers/wsl_workspace_controller.dart';
+import 'package:cwatch/view/features/wsl/wsl_tab_builder.dart';
 
 class WslView extends StatefulWidget {
   const WslView({
@@ -44,7 +44,6 @@ class WslView extends StatefulWidget {
 }
 
 class _WslViewState extends State<WslView> {
-  final WslTabBuilderBinding _tabBuilderBinding = const WslTabBuilderBinding();
   final WslWorkspaceControllerBinding _workspaceBinding =
       const WslWorkspaceControllerBinding();
   final WslTerminalSessionBinding _terminalSessionBinding =
@@ -71,9 +70,7 @@ class _WslViewState extends State<WslView> {
     _uiAdapter = WslUiAdapter(context: context);
     _distrosFuture = _loadDistributions();
 
-    _tabBuilder = _tabBuilderBinding.create(
-      settingsController: widget.settingsController,
-    );
+    _tabBuilder = WslTabBuilder(settingsController: widget.settingsController);
 
     _workspaceController = _workspaceBinding.create(
       settingsController: widget.settingsController,
@@ -259,8 +256,9 @@ class _WslViewState extends State<WslView> {
     if (!mounted) return;
 
     await _workspaceController.restore(
-      builder: _tabBuilder,
-      pickerBuilder: _buildPickerBody,
+      buildPickerTab: _tabBuilder.picker,
+      buildTerminalTab: _tabBuilder.terminal,
+      pickerBodyBuilder: _buildPickerBody,
       callbacks: WslTabBuilders(
         terminalIcon: NerdIcon.penguin.data,
         sessionControllerForDistro: (distro) =>
