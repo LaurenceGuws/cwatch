@@ -603,6 +603,7 @@ What landed next:
   - `WorkspaceRootController`
   - `WorkspacePersistence<T>`
   - grouped `AppSettings` serialization
+- [workspace_root_controller_test.dart](/home/home/personal/cwatch/test/model/services_infra/settings/workspace_root_controller_test.dart) now locks down the dedicated workspace-root seam with characterization coverage
 
 ### Task 12.8: scope `settingsTabIndex` removal from root settings
 Status: completed

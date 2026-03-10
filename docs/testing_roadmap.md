@@ -150,6 +150,27 @@ Done definition:
 - each target test file has a concrete behavior list
 - the next implementation step can start with test code instead of more planning
 
+### Task 13.2: add `workspace_root_controller_test.dart`
+Status: completed
+
+What landed:
+- [workspace_root_controller_test.dart](/home/home/personal/cwatch/test/model/services_infra/settings/workspace_root_controller_test.dart)
+
+Coverage added:
+- loads persisted workspaces from dedicated workspace storage
+- falls back to legacy embedded workspace data from `AppSettings`
+- saves updates through the dedicated workspace root
+- coalesces concurrent `ensureLoaded()` calls into one storage load
+
+Why this was first:
+- it locks down the root workspace persistence seam shared by multiple modules
+- it validates the legacy-to-dedicated workspace boundary without involving feature UI
+- it gives the rewrite a concrete regression floor around the new `workspaces.json` flow
+
+Verification:
+- `flutter test test/model/services_infra/settings/workspace_root_controller_test.dart`
+- `flutter analyze`
+
 ## Test Organization
 
 Recommended structure:
