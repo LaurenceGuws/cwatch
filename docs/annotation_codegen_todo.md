@@ -409,7 +409,7 @@ Result:
 - the annotation/codegen track remains consumer-led instead of tooling-led
 
 ## Task 14.40: add config metadata markdown export
-Status: queued
+Status: completed
 
 Goal:
 - add one registry-backed markdown/export helper that can produce human-readable config metadata documentation from the descriptor registry
@@ -423,3 +423,18 @@ Done definition:
 - the registry has a second consumer aimed at docs/export
 - the output is human-readable and stable enough for later docs automation
 - generator tooling is still not required
+
+Result:
+- [config_metadata_markdown.dart](/home/home/personal/cwatch/lib/model/config/config_metadata_markdown.dart) now provides a markdown export over the descriptor registry
+- [config_metadata_markdown_test.dart](/home/home/personal/cwatch/test/model/config/config_metadata_markdown_test.dart) locks down the basic markdown export shape
+- the descriptor registry now has both summary and markdown export consumers
+
+## Task 14.41: re-scope the next annotation/codegen batch
+Status: queued
+
+Goal:
+- decide whether the next batch should add a third consumer, add tighter registry characterization tests, or begin minimal generator tooling
+
+Done definition:
+- the next batch is explicitly chosen
+- the annotation/codegen track stays incremental and evidence-driven
