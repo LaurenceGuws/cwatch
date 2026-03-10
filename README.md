@@ -58,4 +58,5 @@ This is the reason the repository is being documented and re-scoped before deepe
 - `docs/shell_module_ownership_todo.md`: actionable shell/module ownership backlog for the next dependency cleanup batch.
 - `docs/docker_workspace_ownership_todo.md`: actionable docker/workspace ownership backlog for the next dependency cleanup batch.
 - `docs/workspace_core_ownership_todo.md`: actionable workspace-core ownership backlog for the next dependency cleanup batch.
+- `docs/explorer_ui_adapter_ownership_todo.md`: actionable explorer controller/adapter ownership backlog for the next dependency cleanup batch.
 - `docs/testing_roadmap.md`: current testing backlog and rewrite-support testing priorities.

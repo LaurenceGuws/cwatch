@@ -242,7 +242,7 @@ Current next-step note:
 - docker overview ownership reached a checkpoint (`docs/docker_workspace_ownership_todo.md`)
 - workspace-core tab ownership reached a checkpoint (`docs/workspace_core_ownership_todo.md`)
 - `lib/model` now has no `package:cwatch/controller/` imports
-- the next dependency-direction batch should be re-scoped from the remaining unresolved seams
+- the next dependency-direction batch is explorer controller/adapter helper ownership, tracked in `docs/explorer_ui_adapter_ownership_todo.md`
 
 ### Docker feature shell
 Track here when ready:

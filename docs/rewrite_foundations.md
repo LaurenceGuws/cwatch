@@ -172,6 +172,7 @@ Create separate follow-up docs for:
 - shell/module ownership TODO (`docs/shell_module_ownership_todo.md`)
 - docker/workspace ownership TODO (`docs/docker_workspace_ownership_todo.md`)
 - workspace-core ownership TODO (`docs/workspace_core_ownership_todo.md`)
+- explorer UI adapter ownership TODO (`docs/explorer_ui_adapter_ownership_todo.md`)
 - dependency rules
 - settings/state split
 - first vertical slice plan
