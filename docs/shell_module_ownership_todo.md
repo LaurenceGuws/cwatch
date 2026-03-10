@@ -114,7 +114,7 @@ Status: completed
 Status: completed
 
 ### Task 2.4: decide gesture factory ownership
-Status: pending
+Status: completed
 
 Why this is next:
 - `HomeShellServices` is no longer view-owned
@@ -204,8 +204,16 @@ Track here when ready:
 | 2.1 | Feature module entrypoints | completed | one shell/module ownership rule is clearer and at least one misleading pattern is removed |
 | 2.2 | Shell/module re-scope | completed | next shell/module batch is written from what we learned in 2.1 |
 | 2.3 | Home shell service binding ownership | completed | one shell service ownership rule is clearer and at least one non-presentation view dependency is addressed |
-| 2.4 | Gesture factory ownership | pending | remaining binding-side view dependency is removed or justified |
+| 2.4 | Gesture factory ownership | completed | remaining binding-side view dependency is removed or justified |
 | 2.x | Module registry/binding follow-up | queued | re-scoped after 2.4 |
+
+## Shell/module checkpoint
+
+Current state:
+- shell module descriptors live with the shell
+- controller-side feature module entrypoint wrappers are gone
+- `HomeShellServicesBinding` no longer imports from `view/`
+- the next shell/module work should be re-scoped from the remaining registry/binding ambiguity, not guessed now
 
 ## Completion Metric
 
