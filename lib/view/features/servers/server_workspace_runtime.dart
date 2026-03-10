@@ -1,6 +1,7 @@
 import 'package:cwatch/controller/controllers/server_port_forward_controller.dart';
 import 'package:cwatch/controller/controllers/settings_controller.dart';
 import 'package:cwatch/model/features/servers/services/host_distro_manager.dart';
+import 'package:cwatch/model/services_infra/cache/distro_cache_controller.dart';
 import 'package:cwatch/model/services_infra/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
 
@@ -12,6 +13,7 @@ class ServerWorkspaceRuntime {
   const ServerWorkspaceRuntime({
     required this.uiAdapter,
     required this.shellFactory,
+    required this.distroCacheController,
     required this.distroManager,
     required this.portForwardService,
     required this.portForwardController,
@@ -22,6 +24,7 @@ class ServerWorkspaceRuntime {
 
   final ServerWorkspaceUiAdapter uiAdapter;
   final SshShellFactory shellFactory;
+  final DistroCacheController distroCacheController;
   final HostDistroManager distroManager;
   final PortForwardService portForwardService;
   final ServerPortForwardController portForwardController;

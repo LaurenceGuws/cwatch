@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cwatch/model/models/custom_ssh_host.dart';
 
 import 'package:cwatch/model/models/ssh_host.dart';
+import 'package:cwatch/model/services_infra/cache/distro_cache_controller.dart';
 import 'package:cwatch/view/features/servers/servers/add_server_dialog.dart';
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
@@ -25,6 +26,7 @@ class HostList extends StatefulWidget {
     required this.onSelect,
     required this.onActivate,
     required this.settingsController,
+    required this.distroCacheController,
     required this.keyService,
     required this.onHostsChanged,
     required this.onAddServer,
@@ -42,6 +44,7 @@ class HostList extends StatefulWidget {
   final ValueChanged<SshHost>? onSelect;
   final ValueChanged<SshHost>? onActivate;
   final AppSettingsController settingsController;
+  final DistroCacheController distroCacheController;
   final BuiltInSshKeyService keyService;
   final VoidCallback onHostsChanged;
   final ValueChanged<List<String>> onAddServer;
@@ -366,12 +369,11 @@ class _HostListState extends State<HostList> {
     final statusColor = host.available ? scheme.primary : scheme.error;
     final iconSize = _distroIconSize(context);
     return AnimatedBuilder(
-      animation: widget.settingsController,
+      animation: widget.distroCacheController,
       builder: (context, _) {
-        final slug = widget
-            .settingsController
-            .settings
-            .serverDistroMap[hostDistroCacheKey(host)];
+        final slug = widget.distroCacheController.serverSlug(
+          hostDistroCacheKey(host),
+        );
         final iconColor = colorForDistro(slug, context.appTheme);
         final isDisabled = _isHostDisabled(host);
         return Row(

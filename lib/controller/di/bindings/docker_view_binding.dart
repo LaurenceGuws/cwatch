@@ -1,6 +1,7 @@
 import 'package:cwatch/controller/controllers/docker_view_controller.dart';
 import 'package:cwatch/model/features/docker/services/docker_client_service.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
+import 'package:cwatch/model/services_infra/cache/distro_cache_controller.dart';
 import 'package:cwatch/model/services_infra/filesystem/explorer_trash_manager.dart';
 import 'package:cwatch/model/services_infra/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
@@ -31,6 +32,10 @@ class DockerViewBinding {
     final workspaceRootController = WorkspaceRootController(
       settingsController: settingsController,
     );
+    final distroCacheController = DistroCacheController(
+      initialServerCache: settingsController.settings.serverDistroMap,
+      initialDockerCache: settingsController.settings.dockerDistroMap,
+    );
     final docker = const DockerClientServiceBinding().create();
     final viewController = createController(docker: docker);
     final trashManager = ExplorerTrashManager();
@@ -42,6 +47,7 @@ class DockerViewBinding {
     final tabBuilder = DockerTabBuilder(
       docker: docker,
       settingsController: settingsController,
+      distroCacheController: distroCacheController,
       trashManager: trashManager,
       keyService: keyService,
       portForwardService: portForwardService,
@@ -55,6 +61,7 @@ class DockerViewBinding {
     return DockerViewRuntime(
       docker: docker,
       viewController: viewController,
+      distroCacheController: distroCacheController,
       trashManager: trashManager,
       portForwardService: portForwardService,
       tabBuilder: tabBuilder,

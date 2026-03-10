@@ -15,6 +15,7 @@ import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_config_service.dart';
 import 'package:cwatch/model/features/servers/services/host_distro_manager.dart';
+import 'package:cwatch/model/services_infra/cache/distro_cache_controller.dart';
 import 'package:cwatch/view/features/servers/server_workspace_ui_adapter.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/controller/di/bindings/server_workspace_binding.dart';
@@ -85,6 +86,8 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
 
   ServerWorkspaceUiAdapter get _uiAdapter => _runtime.uiAdapter;
   HostDistroManager get _distroManager => _runtime.distroManager;
+  DistroCacheController get _distroCacheController =>
+      _runtime.distroCacheController;
   ServerWorkspaceController get _workspaceController =>
       _runtime.workspaceController;
   ServerTabBuilder get _tabBuilder => _runtime.tabBuilder;
@@ -457,6 +460,7 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
               onSelect: onHostSelected,
               onActivate: onHostActivate ?? _startActionFlowForHost,
               settingsController: widget.settingsController,
+              distroCacheController: _distroCacheController,
               keyService: widget.keyService,
               onHostVisible: _ensureDistroForHostOnDemand,
               onOpenConnectivity: (host) {

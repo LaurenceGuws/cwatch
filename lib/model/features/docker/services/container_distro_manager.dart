@@ -1,8 +1,8 @@
 import 'package:cwatch/model/models/docker_container.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/features/docker/services/docker_client_service.dart';
+import 'package:cwatch/model/services_infra/cache/distro_cache_controller.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
-import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/features/docker/services/container_distro_key.dart';
 import 'package:cwatch/model/shared/services/distro_detector.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
@@ -11,18 +11,16 @@ import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 /// distro-aware icons.
 class ContainerDistroManager {
   ContainerDistroManager({
-    required this.settingsController,
+    required this.distroCacheController,
     required this.docker,
   });
 
-  final AppSettingsController settingsController;
+  final DistroCacheController distroCacheController;
   final DockerClientService docker;
 
   final Set<String> _inProgress = {};
 
-  Map<String, String> get _cache => settingsController.settings.dockerDistroMap;
-
-  bool hasCached(String key) => _cache.containsKey(key);
+  bool hasCached(String key) => distroCacheController.hasDocker(key);
 
   Future<void> ensureDistroForContainer(
     DockerContainer container, {
@@ -35,9 +33,9 @@ class ContainerDistroManager {
       return;
     }
     final key = containerDistroCacheKey(container);
-    if (!force && _cache.containsKey(key)) {
+    if (!force && distroCacheController.hasDocker(key)) {
       AppLogger().debug(
-        'Container distro cache hit for ${container.name}: ${_cache[key]}',
+        'Container distro cache hit for ${container.name}: ${distroCacheController.dockerSlug(key)}',
         tag: 'Distro',
       );
       return;
@@ -123,11 +121,7 @@ class ContainerDistroManager {
         'Container ${container.name} resolved to $slug',
         tag: 'Distro',
       );
-      await settingsController.update(
-        (settings) => settings.copyWith(
-          dockerDistroMap: {...settings.dockerDistroMap, key: slug},
-        ),
-      );
+      await distroCacheController.putDocker(key, slug);
     } catch (error, stack) {
       AppLogger().warn(
         'Failed to probe container distro for ${container.name}',

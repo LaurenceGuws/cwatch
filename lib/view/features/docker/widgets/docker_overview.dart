@@ -9,6 +9,7 @@ import 'package:cwatch/model/models/docker_network.dart';
 import 'package:cwatch/model/models/docker_volume.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/features/docker/services/docker_engine_service.dart';
+import 'package:cwatch/model/services_infra/cache/distro_cache_controller.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
@@ -35,6 +36,7 @@ class DockerOverview extends StatefulWidget {
     required this.actions,
     required this.uiAdapter,
     required this.settingsController,
+    required this.distroCacheController,
     this.optionsController,
   });
 
@@ -42,6 +44,7 @@ class DockerOverview extends StatefulWidget {
   final DockerOverviewActionsController actions;
   final DockerOverviewUiAdapter uiAdapter;
   final AppSettingsController settingsController;
+  final DistroCacheController distroCacheController;
   final TabOptionsController? optionsController;
 
   @override
@@ -98,7 +101,7 @@ class _DockerOverviewState extends State<DockerOverview>
     _controller.initialize();
 
     _containerDistroManager = ContainerDistroManager(
-      settingsController: widget.settingsController,
+      distroCacheController: widget.distroCacheController,
       docker: _controller.docker,
     );
   }
@@ -310,6 +313,8 @@ class _DockerOverviewState extends State<DockerOverview>
                                       ? (_) => _actions.stopForwardsForHost()
                                       : null,
                                   settingsController: widget.settingsController,
+                                  distroCacheController:
+                                      widget.distroCacheController,
                                   dockerService: _controller.docker,
                                   contextName: _controller.contextName,
                                 ),

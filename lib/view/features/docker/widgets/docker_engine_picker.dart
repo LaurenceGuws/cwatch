@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cwatch/model/models/docker_context.dart';
 import '../local_docker_context_status.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
+import 'package:cwatch/model/services_infra/cache/distro_cache_controller.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/features/servers/services/host_distro_key.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
@@ -31,6 +32,7 @@ class EnginePicker extends StatefulWidget {
     required this.onOpenContext,
     required this.onOpenHost,
     required this.settingsController,
+    required this.distroCacheController,
     this.dockerService,
     this.shellFactory,
   });
@@ -47,6 +49,7 @@ class EnginePicker extends StatefulWidget {
   final void Function(String contextName, Offset? anchor) onOpenContext;
   final void Function(SshHost host, Offset? anchor) onOpenHost;
   final AppSettingsController settingsController;
+  final DistroCacheController distroCacheController;
   final DockerClientService? dockerService;
   final SshShellFactory? shellFactory;
 
@@ -186,6 +189,7 @@ class _EnginePickerState extends State<EnginePicker> {
           onScan: widget.onScanRemotes,
           onOpenHost: widget.onOpenHost,
           settingsController: widget.settingsController,
+          distroCacheController: widget.distroCacheController,
           collapsed: _remoteCollapsed,
           onToggleCollapsed: _toggleRemoteCollapsed,
           backgroundColor: remoteSectionColor,
@@ -320,6 +324,7 @@ class RemoteSection extends StatelessWidget {
     required this.onScan,
     required this.onOpenHost,
     required this.settingsController,
+    required this.distroCacheController,
     this.dockerService,
     this.shellFactory,
     required this.collapsed,
@@ -334,6 +339,7 @@ class RemoteSection extends StatelessWidget {
   final VoidCallback onScan;
   final void Function(SshHost host, Offset? anchor) onOpenHost;
   final AppSettingsController settingsController;
+  final DistroCacheController distroCacheController;
   final DockerClientService? dockerService;
   final SshShellFactory? shellFactory;
   final bool collapsed;
@@ -362,6 +368,7 @@ class RemoteSection extends StatelessWidget {
                 hosts: hosts,
                 onOpenHost: onOpenHost,
                 settingsController: settingsController,
+                distroCacheController: distroCacheController,
                 dockerService: dockerService,
                 backgroundColor: backgroundColor,
               );
@@ -404,6 +411,7 @@ class RemoteSection extends StatelessWidget {
                 hosts: hosts,
                 onOpenHost: onOpenHost,
                 settingsController: settingsController,
+                distroCacheController: distroCacheController,
                 dockerService: dockerService,
                 shellFactory: shellFactory,
                 backgroundColor: backgroundColor,
@@ -458,6 +466,7 @@ class RemoteHostList extends StatefulWidget {
     required this.hosts,
     required this.onOpenHost,
     required this.settingsController,
+    required this.distroCacheController,
     this.dockerService,
     this.shellFactory,
     required this.backgroundColor,
@@ -466,6 +475,7 @@ class RemoteHostList extends StatefulWidget {
   final List<RemoteDockerStatus> hosts;
   final void Function(SshHost host, Offset? anchor) onOpenHost;
   final AppSettingsController settingsController;
+  final DistroCacheController distroCacheController;
   final DockerClientService? dockerService;
   final SshShellFactory? shellFactory;
   final Color backgroundColor;
@@ -486,7 +496,7 @@ class _RemoteHostListState extends State<RemoteHostList> {
       useZebraStripes: false,
       surfaceBackgroundColor: widget.backgroundColor,
       primaryDoubleClickOpensContextMenu: true,
-      refreshListenable: widget.settingsController,
+      refreshListenable: widget.distroCacheController,
       onRowContextMenu: (status, selectedRows, anchor) => widget.onOpenHost(status.host, anchor),
       emptyState: Padding(
         padding: EdgeInsets.all(context.appTheme.spacing.xl),
@@ -542,7 +552,7 @@ class _RemoteHostListState extends State<RemoteHostList> {
     final address = _hostAddress(host);
     final iconSize = _leadingIconSize(context);
     return AnimatedBuilder(
-      animation: widget.settingsController,
+      animation: widget.distroCacheController,
       builder: (context, _) {
         final slug = _slugForHost(host);
         final iconColor = colorForDistro(slug, context.appTheme);
@@ -600,9 +610,7 @@ class _RemoteHostListState extends State<RemoteHostList> {
   }
 
   String? _slugForHost(SshHost host) {
-    return widget.settingsController.settings.serverDistroMap[hostDistroCacheKey(
-      host,
-    )];
+    return widget.distroCacheController.serverSlug(hostDistroCacheKey(host));
   }
 }
 

@@ -1,6 +1,6 @@
 import 'package:cwatch/model/models/ssh_host.dart';
+import 'package:cwatch/model/services_infra/cache/distro_cache_controller.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
-import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/model/features/servers/services/host_distro_key.dart';
 import 'package:cwatch/model/shared/services/distro_detector.dart';
@@ -10,24 +10,21 @@ import 'package:cwatch/model/shared/services/host_shell_policy.dart';
 /// persisting it so the UI can show a matching icon.
 class HostDistroManager {
   HostDistroManager({
-    required this.settingsController,
+    required this.distroCacheController,
+    required this.disabledHostKeys,
     required this.shellFactory,
   });
 
-  final AppSettingsController settingsController;
+  final DistroCacheController distroCacheController;
+  final Set<String> Function() disabledHostKeys;
   final SshShellFactory shellFactory;
 
   final Set<String> _inProgress = {};
 
-  Map<String, String> get _cache => settingsController.settings.serverDistroMap;
-
-  bool hasCached(String key) => _cache.containsKey(key);
-
-  Set<String> _disabledHostKeys() =>
-      settingsController.settings.disabledServerHosts.toSet();
+  bool hasCached(String key) => distroCacheController.hasServer(key);
 
   bool _isHostDisabled(SshHost host) {
-    final disabled = _disabledHostKeys();
+    final disabled = disabledHostKeys();
     return disabled.any((key) => disabledKeyMatchesHost(key, host));
   }
 
@@ -46,9 +43,9 @@ class HostDistroManager {
       return;
     }
     final key = hostDistroCacheKey(host);
-    if (!force && _cache.containsKey(key)) {
+    if (!force && distroCacheController.hasServer(key)) {
       AppLogger().debug(
-        'Distro cache hit for ${host.name}: ${_cache[key]}',
+        'Distro cache hit for ${host.name}: ${distroCacheController.serverSlug(key)}',
         tag: 'Distro',
       );
       return;
@@ -109,11 +106,7 @@ class HostDistroManager {
         'Distro for ${host.name} resolved to $slug',
         tag: 'Distro',
       );
-      await settingsController.update(
-        (settings) => settings.copyWith(
-          serverDistroMap: {...settings.serverDistroMap, key: slug},
-        ),
-      );
+      await distroCacheController.putServer(key, slug);
     } catch (error, stack) {
       AppLogger().warn(
         'Failed to detect distro for ${host.name}',

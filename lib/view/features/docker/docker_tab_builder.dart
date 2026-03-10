@@ -7,6 +7,7 @@ import 'package:cwatch/model/models/docker_workspace_state.dart';
 import 'package:cwatch/model/models/explorer_context.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/features/docker/services/docker_client_service.dart';
+import 'package:cwatch/model/services_infra/cache/distro_cache_controller.dart';
 import 'package:cwatch/model/services_infra/filesystem/explorer_trash_manager.dart';
 import 'package:cwatch/model/services_infra/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
@@ -31,6 +32,7 @@ class DockerTabBuilder implements DockerOverviewTabFactory {
   const DockerTabBuilder({
     required this.docker,
     required this.settingsController,
+    required this.distroCacheController,
     required this.trashManager,
     required this.keyService,
     required this.portForwardService,
@@ -39,6 +41,7 @@ class DockerTabBuilder implements DockerOverviewTabFactory {
 
   final DockerClientService docker;
   final AppSettingsController settingsController;
+  final DistroCacheController distroCacheController;
   final ExplorerTrashManager trashManager;
   final BuiltInSshKeyService keyService;
   final PortForwardService portForwardService;
@@ -83,6 +86,7 @@ class DockerTabBuilder implements DockerOverviewTabFactory {
           actions: actions,
           uiAdapter: uiAdapter,
           settingsController: settingsController,
+          distroCacheController: distroCacheController,
           optionsController: controller,
         );
       },

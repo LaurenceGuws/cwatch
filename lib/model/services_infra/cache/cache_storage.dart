@@ -20,7 +20,22 @@ class CacheStorage {
     return const [];
   }
 
+  Future<Map<String, String>> readStringMap(String key) async {
+    final map = await _load();
+    final raw = map[key];
+    if (raw is Map) {
+      return raw.map((k, v) => MapEntry(k.toString(), v.toString()));
+    }
+    return const {};
+  }
+
   Future<void> writeStringList(String key, List<String> values) async {
+    final map = await _load();
+    map[key] = values;
+    await _save(map);
+  }
+
+  Future<void> writeStringMap(String key, Map<String, String> values) async {
     final map = await _load();
     map[key] = values;
     await _save(map);

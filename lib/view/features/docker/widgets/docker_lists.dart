@@ -8,6 +8,7 @@ import 'package:cwatch/model/models/docker_volume.dart';
 import 'package:cwatch/model/features/docker/services/docker_client_service.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/shared/theme/distro_icons.dart';
+import 'package:cwatch/model/services_infra/cache/distro_cache_controller.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/features/docker/services/container_distro_key.dart';
 import 'package:cwatch/view/shared/widgets/data_table/structured_data_table.dart';
@@ -119,6 +120,7 @@ class ContainerPeek extends StatefulWidget {
     this.onComposeForward,
     this.onComposeStopForward,
     required this.settingsController,
+    required this.distroCacheController,
     this.dockerService,
     this.contextName,
   });
@@ -135,6 +137,7 @@ class ContainerPeek extends StatefulWidget {
   final void Function(String project)? onComposeForward;
   final void Function(String project)? onComposeStopForward;
   final AppSettingsController settingsController;
+  final DistroCacheController distroCacheController;
   final DockerClientService? dockerService;
   final String? contextName;
 
@@ -520,34 +523,39 @@ class _ContainerPeekState extends State<ContainerPeek> {
   }
 
   Widget _buildContainerCell(BuildContext context, DockerContainer container) {
-    final slug = _slugForContainer(widget.settingsController, container);
-    final iconColor = colorForDistro(slug, context.appTheme);
-    final iconSize = _distroIconSize(context);
-    final statusColor = container.isRunning
-        ? context.appTheme.docker.running
-        : context.appTheme.docker.stopped;
-    final resolvedIconColor = widget.busyIds.contains(container.id)
-        ? Theme.of(context).colorScheme.primary
-        : iconColor;
-    return Row(
-      children: [
-        Tooltip(
-          message: labelForDistro(slug),
-          child: DistroLeadingSlot(
-            slug: slug,
-            iconSize: iconSize,
-            iconColor: resolvedIconColor,
-            statusColor: statusColor,
-          ),
-        ),
-        SizedBox(width: context.appTheme.spacing.md),
-        Expanded(
-          child: Text(
-            _displayName(container),
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-        ),
-      ],
+    return AnimatedBuilder(
+      animation: widget.distroCacheController,
+      builder: (context, _) {
+        final slug = _slugForContainer(widget.distroCacheController, container);
+        final iconColor = colorForDistro(slug, context.appTheme);
+        final iconSize = _distroIconSize(context);
+        final statusColor = container.isRunning
+            ? context.appTheme.docker.running
+            : context.appTheme.docker.stopped;
+        final resolvedIconColor = widget.busyIds.contains(container.id)
+            ? Theme.of(context).colorScheme.primary
+            : iconColor;
+        return Row(
+          children: [
+            Tooltip(
+              message: labelForDistro(slug),
+              child: DistroLeadingSlot(
+                slug: slug,
+                iconSize: iconSize,
+                iconColor: resolvedIconColor,
+                statusColor: statusColor,
+              ),
+            ),
+            SizedBox(width: context.appTheme.spacing.md),
+            Expanded(
+              child: Text(
+                _displayName(container),
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -643,6 +651,7 @@ class ContainerList extends StatelessWidget {
     required this.actionLabels,
     this.onComposeAction,
     required this.settingsController,
+    required this.distroCacheController,
   });
 
   final List<DockerContainer> containers;
@@ -653,6 +662,7 @@ class ContainerList extends StatelessWidget {
   final Map<String, String> actionLabels;
   final void Function(String project, String action)? onComposeAction;
   final AppSettingsController settingsController;
+  final DistroCacheController distroCacheController;
 
   @override
   Widget build(BuildContext context) {
@@ -723,7 +733,7 @@ class ContainerList extends StatelessWidget {
           final statusColor = container.isRunning
               ? context.appTheme.docker.running
               : context.appTheme.docker.stopped;
-          final slug = _slugForContainer(settingsController, container);
+          final slug = _slugForContainer(distroCacheController, container);
           final iconColor = colorForDistro(slug, context.appTheme);
           final iconSize = _distroIconSize(context);
           final resolvedIconColor = busyIds.contains(container.id)
@@ -2074,12 +2084,10 @@ String _inferComposeGroup(String name) {
 }
 
 String? _slugForContainer(
-  AppSettingsController settings,
+  DistroCacheController distroCacheController,
   DockerContainer container,
 ) {
-  return settings.settings.dockerDistroMap[containerDistroCacheKey(
-        container,
-      )] ??
+  return distroCacheController.dockerSlug(containerDistroCacheKey(container)) ??
       slugForContainer(container);
 }
 

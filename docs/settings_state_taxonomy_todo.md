@@ -277,7 +277,7 @@ Why these are next:
 - this should let the next split stay surgical instead of turning into another root-model rewrite
 
 ### Task 12.7: scope derived-cache extraction
-Status: queued
+Status: completed
 
 Goal:
 - separate distro lookup caches from root application settings
@@ -297,6 +297,34 @@ Done definition:
 - the target owner of `serverDistroMap` and `dockerDistroMap` is explicit
 - the first code batch is scoped at the shared cache seam, not at random call sites
 - the next implementation step is narrow enough to land without touching unrelated settings code
+
+What landed:
+- [distro_cache_controller.dart](/home/home/personal/cwatch/lib/model/services_infra/cache/distro_cache_controller.dart)
+- [cache_storage.dart](/home/home/personal/cwatch/lib/model/services_infra/cache/cache_storage.dart) now supports string-map persistence
+- [host_distro_manager.dart](/home/home/personal/cwatch/lib/model/features/servers/services/host_distro_manager.dart) now writes through the dedicated distro cache seam
+- [container_distro_manager.dart](/home/home/personal/cwatch/lib/model/features/docker/services/container_distro_manager.dart) now writes through the dedicated distro cache seam
+- server/docker UI read sites now consume the cache controller instead of reading distro maps from `AppSettings`
+
+Result:
+- distro lookup caches are now owned by cache infrastructure instead of root settings
+- `serverDistroMap` and `dockerDistroMap` remain in [app_settings.dart](/home/home/personal/cwatch/lib/model/models/app_settings.dart) only as migration seed data for the new cache controller
+- this split stayed at the shared cache seam rather than turning into a UI rewrite
+
+Verification:
+- `flutter analyze`
+- result: no issues found
+
+### Task 12.9: remove legacy distro-cache fields from `AppSettings`
+Status: queued
+
+Goal:
+- stop persisting `serverDistroMap` and `dockerDistroMap` in [app_settings.dart](/home/home/personal/cwatch/lib/model/models/app_settings.dart)
+- keep one-time migration from older embedded settings data while the new cache backing store takes over
+
+Done definition:
+- new `settings.json` writes no longer include distro maps
+- cache hydration still recovers old embedded distro-map data if present
+- server/docker consumers keep using the cache seam without further call-site changes
 
 ### Task 12.8: scope `settingsTabIndex` removal from root settings
 Status: queued

@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/features/docker/services/docker_client_service.dart';
 import 'package:cwatch/model/features/servers/services/host_distro_key.dart';
+import 'package:cwatch/model/services_infra/cache/distro_cache_controller.dart';
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
@@ -91,6 +92,8 @@ class _DockerViewState extends State<DockerView> {
 
   DockerClientService get _docker => _runtime.docker;
   DockerViewController get _viewController => _runtime.viewController;
+  DistroCacheController get _distroCacheController =>
+      _runtime.distroCacheController;
   DockerTabBuilder get _tabBuilder => _runtime.tabBuilder;
   DockerWorkspaceController get _workspaceController =>
       _runtime.workspaceController;
@@ -207,6 +210,7 @@ class _DockerViewState extends State<DockerView> {
               _openContextDashboard(tabId, contextName, anchor),
           onOpenHost: (host, anchor) => _openHostDashboard(tabId, host, anchor),
           settingsController: widget.settingsController,
+          distroCacheController: _distroCacheController,
           dockerService: _docker,
           shellFactory: widget.shellFactory,
         ),

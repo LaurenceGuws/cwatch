@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cwatch/controller/di/bindings/settings_binding.dart';
 import 'package:cwatch/controller/di/bindings/ssh_shell_factory_binding.dart';
 import 'package:cwatch/model/features/servers/services/host_distro_manager.dart';
+import 'package:cwatch/model/services_infra/cache/distro_cache_controller.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/services_infra/filesystem/explorer_trash_manager.dart';
 import 'package:cwatch/view/features/servers/server_workspace_ui_adapter.dart';
@@ -59,8 +60,13 @@ class ServerWorkspaceBinding {
       keyService: keyService,
       authCoordinator: authCoordinator,
     );
+    final distroCacheController = DistroCacheController(
+      initialServerCache: appSettingsController.settings.serverDistroMap,
+      initialDockerCache: appSettingsController.settings.dockerDistroMap,
+    );
     final distroManager = HostDistroManager(
-      settingsController: appSettingsController,
+      distroCacheController: distroCacheController,
+      disabledHostKeys: () => appSettingsController.settings.disabledServerHosts.toSet(),
       shellFactory: shellFactory,
     );
     final portForwardService = PortForwardService()
@@ -94,6 +100,7 @@ class ServerWorkspaceBinding {
     return ServerWorkspaceRuntime(
       uiAdapter: uiAdapter,
       shellFactory: shellFactory,
+      distroCacheController: distroCacheController,
       distroManager: distroManager,
       portForwardService: portForwardService,
       portForwardController: portForwardController,
