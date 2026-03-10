@@ -6,7 +6,7 @@ import 'package:cwatch/model/services_infra/ssh/ssh_auth_coordinator.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/model/services_infra/window/tray_service.dart';
 import 'package:cwatch/model/services_infra/window/window_chrome_service.dart';
-import 'gesture_detector_factory.dart';
+import 'package:cwatch/view/core/navigation/gesture_detector_factory.dart';
 
 class HomeShellServices {
   late final BuiltInSshKeyStore keyStore;

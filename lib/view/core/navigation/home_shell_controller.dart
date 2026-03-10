@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:cwatch/controller/di/home_shell_services.dart';
 import 'package:cwatch/model/models/app_settings.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/controller/di/bindings/home_shell_services_binding.dart';
 import 'home_shell_input_controller.dart';
 import 'home_shell_modules.dart';
-import 'home_shell_services.dart';
 import 'home_shell_state.dart';
 import 'home_shell_window_controller.dart';
 import 'module_registry.dart';

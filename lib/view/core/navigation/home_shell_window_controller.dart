@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:window_manager/window_manager.dart';
 
+import 'package:cwatch/controller/di/home_shell_services.dart';
 import 'package:cwatch/model/models/app_settings.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
-import 'home_shell_services.dart';
 import 'home_shell_state.dart';
 
 class HomeShellWindowController {

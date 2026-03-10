@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:cwatch/controller/adapters/ssh_auth_prompter.dart';
-import 'package:cwatch/view/core/navigation/home_shell_services.dart';
+import 'package:cwatch/controller/di/home_shell_services.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_store.dart';

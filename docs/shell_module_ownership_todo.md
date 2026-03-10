@@ -111,7 +111,29 @@ Verification:
 Status: completed
 
 ### Task 2.3: inspect home shell service binding ownership
+Status: completed
+
+### Task 2.4: decide gesture factory ownership
 Status: pending
+
+Why this is next:
+- `HomeShellServices` is no longer view-owned
+- the remaining view import in `HomeShellServicesBinding` is `gesture_detector_factory.dart`
+- this is now a single isolated ownership question instead of a mixed binding/service-holder problem
+
+Actions:
+- decide whether `GestureDetectorFactory` is correctly view-owned or should move closer to shell/controller composition
+- make one narrow correction if the current ownership is misleading
+- otherwise document the exception explicitly in this TODO
+
+Done definition:
+- the remaining `controller/di -> view` dependency in `HomeShellServicesBinding` is either removed or explicitly justified
+- the shell binding ownership story is clearer than it is today
+
+Verification:
+- `rg -n "package:cwatch/view/" lib/controller/di/bindings/home_shell_services_binding.dart`
+- `flutter analyze`
+- manual shell bootstrap smoke check
 
 Why this is next:
 - module descriptors now live with the shell
@@ -151,6 +173,11 @@ Result of re-scope:
 - `home_shell_modules.dart` now reads as a shell-owned module list instead of a shell file depending on controller-owned module wrappers
 - the next shell/module batch should focus on `HomeShellServicesBinding` ownership
 
+Updated result after Task 2.3:
+- `HomeShellServices` moved out of `view/` into `controller/di/`
+- `HomeShellServicesBinding` no longer depends on a view-owned service holder
+- the remaining binding-side view dependency is isolated to `gesture_detector_factory.dart`
+
 ## Later Work In This Hotspot
 
 Do not expand these until Task 2.1 has landed.
@@ -176,8 +203,9 @@ Track here when ready:
 | --- | --- | --- | --- |
 | 2.1 | Feature module entrypoints | completed | one shell/module ownership rule is clearer and at least one misleading pattern is removed |
 | 2.2 | Shell/module re-scope | completed | next shell/module batch is written from what we learned in 2.1 |
-| 2.3 | Home shell service binding ownership | pending | one shell service ownership rule is clearer and at least one non-presentation view dependency is addressed |
-| 2.x | Module registry/binding follow-up | queued | re-scoped after 2.3 |
+| 2.3 | Home shell service binding ownership | completed | one shell service ownership rule is clearer and at least one non-presentation view dependency is addressed |
+| 2.4 | Gesture factory ownership | pending | remaining binding-side view dependency is removed or justified |
+| 2.x | Module registry/binding follow-up | queued | re-scoped after 2.4 |
 
 ## Completion Metric
 
