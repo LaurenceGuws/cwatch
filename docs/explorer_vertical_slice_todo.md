@@ -255,7 +255,7 @@ Why this is the right next move:
   should be locked down before any deeper explorer-local extraction
 
 ## Task 15.7: add focused tests for explorer presenter/actions seams
-Status: queued
+Status: completed
 
 Goal:
 - add regression coverage around the two new explorer seams before deciding whether the first slice should continue or checkpoint
@@ -274,3 +274,29 @@ Done definition:
 - the presenter/actions seams have direct focused tests
 - the tests validate the extracted orchestration boundaries rather than broad widget behavior
 - the next slice decision can be made from a safer regression floor
+
+Result:
+- added [file_explorer_tab_presenter_test.dart](/home/home/personal/cwatch/test/view/shared/views/shared/tabs/file_explorer/file_explorer_tab_presenter_test.dart)
+- added [file_explorer_tab_actions_test.dart](/home/home/personal/cwatch/test/view/shared/views/shared/tabs/file_explorer/file_explorer_tab_actions_test.dart)
+- covered:
+  - timeout snackbar de-duplication
+  - loading vs streaming state shaping
+  - shortcut enable/disable behavior
+  - rename success/failure routing
+  - paste delegation
+  - drop-completion delegation
+
+## Task 15.8: re-scope the first explorer slice checkpoint
+Status: queued
+
+Goal:
+- decide whether the first explorer slice should checkpoint now or continue into the dense entry-list interaction surface
+
+Questions to answer:
+- is the first slice already a coherent boundary proof with presenter + actions + tests
+- is there one more low-risk explorer-local extraction worth doing before checkpointing
+- should the next move be explorer-specific widget/input tests instead of more code movement
+
+Done definition:
+- the next explorer move is chosen from the post-test code shape
+- the decision reflects architectural value, not just remaining file size
