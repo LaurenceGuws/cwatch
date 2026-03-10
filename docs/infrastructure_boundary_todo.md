@@ -399,3 +399,31 @@ Result:
 Validation:
 - `flutter test test/model/services_infra/kubernetes/kubernetes_dashboard_service_test.dart`
 - `flutter analyze`
+
+## Task 19.7: re-scope the next infrastructure batch
+Status: completed
+
+Goal:
+- choose the highest-value next infrastructure boundary after the first Docker and Kubernetes splits
+
+Candidates considered:
+- deeper Docker parsing extraction
+- deeper Kubernetes transport/parser split
+- SSH provider/runtime policy cleanup
+
+Result:
+- the next infrastructure seam should be SSH provider/runtime policy cleanup
+
+Why this wins:
+- Docker now has a usable transport/failure seam
+- Kubernetes now has a usable backend collection/policy seam
+- both still have local parsing/transport cleanup tail, but that work is narrower and less system-wide
+- SSH still carries broader infrastructure ambiguity around:
+  - provider selection
+  - builtin vs system path policy
+  - runtime failure mapping
+  - capability-aware degradation ownership
+- that makes SSH the stronger next cross-cutting infrastructure seam
+
+Next step:
+- Task 19.8: define the SSH infrastructure boundary target
