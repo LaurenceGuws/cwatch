@@ -215,6 +215,45 @@ Verification:
 - `flutter test test/model/models/app_settings_serialization_test.dart`
 - `flutter analyze`
 
+### Task 13.5: re-scope after the first characterization batch
+Status: completed
+
+What this re-scope checked:
+- whether the next test should move into:
+  - file explorer behavior
+  - Docker parsing
+  - Kubernetes dashboard shaping
+  - terminal lifecycle
+
+Conclusion:
+- the next best test hotspot is `explorer_ops_test.dart`
+
+Why this is next:
+- `ExplorerOps` is now on a cleaner non-widget seam after the ownership cleanup
+- it contains high-risk interactive behavior:
+  - path loading
+  - search activation/reset
+  - path history mutation
+  - selection clearing
+  - notification timing
+- it can be tested with a narrow fake `PathLoadingService`
+- it avoids the heavier process/API mocking required by Docker and Kubernetes service tests
+
+What should wait:
+- `docker_client_service_test.dart`
+  - still valuable, but requires process-runner-driven parsing tests
+- `kubernetes_dashboard_service_test.dart`
+  - still valuable, but broader and more data-heavy
+- `terminal_session_controller_test.dart`
+  - still valuable, but likely tied to more lifecycle/setup complexity than `ExplorerOps`
+
+Next executable batch:
+- `Task 13.6`: add `explorer_ops_test.dart`
+
+Done definition:
+- the next test target is selected from current seam value, not backlog order alone
+- the roadmap explicitly explains why `ExplorerOps` comes before Docker/Kubernetes parsing
+
 ## Test Organization
 
 Recommended structure:
