@@ -284,6 +284,29 @@ Verification:
 - `flutter test test/model/services/explorer_ops_test.dart`
 - `flutter analyze`
 
+### Task 13.7: add `docker_client_service_test.dart`
+Status: completed
+
+What landed:
+- [docker_client_service_test.dart](/home/home/personal/cwatch/test/model/features/docker/services/docker_client_service_test.dart)
+
+Coverage added:
+- Docker context JSON-line parsing with malformed-line tolerance
+- Docker container parsing, including compose labels and `StartedAt`
+- argument selection between `--context` and `--host`
+- missing Docker CLI is surfaced as capability unavailability rather than treated like app-fatal failure
+
+Why this matters:
+- it locks down the current Docker CLI contract without requiring UI changes
+- it matches the intended product direction:
+  - system CLI integration is a convenience capability
+  - missing CLI should degrade feature affordances, not imply the app itself is broken
+- it gives later Docker refactors a regression floor around parsing and graceful-unavailable behavior
+
+Verification:
+- `flutter test test/model/features/docker/services/docker_client_service_test.dart`
+- `flutter analyze`
+
 ## Test Organization
 
 Recommended structure:
