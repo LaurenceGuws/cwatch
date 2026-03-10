@@ -853,3 +853,48 @@ Result:
 Validation:
 - `flutter test test/model/services_infra/ssh/builtin/builtin_ssh_failure_mapper_test.dart test/model/services_infra/ssh/process_ssh_failure_mapper_test.dart test/model/services_infra/ssh/ssh_shell_factory_test.dart`
 - `flutter analyze`
+
+
+## Task 19.16: re-scope the infrastructure layer checkpoint
+Status: completed
+
+Goal:
+- decide whether infrastructure boundary cleanup should continue immediately into narrower parser cleanup, or stop at a checkpoint now that the main cross-cutting policy seams are in place
+
+Candidates considered:
+- deeper Docker parser extraction from `DockerClientService`
+- deeper Kubernetes transport/parser extraction from `KubernetesDashboardService`
+- remaining SSH runtime-cache cleanup in `SshShellFactory`
+- checkpointing the infrastructure layer here
+
+Result:
+- the infrastructure boundary layer is now at a good checkpoint
+- the next broader rewrite move should not be another infrastructure boundary split by default
+
+Why this is the right stop:
+- Docker now has a transport and failure seam
+- Kubernetes now has a backend collection and degradation-policy seam
+- SSH now has:
+  - provider selection separated
+  - shared runtime failure vocabulary
+  - process-provider failure mapping
+  - builtin-provider failure convergence
+- the main cross-cutting ambiguity in transport, capability, and failure policy has been addressed
+- what remains is narrower, local cleanup:
+  - Docker parsing organization
+  - Kubernetes parser/transport trimming
+  - SSH runtime cache refinement
+- those remaining issues do not justify keeping the whole infrastructure layer open as the active rewrite track
+
+Checkpoint summary:
+- Docker infrastructure boundary: checkpointed
+- Kubernetes infrastructure boundary: checkpointed
+- SSH infrastructure boundary: checkpointed
+- broader infrastructure layer: checkpointed
+
+What should happen next:
+- parser-local cleanup can happen later inside feature or service-specific work
+- the next rewrite step should come from the broader sequence again, not from forcing another infrastructure batch
+
+Validation:
+- `flutter analyze`
