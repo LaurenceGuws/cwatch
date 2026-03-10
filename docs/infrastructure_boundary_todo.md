@@ -200,7 +200,7 @@ Why this is the right first cut:
 - it preserves the current tests as a useful floor
 
 ## Task 19.3: implement the first Docker transport/capability split
-Status: pending
+Status: completed
 
 Goal:
 - extract a narrow Docker CLI execution/failure-classification seam while keeping the Docker-facing gateway API stable
@@ -219,3 +219,26 @@ Done definition:
 - `DockerClientService` no longer owns raw process execution and missing-CLI/timeout classification inline in each method
 - the new seam makes transport failure categories explicit
 - existing Docker caller behavior stays stable from the feature layer perspective
+
+Result:
+- added [docker_cli_executor.dart](/home/home/personal/cwatch/lib/model/features/docker/services/docker_cli_executor.dart)
+- added [docker_cli_failure.dart](/home/home/personal/cwatch/lib/model/features/docker/services/docker_cli_failure.dart)
+- updated [docker_client_service.dart](/home/home/personal/cwatch/lib/model/features/docker/services/docker_client_service.dart) to delegate raw process execution to the executor seam
+- kept the Docker-facing gateway API stable by mapping typed executor failures back into the same caller-facing exception messages
+- expanded [docker_client_service_test.dart](/home/home/personal/cwatch/test/model/features/docker/services/docker_client_service_test.dart) with direct typed-failure coverage for:
+  - CLI unavailable
+  - timeout
+
+## Task 19.4: re-scope the next Docker infrastructure batch
+Status: pending
+
+Goal:
+- decide whether the next Docker infra step should split parsing from the gateway or checkpoint and move to another infrastructure seam
+
+Questions to answer:
+- is Docker parsing the next real boundary
+- or is the next higher-value system-wide move Kubernetes CLI/API policy cleanup
+
+Done definition:
+- the next infrastructure batch is explicit
+- the choice is based on the post-executor code shape, not a prewritten multi-step rewrite

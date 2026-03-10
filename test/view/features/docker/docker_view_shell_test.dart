@@ -161,13 +161,13 @@ class _DockerShellHarness {
       keyService: BuiltInSshKeyService(),
     );
     final runtime = DockerViewRuntime(
-      docker: const DockerClientService(),
+      docker: DockerClientService(),
       viewController: viewController,
       distroCacheController: DistroCacheController(storage: _MemoryCacheStorage()),
       trashManager: ExplorerTrashManager(),
       portForwardService: PortForwardService(),
       tabBuilder: DockerTabBuilder(
-        docker: const DockerClientService(),
+        docker: DockerClientService(),
         settingsController: settingsController,
         distroCacheController: DistroCacheController(storage: _MemoryCacheStorage()),
         trashManager: ExplorerTrashManager(),
@@ -219,7 +219,7 @@ class _DockerShellHarness {
 }
 
 class _FakeDockerViewController extends DockerViewController {
-  _FakeDockerViewController() : super(docker: const DockerClientService());
+  _FakeDockerViewController() : super(docker: DockerClientService());
 
   int loadCalls = 0;
   int refreshCalls = 0;

@@ -4,6 +4,6 @@ class DockerClientServiceBinding {
   const DockerClientServiceBinding();
 
   DockerClientService create() {
-    return const DockerClientService();
+    return DockerClientService();
   }
 }

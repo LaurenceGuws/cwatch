@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cwatch/model/features/docker/services/docker_cli_executor.dart';
+import 'package:cwatch/model/features/docker/services/docker_cli_failure.dart';
 import 'package:cwatch/model/models/docker_context.dart';
 import 'package:cwatch/model/models/docker_container.dart';
 import 'package:cwatch/model/models/docker_container_stat.dart';
@@ -11,7 +13,10 @@ import 'package:cwatch/model/models/docker_volume.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 
 class DockerClientService {
-  const DockerClientService({this.processRunner = Process.run});
+  DockerClientService({
+    this.processRunner = Process.run,
+    DockerCliExecutor? executor,
+  }) : _executor = executor ?? DockerCliExecutor(processRunner: processRunner);
 
   final Future<ProcessResult> Function(
     String executable,
@@ -23,6 +28,7 @@ class DockerClientService {
     Encoding? stderrEncoding,
   })
   processRunner;
+  final DockerCliExecutor _executor;
 
   Future<List<DockerContext>> listContexts({
     Duration timeout = const Duration(seconds: 6),
@@ -47,16 +53,9 @@ class DockerClientService {
       final output = (result.stdout as String?) ?? '';
       _log('Contexts output length=${output.length}');
       return _parseJsonLines(output);
-    } on ProcessException catch (error, stackTrace) {
-      AppLogger().warn(
-        'Docker CLI not available while listing contexts',
-        tag: 'Docker',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      throw Exception('Docker CLI not available: ${error.message}');
-    } on TimeoutException {
-      throw Exception('Timed out while listing Docker contexts.');
+    } on DockerCliFailure catch (error, stackTrace) {
+      _logDockerCliFailure('listing contexts', error, stackTrace);
+      throw _mapDockerCliFailure(error, timeoutLabel: 'listing Docker contexts');
     }
   }
 
@@ -160,16 +159,12 @@ class DockerClientService {
       final output = (result.stdout as String?) ?? '';
       _log('Containers output length=${output.length}');
       return _parseContainerLines(output);
-    } on ProcessException catch (error, stackTrace) {
-      AppLogger().warn(
-        'Docker CLI not available while listing containers',
-        tag: 'Docker',
-        error: error,
-        stackTrace: stackTrace,
+    } on DockerCliFailure catch (error, stackTrace) {
+      _logDockerCliFailure('listing containers', error, stackTrace);
+      throw _mapDockerCliFailure(
+        error,
+        timeoutLabel: 'listing containers',
       );
-      throw Exception('Docker CLI not available: ${error.message}');
-    } on TimeoutException {
-      throw Exception('Timed out while listing containers.');
     }
   }
 
@@ -268,16 +263,9 @@ class DockerClientService {
       }
 
       return (result.stdout as String?) ?? '';
-    } on ProcessException catch (error, stackTrace) {
-      AppLogger().warn(
-        'Docker CLI not available while running exec',
-        tag: 'Docker',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      throw Exception('Docker CLI not available: ${error.message}');
-    } on TimeoutException {
-      throw Exception('Timed out while running docker exec.');
+    } on DockerCliFailure catch (error, stackTrace) {
+      _logDockerCliFailure('running exec', error, stackTrace);
+      throw _mapDockerCliFailure(error, timeoutLabel: 'running docker exec');
     }
   }
 
@@ -318,16 +306,9 @@ class DockerClientService {
       final output = (result.stdout as String?) ?? '';
       _log('Images output length=${output.length}');
       return _parseImageLines(output);
-    } on ProcessException catch (error, stackTrace) {
-      AppLogger().warn(
-        'Docker CLI not available while listing images',
-        tag: 'Docker',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      throw Exception('Docker CLI not available: ${error.message}');
-    } on TimeoutException {
-      throw Exception('Timed out while listing images.');
+    } on DockerCliFailure catch (error, stackTrace) {
+      _logDockerCliFailure('listing images', error, stackTrace);
+      throw _mapDockerCliFailure(error, timeoutLabel: 'listing images');
     }
   }
 
@@ -948,92 +929,41 @@ class DockerClientService {
     String operation = 'run',
     String? contextLabel,
   }) async {
-    final logger = AppLogger.remote(tag: 'Docker', source: 'docker');
-    final command = 'docker ${args.join(' ')}';
-    final resolvedContext = contextLabel ?? _contextLabelFromArgs(args);
-    try {
-      final result = await processRunner(
-        'docker',
-        args,
-        stdoutEncoding: utf8,
-        stderrEncoding: utf8,
-        runInShell: false,
-      ).timeout(timeout);
-      final stdout = result.stdout?.toString() ?? '';
-      final stderr = result.stderr?.toString() ?? '';
-      final output = result.exitCode == 0 ? stdout : stderr;
-      if (result.exitCode == 0) {
-        logger.debug(
-          'Completed $command',
-          remote: RemoteCommandDetails(
-            operation: operation,
-            command: command,
-            output: output,
-            contextLabel: resolvedContext,
-          ),
-        );
-      } else {
-        logger.warn(
-          'Command failed: $command',
-          remote: RemoteCommandDetails(
-            operation: operation,
-            command: command,
-            output: output,
-            contextLabel: resolvedContext,
-          ),
-        );
-      }
-      return result;
-    } on TimeoutException {
-      logger.warn(
-        'Timed out $command after ${timeout.inSeconds}s',
-        remote: RemoteCommandDetails(
-          operation: operation,
-          command: command,
-          output: 'Timed out after ${timeout.inSeconds}s',
-          contextLabel: resolvedContext,
-        ),
+    return _executor.run(
+      args,
+      timeout: timeout,
+      operation: operation,
+      contextLabel: contextLabel,
+    );
+  }
+
+  void _logDockerCliFailure(
+    String action,
+    DockerCliFailure error,
+    StackTrace stackTrace,
+  ) {
+    if (error.kind == DockerCliFailureKind.unavailable) {
+      AppLogger().warn(
+        'Docker CLI not available while $action',
+        tag: 'Docker',
+        error: error.cause ?? error,
+        stackTrace: stackTrace,
       );
-      rethrow;
-    } on ProcessException catch (error) {
-      logger.error(
-        'Process error running $command',
-        error: error,
-        remote: RemoteCommandDetails(
-          operation: operation,
-          command: command,
-          output: 'Process error: ${error.message}',
-          contextLabel: resolvedContext,
-        ),
-      );
-      rethrow;
-    } catch (error) {
-      logger.error(
-        'Error running $command',
-        error: error,
-        remote: RemoteCommandDetails(
-          operation: operation,
-          command: command,
-          output: 'Error: $error',
-          contextLabel: resolvedContext,
-        ),
-      );
-      rethrow;
     }
   }
 
-  String _contextLabelFromArgs(List<String> args) {
-    final contextIndex = args.indexOf('--context');
-    if (contextIndex != -1 && contextIndex + 1 < args.length) {
-      final value = args[contextIndex + 1].trim();
-      if (value.isNotEmpty) return value;
+  Exception _mapDockerCliFailure(
+    DockerCliFailure error, {
+    required String timeoutLabel,
+  }) {
+    switch (error.kind) {
+      case DockerCliFailureKind.unavailable:
+        return Exception('Docker CLI not available: ${error.message}');
+      case DockerCliFailureKind.timeout:
+        return Exception('Timed out while $timeoutLabel.');
+      case DockerCliFailureKind.processError:
+        return Exception(error.message);
     }
-    final hostIndex = args.indexOf('--host');
-    if (hostIndex != -1 && hostIndex + 1 < args.length) {
-      final value = args[hostIndex + 1].trim();
-      if (value.isNotEmpty) return value;
-    }
-    return 'default';
   }
 
   String? _volumeSizeOrNull(String? raw) {

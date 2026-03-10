@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:cwatch/model/features/docker/services/docker_cli_executor.dart';
+import 'package:cwatch/model/features/docker/services/docker_cli_failure.dart';
 import 'package:cwatch/model/features/docker/services/docker_client_service.dart';
 
 void main() {
@@ -190,6 +192,70 @@ void main() {
             (error) => error.toString(),
             'message',
             contains('Docker CLI not available'),
+          ),
+        ),
+      );
+    });
+  });
+
+  group('DockerCliExecutor', () {
+    test('classifies missing docker cli as unavailable', () async {
+      final executor = DockerCliExecutor(
+        processRunner: (
+          String executable,
+          List<String> arguments, {
+          String? workingDirectory,
+          Map<String, String>? environment,
+          bool runInShell = false,
+          Encoding? stdoutEncoding,
+          Encoding? stderrEncoding,
+        }) {
+          throw const ProcessException('docker', ['ps'], 'not found', 127);
+        },
+      );
+
+      await expectLater(
+        executor.run(
+          ['ps'],
+          timeout: const Duration(seconds: 1),
+          operation: 'list containers',
+        ),
+        throwsA(
+          isA<DockerCliFailure>()
+              .having((e) => e.kind, 'kind', DockerCliFailureKind.unavailable)
+              .having((e) => e.operation, 'operation', 'list containers')
+              .having((e) => e.message, 'message', contains('not found')),
+        ),
+      );
+    });
+
+    test('classifies timeout as timeout failure', () async {
+      final executor = DockerCliExecutor(
+        processRunner: (
+          String executable,
+          List<String> arguments, {
+          String? workingDirectory,
+          Map<String, String>? environment,
+          bool runInShell = false,
+          Encoding? stdoutEncoding,
+          Encoding? stderrEncoding,
+        }) async {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+          return ProcessResult(1, 0, '', '');
+        },
+      );
+
+      await expectLater(
+        executor.run(
+          ['ps'],
+          timeout: const Duration(milliseconds: 1),
+          operation: 'list containers',
+        ),
+        throwsA(
+          isA<DockerCliFailure>().having(
+            (e) => e.kind,
+            'kind',
+            DockerCliFailureKind.timeout,
           ),
         ),
       );
