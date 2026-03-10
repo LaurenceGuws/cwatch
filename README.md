@@ -38,6 +38,23 @@ Today:
 
 This is the reason the repository is being documented and re-scoped before deeper refactors begin.
 
+## Target Direction
+
+The target is a reusable shell/framework layer plus removable feature modules.
+
+Reusable shell/framework ownership should cover:
+- tabbed workspace infrastructure
+- generic tab hosts and shared workspace primitives
+- reusable Flutter widgets and utility UI that are not feature-specific
+- shared menus, lists, configuration scaffolding, and other non-feature-specific building blocks
+
+Feature modules should own:
+- feature-specific views and tab assembly
+- feature-specific workflows and policies
+- feature-specific dialog content and presentation helpers
+
+The shell should continue to make sense if SSH, Docker, Kubernetes, or WSL modules are removed. That boundary is now an explicit rewrite goal, not just an implied preference.
+
 ## Development
 1. `flutter pub get`
 2. `flutter run -d <device>`

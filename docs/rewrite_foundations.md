@@ -76,11 +76,59 @@ Target outcome:
 - characterization coverage exists around the current critical flows
 - new structure is introduced behind test seams, not by wholesale replacement
 
+## Target Boundary
+
+The target architecture is not "controller/view/model, but cleaner."
+
+The target architecture is:
+- a reusable shell/framework layer
+- removable feature modules
+- explicit contracts between them
+
+### Reusable shell/framework layer
+This layer should survive removal of SSH, Docker, Kubernetes, and WSL feature modules.
+
+It should own:
+- tabbed workspace infrastructure
+- reusable tab host and workspace primitives
+- shared Flutter utility/widgets that are not feature-specific
+- generic lists, menus, dialogs, configuration scaffolding, and input helpers
+- dependency wiring for reusable app infrastructure
+- generic persistence and state primitives that are not tied to one feature view
+
+It should not own:
+- feature-specific workflows
+- feature-specific view composition
+- feature-specific tab assembly
+- feature-specific dialog content
+
+### Feature modules
+These are removable slices such as servers/SSH, Docker, Kubernetes, and WSL.
+
+They should own:
+- feature-specific views
+- feature-specific tab assembly
+- feature-specific workflow coordination
+- feature-specific state and policies
+- feature-specific dialog content and adapters unless the UI is truly reusable outside the feature
+
+They may depend on reusable shell/framework primitives.
+
+The shell/framework layer must not depend on feature implementation details except through explicit module registration or contracts.
+
+### Practical dependency direction
+- reusable shell/framework code may depend on shared non-feature Flutter/UI infrastructure
+- feature modules may depend on shell/framework primitives and shared infrastructure
+- feature modules must not be required for the shell/framework layer to exist
+- anything under a feature tree that is needed by multiple features is a candidate to move into shared shell/framework ownership
+- if removing a feature module breaks the shell rather than just unregistering feature functionality, the boundary is still wrong
+
 ## Focus Areas For Deeper Analysis
 
 ### Focus Area A: architecture and dependency direction
 Questions to answer:
 - What is the target dependency model?
+- What belongs to the reusable shell/framework layer versus removable feature modules?
 - Which imports are forbidden after cleanup?
 - Which current shared modules should be moved or split?
 

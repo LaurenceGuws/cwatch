@@ -18,11 +18,16 @@ Do not treat the later hotspot notes as locked implementation plans.
 ## Working Rules
 
 ### Dependency rules we are moving toward
+- reusable shell/framework code may depend on shared non-feature UI and infrastructure
+- feature modules may depend on reusable shell/framework primitives
+- reusable shell/framework code should not depend on feature-specific view implementations except through explicit module registration or contracts
 - `view/` may depend on `controller/` and `model/`
-- `controller/` should not depend on concrete `view/` widgets or view-local helpers
+- `controller/` should not depend on concrete `view/` widgets or feature-local view helpers unless the dependency is an explicit composition contract
 - `model/` should not depend on `view/` or `controller/`
 - anything used by `model/` or `controller/` cannot live in a view-local utility path
 - service creation should not be entangled with concrete screen ownership
+- shell/workspace infrastructure should still function if SSH, Docker, Kubernetes, or WSL modules are removed
+- reusable widgets/helpers needed across features must not live under one feature tree
 
 ### Rewrite discipline rules
 - clean one hotspot at a time
@@ -245,7 +250,7 @@ Current next-step note:
 - server/WSL binding ownership reached a checkpoint (`docs/server_wsl_binding_ownership_todo.md`)
 - UI-adapter dialog/content ownership reached a checkpoint (`docs/ui_adapter_dialog_ownership_todo.md`)
 - `lib/model` now has no `package:cwatch/controller/` imports
-- the next dependency-direction batch is tab-assembly ownership, tracked in `docs/tab_assembly_ownership_todo.md`
+- the next dependency-direction batch is tab-assembly ownership, now re-scoped around shell/framework vs removable feature-module boundaries, tracked in `docs/tab_assembly_ownership_todo.md`
 
 ### Docker feature shell
 Track here when ready:

@@ -1,95 +1,79 @@
 # Tab Assembly Ownership TODO
 
 Status: active
-Purpose: track the next dependency-direction cleanup batch around controller-owned tab builders that still assemble concrete view widgets.
+Purpose: scope the remaining tab-assembly seam using the explicit target boundary: reusable shell/framework on one side, removable feature modules on the other.
 
-## How To Use This Document
+## Boundary This Hotspot Must Respect
 
-This is the next actionable TODO after the UI-adapter dialog/content checkpoint.
+The shell/framework layer should still make sense if SSH, Docker, Kubernetes, and WSL are removed.
 
-Use it to:
-- define the current tab-assembly ownership problem
-- execute one narrow cleanup batch
-- record what we learned
-- re-scope the next batch after the current one lands
+That means:
+- tab hosts, workspace primitives, generic tab containers, and reusable shared widgets belong to reusable shell/framework ownership
+- feature-specific tab assembly belongs to the feature module unless there is a narrow, explicit module contract
+- shell/framework code should not hard-code feature tab bodies as if they were part of the app core
 
-Do not treat later items here as fixed architecture commitments.
+This hotspot is not trying to remove all widget assembly from every builder.
+
+It is trying to answer one narrower question:
+- are the remaining controller-owned tab builders part of reusable shell/framework infrastructure, or are they actually feature-module composition code living in the wrong place?
 
 ## Current Problem
 
-The remaining `controller -> view` imports are now concentrated in controller-owned tab builders:
-- `ServerTabBuilder` assembles concrete shared tabs and server feature widgets
-- `WslTabBuilder` assembles the shared terminal tab
+The remaining `controller -> view` imports are concentrated in controller-owned tab builders:
+- `ServerTabBuilder` assembles server-specific and shared tab bodies
+- `WslTabBuilder` assembles the WSL terminal tab
 
-This is different from earlier hotspots. These imports may be legitimate if tab builders are intentionally the composition layer for tab bodies, but that ownership rule is not yet explicit.
+After the earlier cleanup passes, these are no longer mixed in with bindings, adapters, or model ownership issues. They are now a standalone boundary question.
 
-## Current Signal From The Codebase
+## Why This Matters
 
-Representative files:
-- `lib/controller/controllers/server_tab_builder.dart`
-- `lib/controller/controllers/wsl_tab_builder.dart`
-- `lib/view/features/servers/server_workspace_view.dart`
-- `lib/view/features/wsl/wsl_view.dart`
+If these builders are reusable shell/framework objects, then direct feature view construction is the wrong ownership signal.
 
-Representative imported view-side types:
-- `lib/view/shared/views/shared/tabs/terminal/terminal_tab.dart`
-- `lib/view/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart`
-- `lib/view/shared/views/shared/tabs/trash_tab.dart`
-- `lib/view/shared/views/shared/tabs/editor/remote_file_editor_loader.dart`
-- `lib/view/features/servers/widgets/connectivity_tab.dart`
-- `lib/view/features/servers/widgets/resources_tab.dart`
+If these builders are really feature-module composition objects, then they should live with the feature module or behind a narrow feature-module contract.
 
-Current symptoms:
-- `ServerTabBuilder` and `WslTabBuilder` are now controller-owned, but they still construct concrete widget bodies directly
-- that can be reasonable if these builders are treated as composition objects rather than non-UI logic
-- right now the repo does not clearly state whether this is an intentional boundary or a remaining ownership issue
-
-## What We Are Trying To Improve
-
-We are not trying to eliminate controller-owned tab construction blindly.
-
-We are trying to answer one ownership question clearly:
-- should controller-owned tab builders be allowed to assemble concrete tab widgets, or should tab assembly move back behind a view-owned or narrower factory boundary?
+Either way, the repo needs one explicit rule instead of leaving this as an ambiguous exception.
 
 ## Working Rules For This Hotspot
-- do not force a fake abstraction if widget assembly is genuinely the builder's job
-- prefer documenting an explicit boundary if the current shape is acceptable
-- if a move is needed, choose the smallest viable seam rather than rewriting all tab builders
+- do not create fake abstraction layers just to avoid an import
+- prefer moving ownership to the correct side over inventing generic factories too early
+- shared tab infrastructure and feature tab composition are different concerns and should not be blurred together
+- use the smaller WSL seam to establish the rule before touching the heavier server builder
 - re-scope after the first batch lands
 
 ## First Batch Candidate
 
-### Task 8.1: inspect WSL tab assembly ownership
+### Task 8.1: inspect WSL tab assembly ownership against the new boundary
 Status: queued
 
 Why this is first:
-- `WslTabBuilder` is much smaller than `ServerTabBuilder`
-- it isolates the core question with one shared widget dependency (`TerminalTab`)
-- it should tell us whether controller-owned tab assembly is acceptable as a composition boundary before touching the heavier server builder
+- `WslTabBuilder` is the smallest remaining tab-assembly seam
+- it isolates the ownership question with one feature module and one shared tab body
+- it should tell us whether the builder belongs in reusable shell/framework code or feature-module code
 
 Current files in scope:
 - `lib/controller/controllers/wsl_tab_builder.dart`
 - `lib/view/features/wsl/wsl_view.dart`
 - `lib/view/shared/views/shared/tabs/terminal/terminal_tab.dart`
-- any directly related types needed to clarify the boundary
+- any directly related workspace/module wiring needed to clarify ownership
 
 Actions:
-- inspect what `WslTabBuilder` really owns versus what the WSL view owns
-- decide whether `WslTabBuilder` should remain controller-owned while constructing `TerminalTab`
-- either:
-  - document this as an intentional composition exception, or
-  - make one narrow ownership correction
+- inspect what `WslTabBuilder` actually owns
+- decide whether it is:
+  - reusable shell/framework infrastructure,
+  - feature-module tab composition, or
+  - a narrow contract seam that needs to be made explicit
+- make one small correction that clarifies the ownership rule
 - record the rule we learn from this batch
 
 Done definition:
-- the ownership rule for `WslTabBuilder` is clearer than it is today
-- one misleading assumption about controller-owned tab assembly is either corrected or explicitly documented
-- the next step for `ServerTabBuilder` can be scoped from evidence rather than guesswork
+- the repo is clearer about whether WSL tab assembly is shell/framework code or feature-module code
+- one misleading ownership signal is removed or explicitly documented
+- the next step for `ServerTabBuilder` can be scoped from evidence rather than assumption
 
 Verification:
-- `rg -n "package:cwatch/view/" lib/controller/controllers/(wsl_tab_builder|server_tab_builder).dart`
+- `rg -n "package:cwatch/view/" lib/controller/controllers/wsl_tab_builder.dart lib/controller/controllers/server_tab_builder.dart`
 - `flutter analyze`
-- manual smoke check of WSL terminal tab creation
+- manual smoke check of WSL tab creation
 
 ### Task 8.2: re-scope after WSL tab assembly review
 Status: queued
@@ -97,16 +81,16 @@ Status: queued
 Purpose:
 - decide whether the next batch should:
   - apply the same rule to `ServerTabBuilder`
-  - move a narrower slice of server tab assembly
-  - stop and document controller-owned tab builders as intentional composition objects
-- record what we learned from Task 8.1
+  - move server tab assembly back into the server feature module
+  - introduce a narrow module contract for feature tab assembly
+  - stop this hotspot if the remaining seam is now explicit and acceptable
 
 Done definition:
-- the next tab-assembly step is written from the post-8.1 state of the code
-- any intentional boundary rule or exception is recorded here
+- the next tab-assembly step is written from what Task 8.1 actually proved
+- any intentional exception or module-contract rule is recorded here
 
 Verification:
-- follow-up task added before the next tab-assembly structural change starts
+- follow-up task added before the next structural change starts
 
 ## Later Work In This Hotspot
 
@@ -114,25 +98,25 @@ Do not expand these until Task 8.1 has landed.
 
 ### Server tab assembly
 Track here when ready:
-- whether `ServerTabBuilder` should keep constructing concrete tabs directly
-- whether feature-specific tabs and shared tabs should be treated differently
+- whether `ServerTabBuilder` is feature-module composition living under `controller/`
+- whether shared tabs and server-specific tabs should be assembled at the same boundary
 
-### Shared tab composition
+### Module contract shape
 Track here when ready:
-- whether shared tabs like terminal/editor/explorer should be assembled through controller-owned builders or view-owned wrappers
-- whether the current `WorkspaceTab(body: Widget)` shape is the real reason this seam exists
+- whether removable feature modules should expose tab factories/descriptors through a narrow registration contract
+- whether the current `WorkspaceTab(body: Widget)` shape is forcing feature composition into the wrong layer
 
 ## Tracking Table
 
 | Item | Scope | Status | Done When |
 | --- | --- | --- | --- |
-| 8.1 | WSL tab assembly ownership | queued | ownership rule for `WslTabBuilder` is clearer than today |
-| 8.2 | Tab assembly re-scope | queued | next step is written from what we learn in 8.1 |
+| 8.1 | WSL tab assembly ownership | queued | WSL tab assembly is clearly classified as shell/framework, feature-module, or explicit contract code |
+| 8.2 | Tab assembly re-scope | queued | next step is written from what 8.1 proves |
 | 8.x | Tab assembly follow-up | queued | re-scoped after 8.2 |
 
 ## Completion Metric
 
 This document is serving its purpose if:
-- it defines one narrow tab-assembly ownership question clearly enough to execute
-- it avoids forcing an artificial abstraction without evidence
-- it gets re-scoped after the first batch instead of pretending we already know the whole answer
+- it makes the shell/framework versus feature-module boundary explicit
+- it avoids treating feature tab assembly as app-core infrastructure by accident
+- it gives us a small, evidence-driven next step instead of a guessed full redesign
