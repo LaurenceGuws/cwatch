@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../widgets/style_picker_dialog.dart';
-import 'editor_theme_utils.dart';
+import 'package:cwatch/model/shared/theme/editor_theme_registry.dart';
 
 Future<void> showEditorThemeDialog({
   required BuildContext context,

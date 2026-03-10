@@ -44,7 +44,7 @@ It is now a reusable shell/framework ownership problem:
 ## First Batch Candidate
 
 ### Task 9.1: extract shared editor-theme registry out of the editor view tree
-Status: queued
+Status: completed
 
 Why this is first:
 - it is the clearest remaining `model -> view` import
@@ -75,7 +75,7 @@ Verification:
 - manual smoke check of theme config loading and editor theme selection
 
 ### Task 9.2: re-scope after shared theme extraction
-Status: queued
+Status: completed
 
 Purpose:
 - decide whether there is another theme/shared-config ownership seam worth cleaning now
@@ -88,12 +88,27 @@ Done definition:
 Verification:
 - follow-up task added before the next structural change starts
 
+Result of Task 9.1:
+- the reusable editor theme catalog/registry moved to `lib/model/shared/theme/editor_theme_registry.dart`
+- `theme_config_loader.dart` no longer imports from `view/`
+- editor and terminal shared tabs now depend on the neutral shared-theme location instead of an editor-local file
+- there was no meaningful editor-only logic left behind in the old file; it was shared registry code end to end
+
+### Theme-registry hotspot checkpoint
+Status: completed
+
+Outcome:
+- the strongest remaining `model -> view` theme dependency is removed
+- shared theme registry ownership is now aligned with reusable shell/framework concerns
+- this hotspot does not need another immediate batch unless a different shared-theme seam appears later
+
 ## Tracking Table
 
 | Item | Scope | Status | Done When |
 | --- | --- | --- | --- |
-| 9.1 | Shared theme registry extraction | queued | model/shared theme loading no longer depends on an editor view path |
-| 9.2 | Theme hotspot re-scope | queued | next step is written from what 9.1 proves |
+| 9.1 | Shared theme registry extraction | completed | model/shared theme loading no longer depends on an editor view path |
+| 9.2 | Theme hotspot re-scope | completed | next step is written from what 9.1 proves |
+| 9.3 | Theme-registry checkpoint | completed | shared theme registry ownership is clear enough to stop this hotspot |
 
 ## Completion Metric
 

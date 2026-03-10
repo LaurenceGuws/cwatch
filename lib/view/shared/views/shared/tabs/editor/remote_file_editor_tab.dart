@@ -20,7 +20,7 @@ import 'package:cwatch/view/features/settings/settings/editor_settings_controls.
 import '../settings/floating_settings_window.dart';
 import 'remote_file_editor/code_editor_view.dart';
 import 'remote_file_editor/editor_state.dart';
-import 'remote_file_editor/editor_theme_utils.dart';
+import 'package:cwatch/model/shared/theme/editor_theme_registry.dart';
 import 'remote_file_editor/language_detection.dart';
 
 class RemoteFileEditorTab extends StatefulWidget {

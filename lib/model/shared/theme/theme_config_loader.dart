@@ -7,7 +7,7 @@ import 'package:toml/toml.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/services_infra/settings/settings_path_provider.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/editor/remote_file_editor/editor_theme_utils.dart';
+import 'package:cwatch/model/shared/theme/editor_theme_registry.dart';
 
 const List<String> _appAccentKeys = [
   'blue-grey',

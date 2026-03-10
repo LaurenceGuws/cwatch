@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/services_infra/settings/settings_path_provider.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/editor/remote_file_editor/editor_theme_utils.dart';
+import 'package:cwatch/model/shared/theme/editor_theme_registry.dart';
 import 'package:path/path.dart' as p;
 import 'package:toml/toml.dart';
 import 'package:xterm/xterm.dart';
