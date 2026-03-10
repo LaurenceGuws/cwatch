@@ -168,6 +168,7 @@ Deliverables:
 
 ### Phase 2: deeper analysis docs
 Create separate follow-up docs for:
+- dependency direction TODO (`docs/dependency_direction_todo.md`)
 - dependency rules
 - settings/state split
 - first vertical slice plan

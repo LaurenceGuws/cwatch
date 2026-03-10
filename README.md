@@ -54,4 +54,5 @@ This is the reason the repository is being documented and re-scoped before deepe
 ## Related Documents
 - `AGENTS.md`: repository-specific working rules.
 - `docs/rewrite_foundations.md`: current high-level findings, focus areas, and work sequence.
+- `docs/dependency_direction_todo.md`: actionable dependency cleanup backlog with done definitions per hotspot.
 - `docs/testing_roadmap.md`: current testing backlog and rewrite-support testing priorities.
