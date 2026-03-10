@@ -203,7 +203,7 @@ Why this is the right next move:
   should be locked down first
 
 ## Task 17.5: add focused tests for the Server workspace-shell seam
-Status: queued
+Status: completed
 
 Goal:
 - add direct regression coverage around the new Server workspace-shell seam before deciding whether the slice should continue or checkpoint
@@ -220,3 +220,27 @@ Done definition:
 - the Server shell seam has direct focused tests
 - the tests validate the extracted orchestration boundary rather than broad host-list widget behavior
 - the next slice decision can be made from a safer regression floor
+
+Result:
+- added [server_workspace_shell_test.dart](/home/home/personal/cwatch/test/view/features/servers/server_workspace_shell_test.dart)
+- direct coverage now exists for:
+  - command-palette entry loading
+  - tab-navigation behavior
+  - host reload coordination
+  - placeholder replacement behavior
+  - add-tab behavior
+  - settings-driven reload decisions
+
+## Task 17.6: re-scope the first Server slice checkpoint
+Status: queued
+
+Goal:
+- decide whether the first Server slice should continue or checkpoint at the current shell seam
+
+Questions to answer:
+- is there another real architectural seam in `server_workspace_view.dart`
+- or is the remaining weight mostly true Server-local behavior that should stay together for now
+
+Done definition:
+- the next Server slice move is explicit
+- the choice is based on the post-test seam shape, not file-length pressure
