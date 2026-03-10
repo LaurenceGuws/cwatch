@@ -452,7 +452,6 @@ class AppSettings {
       'customSshConfigPaths': customSshConfigPaths,
       'disabledSshConfigPaths': disabledSshConfigPaths,
       'disabledServerHosts': disabledServerHosts,
-      'serverDistroMap': serverDistroMap,
 
       'kubernetesConfigPaths': kubernetesConfigPaths,
       'kubernetesBackend': kubernetesBackend.name,

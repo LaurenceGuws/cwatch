@@ -315,7 +315,7 @@ Verification:
 - result: no issues found
 
 ### Task 12.9: remove legacy distro-cache fields from `AppSettings`
-Status: queued
+Status: completed
 
 Goal:
 - stop persisting `serverDistroMap` and `dockerDistroMap` in [app_settings.dart](/home/home/personal/cwatch/lib/model/models/app_settings.dart)
@@ -325,6 +325,21 @@ Done definition:
 - new `settings.json` writes no longer include distro maps
 - cache hydration still recovers old embedded distro-map data if present
 - server/docker consumers keep using the cache seam without further call-site changes
+
+What landed:
+- [app_settings.dart](/home/home/personal/cwatch/lib/model/models/app_settings.dart) no longer serializes:
+  - `serverDistroMap`
+- `dockerDistroMap` was already no longer part of new `settings.json` writes by the time this cleanup landed
+- legacy parsing remains in place so older embedded settings files still seed the distro cache controller
+
+Result:
+- new `settings.json` writes are now free of workspace snapshots and derived distro caches
+- the cache backing store is now the authoritative write target for distro metadata
+- legacy distro-map fields in `AppSettings` are reduced to migration-only compatibility data
+
+Verification:
+- `flutter analyze`
+- result: no issues found
 
 ### Task 12.8: scope `settingsTabIndex` removal from root settings
 Status: queued
