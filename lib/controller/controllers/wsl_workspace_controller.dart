@@ -1,12 +1,12 @@
 import 'package:flutter/widgets.dart';
 
-import 'package:cwatch/model/core/models/tab_state.dart';
+import 'package:cwatch/controller/controllers/terminal_session_controller.dart';
 import 'package:cwatch/controller/core/workspace/persistent_workspace_controller.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
+import 'package:cwatch/model/core/models/tab_state.dart';
 import 'package:cwatch/model/models/app_settings.dart';
 import 'package:cwatch/model/models/wsl_workspace_state.dart';
-import 'package:cwatch/controller/controllers/terminal_session_controller.dart';
-import 'wsl_tab_builder.dart';
+import 'package:cwatch/view/features/wsl/wsl_tab_builder.dart';
 
 class WslWorkspaceController
     extends PersistentWorkspaceController<WslWorkspaceState> {
@@ -46,7 +46,7 @@ class WslWorkspaceController
 
   @override
   Future<void> restoreState() async {
-    // Handled by view
+    // Handled by view.
   }
 
   Future<void> restore({

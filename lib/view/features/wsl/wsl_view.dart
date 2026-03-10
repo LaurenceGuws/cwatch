@@ -23,7 +23,7 @@ import 'package:cwatch/controller/di/bindings/wsl_tab_builder_binding.dart';
 import 'package:cwatch/controller/di/bindings/wsl_workspace_controller_binding.dart';
 
 import 'wsl_tab_builder.dart';
-import 'wsl_workspace_controller.dart';
+import 'package:cwatch/controller/controllers/wsl_workspace_controller.dart';
 
 class WslView extends StatefulWidget {
   const WslView({

@@ -1,5 +1,5 @@
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
-import 'package:cwatch/view/features/wsl/wsl_workspace_controller.dart';
+import 'package:cwatch/controller/controllers/wsl_workspace_controller.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 
 class WslWorkspaceControllerBinding {

@@ -57,7 +57,7 @@ We are trying to make one ownership rule clearer:
 ## First Batch Candidate
 
 ### Task 6.1: inspect server and WSL builder/controller ownership
-Status: queued
+Status: completed
 
 Why this is first:
 - the remaining binding-side `controller -> view` imports are tightly clustered here
@@ -94,7 +94,7 @@ Verification:
 - manual smoke check of server and WSL tab creation/restoration flows
 
 ### Task 6.2: re-scope after the first server/WSL ownership move
-Status: queued
+Status: completed
 
 Purpose:
 - decide whether the next batch should target:
@@ -109,6 +109,33 @@ Done definition:
 
 Verification:
 - follow-up task added before the next server/WSL structural change starts
+
+Result of re-scope:
+- `WslWorkspaceController` moved out of `view/features/wsl/` into `controller/controllers/`
+- `WslWorkspaceControllerBinding` no longer imports a view-owned workspace controller
+- the remaining binding-side view imports in this hotspot are now limited to `ServerTabBuilder` and `WslTabBuilder`
+- the next batch should focus on tab builder ownership, not broader server/WSL view cleanup
+
+### Task 6.3: inspect server and WSL tab builder ownership
+Status: queued
+
+Why this is next:
+- the remaining binding-side `controller -> view` imports in this hotspot are both tab builders
+- this is a narrower and more comparable pair than the original mixed builder/controller seam
+- it gives a clear next question: move one builder, narrow the binding interface, or record the exception
+
+Actions:
+- inspect `ServerTabBuilder` and `WslTabBuilder` with their binding call sites
+- decide whether one builder is clearly non-widget enough to move now, or whether a narrower interface is the right boundary
+- implement one narrow ownership correction or record the exception clearly
+
+Done definition:
+- at least one remaining server/WSL tab-builder binding dependency is reduced or clearly justified
+- binding ownership is clearer than it is today
+
+Verification:
+- `rg -n "package:cwatch/view/features/(servers|wsl)" lib/controller/di/bindings`
+- `flutter analyze`
 
 ## Later Work In This Hotspot
 
@@ -133,9 +160,10 @@ Track elsewhere after this hotspot:
 
 | Item | Scope | Status | Done When |
 | --- | --- | --- | --- |
-| 6.1 | Server/WSL builder-controller ownership | queued | at least one server/WSL binding-side view dependency is removed |
-| 6.2 | Server/WSL re-scope | queued | next task is written from what we learn in 6.1 |
-| 6.x | Server/WSL follow-up | queued | re-scoped after 6.2 |
+| 6.1 | Server/WSL builder-controller ownership | completed | at least one server/WSL binding-side view dependency is removed |
+| 6.2 | Server/WSL re-scope | completed | next task is written from what we learn in 6.1 |
+| 6.3 | Server/WSL tab-builder ownership | queued | at least one remaining server/WSL tab-builder binding dependency is reduced or justified |
+| 6.x | Server/WSL follow-up | queued | re-scoped after 6.3 |
 
 ## Completion Metric
 
