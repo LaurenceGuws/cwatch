@@ -98,16 +98,10 @@ Current tab-shell status:
 - first chip-building normalization pass complete
 
 Current next integration hotspot:
-- shared dialog/settings scaffolding
+- SSH auth ownership
 
 Current follow-up doc:
-- `docs/dialog_settings_contract_todo.md`
-
-Current implementation-ready follow-up:
-- `docs/shared_prompt_helper_todo.md`
-
-Current implementation checkpoint:
-- `SettingsUiAdapter` now uses the first shared prompt helper for password, passphrase, and destructive confirmation prompts
+- `docs/ssh_auth_integration_todo.md`
 
 ## Development
 1. `flutter pub get`

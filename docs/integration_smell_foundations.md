@@ -276,6 +276,17 @@ Current next normalization direction:
 - dialog/settings scaffolding is now at a checkpoint
 - the next hotspot should be chosen after this subsystem, not by pushing the helper into richer local dialog flows
 
+Current next hotspot:
+- SSH auth ownership
+
+Current follow-up doc:
+- [ssh_auth_integration_todo.md](/home/home/personal/cwatch/docs/ssh_auth_integration_todo.md)
+
+Why this is next:
+- feature/runtime layers still participate in SSH auth wiring
+- builtin SSH auth coordination is partially duplicated across lower layers
+- the next cleanup value is subsystem ownership, not more shared prompt reuse
+
 ## Success Criteria
 
 This layer is working when:

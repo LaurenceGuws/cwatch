@@ -482,3 +482,29 @@ Current follow-up docs:
 
 Next executable batch:
 - choose the next integration-smell hotspot after dialog/settings scaffolding
+
+### Task 14.19: choose the next integration-smell hotspot after dialog/settings
+Status: completed
+
+What this task checked:
+- whether to return to explorer shared-surface cleanup
+- whether to jump to annotation/codegen candidate selection
+- or whether a deeper subsystem-integration hotspot now has better value
+
+Result:
+- the next hotspot is `SSH auth ownership`
+
+Why this wins:
+- it is a real subsystem boundary problem, not just a missing shared widget/helper
+- high-level feature layers still touch SSH auth wiring they should not know about
+- the builtin SSH path already shows partial race-handling logic, which means the right next move is ownership cleanup, not more prompt reuse
+- the user requirement is explicit:
+  - high-level layers should not know auth state
+  - only one prompt per key at a time
+  - parallel callers should converge on the same unlock flow
+
+Current follow-up doc:
+- [ssh_auth_integration_todo.md](/home/home/personal/cwatch/docs/ssh_auth_integration_todo.md)
+
+Next executable batch:
+- `Task 14.20`: define the SSH auth ownership contract
