@@ -240,7 +240,7 @@ Rule for this batch:
 - richer domain-specific empty states with custom guidance
 
 ## Task 14.47: implement first shared scaffolding normalization batch
-Status: queued
+Status: completed
 
 Goal:
 - remove the narrowest local shadowing around shell-owned empty-state and settings-section scaffolding
@@ -253,3 +253,28 @@ Done definition:
 - the first empty-state shadowing case is normalized
 - the first thin settings-section wrappers are removed or explicitly justified
 - the shared scaffolding contract is stronger in code, not only in docs
+
+Result:
+- Docker engine picker no longer owns a local shell-level empty-state widget
+- the simple Docker empty-state path now uses `StandardEmptyState`
+- the thin `EditorSettingsSection` and `TerminalSettingsSection` wrappers were removed
+- editor and terminal settings tabs now use `SettingsSection` directly around their controls widgets
+
+What this proved:
+- shell-owned scaffolding can be normalized without a broad design-system rewrite
+- thin “wrapper just to provide title/description” layers are cleanup targets when the shared shell primitive is already good enough
+- empty-state normalization is a better first shell polish seam than forcing table/card unification
+
+## Task 14.48: re-scope the next shared scaffolding batch
+Status: queued
+
+Goal:
+- decide whether the next scaffolding pass should target another empty-state/menu/settings seam or checkpoint this hotspot
+
+Likely candidates:
+- remaining empty-state shadowing such as richer Docker availability states
+- settings-section consistency in the remaining settings tabs
+- shared action/menu scaffolding follow-up
+
+Done definition:
+- the next narrow batch is chosen or the hotspot is checkpointed

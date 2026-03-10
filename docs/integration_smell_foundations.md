@@ -361,6 +361,9 @@ Current hotspot status:
 - the first normalization batch is now scoped around:
   - empty-state normalization
   - thin settings-section wrapper cleanup
+- the first normalization batch is now implemented:
+  - Docker engine picker empty state uses `StandardEmptyState`
+  - thin editor/terminal settings section wrappers are removed
 
 ## Success Criteria
 

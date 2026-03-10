@@ -4,8 +4,9 @@ import 'package:cwatch/controller/controllers/settings_controller.dart';
 import 'package:cwatch/model/models/app_settings.dart';
 import 'package:cwatch/model/shared/shortcuts/shortcut_definition.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
+import 'editor_settings_controls.dart';
+import 'settings_section.dart';
 import 'shortcuts_settings_tab.dart';
-import 'editor_settings_section.dart';
 
 class EditorSettingsTab extends StatelessWidget {
   const EditorSettingsTab({
@@ -43,17 +44,22 @@ class EditorSettingsTab extends StatelessWidget {
     return ListView(
       padding: spacing.inset(horizontal: 1.5, vertical: 1),
       children: [
-        EditorSettingsSection(
-          fontFamily: fontFamily,
-          fontSize: fontSize,
-          lineHeight: lineHeight,
-          onFontFamilyChanged: onFontFamilyChanged,
-          onFontSizeChanged: onFontSizeChanged,
-          onLineHeightChanged: onLineHeightChanged,
-          lightTheme: lightTheme,
-          darkTheme: darkTheme,
-          onLightThemeChanged: onLightThemeChanged,
-          onDarkThemeChanged: onDarkThemeChanged,
+        SettingsSection(
+          title: 'Appearance',
+          description:
+              'Configure mono font, spacing, and themes used in the remote file editor and diffs.',
+          child: EditorSettingsControls(
+            fontFamily: fontFamily,
+            fontSize: fontSize,
+            lineHeight: lineHeight,
+            onFontFamilyChanged: onFontFamilyChanged,
+            onFontSizeChanged: onFontSizeChanged,
+            onLineHeightChanged: onLineHeightChanged,
+            lightTheme: lightTheme,
+            darkTheme: darkTheme,
+            onLightThemeChanged: onLightThemeChanged,
+            onDarkThemeChanged: onDarkThemeChanged,
+          ),
         ),
         ShortcutCategorySection(
           category: ShortcutCategory.editor,

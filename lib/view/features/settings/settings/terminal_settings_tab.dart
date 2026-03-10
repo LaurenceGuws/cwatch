@@ -4,8 +4,9 @@ import 'package:cwatch/controller/controllers/settings_controller.dart';
 import 'package:cwatch/model/models/app_settings.dart';
 import 'package:cwatch/model/shared/shortcuts/shortcut_definition.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
+import 'settings_section.dart';
 import 'shortcuts_settings_tab.dart';
-import 'terminal_settings_section.dart';
+import 'terminal_settings_controls.dart';
 
 class TerminalSettingsTab extends StatelessWidget {
   const TerminalSettingsTab({
@@ -51,21 +52,26 @@ class TerminalSettingsTab extends StatelessWidget {
     return ListView(
       padding: spacing.inset(horizontal: 1.5, vertical: 1),
       children: [
-        TerminalSettingsSection(
-          fontFamily: fontFamily,
-          fontSize: fontSize,
-          lineHeight: lineHeight,
-          paddingX: paddingX,
-          paddingY: paddingY,
-          darkTheme: darkTheme,
-          lightTheme: lightTheme,
-          onFontFamilyChanged: onFontFamilyChanged,
-          onFontSizeChanged: onFontSizeChanged,
-          onLineHeightChanged: onLineHeightChanged,
-          onPaddingXChanged: onPaddingXChanged,
-          onPaddingYChanged: onPaddingYChanged,
-          onDarkThemeChanged: onDarkThemeChanged,
-          onLightThemeChanged: onLightThemeChanged,
+        SettingsSection(
+          title: 'Appearance',
+          description:
+              'Choose the mono Nerd Font, sizing, spacing, and color theme used by the in-app terminal.',
+          child: TerminalSettingsControls(
+            fontFamily: fontFamily,
+            fontSize: fontSize,
+            lineHeight: lineHeight,
+            paddingX: paddingX,
+            paddingY: paddingY,
+            darkTheme: darkTheme,
+            lightTheme: lightTheme,
+            onFontFamilyChanged: onFontFamilyChanged,
+            onFontSizeChanged: onFontSizeChanged,
+            onLineHeightChanged: onLineHeightChanged,
+            onPaddingXChanged: onPaddingXChanged,
+            onPaddingYChanged: onPaddingYChanged,
+            onDarkThemeChanged: onDarkThemeChanged,
+            onLightThemeChanged: onLightThemeChanged,
+          ),
         ),
         ShortcutCategorySection(
           category: ShortcutCategory.terminal,

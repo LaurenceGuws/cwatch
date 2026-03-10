@@ -11,6 +11,7 @@ import 'package:cwatch/model/shared/theme/distro_icons.dart';
 import 'package:cwatch/view/shared/widgets/data_table/structured_data_table.dart';
 import 'package:cwatch/view/shared/widgets/distro_leading_slot.dart';
 import 'package:cwatch/view/shared/widgets/lists/section_list.dart';
+import 'package:cwatch/view/shared/widgets/standard_empty_state.dart';
 import 'package:cwatch/model/features/docker/services/docker_client_service.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
@@ -92,12 +93,12 @@ class _EnginePickerState extends State<EnginePicker> {
             if (snapshot.hasError) {
               final message = snapshot.error.toString();
               if (message.contains('Docker CLI not available')) {
-                return EmptyState(
-                  onRefresh: widget.onRefreshContexts,
+                return StandardEmptyState(
+                  icon: context.appTheme.icons.dns,
                   message:
                       'Docker CLI not available on this system. Local Docker contexts are unavailable.',
-                  detail:
-                      'Install Docker or use remote Docker hosts instead. This is optional, not app-fatal.',
+                  actionLabel: 'Refresh',
+                  onAction: widget.onRefreshContexts,
                 );
               }
               return ErrorCard(
@@ -107,7 +108,12 @@ class _EnginePickerState extends State<EnginePicker> {
             }
             final contexts = snapshot.data ?? const <DockerContext>[];
             if (contexts.isEmpty) {
-              return EmptyState(onRefresh: widget.onRefreshContexts);
+              return StandardEmptyState(
+                icon: context.appTheme.icons.dns,
+                message: 'No Docker contexts found.',
+                actionLabel: 'Refresh',
+                onAction: widget.onRefreshContexts,
+              );
             }
             final collapsed = _localCollapsed;
             final sectionColor = _sectionBackgroundForIndex(context, 0);
@@ -678,48 +684,6 @@ class EngineButton extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class EmptyState extends StatelessWidget {
-  const EmptyState({
-    super.key,
-    required this.onRefresh,
-    this.message = 'No Docker contexts found.',
-    this.detail,
-  });
-
-  final VoidCallback onRefresh;
-  final String message;
-  final String? detail;
-
-  @override
-  Widget build(BuildContext context) {
-    final spacing = context.appTheme.spacing;
-    final icons = context.appTheme.icons;
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icons.dns, size: context.appTheme.iconSizes.emptyStateXlarge),
-          SizedBox(height: spacing.lg),
-          Text(message, textAlign: TextAlign.center),
-          if (detail != null) ...[
-            SizedBox(height: spacing.md),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Text(
-                detail!,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
-          ],
-          SizedBox(height: spacing.lg),
-          FilledButton(onPressed: onRefresh, child: const Text('Refresh')),
-        ],
       ),
     );
   }
