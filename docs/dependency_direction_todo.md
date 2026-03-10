@@ -153,7 +153,28 @@ Verification:
 Status: completed
 
 ### Task 1.3: inspect and split selection ownership
+Status: completed
+
+### Task 1.4: inspect explorer state ownership
 Status: pending
+
+Why this is next:
+- it is now the clearest remaining `model -> controller` dependency inside the explorer hotspot
+- the selection split reduced coupling without requiring a broad redesign, which suggests state ownership can be tackled the same way
+
+Actions:
+- inspect `controller/controllers/explorer_state.dart` and how `ExplorerOps` uses it
+- separate reusable explorer state from controller-only concerns if that split is clean
+- move the reusable part to a neutral location and update imports
+
+Done definition:
+- `lib/model/services/explorer_ops.dart` no longer imports `package:cwatch/controller/`
+- explorer state ownership is clearer than it is today
+
+Verification:
+- `rg -n "package:cwatch/controller/" lib/model`
+- `flutter analyze`
+- manual smoke check of explorer load/search/navigation behavior
 
 Why this is next:
 - it is the next clear `model -> view` dependency in the explorer hotspot
@@ -186,9 +207,9 @@ Verification:
 
 Result of re-scope:
 - `path_utils.dart` was purely non-UI and moved cleanly to `lib/model/shared/services/path_utils.dart`
-- `model -> view` dependency remains in explorer selection logic
-- `model -> controller` dependency remains in explorer state ownership
-- the next batch should focus on `selection_controller.dart` ownership, not a broader explorer refactor
+- selection state split cleanly into non-UI core plus view-side input handling
+- the main remaining explorer dependency problem is state ownership via `ExplorerState`
+- the next batch should focus on `ExplorerState`, not a broader explorer refactor
 
 ## Later Hotspots
 
@@ -227,6 +248,8 @@ Done definition for starting this hotspot:
 | 0 | Rules and baseline queries | active | rules are documented and queries are reusable |
 | 1.1 | Explorer path utilities | completed | non-UI path helpers no longer live under `view/` |
 | 1.2 | Explorer re-scope | completed | next explorer task is written from what we learned in 1.1 |
+| 1.3 | Explorer selection ownership | completed | model no longer depends on view-local selection logic |
+| 1.4 | Explorer state ownership | pending | model no longer depends on controller-owned explorer state |
 | 2 | Shell/module hotspot | queued | re-scoped after explorer cleanup |
 | 3 | Docker hotspot | queued | re-scoped after earlier hotspots |
 | 4 | Servers/Kubernetes hotspot | queued | re-scoped after earlier hotspots |
