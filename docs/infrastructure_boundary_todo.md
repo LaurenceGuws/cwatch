@@ -98,7 +98,7 @@ Why this wins:
 - it lets us prove the policy split without reopening the heavier SSH or dual-backend Kubernetes paths first
 
 ## Task 19.2: define the Docker infrastructure boundary target
-Status: pending
+Status: completed
 
 Goal:
 - describe what part of the current Docker path is transport, what part is parsing, and what part is capability/degradation policy
@@ -111,3 +111,111 @@ Questions to answer:
 Done definition:
 - the first Docker infra boundary is explicit
 - one concrete implementation batch is chosen
+
+Result:
+- the first Docker infrastructure boundary is now explicit
+
+### Current responsibility mix in `DockerClientService`
+
+`DockerClientService` currently does three jobs at once:
+1. transport execution
+- building `docker` command arguments
+- running the process
+- applying timeout behavior
+
+2. output parsing
+- parsing Docker context JSON lines
+- parsing container JSON lines and label maps
+- parsing typed Docker model values like `StartedAt`
+
+3. capability/degradation policy
+- detecting missing Docker CLI through `ProcessException`
+- converting missing CLI into a capability-style exception message
+- converting timeout behavior into user-consumable failure text
+
+That is the real boundary smell.
+
+### What should stay stable in the first Docker infra batch
+
+These areas should stay stable for the first pass:
+- Docker feature views/controllers
+- current capability-aware UI behavior in Docker picker/dashboard surfaces
+- current Docker model types
+- current feature-level remediation wording
+
+Why they stay stable:
+- the first infra batch should not spread into Docker feature presentation again
+- the problem to solve first is the service boundary, not the Docker UI state model
+
+### Proposed target boundary
+
+For the first pass, split the current service responsibility into:
+- transport seam
+  - execute Docker CLI requests and return raw `ProcessResult`/raw output
+- parsing seam
+  - convert raw Docker CLI output into typed Docker models
+- capability policy seam
+  - classify missing CLI / timeout / command failure into explicit Docker capability/infrastructure failures
+
+### What should remain in `DockerClientService` after the first pass
+
+`DockerClientService` should remain the Docker-facing gateway used by higher layers, but it should stop owning all of the low-level work directly.
+
+It should own:
+- operation-level API shape (`listContexts`, `listContainers`, etc.)
+- Docker-specific argument selection for those operations
+- combining lower seams into one Docker gateway result for callers
+
+It should not keep owning:
+- inline JSON-line parsing implementation for every operation
+- low-level capability classification logic mixed into each method
+
+### What should remain feature-owned
+
+Feature layers should still own:
+- how unavailable Docker capability is shown to the user
+- whether an unavailable state becomes a picker empty state, warning, or disabled action
+- Docker-specific remediation wording and breadcrumbs
+
+They should not need to know:
+- how missing CLI is detected
+- how process execution differs from parse failure
+- how timeout failure is classified
+
+### First implementation batch
+
+The first Docker infra batch should extract:
+- Docker CLI execution into a narrow runner/executor seam
+- Docker CLI failure classification into a small typed capability/infrastructure error seam
+
+Parsing can remain in `DockerClientService` for that first batch.
+
+Why this is the right first cut:
+- it removes the most repeated policy logic first
+- it gives a clearer distinction between:
+  - CLI unavailable
+  - command failed
+  - timed out
+- it avoids splitting everything at once
+- it preserves the current tests as a useful floor
+
+## Task 19.3: implement the first Docker transport/capability split
+Status: pending
+
+Goal:
+- extract a narrow Docker CLI execution/failure-classification seam while keeping the Docker-facing gateway API stable
+
+First code targets:
+- `DockerClientService`
+- a new Docker CLI executor/failure type seam under `lib/model/features/docker/services/`
+- `docker_client_service_test.dart` updates/expansion around typed failure behavior
+
+What should stay stable in this batch:
+- Docker feature views/controllers
+- Docker model parsing shape
+- capability-aware UI rendering behavior
+
+Done definition:
+- `DockerClientService` no longer owns raw process execution and missing-CLI/timeout classification inline in each method
+- the new seam makes transport failure categories explicit
+- existing Docker caller behavior stays stable from the feature layer perspective
