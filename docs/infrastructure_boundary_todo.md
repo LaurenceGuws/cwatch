@@ -535,3 +535,30 @@ Why this is the right first cut:
 
 Next step:
 - Task 19.9: implement the first SSH provider-policy split
+
+## Task 19.10: re-scope the next infrastructure batch
+Status: completed
+
+Goal:
+- choose the highest-value next infrastructure boundary after the first Docker, Kubernetes, and SSH splits
+
+Candidates considered:
+- deeper Docker parsing extraction
+- deeper Kubernetes transport/parser split
+- SSH runtime/failure-policy cleanup
+
+Result:
+- the next infrastructure seam should remain on SSH, specifically runtime/failure-policy cleanup
+
+Why this wins:
+- Docker now has a usable transport/failure seam and its remaining parsing tail is mostly local to one gateway
+- Kubernetes now has a usable backend-policy seam and its remaining transport/parser tail is still narrower than the SSH ambiguity
+- SSH still has broader cross-cutting infrastructure ambiguity around:
+  - runtime cache ownership
+  - provider-specific failure mapping
+  - timeout/runtime variant behavior
+  - capability-aware degradation ownership between infra and callers
+- that makes SSH runtime/failure policy the stronger remaining system-wide seam
+
+Next step:
+- Task 19.11: define the SSH runtime/failure-policy target
