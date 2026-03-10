@@ -353,6 +353,29 @@ Verification:
 - `flutter test test/model/services/path_loading_service_test.dart`
 - `flutter analyze`
 
+### Task 13.10: add `terminal_session_controller_test.dart`
+Status: completed
+
+What landed:
+- [terminal_session_controller_test.dart](/home/home/personal/cwatch/test/controller/controllers/terminal_session_controller_test.dart)
+
+Coverage added:
+- session start wiring through `RemoteShellService.createTerminalSession`
+- UTF-8 output forwarding
+- exit-code callback forwarding
+- write/resize passthrough to the active session
+- reset/dispose teardown behavior
+- replacing a session cancels the previous output subscription
+
+Why this matters:
+- it locks down the shared terminal lifecycle seam without widget complexity
+- it covers behavior used by both SSH-backed terminal tabs and other terminal-driven flows
+- it gives later session/lifecycle cleanup a regression floor before touching UI
+
+Verification:
+- `flutter test test/controller/controllers/terminal_session_controller_test.dart`
+- `flutter analyze`
+
 ## Test Organization
 
 Recommended structure:
