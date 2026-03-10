@@ -427,3 +427,111 @@ Why this wins:
 
 Next step:
 - Task 19.8: define the SSH infrastructure boundary target
+
+## Task 19.8: define the SSH infrastructure boundary target
+Status: completed
+
+Goal:
+- describe what part of the current SSH path is provider selection, what part is runtime transport/session ownership, and what part is failure/capability policy
+
+Questions to answer:
+- what should remain in `SshShellFactory`
+- what should move to a narrower provider/runtime seam
+- what should remain feature-owned in server/docker/editor/explorer call sites
+
+Done definition:
+- the first SSH infra boundary is explicit
+- one concrete implementation batch is chosen
+
+Result:
+- the first SSH infrastructure boundary is now explicit
+
+### Current responsibility mix in `SshShellFactory`
+
+`SshShellFactory` currently does three jobs at once:
+1. provider selection policy
+- choosing builtin vs process SSH from `sshPreferences.clientBackend`
+- deciding whether timeout-specific builtin transport is needed
+
+2. runtime transport/session ownership
+- constructing builtin shell services through `BuiltInSshKeyService`
+- constructing process shell services
+- caching provider instances by derived signatures
+- resetting cached instances on settings changes
+
+3. infrastructure policy inputs
+- threading auth coordinator, known-hosts handling, host-key bindings, observer wiring, and timeout policy into the runtime
+- implicitly deciding which provider capabilities exist for the caller
+
+That is the main SSH boundary smell.
+
+### What should stay stable in the first SSH infra batch
+
+These areas should stay stable for the first pass:
+- feature call sites that ask for `RemoteShellService`
+- SSH auth dialog ownership and built-in auth coordination behavior already checkpointed earlier
+- current `RemoteShellService` caller-facing contract
+- current feature-level unavailable/error wording
+
+Why they stay stable:
+- the first SSH infra batch should not reopen shell/view ownership or auth UI flows
+- the problem to solve first is provider/runtime policy ownership, not session UI or terminal/editor behavior
+
+### Proposed target boundary
+
+For the first pass, split the current SSH responsibility into:
+- provider policy seam
+  - choose builtin vs process transport from settings/capability inputs
+  - classify which provider/runtime variant is required
+- runtime factory seam
+  - build/cache concrete `RemoteShellService` instances for the chosen provider/runtime signature
+- feature policy seam
+  - keep feature layers responsible only for how unavailable/error states are surfaced
+
+### What should remain in `SshShellFactory` after the first pass
+
+`SshShellFactory` should remain the SSH-facing gateway used by higher layers, but it should stop owning provider-selection and runtime caching as one inline block.
+
+It should own:
+- operation-level API shape (`forHost(...)`, `handleSettingsChanged(...)`)
+- combining lower seams into one shell gateway for callers
+- preserving the current caller-facing `RemoteShellService` contract
+
+It should not keep owning:
+- inline provider-selection branching and signature classification
+- inline runtime cache lifecycle for every provider variant
+
+### What should remain feature-owned
+
+Feature layers should still own:
+- how SSH capability absence or runtime failures are shown to the user
+- whether unavailable state becomes a disabled action, breadcrumb, or warning
+- domain-specific remediation wording
+
+They should not need to know:
+- how builtin vs process provider is selected
+- how runtime caching is implemented
+- how timeout variants differ from default provider instances
+
+### First implementation batch
+
+The first SSH infra batch should extract:
+- provider selection/signature classification into a narrow selector seam
+- one explicit provider-runtime request shape carrying:
+  - selected backend
+  - timeout variant
+  - signature inputs needed for cache selection
+
+Runtime construction/caching can remain in `SshShellFactory` for that first batch.
+
+Why this is the right first cut:
+- it removes the densest policy branching first
+- it gives a cleaner distinction between:
+  - provider choice
+  - runtime instance ownership
+  - feature-level unavailable behavior
+- it avoids reopening auth coordination and transport implementation at the same time
+- it preserves current callers and tests as the useful floor
+
+Next step:
+- Task 19.9: implement the first SSH provider-policy split
