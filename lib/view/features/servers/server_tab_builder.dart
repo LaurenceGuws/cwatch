@@ -9,6 +9,7 @@ import 'package:cwatch/controller/di/bindings/settings_binding.dart';
 import 'package:cwatch/controller/di/bindings/terminal_tab_binding.dart';
 import 'package:cwatch/controller/di/bindings/trash_tab_binding.dart';
 import 'package:cwatch/model/core/models/tab_state.dart';
+import 'package:cwatch/model/features/servers/models/server_tab_data.dart';
 import 'package:cwatch/model/models/explorer_context.dart';
 import 'package:cwatch/model/models/server_action.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
@@ -53,7 +54,7 @@ class ServerTabBuilder {
   }) {
     final controller = CompositeTabOptionsController();
     final effectiveContext = explorerContext ?? ExplorerContext.server(host);
-    final tab = WorkspaceTab(
+    return WorkspaceTab(
       id: id,
       title: customName ?? host.name,
       label: customName ?? host.name,
@@ -105,7 +106,6 @@ class ServerTabBuilder {
         ),
       ),
     );
-    return tab;
   }
 
   WorkspaceTab editorTab({
@@ -335,16 +335,4 @@ class ServerTabBuilder {
       ),
     );
   }
-}
-
-class ServerTabData {
-  const ServerTabData({
-    required this.host,
-    required this.action,
-    required this.persistedState,
-  });
-
-  final SshHost host;
-  final ServerAction action;
-  final TabState persistedState;
 }

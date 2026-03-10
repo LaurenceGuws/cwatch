@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
+import 'package:cwatch/model/features/servers/models/server_tab_data.dart';
 import 'package:cwatch/model/models/custom_ssh_host.dart';
 import 'package:cwatch/model/models/explorer_context.dart';
 import 'package:cwatch/model/models/server_action.dart';
@@ -28,9 +29,9 @@ import 'package:cwatch/view/core/tabs/tab_bar_visibility.dart';
 import 'servers/host_list.dart';
 import 'servers/server_models.dart';
 import 'servers/servers_widgets.dart';
+import 'server_tab_builder.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/tab_chip.dart';
 import 'package:cwatch/controller/core/workspace/tab_options.dart';
-import 'package:cwatch/controller/controllers/server_tab_builder.dart';
 import 'server_workspace_controller.dart';
 import 'package:cwatch/view/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/view/core/widgets/keep_alive.dart';
@@ -42,7 +43,6 @@ import 'package:cwatch/view/features/settings/settings/server_list_settings_cont
 import 'package:cwatch/view/features/settings/settings/ssh_settings_controls.dart';
 import 'package:cwatch/model/shared/services/host_shell_policy.dart';
 import 'package:cwatch/controller/di/bindings/settings_binding.dart';
-import 'package:cwatch/controller/di/bindings/server_tab_builder_binding.dart';
 import 'package:cwatch/controller/di/bindings/ssh_shell_factory_binding.dart';
 
 class ServerWorkspaceView extends StatefulWidget {
@@ -375,8 +375,7 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
       uiAdapter: settingsUiAdapter,
     );
 
-    final tabBuilderBinding = const ServerTabBuilderBinding();
-    _tabBuilder = tabBuilderBinding.create(
+    _tabBuilder = ServerTabBuilder(
       settingsController: widget.settingsController,
       trashManager: _trashManager,
       shellServiceForHost: (host) => _shellFactory.forHost(host),
@@ -813,7 +812,13 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
     final hosts = await _workspaceController.loadHosts();
     if (!mounted) return;
     await _workspaceController.restore(
-      builder: _tabBuilder,
+      buildEmptyTab: _tabBuilder.emptyTab,
+      buildExplorerTab: _tabBuilder.explorerTab,
+      buildEditorTab: _tabBuilder.editorTab,
+      buildTerminalTab: _tabBuilder.terminalTab,
+      buildResourcesTab: _tabBuilder.resourcesTab,
+      buildConnectivityTab: _tabBuilder.connectivityTab,
+      buildTrashTab: _tabBuilder.trashTab,
       hosts: hosts,
       onCloseTab: () {
         if (_selectedTabIndex >= 0 && _selectedTabIndex < _tabs.length) {

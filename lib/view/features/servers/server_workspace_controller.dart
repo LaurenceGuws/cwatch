@@ -3,14 +3,13 @@ import 'package:cwatch/model/core/models/tab_state.dart';
 import 'package:cwatch/controller/core/workspace/tabbed_workspace_controller.dart';
 import 'package:cwatch/controller/core/workspace/workspace_persistence.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
+import 'package:cwatch/model/features/servers/models/server_tab_data.dart';
 import 'package:cwatch/model/models/explorer_context.dart';
 import 'package:cwatch/model/models/server_action.dart';
 import 'package:cwatch/model/models/server_workspace_state.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
-
-import 'package:cwatch/controller/controllers/server_tab_builder.dart';
 import 'servers/server_models.dart';
 
 class ServerWorkspaceController extends TabbedWorkspaceController {
@@ -53,7 +52,53 @@ class ServerWorkspaceController extends TabbedWorkspaceController {
   }
 
   Future<void> restore({
-    required ServerTabBuilder builder,
+    required WorkspaceTab Function({required String id, required Widget body})
+    buildEmptyTab,
+    required WorkspaceTab Function({
+      required String id,
+      required SshHost host,
+      required Function(String path, String content) onOpenEditor,
+      required Function(SshHost host, String? dir) onOpenTerminal,
+      required Function(ExplorerContext context) onOpenTrash,
+      ExplorerContext? explorerContext,
+      String? initialPath,
+      String? customName,
+    })
+    buildExplorerTab,
+    required WorkspaceTab Function({
+      required String id,
+      required SshHost host,
+      required String path,
+      String? initialContent,
+    })
+    buildEditorTab,
+    required WorkspaceTab Function({
+      required String id,
+      required SshHost host,
+      required VoidCallback onClose,
+      required Function(String path, String content) onOpenEditor,
+      String? initialDirectory,
+    })
+    buildTerminalTab,
+    required WorkspaceTab Function({
+      required String id,
+      required SshHost host,
+      String? customName,
+    })
+    buildResourcesTab,
+    required WorkspaceTab Function({
+      required String id,
+      required SshHost host,
+      String? customName,
+    })
+    buildConnectivityTab,
+    required WorkspaceTab Function({
+      required String id,
+      required SshHost host,
+      ExplorerContext? explorerContext,
+      String? customName,
+    })
+    buildTrashTab,
     required List<SshHost> hosts,
     required VoidCallback onCloseTab,
     required Function(SshHost host, String path, String content) onOpenEditor,
@@ -73,7 +118,13 @@ class ServerWorkspaceController extends TabbedWorkspaceController {
       final tab = _createTabFromState(
         state: tabState,
         host: host,
-        builder: builder,
+        buildEmptyTab: buildEmptyTab,
+        buildExplorerTab: buildExplorerTab,
+        buildEditorTab: buildEditorTab,
+        buildTerminalTab: buildTerminalTab,
+        buildResourcesTab: buildResourcesTab,
+        buildConnectivityTab: buildConnectivityTab,
+        buildTrashTab: buildTrashTab,
         onCloseTab: onCloseTab,
         onOpenEditor: onOpenEditor,
         onOpenTerminal: onOpenTerminal,
@@ -146,7 +197,53 @@ class ServerWorkspaceController extends TabbedWorkspaceController {
   WorkspaceTab? _createTabFromState({
     required TabState state,
     required SshHost host,
-    required ServerTabBuilder builder,
+    required WorkspaceTab Function({required String id, required Widget body})
+    buildEmptyTab,
+    required WorkspaceTab Function({
+      required String id,
+      required SshHost host,
+      required Function(String path, String content) onOpenEditor,
+      required Function(SshHost host, String? dir) onOpenTerminal,
+      required Function(ExplorerContext context) onOpenTrash,
+      ExplorerContext? explorerContext,
+      String? initialPath,
+      String? customName,
+    })
+    buildExplorerTab,
+    required WorkspaceTab Function({
+      required String id,
+      required SshHost host,
+      required String path,
+      String? initialContent,
+    })
+    buildEditorTab,
+    required WorkspaceTab Function({
+      required String id,
+      required SshHost host,
+      required VoidCallback onClose,
+      required Function(String path, String content) onOpenEditor,
+      String? initialDirectory,
+    })
+    buildTerminalTab,
+    required WorkspaceTab Function({
+      required String id,
+      required SshHost host,
+      String? customName,
+    })
+    buildResourcesTab,
+    required WorkspaceTab Function({
+      required String id,
+      required SshHost host,
+      String? customName,
+    })
+    buildConnectivityTab,
+    required WorkspaceTab Function({
+      required String id,
+      required SshHost host,
+      ExplorerContext? explorerContext,
+      String? customName,
+    })
+    buildTrashTab,
     required VoidCallback onCloseTab,
     required Function(SshHost host, String path, String content) onOpenEditor,
     required Function(SshHost host, String? dir) onOpenTerminal,
@@ -158,7 +255,7 @@ class ServerWorkspaceController extends TabbedWorkspaceController {
 
     switch (action) {
       case ServerAction.fileExplorer:
-        return builder.explorerTab(
+        return buildExplorerTab(
           id: state.id,
           host: host,
           customName: _customName(state),
@@ -168,13 +265,13 @@ class ServerWorkspaceController extends TabbedWorkspaceController {
           onOpenTrash: onOpenTrash,
         );
       case ServerAction.editor:
-        return builder.editorTab(
+        return buildEditorTab(
           id: state.id,
           host: host,
           path: state.path ?? state.title ?? '',
         );
       case ServerAction.terminal:
-        return builder.terminalTab(
+        return buildTerminalTab(
           id: state.id,
           host: host,
           initialDirectory: state.path,
@@ -182,13 +279,13 @@ class ServerWorkspaceController extends TabbedWorkspaceController {
           onOpenEditor: (path, content) => onOpenEditor(host, path, content),
         );
       case ServerAction.resources:
-        return builder.resourcesTab(
+        return buildResourcesTab(
           id: state.id,
           host: host,
           customName: _customName(state),
         );
       case ServerAction.connectivity:
-        return builder.connectivityTab(
+        return buildConnectivityTab(
           id: state.id,
           host: host,
           customName: _customName(state),
@@ -196,13 +293,13 @@ class ServerWorkspaceController extends TabbedWorkspaceController {
       case ServerAction.portForward:
         return null;
       case ServerAction.trash:
-        return builder.trashTab(
+        return buildTrashTab(
           id: state.id,
           host: host,
           customName: _customName(state),
         );
       case ServerAction.empty:
-        return builder.emptyTab(id: state.id, body: hostListBuilder(state.id));
+        return buildEmptyTab(id: state.id, body: hostListBuilder(state.id));
     }
   }
 

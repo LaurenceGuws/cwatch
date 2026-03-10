@@ -250,9 +250,9 @@ Current next-step note:
 - server/WSL binding ownership reached a checkpoint (`docs/server_wsl_binding_ownership_todo.md`)
 - UI-adapter dialog/content ownership reached a checkpoint (`docs/ui_adapter_dialog_ownership_todo.md`)
 - `lib/model` now has no `package:cwatch/controller/` imports
-- tab-assembly ownership is in progress under the shell/framework vs removable feature-module boundary (`docs/tab_assembly_ownership_todo.md`)
-- WSL established the pattern: feature-specific tab assembly belongs to the feature module, while workspace restoration logic should depend on narrow callbacks/contracts
-- the next dependency-direction batch in that hotspot is server tab assembly ownership
+- tab-assembly ownership reached a checkpoint under the shell/framework vs removable feature-module boundary (`docs/tab_assembly_ownership_todo.md`)
+- WSL and server now establish the pattern: feature-specific tab assembly belongs to the feature module, while workspace restoration logic should depend on narrow callbacks/contracts
+- the next dependency-direction batch should move to the next remaining shell/framework vs feature-module seam rather than more tab-builder cleanup
 
 ### Docker feature shell
 Track here when ready:

@@ -99,7 +99,7 @@ Result of Task 8.1:
 - `WslTabData` moved to `lib/model/features/wsl/models/wsl_tab_data.dart` because it is persistence/state metadata, not feature-view composition
 
 ### Task 8.3: apply the same ownership rule to server tab assembly
-Status: queued
+Status: completed
 
 Why this is next:
 - the WSL pass established the rule with the smallest seam
@@ -122,6 +122,20 @@ Verification:
 - `flutter analyze`
 - manual smoke check of server tab creation/restoration paths
 
+Result of Task 8.3:
+- `ServerTabBuilder` was also feature-module tab composition and moved to `lib/view/features/servers/server_tab_builder.dart`
+- `ServerWorkspaceController` now restores tabs through narrow builder callbacks instead of naming a concrete feature builder type
+- `ServerTabData` moved to `lib/model/features/servers/models/server_tab_data.dart` because it is persistence/state metadata shared by feature and workspace logic
+
+### Tab-assembly hotspot checkpoint
+Status: completed
+
+Outcome:
+- WSL and server tab assembly now follow the same ownership rule
+- feature-specific tab composition lives with the feature module
+- workspace restore logic depends on explicit tab-building callbacks instead of controller-owned feature builders
+- the remaining tab/workspace layer now reads more clearly as reusable shell/framework infrastructure rather than mixed feature composition
+
 ## Later Work In This Hotspot
 
 Do not expand these until Task 8.1 has landed.
@@ -142,7 +156,8 @@ Track here when ready:
 | --- | --- | --- | --- |
 | 8.1 | WSL tab assembly ownership | completed | WSL tab assembly is clearly classified as shell/framework, feature-module, or explicit contract code |
 | 8.2 | Tab assembly re-scope | completed | next step is written from what 8.1 proves |
-| 8.3 | Server tab assembly ownership | queued | server tab assembly is no longer an ambiguous controller-owned feature composer |
+| 8.3 | Server tab assembly ownership | completed | server tab assembly is no longer an ambiguous controller-owned feature composer |
+| 8.4 | Tab-assembly checkpoint | completed | WSL/server tab composition rule is explicit and reusable for later module cleanup |
 
 ## Completion Metric
 
