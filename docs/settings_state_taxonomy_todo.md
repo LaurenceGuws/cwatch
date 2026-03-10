@@ -508,6 +508,31 @@ Verification:
 - `flutter analyze`
 - result: no issues found
 
+### Task 12.22: introduce a Docker configuration/preferences seam
+Status: completed
+
+What landed:
+- [docker_preferences.dart](/home/home/personal/cwatch/lib/model/models/docker_preferences.dart)
+- [app_settings.dart](/home/home/personal/cwatch/lib/model/models/app_settings.dart) now stores Docker configuration under `dockerPreferences`
+- active Docker/settings consumers now read the grouped seam instead of root-level flat Docker config fields:
+  - [docker_view.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view.dart)
+  - [settings_view.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/settings_view.dart)
+  - existing tail-line consumers continue reading through `dockerLogsTailClamped`, which now resolves from `dockerPreferences`
+
+Docker cluster now grouped under one model:
+- remote host endpoints
+- selected context
+- log tail size
+
+Result:
+- the remaining live Docker config is no longer spread across root-level `AppSettings` fields
+- Docker feature settings now update through one explicit grouped seam
+- the infra-config tail in `AppSettings` is materially reduced again
+
+Verification:
+- `flutter analyze`
+- result: no issues found
+
 ### Task 12.8: scope `settingsTabIndex` removal from root settings
 Status: completed
 

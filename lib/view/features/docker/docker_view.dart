@@ -261,9 +261,16 @@ class _DockerViewState extends State<DockerView> {
                 ),
                 const Divider(),
                 DockerSettingsControls(
-                  logsTail: widget.settingsController.settings.dockerLogsTail,
+                  logsTail:
+                      widget.settingsController.settings.dockerPreferences.logsTail,
                   onLogsTailChanged: (value) => widget.settingsController
-                      .update((s) => s.copyWith(dockerLogsTail: value)),
+                      .update(
+                        (s) => s.copyWith(
+                          dockerPreferences: s.dockerPreferences.copyWith(
+                            logsTail: value,
+                          ),
+                        ),
+                      ),
                 ),
               ],
             ),

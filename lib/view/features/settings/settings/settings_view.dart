@@ -212,7 +212,12 @@ class _SettingsViewState extends State<SettingsView>
                           logsTail: settings.dockerLogsTailClamped,
                           onLogsTailChanged: (value) => _controller.update(
                             (current) =>
-                                current.copyWith(dockerLogsTail: value),
+                                current.copyWith(
+                                  dockerPreferences:
+                                      current.dockerPreferences.copyWith(
+                                        logsTail: value,
+                                      ),
+                                ),
                           ),
                         ),
                         KubernetesSettingsTab(

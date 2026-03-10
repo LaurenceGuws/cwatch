@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'custom_ssh_host.dart';
+import 'docker_preferences.dart';
 import 'docker_workspace_state.dart';
 import 'editor_preferences.dart';
 import 'explorer_preferences.dart';
@@ -37,10 +38,8 @@ class AppSettings {
     this.wslWorkspace,
     this.shortcutBindings = const {},
     this.editorPreferences = const EditorPreferences(),
-    this.dockerRemoteHosts = const [],
-    this.dockerSelectedContext,
+    this.dockerPreferences = const DockerPreferences(),
     this.dockerWorkspace,
-    this.dockerLogsTail = 200,
     this.terminalPreferences = const TerminalPreferences(),
     this.fileTransferUploadConcurrency = 2,
     this.fileTransferDownloadConcurrency = 2,
@@ -66,16 +65,15 @@ class AppSettings {
   final WslWorkspaceState? wslWorkspace;
   final Map<String, String> shortcutBindings;
   final EditorPreferences editorPreferences;
-  final List<String> dockerRemoteHosts;
-  final String? dockerSelectedContext;
+  final DockerPreferences dockerPreferences;
   final DockerWorkspaceState? dockerWorkspace;
-  final int dockerLogsTail;
   final TerminalPreferences terminalPreferences;
   final int fileTransferUploadConcurrency;
   final int fileTransferDownloadConcurrency;
   final ExplorerPreferences explorerPreferences;
 
-  int get dockerLogsTailClamped => _sanitizeTailLines(dockerLogsTail);
+  int get dockerLogsTailClamped =>
+      _sanitizeTailLines(dockerPreferences.logsTail);
 
   AppSettings copyWith({
     ThemeMode? themeMode,
@@ -97,10 +95,8 @@ class AppSettings {
     WslWorkspaceState? wslWorkspace,
     Map<String, String>? shortcutBindings,
     EditorPreferences? editorPreferences,
-    List<String>? dockerRemoteHosts,
-    String? dockerSelectedContext,
+    DockerPreferences? dockerPreferences,
     DockerWorkspaceState? dockerWorkspace,
-    int? dockerLogsTail,
     TerminalPreferences? terminalPreferences,
     int? fileTransferUploadConcurrency,
     int? fileTransferDownloadConcurrency,
@@ -127,11 +123,16 @@ class AppSettings {
       wslWorkspace: wslWorkspace ?? this.wslWorkspace,
       shortcutBindings: shortcutBindings ?? this.shortcutBindings,
       editorPreferences: editorPreferences ?? this.editorPreferences,
-      dockerRemoteHosts: dockerRemoteHosts ?? this.dockerRemoteHosts,
-      dockerSelectedContext:
-          dockerSelectedContext ?? this.dockerSelectedContext,
+      dockerPreferences: DockerPreferences(
+        remoteHosts:
+            (dockerPreferences ?? this.dockerPreferences).remoteHosts,
+        selectedContext:
+            (dockerPreferences ?? this.dockerPreferences).selectedContext,
+        logsTail: _sanitizeTailLines(
+          (dockerPreferences ?? this.dockerPreferences).logsTail,
+        ),
+      ),
       dockerWorkspace: dockerWorkspace ?? this.dockerWorkspace,
-      dockerLogsTail: _sanitizeTailLines(dockerLogsTail ?? this.dockerLogsTail),
       terminalPreferences: terminalPreferences ?? this.terminalPreferences,
       fileTransferUploadConcurrency: _sanitizeTransferConcurrency(
         fileTransferUploadConcurrency ?? this.fileTransferUploadConcurrency,
@@ -187,6 +188,7 @@ class AppSettings {
     final sshJson = asJsonMap(json['sshPreferences']);
     final kubernetesJson = asJsonMap(json['kubernetesPreferences']);
     final editorJson = asJsonMap(json['editorPreferences']);
+    final dockerJson = asJsonMap(json['dockerPreferences']);
     final terminalJson = asJsonMap(json['terminalPreferences']);
     final explorerJson = asJsonMap(json['explorerPreferences']);
 
@@ -313,12 +315,17 @@ class AppSettings {
         fontSize: (editorJson?['fontSize'] as num?)?.toDouble() ?? 14,
         lineHeight: (editorJson?['lineHeight'] as num?)?.toDouble() ?? 1.35,
       ),
-      dockerRemoteHosts:
-          (json['dockerRemoteHosts'] as List<dynamic>?)
-              ?.whereType<String>()
-              .toList() ??
-          const [],
-      dockerSelectedContext: json['dockerSelectedContext'] as String?,
+      dockerPreferences: DockerPreferences(
+        remoteHosts:
+            (dockerJson?['remoteHosts'] as List<dynamic>?)
+                ?.whereType<String>()
+                .toList() ??
+            const [],
+        selectedContext: dockerJson?['selectedContext'] as String?,
+        logsTail: _sanitizeTailLines(
+          (dockerJson?['logsTail'] as num?)?.toInt() ?? 200,
+        ),
+      ),
       dockerWorkspace: () {
         final raw = json['dockerWorkspace'];
         if (raw is Map<String, dynamic>) {
@@ -354,9 +361,6 @@ class AppSettings {
       fileTransferDownloadConcurrency: _sanitizeTransferConcurrency(
         (json['fileTransferDownloadConcurrency'] as num?)?.toInt() ?? 2,
       ),
-      dockerLogsTail: _sanitizeTailLines(
-        (json['dockerLogsTail'] as num?)?.toInt() ?? 200,
-      ),
       explorerPreferences: ExplorerPreferences(
         rowHeight: _sanitizeExplorerRowHeight(
           (explorerJson?['rowHeight'] as num?)?.toDouble() ?? 36,
@@ -369,6 +373,7 @@ class AppSettings {
   Map<String, dynamic> toJson() {
     final shell = shellPreferences;
     final editor = editorPreferences;
+    final docker = dockerPreferences;
     final terminal = terminalPreferences;
     final explorer = explorerPreferences;
     return {
@@ -409,10 +414,12 @@ class AppSettings {
         'fontSize': editor.fontSize,
         'lineHeight': editor.lineHeight,
       },
-
-      if (dockerSelectedContext != null)
-        'dockerSelectedContext': dockerSelectedContext,
-      'dockerLogsTail': dockerLogsTailClamped,
+      'dockerPreferences': {
+        'remoteHosts': docker.remoteHosts,
+        if (docker.selectedContext != null)
+          'selectedContext': docker.selectedContext,
+        'logsTail': dockerLogsTailClamped,
+      },
       'terminalPreferences': {
         if (terminal.fontFamily != null) 'fontFamily': terminal.fontFamily,
         'fontSize': terminal.fontSize,
