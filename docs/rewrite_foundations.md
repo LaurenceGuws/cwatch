@@ -241,6 +241,14 @@ Why:
 - kubernetes still has a mixed top-level feature shell in `kubernetes_context_list.dart`
 - it is the cleanest next proof before shifting back to broader infrastructure policy cleanup
 
+Current recommendation after the Kubernetes checkpoint:
+- shift back to infrastructure boundary cleanup
+
+Why:
+- the planned feature-slice proving sequence is now complete enough
+- the next high-value structural work is no longer top-level feature shell extraction
+- the strongest remaining system-wide ambiguity is still where transport, parsing, capability policy, retries, and user-facing degradation rules are split across Docker, Kubernetes, and SSH paths
+
 ### Focus Area E: infrastructure boundary cleanup
 Questions to answer:
 - Where are transport, parsing, and policy mixed today?
