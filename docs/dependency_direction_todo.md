@@ -245,7 +245,7 @@ Current next-step note:
 - server/WSL binding ownership reached a checkpoint (`docs/server_wsl_binding_ownership_todo.md`)
 - UI-adapter dialog/content ownership reached a checkpoint (`docs/ui_adapter_dialog_ownership_todo.md`)
 - `lib/model` now has no `package:cwatch/controller/` imports
-- the next dependency-direction batch should be re-scoped from the remaining unresolved seams
+- the next dependency-direction batch is tab-assembly ownership, tracked in `docs/tab_assembly_ownership_todo.md`
 
 ### Docker feature shell
 Track here when ready:
@@ -287,7 +287,7 @@ Current state:
 - explorer controller/adapter ownership reached a checkpoint
 - server/WSL binding ownership reached a checkpoint
 - UI-adapter dialog/content ownership reached a checkpoint
-- the next dependency-direction work should be re-scoped from the remaining unresolved seams
+- the next dependency-direction work is tab-assembly ownership
 
 ## Completion Metric
 
