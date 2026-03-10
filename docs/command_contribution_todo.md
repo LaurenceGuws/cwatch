@@ -100,7 +100,7 @@ Why the other candidates wait:
   - premature; command contribution is the next clear shared-shell seam
 
 ## Task 14.53: define the shared command contribution contract
-Status: queued
+Status: completed
 
 Goal:
 - describe what the shell owns in command contribution infrastructure and what feature modules own in actual command definitions
@@ -114,3 +114,65 @@ Done definition:
 - shared command contribution responsibilities are explicit
 - feature-owned command responsibilities are explicit
 - one concrete normalization batch is chosen
+
+Result:
+- the shared command contribution contract is now explicit around:
+  - `CommandPaletteRegistry`
+  - `CommandPaletteHandle`
+  - `HomeShellCommandPalette`
+  - feature-local module entry loaders
+
+### Shared shell responsibilities
+
+The shared command infrastructure should own:
+- command palette registry and handle lifecycle
+- shell-global command entries such as navigation and chrome controls
+- generic command-entry shaping for repeated shell-owned patterns
+
+### Feature responsibilities
+
+Feature modules should own:
+- domain-specific command labels and handlers
+- availability checks tied to feature state
+- richer commands that depend on domain-specific workflow logic
+- module-specific section navigation entries where that navigation is part of the feature surface
+
+### Current repeated integration smell
+
+The clearest repeated feature-local command assembly is generic tab command contribution:
+- tab option entries from `tab.optionsController`
+- `Close tab`
+- `New tab`
+- sometimes `Rename tab`
+
+Current concrete repeated cases:
+- `docker_view.dart`
+- `server_workspace_view.dart`
+- `kubernetes_context_list.dart`
+
+This is a better first seam than normalizing all feature command loaders because:
+- it is already structurally shared
+- it maps directly to the earlier queued tab-shell command follow-up
+- it avoids flattening feature-specific settings/section commands
+
+### Explicitly deferred
+
+- settings tab-switching command entries
+- feature-specific picker/open-host/open-context command entries
+- command palette generation from annotations
+- command/context-menu unification
+
+## Task 14.54: scope generic tab command contribution normalization
+Status: queued
+
+Goal:
+- define the smallest shared helper for repeated tab command entries without swallowing feature-specific command loaders
+
+First code targets:
+- `docker_view.dart`
+- `server_workspace_view.dart`
+- `kubernetes_context_list.dart`
+
+Done definition:
+- the first generic tab-command normalization batch is chosen
+- the helper stays narrower than a full command framework

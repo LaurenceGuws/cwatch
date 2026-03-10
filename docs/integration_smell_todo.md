@@ -207,6 +207,19 @@ Why it matters:
 Queued question:
 - what belongs in canonical shared command contribution infrastructure vs feature-owned command entries and loaders
 
+Current result:
+- the shared command contribution contract is now explicit around:
+  - `CommandPaletteRegistry`
+  - `CommandPaletteHandle`
+  - `HomeShellCommandPalette`
+  - feature-local module loaders
+- the first concrete repeated seam is generic tab command contribution
+
+Current follow-up:
+- [command_contribution_todo.md](/home/home/personal/cwatch/docs/command_contribution_todo.md)
+- `Task 14.53` shared command contribution contract is complete
+- `Task 14.54` generic tab command contribution scope is queued
+
 ## Next Re-scope
 
 ### Task 14.2: choose the first normalization hotspot

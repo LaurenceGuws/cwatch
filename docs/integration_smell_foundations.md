@@ -380,6 +380,14 @@ Why this is next:
 - feature-local command contribution is still hand-assembled in multiple module views
 - this is the next clean shell-facing seam after the shared scaffolding checkpoint
 
+Current hotspot status:
+- the shared command contribution contract is now explicit around:
+  - `CommandPaletteRegistry`
+  - `CommandPaletteHandle`
+  - `HomeShellCommandPalette`
+  - feature-local module loaders
+- the first repeated seam is now narrowed to generic tab command contribution across Docker, Servers, and Kubernetes
+
 ## Success Criteria
 
 This layer is working when:
