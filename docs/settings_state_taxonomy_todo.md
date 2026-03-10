@@ -342,7 +342,7 @@ Verification:
 - result: no issues found
 
 ### Task 12.8: scope `settingsTabIndex` removal from root settings
-Status: queued
+Status: completed
 
 Goal:
 - remove settings-screen local tab/session state from `AppSettings`
@@ -361,6 +361,20 @@ Done definition:
 - the replacement owner for `settingsTabIndex` is explicit
 - it is clear whether this should be transient-only or lightly persisted feature-local state
 - the follow-up code batch does not require changing unrelated settings persistence
+
+What landed:
+- [settings_view_session_storage.dart](/home/home/personal/cwatch/lib/model/services_infra/settings/settings_view_session_storage.dart)
+- [settings_view.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/settings_view.dart) now loads and saves the selected settings tab through feature-local session storage
+- [app_settings.dart](/home/home/personal/cwatch/lib/model/models/app_settings.dart) no longer carries `settingsTabIndex`
+
+Result:
+- `settingsTabIndex` is no longer root application settings state
+- the settings screen owns its own local session persistence
+- this split did not require any broader settings-controller redesign
+
+Verification:
+- `flutter analyze`
+- result: no issues found
 | 12.2 | State-taxonomy re-scope | completed | first split candidate is chosen from the taxonomy |
 | 12.3 | First split candidate | completed | workspace snapshot split is scoped into an executable next batch |
 

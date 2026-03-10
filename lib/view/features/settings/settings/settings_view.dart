@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:cwatch/controller/adapters/settings_ui_adapter.dart';
@@ -6,6 +8,7 @@ import 'package:cwatch/view/core/navigation/command_palette_registry.dart';
 import 'package:cwatch/view/core/navigation/tab_navigation_registry.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
+import 'package:cwatch/model/services_infra/settings/settings_view_session_storage.dart';
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
@@ -41,12 +44,14 @@ class SettingsView extends StatefulWidget {
 class _SettingsViewState extends State<SettingsView>
     with SingleTickerProviderStateMixin {
   final SettingsBinding _binding = const SettingsBinding();
+  final SettingsViewSessionStorage _sessionStorage =
+      SettingsViewSessionStorage();
   late final SettingsUiAdapter _uiAdapter;
   late final SettingsController _controller;
   late final TabController _tabController;
-  late final VoidCallback _settingsListener;
   late final TabNavigationHandle _tabNavigator;
   late final CommandPaletteHandle _commandPaletteHandle;
+  bool _didLoadInitialTab = false;
 
   static const _tabs = [
     Tab(text: 'General'),
@@ -101,9 +106,7 @@ class _SettingsViewState extends State<SettingsView>
     );
     CommandPaletteRegistry.instance.register('settings', _commandPaletteHandle);
     _tabController.addListener(_handleTabChanged);
-    _settingsListener = _syncTabFromSettings;
-    _controller.addListener(_settingsListener);
-    _syncTabFromSettings();
+    unawaited(_loadInitialTabFromSession());
   }
 
   @override
@@ -113,7 +116,6 @@ class _SettingsViewState extends State<SettingsView>
       'settings',
       _commandPaletteHandle,
     );
-    _controller.removeListener(_settingsListener);
     _controller.dispose();
     _tabController.removeListener(_handleTabChanged);
     _tabController.dispose();
@@ -301,27 +303,22 @@ class _SettingsViewState extends State<SettingsView>
     );
   }
 
-  void _syncTabFromSettings() {
-    if (!_controller.isLoaded) {
+  Future<void> _loadInitialTabFromSession() async {
+    final target = await _sessionStorage.loadTabIndex();
+    if (!mounted) {
       return;
     }
-    final target = _controller.settings.settingsTabIndex.clamp(
-      0,
-      _tabs.length - 1,
-    );
-    if (_tabController.index != target) {
-      _tabController.index = target;
+    final clamped = target.clamp(0, _tabs.length - 1);
+    _didLoadInitialTab = true;
+    if (_tabController.index != clamped) {
+      _tabController.index = clamped;
     }
   }
 
   void _handleTabChanged() {
-    if (_tabController.indexIsChanging) {
+    if (_tabController.indexIsChanging || !_didLoadInitialTab) {
       return;
     }
-    final index = _tabController.index;
-    if (_controller.settings.settingsTabIndex == index) {
-      return;
-    }
-    _controller.update((current) => current.copyWith(settingsTabIndex: index));
+    unawaited(_sessionStorage.saveTabIndex(_tabController.index));
   }
 }

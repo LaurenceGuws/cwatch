@@ -40,7 +40,6 @@ class AppSettings {
     this.serverWorkspace,
     this.kubernetesWorkspace,
     this.wslWorkspace,
-    this.settingsTabIndex = 0,
     this.shortcutBindings = const {},
     this.editorThemeLight,
     this.editorThemeDark,
@@ -92,7 +91,6 @@ class AppSettings {
   final ServerWorkspaceState? serverWorkspace;
   final KubernetesWorkspaceState? kubernetesWorkspace;
   final WslWorkspaceState? wslWorkspace;
-  final int settingsTabIndex;
   final Map<String, String> shortcutBindings;
   final String? editorThemeLight;
   final String? editorThemeDark;
@@ -146,7 +144,6 @@ class AppSettings {
     ServerWorkspaceState? serverWorkspace,
     KubernetesWorkspaceState? kubernetesWorkspace,
     WslWorkspaceState? wslWorkspace,
-    int? settingsTabIndex,
     Map<String, String>? shortcutBindings,
     String? editorThemeLight,
     String? editorThemeDark,
@@ -204,7 +201,6 @@ class AppSettings {
       serverWorkspace: serverWorkspace ?? this.serverWorkspace,
       kubernetesWorkspace: kubernetesWorkspace ?? this.kubernetesWorkspace,
       wslWorkspace: wslWorkspace ?? this.wslWorkspace,
-      settingsTabIndex: settingsTabIndex ?? this.settingsTabIndex,
       shortcutBindings: shortcutBindings ?? this.shortcutBindings,
       editorThemeLight: editorThemeLight ?? this.editorThemeLight,
       editorThemeDark: editorThemeDark ?? this.editorThemeDark,
@@ -369,7 +365,6 @@ class AppSettings {
         }
         return null;
       }(),
-      settingsTabIndex: (json['settingsTabIndex'] as num?)?.toInt() ?? 0,
       shortcutBindings:
           (json['shortcutBindings'] as Map<String, dynamic>?)?.map(
             (key, value) => MapEntry(key, value.toString()),
@@ -455,7 +450,6 @@ class AppSettings {
 
       'kubernetesConfigPaths': kubernetesConfigPaths,
       'kubernetesBackend': kubernetesBackend.name,
-      'settingsTabIndex': settingsTabIndex,
       'shortcutBindings': shortcutBindings,
       if (editorThemeLight != null) 'editorThemeLight': editorThemeLight,
       if (editorThemeDark != null) 'editorThemeDark': editorThemeDark,
