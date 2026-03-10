@@ -310,6 +310,9 @@ Established rule:
 - feature view owns placeholder behavior and landing transitions
 - runtime object owns the module-scoped service/controller graph and its disposal
 
+Next rewrite layer:
+- settings/state taxonomy should be addressed next, because `AppSettings` still mixes persisted workspace snapshots, feature configuration, cached data, and UI/session state
+
 ## Tracking Table
 
 | Item | Scope | Status | Done When |

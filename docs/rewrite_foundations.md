@@ -259,6 +259,7 @@ Create separate follow-up docs for:
 - theme registry ownership TODO (`docs/theme_registry_ownership_todo.md`)
 - feature UI adapter ownership TODO (`docs/feature_ui_adapter_ownership_todo.md`)
 - composition root ownership TODO (`docs/composition_root_ownership_todo.md`)
+- settings state taxonomy TODO (`docs/settings_state_taxonomy_todo.md`)
 - dependency rules
 - settings/state split
 - first vertical slice plan
