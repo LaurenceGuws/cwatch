@@ -197,6 +197,16 @@ Current follow-up:
 - `Task 14.51` next scaffolding batch re-scope is complete
 - shared scaffolding hotspot is now checkpointed
 
+### Hotspot F: command contribution integration
+Status: active
+Why it matters:
+- command palette infrastructure already exists as a shared shell subsystem
+- feature modules still hand-assemble many command entries locally
+- generic tab/module command contribution is still partially duplicated and under-documented
+
+Queued question:
+- what belongs in canonical shared command contribution infrastructure vs feature-owned command entries and loaders
+
 ## Next Re-scope
 
 ### Task 14.2: choose the first normalization hotspot

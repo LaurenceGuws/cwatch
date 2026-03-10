@@ -369,6 +369,17 @@ Current hotspot status:
 - the first section-level overflow menu helper is now implemented for server host list and Docker engine picker
 - the shared scaffolding hotspot is now at a good checkpoint and should not be stretched into richer Docker/domain menu systems
 
+Current next hotspot:
+- command contribution integration
+
+Current follow-up doc:
+- [command_contribution_todo.md](/home/home/personal/cwatch/docs/command_contribution_todo.md)
+
+Why this is next:
+- shared command-palette infrastructure already exists
+- feature-local command contribution is still hand-assembled in multiple module views
+- this is the next clean shell-facing seam after the shared scaffolding checkpoint
+
 ## Success Criteria
 
 This layer is working when:

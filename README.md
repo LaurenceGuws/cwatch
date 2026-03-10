@@ -99,10 +99,10 @@ Current tab-shell status:
 - first chip-building normalization pass complete
 
 Current next integration hotspot:
-- shared list/menu/settings scaffolding
+- command contribution integration
 
 Current follow-up doc:
-- `docs/shared_scaffolding_todo.md`
+- `docs/command_contribution_todo.md`
 
 Current shared scaffolding contract now covers:
 - `SettingsSection`
