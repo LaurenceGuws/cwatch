@@ -175,17 +175,74 @@ Result:
 - the next batch should define the annotation shape, not implement broad codegen
 
 ## Task 14.33: define config metadata annotation shape
-Status: queued
+Status: completed
 
 Goal:
 - define the smallest annotation surface needed to describe config keys/defaults/docs for the first grouped preference models
 
-Expected scope:
-- one annotation family for config groups and config fields
-- enough metadata for descriptor/schema generation
-- no runtime orchestration hooks
+Decision:
+- use one narrow annotation family with two annotations:
+  - `@ConfigGroup(...)` on the preferences class
+  - `@ConfigField(...)` on individual fields
+
+Required `ConfigGroup` metadata:
+- persistent group key
+- human label
+- short description
+- optional display/order hint for generated docs
+
+Required `ConfigField` metadata:
+- persistent config key within the group
+- human label
+- short description/help text
+- value kind hint:
+  - string
+  - boolean
+  - integer
+  - double
+  - enum
+- optional unit hint where useful
+- optional default-value documentation override when the constructor default is not enough
+
+Deliberately excluded from the first shape:
+- runtime validators
+- visibility conditions
+- controller bindings
+- widget classes
+- command handlers
+- side effects
+- async loaders
+
+Why this is the right first shape:
+- enough to generate descriptors and schema/docs
+- small enough to keep runtime behavior explicit
+- compatible with later Lua/config export use without forcing UI generation now
+
+First implementation target after this:
+- annotate the four primitive grouped preference models only
+- generate one descriptor/registry output from them
 
 Done definition:
 - the annotation shape is explicit
 - required metadata fields are explicit
 - the first implementation slice is still narrow enough to prove the pattern without framework sludge
+
+Result:
+- the first annotation family is now defined tightly enough to implement without ambiguity
+- the next batch should create the annotation types and first descriptor output, not expand the scope
+
+## Task 14.34: implement config metadata annotations
+Status: queued
+
+Goal:
+- add the first narrow annotation family and use it on the primitive grouped preference models
+
+Expected scope:
+- define `ConfigGroup` and `ConfigField`
+- annotate shell/editor/terminal/explorer preference models
+- add one generated or generator-ready descriptor surface target
+
+Done definition:
+- annotation types exist
+- the four primitive grouped preference models are annotated
+- the first output target is explicit and still metadata-only

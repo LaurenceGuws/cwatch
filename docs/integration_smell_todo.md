@@ -154,7 +154,8 @@ Current result:
 Current follow-up:
 - [annotation_codegen_todo.md](/home/home/personal/cwatch/docs/annotation_codegen_todo.md)
 - `Task 14.32` config/schema annotation metadata scope is complete
-- next executable batch: `Task 14.33` config metadata annotation shape
+- `Task 14.33` config metadata annotation shape is complete
+- next executable batch: `Task 14.34` implement config metadata annotations
 
 ## Next Re-scope
 
