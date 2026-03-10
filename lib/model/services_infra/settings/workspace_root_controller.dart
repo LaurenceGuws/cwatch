@@ -24,6 +24,10 @@ class WorkspaceRootController {
   bool get isLoaded => _loaded;
 
   Future<PersistedWorkspaces> ensureLoaded() async {
+    if (_loaded) {
+      return _workspaces;
+    }
+
     final pending = _loadFuture;
     if (pending != null) {
       await pending;

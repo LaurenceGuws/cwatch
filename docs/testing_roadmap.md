@@ -171,6 +171,30 @@ Verification:
 - `flutter test test/model/services_infra/settings/workspace_root_controller_test.dart`
 - `flutter analyze`
 
+### Task 13.3: add `workspace_persistence_test.dart`
+Status: completed
+
+What landed:
+- [workspace_persistence_test.dart](/home/home/personal/cwatch/test/controller/core/workspace/workspace_persistence_test.dart)
+- [workspace_root_controller.dart](/home/home/personal/cwatch/lib/model/services_infra/settings/workspace_root_controller.dart) now short-circuits `ensureLoaded()` once the controller is already loaded
+
+Coverage added:
+- `read()` / `load()` use the configured root mapping
+- `shouldRestore()` flips after `markRestored()` for a matching signature
+- `persist()` writes through the root controller
+- duplicate signatures are suppressed
+- `markRestored()` seeds duplicate suppression until the signature changes
+- `persistIfPending()` currently does nothing when no save is pending
+
+Why this mattered:
+- the new test exposed a real bug in `WorkspaceRootController.ensureLoaded()`
+- repeated `ensureLoaded()` calls were reloading from storage after the controller was already loaded
+- that could discard in-memory updates before the next explicit save path completed
+
+Verification:
+- `flutter test test/controller/core/workspace/workspace_persistence_test.dart`
+- `flutter analyze`
+
 ## Test Organization
 
 Recommended structure:
