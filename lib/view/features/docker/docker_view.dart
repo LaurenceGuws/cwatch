@@ -42,6 +42,7 @@ import 'package:cwatch/view/features/settings/settings/docker_settings_controls.
 import 'package:cwatch/controller/adapters/docker_ui_adapter.dart';
 import 'package:cwatch/controller/controllers/docker_view_controller.dart';
 import 'package:cwatch/controller/di/bindings/docker_client_service_binding.dart';
+import 'package:cwatch/controller/di/bindings/docker_shell_callbacks_binding.dart';
 import 'package:cwatch/controller/di/bindings/docker_view_binding.dart';
 import 'docker_view_runtime.dart';
 
@@ -70,6 +71,10 @@ class DockerView extends StatefulWidget {
 class _DockerViewState extends State<DockerView> {
   final DockerViewBinding _viewBinding = const DockerViewBinding();
   late final DockerViewRuntime _runtime;
+  late final DockerClientService _docker;
+  late final DockerViewController _viewController;
+  late final DistroCacheController _distroCacheController;
+  late final DockerShellCallbacks _shellCallbacks;
   late final DockerTabBuilder _tabBuilder;
   late final TabViewRegistry<WorkspaceTab> _tabRegistry;
   late final DockerUiAdapter _uiAdapter;
@@ -94,13 +99,8 @@ class _DockerViewState extends State<DockerView> {
   Future<List<LocalDockerContextStatus>>? _localContextsStatusFuture;
   bool _showListSettings = false;
 
-  DockerClientService get _docker => _runtime.docker;
-  DockerViewController get _viewController => _runtime.viewController;
-  DistroCacheController get _distroCacheController =>
-      _runtime.distroCacheController;
   DockerWorkspaceController get _workspaceController =>
       _runtime.workspaceController;
-  DockerShellCallbacks get _shellCallbacks => _runtime.shellCallbacks;
 
   List<WorkspaceTab> get _tabs => _workspaceController.tabs;
   int get _selectedIndex => _workspaceController.selectedIndex;
@@ -120,18 +120,22 @@ class _DockerViewState extends State<DockerView> {
   @override
   void initState() {
     super.initState();
-    final distroCacheController = DistroCacheController(
+    _distroCacheController = DistroCacheController(
       initialServerCache: widget.settingsController.settings.serverDistroMap,
       initialDockerCache: widget.settingsController.settings.dockerDistroMap,
     );
-    final docker = const DockerClientServiceBinding().create();
+    _docker = const DockerClientServiceBinding().create();
+    _viewController = _viewBinding.createController(docker: _docker);
+    _shellCallbacks = const DockerShellCallbacksBinding().create(
+      shellFactory: widget.shellFactory,
+    );
     final trashManager = ExplorerTrashManager();
     final portForwardService = PortForwardService()
       ..setAuthCoordinator(widget.shellFactory.authCoordinator);
     _tabBuilder = DockerTabBuilder(
-      docker: docker,
+      docker: _docker,
       settingsController: widget.settingsController,
-      distroCacheController: distroCacheController,
+      distroCacheController: _distroCacheController,
       trashManager: trashManager,
       keyService: widget.keyService,
       portForwardService: portForwardService,
@@ -142,10 +146,12 @@ class _DockerViewState extends State<DockerView> {
       keyService: widget.keyService,
       shellFactory: widget.shellFactory,
       hostsFuture: widget.hostsFuture,
-      docker: docker,
-      distroCacheController: distroCacheController,
+      docker: _docker,
+      viewController: _viewController,
+      distroCacheController: _distroCacheController,
       trashManager: trashManager,
       portForwardService: portForwardService,
+      shellCallbacks: _shellCallbacks,
       tabBuilder: _tabBuilder,
       baseTabBuilder: _enginePickerTab,
     );

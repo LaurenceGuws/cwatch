@@ -1,3 +1,4 @@
+import 'package:cwatch/controller/controllers/docker_shell_callbacks.dart';
 import 'package:cwatch/controller/controllers/docker_view_controller.dart';
 import 'package:cwatch/model/features/docker/services/docker_client_service.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
@@ -9,7 +10,6 @@ import 'package:cwatch/model/services_infra/settings/workspace_root_controller.d
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
-import 'package:cwatch/controller/di/bindings/docker_shell_callbacks_binding.dart';
 import 'package:cwatch/view/features/docker/docker_tab_builder.dart';
 import 'package:cwatch/view/features/docker/docker_view_runtime.dart';
 import 'package:cwatch/view/features/docker/docker_workspace_controller.dart';
@@ -27,18 +27,16 @@ class DockerViewBinding {
     required SshShellFactory shellFactory,
     required Future<List<SshHost>> hostsFuture,
     required DockerClientService docker,
+    required DockerViewController viewController,
     required DistroCacheController distroCacheController,
     required ExplorerTrashManager trashManager,
     required PortForwardService portForwardService,
+    required DockerShellCallbacks shellCallbacks,
     required DockerTabBuilder tabBuilder,
     required WorkspaceTab Function() baseTabBuilder,
   }) {
     final workspaceRootController = WorkspaceRootController(
       settingsController: settingsController,
-    );
-    final viewController = createController(docker: docker);
-    final shellCallbacks = const DockerShellCallbacksBinding().create(
-      shellFactory: shellFactory,
     );
     final workspaceController = DockerWorkspaceController(
       settingsController: settingsController,
