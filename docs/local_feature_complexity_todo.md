@@ -189,7 +189,7 @@ Why this wins now:
 - the remaining complexity is now concentrated in list interaction, pointer/keyboard handling, and selection-heavy behavior
 
 ## Task 20.6: define the explorer entry-list cleanup boundary
-Status: pending
+Status: completed
 
 Goal:
 - define exactly what part of the remaining explorer-local interaction complexity should be addressed first
@@ -202,3 +202,55 @@ Questions to answer:
 Done definition:
 - one bounded explorer-local cleanup seam is chosen
 - the first implementation batch is clear
+
+Result:
+- the first explorer-local cleanup seam should be entry-list interaction wiring
+
+What should remain local to `file_explorer_tab.dart`:
+- top-level tab composition
+- presenter/action seam composition
+- path navigator hosting
+- tab option updates
+- desktop-drop hover state and outer drop-host wiring
+
+What should be split into a narrower explorer-local seam:
+- `FileEntryList` callback assembly
+- selection-controller delegation for pointer and keyboard events
+- copy/cut/paste/delete/rename keyboard action routing
+- selected-entry lookup and drag-start wiring
+- list-focus handoff and `markNeedsBuild` callback routing
+
+Why this is the right cut:
+- this is the densest remaining interaction block in the explorer tab
+- it is still explorer-local behavior, not reusable shell infrastructure
+- it avoids forcing selection semantics or drag behavior into generic list widgets
+- it gives one seam that owns the mapping between entry-list events and explorer actions/selection state
+
+First implementation batch:
+- extract an explorer-local entry-list interaction helper from `file_explorer_tab.dart`
+- keep it feature-owned under `lib/view/shared/views/shared/tabs/file_explorer/`
+- leave `FileEntryList`, `SelectionController`, and `FileExplorerTabActions` stable for the first batch
+
+## Task 20.7: implement the explorer entry-list interaction split
+Status: pending
+
+Goal:
+- extract the explorer-local entry-list interaction wiring out of `file_explorer_tab.dart`
+
+First code targets:
+- entry pointer-down wiring
+- drag-hover and drag-selection stop wiring
+- keyboard action routing
+- selected-entry lookup for drag/copy/cut/delete/rename
+- `FileEntryList` callback assembly around selection and actions
+
+What stays stable in this batch:
+- `FileEntryList`
+- `SelectionController`
+- `FileExplorerTabActions`
+- `FileExplorerTabPresenter`
+- desktop-drop outer host behavior
+
+Done definition:
+- `file_explorer_tab.dart` no longer owns the dense entry-list interaction callback block directly
+- the extracted seam remains explorer-local and does not become shared shell infrastructure
