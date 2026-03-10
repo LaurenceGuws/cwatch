@@ -170,7 +170,7 @@ Result:
   - picker/overview widget composition
 
 ## Task 16.4: re-scope the next Docker slice batch
-Status: queued
+Status: completed
 
 Goal:
 - decide the next smallest Docker-local seam after the new view-shell split without broadening the slice into dashboard or transport rewrites
@@ -183,3 +183,37 @@ Likely candidates:
 Done definition:
 - the next Docker batch is chosen from the post-shell-split code shape
 - the choice reflects the new view-shell seam rather than just line-count reduction
+
+Result:
+- the next Docker batch should deepen the regression floor around the new shell seam
+- it should not split picker/overview hosting state yet
+
+Why this is the right next move:
+- the remaining weight in [docker_view.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view.dart) is now concentrated in Docker-local hosting state:
+  - remote scan state
+  - cached-ready state
+  - picker settings overlay state
+  - restore/probe hooks
+- that remaining code is tightly coupled to Docker picker/dashboard semantics
+- extracting it immediately would risk creating a fake generic hosting abstraction instead of proving a better Docker boundary
+- the new seam:
+  - [docker_view_shell.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view_shell.dart)
+  should be locked down before further Docker-local decomposition
+
+## Task 16.5: add focused tests for the Docker view-shell seam
+Status: queued
+
+Goal:
+- add direct regression coverage around the new Docker view-shell seam before deciding whether the slice should continue or checkpoint
+
+First test targets:
+- `docker_view_shell_test.dart`
+  - command-palette entry loading
+  - tab-navigation behavior
+  - picker-tab refresh/replacement behavior
+  - context-load kickoff behavior
+
+Done definition:
+- the Docker shell seam has direct focused tests
+- the tests validate the extracted orchestration boundary rather than broad Docker widget behavior
+- the next slice decision can be made from a safer regression floor
