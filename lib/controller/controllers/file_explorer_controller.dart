@@ -41,7 +41,13 @@ class FileExplorerController extends ChangeNotifier {
     this.initialPath,
     this.onPathChanged,
     this.onOpenEditorTab,
-  });
+  }) {
+    currentPath = initialPath ?? '/';
+    selectionState = ExplorerSelectionState(
+      currentPath: currentPath,
+      joinPath: PathUtils.joinPath,
+    );
+  }
 
   final SshHost host;
   final ExplorerContext explorerContext;
@@ -146,10 +152,6 @@ class FileExplorerController extends ChangeNotifier {
       shellService: shellService,
       uiAdapter: uiAdapter,
       runShell: _runShell,
-    );
-    selectionState = ExplorerSelectionState(
-      currentPath: currentPath,
-      joinPath: PathUtils.joinPath,
     );
     _pathLoadingService = PathLoadingService(
       shellService: shellService,
