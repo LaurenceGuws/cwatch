@@ -352,7 +352,8 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
       },
       persistedWorkspaceSignature: () =>
           _workspaceController.workspacePersistence.read()?.signature,
-      currentWorkspaceSignature: _workspaceController.currentWorkspaceSignature,
+      currentWorkspaceSignature: () =>
+          _workspaceController.currentWorkspaceSignature(),
       restoreWorkspace: _restoreWorkspace,
       persistIfPending: () async {
         _workspaceController.workspacePersistence.persistIfPending(
@@ -363,8 +364,9 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
       selectedIndex: () => _selectedTabIndex,
       selectTab: _selectTab,
       closeTab: (index) => _workspaceController.closeTab(index),
-      replaceTab: _workspaceController.replaceTab,
-      addTab: _workspaceController.addTab,
+      replaceTab: (tabId, replacement) =>
+          _workspaceController.replaceTab(tabId, replacement),
+      addTab: (tab) => _workspaceController.addTab(tab),
       createPlaceholderTab: _createPlaceholderTab,
       createTab: _createTab,
       onHostInteraction: _ensureDistroOnInteraction,
