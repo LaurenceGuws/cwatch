@@ -404,6 +404,32 @@ Verification:
 - `flutter test test/model/services/file_editing_service_test.dart`
 - `flutter analyze`
 
+### Task 13.12: add `resource_parser_test.dart`
+Status: completed
+
+What landed:
+- [resource_parser_test.dart](/home/home/personal/cwatch/test/model/services/resource_parser_test.dart)
+
+Coverage added:
+- full snapshot shaping for:
+  - CPU usage
+  - memory and swap
+  - load averages
+  - disk usage and disk IO
+  - process shaping
+  - network totals
+- malformed and partial section tolerance
+- empty SSH output failure behavior
+
+Why this matters:
+- it locks down the server resource parsing seam without UI or live SSH dependencies
+- it covers one of the remaining parser-heavy surfaces where malformed remote output could silently skew the UI
+- it gives later server/resource cleanup a regression floor around both shaping and failure tolerance
+
+Verification:
+- `flutter test test/model/services/resource_parser_test.dart`
+- `flutter analyze`
+
 ## Test Organization
 
 Recommended structure:
