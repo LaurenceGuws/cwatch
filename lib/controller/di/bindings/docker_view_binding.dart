@@ -9,7 +9,6 @@ import 'package:cwatch/model/services_infra/settings/workspace_root_controller.d
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
-import 'package:cwatch/controller/di/bindings/docker_client_service_binding.dart';
 import 'package:cwatch/controller/di/bindings/docker_shell_callbacks_binding.dart';
 import 'package:cwatch/view/features/docker/docker_tab_builder.dart';
 import 'package:cwatch/view/features/docker/docker_view_runtime.dart';
@@ -27,31 +26,19 @@ class DockerViewBinding {
     required BuiltInSshKeyService keyService,
     required SshShellFactory shellFactory,
     required Future<List<SshHost>> hostsFuture,
+    required DockerClientService docker,
+    required DistroCacheController distroCacheController,
+    required ExplorerTrashManager trashManager,
+    required PortForwardService portForwardService,
+    required DockerTabBuilder tabBuilder,
     required WorkspaceTab Function() baseTabBuilder,
   }) {
     final workspaceRootController = WorkspaceRootController(
       settingsController: settingsController,
     );
-    final distroCacheController = DistroCacheController(
-      initialServerCache: settingsController.settings.serverDistroMap,
-      initialDockerCache: settingsController.settings.dockerDistroMap,
-    );
-    final docker = const DockerClientServiceBinding().create();
     final viewController = createController(docker: docker);
-    final trashManager = ExplorerTrashManager();
-    final portForwardService = PortForwardService()
-      ..setAuthCoordinator(shellFactory.authCoordinator);
     final shellCallbacks = const DockerShellCallbacksBinding().create(
       shellFactory: shellFactory,
-    );
-    final tabBuilder = DockerTabBuilder(
-      docker: docker,
-      settingsController: settingsController,
-      distroCacheController: distroCacheController,
-      trashManager: trashManager,
-      keyService: keyService,
-      portForwardService: portForwardService,
-      hostsFuture: hostsFuture,
     );
     final workspaceController = DockerWorkspaceController(
       settingsController: settingsController,

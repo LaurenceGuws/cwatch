@@ -8,6 +8,8 @@ import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/features/docker/services/docker_client_service.dart';
 import 'package:cwatch/model/features/servers/services/host_distro_key.dart';
 import 'package:cwatch/model/services_infra/cache/distro_cache_controller.dart';
+import 'package:cwatch/model/services_infra/filesystem/explorer_trash_manager.dart';
+import 'package:cwatch/model/services_infra/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
@@ -39,6 +41,7 @@ import 'package:cwatch/model/models/docker_context.dart';
 import 'package:cwatch/view/features/settings/settings/docker_settings_controls.dart';
 import 'package:cwatch/controller/adapters/docker_ui_adapter.dart';
 import 'package:cwatch/controller/controllers/docker_view_controller.dart';
+import 'package:cwatch/controller/di/bindings/docker_client_service_binding.dart';
 import 'package:cwatch/controller/di/bindings/docker_view_binding.dart';
 import 'docker_view_runtime.dart';
 
@@ -67,6 +70,7 @@ class DockerView extends StatefulWidget {
 class _DockerViewState extends State<DockerView> {
   final DockerViewBinding _viewBinding = const DockerViewBinding();
   late final DockerViewRuntime _runtime;
+  late final DockerTabBuilder _tabBuilder;
   late final TabViewRegistry<WorkspaceTab> _tabRegistry;
   late final DockerUiAdapter _uiAdapter;
   late final VoidCallback _settingsListener;
@@ -94,7 +98,6 @@ class _DockerViewState extends State<DockerView> {
   DockerViewController get _viewController => _runtime.viewController;
   DistroCacheController get _distroCacheController =>
       _runtime.distroCacheController;
-  DockerTabBuilder get _tabBuilder => _runtime.tabBuilder;
   DockerWorkspaceController get _workspaceController =>
       _runtime.workspaceController;
   DockerShellCallbacks get _shellCallbacks => _runtime.shellCallbacks;
@@ -117,11 +120,33 @@ class _DockerViewState extends State<DockerView> {
   @override
   void initState() {
     super.initState();
+    final distroCacheController = DistroCacheController(
+      initialServerCache: widget.settingsController.settings.serverDistroMap,
+      initialDockerCache: widget.settingsController.settings.dockerDistroMap,
+    );
+    final docker = const DockerClientServiceBinding().create();
+    final trashManager = ExplorerTrashManager();
+    final portForwardService = PortForwardService()
+      ..setAuthCoordinator(widget.shellFactory.authCoordinator);
+    _tabBuilder = DockerTabBuilder(
+      docker: docker,
+      settingsController: widget.settingsController,
+      distroCacheController: distroCacheController,
+      trashManager: trashManager,
+      keyService: widget.keyService,
+      portForwardService: portForwardService,
+      hostsFuture: widget.hostsFuture,
+    );
     _runtime = _viewBinding.createRuntime(
       settingsController: widget.settingsController,
       keyService: widget.keyService,
       shellFactory: widget.shellFactory,
       hostsFuture: widget.hostsFuture,
+      docker: docker,
+      distroCacheController: distroCacheController,
+      trashManager: trashManager,
+      portForwardService: portForwardService,
+      tabBuilder: _tabBuilder,
       baseTabBuilder: _enginePickerTab,
     );
     _viewControllerListener = () {
