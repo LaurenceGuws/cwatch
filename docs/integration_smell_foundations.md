@@ -335,7 +335,8 @@ Current hotspot status:
 - the first descriptor registry is now implemented
 - the first real consumer of that registry now exists
 - the second docs/export consumer now exists as well
-- the next step is tighter registry validation, not broader generator behavior automatically
+- direct registry characterization coverage now exists
+- the next step should be re-scoped from that evidence, not broaden generator behavior automatically
 - runtime/app-lifecycle metadata such as restart requirements remains explicitly deferred until after the first descriptor output exists
 
 Why this is next:

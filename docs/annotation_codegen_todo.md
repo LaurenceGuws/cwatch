@@ -454,7 +454,7 @@ Result:
 - the next batch should validate the registry shape and invariants directly
 
 ## Task 14.42: add config metadata registry tests
-Status: queued
+Status: completed
 
 Goal:
 - add characterization tests around the descriptor registry so later generator work can replace the manual registry without changing the public shape silently
@@ -469,3 +469,17 @@ Done definition:
 - the registry has direct regression coverage
 - tests lock down the public descriptor shape and basic invariants
 - later generator replacement can target the same behavior
+
+Result:
+- [config_metadata_registry_test.dart](/home/home/personal/cwatch/test/model/config/config_metadata_registry_test.dart) now locks down group ordering, target coverage, unique keys, and basic descriptor population
+- the descriptor registry now has direct characterization coverage instead of being validated only through secondary consumers
+
+## Task 14.43: re-scope the annotation/codegen track
+Status: queued
+
+Goal:
+- decide whether the next batch should start minimal generator tooling, add a third consumer, or pause the annotation/codegen track at the current checkpoint
+
+Done definition:
+- the next batch is explicitly chosen
+- the track remains incremental and justified by current evidence

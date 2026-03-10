@@ -163,7 +163,8 @@ Current follow-up:
 - `Task 14.39` re-scope the annotation/codegen track is complete
 - `Task 14.40` add config metadata markdown export is complete
 - `Task 14.41` re-scope the annotation/codegen track is complete
-- next executable batch: `Task 14.42` add config metadata registry tests
+- `Task 14.42` add config metadata registry tests is complete
+- next executable batch: `Task 14.43` re-scope the annotation/codegen track
 
 ## Next Re-scope
 
