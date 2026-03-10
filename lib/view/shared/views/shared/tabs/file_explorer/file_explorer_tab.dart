@@ -52,6 +52,7 @@ class FileExplorerTab extends StatefulWidget {
 class _FileExplorerTabState extends State<FileExplorerTab>
     with TabOptionsMixin {
   late FileExplorerController _controller;
+  late SelectionController _selectionController;
   late SettingsController _settingsController;
   late final VoidCallback _controllerListener;
   final FocusNode _listFocusNode = FocusNode(debugLabel: 'file-explorer-list');
@@ -65,6 +66,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     super.initState();
     _settingsController = widget.settingsController;
     _controller = widget.controller;
+    _selectionController = SelectionController(state: _controller.selectionState);
     _controllerListener = () {
       if (!mounted) return;
       setState(() {});
@@ -81,6 +83,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       oldWidget.controller.removeListener(_controllerListener);
       oldWidget.controller.dispose();
       _controller = widget.controller;
+      _selectionController = SelectionController(state: _controller.selectionState);
       _controller.addListener(_controllerListener);
       unawaited(_controller.initialize());
     }
@@ -377,7 +380,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     final list = FileEntryList(
       entries: sortedEntries,
       currentPath: _controller.currentPath,
-      selectedPaths: _controller.selectionController.selectedPaths,
+      selectedPaths: _selectionController.selectedPaths,
       syncingPaths: _controller.state.syncingPaths,
       refreshingPaths: _controller.state.refreshingPaths,
       localEdits: _controller.state.localEdits,
@@ -386,7 +389,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       focusNode: _listFocusNode,
       onEntryDoubleTap: _handleEntryDoubleTap,
       onEntryPointerDown: (event, entries, index, remotePath) {
-        _controller.selectionController.handleEntryPointerDown(
+        _selectionController.handleEntryPointerDown(
           event,
           entries,
           index,
@@ -396,7 +399,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
         );
       },
       onDragHover: (event, index, remotePath) {
-        _controller.selectionController.handleDragHover(
+        _selectionController.handleDragHover(
           event,
           index,
           remotePath,
@@ -404,18 +407,19 @@ class _FileExplorerTabState extends State<FileExplorerTab>
         );
       },
       onStopDragSelection: () =>
-          _controller.selectionController.stopDragSelection(),
+          _selectionController.stopDragSelection(),
       onEntryContextMenu: _showEntryContextMenu,
       onBackgroundContextMenu: null,
       onKeyEvent: (node, event, entries) {
-        return _controller.selectionController.handleListKeyEvent(
+        return _selectionController.handleListKeyEvent(
           node,
           event,
           entries,
           _controller.markNeedsBuild,
           () {
-            final selectedEntries = _controller.selectionController
-                .getSelectedEntries(entries);
+            final selectedEntries = _selectionController.getSelectedEntries(
+              entries,
+            );
             if (selectedEntries.isNotEmpty) {
               if (selectedEntries.length > 1) {
                 unawaited(_handleMultiCopy(selectedEntries));
@@ -428,8 +432,9 @@ class _FileExplorerTabState extends State<FileExplorerTab>
             }
           },
           () {
-            final selectedEntries = _controller.selectionController
-                .getSelectedEntries(entries);
+            final selectedEntries = _selectionController.getSelectedEntries(
+              entries,
+            );
             if (selectedEntries.isNotEmpty) {
               if (selectedEntries.length > 1) {
                 unawaited(_handleMultiCut(selectedEntries));
@@ -443,8 +448,9 @@ class _FileExplorerTabState extends State<FileExplorerTab>
           },
           () => _handlePaste(targetDirectory: _controller.currentPath),
           () {
-            final selectedEntries = _controller.selectionController
-                .getSelectedEntries(entries);
+            final selectedEntries = _selectionController.getSelectedEntries(
+              entries,
+            );
             if (selectedEntries.isNotEmpty) {
               if (selectedEntries.length > 1) {
                 unawaited(
@@ -464,7 +470,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
             }
           },
           () {
-            final entry = _controller.selectionController.primarySelectedEntry(
+            final entry = _selectionController.primarySelectedEntry(
               entries,
             );
             if (entry != null) {
@@ -477,7 +483,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       onRefreshCacheFromServer: _refreshCacheFromServer,
       onClearCachedCopy: _clearCachedCopy,
       onStartOsDrag: (position) async {
-        final selected = _controller.selectionController.getSelectedEntries(
+        final selected = _selectionController.getSelectedEntries(
           sortedEntries,
         );
         if (selected.isEmpty) return;
@@ -556,7 +562,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     Offset position,
   ) async {
     final sortedEntries = _controller.currentSortedEntries();
-    final selectedEntries = _controller.selectionController.getSelectedEntries(
+    final selectedEntries = _selectionController.getSelectedEntries(
       sortedEntries,
     );
     final builder = ContextMenuBuilder(

@@ -140,7 +140,7 @@ Result of Task 5.3:
 - the next batch should focus on selection/input ownership rather than more dialog cleanup
 
 ### Task 5.4: inspect explorer selection/input ownership
-Status: queued
+Status: completed
 
 Why this is next:
 - `FileExplorerController` still imports `selection_controller.dart` from the explorer view tree
@@ -159,6 +159,21 @@ Done definition:
 Verification:
 - `rg -n "selection_controller.dart" lib/controller`
 - `flutter analyze`
+
+Result of Task 5.4:
+- `FileExplorerController` now owns `ExplorerSelectionState` instead of the view-side `SelectionController` wrapper
+- the file explorer widget owns the input-specific `SelectionController` and binds it to the shared selection state
+- controller-side explorer code no longer imports from the file-explorer view subtree in this hotspot
+- this explorer controller/adapter cleanup is at a good checkpoint
+
+### Explorer adapter checkpoint
+Status: completed
+
+Outcome:
+- explorer drag primitives moved out of the view tree
+- explorer dialog helpers moved out of the file-explorer widget subtree
+- explorer controller state now depends on `ExplorerSelectionState` rather than view-side input handling
+- the scoped explorer controller/adapter ownership seams addressed by this document are cleared
 
 ## Later Work In This Hotspot
 
@@ -186,8 +201,8 @@ Track here when ready:
 | 5.1 | Explorer drag helper extraction | completed | controller-side explorer code no longer imports drag helpers from the explorer view tree |
 | 5.2 | Explorer re-scope | completed | next task is written from what we learn in 5.1 |
 | 5.3 | Explorer dialog ownership | completed | at least one remaining explorer dialog-related dependency is reduced or justified |
-| 5.4 | Explorer selection/input ownership | queued | the remaining explorer-local selection/input dependency is reduced or justified |
-| 5.x | Explorer adapter follow-up | queued | re-scoped after 5.4 |
+| 5.4 | Explorer selection/input ownership | completed | the remaining explorer-local selection/input dependency is reduced or justified |
+| 5.x | Explorer adapter follow-up | queued | only if a new explorer ownership seam appears |
 
 ## Completion Metric
 

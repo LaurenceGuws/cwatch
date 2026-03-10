@@ -5,8 +5,20 @@ import 'package:cwatch/model/models/remote_file_entry.dart';
 import 'package:cwatch/model/shared/services/explorer_selection_state.dart';
 
 /// Controller for managing file selection state and interactions
-class SelectionController extends ExplorerSelectionState {
-  SelectionController({required super.currentPath, required super.joinPath});
+class SelectionController {
+  SelectionController({required ExplorerSelectionState state}) : _state = state;
+
+  final ExplorerSelectionState _state;
+
+  Set<String> get selectedPaths => _state.selectedPaths;
+
+  RemoteFileEntry? primarySelectedEntry(List<RemoteFileEntry> entries) {
+    return _state.primarySelectedEntry(entries);
+  }
+
+  List<RemoteFileEntry> getSelectedEntries(List<RemoteFileEntry> entries) {
+    return _state.getSelectedEntries(entries);
+  }
 
   void handleEntryPointerDown(
     PointerDownEvent event,
@@ -28,11 +40,11 @@ class SelectionController extends ExplorerSelectionState {
         isMouse && (event.buttons & kSecondaryMouseButton) != 0;
 
     if (isSecondaryClick) {
-      dragSelecting = false;
+      _state.dragSelecting = false;
       return;
     }
 
-    applySelection(
+    _state.applySelection(
       entries,
       index,
       shift: shift,
@@ -41,10 +53,10 @@ class SelectionController extends ExplorerSelectionState {
     );
 
     if (isMouse && (event.buttons & kPrimaryMouseButton) != 0) {
-      dragSelecting = true;
-      dragSelectionAdditive = true;
+      _state.dragSelecting = true;
+      _state.dragSelectionAdditive = true;
     } else {
-      dragSelecting = false;
+      _state.dragSelecting = false;
     }
   }
 
@@ -54,23 +66,23 @@ class SelectionController extends ExplorerSelectionState {
     String remotePath,
     VoidCallback setState,
   ) {
-    if (!dragSelecting || event.kind != PointerDeviceKind.mouse) {
+    if (!_state.dragSelecting || event.kind != PointerDeviceKind.mouse) {
       return;
     }
     if ((event.buttons & kPrimaryMouseButton) == 0) {
       return;
     }
-    if (dragSelectionAdditive) {
-      selectedPaths.add(remotePath);
+    if (_state.dragSelectionAdditive) {
+      _state.selectedPaths.add(remotePath);
     } else {
-      selectedPaths.remove(remotePath);
+      _state.selectedPaths.remove(remotePath);
     }
-    lastSelectedIndex = index;
+    _state.lastSelectedIndex = index;
     setState();
   }
 
   void stopDragSelection() {
-    dragSelecting = false;
+    _state.dragSelecting = false;
   }
 
   KeyEventResult handleListKeyEvent(
@@ -119,7 +131,7 @@ class SelectionController extends ExplorerSelectionState {
       onRename();
       return KeyEventResult.handled;
     }
-    final currentIndex = resolveFocusedIndex(entries);
+    final currentIndex = _state.resolveFocusedIndex(entries);
 
     switch (event.logicalKey) {
       case LogicalKeyboardKey.arrowDown:
@@ -127,7 +139,7 @@ class SelectionController extends ExplorerSelectionState {
         if (next == currentIndex) {
           return KeyEventResult.handled;
         }
-        handleKeyboardNavigation(
+        _state.handleKeyboardNavigation(
           entries,
           next,
           shift: shift,
@@ -140,7 +152,7 @@ class SelectionController extends ExplorerSelectionState {
         if (next == currentIndex) {
           return KeyEventResult.handled;
         }
-        handleKeyboardNavigation(
+        _state.handleKeyboardNavigation(
           entries,
           next,
           shift: shift,
@@ -149,7 +161,7 @@ class SelectionController extends ExplorerSelectionState {
         );
         return KeyEventResult.handled;
       case LogicalKeyboardKey.home:
-        handleKeyboardNavigation(
+        _state.handleKeyboardNavigation(
           entries,
           0,
           shift: shift,
@@ -158,7 +170,7 @@ class SelectionController extends ExplorerSelectionState {
         );
         return KeyEventResult.handled;
       case LogicalKeyboardKey.end:
-        handleKeyboardNavigation(
+        _state.handleKeyboardNavigation(
           entries,
           entries.length - 1,
           shift: shift,
@@ -168,19 +180,19 @@ class SelectionController extends ExplorerSelectionState {
         return KeyEventResult.handled;
       case LogicalKeyboardKey.space:
         if (shift) {
-          selectRange(
+          _state.selectRange(
             entries,
             currentIndex,
             additive: true,
             setState: setState,
           );
         } else {
-          toggleSelection(entries, currentIndex, setState: setState);
+          _state.toggleSelection(entries, currentIndex, setState: setState);
         }
         return KeyEventResult.handled;
       case LogicalKeyboardKey.keyA:
         if (multi) {
-          selectAll(entries, setState: setState);
+          _state.selectAll(entries, setState: setState);
           return KeyEventResult.handled;
         }
         break;

@@ -14,7 +14,6 @@ import 'package:cwatch/model/services_infra/ssh/remote_editor_cache.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 import 'package:cwatch/controller/adapters/explorer_desktop_drag_source.dart';
 import 'package:cwatch/model/shared/services/path_utils.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/file_explorer/selection_controller.dart';
 import '../adapters/clipboard_operations_handler.dart';
 import '../adapters/delete_operations_handler.dart';
 import '../adapters/explorer_os_drag_manager.dart';
@@ -27,6 +26,7 @@ import 'package:cwatch/model/services/file_editing_service.dart';
 import 'package:cwatch/model/services/file_operations_service.dart';
 import 'package:cwatch/model/services/path_loading_service.dart';
 import 'package:cwatch/model/services/ssh_auth_handler.dart';
+import 'package:cwatch/model/shared/services/explorer_selection_state.dart';
 import 'package:cwatch/model/shared/services/explorer_state.dart';
 
 /// ChangeNotifier that centralizes File Explorer state and lifecycle wiring.
@@ -56,7 +56,7 @@ class FileExplorerController extends ChangeNotifier {
 
   final RemoteEditorCache cache = RemoteEditorCache();
   final ExplorerState state = ExplorerState();
-  late final SelectionController selectionController;
+  late final ExplorerSelectionState selectionState;
   late final PathLoadingService _pathLoadingService;
   late final ExplorerOps _ops;
   late final FileOperationsService fileOpsService;
@@ -138,7 +138,7 @@ class FileExplorerController extends ChangeNotifier {
       uiAdapter: uiAdapter,
       runShell: _runShell,
     );
-    selectionController = SelectionController(
+    selectionState = ExplorerSelectionState(
       currentPath: currentPath,
       joinPath: PathUtils.joinPath,
     );
@@ -152,7 +152,7 @@ class FileExplorerController extends ChangeNotifier {
         ExplorerOps(
             state: state,
             pathLoadingService: _pathLoadingService,
-            selectionController: selectionController,
+            selectionController: selectionState,
             onPathChanged: onPathChanged,
             notify: notifyListeners,
           )
