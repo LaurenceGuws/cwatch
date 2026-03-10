@@ -259,7 +259,7 @@ Why:
 - that makes Kubernetes the stronger next system-wide policy seam
 
 ## Task 19.5: define the Kubernetes infrastructure boundary target
-Status: pending
+Status: completed
 
 Goal:
 - describe what part of the current Kubernetes dashboard path is transport, what part is shaping/parsing, and what part is backend/failure policy
@@ -272,3 +272,119 @@ Questions to answer:
 Done definition:
 - the first Kubernetes infra boundary is explicit
 - one concrete implementation batch is chosen
+
+Result:
+- the first Kubernetes infrastructure boundary is now explicit
+
+### Current responsibility mix in `KubernetesDashboardService`
+
+`KubernetesDashboardService` currently does four jobs at once:
+1. backend policy
+- choosing CLI vs API path from `KubernetesBackend`
+- deciding when auth-resolution failure becomes an empty snapshot
+
+2. transport orchestration
+- issuing kubectl requests
+- issuing API requests
+- sequencing all collection calls for both backends
+
+3. shaping/parsing
+- parsing raw kubectl/API payloads into typed dashboard rows
+- building the summary and final snapshot
+
+4. degradation policy
+- accumulating warnings
+- converting partial failures into empty sections
+- deciding when the result is an empty snapshot vs partial snapshot
+
+That is the main boundary smell.
+
+### What should stay stable in the first Kubernetes infra batch
+
+These areas should stay stable for the first pass:
+- Kubernetes feature views/controllers
+- current dashboard widget rendering
+- current typed snapshot/row models
+- current user-facing warning wording
+
+Why they stay stable:
+- the first infra batch should not spread back into feature presentation
+- the problem to solve first is service policy ownership, not dashboard UI structure
+
+### Proposed target boundary
+
+For the first pass, split the current service responsibility into:
+- backend policy seam
+  - choose CLI vs API collection path
+  - classify auth-resolution failure / backend unavailability into explicit dashboard collection outcomes
+- transport collection seams
+  - one CLI collector
+  - one API collector
+- shaping seam
+  - convert collected raw payloads into typed dashboard snapshot data
+
+### What should remain in `KubernetesDashboardService` after the first pass
+
+`KubernetesDashboardService` should remain the Kubernetes-facing gateway used by higher layers, but it should stop owning backend-policy and collection logic inline.
+
+It should own:
+- operation-level API shape (`load(...)`)
+- combining lower seams into one dashboard snapshot result for callers
+- preserving the current caller-facing snapshot contract
+
+It should not keep owning:
+- inline CLI vs API branching and collection orchestration
+- inline warning/degradation policy for every backend path
+
+### What should remain feature-owned
+
+Feature layers should still own:
+- how warnings and unavailable state are shown to the user
+- Kubernetes-specific remediation wording and dashboard presentation
+- whether warnings are shown as banners, empty states, or secondary details
+
+They should not need to know:
+- how backend selection is implemented
+- how auth-resolution failure differs from partial data collection failure
+- how CLI/API collection failures are accumulated internally
+
+### First implementation batch
+
+The first Kubernetes infra batch should extract:
+- backend collection policy into a narrow collector seam
+- one explicit collection result shape that separates:
+  - collected data
+  - warnings
+  - empty/partial collection outcomes
+
+Raw parsing can remain in `KubernetesDashboardService` for that first batch.
+
+Why this is the right first cut:
+- backend-selection and degradation policy are the densest mixed concern today
+- it gives a clearer distinction between:
+  - auth resolution failure
+  - backend collection failure
+  - partial data collection with warnings
+- it avoids splitting transport and parsing at the same time
+- it preserves the current tests as a useful floor
+
+## Task 19.6: implement the first Kubernetes backend-policy split
+Status: pending
+
+Goal:
+- extract a narrow Kubernetes backend collection/policy seam while keeping the dashboard-facing gateway API stable
+
+First code targets:
+- `KubernetesDashboardService`
+- a new Kubernetes dashboard collection/policy seam under `lib/model/services_infra/kubernetes/`
+- `kubernetes_dashboard_service_test.dart` updates/expansion around explicit collection outcomes
+
+What should stay stable in this batch:
+- Kubernetes feature views/controllers
+- dashboard row parsing shape
+- warning wording observed by the feature layer
+
+Done definition:
+- `KubernetesDashboardService` no longer owns inline CLI/API backend-policy and degradation logic in one block
+- the new seam makes backend collection outcomes explicit
+- existing Kubernetes caller behavior stays stable from the feature layer perspective
