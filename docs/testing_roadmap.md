@@ -509,6 +509,28 @@ Done definition:
 - the first widget checkpoint is explicit
 - the next UI-facing test batch is chosen based on risk and harness cost, not backlog order alone
 
+### Task 13.16: add `dialog_keyboard_shortcuts_test.dart`
+Status: completed
+
+What landed:
+- [dialog_keyboard_shortcuts_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/dialog_keyboard_shortcuts_test.dart)
+- [dialog_keyboard_shortcuts.dart](/home/home/personal/cwatch/lib/view/shared/widgets/dialog_keyboard_shortcuts.dart) now walks ancestor widgets from the focused element before allowing Enter-to-confirm
+
+Coverage added:
+- Enter confirms for single-line text input
+- Escape cancels
+- Enter does not confirm while a multiline text field is focused
+- no-shortcuts configuration returns the child without wrapping it in `CallbackShortcuts`
+
+Why this matters:
+- it locks down one of the smallest shared dialog seams instead of expanding a large feature widget harness
+- this shortcut wrapper is reused under multiple dialogs, so one regression here can affect several flows at once
+- the new test exposed a real bug: multiline inputs could still trigger dialog confirmation because the focused element was not always the `EditableText` itself
+
+Verification:
+- `flutter test test/view/shared/widgets/dialog_keyboard_shortcuts_test.dart`
+- `flutter analyze`
+
 ## Test Organization
 
 Recommended structure:

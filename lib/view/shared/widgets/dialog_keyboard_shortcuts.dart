@@ -42,13 +42,33 @@ class _DialogKeyboardShortcutsState extends State<DialogKeyboardShortcuts> {
   }
 
   bool _shouldAllowEnter() {
-    final focused = FocusManager.instance.primaryFocus?.context?.widget;
-    if (focused is EditableText) {
-      final maxLines = focused.maxLines;
+    final context = FocusManager.instance.primaryFocus?.context;
+    if (context == null) {
+      return true;
+    }
+
+    EditableText? editableText;
+    final element = context as Element;
+    if (element.widget is EditableText) {
+      editableText = element.widget as EditableText;
+    } else {
+      element.visitAncestorElements((ancestor) {
+        final widget = ancestor.widget;
+        if (widget is EditableText) {
+          editableText = widget;
+          return false;
+        }
+        return true;
+      });
+    }
+
+    if (editableText != null) {
+      final maxLines = editableText!.maxLines;
       if (maxLines == null || maxLines > 1) {
         return false;
       }
     }
+
     return true;
   }
 

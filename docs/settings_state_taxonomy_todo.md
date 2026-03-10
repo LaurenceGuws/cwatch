@@ -322,6 +322,22 @@ Verification:
 - `flutter analyze`
 - result: no issues found
 
+## Test Seam Checkpoint
+
+Recent shared/widget regression-floor additions now cover:
+- workspace persistence seams
+- grouped settings serialization
+- explorer service flows
+- Docker and Kubernetes capability-aware service shaping
+- terminal session lifecycle
+- file editing and trash flows
+- first widget-level explorer states
+- shared dialog keyboard behavior through [dialog_keyboard_shortcuts_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/dialog_keyboard_shortcuts_test.dart)
+
+Most recent bug caught by this floor:
+- [dialog_keyboard_shortcuts.dart](/home/home/personal/cwatch/lib/view/shared/widgets/dialog_keyboard_shortcuts.dart) was allowing Enter-to-confirm while a multiline text field was focused because the active focus node could sit below `EditableText`
+- the fix now checks ancestor widgets from the focused element before enabling Enter confirm shortcuts
+
 ### Task 12.9: remove legacy distro-cache fields from `AppSettings`
 Status: completed
 
