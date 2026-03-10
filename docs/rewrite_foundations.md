@@ -224,6 +224,7 @@ Create separate follow-up docs for:
 - server/WSL binding ownership TODO (`docs/server_wsl_binding_ownership_todo.md`)
 - UI adapter dialog ownership TODO (`docs/ui_adapter_dialog_ownership_todo.md`)
 - tab assembly ownership TODO (`docs/tab_assembly_ownership_todo.md`)
+- theme registry ownership TODO (`docs/theme_registry_ownership_todo.md`)
 - dependency rules
 - settings/state split
 - first vertical slice plan

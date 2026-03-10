@@ -79,4 +79,5 @@ The shell should continue to make sense if SSH, Docker, Kubernetes, or WSL modul
 - `docs/server_wsl_binding_ownership_todo.md`: actionable server/WSL binding ownership backlog for the next dependency cleanup batch.
 - `docs/ui_adapter_dialog_ownership_todo.md`: actionable UI-adapter dialog/content ownership backlog for the next dependency cleanup batch.
 - `docs/tab_assembly_ownership_todo.md`: actionable tab-assembly ownership backlog for the next dependency cleanup batch.
+- `docs/theme_registry_ownership_todo.md`: actionable shared-theme ownership backlog for the next dependency cleanup batch.
 - `docs/testing_roadmap.md`: current testing backlog and rewrite-support testing priorities.

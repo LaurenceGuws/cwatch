@@ -252,7 +252,8 @@ Current next-step note:
 - `lib/model` now has no `package:cwatch/controller/` imports
 - tab-assembly ownership reached a checkpoint under the shell/framework vs removable feature-module boundary (`docs/tab_assembly_ownership_todo.md`)
 - WSL and server now establish the pattern: feature-specific tab assembly belongs to the feature module, while workspace restoration logic should depend on narrow callbacks/contracts
-- the next dependency-direction batch should move to the next remaining shell/framework vs feature-module seam rather than more tab-builder cleanup
+- the next dependency-direction batch is shared theme registry ownership (`docs/theme_registry_ownership_todo.md`)
+- this is the strongest remaining `model -> view` seam and is now a reusable shell/framework ownership issue rather than a feature-module ownership issue
 
 ### Docker feature shell
 Track here when ready:
