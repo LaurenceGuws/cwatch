@@ -269,6 +269,7 @@ Current implementation checkpoint:
   - passphrase prompts
   - destructive confirmation prompts
 - `WslUiAdapter` now proves the simple shared text-input adoption case
+- `DockerOverviewUiAdapter` now proves the generic text-input case with `initialValue` and `hintText`
 
 Current next normalization direction:
 - adopt the shared prompt helper in smaller generic text-input adapters before exploring richer dialog flows

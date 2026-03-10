@@ -195,3 +195,19 @@ Result:
 
 Next executable batch:
 - `Task 14.16`: adopt the shared prompt helper in `DockerOverviewUiAdapter`
+
+## Task 14.16: adopt the shared prompt helper in `DockerOverviewUiAdapter`
+Status: completed
+
+Goal:
+- prove the shared text-input helper on a second generic adopter with initial-value and hint-text support
+
+What landed:
+- [docker_overview_ui_adapter.dart](/home/home/personal/cwatch/lib/controller/adapters/docker_overview_ui_adapter.dart)
+
+Result:
+- Docker overview text input now routes through the shared prompt helper
+- the helper already covered the needed shape without API growth
+
+Next executable batch:
+- `Task 14.17`: adopt the shared prompt helper in `ExplorerUiAdapter`

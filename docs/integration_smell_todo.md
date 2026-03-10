@@ -439,3 +439,16 @@ Current follow-up doc:
 
 Next executable batch:
 - `Task 14.16`: adopt the shared prompt helper in `DockerOverviewUiAdapter`
+
+### Task 14.16: adopt the shared prompt helper in `DockerOverviewUiAdapter`
+Status: completed
+
+What this task established:
+- the shared prompt helper also works for generic text input with `initialValue` and `hintText`
+- the helper is holding as a general small-prompt path, not just a settings/rename helper
+
+Current follow-up doc:
+- [shared_prompt_helper_todo.md](/home/home/personal/cwatch/docs/shared_prompt_helper_todo.md)
+
+Next executable batch:
+- `Task 14.17`: adopt the shared prompt helper in `ExplorerUiAdapter`

@@ -7,6 +7,7 @@ import 'package:cwatch/model/services_infra/ssh/ssh_auth_coordinator.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/view/shared/widgets/port_forward_dialog.dart'
     as port_forward;
+import 'package:cwatch/view/shared/widgets/shared_prompt_dialogs.dart';
 
 import 'ssh_auth_prompter.dart';
 
@@ -151,34 +152,12 @@ class DockerOverviewUiAdapter {
     String? hintText,
   }) async {
     if (!context.mounted) return null;
-    final controller = TextEditingController(text: initialValue);
-    return showDialog<String>(
+    return showTextPromptDialog(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(title),
-          content: TextField(
-            controller: controller,
-            decoration: InputDecoration(
-              labelText: label,
-              hintText: hintText,
-            ),
-            autofocus: true,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(controller.text.trim());
-              },
-              child: const Text('OK'),
-            ),
-          ],
-        );
-      },
+      title: title,
+      label: label,
+      initialValue: initialValue,
+      hintText: hintText,
     );
   }
 

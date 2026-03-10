@@ -189,3 +189,20 @@ Result:
 
 Next executable batch:
 - `Task 14.16`: adopt the shared prompt helper in `DockerOverviewUiAdapter`
+
+## Task 14.16: adopt the shared prompt helper in `DockerOverviewUiAdapter`
+Status: completed
+
+Goal:
+- move the docker overview text-input prompt onto the shared helper without turning the helper into a docker-specific API
+
+What landed:
+- [docker_overview_ui_adapter.dart](/home/home/personal/cwatch/lib/controller/adapters/docker_overview_ui_adapter.dart)
+
+Result:
+- Docker overview text input now uses the shared prompt helper
+- hint text and initial value fit the existing helper shape cleanly
+- the next remaining generic text-input adopter is `ExplorerUiAdapter`
+
+Next executable batch:
+- `Task 14.17`: adopt the shared prompt helper in `ExplorerUiAdapter`
