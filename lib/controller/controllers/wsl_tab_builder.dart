@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 
-import 'package:cwatch/model/core/models/tab_state.dart';
-import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
-import 'package:cwatch/model/models/wsl_workspace_state.dart';
 import 'package:cwatch/controller/controllers/terminal_session_controller.dart';
-import 'package:cwatch/model/models/ssh_host.dart';
-import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/controller/core/workspace/tab_options.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/terminal/terminal_tab.dart';
-
+import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
+import 'package:cwatch/model/core/models/tab_state.dart';
+import 'package:cwatch/model/models/ssh_host.dart';
+import 'package:cwatch/model/models/wsl_workspace_state.dart';
+import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
+import 'package:cwatch/view/shared/views/shared/tabs/terminal/terminal_tab.dart';
 
 class WslTabBuilder {
   const WslTabBuilder({required this.settingsController});
@@ -56,14 +55,13 @@ class WslTabBuilder {
           hostname: '',
           port: 0,
           available: true,
-        ), // Placeholder
+        ),
         sessionController: sessionController,
         settingsController: settingsController,
         onExit: onExit,
         optionsController: controller,
         onOpenEditorTab: onOpenEditorTab,
       ),
-
       workspaceState: WslTabData(
         kind: WslTabKind.terminal,
         persistedState: TabState(

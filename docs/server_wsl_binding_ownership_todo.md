@@ -117,7 +117,7 @@ Result of re-scope:
 - the next batch should focus on tab builder ownership, not broader server/WSL view cleanup
 
 ### Task 6.3: inspect server and WSL tab builder ownership
-Status: queued
+Status: completed
 
 Why this is next:
 - the remaining binding-side `controller -> view` imports in this hotspot are both tab builders
@@ -135,6 +135,33 @@ Done definition:
 
 Verification:
 - `rg -n "package:cwatch/view/features/(servers|wsl)" lib/controller/di/bindings`
+- `flutter analyze`
+
+Result of Task 6.3:
+- `WslTabBuilder` moved out of `view/features/wsl/` into `controller/controllers/`
+- `WslTabBuilderBinding` no longer imports from `view/features/`
+- the remaining binding-side view import in this hotspot is now only `ServerTabBuilder`
+- the next batch should isolate server tab-builder ownership rather than keep treating server and WSL as one seam
+
+### Task 6.4: inspect server tab builder ownership
+Status: queued
+
+Why this is next:
+- `ServerTabBuilderBinding` is now the only remaining binding-side import from `view/features/(servers|wsl)`
+- the server builder is heavier than the WSL builder, so it should be scoped on its own now
+- this gives a clear next question: move the builder, narrow the binding interface, or record the exception
+
+Actions:
+- inspect `ServerTabBuilder` and its binding/view call sites
+- decide whether the builder itself should move or whether a narrower controller-owned interface is the better boundary
+- implement one narrow ownership correction or record the exception clearly
+
+Done definition:
+- the remaining `ServerTabBuilderBinding -> view/features/servers` dependency is reduced or clearly justified
+- server binding ownership is clearer than it is today
+
+Verification:
+- `rg -n "package:cwatch/view/features/servers/server_tab_builder.dart" lib/controller/di/bindings`
 - `flutter analyze`
 
 ## Later Work In This Hotspot
@@ -162,8 +189,9 @@ Track elsewhere after this hotspot:
 | --- | --- | --- | --- |
 | 6.1 | Server/WSL builder-controller ownership | completed | at least one server/WSL binding-side view dependency is removed |
 | 6.2 | Server/WSL re-scope | completed | next task is written from what we learn in 6.1 |
-| 6.3 | Server/WSL tab-builder ownership | queued | at least one remaining server/WSL tab-builder binding dependency is reduced or justified |
-| 6.x | Server/WSL follow-up | queued | re-scoped after 6.3 |
+| 6.3 | Server/WSL tab-builder ownership | completed | at least one remaining server/WSL tab-builder binding dependency is reduced or justified |
+| 6.4 | Server tab-builder ownership | queued | the remaining `ServerTabBuilderBinding -> view/features/servers` dependency is reduced or justified |
+| 6.x | Server/WSL follow-up | queued | re-scoped after 6.4 |
 
 ## Completion Metric
 
