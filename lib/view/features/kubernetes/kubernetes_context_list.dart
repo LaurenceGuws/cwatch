@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 
 import 'package:cwatch/view/core/navigation/command_palette_registry.dart';
+import 'package:cwatch/view/core/navigation/generic_tab_command_entries.dart';
 import 'package:cwatch/view/core/navigation/tab_navigation_registry.dart';
 import 'package:cwatch/view/core/tabs/tab_bar_visibility.dart';
 import 'package:cwatch/view/core/tabs/tab_view_registry.dart';
@@ -657,45 +658,16 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   }
 
   List<CommandPaletteEntry> _buildCommandPaletteEntries() {
-    final entries = <CommandPaletteEntry>[];
-
-    if (_tabs.isNotEmpty &&
-        _selectedIndex >= 0 &&
-        _selectedIndex < _tabs.length) {
-      final tab = _tabs[_selectedIndex];
-      final options = tab.optionsController?.value ?? const <TabChipOption>[];
-      entries.addAll(
-        options.map(
-          (option) => CommandPaletteEntry(
-            id: '${widget.moduleId}:tabOption:${option.label}',
-            label: option.label,
-            category: 'Tab options',
-            onSelected: option.onSelected,
-            icon: option.icon,
-          ),
-        ),
-      );
-
-      entries.add(
-        CommandPaletteEntry(
-          id: '${widget.moduleId}:closeTab',
-          label: 'Close tab',
-          category: 'Tabs',
-          onSelected: () => _closeTab(_selectedIndex),
-        ),
-      );
-    }
-
-    entries.add(
-      CommandPaletteEntry(
-        id: '${widget.moduleId}:newTab',
-        label: 'New tab',
-        category: 'Tabs',
-        onSelected: _startEmptyTab,
-      ),
+    final selectedTab =
+        (_tabs.isNotEmpty && _selectedIndex >= 0 && _selectedIndex < _tabs.length)
+        ? _tabs[_selectedIndex]
+        : null;
+    return buildGenericTabCommandEntries(
+      moduleId: widget.moduleId,
+      selectedTab: selectedTab,
+      onNewTab: _startEmptyTab,
+      onCloseTab: () => _closeTab(_selectedIndex),
     );
-
-    return entries;
   }
 
   @override

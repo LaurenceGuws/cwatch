@@ -25,6 +25,7 @@ import 'package:cwatch/model/services_infra/network/connectivity_probe.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/view/core/navigation/tab_navigation_registry.dart';
 import 'package:cwatch/view/core/navigation/command_palette_registry.dart';
+import 'package:cwatch/view/core/navigation/generic_tab_command_entries.dart';
 import 'package:cwatch/view/core/tabs/tab_bar_visibility.dart';
 import 'package:cwatch/view/core/tabs/workspace_tab_chip_builder.dart';
 import 'servers/host_list.dart';
@@ -674,48 +675,13 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   }
 
   List<CommandPaletteEntry> _buildCommandPaletteEntries() {
-    final entries = <CommandPaletteEntry>[];
-    if (_tabs.isNotEmpty) {
-      final tab = _tabs[_selectedTabIndex];
-      if (tab.optionsController != null) {
-        entries.addAll(
-          tab.optionsController!.value.map(
-            (option) => CommandPaletteEntry(
-              id: '${widget.moduleId}:tabOption:${option.label}',
-              label: option.label,
-              category: 'Tab options',
-              onSelected: option.onSelected,
-              icon: option.icon,
-            ),
-          ),
-        );
-      }
-      entries.add(
-        CommandPaletteEntry(
-          id: '${widget.moduleId}:renameTab',
-          label: 'Rename tab',
-          category: 'Tabs',
-          onSelected: () => _renameTab(_selectedTabIndex),
-        ),
-      );
-      entries.add(
-        CommandPaletteEntry(
-          id: '${widget.moduleId}:closeTab',
-          label: 'Close tab',
-          category: 'Tabs',
-          onSelected: () => _workspaceController.closeTab(_selectedTabIndex),
-        ),
-      );
-    }
-    entries.add(
-      CommandPaletteEntry(
-        id: '${widget.moduleId}:newTab',
-        label: 'New tab',
-        category: 'Tabs',
-        onSelected: _startEmptyTab,
-      ),
+    return buildGenericTabCommandEntries(
+      moduleId: widget.moduleId,
+      selectedTab: _tabs.isNotEmpty ? _tabs[_selectedTabIndex] : null,
+      onNewTab: _startEmptyTab,
+      onCloseTab: () => _workspaceController.closeTab(_selectedTabIndex),
+      onRenameTab: () => _renameTab(_selectedTabIndex),
     );
-    return entries;
   }
 
   void _handleSettingsChanged() {

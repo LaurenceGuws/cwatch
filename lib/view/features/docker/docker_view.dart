@@ -27,6 +27,7 @@ import 'package:cwatch/view/core/tabs/tabbed_workspace_shell.dart';
 import 'package:cwatch/view/core/tabs/workspace_tab_chip_builder.dart';
 import 'package:cwatch/view/core/navigation/tab_navigation_registry.dart';
 import 'package:cwatch/view/core/navigation/command_palette_registry.dart';
+import 'package:cwatch/view/core/navigation/generic_tab_command_entries.dart';
 import 'package:cwatch/view/core/tabs/tab_bar_visibility.dart';
 import 'package:cwatch/model/models/docker_workspace_state.dart';
 import 'package:cwatch/view/core/widgets/keep_alive.dart';
@@ -440,47 +441,13 @@ class _DockerViewState extends State<DockerView> {
   }
 
   List<CommandPaletteEntry> _buildCommandPaletteEntries() {
-    final entries = <CommandPaletteEntry>[];
-    if (_tabs.isNotEmpty) {
-      final tab = _tabs[_selectedIndex];
-      final options = tab.optionsController?.value ?? const <TabChipOption>[];
-      entries.addAll(
-        options.map(
-          (option) => CommandPaletteEntry(
-            id: '${widget.moduleId}:tabOption:${option.label}',
-            label: option.label,
-            category: 'Tab options',
-            onSelected: option.onSelected,
-            icon: option.icon,
-          ),
-        ),
-      );
-      entries.add(
-        CommandPaletteEntry(
-          id: '${widget.moduleId}:renameTab',
-          label: 'Rename tab',
-          category: 'Tabs',
-          onSelected: () => _renameTab(_selectedIndex),
-        ),
-      );
-      entries.add(
-        CommandPaletteEntry(
-          id: '${widget.moduleId}:closeTab',
-          label: 'Close tab',
-          category: 'Tabs',
-          onSelected: () => _workspaceController.closeTab(_selectedIndex),
-        ),
-      );
-    }
-    entries.add(
-      CommandPaletteEntry(
-        id: '${widget.moduleId}:newTab',
-        label: 'New tab',
-        category: 'Tabs',
-        onSelected: _addEnginePickerTab,
-      ),
+    return buildGenericTabCommandEntries(
+      moduleId: widget.moduleId,
+      selectedTab: _tabs.isNotEmpty ? _tabs[_selectedIndex] : null,
+      onNewTab: _addEnginePickerTab,
+      onCloseTab: () => _workspaceController.closeTab(_selectedIndex),
+      onRenameTab: () => _renameTab(_selectedIndex),
     );
-    return entries;
   }
 
   Future<void> _renameTab(int index) async {

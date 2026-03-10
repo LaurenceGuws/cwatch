@@ -392,6 +392,7 @@ Current hotspot status:
   - optional rename
   - close tab
   - new tab
+- the shared generic tab-command helper is now implemented across Docker, Servers, and Kubernetes
 
 ## Success Criteria
 
