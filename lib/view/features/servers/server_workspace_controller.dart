@@ -10,7 +10,7 @@ import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 
-import 'server_tab_builder.dart';
+import 'package:cwatch/controller/controllers/server_tab_builder.dart';
 import 'servers/server_models.dart';
 
 class ServerWorkspaceController extends TabbedWorkspaceController {

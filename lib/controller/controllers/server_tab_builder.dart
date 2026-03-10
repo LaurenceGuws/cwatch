@@ -1,31 +1,30 @@
 import 'package:flutter/material.dart';
 
-import 'package:cwatch/model/core/models/tab_state.dart';
+import 'package:cwatch/controller/controllers/remote_file_editor_controller.dart';
+import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
+import 'package:cwatch/controller/di/bindings/file_explorer_binding.dart';
+import 'package:cwatch/controller/di/bindings/resources_binding.dart';
+import 'package:cwatch/controller/di/bindings/settings_binding.dart';
+import 'package:cwatch/controller/di/bindings/terminal_tab_binding.dart';
+import 'package:cwatch/controller/di/bindings/trash_tab_binding.dart';
+import 'package:cwatch/model/core/models/tab_state.dart';
 import 'package:cwatch/model/models/explorer_context.dart';
 import 'package:cwatch/model/models/server_action.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/services_infra/filesystem/explorer_trash_manager.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
+import 'package:cwatch/model/services_infra/ssh/remote_editor_cache.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
+import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
+import 'package:cwatch/view/features/servers/servers/server_models.dart';
+import 'package:cwatch/view/features/servers/widgets/connectivity_tab.dart';
+import 'package:cwatch/view/features/servers/widgets/resources_tab.dart';
+import 'package:cwatch/view/shared/views/shared/tabs/editor/remote_file_editor_loader.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/file_explorer/trash_tab.dart';
-import 'package:cwatch/controller/di/bindings/file_explorer_binding.dart';
-import 'package:cwatch/controller/di/bindings/settings_binding.dart';
-import 'package:cwatch/controller/di/bindings/trash_tab_binding.dart';
-import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/terminal/terminal_tab.dart';
-import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
-import 'package:cwatch/controller/controllers/remote_file_editor_controller.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/editor/remote_file_editor_loader.dart';
-import 'package:cwatch/model/services_infra/ssh/remote_editor_cache.dart';
-import 'package:cwatch/controller/di/bindings/resources_binding.dart';
-import 'package:cwatch/controller/di/bindings/terminal_tab_binding.dart';
-
-import 'widgets/connectivity_tab.dart';
-import 'widgets/resources_tab.dart';
-import 'servers/server_models.dart';
 
 class ServerTabBuilder {
   const ServerTabBuilder({
@@ -90,7 +89,6 @@ class ServerTabBuilder {
           );
         },
       ),
-
       canDrag: true,
       canRename: true,
       optionsController: controller,
@@ -150,7 +148,6 @@ class ServerTabBuilder {
           );
         },
       ),
-
       canDrag: true,
       canRename: true,
       optionsController: controller,
@@ -193,7 +190,6 @@ class ServerTabBuilder {
         onExit: onClose,
         optionsController: controller,
       ),
-
       canDrag: true,
       canRename: true,
       optionsController: controller,

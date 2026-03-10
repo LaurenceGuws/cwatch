@@ -144,7 +144,7 @@ Result of Task 6.3:
 - the next batch should isolate server tab-builder ownership rather than keep treating server and WSL as one seam
 
 ### Task 6.4: inspect server tab builder ownership
-Status: queued
+Status: completed
 
 Why this is next:
 - `ServerTabBuilderBinding` is now the only remaining binding-side import from `view/features/(servers|wsl)`
@@ -163,6 +163,21 @@ Done definition:
 Verification:
 - `rg -n "package:cwatch/view/features/servers/server_tab_builder.dart" lib/controller/di/bindings`
 - `flutter analyze`
+
+Result of Task 6.4:
+- `ServerTabBuilder` moved out of `view/features/servers/` into `controller/controllers/`
+- `ServerTabBuilderBinding` no longer imports from `view/features/servers/`
+- the scoped binding-side `view/features/(servers|wsl)` seam addressed by this document is cleared
+- this hotspot is at a good checkpoint
+
+### Server/WSL binding checkpoint
+Status: completed
+
+Outcome:
+- `WslWorkspaceController` moved out of `view/features/wsl/`
+- `WslTabBuilder` moved out of `view/features/wsl/`
+- `ServerTabBuilder` moved out of `view/features/servers/`
+- controller bindings no longer import server/WSL feature workflow/controller types from `view/features/` in this hotspot
 
 ## Later Work In This Hotspot
 
@@ -190,8 +205,8 @@ Track elsewhere after this hotspot:
 | 6.1 | Server/WSL builder-controller ownership | completed | at least one server/WSL binding-side view dependency is removed |
 | 6.2 | Server/WSL re-scope | completed | next task is written from what we learn in 6.1 |
 | 6.3 | Server/WSL tab-builder ownership | completed | at least one remaining server/WSL tab-builder binding dependency is reduced or justified |
-| 6.4 | Server tab-builder ownership | queued | the remaining `ServerTabBuilderBinding -> view/features/servers` dependency is reduced or justified |
-| 6.x | Server/WSL follow-up | queued | re-scoped after 6.4 |
+| 6.4 | Server tab-builder ownership | completed | the remaining `ServerTabBuilderBinding -> view/features/servers` dependency is reduced or justified |
+| 6.x | Server/WSL follow-up | queued | only if a new server/WSL binding ownership seam appears |
 
 ## Completion Metric
 
