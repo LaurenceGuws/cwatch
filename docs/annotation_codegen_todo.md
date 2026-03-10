@@ -475,7 +475,7 @@ Result:
 - the descriptor registry now has direct characterization coverage instead of being validated only through secondary consumers
 
 ## Task 14.43: re-scope the annotation/codegen track
-Status: queued
+Status: completed
 
 Goal:
 - decide whether the next batch should start minimal generator tooling, add a third consumer, or pause the annotation/codegen track at the current checkpoint
@@ -483,3 +483,20 @@ Goal:
 Done definition:
 - the next batch is explicitly chosen
 - the track remains incremental and justified by current evidence
+
+Decision:
+- the annotation/codegen track is now at a good checkpoint
+- do not start generator tooling yet
+- return later when one of these becomes true:
+  - manual registry maintenance becomes painful
+  - a third consumer wants the same descriptor shape
+  - richer grouped models such as SSH/Kubernetes are ready to join the same surface
+
+Why this is the right pause point:
+- the current pass already proved the pattern in code
+- the public shape is validated by both consumers and direct tests
+- generator tooling now would mostly be a tooling exercise rather than the highest-value product cleanup
+
+Result:
+- the annotation/codegen layer is no longer speculative
+- it now has a stable, test-covered, consumer-backed checkpoint

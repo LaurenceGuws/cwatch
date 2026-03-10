@@ -164,7 +164,8 @@ Current follow-up:
 - `Task 14.40` add config metadata markdown export is complete
 - `Task 14.41` re-scope the annotation/codegen track is complete
 - `Task 14.42` add config metadata registry tests is complete
-- next executable batch: `Task 14.43` re-scope the annotation/codegen track
+- `Task 14.43` re-scope the annotation/codegen track is complete
+- annotation/codegen hotspot is now checkpointed
 
 ## Next Re-scope
 

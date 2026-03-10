@@ -336,7 +336,7 @@ Current hotspot status:
 - the first real consumer of that registry now exists
 - the second docs/export consumer now exists as well
 - direct registry characterization coverage now exists
-- the next step should be re-scoped from that evidence, not broaden generator behavior automatically
+- the annotation/codegen hotspot is now at a good checkpoint
 - runtime/app-lifecycle metadata such as restart requirements remains explicitly deferred until after the first descriptor output exists
 
 Why this is next:
