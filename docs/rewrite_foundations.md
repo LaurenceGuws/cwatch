@@ -252,6 +252,17 @@ Why:
 Current follow-up doc:
 - `docs/infrastructure_boundary_todo.md`
 
+Current recommendation after the infrastructure checkpoint:
+- shift to local feature complexity cleanup
+
+Why:
+- the major cross-cutting rewrite layers are now checkpointed
+- the strongest remaining architectural weight is now in dense local feature surfaces rather than system-wide ownership ambiguity
+- the next useful work is reducing remaining local workflow/rendering/probe complexity without reopening already-stable cross-cutting boundaries
+
+Current follow-up doc:
+- `docs/local_feature_complexity_todo.md`
+
 ### Focus Area E: infrastructure boundary cleanup
 Questions to answer:
 - Where are transport, parsing, and policy mixed today?
