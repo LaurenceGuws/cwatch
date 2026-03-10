@@ -236,6 +236,19 @@ Deliverables:
 - test seam map
 - initial regression set
 
+### Focus Area G: integration smell cleanup
+Questions to answer:
+- which shell/shared UI surfaces are canonical today
+- where are features re-creating or shadowing shared shell behavior
+- where are local overrides valid vs accidental forks
+- which integration points are stable enough for declarative metadata
+
+Deliverables:
+- shell/shared subsystem map
+- override-policy doc
+- integration-smell cleanup backlog
+- first annotation/codegen target scoped from stable metadata
+
 ## Recommended Work Sequence
 
 1. Document target dependency rules.
@@ -245,6 +258,7 @@ Deliverables:
 5. Add characterization tests around that slice.
 6. Migrate that slice incrementally.
 7. Repeat with the next highest-value slice.
+8. Use integration-smell cleanup in parallel to make shared shell surfaces and local override rules explicit before broader shell polish work.
 
 ## Planned Documentation Pass
 
@@ -267,6 +281,8 @@ Create separate follow-up docs for:
 - feature UI adapter ownership TODO (`docs/feature_ui_adapter_ownership_todo.md`)
 - composition root ownership TODO (`docs/composition_root_ownership_todo.md`)
 - settings state taxonomy TODO (`docs/settings_state_taxonomy_todo.md`)
+- integration smell foundations (`docs/integration_smell_foundations.md`)
+- integration smell TODO (`docs/integration_smell_todo.md`)
 - dependency rules
 - settings/state split
 - first vertical slice plan

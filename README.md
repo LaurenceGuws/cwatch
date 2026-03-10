@@ -66,6 +66,16 @@ Strict shared-shell rule:
 
 The shell should continue to make sense if SSH, Docker, Kubernetes, or WSL modules are removed. That boundary is now an explicit rewrite goal, not just an implied preference.
 
+## Current Integration Direction
+
+The next cleanup layer is integration smell cleanup.
+
+That means:
+- make shared shell elements visible as a real subsystem
+- polish and reuse existing shell/shared surfaces instead of silently re-creating them
+- keep local overrides explicit when a subsystem genuinely needs different behavior
+- scope annotation/codegen work only around stable metadata, not active runtime behavior
+
 ## Development
 1. `flutter pub get`
 2. `flutter run -d <device>`
@@ -95,3 +105,5 @@ The shell should continue to make sense if SSH, Docker, Kubernetes, or WSL modul
 - `docs/composition_root_ownership_todo.md`: actionable composition/service ownership backlog for the next rewrite layer.
 - `docs/settings_state_taxonomy_todo.md`: actionable settings/state taxonomy backlog for the next rewrite layer.
 - `docs/testing_roadmap.md`: current testing backlog and rewrite-support testing priorities.
+- `docs/integration_smell_foundations.md`: high-level scope for shell/shared integration smell cleanup.
+- `docs/integration_smell_todo.md`: actionable integration-smell backlog for the next rewrite layer.
