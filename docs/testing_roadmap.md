@@ -254,6 +254,28 @@ Done definition:
 - the next test target is selected from current seam value, not backlog order alone
 - the roadmap explicitly explains why `ExplorerOps` comes before Docker/Kubernetes parsing
 
+### Task 13.6: add `explorer_ops_test.dart`
+Status: completed
+
+What landed:
+- [explorer_ops_test.dart](/home/home/personal/cwatch/test/model/services/explorer_ops_test.dart)
+
+Coverage added:
+- successful path loading updates entries, path history, selection state, and cached local edits
+- load errors surface without clobbering existing entries
+- search activation path clears stale selection and handles streamed-entry dedupe before final replacement
+- empty search query reloads the current path instead of running a search request
+- prefetch populates path history once and routes failures through `onPrefetchError`
+
+Why this matters:
+- it locks down the non-widget explorer behavior after the explorer ownership cleanup
+- it covers a high-risk user workflow without dragging in Flutter widget harnesses
+- it gives the next explorer refactors a regression floor around state mutation and notification behavior
+
+Verification:
+- `flutter test test/model/services/explorer_ops_test.dart`
+- `flutter analyze`
+
 ## Test Organization
 
 Recommended structure:

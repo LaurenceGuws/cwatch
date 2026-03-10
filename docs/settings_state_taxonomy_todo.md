@@ -607,6 +607,7 @@ What landed next:
 - [workspace_persistence_test.dart](/home/home/personal/cwatch/test/controller/core/workspace/workspace_persistence_test.dart) now locks down signature-based restore/persist behavior on top of that seam
 - [app_settings_serialization_test.dart](/home/home/personal/cwatch/test/model/models/app_settings_serialization_test.dart) now locks down the grouped settings/config JSON contract
 - [testing_roadmap.md](/home/home/personal/cwatch/docs/testing_roadmap.md) now re-scopes the next characterization batch to `ExplorerOps` instead of jumping straight into heavier Docker/Kubernetes mocks
+- [explorer_ops_test.dart](/home/home/personal/cwatch/test/model/services/explorer_ops_test.dart) now locks down the cleaned non-widget explorer behavior seam
 
 ### Task 12.8: scope `settingsTabIndex` removal from root settings
 Status: completed
