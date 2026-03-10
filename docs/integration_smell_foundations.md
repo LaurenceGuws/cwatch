@@ -235,6 +235,9 @@ What this hotspot should establish:
 - which tab-level actions and presentation details remain feature-owned
 - which local tab variations are valid exceptions versus cleanup targets
 
+Current follow-up doc:
+- [tab_shell_contract_todo.md](/home/home/personal/cwatch/docs/tab_shell_contract_todo.md)
+
 ## Success Criteria
 
 This layer is working when:

@@ -79,6 +79,9 @@ That means:
 Current first hotspot in that layer:
 - tab chip / tab shell contract
 
+Current follow-up doc:
+- `docs/tab_shell_contract_todo.md`
+
 ## Development
 1. `flutter pub get`
 2. `flutter run -d <device>`

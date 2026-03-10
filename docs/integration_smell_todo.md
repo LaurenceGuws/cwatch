@@ -184,7 +184,7 @@ What this hotspot should answer next:
 - what visual/interaction overrides are acceptable local exceptions
 
 ### Task 14.3: define the tab chip / tab shell contract
-Status: queued
+Status: completed
 
 Goal:
 - turn the tab shell from a partially canonical widget set into an explicit shared subsystem contract
@@ -211,3 +211,16 @@ Done definition:
 - the tab shell contract exists in writing
 - explicit override rules exist for tab-level behavior and presentation
 - one concrete follow-up cleanup batch is chosen from that contract
+
+What landed:
+- [tab_shell_contract_todo.md](/home/home/personal/cwatch/docs/tab_shell_contract_todo.md)
+
+Result:
+- the canonical shared tab shell responsibilities are now explicit
+- feature-owned tab metadata and override responsibilities are now explicit
+- the main repeated integration smell is identified:
+  - feature-local `WorkspaceTab -> TabChip` assembly
+  - duplicated generic tab command wiring
+
+Next executable batch:
+- `Task 14.4`: scope shared tab-shell adapter cleanup
