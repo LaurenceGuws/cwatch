@@ -134,7 +134,7 @@ This should become a narrower Docker view-shell presenter/coordinator seam, whil
 - it improves the Docker shell boundary without forcing early changes into the denser picker/overview widgets
 
 ## Task 16.3: implement Docker top-level view-shell split
-Status: queued
+Status: completed
 
 Goal:
 - extract top-level Docker view-shell orchestration out of `docker_view.dart` while leaving picker and overview widgets local for now
@@ -155,3 +155,31 @@ Done definition:
 - `docker_view.dart` is materially smaller and more focused on hosting/rendering
 - the new seam clearly owns top-level Docker module orchestration
 - picker and overview widgets remain local and untouched except where needed for the seam
+
+Result:
+- extracted [docker_view_shell.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view_shell.dart)
+- moved top-level Docker module orchestration out of [docker_view.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view.dart):
+  - command-palette registration/loading
+  - tab-navigation registration
+  - picker-tab refresh/replacement helpers
+  - context-loading kickoff
+- kept these local to `docker_view.dart`:
+  - `_probeLocalContext`
+  - `_probeHost`
+  - `_pickDashboardTarget`
+  - picker/overview widget composition
+
+## Task 16.4: re-scope the next Docker slice batch
+Status: queued
+
+Goal:
+- decide the next smallest Docker-local seam after the new view-shell split without broadening the slice into dashboard or transport rewrites
+
+Likely candidates:
+- split Docker picker/overview hosting state out of `docker_view.dart`
+- add focused tests around the new Docker view-shell seam
+- checkpoint the slice and move to tests before deeper extraction
+
+Done definition:
+- the next Docker batch is chosen from the post-shell-split code shape
+- the choice reflects the new view-shell seam rather than just line-count reduction

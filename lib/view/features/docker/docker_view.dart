@@ -25,9 +25,6 @@ import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
 import 'package:cwatch/view/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/view/core/tabs/tabbed_workspace_shell.dart';
 import 'package:cwatch/view/core/tabs/workspace_tab_chip_builder.dart';
-import 'package:cwatch/view/core/navigation/tab_navigation_registry.dart';
-import 'package:cwatch/view/core/navigation/command_palette_registry.dart';
-import 'package:cwatch/view/core/navigation/generic_tab_command_entries.dart';
 import 'package:cwatch/view/core/tabs/tab_bar_visibility.dart';
 import 'package:cwatch/model/models/docker_workspace_state.dart';
 import 'package:cwatch/view/core/widgets/keep_alive.dart';
@@ -46,6 +43,7 @@ import 'package:cwatch/controller/di/bindings/docker_client_service_binding.dart
 import 'package:cwatch/controller/di/bindings/docker_shell_callbacks_binding.dart';
 import 'package:cwatch/controller/di/bindings/docker_view_binding.dart';
 import 'docker_view_runtime.dart';
+import 'docker_view_shell.dart';
 
 class DockerView extends StatefulWidget {
   const DockerView({
@@ -82,8 +80,7 @@ class _DockerViewState extends State<DockerView> {
   late final VoidCallback _settingsListener;
   late final VoidCallback _tabsListener;
   late final VoidCallback _viewControllerListener;
-  late final TabNavigationHandle _tabNavigator;
-  late final CommandPaletteHandle _commandPaletteHandle;
+  late final DockerViewShell _viewShell;
   Future<List<RemoteDockerStatus>>? _remoteStatusFuture;
   bool _remoteScanRequested = false;
   bool _scanningRemotes = false;
@@ -162,9 +159,6 @@ class _DockerViewState extends State<DockerView> {
     };
     _viewController.addListener(_viewControllerListener);
     _uiAdapter = DockerUiAdapter(context: context);
-    unawaited(
-      _viewController.loadContexts().catchError((_) => const <DockerContext>[]),
-    );
 
     _tabRegistry = TabViewRegistry<WorkspaceTab>(
       tabId: (tab) => tab.id,
@@ -172,30 +166,19 @@ class _DockerViewState extends State<DockerView> {
           KeepAliveWrapper(key: key, child: child),
       viewKeyPrefix: 'engine-tab',
     );
-    _tabNavigator = TabNavigationHandle(
-      next: () {
-        final length = _tabs.length;
-        if (length <= 1) return false;
-        final next = (_selectedIndex + 1) % length;
-        _workspaceController.select(next);
-        return true;
-      },
-      previous: () {
-        final length = _tabs.length;
-        if (length <= 1) return false;
-        final prev = (_selectedIndex - 1 + length) % length;
-        _workspaceController.select(prev);
-        return true;
-      },
+    _viewShell = DockerViewShell(
+      moduleId: widget.moduleId,
+      runtime: _runtime,
+      viewController: _viewController,
+      tabs: () => _tabs,
+      selectedIndex: () => _selectedIndex,
+      buildPickerTab: _enginePickerTab,
+      replaceTab: _replaceTab,
+      addPickerTab: _addEnginePickerTab,
+      closeTab: (index) => _workspaceController.closeTab(index),
+      renameTab: _renameTab,
     );
-    TabNavigationRegistry.instance.register(widget.moduleId, _tabNavigator);
-    _commandPaletteHandle = CommandPaletteHandle(
-      loader: () => _buildCommandPaletteEntries(),
-    );
-    CommandPaletteRegistry.instance.register(
-      widget.moduleId,
-      _commandPaletteHandle,
-    );
+    unawaited(_viewShell.initialize());
 
     _tabsListener = () {
       setState(() {});
@@ -212,12 +195,8 @@ class _DockerViewState extends State<DockerView> {
     _workspaceController.removeListener(_tabsListener);
     _viewController.removeListener(_viewControllerListener);
     widget.settingsController.removeListener(_settingsListener);
+    _viewShell.dispose();
     _runtime.dispose();
-    TabNavigationRegistry.instance.unregister(widget.moduleId, _tabNavigator);
-    CommandPaletteRegistry.instance.unregister(
-      widget.moduleId,
-      _commandPaletteHandle,
-    );
     super.dispose();
   }
 
@@ -285,25 +264,8 @@ class _DockerViewState extends State<DockerView> {
   String _uniqueId() => DateTime.now().microsecondsSinceEpoch.toString();
 
   void _refreshContexts() {
-    _viewController.refreshContexts();
-    _localContextsStatusFuture = null; // Reset status future
-
-    final pickerIds = _tabs
-        .where(
-          (t) =>
-              (t.workspaceState as DockerTabData?)?.kind ==
-              DockerTabKind.picker,
-        )
-        .map((t) => t.id)
-        .toList();
-
-    _workspaceController.runWithoutPersist(() {
-      for (final id in pickerIds) {
-        _replaceTab(id, _enginePickerTab(id: id));
-      }
-    });
-
-    unawaited(_workspaceController.persistState());
+    _localContextsStatusFuture = null;
+    _viewShell.refreshContexts();
   }
 
   void _scanRemotes() {
@@ -380,7 +342,7 @@ class _DockerViewState extends State<DockerView> {
                       )
                     : null,
                 onReorder: _workspaceController.reorder,
-                onAddTab: _addEnginePickerTab,
+                onAddTab: _viewShell.addEnginePickerTab,
                 buildChip: (context, index, tab) {
                   final data = tab.workspaceState as DockerTabData?;
                   final isPicker =
@@ -438,16 +400,6 @@ class _DockerViewState extends State<DockerView> {
 
   void _addEnginePickerTab() {
     _workspaceController.addTab(_enginePickerTab());
-  }
-
-  List<CommandPaletteEntry> _buildCommandPaletteEntries() {
-    return buildGenericTabCommandEntries(
-      moduleId: widget.moduleId,
-      selectedTab: _tabs.isNotEmpty ? _tabs[_selectedIndex] : null,
-      onNewTab: _addEnginePickerTab,
-      onCloseTab: () => _workspaceController.closeTab(_selectedIndex),
-      onRenameTab: () => _renameTab(_selectedIndex),
-    );
   }
 
   Future<void> _renameTab(int index) async {
