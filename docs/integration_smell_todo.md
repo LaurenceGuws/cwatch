@@ -160,7 +160,8 @@ Current follow-up:
 - `Task 14.36` implement first config descriptor registry is complete
 - `Task 14.37` re-scope the annotation/codegen track is complete
 - `Task 14.38` add first config metadata consumer is complete
-- next executable batch: `Task 14.39` re-scope the annotation/codegen track
+- `Task 14.39` re-scope the annotation/codegen track is complete
+- next executable batch: `Task 14.40` add config metadata markdown export
 
 ## Next Re-scope
 

@@ -386,7 +386,7 @@ Result:
 - the descriptor surface now has real product-facing utility for docs/export paths
 
 ## Task 14.39: re-scope the next annotation/codegen batch
-Status: queued
+Status: completed
 
 Goal:
 - decide whether the next batch should add a second consumer, add registry characterization tests, or start generator tooling
@@ -394,3 +394,32 @@ Goal:
 Done definition:
 - the next batch is explicitly chosen
 - the track stays incremental and evidence-driven
+
+Decision:
+- the next batch should add a second metadata consumer aimed at docs/export
+- not generator tooling yet
+- not more registry-only tests first
+
+Why this is the right next step:
+- the first summary consumer already proved the registry has value
+- a docs/export consumer exercises the same descriptor surface in a more product-facing direction
+- generator tooling still does not buy enough yet to justify the extra complexity
+
+Result:
+- the annotation/codegen track remains consumer-led instead of tooling-led
+
+## Task 14.40: add config metadata markdown export
+Status: queued
+
+Goal:
+- add one registry-backed markdown/export helper that can produce human-readable config metadata documentation from the descriptor registry
+
+Expected scope:
+- one markdown export builder over `configMetadataRegistry`
+- optional targeted test coverage for the markdown output shape
+- no live settings UI generation
+
+Done definition:
+- the registry has a second consumer aimed at docs/export
+- the output is human-readable and stable enough for later docs automation
+- generator tooling is still not required
