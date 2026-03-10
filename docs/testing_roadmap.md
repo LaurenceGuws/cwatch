@@ -430,6 +430,37 @@ Verification:
 - `flutter test test/model/services/resource_parser_test.dart`
 - `flutter analyze`
 
+### Task 13.13: add `explorer_trash_manager_test.dart`
+Status: completed
+
+What landed:
+- [explorer_trash_manager_test.dart](/home/home/personal/cwatch/test/model/services_infra/filesystem/explorer_trash_manager_test.dart)
+
+Coverage added:
+- move-to-trash behavior:
+  - remote download call wiring
+  - metadata persistence
+  - change notification
+- load behavior:
+  - context filtering
+  - malformed metadata tolerance
+- restore behavior:
+  - upload call wiring
+  - restore-event emission
+  - stored-entry removal
+- delete behavior:
+  - storage cleanup
+  - change notification
+
+Why this matters:
+- it locks down the local-trash seam underneath delete/restore flows without involving UI adapters
+- it covers one of the more stateful filesystem bridges where silent metadata drift would be expensive to debug later
+- it gives the rewrite a regression floor around trash persistence and restore signaling
+
+Verification:
+- `flutter test test/model/services_infra/filesystem/explorer_trash_manager_test.dart`
+- `flutter analyze`
+
 ## Test Organization
 
 Recommended structure:

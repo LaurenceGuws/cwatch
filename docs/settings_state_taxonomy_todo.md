@@ -543,6 +543,7 @@ Recent characterization coverage now locks down the persistence and file/workspa
 - [path_loading_service_test.dart](/home/home/personal/cwatch/test/model/services/path_loading_service_test.dart)
 - [file_editing_service_test.dart](/home/home/personal/cwatch/test/model/services/file_editing_service_test.dart)
 - [resource_parser_test.dart](/home/home/personal/cwatch/test/model/services/resource_parser_test.dart)
+- [explorer_trash_manager_test.dart](/home/home/personal/cwatch/test/model/services_infra/filesystem/explorer_trash_manager_test.dart)
 
 Why this matters here:
 - the settings/workspace cleanup now has regression coverage around:
@@ -550,6 +551,7 @@ Why this matters here:
   - dedicated workspace persistence
   - explorer/file-editing flows that depend on those boundaries
   - server resource shaping that depends on stable model/service seams
+  - local trash persistence and restore signaling used by explorer delete flows
 - this reduces pressure to keep compatibility-style fallbacks around just to feel safe during later cleanup
 
 ### Task 12.23: re-scope after infra-config grouping
