@@ -213,11 +213,27 @@ Deliverables:
 ## Recommended Work Sequence
 
 1. Map the shell/shared subsystem surfaces.
-2. Identify current feature-local re-creations and shadowed shared elements.
-3. Write explicit override rules.
-4. Choose one shared subsystem hotspot and normalize it.
+2. Choose one shell-defining shared subsystem hotspot and normalize it first.
+3. Identify current feature-local re-creations and shadowed shared elements around that hotspot.
+4. Write explicit override rules.
 5. Scope the first annotation/codegen candidate from stable metadata.
 6. Resume deeper cleanup with a clearer integration contract.
+
+## First Normalization Hotspot
+
+The first normalization hotspot is:
+- tab chip / tab shell contract
+
+Why this is first:
+- it is the clearest shell-identity surface in the app
+- it sits above multiple feature modules
+- it is where shell polish and local override rules need to become explicit before broader shared-surface cleanup
+
+What this hotspot should establish:
+- the canonical shared tab shell surface
+- which tab behaviors are mandatory shared behavior
+- which tab-level actions and presentation details remain feature-owned
+- which local tab variations are valid exceptions versus cleanup targets
 
 ## Success Criteria
 

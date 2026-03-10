@@ -148,7 +148,7 @@ Queued question:
 ## Next Re-scope
 
 ### Task 14.2: choose the first normalization hotspot
-Status: queued
+Status: completed
 
 Goal:
 - pick one subsystem hotspot to normalize after the shell/shared map is explicit
@@ -161,3 +161,53 @@ Likely candidates:
 Done definition:
 - one hotspot is selected
 - the next batch is a real cleanup target, not another broad survey
+
+Result:
+- the first normalization hotspot is `tab chip / tab shell contract`
+
+Why this wins over the other candidates:
+- it is the clearest shell-identity surface
+- it sits above multiple feature modules instead of one subsystem path
+- it is where accidental tab-adjacent re-creation will become visible first
+- polishing the shell without clarifying the tab shell contract would risk cosmetic cleanup over an unstable integration boundary
+
+Why the other candidates wait:
+- `explorer shared-surface contract`
+  - still important, but richer and broader; better taken after the shell tab contract is clearer
+- `shared dialog/settings helper catalog`
+  - useful, but less central to shell identity than the tab shell itself
+
+What this hotspot should answer next:
+- what is the canonical tab shell surface
+- what tab chip behavior is mandatory shared behavior
+- what tab-level actions remain feature-owned
+- what visual/interaction overrides are acceptable local exceptions
+
+### Task 14.3: define the tab chip / tab shell contract
+Status: queued
+
+Goal:
+- turn the tab shell from a partially canonical widget set into an explicit shared subsystem contract
+
+Current files in scope:
+- `lib/view/shared/views/shared/tabs/tab_chip.dart`
+- `lib/controller/core/workspace/tab_options.dart`
+- `lib/controller/core/workspace/workspace_tab.dart`
+- `lib/controller/core/workspace/tab_host_controller.dart`
+- `lib/view/core/tabs/`
+- representative feature tab call sites in:
+  - `lib/view/features/docker/`
+  - `lib/view/features/servers/`
+  - `lib/view/features/kubernetes/`
+  - `lib/view/features/wsl/`
+
+Actions:
+- define the canonical responsibilities of the shared tab shell
+- separate mandatory shared tab behavior from feature-owned tab metadata/actions
+- record where local feature tab behavior is an allowed override vs a cleanup smell
+- identify the first concrete normalization pass after the contract is written
+
+Done definition:
+- the tab shell contract exists in writing
+- explicit override rules exist for tab-level behavior and presentation
+- one concrete follow-up cleanup batch is chosen from that contract

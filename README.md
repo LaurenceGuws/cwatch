@@ -76,6 +76,9 @@ That means:
 - keep local overrides explicit when a subsystem genuinely needs different behavior
 - scope annotation/codegen work only around stable metadata, not active runtime behavior
 
+Current first hotspot in that layer:
+- tab chip / tab shell contract
+
 ## Development
 1. `flutter pub get`
 2. `flutter run -d <device>`
