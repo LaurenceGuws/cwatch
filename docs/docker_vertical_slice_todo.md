@@ -201,7 +201,7 @@ Why this is the right next move:
   should be locked down before further Docker-local decomposition
 
 ## Task 16.5: add focused tests for the Docker view-shell seam
-Status: queued
+Status: completed
 
 Goal:
 - add direct regression coverage around the new Docker view-shell seam before deciding whether the slice should continue or checkpoint
@@ -217,3 +217,25 @@ Done definition:
 - the Docker shell seam has direct focused tests
 - the tests validate the extracted orchestration boundary rather than broad Docker widget behavior
 - the next slice decision can be made from a safer regression floor
+
+Result:
+- added [docker_view_shell_test.dart](/home/home/personal/cwatch/test/view/features/docker/docker_view_shell_test.dart)
+- direct coverage now exists for:
+  - command-palette entry loading
+  - tab-navigation behavior
+  - picker-tab refresh/replacement behavior
+  - context-load kickoff behavior
+
+## Task 16.6: re-scope the next Docker slice batch
+Status: queued
+
+Goal:
+- decide whether the Docker slice should continue into Docker-local hosting state or checkpoint at the current shell seam
+
+Questions to answer:
+- is there another real architectural seam in `docker_view.dart`
+- or is the remaining weight mostly feature-local Docker state that should stay together for now
+
+Done definition:
+- the next Docker slice move is explicit
+- the choice is based on the post-test seam shape, not file-length pressure
