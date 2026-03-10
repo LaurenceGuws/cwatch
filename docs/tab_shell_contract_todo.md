@@ -263,7 +263,7 @@ The first batch should not:
 ## Concrete Next Batch
 
 ### Task 14.5: add shared tab-shell adapter TODO
-Status: queued
+Status: completed
 
 Goal:
 - define the exact helper API and ownership boundary before code changes
@@ -281,3 +281,20 @@ Done definition:
 - helper responsibilities are explicit
 - migration starts with the smallest feature first
 - the next code batch is implementation-ready rather than exploratory
+
+What landed:
+- [tab_shell_adapter_todo.md](/home/home/personal/cwatch/docs/tab_shell_adapter_todo.md)
+
+Result:
+- the helper is split into:
+  - shared chip-building
+  - shared generic tab-command contribution
+- WSL is selected as the proving slice
+- migration order is now explicit:
+  - WSL
+  - Kubernetes
+  - Docker
+  - Servers
+
+Next executable batch:
+- `Task 14.6`: implement the shared tab-shell adapter for WSL

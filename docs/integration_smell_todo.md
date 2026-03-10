@@ -248,3 +248,23 @@ Current follow-up doc:
 
 Next executable batch:
 - `Task 14.5`: add shared tab-shell adapter TODO
+
+### Task 14.5: add shared tab-shell adapter TODO
+Status: completed
+
+What this task established:
+- the shared tab-shell helper should be split into:
+  - chip-building
+  - generic tab-command contribution
+- WSL is the right proving slice
+- migration order should be:
+  - WSL
+  - Kubernetes
+  - Docker
+  - Servers
+
+Current follow-up doc:
+- [tab_shell_adapter_todo.md](/home/home/personal/cwatch/docs/tab_shell_adapter_todo.md)
+
+Next executable batch:
+- `Task 14.6`: implement the shared tab-shell adapter for WSL

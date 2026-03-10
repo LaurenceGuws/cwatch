@@ -85,6 +85,9 @@ Current follow-up doc:
 Current next normalization direction:
 - shared tab-shell adapter/helper for routine chip assembly and generic tab command contribution
 
+Current implementation-ready follow-up:
+- `docs/tab_shell_adapter_todo.md`
+
 ## Development
 1. `flutter pub get`
 2. `flutter run -d <device>`

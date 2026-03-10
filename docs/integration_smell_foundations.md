@@ -241,6 +241,9 @@ Current follow-up doc:
 Current next normalization direction:
 - shared tab-shell adapter/helper for routine chip assembly and generic tab command contribution
 
+Current implementation-ready follow-up:
+- [tab_shell_adapter_todo.md](/home/home/personal/cwatch/docs/tab_shell_adapter_todo.md)
+
 ## Success Criteria
 
 This layer is working when:
