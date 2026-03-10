@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'package:cwatch/model/models/remote_file_entry.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/file_explorer/desktop_drag_source.dart';
+import 'package:cwatch/controller/adapters/explorer_desktop_drag_source.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/file_explorer/dialog_builders.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/file_explorer/drag_types.dart';
+import 'package:cwatch/controller/adapters/explorer_drag_types.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/file_explorer/merge_conflict_dialog.dart';
 import 'package:cwatch/view/shared/widgets/dialog_keyboard_shortcuts.dart';
 

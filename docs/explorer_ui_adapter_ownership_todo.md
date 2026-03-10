@@ -59,7 +59,7 @@ We are trying to make one ownership rule clearer:
 ## First Batch Candidate
 
 ### Task 5.1: extract explorer drag primitives from the view tree
-Status: queued
+Status: completed
 
 Why this is first:
 - `DesktopDragSource`, `createDesktopDragSource`, `DragLocalItem`, and `DragStartResult` are imported by controller code but are not explorer widgets
@@ -90,7 +90,7 @@ Verification:
 - manual smoke check of explorer drag-out behavior on supported platforms
 
 ### Task 5.2: re-scope after drag helper extraction
-Status: queued
+Status: completed
 
 Purpose:
 - decide whether the next explorer adapter batch should target:
@@ -105,6 +105,33 @@ Done definition:
 
 Verification:
 - follow-up task added before the next explorer structural change starts
+
+Result of re-scope:
+- explorer drag primitives now live under `lib/controller/adapters/`
+- controller-side explorer code no longer imports `desktop_drag_source.dart` or `drag_types.dart` from the explorer view tree
+- the remaining explorer-specific `controller -> view` seams are now concentrated in dialog builders and selection/input helpers
+- the next batch should stay focused on dialog/presenter ownership before revisiting broader explorer controller cleanup
+
+### Task 5.3: inspect explorer dialog ownership
+Status: queued
+
+Why this is next:
+- `ExplorerUiAdapter` still imports `dialog_builders.dart`, `merge_conflict_dialog.dart`, and shared dialog keyboard helpers from `view/`
+- this is now the clearest remaining explorer-specific controller-side dependency on view-local helpers
+- it is more cohesive than mixing dialog cleanup with `SelectionController` input ownership in the same pass
+
+Actions:
+- inspect which dialog-related types in `ExplorerUiAdapter` are pure presenter functions versus concrete widget exceptions
+- make one narrow ownership correction or record the exception clearly
+- update imports to match
+
+Done definition:
+- at least one remaining explorer dialog-related `controller -> view` dependency is reduced or clearly justified
+- explorer adapter ownership is clearer than it is today
+
+Verification:
+- `rg -n "package:cwatch/view/shared/views/shared/tabs/file_explorer" lib/controller/adapters lib/controller/controllers`
+- `flutter analyze`
 
 ## Later Work In This Hotspot
 
@@ -129,9 +156,10 @@ Track here when ready:
 
 | Item | Scope | Status | Done When |
 | --- | --- | --- | --- |
-| 5.1 | Explorer drag helper extraction | queued | controller-side explorer code no longer imports drag helpers from the explorer view tree |
-| 5.2 | Explorer re-scope | queued | next task is written from what we learn in 5.1 |
-| 5.x | Explorer adapter follow-up | queued | re-scoped after 5.2 |
+| 5.1 | Explorer drag helper extraction | completed | controller-side explorer code no longer imports drag helpers from the explorer view tree |
+| 5.2 | Explorer re-scope | completed | next task is written from what we learn in 5.1 |
+| 5.3 | Explorer dialog ownership | queued | at least one remaining explorer dialog-related dependency is reduced or justified |
+| 5.x | Explorer adapter follow-up | queued | re-scoped after 5.3 |
 
 ## Completion Metric
 

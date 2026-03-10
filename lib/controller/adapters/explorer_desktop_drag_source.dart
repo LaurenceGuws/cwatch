@@ -11,18 +11,13 @@ import 'package:super_native_extensions/raw_drag_drop.dart'
     show DragContext, TargetedWidgetSnapshot, WidgetSnapshot;
 
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
-import 'drag_types.dart';
+
+import 'explorer_drag_types.dart';
 
 /// Platform interface for starting OS-native drag sessions.
 abstract class DesktopDragSource {
-  /// Returns true when the platform supports starting drag sessions.
   bool get isSupported;
 
-  /// Begin a drag session for the provided local payloads.
-  ///
-  /// Implementations should stage files as needed and initiate the native
-  /// drag loop. The returned result indicates whether the OS drag actually
-  /// started; it does not imply a successful drop.
   Future<DragStartResult> startDrag({
     required BuildContext context,
     required Offset globalPosition,
@@ -43,7 +38,6 @@ DesktopDragSource createDesktopDragSource() {
   return UnsupportedDragSource();
 }
 
-/// Windows implementation using super_drag_and_drop to start a native drag loop.
 class WindowsDragSource implements DesktopDragSource {
   @override
   bool get isSupported => true;
@@ -160,7 +154,6 @@ class WindowsDragSource implements DesktopDragSource {
   }
 }
 
-/// Linux implementation using super_drag_and_drop to start a native drag loop.
 class LinuxDragSource implements DesktopDragSource {
   @override
   bool get isSupported => true;
@@ -277,7 +270,6 @@ class LinuxDragSource implements DesktopDragSource {
   }
 }
 
-/// Fallback for platforms without an implementation yet.
 class UnsupportedDragSource implements DesktopDragSource {
   @override
   bool get isSupported => false;
@@ -290,7 +282,7 @@ class UnsupportedDragSource implements DesktopDragSource {
   }) async {
     return const DragStartResult(
       started: false,
-      error: 'Drag source not supported on this platform',
+      error: 'Drag-out is not supported on this platform',
     );
   }
 }

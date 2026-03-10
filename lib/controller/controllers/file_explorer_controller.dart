@@ -12,7 +12,7 @@ import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_editor_cache.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/file_explorer/desktop_drag_source.dart';
+import 'package:cwatch/controller/adapters/explorer_desktop_drag_source.dart';
 import 'package:cwatch/model/shared/services/path_utils.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/file_explorer/selection_controller.dart';
 import '../adapters/clipboard_operations_handler.dart';
