@@ -116,7 +116,7 @@ Result of Task 11.1:
   - module-scoped service/controller graphs should be assembled as one explicit runtime object
 
 ### Task 11.3: decide whether to apply the same runtime-graph pattern to server or kubernetes
-Status: queued
+Status: completed
 
 Why this is next:
 - Docker now provides a concrete composition pattern
@@ -135,13 +135,53 @@ Done definition:
 Verification:
 - follow-up task added before the next structural change starts
 
+Result of Task 11.3:
+- Kubernetes is the better second runtime-graph target
+- `KubernetesContextList` still assembles a module-scoped graph directly, but the graph is smaller and less entangled than the server workspace shell
+- `ServerWorkspaceView` remains the heavier follow-up because it still mixes:
+  - host loading and availability probing
+  - shell factory wiring
+  - port-forward controller wiring
+  - settings controller wiring
+  - feature-specific async orchestration
+
+### Task 11.4: extract a Kubernetes module runtime
+Status: queued
+
+Why this is next:
+- it applies the Docker runtime pattern to a second, smaller feature shell
+- it should confirm whether the pattern generalizes before touching the heavier server shell
+
+Current files in scope:
+- `lib/view/features/kubernetes/kubernetes_context_list.dart`
+- `lib/controller/di/bindings/kubernetes_context_binding.dart`
+- `lib/controller/di/bindings/settings_binding.dart`
+- `lib/view/features/kubernetes/kubernetes_workspace_controller.dart`
+- `lib/view/features/kubernetes/kubernetes_tab_builder.dart`
+
+Actions:
+- identify the module-scoped runtime graph currently assembled in `KubernetesContextList.initState`
+- extract that graph into one explicit runtime object
+- make the feature view own the runtime object plus UI listeners/registries
+- keep widget-local selection/list state in the view
+
+Done definition:
+- `KubernetesContextList` no longer constructs its module-scoped graph field-by-field in `initState`
+- runtime ownership/disposal for that graph is clearer than it is today
+- the Docker runtime pattern is validated on a second feature shell
+
+Verification:
+- `flutter analyze`
+- manual smoke check of Kubernetes context loading and workspace restore
+
 ## Tracking Table
 
 | Item | Scope | Status | Done When |
 | --- | --- | --- | --- |
 | 11.1 | Docker construction ownership | completed | one concrete docker construction seam has explicit ownership |
 | 11.2 | Composition hotspot re-scope | completed | next step is written from what 11.1 proves |
-| 11.3 | Next runtime-graph target | queued | next composition-root batch is chosen from current evidence |
+| 11.3 | Next runtime-graph target | completed | next composition-root batch is chosen from current evidence |
+| 11.4 | Kubernetes runtime graph | queued | Kubernetes module-scoped runtime construction is explicit |
 
 ## Completion Metric
 
