@@ -60,4 +60,5 @@ This is the reason the repository is being documented and re-scoped before deepe
 - `docs/workspace_core_ownership_todo.md`: actionable workspace-core ownership backlog for the next dependency cleanup batch.
 - `docs/explorer_ui_adapter_ownership_todo.md`: actionable explorer controller/adapter ownership backlog for the next dependency cleanup batch.
 - `docs/server_wsl_binding_ownership_todo.md`: actionable server/WSL binding ownership backlog for the next dependency cleanup batch.
+- `docs/ui_adapter_dialog_ownership_todo.md`: actionable UI-adapter dialog/content ownership backlog for the next dependency cleanup batch.
 - `docs/testing_roadmap.md`: current testing backlog and rewrite-support testing priorities.

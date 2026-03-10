@@ -174,6 +174,7 @@ Create separate follow-up docs for:
 - workspace-core ownership TODO (`docs/workspace_core_ownership_todo.md`)
 - explorer UI adapter ownership TODO (`docs/explorer_ui_adapter_ownership_todo.md`)
 - server/WSL binding ownership TODO (`docs/server_wsl_binding_ownership_todo.md`)
+- UI adapter dialog ownership TODO (`docs/ui_adapter_dialog_ownership_todo.md`)
 - dependency rules
 - settings/state split
 - first vertical slice plan
