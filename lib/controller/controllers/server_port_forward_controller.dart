@@ -1,4 +1,4 @@
-import 'package:cwatch/controller/adapters/server_workspace_ui_adapter.dart';
+import 'package:cwatch/view/features/servers/server_workspace_ui_adapter.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/services_infra/port_forwarding/port_forward_service.dart';

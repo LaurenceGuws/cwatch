@@ -15,7 +15,7 @@ import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_config_service.dart';
 import 'package:cwatch/model/features/servers/services/host_distro_manager.dart';
-import 'package:cwatch/controller/adapters/server_workspace_ui_adapter.dart';
+import 'package:cwatch/view/features/servers/server_workspace_ui_adapter.dart';
 import 'package:cwatch/controller/controllers/server_port_forward_controller.dart';
 import 'package:cwatch/model/services_infra/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';

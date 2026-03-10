@@ -9,7 +9,7 @@ import 'package:cwatch/view/shared/widgets/dialog_keyboard_shortcuts.dart';
 import 'package:cwatch/view/shared/widgets/port_forward_dialog.dart'
     as port_forward;
 
-import 'ssh_auth_prompter.dart';
+import 'package:cwatch/controller/adapters/ssh_auth_prompter.dart';
 
 class ServerWorkspaceUiAdapter {
   ServerWorkspaceUiAdapter({required this.context});

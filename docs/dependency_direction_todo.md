@@ -257,6 +257,7 @@ Current next-step note:
 - shared theme registry ownership reached a checkpoint and removed the `theme_config_loader -> editor view path` dependency
 - `lib/model` now also no longer imports controller workspace tab-option types through `tab_options_mixin.dart`
 - the next remaining ownership cleanup is feature-specific UI adapters versus acceptable shared-shell UI dependencies (`docs/feature_ui_adapter_ownership_todo.md`)
+- feature-specific UI adapter ownership reached a checkpoint; remaining adapter-side widget imports are now mostly explicit shared-shell UI usage
 
 ### Docker feature shell
 Track here when ready:

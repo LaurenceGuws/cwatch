@@ -56,7 +56,7 @@ This hotspot is about making that last distinction visible in the codebase.
 ## First Batch Candidate
 
 ### Task 10.1: reclassify server workspace UI adapter ownership
-Status: queued
+Status: completed
 
 Why this is first:
 - it is the clearest remaining feature-specific adapter seam
@@ -86,7 +86,7 @@ Verification:
 - manual smoke check of server rename/add/port-forward dialogs
 
 ### Task 10.2: re-scope after server UI adapter reclassification
-Status: queued
+Status: completed
 
 Purpose:
 - decide whether another feature-specific adapter should move
@@ -99,12 +99,27 @@ Done definition:
 Verification:
 - follow-up task added before the next structural change starts
 
+Result of Task 10.1:
+- `ServerWorkspaceUiAdapter` moved to `lib/view/features/servers/server_workspace_ui_adapter.dart`
+- the adapter now reads as feature-owned UI code instead of generic controller infrastructure
+- controller/binding code still consumes that adapter, but the ownership signal is now explicit
+- the remaining adapter-side imports are shared widget/dialog dependencies that are intentional shared-shell UI usage
+
+### Feature UI adapter hotspot checkpoint
+Status: completed
+
+Outcome:
+- the clearest remaining feature-specific adapter seam is fixed
+- shared widget imports such as `dialog_keyboard_shortcuts.dart` and `port_forward_dialog.dart` are now explicitly acceptable shared-shell UI dependencies
+- this hotspot does not need another immediate batch unless another feature-specific adapter is found to be misclassified
+
 ## Tracking Table
 
 | Item | Scope | Status | Done When |
 | --- | --- | --- | --- |
-| 10.1 | Server UI adapter ownership | queued | feature-specific server UI adapter ownership is clearer than today |
-| 10.2 | Adapter hotspot re-scope | queued | next step is written from what 10.1 proves |
+| 10.1 | Server UI adapter ownership | completed | feature-specific server UI adapter ownership is clearer than today |
+| 10.2 | Adapter hotspot re-scope | completed | next step is written from what 10.1 proves |
+| 10.3 | Feature UI adapter checkpoint | completed | remaining shared-widget adapter imports are explicit intentional exceptions |
 
 ## Completion Metric
 
