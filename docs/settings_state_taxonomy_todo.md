@@ -555,6 +555,7 @@ Why this matters here:
   - local trash persistence and restore signaling used by explorer delete flows
   - top-level explorer widget loading/error states driven by the cleaned controller seams
 - this reduces pressure to keep compatibility-style fallbacks around just to feel safe during later cleanup
+- the first widget seam is now established, so the next UI tests can target narrower critical surfaces instead of broad feature-screen harnesses
 
 ### Task 12.23: re-scope after infra-config grouping
 Status: completed

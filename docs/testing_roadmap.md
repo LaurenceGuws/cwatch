@@ -480,6 +480,35 @@ Verification:
 - `flutter test test/view/shared/views/shared/tabs/file_explorer/file_explorer_tab_test.dart`
 - `flutter analyze`
 
+### Task 13.15: re-scope after the first widget seam
+Status: completed
+
+What this re-scope checked:
+- whether to keep expanding `FileExplorerTab` widget coverage immediately
+- or switch to the next highest-value UI seam after proving the first widget harness
+
+Conclusion:
+- do not broaden `FileExplorerTab` into a full interaction harness yet
+- the next UI-facing batch should stay narrow and target one of:
+  - terminal/editor shell surfaces
+  - key dialogs that coordinate destructive or persistence-heavy actions
+
+Why:
+- `FileExplorerTab` already proved the first widget seam and exposed how expensive full-surface widget tests would be
+- explorer behavior already has strong service/controller coverage underneath it
+- the next best value is a smaller user-critical UI seam, not a giant explorer interaction matrix
+
+Current best next target:
+- a focused dialog/widget seam such as a port-forward or destructive-confirmation flow
+
+What should wait:
+- broad explorer gesture/selection widget coverage
+- end-to-end widget harnesses that recreate large feature runtime graphs
+
+Done definition:
+- the first widget checkpoint is explicit
+- the next UI-facing test batch is chosen based on risk and harness cost, not backlog order alone
+
 ## Test Organization
 
 Recommended structure:
