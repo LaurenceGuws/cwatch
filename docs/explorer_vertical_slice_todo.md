@@ -190,7 +190,7 @@ Why this is the right next cut:
 - it preserves the current local ownership of dense pointer/keyboard/list behavior
 
 ## Task 15.5: implement explorer action/file-operation split
-Status: queued
+Status: completed
 
 Goal:
 - extract explorer-level action and file-operation orchestration out of `file_explorer_tab.dart` while keeping entry-list rendering and selection behavior local
@@ -212,3 +212,28 @@ Done definition:
 - `file_explorer_tab.dart` no longer owns most explorer action/file-operation workflow code
 - the extracted seam is explorer-specific and narrow, not a generic file-manager action framework
 - dense list/input behavior remains local and readable
+
+Result:
+- extracted [file_explorer_tab_actions.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/file_explorer_tab_actions.dart)
+- moved explorer action/file-operation orchestration out of [file_explorer_tab.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart):
+  - entry context-menu action routing
+  - rename/move/delete flows
+  - paste/upload/download flows
+  - local edit sync/refresh/clear flows
+  - path refresh and drop-completion helpers
+- kept entry-list rendering, selection behavior, drag-selection, and row-level interaction local to the tab
+
+## Task 15.6: re-scope the next explorer slice batch
+Status: queued
+
+Goal:
+- decide whether the next explorer step should keep splitting view-local seams or stop and deepen the regression floor around the new presenter/actions boundaries
+
+Likely candidates:
+- split entry-list interaction wiring from row rendering
+- add focused tests around the presenter/actions seams
+- checkpoint the first explorer slice as a coherent stopping point
+
+Done definition:
+- the next explorer batch is chosen from the post-action-split code shape
+- the choice reflects the new presenter and actions seams together, not just line count reduction
