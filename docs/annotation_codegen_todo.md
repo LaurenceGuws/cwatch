@@ -339,11 +339,43 @@ Result:
 - the registry is shaped as the future generated output rather than a temporary ad hoc helper
 
 ## Task 14.37: re-scope the next annotation/codegen batch
-Status: queued
+Status: completed
 
 Goal:
 - decide whether the next batch should add a first consumer of the descriptor registry, add tests around the registry, or move toward generator tooling
 
+Decision:
+- the next batch should add a first consumer of the descriptor registry
+- not generator tooling yet
+- not tests first in isolation
+
+Why this is the right next step:
+- the registry needs to prove product value before more tooling is justified
+- a small consumer validates the descriptor shape better than more metadata artifacts
+- generator tooling should wait until a consumer proves the public shape is worth preserving
+
+Likely first consumer:
+- a metadata-driven settings/schema summary surface
+- not the live settings widgets themselves yet
+
 Done definition:
 - the next batch is explicitly chosen
 - the annotation/codegen track stays incremental instead of turning into a broad tooling rewrite
+
+Result:
+- the next batch should consume `configMetadataRegistry` in one small non-runtime-control surface
+
+## Task 14.38: add first config metadata consumer
+Status: queued
+
+Goal:
+- add one small consumer of the config metadata registry that proves the descriptors are useful without generating live settings UI
+
+Likely scope:
+- one registry-backed summary/export helper
+- or one doc/debug surface that lists grouped preference metadata
+
+Done definition:
+- the registry has one real consumer
+- the consumer uses the descriptor surface directly
+- no generator tooling is required yet

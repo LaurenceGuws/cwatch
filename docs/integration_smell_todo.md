@@ -158,7 +158,8 @@ Current follow-up:
 - `Task 14.34` implement config metadata annotations is complete
 - `Task 14.35` define first descriptor output shape is complete
 - `Task 14.36` implement first config descriptor registry is complete
-- next executable batch: `Task 14.37` re-scope the annotation/codegen track
+- `Task 14.37` re-scope the annotation/codegen track is complete
+- next executable batch: `Task 14.38` add first config metadata consumer
 
 ## Next Re-scope
 

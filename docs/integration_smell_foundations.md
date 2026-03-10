@@ -333,7 +333,7 @@ Current hotspot status:
 - the first narrow annotation family is now implemented
 - the first descriptor output shape is now explicit as a registry surface
 - the first descriptor registry is now implemented
-- the next step is to choose the first real consumer or validation path, not broader generator behavior
+- the next step is the first real consumer of that registry, not broader generator behavior
 - runtime/app-lifecycle metadata such as restart requirements remains explicitly deferred until after the first descriptor output exists
 
 Why this is next:
