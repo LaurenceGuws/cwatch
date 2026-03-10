@@ -45,6 +45,11 @@ We are not trying to redesign all tab UI.
 We are trying to make one ownership rule clearer:
 - non-UI workspace tab state types should not have to live in view widget files to be shared across the app
 
+This hotspot also inherits the strict workspace contract:
+- workspace-core may enforce that a module starts from an initial placeholder tab state
+- workspace-core must not dictate the UI or interaction pattern of that placeholder
+- feature modules own the landing-tab implementation after that contract point
+
 ## Working Rules For This Hotspot
 - keep workspace-core cleanup separate from feature-specific tab builders
 - prefer extracting reusable state over moving whole UI files

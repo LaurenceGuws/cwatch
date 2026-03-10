@@ -23,6 +23,11 @@ The problem is that feature views currently act as:
 
 all at once.
 
+This hotspot must also respect the enforced workspace contract:
+- the shell/framework enforces that each module has an initial placeholder tab
+- the feature module owns the UI and behavior of that placeholder tab
+- composition cleanup must not drift into a generic picker-page abstraction
+
 ## Current Problem
 
 The dependency-direction cleanup removed many wrong-direction imports, but large feature views still construct broad runtime graphs directly.
@@ -191,11 +196,16 @@ Status: active
 Current pattern established:
 - feature view owns:
   - widget-local UI state
+  - initial placeholder tab UI and behavior
   - listeners/registries
   - view-specific async triggers
 - runtime object owns:
   - module-scoped controller/service graph
   - disposal of that graph
+
+Important limit:
+- runtime extraction must support the module-defined initial placeholder-tab contract
+- it must not centralize the landing-page implementation in shell/framework code
 
 ### Task 11.5: re-scope server shell against the runtime-object pattern
 Status: queued

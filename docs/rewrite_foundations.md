@@ -123,6 +123,38 @@ The shell/framework layer must not depend on feature implementation details exce
 - anything under a feature tree that is needed by multiple features is a candidate to move into shared shell/framework ownership
 - if removing a feature module breaks the shell rather than just unregistering feature functionality, the boundary is still wrong
 
+## Required Workspace Contract
+
+This is a strict architecture rule.
+
+For any feature that participates in the tabbed shell:
+- the shell/framework layer enforces a default initial tab state
+- that default initial tab state is a placeholder tab
+- the placeholder tab is the module's default workspace state until user input replaces it or expands it into working tabs
+
+What the shell/framework is allowed to enforce:
+- every tabbed module must provide an initial placeholder tab
+- workspace restore and empty-state behavior start from that placeholder tab contract
+- the placeholder tab is a valid tab kind in the shared workspace system
+
+What the shell/framework must not enforce:
+- a generic picker-page UI
+- a list-based landing page
+- a shared layout for module entry screens
+- a shared interaction model beyond "initial placeholder tab exists"
+
+What each feature module owns:
+- the UI of its initial placeholder tab
+- the behavior of that placeholder tab
+- how placeholder input turns into working tabs
+- whether the placeholder is a picker, launcher, dashboard, recent-work page, wizard, IDE home, or another feature-specific landing surface
+
+The rule is:
+- shared shell/framework code enforces the existence of the initial placeholder-tab pattern
+- feature modules own everything about how that placeholder actually behaves and looks
+
+This rule exists to solve shell/feature separation without forcing unrelated features into the same landing-page abstraction.
+
 ## Focus Areas For Deeper Analysis
 
 ### Focus Area A: architecture and dependency direction

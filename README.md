@@ -53,6 +53,12 @@ Feature modules should own:
 - feature-specific workflows and policies
 - feature-specific dialog content and presentation helpers
 
+Strict shared-shell rule:
+- each tabbed module must provide an initial placeholder tab as its default workspace state
+- the shell enforces that contract
+- the feature owns the placeholder tab UI and behavior
+- the shell does not enforce a shared picker/list landing page
+
 The shell should continue to make sense if SSH, Docker, Kubernetes, or WSL modules are removed. That boundary is now an explicit rewrite goal, not just an implied preference.
 
 ## Development
