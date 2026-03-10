@@ -238,7 +238,8 @@ Done definition for starting this hotspot:
 - we can describe the next batch concretely from current code, not guesses
 
 Current next-step note:
-- the next deep-dive should target shell/module ownership, because the remaining repo-level `model -> controller` dependency is outside the explorer hotspot
+- the next deep-dive should target shell/module ownership
+- `lib/model` now has no `package:cwatch/controller/` imports
 
 ### Docker feature shell
 Track here when ready:
@@ -268,6 +269,13 @@ Done definition for starting this hotspot:
 | 2 | Shell/module hotspot | queued | re-scoped after explorer cleanup |
 | 3 | Docker hotspot | queued | re-scoped after earlier hotspots |
 | 4 | Servers/Kubernetes hotspot | queued | re-scoped after earlier hotspots |
+
+## Repo-level checkpoint
+
+Current state:
+- `lib/model` has no imports from `package:cwatch/controller/`
+- explorer hotspot model-side dependency cleanup is complete
+- the next dependency-direction work should focus on shell/module ownership and controller-to-view boundaries
 
 ## Completion Metric
 
