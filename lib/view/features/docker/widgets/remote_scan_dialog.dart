@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:cwatch/model/models/ssh_host.dart';
-import '../remote_docker_status.dart';
+import 'package:cwatch/model/features/docker/models/remote_docker_status.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 
 class RemoteScanDialog extends StatelessWidget {

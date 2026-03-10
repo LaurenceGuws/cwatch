@@ -10,7 +10,7 @@ import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/features/servers/services/host_distro_key.dart';
 import 'package:cwatch/model/shared/services/host_shell_policy.dart';
 import 'package:cwatch/view/features/docker/docker_tab_builder.dart';
-import 'package:cwatch/view/features/docker/remote_docker_status.dart';
+import 'package:cwatch/model/features/docker/models/remote_docker_status.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 import 'package:cwatch/model/core/services/remote_endpoint_cache.dart';

@@ -127,7 +127,7 @@ Result of re-scope:
 - the next batch should stay focused on mislocated adapter helper ownership, not generic shared dialog wrappers yet
 
 ### Task 7.3: inspect feature-local adapter content/helper ownership
-Status: queued
+Status: completed
 
 Why this is next:
 - the remaining clearly suspicious adapter-side imports are now the feature-local helper/content files rather than the shared widget wrappers
@@ -146,6 +146,29 @@ Done definition:
 Verification:
 - `rg -n "package:cwatch/view/features/" lib/controller/adapters`
 - `flutter analyze`
+
+Result of Task 7.3:
+- `RemoteDockerStatus` moved out of `view/features/docker/` into `model/features/docker/models/`
+- `DockerUiAdapter` no longer depends on a feature-local view file for data shaping
+- the remaining feature-local adapter import is `AddServerDialog`, which is now isolated as a likely intentional feature exception rather than a hidden shared helper
+- the next batch should re-scope whether to stop here or explicitly document the remaining adapter-side UI exceptions
+
+### Task 7.4: re-scope adapter dialog/content exceptions
+Status: queued
+
+Purpose:
+- decide whether the remaining adapter-side imports should be treated as:
+  - intentional shared UI exceptions (`dialog_keyboard_shortcuts.dart`, progress widgets, port-forward dialog)
+  - intentional feature exception (`AddServerDialog`)
+  - further cleanup work
+- record what we learned from Task 7.3
+
+Done definition:
+- the next adapter dialog/content step is written from the post-7.3 state of the code
+- intentional UI exceptions are recorded clearly if we stop here
+
+Verification:
+- follow-up task added before the next adapter structural change starts
 
 ## Later Work In This Hotspot
 
@@ -172,8 +195,9 @@ Track here when ready:
 | --- | --- | --- | --- |
 | 7.1 | Shared adapter dialog/content helper ownership | completed | at least one misleading adapter-side view dependency is removed or reclassified |
 | 7.2 | Adapter dialog/content re-scope | completed | next task is written from what we learn in 7.1 |
-| 7.3 | Feature-local adapter content/helper ownership | queued | at least one remaining feature-local adapter-side dependency is reduced or justified |
-| 7.x | Adapter dialog/content follow-up | queued | re-scoped after 7.3 |
+| 7.3 | Feature-local adapter content/helper ownership | completed | at least one remaining feature-local adapter-side dependency is reduced or justified |
+| 7.4 | Adapter dialog/content re-scope | queued | next step is written from what we learn in 7.3 |
+| 7.x | Adapter dialog/content follow-up | queued | re-scoped after 7.4 |
 
 ## Completion Metric
 
