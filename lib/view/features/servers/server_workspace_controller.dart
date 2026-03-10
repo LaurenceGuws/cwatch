@@ -109,7 +109,7 @@ class ServerWorkspaceController extends TabbedWorkspaceController {
     required Function(ExplorerContext context) onOpenTrash,
     required Widget Function(String tabId) hostListBuilder,
   }) async {
-    final workspace = workspacePersistence.read();
+    final workspace = await workspacePersistence.load();
     if (workspace == null || workspace.tabs.isEmpty) return;
     if (!workspacePersistence.shouldRestore(workspace)) return;
 

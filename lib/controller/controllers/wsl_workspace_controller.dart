@@ -66,7 +66,7 @@ class WslWorkspaceController
     required Widget Function(String tabId) pickerBodyBuilder,
     required WslTabBuilders callbacks,
   }) async {
-    final workspace = workspacePersistence.read();
+    final workspace = await workspacePersistence.load();
     if (workspace == null || workspace.tabs.isEmpty) return;
     if (!workspacePersistence.shouldRestore(workspace)) return;
 

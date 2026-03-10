@@ -21,6 +21,11 @@ class WorkspacePersistence<T> {
 
   T? read() => readFromRoot(workspaceRootController.workspaces);
 
+  Future<T?> load() async {
+    final workspaces = await workspaceRootController.ensureLoaded();
+    return readFromRoot(workspaces);
+  }
+
   bool shouldRestore(T workspace) =>
       !_tracker.hasRestored(signatureOf(workspace));
 
@@ -28,10 +33,6 @@ class WorkspacePersistence<T> {
       _tracker.markRestored(signatureOf(workspace));
 
   Future<void> persist(T workspace) async {
-    if (!workspaceRootController.isLoaded) {
-      _tracker.deferSave();
-      return;
-    }
     final signature = signatureOf(workspace);
     if (!_tracker.shouldPersist(signature)) {
       return;
@@ -43,7 +44,7 @@ class WorkspacePersistence<T> {
   }
 
   void persistIfPending(Future<void> Function() persistCallback) {
-    if (_tracker.pendingSave && workspaceRootController.isLoaded) {
+    if (_tracker.pendingSave) {
       persistCallback();
     }
   }

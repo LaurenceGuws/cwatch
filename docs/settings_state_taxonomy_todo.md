@@ -348,8 +348,8 @@ class PersistedWorkspaces {
 Root persistence direction:
 - settings storage persists `AppSettings`
 - workspace storage persists `PersistedWorkspaces`
-- they may still live in the same physical JSON file temporarily during migration
-- but they should no longer share one root model
+- during the compatibility seam they may still mirror legacy embedded workspace fields
+- but the physical workspace backing store should move to its own file
 
 ## Migration Seam
 
@@ -414,9 +414,9 @@ What changed:
 - feature views now compare persisted workspace signatures through `workspacePersistence.read()` instead of directly reading `settings.*Workspace`
 
 What did not change yet:
-- workspace snapshots still physically live in `AppSettings` as a temporary compatibility backing store
+- legacy workspace snapshot fields still exist in [app_settings.dart](/home/home/personal/cwatch/lib/model/models/app_settings.dart) for compatibility
 - `serverWorkspace`, `dockerWorkspace`, `kubernetesWorkspace`, and `wslWorkspace` have not been removed from [app_settings.dart](/home/home/personal/cwatch/lib/model/models/app_settings.dart)
-- storage format migration has not started yet
+- physical storage separation has not landed yet
 
 Why this is the right checkpoint:
 - the shared persistence seam changed first
@@ -430,7 +430,7 @@ Verification:
 ## Next Batch Candidate
 
 ### Task 12.5: separate physical storage from `AppSettings`
-Status: queued
+Status: completed
 
 Goal:
 - move workspace snapshot storage behind a dedicated persistence backing store
@@ -445,6 +445,39 @@ Done definition:
 - `WorkspaceRootController` no longer depends on workspace snapshots being embedded in `AppSettings`
 - old embedded workspace fields are only used for migration or are removed entirely
 - feature workspace controllers remain unchanged across that storage move
+
+What landed:
+- [workspace_storage.dart](/home/home/personal/cwatch/lib/model/services_infra/settings/workspace_storage.dart)
+- [workspace_root_controller.dart](/home/home/personal/cwatch/lib/model/services_infra/settings/workspace_root_controller.dart) now loads and saves `workspaces.json`
+- [persisted_workspaces.dart](/home/home/personal/cwatch/lib/model/models/persisted_workspaces.dart) now owns JSON serialization for the dedicated workspace root
+- workspace restore paths now await the workspace root load through [workspace_persistence.dart](/home/home/personal/cwatch/lib/controller/core/workspace/workspace_persistence.dart)
+
+Result:
+- workspace snapshots now have a dedicated physical backing store
+- legacy embedded workspace fields remain only as migration fallback data
+- feature workspace controllers did not need another ownership rewrite
+
+Verification:
+- `flutter analyze`
+- result: no issues found
+
+### Task 12.6: remove legacy embedded workspace fields from `AppSettings`
+Status: queued
+
+Goal:
+- stop serializing workspace snapshots in [app_settings.dart](/home/home/personal/cwatch/lib/model/models/app_settings.dart)
+- keep one-time migration from legacy embedded fields if old settings files are present
+
+Likely scope:
+- `app_settings.dart`
+- `settings_storage.dart`
+- `workspace_storage.dart`
+- compatibility migration rules between old `settings.json` and new `workspaces.json`
+
+Done definition:
+- new writes to `settings.json` no longer include workspace snapshots
+- startup can still recover workspaces from older embedded settings files
+- all workspace restore behavior still flows through `WorkspaceRootController`
 
 ## Completion Metric
 

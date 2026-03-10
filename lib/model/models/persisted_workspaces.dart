@@ -26,6 +26,43 @@ class PersistedWorkspaces {
     );
   }
 
+  factory PersistedWorkspaces.fromJson(Map<String, dynamic> json) {
+    ServerWorkspaceState? parseServer(dynamic raw) {
+      if (raw is Map<String, dynamic>) {
+        return ServerWorkspaceState.fromJson(raw);
+      }
+      return null;
+    }
+
+    KubernetesWorkspaceState? parseKubernetes(dynamic raw) {
+      if (raw is Map<String, dynamic>) {
+        return KubernetesWorkspaceState.fromJson(raw);
+      }
+      return null;
+    }
+
+    WslWorkspaceState? parseWsl(dynamic raw) {
+      if (raw is Map<String, dynamic>) {
+        return WslWorkspaceState.fromJson(raw);
+      }
+      return null;
+    }
+
+    DockerWorkspaceState? parseDocker(dynamic raw) {
+      if (raw is Map<String, dynamic>) {
+        return DockerWorkspaceState.fromJson(raw);
+      }
+      return null;
+    }
+
+    return PersistedWorkspaces(
+      server: parseServer(json['server']),
+      docker: parseDocker(json['docker']),
+      kubernetes: parseKubernetes(json['kubernetes']),
+      wsl: parseWsl(json['wsl']),
+    );
+  }
+
   PersistedWorkspaces copyWith({
     ServerWorkspaceState? server,
     DockerWorkspaceState? docker,
@@ -38,5 +75,14 @@ class PersistedWorkspaces {
       kubernetes: kubernetes ?? this.kubernetes,
       wsl: wsl ?? this.wsl,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      if (server != null) 'server': server!.toJson(),
+      if (docker != null) 'docker': docker!.toJson(),
+      if (kubernetes != null) 'kubernetes': kubernetes!.toJson(),
+      if (wsl != null) 'wsl': wsl!.toJson(),
+    };
   }
 }

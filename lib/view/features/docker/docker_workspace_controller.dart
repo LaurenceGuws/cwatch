@@ -66,7 +66,7 @@ class DockerWorkspaceController
     required Widget Function(String tabId) pickerBuilder,
     required TabBuilders callbacks,
   }) async {
-    final workspace = workspacePersistence.read();
+    final workspace = await workspacePersistence.load();
     if (workspace == null || workspace.tabs.isEmpty) return;
     if (!workspacePersistence.shouldRestore(workspace)) return;
 

@@ -56,7 +56,7 @@ class KubernetesWorkspaceController
     required Widget Function(String tabId) placeholderBuilder,
     required Widget Function(KubeconfigContext context) detailsBuilder,
   }) async {
-    final workspace = workspacePersistence.read();
+    final workspace = await workspacePersistence.load();
     if (workspace == null || workspace.tabs.isEmpty) return;
     if (!workspacePersistence.shouldRestore(workspace)) return;
 
