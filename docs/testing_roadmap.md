@@ -461,6 +461,25 @@ Verification:
 - `flutter test test/model/services_infra/filesystem/explorer_trash_manager_test.dart`
 - `flutter analyze`
 
+### Task 13.14: add `file_explorer_tab_test.dart`
+Status: completed
+
+What landed:
+- [file_explorer_tab_test.dart](/home/home/personal/cwatch/test/view/shared/views/shared/tabs/file_explorer/file_explorer_tab_test.dart)
+
+Coverage added:
+- loading-state rendering while explorer initialization is still in progress
+- inline non-timeout error rendering when initialization fails
+
+Why this matters:
+- it establishes the first widget-level regression seam without trying to snapshot the whole explorer interaction surface
+- it locks down the highest-value top-level render states for the explorer tab before deeper widget coverage
+- it keeps the widget test focused on user-visible state instead of reproducing the entire explorer service graph
+
+Verification:
+- `flutter test test/view/shared/views/shared/tabs/file_explorer/file_explorer_tab_test.dart`
+- `flutter analyze`
+
 ## Test Organization
 
 Recommended structure:
