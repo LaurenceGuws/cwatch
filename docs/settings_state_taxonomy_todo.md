@@ -259,7 +259,59 @@ That should drive the next code-facing split.
 | --- | --- | --- | --- |
 | 12.1 | AppSettings taxonomy | completed | every field is classified by state type |
 | 12.2 | State-taxonomy re-scope | completed | first split candidate is chosen from the taxonomy |
-| 12.3 | First split candidate | queued | workspace snapshot split is scoped into an executable next batch |
+| 12.3 | First split candidate | completed | workspace snapshot split is scoped into an executable next batch |
+
+## Task 12.3 Result
+
+The workspace-snapshot split should be staged around the existing persistence seam, not around feature views directly.
+
+The existing seam already exists in:
+- `WorkspacePersistence<T>`
+- `PersistentWorkspaceController<TWorkspaceState>`
+- feature workspace controllers that currently read/write workspace snapshots through `AppSettings`
+
+That means the first code-facing split should not start by editing each feature screen.
+
+It should start by changing the persistence contract from:
+- `AppSettings` contains workspace snapshots
+
+to:
+- application settings and workspace snapshots are persisted as separate root concerns
+
+## First Workspace-Snapshot Split Candidate
+
+### Task 12.4: define a dedicated root workspace persistence container
+Status: queued
+
+Why this is next:
+- workspace persistence already has a shared abstraction layer
+- the main mismatch is the root container, not the feature controllers
+- this is the narrowest split that respects the placeholder-tab contract and avoids feature-by-feature persistence churn first
+
+Current files in scope:
+- `lib/model/models/app_settings.dart`
+- `lib/controller/core/workspace/workspace_persistence.dart`
+- `lib/controller/core/workspace/persistent_workspace_controller.dart`
+- representative workspace controllers:
+  - `lib/view/features/servers/server_workspace_controller.dart`
+  - `lib/view/features/docker/docker_workspace_controller.dart`
+  - `lib/view/features/kubernetes/kubernetes_workspace_controller.dart`
+  - `lib/controller/controllers/wsl_workspace_controller.dart`
+
+Actions:
+- define the target root model for persisted workspaces separate from `AppSettings`
+- define how `WorkspacePersistence<T>` should read/write that root container instead of `AppSettings`
+- define the minimum compatibility strategy so the split can land incrementally
+- identify the first code batch that changes the persistence seam without redesigning all feature workspace controllers
+
+Done definition:
+- the dedicated workspace-persistence root container is described clearly
+- the migration seam is identified at `WorkspacePersistence<T>` / `PersistentWorkspaceController<TWorkspaceState>`
+- the next implementation batch can be chosen without guessing the whole persistence rewrite
+
+Verification:
+- the document names the new root persistence boundary explicitly
+- the first code batch is framed at the shared persistence seam, not as scattered feature edits
 
 ## Completion Metric
 
