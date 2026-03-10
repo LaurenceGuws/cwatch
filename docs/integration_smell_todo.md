@@ -596,3 +596,28 @@ Current follow-up doc:
 
 Next executable batch:
 - choose the next integration-smell hotspot after SSH auth ownership
+
+### Task 14.26: choose the next integration-smell hotspot after SSH auth
+Status: completed
+
+What this task checked:
+- whether to return to explorer shared-surface cleanup
+- whether to jump to annotation/codegen candidate selection
+- whether to continue the SSH tail despite diminishing returns
+
+Result:
+- the next hotspot is `explorer shared surface`
+
+Why this wins:
+- explorer is still one of the largest shared shell/file surfaces in the app
+- it has cleaner ownership now, but the shared/local contract is still implicit
+- shell polish and reuse rules will keep drifting until explorer is made explicit
+
+Why annotation/codegen waits:
+- that is still better treated as a metadata-focused pass after the remaining large shared subsystem contracts are clearer
+
+Current follow-up doc:
+- [explorer_shared_surface_todo.md](/home/home/personal/cwatch/docs/explorer_shared_surface_todo.md)
+
+Next executable batch:
+- `Task 14.27`: define the explorer shared-surface contract

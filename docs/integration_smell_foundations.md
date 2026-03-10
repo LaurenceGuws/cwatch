@@ -314,6 +314,17 @@ Current SSH auth status:
 - hotspot checkpoint reached
 - remaining work has shifted from feature-layer integration smell to composition/compatibility cleanup
 
+Current next hotspot:
+- explorer shared surface
+
+Current follow-up doc:
+- [explorer_shared_surface_todo.md](/home/home/personal/cwatch/docs/explorer_shared_surface_todo.md)
+
+Why this is next:
+- explorer remains one of the richest reusable shell/file subsystems
+- its shared/local contract is still implicit even after ownership cleanup
+- annotation/codegen decisions are still better deferred until this larger shared surface is clearer
+
 ## Success Criteria
 
 This layer is working when:

@@ -98,10 +98,10 @@ Current tab-shell status:
 - first chip-building normalization pass complete
 
 Current next integration hotspot:
-- SSH auth ownership
+- explorer shared surface
 
 Current follow-up doc:
-- `docs/ssh_auth_integration_todo.md`
+- `docs/explorer_shared_surface_todo.md`
 
 ## Development
 1. `flutter pub get`
