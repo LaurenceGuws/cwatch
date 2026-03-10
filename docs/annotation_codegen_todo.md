@@ -204,6 +204,17 @@ Required `ConfigField` metadata:
 - optional unit hint where useful
 - optional default-value documentation override when the constructor default is not enough
 
+Explicitly deferred field metadata:
+- reload impact metadata such as:
+  - immediate
+  - hot-reload-safe
+  - full-app-restart-required
+
+Why deferred:
+- it is useful metadata, especially for settings UX and dev tooling
+- but it should be added only after the first descriptor output exists
+- otherwise the first pass will start encoding runtime/app-lifecycle behavior too early
+
 Deliberately excluded from the first shape:
 - runtime validators
 - visibility conditions
@@ -262,9 +273,11 @@ Goal:
 Expected scope:
 - one descriptor record shape for config groups and fields
 - one registry output surface for the four primitive grouped preference models
+- enough room for later optional metadata such as reload impact
 - still no runtime settings UI generation
 
 Done definition:
 - the first descriptor output shape is explicit
 - the output target file/module is explicit
+- deferred metadata such as reload impact is explicitly parked for later
 - implementation can proceed without broadening the annotation scope

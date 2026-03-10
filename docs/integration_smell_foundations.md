@@ -332,6 +332,7 @@ Current hotspot status:
 - the annotation shape is now explicit and still metadata-only
 - the first narrow annotation family is now implemented
 - the next step is descriptor output shape, not broader generator behavior
+- runtime/app-lifecycle metadata such as restart requirements remains explicitly deferred until after the first descriptor output exists
 
 Why this is next:
 - the main shared-surface hotspots are now at usable checkpoints
