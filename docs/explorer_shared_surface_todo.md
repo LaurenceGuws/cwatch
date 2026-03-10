@@ -20,86 +20,148 @@ Why explorer now:
   - shared file tooling expectations
   - explorer-specific interaction flows
   - local builder/dialog behavior
-- shell polish will keep stalling if explorer remains “partly shared, partly special, but not clearly documented”
+- shell polish will keep stalling if explorer remains "partly shared, partly special, but not clearly documented"
 
-## Current Shared-Surface Candidates
+## Canonical Shared Explorer Surface
 
-The likely shared explorer surface includes:
-- path/state helpers
-- selection state
-- drag/drop primitives
-- shared prompt/confirm integration points already moved out of local widget files
-- generic file action flows that should behave consistently across modules
+The explorer subsystem is now shared in the same sense that the tab shell is shared:
+- it provides a reusable file-tooling surface
+- it should survive removal of SSH, Docker, Kubernetes, and WSL modules
+- feature modules should consume it rather than rebuild nearby file tooling casually
+
+The canonical shared explorer surface is:
+- explorer state and selection primitives
+- path/history/search/file-loading behavior
+- file-operation orchestration and clipboard/trash integration
+- reusable explorer tab chrome and list interaction behavior
+- generic prompt/confirm entry points for simple explorer actions
 
 Representative current files:
 - [file_explorer_tab.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart)
 - [file_explorer_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/file_explorer_controller.dart)
 - [explorer_ui_adapter.dart](/home/home/personal/cwatch/lib/controller/adapters/explorer_ui_adapter.dart)
-- [explorer_dialog_builders.dart](/home/home/personal/cwatch/lib/view/shared/widgets/explorer_dialog_builders.dart)
 - [explorer_selection_state.dart](/home/home/personal/cwatch/lib/model/shared/services/explorer_selection_state.dart)
 - [explorer_state.dart](/home/home/personal/cwatch/lib/model/shared/services/explorer_state.dart)
 - [path_utils.dart](/home/home/personal/cwatch/lib/model/shared/services/path_utils.dart)
 
-## Current Ambiguities
+## Required Shared Behavior
 
-### 1. Explorer is shared, but not yet explicitly partitioned
+The following explorer behavior should be treated as canonical shared behavior unless there is a real subsystem reason not to:
+- path navigation and history semantics
+- search activation/reset and streamed search result behavior
+- selection ownership and selection clearing rules
+- drag/drop session primitives
+- clipboard/cut/copy/paste flows
+- trash integration and restore notifications
+- generic snack-bar and prompt integration points
+- base explorer tab layout expectations such as breadcrumbs, settings toggle, and entry-list hosting
 
-We have already moved several non-UI or shared UI pieces out of feature-local ownership.
+These are the behaviors feature modules should reuse, not recreate with near-identical widgets/helpers.
 
-What is still unclear:
-- which explorer pieces are now canonical shared shell/file tooling
-- which pieces are still explorer-local because their interaction contract is genuinely richer or more specific
+## Valid Explorer-Local Exceptions
 
-### 2. Some explorer dialogs should remain local
+Not every explorer-adjacent dialog or interaction should become a generic shell widget.
 
-Examples:
-- rename/move/delete flows in [explorer_dialog_builders.dart](/home/home/personal/cwatch/lib/view/shared/widgets/explorer_dialog_builders.dart)
-- merge-conflict flow in [explorer_merge_conflict_dialog.dart](/home/home/personal/cwatch/lib/view/shared/widgets/explorer_merge_conflict_dialog.dart)
+Valid explorer-local exceptions are:
+- rename/move/delete dialog flows in [explorer_dialog_builders.dart](/home/home/personal/cwatch/lib/view/shared/widgets/explorer_dialog_builders.dart)
+- merge resolution flow in [explorer_merge_conflict_dialog.dart](/home/home/personal/cwatch/lib/view/shared/widgets/explorer_merge_conflict_dialog.dart)
+- input-specific selection wrappers in [selection_controller.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/selection_controller.dart)
+- dense explorer row/list interaction details that are tightly coupled to explorer semantics
 
-These may be valid explorer-local surfaces even though they live under shared widgets.
+Why these remain local:
+- they are not generic shell prompts
+- they carry richer file-operation semantics than the shared prompt helper should absorb
+- flattening them now would hide valid explorer-specific interaction rules under fake genericity
 
-The next pass should not flatten them automatically into generic shell prompts just because they are “dialogs”.
+## Reuse Rules
 
-### 3. The explorer shell contract is still implicit
+Future modules should:
+- reuse `FileExplorerController` and the shared explorer state/services when they need file-tooling behavior
+- reuse `FileExplorerTab` when they need the canonical explorer surface rather than a superficially similar file browser
+- use `ExplorerUiAdapter` plus shared prompt helpers for simple prompt/confirm flows
+- treat explorer-local dialog builders as the default for richer file-operation dialogs rather than rebuilding local versions nearby
 
-Explorer currently acts like a reusable shell subsystem, but the repo does not yet state:
-- what explorer behaviors are mandatory shared behavior
-- what explorer-specific overrides are acceptable
-- which explorer-side widgets/helpers should be reused rather than re-created
+Future modules should not:
+- re-create path/history/search logic in feature-local widgets
+- fork explorer selection state for cosmetic reasons
+- create feature-local rename/move/delete dialogs that only restate explorer behavior with minor copy changes
+- bypass the explorer controller/service surface just to wire another small file browser directly
 
-## Questions This Hotspot Should Answer
+## Current Ambiguities That Remain
+
+### 1. `FileExplorerTab` is both canonical and heavy
+
+It is clearly the canonical shared explorer tab surface.
+
+It is also still a large widget that mixes:
+- shared explorer chrome
+- list/input handling
+- settings visibility state
+- desktop drop integration
+
+That is a maintenance problem, but not an ownership ambiguity anymore.
+
+### 2. `ExplorerUiAdapter` still mixes shared prompts and explorer-local dialogs
+
+That is acceptable for now because it is the explorer UI seam.
+
+The important rule is:
+- simple prompts should route through shared prompt helpers
+- rich explorer dialogs should stay on explorer-local builders
+
+### 3. Shared explorer surface is documented, not yet cataloged
+
+We now have the rule set, but not yet a smaller internal helper catalog for explorer chrome sections such as:
+- toolbar/header actions
+- settings panel section wiring
+- list host scaffolding
+
+That is follow-up work, not a prerequisite for the contract.
+
+## Questions This Hotspot Has Now Answered
 
 1. What is the canonical shared explorer surface?
+- the reusable file-tooling subsystem centered on shared controller/state/tab behavior
+
 2. Which explorer interactions are required shared behavior?
+- navigation, selection, search, clipboard, trash, drag/drop primitives, and base tab chrome/layout behavior
+
 3. Which explorer dialogs/builders remain valid explorer-local exceptions?
+- rename/move/delete builders, merge conflict dialog, and input-specific selection wrapper logic
+
 4. Which current explorer helpers are truly reusable shell/file primitives?
+- state, selection, path helpers, controller/service orchestration, and simple prompt integration points
+
 5. Where should future modules reuse explorer behavior instead of recreating nearby widgets/helpers?
+- any time they need the canonical file-tooling surface rather than a genuinely different domain-specific file interaction contract
 
-## First Safe Batch
-
-The first batch should be a contract pass, not a broad explorer rewrite.
-
-Why:
-- explorer is broad enough that implementation without an explicit contract will drift
-- we already have enough cleanup history to define a real boundary instead of guessing
-- explorer affects shell polish directly, so the contract matters before more code movement
-
-## Task 14.26: define the explorer shared-surface contract
-Status: queued
+## Task 14.27: define the explorer shared-surface contract
+Status: completed
 
 Goal:
 - make the canonical shared explorer surface explicit and separate it from valid explorer-local behavior
-
-Files in scope:
-- [file_explorer_tab.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart)
-- [file_explorer_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/file_explorer_controller.dart)
-- [explorer_ui_adapter.dart](/home/home/personal/cwatch/lib/controller/adapters/explorer_ui_adapter.dart)
-- [explorer_dialog_builders.dart](/home/home/personal/cwatch/lib/view/shared/widgets/explorer_dialog_builders.dart)
-- [explorer_merge_conflict_dialog.dart](/home/home/personal/cwatch/lib/view/shared/widgets/explorer_merge_conflict_dialog.dart)
-- [explorer_selection_state.dart](/home/home/personal/cwatch/lib/model/shared/services/explorer_selection_state.dart)
-- [explorer_state.dart](/home/home/personal/cwatch/lib/model/shared/services/explorer_state.dart)
 
 Done definition:
 - the canonical shared explorer surface is named
 - valid explorer-local exceptions are named
 - one concrete follow-up cleanup batch is chosen
+
+Result:
+- the canonical shared explorer surface is now explicit
+- valid explorer-local exceptions are now explicit
+- the next cleanup batch is narrowed to explorer chrome/helper extraction, not a broad explorer rewrite
+
+## Task 14.28: scope explorer chrome/helper cleanup
+Status: queued
+
+Goal:
+- identify the smallest shared helper extraction inside `FileExplorerTab` that improves explorer polish without flattening valid explorer-local interaction behavior
+
+Likely targets:
+- header/toolbar action row
+- settings panel host wiring
+- entry-list host/scaffold sections around loading/error/drop-overlay states
+
+Done definition:
+- one narrow helper extraction is selected
+- the extraction is justified as shared explorer chrome, not explorer-specific dialog behavior

@@ -119,12 +119,18 @@ Queued question:
 - what belongs in the canonical tab shell surface vs feature-local tab decoration/action behavior
 
 ### Hotspot B: explorer reuse vs local specialization
+Status: active
 Why it matters:
 - explorer is one of the richest shared surfaces in the app
 - it is easy to re-create small explorer-adjacent widgets/helpers instead of extending the shared surface
 
-Queued question:
-- which explorer pieces are truly shell/shared building blocks and which should remain local behavior
+Current result:
+- the explorer shared-surface contract is now explicit
+- canonical shared explorer behavior is separated from valid explorer-local dialogs and interaction exceptions
+
+Current follow-up:
+- [explorer_shared_surface_todo.md](/home/home/personal/cwatch/docs/explorer_shared_surface_todo.md)
+- next executable batch: `Task 14.28` explorer chrome/helper cleanup
 
 ### Hotspot C: shared dialog/settings scaffolding
 Why it matters:

@@ -317,6 +317,11 @@ Current SSH auth status:
 Current next hotspot:
 - explorer shared surface
 
+Current hotspot status:
+- explorer shared-surface contract is now explicit
+- next step is a narrow explorer chrome/helper cleanup pass
+- richer explorer dialogs remain intentional local exceptions
+
 Current follow-up doc:
 - [explorer_shared_surface_todo.md](/home/home/personal/cwatch/docs/explorer_shared_surface_todo.md)
 
