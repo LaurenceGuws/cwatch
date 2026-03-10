@@ -24,13 +24,13 @@ import 'package:cwatch/view/shared/widgets/dialog_keyboard_shortcuts.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
 import 'package:cwatch/view/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/view/core/tabs/tabbed_workspace_shell.dart';
+import 'package:cwatch/view/core/tabs/workspace_tab_chip_builder.dart';
 import 'package:cwatch/view/core/navigation/tab_navigation_registry.dart';
 import 'package:cwatch/view/core/navigation/command_palette_registry.dart';
 import 'package:cwatch/view/core/tabs/tab_bar_visibility.dart';
 import 'package:cwatch/model/models/docker_workspace_state.dart';
 import 'package:cwatch/view/core/widgets/keep_alive.dart';
 import 'widgets/docker_engine_picker.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/tab_chip.dart';
 import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/settings/floating_settings_window.dart';
 import 'docker_tab_builder.dart';
@@ -379,7 +379,6 @@ class _DockerViewState extends State<DockerView> {
                 onReorder: _workspaceController.reorder,
                 onAddTab: _addEnginePickerTab,
                 buildChip: (context, index, tab) {
-                  final optionsController = tab.optionsController;
                   final data = tab.workspaceState as DockerTabData?;
                   final isPicker =
                       tab.isPicker || data?.kind == DockerTabKind.picker;
@@ -393,53 +392,32 @@ class _DockerViewState extends State<DockerView> {
                           confirmLabel: 'Close tab',
                         )
                       : null;
-                  Widget buildTab(List<TabChipOption> options) {
-                    return TabChip(
-                      host: SshHost(
-                        name: tab.label,
-                        hostname: '',
-                        port: 0,
-                        available: true,
-                      ),
-                      title: tab.title,
-                      label: tab.label,
-                      icon: tab.icon,
-                      selected: index == _selectedIndex,
-                      onSelect: () {
-                        _workspaceController.select(index);
-                      },
-                      onClose: () => _workspaceController.closeTab(index),
-                      closable: true,
-                      onRename: canRename ? () => _renameTab(index) : null,
-                      dragIndex: canDrag ? index : null,
-                      options: options,
-                      closeWarning: closeWarning,
-                    );
-                  }
-
-                  if (optionsController == null) {
-                    return KeyedSubtree(
-                      key: ValueKey(tab.id),
-                      child: buildTab(const []),
-                    );
-                  }
-                  return ValueListenableBuilder<List<TabChipOption>>(
-                    key: ValueKey(tab.id),
-                    valueListenable: optionsController,
-                    builder: (context, options, _) {
-                      final updatedOptions = [
-                        ...options,
-                        if (isPicker)
-                          TabChipOption(
-                            label: _showListSettings
-                                ? 'Hide list settings'
-                                : 'List settings',
-                            icon: Icons.settings,
-                            onSelected: _toggleListSettings,
-                          ),
-                      ];
-                      return buildTab(updatedOptions);
-                    },
+                  return WorkspaceTabChipBuilder(
+                    tab: tab,
+                    selected: index == _selectedIndex,
+                    host: SshHost(
+                      name: tab.label,
+                      hostname: '',
+                      port: 0,
+                      available: true,
+                    ),
+                    onSelect: () => _workspaceController.select(index),
+                    onClose: () => _workspaceController.closeTab(index),
+                    onRename: () => _renameTab(index),
+                    index: index,
+                    canRename: canRename,
+                    canDrag: canDrag,
+                    closeWarning: closeWarning,
+                    extraOptions: [
+                      if (isPicker)
+                        TabChipOption(
+                          label: _showListSettings
+                              ? 'Hide list settings'
+                              : 'List settings',
+                          icon: Icons.settings,
+                          onSelected: _toggleListSettings,
+                        ),
+                    ],
                   );
                 },
                 buildBody: (tab) => tab.body,

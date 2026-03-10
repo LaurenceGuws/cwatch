@@ -91,6 +91,7 @@ Current implementation-ready follow-up:
 Current implementation checkpoint:
 - WSL now uses the first shared tab-shell chip builder seam
 - Kubernetes now uses the same seam for the routine options-controller case
+- Docker now uses the same seam for picker restrictions and picker-only options
 
 ## Development
 1. `flutter pub get`

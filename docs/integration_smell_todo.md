@@ -295,3 +295,16 @@ Current follow-up doc:
 
 Next executable batch:
 - `Task 14.8`: adopt the shared chip builder in Docker
+
+### Task 14.8: adopt the shared chip builder in Docker
+Status: completed
+
+What this task established:
+- the shared chip-building helper also works for picker restrictions, close warnings, and picker-only extra options
+- Docker no longer hand-assembles routine `TabChip` wiring
+
+Current follow-up doc:
+- [tab_shell_adapter_todo.md](/home/home/personal/cwatch/docs/tab_shell_adapter_todo.md)
+
+Next executable batch:
+- `Task 14.9`: adopt the shared chip builder in Servers

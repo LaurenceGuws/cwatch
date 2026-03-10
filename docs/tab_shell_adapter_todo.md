@@ -182,3 +182,26 @@ What this proved:
 
 Next executable batch:
 - `Task 14.8`: adopt the shared chip builder in Docker
+
+## Task 14.8: adopt the shared chip builder in Docker
+Status: completed
+
+Goal:
+- migrate Docker chip assembly onto the shared helper without weakening picker-specific restrictions
+
+Done definition:
+- Docker no longer hand-assembles routine `TabChip` wiring
+- the shared helper still handles picker restrictions and picker-only extra options without broader redesign
+
+What landed:
+- [docker_view.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view.dart) now uses the shared chip builder instead of hand-assembling routine `TabChip` wiring
+
+What this proved:
+- the helper can handle:
+  - picker-specific drag/rename restrictions
+  - picker-only extra options
+  - close warnings
+- Docker did not require a second abstraction layer before reuse
+
+Next executable batch:
+- `Task 14.9`: adopt the shared chip builder in Servers
