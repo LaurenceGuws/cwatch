@@ -146,7 +146,7 @@ Result of Task 11.3:
   - feature-specific async orchestration
 
 ### Task 11.4: extract a Kubernetes module runtime
-Status: queued
+Status: completed
 
 Why this is next:
 - it applies the Docker runtime pattern to a second, smaller feature shell
@@ -174,6 +174,44 @@ Verification:
 - `flutter analyze`
 - manual smoke check of Kubernetes context loading and workspace restore
 
+Result of Task 11.4:
+- `KubernetesContextList` now owns one `KubernetesRuntime` instead of assembling its module-scoped graph field-by-field
+- `KubernetesContextBinding.createRuntime(...)` now assembles:
+  - `KubernetesContextController`
+  - `SettingsController`
+  - `KubernetesTabBuilder`
+  - `KubernetesWorkspaceController`
+  - `KubernetesUiAdapter`
+- `KubernetesRuntime` now owns disposal of the module-scoped controllers
+- this validates the Docker runtime pattern on a second feature shell
+
+### Composition-root hotspot checkpoint
+Status: active
+
+Current pattern established:
+- feature view owns:
+  - widget-local UI state
+  - listeners/registries
+  - view-specific async triggers
+- runtime object owns:
+  - module-scoped controller/service graph
+  - disposal of that graph
+
+### Task 11.5: re-scope server shell against the runtime-object pattern
+Status: queued
+
+Why this is next:
+- Docker and Kubernetes now show the same composition pattern
+- server is the heavier shell and should be approached with that evidence
+- the next step should identify the smallest server runtime extraction, not attempt a full shell rewrite
+
+Done definition:
+- the next server composition-root batch is written from what Docker and Kubernetes proved
+- any reason the server shell needs a staged runtime extraction is recorded here
+
+Verification:
+- follow-up task added before the next structural change starts
+
 ## Tracking Table
 
 | Item | Scope | Status | Done When |
@@ -181,7 +219,8 @@ Verification:
 | 11.1 | Docker construction ownership | completed | one concrete docker construction seam has explicit ownership |
 | 11.2 | Composition hotspot re-scope | completed | next step is written from what 11.1 proves |
 | 11.3 | Next runtime-graph target | completed | next composition-root batch is chosen from current evidence |
-| 11.4 | Kubernetes runtime graph | queued | Kubernetes module-scoped runtime construction is explicit |
+| 11.4 | Kubernetes runtime graph | completed | Kubernetes module-scoped runtime construction is explicit |
+| 11.5 | Server runtime re-scope | queued | next server batch is chosen from the validated runtime-object pattern |
 
 ## Completion Metric
 

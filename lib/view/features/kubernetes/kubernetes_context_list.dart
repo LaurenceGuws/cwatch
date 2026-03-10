@@ -26,13 +26,13 @@ import 'package:cwatch/view/shared/widgets/data_table/structured_data_table.dart
 import 'package:cwatch/view/shared/widgets/lists/section_list.dart';
 import 'package:cwatch/controller/adapters/external_app_launcher.dart';
 import 'package:cwatch/controller/adapters/kubernetes_ui_adapter.dart';
-import 'package:cwatch/controller/di/bindings/settings_binding.dart';
 import 'package:cwatch/controller/di/bindings/kubernetes_context_binding.dart';
 import 'widgets/kubernetes_dashboard_view.dart';
 import 'package:cwatch/view/features/settings/settings/kubernetes_settings_controls.dart';
 
 import 'package:cwatch/controller/controllers/kubernetes_context_controller.dart';
 import 'kubernetes_tab_builder.dart';
+import 'kubernetes_runtime.dart';
 import 'kubernetes_workspace_controller.dart';
 
 class KubernetesContextList extends StatefulWidget {
@@ -56,18 +56,10 @@ class KubernetesContextList extends StatefulWidget {
 }
 
 class _KubernetesContextListState extends State<KubernetesContextList> {
-  static const String _placeholderName = '__k8s_placeholder__';
-  static const String _placeholderConfig = '__k8s_placeholder__';
-
   final KubernetesContextBinding _contextBinding =
       const KubernetesContextBinding();
-  final SettingsBinding _settingsBinding = const SettingsBinding();
-  late final KubernetesContextController _contextController;
-  late final KubernetesTabBuilder _tabBuilder;
-  late final KubernetesWorkspaceController _workspaceController;
+  late final KubernetesRuntime _runtime;
   late final TabViewRegistry<WorkspaceTab> _tabRegistry;
-  late final SettingsController _settingsController;
-  late final KubernetesUiAdapter _uiAdapter;
 
   late final VoidCallback _settingsListener;
   late final VoidCallback _tabsListener;
@@ -82,6 +74,14 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   final Map<String, bool> _collapsedByConfigPath = {};
   final Set<String> _selectedContextKeys = {};
   bool _showListSettings = false;
+
+  KubernetesContextController get _contextController =>
+      _runtime.contextController;
+  KubernetesTabBuilder get _tabBuilder => _runtime.tabBuilder;
+  KubernetesWorkspaceController get _workspaceController =>
+      _runtime.workspaceController;
+  SettingsController get _settingsController => _runtime.settingsController;
+  KubernetesUiAdapter get _uiAdapter => _runtime.uiAdapter;
 
   List<WorkspaceTab> get _tabs => _workspaceController.tabs;
   int get _selectedIndex => _workspaceController.selectedIndex;
@@ -105,26 +105,12 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   void initState() {
     super.initState();
 
-    _contextController = _contextBinding.create();
-
-    final settingsUiAdapter = _settingsBinding.createUiAdapter(
+    _runtime = _contextBinding.createRuntime(
       context: context,
-    );
-    _settingsController = _settingsBinding.createController(
-      settingsController: widget.settingsController,
+      appSettingsController: widget.settingsController,
       keyService: widget.keyService,
       hostsFuture: widget.hostsFuture,
-      uiAdapter: settingsUiAdapter,
-    );
-
-    _tabBuilder = const KubernetesTabBuilder(
-      placeholderName: _placeholderName,
-      placeholderConfig: _placeholderConfig,
-    );
-
-    _workspaceController = KubernetesWorkspaceController(
-      settingsController: widget.settingsController,
-      baseTabBuilder: () => _createPlaceholderTab(),
+      baseTabBuilder: _createPlaceholderTab,
     );
 
     _tabRegistry = TabViewRegistry<WorkspaceTab>(
@@ -174,9 +160,8 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   @override
   void dispose() {
     widget.settingsController.removeListener(_settingsListener);
-    _settingsController.dispose();
     _workspaceController.removeListener(_tabsListener);
-    _workspaceController.dispose();
+    _runtime.dispose();
     _emptyOptions.dispose();
     TabNavigationRegistry.instance.unregister(widget.moduleId, _tabNavigator);
     CommandPaletteRegistry.instance.unregister(
