@@ -367,6 +367,7 @@ Current hotspot status:
 - the next shared scaffolding batch is now scoped toward shared action/menu scaffolding instead of another empty-state pass
 - the first action/menu normalization slice is now narrowed to section-level overflow menus rather than a generic menu framework
 - the first section-level overflow menu helper is now implemented for server host list and Docker engine picker
+- the shared scaffolding hotspot is now at a good checkpoint and should not be stretched into richer Docker/domain menu systems
 
 ## Success Criteria
 

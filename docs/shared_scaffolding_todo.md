@@ -393,7 +393,7 @@ What this proved:
   - command-palette integration
 
 ## Task 14.51: re-scope the next shared scaffolding batch
-Status: queued
+Status: completed
 
 Goal:
 - decide whether to extend the section-menu helper to another proving slice or checkpoint the shared scaffolding hotspot
@@ -404,3 +404,44 @@ Likely candidates:
 
 Done definition:
 - the next narrow action/menu batch is chosen or the hotspot is checkpointed
+
+Result:
+- the shared scaffolding hotspot is now at a good checkpoint
+- the next batch should not force the helper into richer Docker list menus
+
+Why this is the right stop point:
+- the current helper cleanly covers section-level overflow menus with:
+  - string/id actions
+  - simple labels
+  - feature-owned handlers
+- the remaining Docker list menus are materially richer:
+  - icon-bearing menu rows
+  - destructive color treatment
+  - denser domain action sets
+- pushing the helper into those menus now would turn it into a generic menu framework, which this hotspot explicitly should not do
+
+What this hotspot has now proved:
+- shell-owned settings-section scaffolding is explicit and usable directly
+- shell-owned empty-state scaffolding is explicit and reused
+- shell-owned section overflow chrome is shared
+- feature-owned richer cards, tables, and action menus remain local by design
+
+Current checkpoint summary:
+- `StandardEmptyState` is the canonical simple empty-state path
+- `SettingsSection` is the canonical settings-section path
+- `SectionOverflowMenu` is the canonical simple section-overflow path
+- `SectionList`, `StructuredDataTable`, `ActionPicker`, and `SectionNavBar` remain explicit shared primitives without forced new abstraction
+
+## Task 14.52: choose the next integration-smell hotspot after shared scaffolding
+Status: queued
+
+Goal:
+- decide the next integration-smell layer after the shared scaffolding checkpoint
+
+Likely candidates:
+- command palette / command contribution integration
+- capability/breadcrumb integration surfacing
+- a checkpoint and shift back to broader rewrite sequencing
+
+Done definition:
+- the next hotspot is chosen from current evidence
