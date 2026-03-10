@@ -4,7 +4,7 @@ import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/services_infra/filesystem/explorer_trash_manager.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/file_explorer/path_utils.dart';
+import 'package:cwatch/model/shared/services/path_utils.dart';
 import 'explorer_ui_adapter.dart';
 
 /// Handler for delete and trash operations.

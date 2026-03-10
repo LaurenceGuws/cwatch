@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 import 'path_search_panel.dart';
-import 'path_utils.dart';
+import 'package:cwatch/model/shared/services/path_utils.dart';
 
 /// Widget for navigating file paths with breadcrumbs or text input
 class PathNavigator extends StatefulWidget {

@@ -3,7 +3,7 @@ import 'package:cwatch/model/models/remote_file_entry.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 import '../../../../widgets/dialog_keyboard_shortcuts.dart';
-import 'path_utils.dart';
+import 'package:cwatch/model/shared/services/path_utils.dart';
 
 /// Builders for file explorer dialogs
 class DialogBuilders {

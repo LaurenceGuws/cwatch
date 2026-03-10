@@ -1,8 +1,8 @@
-/// Utility functions for path manipulation
+/// Utility functions for path manipulation.
 class PathUtils {
   PathUtils._();
 
-  /// Join a base path with a name
+  /// Join a base path with a name.
   static String joinPath(String base, String name) {
     if (base == '/' || base.isEmpty) {
       return '/$name';
@@ -10,7 +10,7 @@ class PathUtils {
     return '$base/$name';
   }
 
-  /// Get the parent directory of a path
+  /// Get the parent directory of a path.
   static String parentDirectory(String path) {
     final normalized = normalizePath(path);
     if (normalized == '/' || !normalized.contains('/')) {
@@ -23,13 +23,13 @@ class PathUtils {
     return normalized.substring(0, index);
   }
 
-  /// Join with base path (alias for joinPath)
+  /// Join with base path (alias for joinPath).
   static String joinWithBase(String base, String name) {
     return joinPath(base, name);
   }
 
-  /// Normalize a path by removing redundant separators and resolving '..' and '.'
-  /// If input is relative and currentPath is provided, resolves relative to currentPath
+  /// Normalize a path by removing redundant separators and resolving `..` and `.`.
+  /// If input is relative and currentPath is provided, resolves relative to currentPath.
   static String normalizePath(String input, {String? currentPath}) {
     if (input.trim().isEmpty) {
       return currentPath ?? '/';

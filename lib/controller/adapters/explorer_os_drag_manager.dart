@@ -11,7 +11,7 @@ import 'package:cwatch/model/services_infra/ssh/remote_shell_base.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/file_explorer/desktop_drag_source.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/file_explorer/drag_types.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/file_explorer/path_utils.dart';
+import 'package:cwatch/model/shared/services/path_utils.dart';
 import 'explorer_ui_adapter.dart';
 
 /// Owns OS drag state + staging logic.

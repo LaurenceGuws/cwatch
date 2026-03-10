@@ -25,7 +25,7 @@ import 'file_entry_list.dart';
 import 'selection_controller.dart';
 import 'package:cwatch/view/features/settings/settings/explorer_settings_controls.dart';
 import 'path_navigator.dart';
-import 'path_utils.dart';
+import 'package:cwatch/model/shared/services/path_utils.dart';
 import '../tab_chip.dart';
 import '../settings/floating_settings_window.dart';
 

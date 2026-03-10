@@ -126,7 +126,7 @@ Remove the worst file-explorer-related dependency direction violations without g
 ## Current batch
 
 ### Task 1.1: move path utilities out of `view/`
-Status: pending
+Status: completed
 
 Why this is first:
 - it is the clearest `model/controller -> view` violation
@@ -137,6 +137,7 @@ Actions:
 - separate non-UI helpers from UI-only helpers
 - move non-UI helpers to a neutral location
 - update imports in `model/`, `controller/`, and `view/`
+- record what remains coupled after the move
 
 Done definition:
 - `model/` no longer imports `view/.../path_utils.dart`
@@ -149,7 +150,28 @@ Verification:
 - manual smoke check of explorer navigation/path operations
 
 ### Task 1.2: re-scope after path utility extraction
+Status: completed
+
+### Task 1.3: inspect and split selection ownership
 Status: pending
+
+Why this is next:
+- it is the next clear `model -> view` dependency in the explorer hotspot
+- the path utility extraction suggests this can likely be another narrow ownership fix
+
+Actions:
+- inspect `selection_controller.dart` for reusable state logic versus widget interaction concerns
+- move reusable selection logic out of `view/` if it is not UI-specific
+- update `ExplorerOps` and any controller/view imports accordingly
+
+Done definition:
+- `lib/model/services/explorer_ops.dart` no longer imports a view-local selection controller
+- selection ownership is clearer than it is today, even if the final explorer architecture is still in progress
+
+Verification:
+- `rg -n "selection_controller.dart" lib/model lib/controller`
+- `flutter analyze`
+- manual smoke check of explorer selection behavior
 
 Purpose:
 - decide the next explorer cleanup step based on what the code looks like after Task 1.1
@@ -161,6 +183,12 @@ Done definition:
 
 Verification:
 - follow-up task added to this document before the next structural change starts
+
+Result of re-scope:
+- `path_utils.dart` was purely non-UI and moved cleanly to `lib/model/shared/services/path_utils.dart`
+- `model -> view` dependency remains in explorer selection logic
+- `model -> controller` dependency remains in explorer state ownership
+- the next batch should focus on `selection_controller.dart` ownership, not a broader explorer refactor
 
 ## Later Hotspots
 
@@ -197,8 +225,8 @@ Done definition for starting this hotspot:
 | Item | Scope | Status | Done When |
 | --- | --- | --- | --- |
 | 0 | Rules and baseline queries | active | rules are documented and queries are reusable |
-| 1.1 | Explorer path utilities | pending | non-UI path helpers no longer live under `view/` |
-| 1.2 | Explorer re-scope | pending | next explorer task is written from what we learned in 1.1 |
+| 1.1 | Explorer path utilities | completed | non-UI path helpers no longer live under `view/` |
+| 1.2 | Explorer re-scope | completed | next explorer task is written from what we learned in 1.1 |
 | 2 | Shell/module hotspot | queued | re-scoped after explorer cleanup |
 | 3 | Docker hotspot | queued | re-scoped after earlier hotspots |
 | 4 | Servers/Kubernetes hotspot | queued | re-scoped after earlier hotspots |
