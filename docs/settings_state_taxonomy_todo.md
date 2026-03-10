@@ -533,6 +533,23 @@ Verification:
 - `flutter analyze`
 - result: no issues found
 
+## Test-Seam Checkpoint
+
+Recent characterization coverage now locks down the persistence and file/workspace seams created during this rewrite, including:
+- [workspace_root_controller_test.dart](/home/home/personal/cwatch/test/model/services_infra/settings/workspace_root_controller_test.dart)
+- [workspace_persistence_test.dart](/home/home/personal/cwatch/test/controller/core/workspace/workspace_persistence_test.dart)
+- [app_settings_serialization_test.dart](/home/home/personal/cwatch/test/model/models/app_settings_serialization_test.dart)
+- [explorer_ops_test.dart](/home/home/personal/cwatch/test/model/services/explorer_ops_test.dart)
+- [path_loading_service_test.dart](/home/home/personal/cwatch/test/model/services/path_loading_service_test.dart)
+- [file_editing_service_test.dart](/home/home/personal/cwatch/test/model/services/file_editing_service_test.dart)
+
+Why this matters here:
+- the settings/workspace cleanup now has regression coverage around:
+  - grouped settings persistence
+  - dedicated workspace persistence
+  - explorer/file-editing flows that depend on those boundaries
+- this reduces pressure to keep compatibility-style fallbacks around just to feel safe during later cleanup
+
 ### Task 12.23: re-scope after infra-config grouping
 Status: completed
 

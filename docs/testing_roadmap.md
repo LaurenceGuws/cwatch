@@ -376,6 +376,34 @@ Verification:
 - `flutter test test/controller/controllers/terminal_session_controller_test.dart`
 - `flutter analyze`
 
+### Task 13.11: add `file_editing_service_test.dart`
+Status: completed
+
+What landed:
+- [file_editing_service_test.dart](/home/home/personal/cwatch/test/model/services/file_editing_service_test.dart)
+
+Coverage added:
+- inline editor open behavior when an editor-tab hook is available
+- local-open fallback messaging when inline editing is unavailable
+- local cache creation and cached-session reuse
+- sync behavior when:
+  - remote matches snapshot
+  - local copy is unchanged
+  - local and remote diverged and require merge resolution
+- refresh behavior when:
+  - working copy is unchanged
+  - merge is cancelled after remote changes
+- cached-copy clearing
+
+Why this matters:
+- it locks down the file-editing seam underneath explorer/editor flows without requiring widget tests
+- it gives the rewrite a regression floor around cache ownership, sync semantics, and merge handling
+- it covers a high-risk user workflow where silent fallback behavior would otherwise be easy to break
+
+Verification:
+- `flutter test test/model/services/file_editing_service_test.dart`
+- `flutter analyze`
+
 ## Test Organization
 
 Recommended structure:
