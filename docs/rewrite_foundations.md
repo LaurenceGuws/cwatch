@@ -169,6 +169,7 @@ Deliverables:
 ### Phase 2: deeper analysis docs
 Create separate follow-up docs for:
 - dependency direction TODO (`docs/dependency_direction_todo.md`)
+- shell/module ownership TODO (`docs/shell_module_ownership_todo.md`)
 - dependency rules
 - settings/state split
 - first vertical slice plan

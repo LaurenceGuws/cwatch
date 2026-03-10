@@ -238,7 +238,7 @@ Done definition for starting this hotspot:
 - we can describe the next batch concretely from current code, not guesses
 
 Current next-step note:
-- the next deep-dive should target shell/module ownership
+- the next deep-dive should target shell/module ownership (`docs/shell_module_ownership_todo.md`)
 - `lib/model` now has no `package:cwatch/controller/` imports
 
 ### Docker feature shell
