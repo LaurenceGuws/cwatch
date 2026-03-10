@@ -265,19 +265,70 @@ Result:
 - the repo now has a real metadata seam without adding runtime behavior
 
 ## Task 14.35: define first descriptor output shape
-Status: queued
+Status: completed
 
 Goal:
 - define the first generated or generation-ready descriptor output for the annotated config metadata target
 
-Expected scope:
-- one descriptor record shape for config groups and fields
-- one registry output surface for the four primitive grouped preference models
-- enough room for later optional metadata such as reload impact
-- still no runtime settings UI generation
+Decision:
+- the first output should be a generator-ready in-repo registry surface, not generated files yet
+- the shape should be:
+  - `ConfigGroupDescriptor`
+  - `ConfigFieldDescriptor`
+  - one registry list containing the descriptors for the first-pass target models
+
+Why this is the right first output:
+- gives one canonical object model for schema/docs/Lua export later
+- keeps the current step generator-agnostic
+- avoids introducing file generation before the descriptor model itself is stable
+
+Proposed output module:
+- `lib/model/config/config_metadata_descriptor.dart`
+
+Proposed record shape:
+- `ConfigGroupDescriptor`
+  - group key
+  - label
+  - description
+  - order
+  - model type
+  - list of `ConfigFieldDescriptor`
+- `ConfigFieldDescriptor`
+  - field key
+  - label
+  - description
+  - value kind
+  - unit
+  - default value doc
+  - field name
+
+Explicit anti-goals:
+- no generated settings widgets
+- no generated update handlers
+- no runtime reflection loader
+- no app-start registry scanning
 
 Done definition:
-- the first descriptor output shape is explicit
-- the output target file/module is explicit
-- deferred metadata such as reload impact is explicitly parked for later
+- the descriptor output shape is explicit
+- the output target module is explicit
 - implementation can proceed without broadening the annotation scope
+
+Result:
+- the first output is now defined as a descriptor registry surface, not a broad codegen pipeline
+- the next batch should implement the descriptor types and first manual registry surface from the annotated models
+
+## Task 14.36: implement first config descriptor registry
+Status: queued
+
+Goal:
+- add the first descriptor types and a manual descriptor registry for the annotated primitive grouped preference models
+
+Expected scope:
+- define `ConfigGroupDescriptor` and `ConfigFieldDescriptor`
+- add one registry module for shell/editor/terminal/explorer preferences
+- keep the registry manual for now, but shaped exactly like the future generated output
+
+Done definition:
+- descriptor types exist
+- the first registry module exists
+- later codegen can replace the manual registry without changing its public shape

@@ -331,7 +331,8 @@ Current hotspot status:
 - the first codegen slice is narrowed to primitive grouped preference models
 - the annotation shape is now explicit and still metadata-only
 - the first narrow annotation family is now implemented
-- the next step is descriptor output shape, not broader generator behavior
+- the first descriptor output shape is now explicit as a registry surface
+- the next step is implementing that descriptor registry, not broader generator behavior
 - runtime/app-lifecycle metadata such as restart requirements remains explicitly deferred until after the first descriptor output exists
 
 Why this is next:
