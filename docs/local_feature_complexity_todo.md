@@ -71,7 +71,7 @@ Why this wins:
 - it is a better next move than explorer entry-list interaction, which is denser and riskier
 
 ## Task 20.2: define the server host-surface cleanup boundary
-Status: pending
+Status: completed
 
 Goal:
 - define exactly what part of the remaining server-local complexity should be addressed first
@@ -84,3 +84,55 @@ Questions to answer:
 Done definition:
 - one bounded server-local cleanup seam is chosen
 - the first implementation batch is clear
+
+Result:
+- the first server-local cleanup seam should be host-surface state and probing orchestration
+
+What should remain local to `server_workspace_view.dart`:
+- host list rendering and callback wiring
+- add-server dialog flow
+- placeholder-host selection composition
+- tab/body composition for server-specific tabs
+- local settings-window visibility state
+
+What should be split into a narrower server-local seam:
+- host loading result refresh state
+- background availability probe scheduling
+- custom-host availability refresh
+- host-availability cache mutation
+- deferred distro warmup tracking
+- signature-based host reload coordination inputs used by the server shell
+
+Why this is the right cut:
+- this is the densest remaining non-rendering complexity in the file
+- it is still purely server-local behavior, not reusable shell logic
+- it avoids flattening `HostList` or feature-specific actions into fake generic code
+- it gives one seam that owns the lifecycle of host refresh, probing, and distro warmup together
+
+First implementation batch:
+- extract a server-local host surface coordinator from `server_workspace_view.dart`
+- keep it feature-owned under `lib/view/features/servers/`
+- leave `HostList`, `ServerWorkspaceShell`, and `ServerTabBuilder` stable for the first batch
+
+## Task 20.3: implement the server host-surface split
+Status: pending
+
+Goal:
+- extract the server-local host refresh/probe/distro orchestration seam out of `server_workspace_view.dart`
+
+First code targets:
+- host loading and custom-host update flow
+- background availability checks
+- on-demand distro warmup tracking
+- host future notifier updates and cached-host mutation helpers
+
+What stays stable in this batch:
+- `HostList`
+- `ServerWorkspaceShell`
+- `ServerTabBuilder`
+- add-server flow
+- placeholder replacement behavior
+
+Done definition:
+- `server_workspace_view.dart` no longer owns the full host refresh/probe lifecycle directly
+- the extracted seam remains server-local and does not become a shared shell abstraction
