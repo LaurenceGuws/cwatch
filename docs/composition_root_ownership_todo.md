@@ -59,7 +59,7 @@ Until that is clearer, the shell/framework layer will still feel tightly coupled
 ## First Batch Candidate
 
 ### Task 11.1: inspect docker view construction ownership
-Status: queued
+Status: completed
 
 Why this is first:
 - `DockerView` is a concentrated example of view-owned service/controller construction
@@ -91,7 +91,7 @@ Verification:
 - manual smoke check of docker view load and overview interactions
 
 ### Task 11.2: re-scope after docker construction review
-Status: queued
+Status: completed
 
 Purpose:
 - decide whether the next batch should stay in docker
@@ -104,12 +104,44 @@ Done definition:
 Verification:
 - follow-up task added before the next structural change starts
 
+Result of Task 11.1:
+- Docker module-scoped runtime construction moved behind `DockerViewBinding.createRuntime(...)`
+- `DockerView` now owns one explicit `DockerViewRuntime` instead of assembling the module-scoped graph field-by-field in `initState`
+- `DockerViewRuntime` now owns disposal for:
+  - `DockerWorkspaceController`
+  - `DockerViewController`
+  - `PortForwardService`
+- this clarified one useful rule:
+  - feature views should wire UI listeners/registries and invoke runtime behavior
+  - module-scoped service/controller graphs should be assembled as one explicit runtime object
+
+### Task 11.3: decide whether to apply the same runtime-graph pattern to server or kubernetes
+Status: queued
+
+Why this is next:
+- Docker now provides a concrete composition pattern
+- the next question is whether server or kubernetes is the better second example for runtime-graph extraction
+- this should be chosen from current code shape, not from a pre-written migration script
+
+Actions:
+- inspect server and kubernetes feature shells against the Docker runtime pattern
+- choose the smaller/higher-value next runtime ownership seam
+- define the next narrow batch from evidence
+
+Done definition:
+- the next composition-root batch is written from what the Docker pass proved
+- any intentional exception to the runtime-object pattern is recorded here
+
+Verification:
+- follow-up task added before the next structural change starts
+
 ## Tracking Table
 
 | Item | Scope | Status | Done When |
 | --- | --- | --- | --- |
-| 11.1 | Docker construction ownership | queued | one concrete docker construction seam has explicit ownership |
-| 11.2 | Composition hotspot re-scope | queued | next step is written from what 11.1 proves |
+| 11.1 | Docker construction ownership | completed | one concrete docker construction seam has explicit ownership |
+| 11.2 | Composition hotspot re-scope | completed | next step is written from what 11.1 proves |
+| 11.3 | Next runtime-graph target | queued | next composition-root batch is chosen from current evidence |
 
 ## Completion Metric
 

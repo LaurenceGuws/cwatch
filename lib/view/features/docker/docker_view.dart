@@ -10,10 +10,8 @@ import 'package:cwatch/model/features/servers/services/host_distro_key.dart';
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
-import 'package:cwatch/controller/di/bindings/docker_shell_callbacks_binding.dart';
 import 'package:cwatch/controller/controllers/docker_shell_callbacks.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
-import 'package:cwatch/model/services_infra/filesystem/explorer_trash_manager.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
@@ -37,12 +35,11 @@ import 'docker_workspace_controller.dart';
 import 'package:cwatch/model/features/docker/models/remote_docker_status.dart';
 import 'local_docker_context_status.dart';
 import 'package:cwatch/model/models/docker_context.dart';
-import 'package:cwatch/model/services_infra/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/view/features/settings/settings/docker_settings_controls.dart';
 import 'package:cwatch/controller/adapters/docker_ui_adapter.dart';
 import 'package:cwatch/controller/controllers/docker_view_controller.dart';
-import 'package:cwatch/controller/di/bindings/docker_client_service_binding.dart';
 import 'package:cwatch/controller/di/bindings/docker_view_binding.dart';
+import 'docker_view_runtime.dart';
 
 class DockerView extends StatefulWidget {
   const DockerView({
@@ -67,20 +64,10 @@ class DockerView extends StatefulWidget {
 }
 
 class _DockerViewState extends State<DockerView> {
-  final DockerClientServiceBinding _dockerBinding =
-      const DockerClientServiceBinding();
   final DockerViewBinding _viewBinding = const DockerViewBinding();
-  final DockerShellCallbacksBinding _shellCallbacksBinding =
-      const DockerShellCallbacksBinding();
-  late final DockerClientService _docker;
-  late final DockerViewController _viewController;
-  final ExplorerTrashManager _trashManager = ExplorerTrashManager();
-  final PortForwardService _portForwardService = PortForwardService();
-  late final DockerTabBuilder _tabBuilder;
-  late final DockerWorkspaceController _workspaceController;
+  late final DockerViewRuntime _runtime;
   late final TabViewRegistry<WorkspaceTab> _tabRegistry;
   late final DockerUiAdapter _uiAdapter;
-  late final DockerShellCallbacks _shellCallbacks;
   late final VoidCallback _settingsListener;
   late final VoidCallback _tabsListener;
   late final VoidCallback _viewControllerListener;
@@ -102,6 +89,13 @@ class _DockerViewState extends State<DockerView> {
   Future<List<LocalDockerContextStatus>>? _localContextsStatusFuture;
   bool _showListSettings = false;
 
+  DockerClientService get _docker => _runtime.docker;
+  DockerViewController get _viewController => _runtime.viewController;
+  DockerTabBuilder get _tabBuilder => _runtime.tabBuilder;
+  DockerWorkspaceController get _workspaceController =>
+      _runtime.workspaceController;
+  DockerShellCallbacks get _shellCallbacks => _runtime.shellCallbacks;
+
   List<WorkspaceTab> get _tabs => _workspaceController.tabs;
   int get _selectedIndex => _workspaceController.selectedIndex;
 
@@ -120,32 +114,20 @@ class _DockerViewState extends State<DockerView> {
   @override
   void initState() {
     super.initState();
-    _docker = _dockerBinding.create();
-    _viewController = _viewBinding.createController(docker: _docker);
+    _runtime = _viewBinding.createRuntime(
+      settingsController: widget.settingsController,
+      keyService: widget.keyService,
+      shellFactory: widget.shellFactory,
+      hostsFuture: widget.hostsFuture,
+      baseTabBuilder: _enginePickerTab,
+    );
     _viewControllerListener = () {
       if (!mounted) return;
       setState(() {});
     };
     _viewController.addListener(_viewControllerListener);
     _uiAdapter = DockerUiAdapter(context: context);
-    _shellCallbacks = _shellCallbacksBinding.create(
-      shellFactory: widget.shellFactory,
-    );
     _viewController.loadContexts();
-
-    _tabBuilder = DockerTabBuilder(
-      docker: _docker,
-      settingsController: widget.settingsController,
-      trashManager: _trashManager,
-      keyService: widget.keyService,
-      portForwardService: _portForwardService,
-      hostsFuture: widget.hostsFuture,
-    );
-
-    _workspaceController = DockerWorkspaceController(
-      settingsController: widget.settingsController,
-      baseTabBuilder: () => _enginePickerTab(),
-    );
 
     _tabRegistry = TabViewRegistry<WorkspaceTab>(
       tabId: (tab) => tab.id,
@@ -184,7 +166,6 @@ class _DockerViewState extends State<DockerView> {
     _workspaceController.addListener(_tabsListener);
 
     _settingsListener = _handleSettingsChanged;
-    _portForwardService.setAuthCoordinator(widget.shellFactory.authCoordinator);
     widget.settingsController.addListener(_settingsListener);
     _restoreWorkspace();
   }
@@ -192,11 +173,9 @@ class _DockerViewState extends State<DockerView> {
   @override
   void dispose() {
     _workspaceController.removeListener(_tabsListener);
-    _workspaceController.dispose();
     _viewController.removeListener(_viewControllerListener);
-    _viewController.dispose();
     widget.settingsController.removeListener(_settingsListener);
-    _portForwardService.dispose();
+    _runtime.dispose();
     TabNavigationRegistry.instance.unregister(widget.moduleId, _tabNavigator);
     CommandPaletteRegistry.instance.unregister(
       widget.moduleId,
