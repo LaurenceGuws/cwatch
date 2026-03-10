@@ -90,8 +90,18 @@ class _EnginePickerState extends State<EnginePicker> {
               );
             }
             if (snapshot.hasError) {
+              final message = snapshot.error.toString();
+              if (message.contains('Docker CLI not available')) {
+                return EmptyState(
+                  onRefresh: widget.onRefreshContexts,
+                  message:
+                      'Docker CLI not available on this system. Local Docker contexts are unavailable.',
+                  detail:
+                      'Install Docker or use remote Docker hosts instead. This is optional, not app-fatal.',
+                );
+              }
               return ErrorCard(
-                message: snapshot.error.toString(),
+                message: message,
                 onRetry: widget.onRefreshContexts,
               );
             }
@@ -674,9 +684,16 @@ class EngineButton extends StatelessWidget {
 }
 
 class EmptyState extends StatelessWidget {
-  const EmptyState({super.key, required this.onRefresh});
+  const EmptyState({
+    super.key,
+    required this.onRefresh,
+    this.message = 'No Docker contexts found.',
+    this.detail,
+  });
 
   final VoidCallback onRefresh;
+  final String message;
+  final String? detail;
 
   @override
   Widget build(BuildContext context) {
@@ -688,7 +705,18 @@ class EmptyState extends StatelessWidget {
         children: [
           Icon(icons.dns, size: context.appTheme.iconSizes.emptyStateXlarge),
           SizedBox(height: spacing.lg),
-          const Text('No Docker contexts found.'),
+          Text(message, textAlign: TextAlign.center),
+          if (detail != null) ...[
+            SizedBox(height: spacing.md),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Text(
+                detail!,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ],
           SizedBox(height: spacing.lg),
           FilledButton(onPressed: onRefresh, child: const Text('Refresh')),
         ],

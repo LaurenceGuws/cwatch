@@ -102,6 +102,7 @@ class _TabHostViewState<T> extends State<TabHostView<T>> {
       onAddTab: widget.onAddTab,
       onReorder: widget.onReorder,
       buildChip: widget.buildChip,
+      tabId: widget.tabId,
       enableWindowDrag: widget.enableWindowDrag,
     );
     return Column(
@@ -139,6 +140,7 @@ class _TabBarRow<T> extends StatefulWidget {
     required this.tabs,
     required this.tabBarHeight,
     required this.buildChip,
+    required this.tabId,
     this.leading,
     this.onAddTab,
     this.onReorder,
@@ -151,6 +153,7 @@ class _TabBarRow<T> extends StatefulWidget {
   final VoidCallback? onAddTab;
   final void Function(int oldIndex, int newIndex)? onReorder;
   final Widget Function(BuildContext context, int index, T tab) buildChip;
+  final String Function(T tab) tabId;
   final bool enableWindowDrag;
 
   @override
@@ -293,6 +296,7 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
     final onAddTab = widget.onAddTab;
     final onReorder = widget.onReorder;
     final buildChip = widget.buildChip;
+    final tabId = widget.tabId;
 
     final hasAddTab = onAddTab != null;
     final colorScheme = Theme.of(context).colorScheme;
@@ -499,10 +503,16 @@ class _TabBarRowState<T> extends State<_TabBarRow<T>> {
                                                       ),
                                                     );
                                                   }
-                                                  return buildChip(
-                                                    context,
-                                                    index,
-                                                    tabs[index],
+                                                  final tab = tabs[index];
+                                                  return KeyedSubtree(
+                                                    key: ValueKey(
+                                                      'tab-chip-${tabId(tab)}',
+                                                    ),
+                                                    child: buildChip(
+                                                      context,
+                                                      index,
+                                                      tab,
+                                                    ),
                                                   );
                                                 },
                                               ),

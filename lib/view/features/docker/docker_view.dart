@@ -161,7 +161,9 @@ class _DockerViewState extends State<DockerView> {
     };
     _viewController.addListener(_viewControllerListener);
     _uiAdapter = DockerUiAdapter(context: context);
-    _viewController.loadContexts();
+    unawaited(
+      _viewController.loadContexts().catchError((_) => const <DockerContext>[]),
+    );
 
     _tabRegistry = TabViewRegistry<WorkspaceTab>(
       tabId: (tab) => tab.id,
@@ -852,7 +854,12 @@ class _DockerViewState extends State<DockerView> {
   }
 
   Future<List<LocalDockerContextStatus>> _loadLocalContextsStatus() async {
-    final contexts = await _viewController.loadContexts();
+    List<DockerContext> contexts;
+    try {
+      contexts = await _viewController.loadContexts();
+    } catch (_) {
+      return const [];
+    }
     if (contexts.isEmpty) {
       return const [];
     }
