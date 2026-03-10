@@ -452,3 +452,18 @@ Current follow-up doc:
 
 Next executable batch:
 - `Task 14.17`: adopt the shared prompt helper in `ExplorerUiAdapter`
+
+### Task 14.17: adopt the shared prompt helper in `ExplorerUiAdapter`
+Status: completed
+
+What this task established:
+- the shared prompt helper now covers the remaining small explorer-side prompt flows cleanly
+- the current boundary is clearer:
+  - simple prompts use the shared helper
+  - richer explorer dialogs stay on the explorer-specific builder path
+
+Current follow-up doc:
+- [shared_prompt_helper_todo.md](/home/home/personal/cwatch/docs/shared_prompt_helper_todo.md)
+
+Next executable batch:
+- re-scope whether the dialog/settings hotspot should checkpoint or continue into `ExplorerDialogBuilders`

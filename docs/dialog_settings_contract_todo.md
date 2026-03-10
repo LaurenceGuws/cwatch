@@ -211,3 +211,19 @@ Result:
 
 Next executable batch:
 - `Task 14.17`: adopt the shared prompt helper in `ExplorerUiAdapter`
+
+## Task 14.17: adopt the shared prompt helper in `ExplorerUiAdapter`
+Status: completed
+
+Goal:
+- prove the shared prompt helper on the remaining simple explorer-side prompt flows while leaving richer explorer dialogs local
+
+What landed:
+- [explorer_ui_adapter.dart](/home/home/personal/cwatch/lib/controller/adapters/explorer_ui_adapter.dart)
+
+Result:
+- explorer text input and multi-delete confirmation now route through the shared helper
+- explorer-specific dialog builders remain intact for the richer file-operation flows
+
+Next executable batch:
+- re-scope whether the dialog/settings hotspot is ready for a checkpoint

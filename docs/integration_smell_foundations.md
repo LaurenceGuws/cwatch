@@ -270,6 +270,7 @@ Current implementation checkpoint:
   - destructive confirmation prompts
 - `WslUiAdapter` now proves the simple shared text-input adoption case
 - `DockerOverviewUiAdapter` now proves the generic text-input case with `initialValue` and `hintText`
+- `ExplorerUiAdapter` now proves shared prompt adoption without absorbing richer explorer-specific dialogs
 
 Current next normalization direction:
 - adopt the shared prompt helper in smaller generic text-input adapters before exploring richer dialog flows

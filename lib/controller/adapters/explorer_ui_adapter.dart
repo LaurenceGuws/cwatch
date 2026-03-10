@@ -6,7 +6,7 @@ import 'package:cwatch/controller/adapters/explorer_desktop_drag_source.dart';
 import 'package:cwatch/view/shared/widgets/explorer_dialog_builders.dart';
 import 'package:cwatch/controller/adapters/explorer_drag_types.dart';
 import 'package:cwatch/view/shared/widgets/explorer_merge_conflict_dialog.dart';
-import 'package:cwatch/view/shared/widgets/dialog_keyboard_shortcuts.dart';
+import 'package:cwatch/view/shared/widgets/shared_prompt_dialogs.dart';
 
 class ExplorerUiAdapter {
   ExplorerUiAdapter({required this.context});
@@ -125,34 +125,16 @@ class ExplorerUiAdapter {
     required String hostName,
     required bool deletePermanently,
   }) {
-    return showDialog<bool>(
+    return showConfirmPromptDialog(
       context: context,
-      builder: (context) => DialogKeyboardShortcuts(
-        onCancel: () => Navigator.of(context).pop(false),
-        onConfirm: () => Navigator.of(context).pop(true),
-        child: AlertDialog(
-          title: Text(
-            deletePermanently
-                ? 'Delete $count items permanently?'
-                : 'Move $count items to trash?',
-          ),
-          content: Text(
-            deletePermanently
-                ? 'This will permanently delete $count items from $hostName.'
-                : 'Backups will be stored locally so you can restore them later.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: Text(deletePermanently ? 'Delete' : 'Move to trash'),
-            ),
-          ],
-        ),
-      ),
+      title: deletePermanently
+          ? 'Delete $count items permanently?'
+          : 'Move $count items to trash?',
+      message: deletePermanently
+          ? 'This will permanently delete $count items from $hostName.'
+          : 'Backups will be stored locally so you can restore them later.',
+      confirmLabel: deletePermanently ? 'Delete' : 'Move to trash',
+      destructive: deletePermanently,
     );
   }
 
@@ -161,34 +143,13 @@ class ExplorerUiAdapter {
     required String label,
     String submitLabel = 'Submit',
   }) async {
-    final controller = TextEditingController();
-    final result = await showDialog<String>(
+    final result = await showTextPromptDialog(
       context: context,
-      builder: (context) => DialogKeyboardShortcuts(
-        onCancel: () => Navigator.of(context).pop(null),
-        onConfirm: () => Navigator.of(context).pop(controller.text.trim()),
-        child: AlertDialog(
-          title: Text(title),
-          content: TextField(
-            controller: controller,
-            obscureText: true,
-            decoration: InputDecoration(labelText: label),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(null),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(controller.text.trim()),
-              child: Text(submitLabel),
-            ),
-          ],
-        ),
-      ),
+      title: title,
+      label: label,
+      submitLabel: submitLabel,
+      obscureText: true,
     );
-    controller.dispose();
     return result?.isNotEmpty == true ? result : null;
   }
 }

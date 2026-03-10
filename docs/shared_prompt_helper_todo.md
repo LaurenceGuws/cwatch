@@ -206,3 +206,22 @@ Result:
 
 Next executable batch:
 - `Task 14.17`: adopt the shared prompt helper in `ExplorerUiAdapter`
+
+## Task 14.17: adopt the shared prompt helper in `ExplorerUiAdapter`
+Status: completed
+
+Goal:
+- move the explorer adapter's small prompt flows onto the shared helper without pulling richer explorer dialogs into it
+
+What landed:
+- [explorer_ui_adapter.dart](/home/home/personal/cwatch/lib/controller/adapters/explorer_ui_adapter.dart)
+
+Result:
+- explorer generic text input now uses the shared text prompt helper
+- explorer multi-delete confirmation now uses the shared confirm prompt helper
+- rename, move, delete, navigate, and merge-conflict dialogs remain on their explorer-specific builder path
+
+Next executable batch:
+- re-scope whether the dialog/settings hotspot should:
+  - checkpoint here
+  - or continue into `ExplorerDialogBuilders`
