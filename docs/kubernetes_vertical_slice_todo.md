@@ -72,7 +72,7 @@ Why this wins:
 - it exercises placeholder, capability, dashboard, and runtime ownership together without reopening the heaviest SSH complexity
 
 ## Task 18.2: define the Kubernetes target slice boundary
-Status: pending
+Status: completed
 
 Goal:
 - describe what this slice is allowed to change and what it should leave alone in the first pass
@@ -85,3 +85,75 @@ Questions to answer:
 Done definition:
 - the slice boundary is explicit
 - one concrete first implementation batch is chosen
+
+Result:
+- the first Kubernetes slice boundary is now explicit
+
+### What stays stable / out of scope for the first batch
+
+These areas should stay stable in the first Kubernetes slice pass:
+- `KubernetesRuntime`
+- `KubernetesContextController`
+- `KubernetesWorkspaceController`
+- `KubernetesTabBuilder`
+- `kubernetes_dashboard_view.dart`
+- `KubernetesDashboardService`
+- current capability-aware missing/unavailable cluster behavior
+
+Why they stay stable:
+- runtime/composition and capability groundwork is already good enough to build on
+- changing dashboard internals or transport/service behavior immediately would broaden the blast radius too early
+
+### What stays intentionally local to Kubernetes behavior
+
+These remain Kubernetes-local even after the first slice cut:
+- context-list UI behavior
+- dashboard UI behavior
+- Kubernetes-specific action wording and remediation
+- placeholder-to-dashboard semantics tied to kube contexts
+
+The goal is not to genericize cluster dashboards or kube context selection.
+
+### What should move out of `kubernetes_context_list.dart` first
+
+The first seam is top-level Kubernetes workspace-shell orchestration around context loading and placeholder/list flow, not the dashboard view or the context rows themselves.
+
+That means extracting the logic that currently coordinates:
+- context loading kickoff and refresh
+- settings-driven reload behavior
+- command-palette and tab-navigation registration
+- placeholder-tab creation/start-empty-tab helpers
+- workspace-level context selection and placeholder replacement helpers
+
+This should become a narrower Kubernetes workspace-shell seam, while context-list rendering and dashboard hosting stay local for now.
+
+### Why this is the right first cut
+
+- `kubernetes_context_list.dart` is still the main concentration point for mixed orchestration and rendering
+- the most obvious seam is the Kubernetes shell around context loading, placeholder flow, and shell-level registrations
+- it mirrors the same kind of top-level split that already proved useful in Docker and Servers
+- it avoids prematurely splitting the denser context-list and dashboard behavior
+
+## Task 18.3: implement Kubernetes top-level workspace-shell split
+Status: pending
+
+Goal:
+- extract top-level Kubernetes workspace orchestration out of `kubernetes_context_list.dart` while leaving context list and dashboard behavior local for now
+
+First code targets:
+- context loading kickoff/refresh orchestration
+- settings-driven context reload coordination
+- command-palette and tab-navigation registration
+- placeholder-tab creation/start-empty-tab helpers
+- workspace-level context-selection replacement helpers
+
+What should stay local in this batch:
+- context row rendering
+- collapsed-group and selection state
+- dashboard widget composition
+- Kubernetes-specific action wording and remediation
+
+Done definition:
+- `kubernetes_context_list.dart` is materially smaller and more focused on hosting/rendering
+- the new seam clearly owns top-level Kubernetes module orchestration
+- context list and dashboard behavior remain local and mostly untouched except where needed for the seam
