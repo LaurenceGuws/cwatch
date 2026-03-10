@@ -173,6 +173,7 @@ Create separate follow-up docs for:
 - docker/workspace ownership TODO (`docs/docker_workspace_ownership_todo.md`)
 - workspace-core ownership TODO (`docs/workspace_core_ownership_todo.md`)
 - explorer UI adapter ownership TODO (`docs/explorer_ui_adapter_ownership_todo.md`)
+- server/WSL binding ownership TODO (`docs/server_wsl_binding_ownership_todo.md`)
 - dependency rules
 - settings/state split
 - first vertical slice plan

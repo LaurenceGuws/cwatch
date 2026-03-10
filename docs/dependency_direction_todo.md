@@ -241,8 +241,9 @@ Current next-step note:
 - shell/module ownership reached a checkpoint (`docs/shell_module_ownership_todo.md`)
 - docker overview ownership reached a checkpoint (`docs/docker_workspace_ownership_todo.md`)
 - workspace-core tab ownership reached a checkpoint (`docs/workspace_core_ownership_todo.md`)
+- explorer controller/adapter ownership reached a checkpoint (`docs/explorer_ui_adapter_ownership_todo.md`)
 - `lib/model` now has no `package:cwatch/controller/` imports
-- the next dependency-direction batch is explorer controller/adapter helper ownership, tracked in `docs/explorer_ui_adapter_ownership_todo.md`
+- the next dependency-direction batch is server/WSL binding ownership, tracked in `docs/server_wsl_binding_ownership_todo.md`
 
 ### Docker feature shell
 Track here when ready:
@@ -281,7 +282,8 @@ Current state:
 - shell/module ownership reached a checkpoint
 - docker overview ownership reached a checkpoint
 - workspace-core tab ownership reached a checkpoint
-- the next dependency-direction work should move to the next unresolved hotspot
+- explorer controller/adapter ownership reached a checkpoint
+- the next dependency-direction work is server/WSL binding ownership
 
 ## Completion Metric
 
