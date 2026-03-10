@@ -126,6 +126,9 @@ Current next rewrite layer:
 Current likely focus:
 - clarify Docker/Kubernetes/SSH transport, parsing, capability policy, and degradation ownership before starting another major slice
 
+Current follow-up doc:
+- `docs/infrastructure_boundary_todo.md`
+
 Current shared scaffolding contract now covers:
 - `SettingsSection`
 - `SectionList`

@@ -249,6 +249,9 @@ Why:
 - the next high-value structural work is no longer top-level feature shell extraction
 - the strongest remaining system-wide ambiguity is still where transport, parsing, capability policy, retries, and user-facing degradation rules are split across Docker, Kubernetes, and SSH paths
 
+Current follow-up doc:
+- `docs/infrastructure_boundary_todo.md`
+
 ### Focus Area E: infrastructure boundary cleanup
 Questions to answer:
 - Where are transport, parsing, and policy mixed today?
