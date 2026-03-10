@@ -232,7 +232,7 @@ Result:
   - settings-driven reload decisions
 
 ## Task 18.6: re-scope the first Kubernetes slice checkpoint
-Status: pending
+Status: completed
 
 Goal:
 - decide whether the first Kubernetes slice should continue or checkpoint at the current shell seam
@@ -243,3 +243,19 @@ Questions to answer:
 
 Done definition:
 - the next Kubernetes slice move is explicit
+
+Result:
+- `Task 18.7` is complete
+- the first Kubernetes slice is now checkpointed
+
+Why this is the right stop:
+- the remaining weight in [kubernetes_context_list.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/kubernetes_context_list.dart) is mostly true Kubernetes-local behavior:
+  - context row rendering
+  - collapsed-group and selection state
+  - dashboard widget composition
+  - Kubernetes-specific action wording and remediation
+- extracting more right now would likely create a fake manager layer instead of a real architectural improvement
+
+Validation:
+- the new shell seam is covered by [kubernetes_workspace_shell_test.dart](/home/home/personal/cwatch/test/view/features/kubernetes/kubernetes_workspace_shell_test.dart)
+- earlier service coverage already exists in [kubernetes_dashboard_service_test.dart](/home/home/personal/cwatch/test/model/services_infra/kubernetes/kubernetes_dashboard_service_test.dart)
