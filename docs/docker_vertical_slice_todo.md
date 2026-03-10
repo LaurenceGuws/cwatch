@@ -71,7 +71,7 @@ Why this wins:
 - stronger capability/degradation surface, which is a good next proof after explorer
 
 ## Task 16.2: define the Docker target slice boundary
-Status: queued
+Status: completed
 
 Goal:
 - describe what this slice is allowed to change and what it should leave alone in the first pass
@@ -84,3 +84,74 @@ Questions to answer:
 Done definition:
 - the slice boundary is explicit
 - one concrete first implementation batch is chosen
+
+Result:
+- the first Docker slice boundary is now explicit
+
+### What stays stable / out of scope for the first batch
+
+These areas should stay stable in the first Docker slice pass:
+- `DockerViewRuntime`
+- `DockerClientService`
+- `DockerViewController`
+- `DockerWorkspaceController`
+- `DockerOverviewActionsController`
+- `docker_engine_picker.dart`
+- `docker_overview.dart`
+- current capability-aware missing-CLI behavior
+
+Why they stay stable:
+- the runtime/composition and capability groundwork there is already good enough to build on
+- changing picker/overview internals immediately would broaden the blast radius too early
+
+### What stays intentionally local to Docker behavior
+
+These remain Docker-local even after the first slice cut:
+- engine-picker UI behavior
+- overview/dashboard UI behavior
+- Docker-specific action wording and domain behavior
+- Docker tab replacement flows tied closely to picker/overview semantics
+
+The goal is not to genericize Docker dashboards or picker screens.
+
+### What should move out of `docker_view.dart` first
+
+The first seam is top-level Docker module orchestration around the view shell, not the picker or overview widgets themselves.
+
+That means extracting the logic that currently coordinates:
+- command-palette registration/loading
+- tab-navigation registration
+- picker-tab creation/replacement helpers
+- top-level context-loading kickoff and reload behavior
+- Docker view-level state mapping between runtime, picker, and workspace shell
+
+This should become a narrower Docker view-shell presenter/coordinator seam, while picker and overview rendering stay local for now.
+
+### Why this is the right first cut
+
+- `docker_view.dart` is still the main concentration point for mixed orchestration and rendering
+- it mirrors the shape explorer had before the presenter/actions split
+- it improves the Docker shell boundary without forcing early changes into the denser picker/overview widgets
+
+## Task 16.3: implement Docker top-level view-shell split
+Status: queued
+
+Goal:
+- extract top-level Docker view-shell orchestration out of `docker_view.dart` while leaving picker and overview widgets local for now
+
+First code targets:
+- command-palette and tab-navigation contribution wiring
+- picker-tab creation/replacement helpers
+- top-level context-loading kickoff/reload coordination
+- Docker view-level derived state used to host picker vs overview tabs
+
+What should stay local in this batch:
+- `docker_engine_picker.dart`
+- `docker_overview.dart`
+- feature-specific dashboard/picker rendering
+- detailed overview action behavior
+
+Done definition:
+- `docker_view.dart` is materially smaller and more focused on hosting/rendering
+- the new seam clearly owns top-level Docker module orchestration
+- picker and overview widgets remain local and untouched except where needed for the seam
