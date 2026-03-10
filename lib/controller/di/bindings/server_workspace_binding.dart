@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:cwatch/controller/di/bindings/settings_binding.dart';
 import 'package:cwatch/controller/di/bindings/ssh_shell_factory_binding.dart';
+import 'package:cwatch/controller/adapters/ssh_auth_prompter.dart';
 import 'package:cwatch/model/features/servers/services/host_distro_manager.dart';
 import 'package:cwatch/model/services_infra/cache/distro_cache_controller.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
@@ -52,7 +53,8 @@ class ServerWorkspaceBinding {
       settingsController: appSettingsController,
     );
     final uiAdapter = createUiAdapter(context: context);
-    final authCoordinator = uiAdapter.buildSshAuthCoordinator(
+    final authCoordinator = SshAuthPrompter.forContext(
+      context: context,
       keyService: keyService,
     );
     final shellFactory = const SshShellFactoryBinding().create(

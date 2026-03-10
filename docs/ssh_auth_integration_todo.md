@@ -473,7 +473,7 @@ Reason:
 ## Next Executable Batch
 
 ### Task 14.24: remove high-level auth wiring from port-forward flows
-Status: queued
+Status: completed
 
 Goal:
 - remove `buildSshAuthCoordinator(...)` from server/docker port-forward flows and source auth coordination below feature/UI adapters
@@ -491,6 +491,28 @@ Done definition:
 - UI adapters no longer expose SSH auth coordinator construction for port-forward flows
 - port-forward flows no longer ask feature/UI layers for SSH auth state wiring
 - auth coordination is sourced below the feature/UI layer
+
+What landed:
+- [docker_overview_ui_adapter.dart](/home/home/personal/cwatch/lib/controller/adapters/docker_overview_ui_adapter.dart)
+- [server_workspace_ui_adapter.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_ui_adapter.dart)
+- [docker_overview_actions_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/docker_overview_actions_controller.dart)
+- [server_port_forward_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/server_port_forward_controller.dart)
+
+Result:
+- server/docker UI adapters no longer expose `buildSshAuthCoordinator(...)`
+- server/docker port-forward flows no longer ask UI adapters for SSH auth wiring
+- port-forward auth now relies on the coordinator already sourced below the feature/UI layer through `PortForwardService`
+
+What remains:
+- the home-shell/global auth coordinator seam still exists
+- `PortForwardService.startForward(...)` still accepts optional auth override inputs for compatibility
+- non-port-forward high-level SSH auth construction paths remain for later cleanup
+
+Next executable batch:
+- re-scope whether the remaining SSH auth wiring should target:
+  - home-shell/global auth coordinator construction
+  - compatibility parameter cleanup in SSH/port-forward infrastructure
+  - remaining non-port-forward high-level auth construction
 
 ## Explicit Concurrency Rules
 

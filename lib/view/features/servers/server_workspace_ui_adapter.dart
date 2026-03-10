@@ -4,12 +4,9 @@ import 'package:cwatch/model/models/custom_ssh_host.dart';
 import 'package:cwatch/view/features/servers/servers/add_server_dialog.dart';
 import 'package:cwatch/model/services_infra/port_forwarding/port_forward_service.dart';
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
-import 'package:cwatch/model/services_infra/ssh/ssh_auth_coordinator.dart';
 import 'package:cwatch/view/shared/widgets/dialog_keyboard_shortcuts.dart';
 import 'package:cwatch/view/shared/widgets/port_forward_dialog.dart'
     as port_forward;
-
-import 'package:cwatch/controller/adapters/ssh_auth_prompter.dart';
 
 class ServerWorkspaceUiAdapter {
   ServerWorkspaceUiAdapter({required this.context});
@@ -88,11 +85,5 @@ class ServerWorkspaceUiAdapter {
     } finally {
       WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
     }
-  }
-
-  SshAuthCoordinator buildSshAuthCoordinator({
-    required BuiltInSshKeyService keyService,
-  }) {
-    return SshAuthPrompter.forContext(context: context, keyService: keyService);
   }
 }

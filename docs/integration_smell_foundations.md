@@ -306,6 +306,10 @@ Current next code direction:
 - remove high-level SSH auth wiring from server/docker port-forward flows
 - keep the home-shell global auth coordinator seam for now
 
+Current implementation checkpoint:
+- server/docker port-forward flows no longer source SSH auth coordinators from UI adapters
+- the next SSH auth pass should re-scope the remaining global/compatibility wiring tail
+
 ## Success Criteria
 
 This layer is working when:

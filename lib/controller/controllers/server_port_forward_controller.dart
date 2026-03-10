@@ -46,9 +46,6 @@ class ServerPortForwardController {
         settingsController: settingsController,
         builtInKeyService: keyService,
         hostKeyBindings: hostKeyBindings,
-        authCoordinator: uiAdapter.buildSshAuthCoordinator(
-          keyService: keyService,
-        ),
       );
       final summary = result
           .map((r) => '${r.localPort}->${r.remotePort}')

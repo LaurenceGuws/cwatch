@@ -2,14 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:cwatch/model/services_infra/port_forwarding/port_forward_service.dart';
-import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
-import 'package:cwatch/model/services_infra/ssh/ssh_auth_coordinator.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/view/shared/widgets/port_forward_dialog.dart'
     as port_forward;
 import 'package:cwatch/view/shared/widgets/shared_prompt_dialogs.dart';
-
-import 'ssh_auth_prompter.dart';
 
 class DockerOverviewUiAdapter {
   DockerOverviewUiAdapter({required this.context});
@@ -159,12 +155,6 @@ class DockerOverviewUiAdapter {
       initialValue: initialValue,
       hintText: hintText,
     );
-  }
-
-  SshAuthCoordinator buildSshAuthCoordinator({
-    required BuiltInSshKeyService keyService,
-  }) {
-    return SshAuthPrompter.forContext(context: context, keyService: keyService);
   }
 }
 

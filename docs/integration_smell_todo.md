@@ -565,3 +565,17 @@ Current follow-up doc:
 
 Next executable batch:
 - `Task 14.24`: remove high-level auth wiring from port-forward flows
+
+### Task 14.24: remove high-level auth wiring from port-forward flows
+Status: completed
+
+What this task established:
+- the concentrated server/docker port-forward auth-wiring smell is removed
+- UI adapters no longer construct SSH auth coordinators for those flows
+- service-level auth coordination is now the source for those paths
+
+Current follow-up doc:
+- [ssh_auth_integration_todo.md](/home/home/personal/cwatch/docs/ssh_auth_integration_todo.md)
+
+Next executable batch:
+- re-scope the remaining SSH auth wiring tail
