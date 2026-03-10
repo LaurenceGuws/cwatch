@@ -361,7 +361,7 @@ Reason:
 ## First Code Batch After This Scope
 
 ### Task 14.22: consolidate builtin decrypt coordination
-Status: queued
+Status: completed
 
 Goal:
 - make `BuiltInSshClientManager` the only builtin decrypt/prompt coordination owner
@@ -377,6 +377,31 @@ Done definition:
 - identity manager no longer owns overlapping pending-decrypt state
 - trash tab no longer owns decrypt/prompt state machines
 - concurrent requests for the same key still converge correctly
+
+What landed:
+- [builtin_identity_manager.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/builtin/builtin_identity_manager.dart)
+- [trash_tab_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/trash_tab_controller.dart)
+- [trash_tab_binding.dart](/home/home/personal/cwatch/lib/controller/di/bindings/trash_tab_binding.dart)
+- [trash_tab.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/trash_tab.dart)
+- [server_tab_builder.dart](/home/home/personal/cwatch/lib/view/features/servers/server_tab_builder.dart)
+- [docker_tab_builder.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_tab_builder.dart)
+
+Result:
+- `BuiltInSshIdentityManager` no longer owns:
+  - `_pendingDecrypts`
+  - direct `promptDecrypt` fallback coordination
+- trash no longer owns:
+  - decrypt-in-progress flags
+  - passphrase prompt dedupe maps
+  - builtin auth retry loops
+- trash now consumes builtin SSH auth behavior through the shell service instead of compensating for it locally
+
+What remains for this hotspot:
+- `BuiltInSshClientManager` is now the practical coordination owner, but the higher-layer auth coordinator wiring still remains
+- the next pass should target adapter/binding auth coordinator construction after this builtin runtime consolidation
+
+Next executable batch:
+- `Task 14.23`: scope high-level SSH auth wiring removal
 
 ## Explicit Concurrency Rules
 

@@ -13,17 +13,13 @@ class BuiltInSshIdentityManager {
   BuiltInSshIdentityManager({
     required this.vault,
     required Map<String, String> hostKeyBindings,
-    this.promptDecrypt,
   }) : _hostKeyBindings = Map.unmodifiable(hostKeyBindings);
 
   final BuiltInSshVault vault;
   final Map<String, String> _hostKeyBindings;
-  final Future<bool> Function(String keyId, String hostName, String? keyLabel)?
-  promptDecrypt;
 
   final Map<String, String> _identityPassphrases = {};
   final Map<String, String> _builtInKeyPassphrases = {};
-  static final Map<String, Future<void>> _pendingDecrypts = {};
 
   String? boundKeyForHost(String hostName) => _hostKeyBindings[hostName];
 
@@ -35,57 +31,36 @@ class BuiltInSshIdentityManager {
     _builtInKeyPassphrases[keyId] = passphrase;
   }
 
-  Future<void> _withPendingDecrypt(
-    String keyId,
-    Future<void> Function() action,
-  ) {
-    final pending = _pendingDecrypts[keyId];
-    if (pending != null) {
-      return pending;
-    }
-    final future = action();
-    _pendingDecrypts[keyId] = future;
-    return future.whenComplete(() => _pendingDecrypts.remove(keyId));
-  }
-
   Future<void> ensureDecrypted(SshHost host) async {
     final keyId = _hostKeyBindings[host.name];
     if (keyId == null) {
       return;
     }
-    return _withPendingDecrypt(keyId, () async {
-      if (vault.isDecrypted(keyId)) {
+    if (vault.isDecrypted(keyId)) {
+      return;
+    }
+    final entry = await vault.keyStore.loadEntry(keyId);
+    if (entry == null) {
+      logBuiltInSshWarning(
+        'Key $keyId bound to ${host.name} no longer exists. '
+        'Skipping decryption and continuing.',
+      );
+      return;
+    }
+    final isEncrypted = await vault.isEncrypted(keyId);
+    if (!isEncrypted) {
+      try {
+        await vault.decrypt(keyId, null);
         return;
-      }
-      final entry = await vault.keyStore.loadEntry(keyId);
-      if (entry == null) {
+      } catch (error) {
         logBuiltInSshWarning(
-          'Key $keyId bound to ${host.name} no longer exists. '
-          'Skipping decryption and continuing.',
+          'Failed to decrypt key $keyId for ${host.name}',
+          error: error,
         );
-        return;
+        throw Exception('Failed to decrypt key for ${host.name}: $error');
       }
-      final isEncrypted = await vault.isEncrypted(keyId);
-      if (!isEncrypted) {
-        try {
-          await vault.decrypt(keyId, null);
-          return;
-        } catch (error) {
-          logBuiltInSshWarning(
-            'Failed to decrypt key $keyId for ${host.name}',
-            error: error,
-          );
-          throw Exception('Failed to decrypt key for ${host.name}: $error');
-        }
-      }
-      if (promptDecrypt != null) {
-        final decrypted = await promptDecrypt!(keyId, host.name, entry.label);
-        if (decrypted && vault.isDecrypted(keyId)) {
-          return;
-        }
-      }
-      throw BuiltInSshKeyDecryptionRequired(host.name, keyId, entry.label);
-    });
+    }
+    throw BuiltInSshKeyDecryptionRequired(host.name, keyId, entry.label);
   }
 
   Future<List<SSHKeyPair>> loadIdentities(SshHost host) async {
@@ -171,10 +146,7 @@ class BuiltInSshIdentityManager {
         return identities;
       }
 
-      await _withPendingDecrypt(keyId, () async {
-        if (vault.isDecrypted(keyId)) {
-          return;
-        }
+      if (!vault.isDecrypted(keyId)) {
         final isEncrypted = await vault.isEncrypted(keyId);
         if (!isEncrypted) {
           try {
@@ -185,25 +157,11 @@ class BuiltInSshIdentityManager {
             );
           }
         }
-        if (!vault.isDecrypted(keyId) && promptDecrypt != null) {
-          final decryptedViaPrompt = await promptDecrypt!(
-            keyId,
-            host.name,
-            entry.label,
-          );
-          if (!decryptedViaPrompt) {
-            throw BuiltInSshKeyDecryptionRequired(
-              host.name,
-              keyId,
-              entry.label,
-            );
-          }
-        }
         if (!vault.isDecrypted(keyId)) {
           throw BuiltInSshKeyDecryptionRequired(host.name, keyId, entry.label);
         }
         logBuiltInSsh('Decrypted built-in key $keyId for host ${host.name}');
-      });
+      }
 
       var decryptedKey = vault.getDecryptedKey(keyId);
 

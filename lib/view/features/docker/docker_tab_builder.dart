@@ -464,7 +464,6 @@ class DockerTabBuilder implements DockerOverviewTabFactory {
             context: context,
             manager: trashManager,
             shellService: shellService,
-            keyService: keyService,
             explorerContext: explorerContext,
           );
           return TrashTab(controller: controller);

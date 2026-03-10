@@ -72,11 +72,7 @@ class _TrashTabState extends State<TrashTab> {
   }
 
   Future<T> _runShell<T>(Future<T> Function() action) async {
-    try {
-      return await _controller.runShell(action);
-    } on SshDecryptCancelled {
-      throw const CancelledTrashOperation();
-    }
+    return _controller.runShell(action);
   }
 
   @override
@@ -193,7 +189,6 @@ class _TrashTabState extends State<TrashTab> {
         'Restored ${entry.displayName} to ${entry.remotePath}',
       );
     } catch (error) {
-      if (error is CancelledTrashOperation) return;
       AppLogger().warn(
         'Trash restore failed for ${entry.remotePath} on host ${entry.host.name}',
         tag: 'Trash',
@@ -226,11 +221,4 @@ class _TrashTabState extends State<TrashTab> {
     }
     return '${value.toStringAsFixed(1)} ${units[unitIndex]}';
   }
-}
-
-class CancelledTrashOperation implements Exception {
-  const CancelledTrashOperation();
-
-  @override
-  String toString() => 'CancelledTrashOperation';
 }

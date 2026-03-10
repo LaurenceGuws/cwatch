@@ -297,6 +297,11 @@ Current first code direction:
   - `TrashTabController`
 - keep adapter-level auth coordinator wiring for now until the builtin runtime owner is singular
 
+Current implementation checkpoint:
+- builtin decrypt/prompt coordination has been removed from `BuiltInSshIdentityManager`
+- trash no longer owns a parallel builtin auth loop
+- the next SSH auth pass should target high-level auth wiring removal rather than more builtin runtime duplication
+
 ## Success Criteria
 
 This layer is working when:

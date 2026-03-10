@@ -289,7 +289,6 @@ class ServerTabBuilder {
             context: context,
             manager: trashManager,
             shellService: shellServiceForHost(host),
-            keyService: keyService,
             explorerContext: effectiveContext,
           );
           return TrashTab(controller: controller);

@@ -4,7 +4,6 @@ import 'package:cwatch/controller/adapters/explorer_ui_adapter.dart';
 import 'package:cwatch/controller/controllers/trash_tab_controller.dart';
 import 'package:cwatch/model/models/explorer_context.dart';
 import 'package:cwatch/model/services_infra/filesystem/explorer_trash_manager.dart';
-import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 
 class TrashTabBinding {
@@ -14,7 +13,6 @@ class TrashTabBinding {
     required BuildContext context,
     required ExplorerTrashManager manager,
     required RemoteShellService shellService,
-    BuiltInSshKeyService? keyService,
     ExplorerContext? explorerContext,
   }) {
     final uiAdapter = ExplorerUiAdapter(context: context);
@@ -22,7 +20,6 @@ class TrashTabBinding {
       manager: manager,
       shellService: shellService,
       uiAdapter: uiAdapter,
-      keyService: keyService,
       context: explorerContext,
     );
   }

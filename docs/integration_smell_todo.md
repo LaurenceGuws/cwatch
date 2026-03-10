@@ -537,3 +537,17 @@ Current follow-up doc:
 
 Next executable batch:
 - `Task 14.22`: consolidate builtin decrypt coordination
+
+### Task 14.22: consolidate builtin decrypt coordination
+Status: completed
+
+What this task established:
+- builtin decrypt/prompt coordination no longer overlaps in `BuiltInSshIdentityManager`
+- `TrashTabController` no longer reimplements builtin SSH auth state machines
+- the builtin shell runtime is now the effective owner of trash-side auth retry behavior
+
+Current follow-up doc:
+- [ssh_auth_integration_todo.md](/home/home/personal/cwatch/docs/ssh_auth_integration_todo.md)
+
+Next executable batch:
+- `Task 14.23`: scope high-level SSH auth wiring removal
