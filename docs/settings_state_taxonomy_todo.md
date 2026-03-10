@@ -533,6 +533,71 @@ Verification:
 - `flutter analyze`
 - result: no issues found
 
+### Task 12.23: re-scope after infra-config grouping
+Status: completed
+
+What this re-scope checked:
+- whether `AppSettings` still has a live grouping problem after:
+  - grouped feature preferences
+  - grouped SSH config
+  - grouped Kubernetes config
+  - grouped Docker config
+  - workspace/cache/session extractions
+
+What remains in `AppSettings` now:
+- stable root app preferences:
+  - `themeMode`
+  - `debugMode`
+  - `zoomFactor`
+  - `appFontFamily`
+  - `appThemeKey`
+  - `uiDensity`
+  - `inputModePreference`
+  - `shortcutBindings`
+- stable shell/runtime preferences:
+  - `shellPreferences`
+- grouped live infra/feature config:
+  - `sshPreferences`
+  - `kubernetesPreferences`
+  - `dockerPreferences`
+  - `editorPreferences`
+  - `terminalPreferences`
+  - `explorerPreferences`
+  - `serverAutoRefresh`
+  - `serverShowOffline`
+  - `fileTransferUploadConcurrency`
+  - `fileTransferDownloadConcurrency`
+- migration-only compatibility fields:
+  - `serverDistroMap`
+  - `dockerDistroMap`
+  - `serverWorkspace`
+  - `dockerWorkspace`
+  - `kubernetesWorkspace`
+  - `wslWorkspace`
+
+Conclusion:
+- `AppSettings` is no longer failing primarily because of active taxonomy mixing
+- the remaining structurally wrong fields are mostly migration-only compatibility data
+- another immediate `AppSettings` extraction pass would now have lower value than validating the new seams
+
+Next planned layer:
+- create characterization tests around the new boundaries instead of continuing root-model surgery
+- the highest-value targets are:
+  - workspace persistence through `PersistedWorkspaces` / `WorkspaceRootController`
+  - grouped settings persistence for extracted preference/config sections
+  - cache/session storage boundaries that were moved out of `AppSettings`
+
+Next executable batch:
+- `Task 13.1`: scope characterization tests for the new settings/workspace persistence seams
+
+Done definition:
+- the doc explicitly records that `AppSettings` cleanup is at a checkpoint
+- the next rewrite layer is test seam creation, not another arbitrary settings refactor
+
+Verification:
+- the remaining live `AppSettings` categories are named explicitly
+- the next batch is chosen from current evidence rather than continued cleanup momentum
+
 ### Task 12.8: scope `settingsTabIndex` removal from root settings
 Status: completed
 
