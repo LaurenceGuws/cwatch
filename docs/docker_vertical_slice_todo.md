@@ -227,7 +227,7 @@ Result:
   - context-load kickoff behavior
 
 ## Task 16.6: re-scope the next Docker slice batch
-Status: queued
+Status: completed
 
 Goal:
 - decide whether the Docker slice should continue into Docker-local hosting state or checkpoint at the current shell seam
@@ -239,3 +239,37 @@ Questions to answer:
 Done definition:
 - the next Docker slice move is explicit
 - the choice is based on the post-test seam shape, not file-length pressure
+
+Result:
+- the Docker slice should checkpoint here
+- it should not extract another seam from [docker_view.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view.dart) in this pass
+
+Why this is the right stop:
+- the remaining weight in `docker_view.dart` is mostly real Docker-local hosting and probe behavior:
+  - remote scan state
+  - local context probe state
+  - picker settings overlay state
+  - restore/probe hooks
+  - dashboard-opening flows
+- those concerns are tightly coupled to Docker picker/dashboard semantics
+- extracting them now would likely create a fake generic “scan/host manager” layer instead of improving feature boundaries
+
+## Task 16.7: checkpoint the first Docker vertical slice
+Status: completed
+
+Goal:
+- stop the Docker slice at a defensible architectural boundary instead of continuing for file-length reduction
+
+Done definition:
+- the current Docker slice result is explicit
+- the next rewrite move should come from the broader sequence, not more Docker decomposition by default
+
+Result:
+- the first Docker vertical slice is now checkpointed
+
+What this slice proved:
+- top-level Docker module orchestration can move into a dedicated seam:
+  - [docker_view_shell.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view_shell.dart)
+- that seam is directly covered by:
+  - [docker_view_shell_test.dart](/home/home/personal/cwatch/test/view/features/docker/docker_view_shell_test.dart)
+- `docker_view.dart` is now narrower and the remaining weight is mostly true Docker-local behavior, not shell/runtime ambiguity
