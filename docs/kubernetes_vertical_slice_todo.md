@@ -203,7 +203,7 @@ Why this is the right next move:
   should be locked down first
 
 ## Task 18.5: add focused tests for the Kubernetes workspace-shell seam
-Status: pending
+Status: completed
 
 Goal:
 - add direct regression coverage around the new Kubernetes workspace-shell seam before deciding whether the slice should continue or checkpoint
@@ -220,3 +220,26 @@ Done definition:
 - the Kubernetes shell seam has direct focused tests
 - the tests validate the extracted orchestration boundary rather than broad Kubernetes widget behavior
 - the next slice decision can be made from a safer regression floor
+
+Result:
+- added [kubernetes_workspace_shell_test.dart](/home/home/personal/cwatch/test/view/features/kubernetes/kubernetes_workspace_shell_test.dart)
+- direct coverage now exists for:
+  - command-palette entry loading
+  - tab-navigation behavior
+  - context reload coordination
+  - placeholder replacement behavior
+  - add-tab behavior
+  - settings-driven reload decisions
+
+## Task 18.6: re-scope the first Kubernetes slice checkpoint
+Status: pending
+
+Goal:
+- decide whether the first Kubernetes slice should continue or checkpoint at the current shell seam
+
+Questions to answer:
+- is there another real architectural seam left in `kubernetes_context_list.dart`
+- or is the remaining weight now mostly true Kubernetes-local behavior that should stay together for now
+
+Done definition:
+- the next Kubernetes slice move is explicit
