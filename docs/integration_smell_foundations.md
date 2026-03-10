@@ -319,8 +319,9 @@ Current next hotspot:
 
 Current hotspot status:
 - explorer shared-surface contract is now explicit
-- next step is a narrow shared explorer chrome scaffold extraction pass
+- shared explorer chrome scaffold extraction is complete
 - richer explorer dialogs remain intentional local exceptions
+- explorer hotspot is now at a good checkpoint
 
 Current follow-up doc:
 - [explorer_shared_surface_todo.md](/home/home/personal/cwatch/docs/explorer_shared_surface_todo.md)
