@@ -393,6 +393,7 @@ Current hotspot status:
   - close tab
   - new tab
 - the shared generic tab-command helper is now implemented across Docker, Servers, and Kubernetes
+- the command contribution hotspot is now at a good checkpoint and should not grow a second helper for one-off settings tab switching
 
 ## Success Criteria
 

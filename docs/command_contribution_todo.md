@@ -231,7 +231,7 @@ What this proved:
 - feature-specific command entries can stay local without duplicating the generic tab-entry boilerplate
 
 ## Task 14.56: re-scope the next command contribution batch
-Status: queued
+Status: completed
 
 Goal:
 - decide whether the next command batch should normalize another generic seam or checkpoint this hotspot
@@ -242,3 +242,35 @@ Likely candidates:
 
 Done definition:
 - the next narrow command batch is chosen or the hotspot is checkpointed
+
+Result:
+- the command contribution hotspot is now at a good checkpoint
+- the next batch should not extract a new helper just for settings tab-switch commands
+
+Why this is the right stop point:
+- the generic tab-command seam had multiple real adopters and is now shared
+- the remaining obvious candidate is `settings_view.dart`, but that is only one surface
+- extracting a second helper now would likely create abstraction ahead of evidence
+
+What remains intentionally local:
+- settings tab-switch commands
+- feature-specific picker/open-host/open-context commands
+- richer feature-local command loaders
+
+Current checkpoint summary:
+- `CommandPaletteRegistry` and `HomeShellCommandPalette` remain the shared registry/loading substrate
+- `generic_tab_command_entries.dart` is now the canonical shared helper for repeated tab command entries
+- feature-local loaders remain the right place for domain-specific commands
+
+## Task 14.57: choose the next integration-smell hotspot after command contribution
+Status: queued
+
+Goal:
+- decide the next integration-smell layer after the command contribution checkpoint
+
+Likely candidates:
+- capability / breadcrumb integration surfacing
+- checkpoint the integration-smell layer and roll up the current state
+
+Done definition:
+- the next hotspot is chosen from current evidence

@@ -220,7 +220,8 @@ Current follow-up:
 - `Task 14.53` shared command contribution contract is complete
 - `Task 14.54` generic tab command contribution scope is complete
 - `Task 14.55` shared generic tab command contribution implementation is complete
-- `Task 14.56` next command contribution batch re-scope is queued
+- `Task 14.56` next command contribution batch re-scope is complete
+- command contribution hotspot is now checkpointed
 
 ## Next Re-scope
 
