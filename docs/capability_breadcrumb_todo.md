@@ -92,7 +92,7 @@ Why stopping entirely waits:
 - but capability surfacing is still an active cross-feature rule without a documented UI contract
 
 ## Task 14.58: define the shared capability/breadcrumb contract
-Status: queued
+Status: completed
 
 Goal:
 - describe which capability-unavailable states should use shared shell/UI patterns and which should remain feature-local guidance
@@ -106,3 +106,55 @@ Done definition:
 - the shared capability/breadcrumb responsibilities are explicit
 - valid local exception categories are explicit
 - one concrete next batch is chosen or the hotspot is checkpointed
+
+Result:
+- the shared capability/breadcrumb contract is now explicit
+
+### Shared shell responsibilities
+
+Shared shell/UI surfaces should own:
+- simple capability-unavailable empty-state framing for optional integrations
+- consistent wording shape for:
+  - unavailable optional capability
+  - retry action when retry is meaningful
+- generic breadcrumb direction such as “this path is optional” or “use another path/settings”
+
+### Feature responsibilities
+
+Feature modules should own:
+- domain-specific guidance about what the unavailable capability actually blocks
+- backend-specific wording
+- richer unavailable dashboards and warnings where the surface is more than a simple empty state
+- feature-specific remediation steps
+
+### Valid local exceptions
+
+Local capability guidance is valid when:
+- the surface is a dashboard rather than a simple empty state
+- the unavailable condition depends on feature-specific backend semantics
+- the user needs domain-specific explanation rather than a generic shell breadcrumb
+
+Examples:
+- Docker engine picker local CLI-unavailable path
+  - valid as a proving slice for shared empty-state-based surfacing
+- Kubernetes dashboard unavailable state
+  - valid local exception because it is dashboard-level guidance, not a simple empty state
+
+### What this means in practice
+
+- simple optional-capability absence can reuse `StandardEmptyState`
+- richer “dashboard unavailable” states should remain feature-local unless multiple features converge on the same richer pattern
+- this hotspot should not try to unify all unavailable/error states
+
+## Task 14.59: re-scope the capability/breadcrumb hotspot
+Status: queued
+
+Goal:
+- decide whether there is one more narrow normalization batch worth doing now or whether this hotspot is already at a good checkpoint
+
+Likely outcomes:
+- checkpoint now because the contract is enough
+- or normalize one additional simple capability-unavailable empty-state path if a second clear adopter exists
+
+Done definition:
+- the next batch is chosen or the hotspot is checkpointed

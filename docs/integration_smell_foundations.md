@@ -406,6 +406,11 @@ Why this is next:
 - the remaining seam is how unavailable capability states are surfaced in the UI
 - this is still distributed enough to benefit from one contract pass before ending the integration-smell layer
 
+Current hotspot status:
+- the shared capability/breadcrumb contract is now explicit
+- simple optional-capability absence is now clearly a shared empty-state-style concern
+- richer dashboard-unavailable states remain valid feature-local exceptions
+
 ## Success Criteria
 
 This layer is working when:

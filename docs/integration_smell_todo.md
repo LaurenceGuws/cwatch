@@ -232,6 +232,16 @@ Why it matters:
 
 Queued question:
 - what belongs in canonical shared capability/breadcrumb surfacing vs feature-local unavailable-state guidance
+
+Current result:
+- the shared capability/breadcrumb contract is now explicit
+- simple optional-capability absence can use shared empty-state scaffolding
+- richer dashboard-unavailable states remain valid local exceptions
+
+Current follow-up:
+- [capability_breadcrumb_todo.md](/home/home/personal/cwatch/docs/capability_breadcrumb_todo.md)
+- `Task 14.58` shared capability/breadcrumb contract is complete
+- `Task 14.59` hotspot re-scope is queued
 - `Task 14.54` generic tab command contribution scope is complete
 - `Task 14.55` shared generic tab command contribution implementation is complete
 - `Task 14.56` next command contribution batch re-scope is complete
