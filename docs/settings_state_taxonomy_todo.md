@@ -58,7 +58,7 @@ The problem is taxonomy:
 ## First Batch Candidate
 
 ### Task 12.1: classify `AppSettings` fields by state type
-Status: queued
+Status: completed
 
 Why this is first:
 - the field list is already large enough to hide multiple ownership mistakes
@@ -93,7 +93,7 @@ Verification:
 - at least the major mixed categories are clearly separated in writing
 
 ### Task 12.2: re-scope after taxonomy classification
-Status: queued
+Status: completed
 
 Purpose:
 - choose the first real split candidate after classification
@@ -110,12 +110,156 @@ Done definition:
 Verification:
 - follow-up task added before the next structural change starts
 
+## Field Taxonomy
+
+State categories used here:
+- `app_pref`: durable application-wide preference
+- `shell_pref`: durable shell/window/chrome preference
+- `infra_config`: durable infrastructure/transport configuration
+- `feature_pref`: durable feature-specific preference
+- `workspace_snapshot`: persisted module workspace state
+- `derived_cache`: persisted cache/derived lookup data
+- `session_ui`: transient or weakly durable UI/session state that should not live in root settings long term
+
+| Field | Category | Why |
+| --- | --- | --- |
+| `themeMode` | `app_pref` | global app theme preference |
+| `debugMode` | `app_pref` | global debug/logging mode |
+| `zoomFactor` | `app_pref` | global UI scaling preference |
+| `appFontFamily` | `app_pref` | global typography preference |
+| `appThemeKey` | `app_pref` | global app theme choice |
+| `uiDensity` | `app_pref` | global density preference |
+| `inputModePreference` | `app_pref` | app-wide input behavior preference |
+| `shortcutBindings` | `app_pref` | app-wide shortcut customization |
+| `windowUseSystemDecorations` | `shell_pref` | shell/window chrome behavior |
+| `closeToTray` | `shell_pref` | shell/window lifecycle behavior |
+| `shellSidebarWidth` | `shell_pref` | shell layout preference |
+| `shellDestination` | `shell_pref` | shell navigation destination |
+| `shellSidebarCollapsed` | `shell_pref` | shell chrome/layout state |
+| `shellSidebarPlacement` | `shell_pref` | shell layout preference |
+| `sshClientBackend` | `infra_config` | transport backend selection |
+| `builtinSshHostKeyBindings` | `infra_config` | SSH key binding config |
+| `customSshHosts` | `infra_config` | user-managed SSH host config |
+| `customSshConfigPaths` | `infra_config` | SSH config source paths |
+| `disabledSshConfigPaths` | `infra_config` | SSH config source filtering |
+| `disabledServerHosts` | `infra_config` | host-level infra filtering |
+| `kubernetesConfigPaths` | `infra_config` | kubeconfig source paths |
+| `kubernetesBackend` | `infra_config` | Kubernetes transport/backend choice |
+| `dockerRemoteHosts` | `infra_config` | remote docker host config |
+| `serverAutoRefresh` | `feature_pref` | server feature behavior preference |
+| `serverShowOffline` | `feature_pref` | server list presentation preference |
+| `dockerSelectedContext` | `feature_pref` | docker feature durable selection/preference |
+| `dockerLogsTail` | `feature_pref` | docker feature log behavior preference |
+| `editorThemeLight` | `feature_pref` | editor feature preference |
+| `editorThemeDark` | `feature_pref` | editor feature preference |
+| `editorFontFamily` | `feature_pref` | editor feature preference |
+| `editorFontSize` | `feature_pref` | editor feature preference |
+| `editorLineHeight` | `feature_pref` | editor feature preference |
+| `terminalFontFamily` | `feature_pref` | terminal feature preference |
+| `terminalFontSize` | `feature_pref` | terminal feature preference |
+| `terminalLineHeight` | `feature_pref` | terminal feature preference |
+| `terminalPaddingX` | `feature_pref` | terminal feature preference |
+| `terminalPaddingY` | `feature_pref` | terminal feature preference |
+| `terminalThemeDark` | `feature_pref` | terminal feature preference |
+| `terminalThemeLight` | `feature_pref` | terminal feature preference |
+| `fileTransferUploadConcurrency` | `feature_pref` | file operation behavior preference |
+| `fileTransferDownloadConcurrency` | `feature_pref` | file operation behavior preference |
+| `explorerRowHeight` | `feature_pref` | explorer feature preference |
+| `explorerShowBreadcrumbs` | `feature_pref` | explorer feature preference |
+| `serverWorkspace` | `workspace_snapshot` | persisted server workspace state |
+| `kubernetesWorkspace` | `workspace_snapshot` | persisted kubernetes workspace state |
+| `wslWorkspace` | `workspace_snapshot` | persisted WSL workspace state |
+| `dockerWorkspace` | `workspace_snapshot` | persisted docker workspace state |
+| `serverDistroMap` | `derived_cache` | derived host distro cache |
+| `dockerDistroMap` | `derived_cache` | derived container/host distro cache |
+| `settingsTabIndex` | `session_ui` | settings-screen local navigation/session state |
+
+## What Is In The Wrong Bucket Today
+
+Clear taxonomy violations:
+- `serverWorkspace`
+- `kubernetesWorkspace`
+- `wslWorkspace`
+- `dockerWorkspace`
+  - these are workspace persistence snapshots, not root application settings
+- `serverDistroMap`
+- `dockerDistroMap`
+  - these are persisted derived caches, not user settings
+- `settingsTabIndex`
+  - this is settings-screen UI/session state, not root durable settings
+
+Secondary tension areas:
+- `shellSidebarWidth`
+- `shellDestination`
+- `shellSidebarCollapsed`
+- `shellSidebarPlacement`
+  - these are shell state/chrome preferences and likely deserve a shell-specific settings model later
+- feature-pref clusters for editor/terminal/explorer/server/docker
+  - these are durable, but the current root object is flattening unrelated feature concerns into one namespace
+
+## What Should Likely Remain In Root App Settings
+
+Reasonable root-level categories:
+- app-wide preferences
+- shell/window preferences
+- infrastructure configuration
+
+Meaning:
+- `app_pref`
+- `shell_pref`
+- `infra_config`
+
+These categories are still broad, but they at least belong at application scope.
+
+## What Should Move Out Later
+
+Strong split candidates:
+- `workspace_snapshot`
+  - should move to dedicated workspace persistence models/root container separate from app settings
+- `derived_cache`
+  - should move to dedicated cache persistence
+- `session_ui`
+  - should move to feature/view-local persistence or be allowed to remain transient
+
+Later, but still likely:
+- feature-specific durable preferences may eventually split into feature-scoped settings sections rather than one flat root model
+
+## First Split Candidate
+
+The first safe split candidate is:
+- `workspace_snapshot`
+
+Why this is first:
+- it is already structurally separate data
+- it directly intersects the strict placeholder-tab contract
+- it is the clearest conceptual mismatch inside `AppSettings`
+- Docker, Kubernetes, WSL, and Servers already treat these values as workspace persistence, not general settings
+
+Follow-up split after that:
+- `derived_cache`
+
+Why not start with feature preferences:
+- those are still durable settings and are less conceptually wrong than workspace snapshots
+- splitting them first would create more design churn for less architectural clarity
+
+## Result of Task 12.1
+
+The main finding is:
+- `AppSettings` is not primarily “too big”
+- it is taxonomically mixed
+
+The clearest hard boundary is:
+- root application settings vs persisted workspace snapshots
+
+That should drive the next code-facing split.
+
 ## Tracking Table
 
 | Item | Scope | Status | Done When |
 | --- | --- | --- | --- |
-| 12.1 | AppSettings taxonomy | queued | every field is classified by state type |
-| 12.2 | State-taxonomy re-scope | queued | first split candidate is chosen from the taxonomy |
+| 12.1 | AppSettings taxonomy | completed | every field is classified by state type |
+| 12.2 | State-taxonomy re-scope | completed | first split candidate is chosen from the taxonomy |
+| 12.3 | First split candidate | queued | workspace snapshot split is scoped into an executable next batch |
 
 ## Completion Metric
 
