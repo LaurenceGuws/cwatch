@@ -64,7 +64,7 @@ We are trying to make one ownership rule clearer:
 ## First Batch Candidate
 
 ### Task 7.1: inspect shared adapter dialog/content helper ownership
-Status: queued
+Status: completed
 
 Why this is first:
 - the remaining imports are clustered around a small set of shared widget helpers
@@ -103,7 +103,7 @@ Verification:
 - manual smoke check of the affected dialog/popup flow
 
 ### Task 7.2: re-scope after the first adapter dialog/content move
-Status: queued
+Status: completed
 
 Purpose:
 - decide whether the next adapter batch should target:
@@ -119,6 +119,33 @@ Done definition:
 
 Verification:
 - follow-up task added before the next adapter structural change starts
+
+Result of re-scope:
+- `RemoteFileInfoDialogContent` moved out of the editor tab subtree into `view/shared/widgets/`
+- `RemoteFileEditorUiAdapter` no longer depends on a widget file from `view/shared/views/shared/tabs/editor/...`
+- the remaining adapter-side imports are now mostly shared dialog wrappers/progress widgets plus a few feature-local exceptions (`remote_docker_status.dart`, `add_server_dialog.dart`)
+- the next batch should stay focused on mislocated adapter helper ownership, not generic shared dialog wrappers yet
+
+### Task 7.3: inspect feature-local adapter content/helper ownership
+Status: queued
+
+Why this is next:
+- the remaining clearly suspicious adapter-side imports are now the feature-local helper/content files rather than the shared widget wrappers
+- `docker_ui_adapter.dart` importing `view/features/docker/remote_docker_status.dart` is especially strong signal because the type is data, not UI
+- `server_workspace_ui_adapter.dart` importing `add_server_dialog.dart` may be a valid feature exception and should be evaluated separately from mislocated helpers
+
+Actions:
+- inspect the remaining feature-local adapter imports and classify them as mislocated helper versus intentional feature exception
+- make one narrow ownership correction or record the exception clearly
+- update imports to match
+
+Done definition:
+- at least one remaining feature-local adapter-side dependency is reduced or clearly justified
+- adapter/content ownership is clearer than it is today
+
+Verification:
+- `rg -n "package:cwatch/view/features/" lib/controller/adapters`
+- `flutter analyze`
 
 ## Later Work In This Hotspot
 
@@ -143,9 +170,10 @@ Track here when ready:
 
 | Item | Scope | Status | Done When |
 | --- | --- | --- | --- |
-| 7.1 | Shared adapter dialog/content helper ownership | queued | at least one misleading adapter-side view dependency is removed or reclassified |
-| 7.2 | Adapter dialog/content re-scope | queued | next task is written from what we learn in 7.1 |
-| 7.x | Adapter dialog/content follow-up | queued | re-scoped after 7.2 |
+| 7.1 | Shared adapter dialog/content helper ownership | completed | at least one misleading adapter-side view dependency is removed or reclassified |
+| 7.2 | Adapter dialog/content re-scope | completed | next task is written from what we learn in 7.1 |
+| 7.3 | Feature-local adapter content/helper ownership | queued | at least one remaining feature-local adapter-side dependency is reduced or justified |
+| 7.x | Adapter dialog/content follow-up | queued | re-scoped after 7.3 |
 
 ## Completion Metric
 

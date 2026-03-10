@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:cwatch/view/shared/views/shared/tabs/editor/remote_file_editor/file_info_dialog_content.dart';
+import 'package:cwatch/view/shared/widgets/remote_file_info_dialog_content.dart';
 
 class RemoteFileEditorUiAdapter {
   RemoteFileEditorUiAdapter({required this.context});
