@@ -281,7 +281,7 @@ to:
 ## First Workspace-Snapshot Split Candidate
 
 ### Task 12.4: define a dedicated root workspace persistence container
-Status: queued
+Status: completed
 
 Why this is next:
 - workspace persistence already has a shared abstraction layer
@@ -312,6 +312,90 @@ Done definition:
 Verification:
 - the document names the new root persistence boundary explicitly
 - the first code batch is framed at the shared persistence seam, not as scattered feature edits
+
+## Dedicated Workspace Persistence Root
+
+Target split:
+- `AppSettings` should persist application settings only
+- persisted module workspaces should move to a separate root persistence container
+
+Proposed root container:
+
+`PersistedWorkspaces`
+- `server`
+- `docker`
+- `kubernetes`
+- `wsl`
+
+Possible shape:
+
+```dart
+class PersistedWorkspaces {
+  const PersistedWorkspaces({
+    this.server,
+    this.docker,
+    this.kubernetes,
+    this.wsl,
+  });
+
+  final ServerWorkspaceState? server;
+  final DockerWorkspaceState? docker;
+  final KubernetesWorkspaceState? kubernetes;
+  final WslWorkspaceState? wsl;
+}
+```
+
+Root persistence direction:
+- settings storage persists `AppSettings`
+- workspace storage persists `PersistedWorkspaces`
+- they may still live in the same physical JSON file temporarily during migration
+- but they should no longer share one root model
+
+## Migration Seam
+
+The correct migration seam is:
+- `WorkspacePersistence<T>`
+- `PersistentWorkspaceController<TWorkspaceState>`
+
+Why:
+- feature workspace controllers already centralize read/write behavior through this abstraction
+- changing the root container here avoids feature-by-feature persistence rewrites first
+
+Current assumption to remove:
+- `WorkspacePersistence<T>` reads/writes workspace snapshots through `AppSettingsController`
+- `PersistentWorkspaceController` requires:
+  - `T? readFromSettings(AppSettings settings)`
+  - `AppSettings writeToSettings(AppSettings current, T workspace)`
+
+Target assumption:
+- workspace persistence should read/write through a dedicated workspace root controller/storage
+- feature workspace controllers should no longer need to know about `AppSettings` for persisted tab snapshots
+
+## Minimum Compatibility Strategy
+
+Do not split storage format and controller contracts in the same first code batch.
+
+Staged path:
+
+1. Introduce a dedicated workspace root model and controller/storage seam.
+2. Teach `WorkspacePersistence<T>` to depend on that seam instead of `AppSettingsController`.
+3. Keep temporary compatibility by allowing storage migration from existing `AppSettings` fields.
+4. Update feature workspace controllers to read/write the new root container.
+5. Remove workspace snapshot fields from `AppSettings` only after the new seam is live.
+
+This keeps the placeholder-tab contract safe:
+- feature workspace controllers still restore from their own workspace snapshots
+- only the root persistence owner changes
+
+## First Code Batch After This Doc
+
+The first implementation batch should:
+- introduce `PersistedWorkspaces`
+- introduce a dedicated workspace persistence controller/storage abstraction
+- refit `WorkspacePersistence<T>` to use that abstraction
+- avoid removing fields from `AppSettings` yet
+
+That is the narrowest shared-seam change that moves the architecture forward without breaking all workspace restore paths at once.
 
 ## Completion Metric
 
