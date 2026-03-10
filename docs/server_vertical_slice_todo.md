@@ -173,7 +173,7 @@ Result:
   - add-server dialog flow
 
 ## Task 17.4: re-scope the next Server slice batch
-Status: queued
+Status: completed
 
 Goal:
 - decide whether the next Server batch should deepen the regression floor around the new shell seam or extract another real server-local orchestration seam
@@ -185,3 +185,38 @@ Questions to answer:
 Done definition:
 - the next Server batch is explicit
 - the choice is based on the post-split code shape, not file-length pressure
+
+Result:
+- the next Server batch should deepen the regression floor around the new shell seam
+- it should not split host-list rendering, availability probing, or distro warmup yet
+
+Why this is the right next move:
+- the remaining weight in [server_workspace_view.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_view.dart) is now concentrated in true Server-local behavior:
+  - host list rendering
+  - host availability probing
+  - distro warmup
+  - tab/body composition
+  - add-server flow
+- extracting that immediately would risk creating a fake host/workspace manager instead of improving the architecture
+- the new seam:
+  - [server_workspace_shell.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_shell.dart)
+  should be locked down first
+
+## Task 17.5: add focused tests for the Server workspace-shell seam
+Status: queued
+
+Goal:
+- add direct regression coverage around the new Server workspace-shell seam before deciding whether the slice should continue or checkpoint
+
+First test targets:
+- `server_workspace_shell_test.dart`
+  - command-palette entry loading
+  - tab-navigation behavior
+  - host reload coordination
+  - placeholder replacement / add-tab behavior
+  - settings-driven reload decisions
+
+Done definition:
+- the Server shell seam has direct focused tests
+- the tests validate the extracted orchestration boundary rather than broad host-list widget behavior
+- the next slice decision can be made from a safer regression floor
