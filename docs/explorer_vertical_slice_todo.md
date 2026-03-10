@@ -287,7 +287,7 @@ Result:
   - drop-completion delegation
 
 ## Task 15.8: re-scope the first explorer slice checkpoint
-Status: queued
+Status: completed
 
 Goal:
 - decide whether the first explorer slice should checkpoint now or continue into the dense entry-list interaction surface
@@ -300,3 +300,32 @@ Questions to answer:
 Done definition:
 - the next explorer move is chosen from the post-test code shape
 - the decision reflects architectural value, not just remaining file size
+
+Result:
+- the first explorer slice should checkpoint here
+- it should not continue into the dense entry-list interaction surface in this pass
+
+Why this is the right stopping point:
+- the slice already proves the intended architecture on one bounded feature:
+  - [file_explorer_tab_presenter.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/file_explorer_tab_presenter.dart)
+  - [file_explorer_tab_actions.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/file_explorer_tab_actions.dart)
+  - focused seam tests
+- the remaining weight in [file_explorer_tab.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart) is mostly:
+  - selection wiring
+  - pointer/keyboard list interaction
+  - drag-hover/drag-selection behavior
+- that remaining code is real explorer-local interaction complexity, not another obvious cross-boundary ownership error
+- pushing further now would likely optimize for file length instead of architectural value
+
+## Explorer Slice Checkpoint
+Status: reached
+
+What this slice proved:
+- top-level tab presentation/orchestration can be split cleanly
+- explorer file-operation workflow orchestration can be split cleanly
+- the remaining interaction-heavy list surface can stay local without blocking the broader rewrite
+- the extracted seams are testable directly without full widget-stack tests
+
+Recommended next move after this checkpoint:
+- return to the broader rewrite sequence and choose the next vertical slice
+- only come back to deeper explorer-local interaction decomposition if a concrete bug, UX problem, or repeated pattern justifies it
