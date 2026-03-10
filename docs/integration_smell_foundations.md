@@ -387,6 +387,11 @@ Current hotspot status:
   - `HomeShellCommandPalette`
   - feature-local module loaders
 - the first repeated seam is now narrowed to generic tab command contribution across Docker, Servers, and Kubernetes
+- the first implementation slice is now scoped as:
+  - tab options
+  - optional rename
+  - close tab
+  - new tab
 
 ## Success Criteria
 

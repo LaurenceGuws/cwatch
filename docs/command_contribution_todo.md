@@ -163,7 +163,7 @@ This is a better first seam than normalizing all feature command loaders because
 - command/context-menu unification
 
 ## Task 14.54: scope generic tab command contribution normalization
-Status: queued
+Status: completed
 
 Goal:
 - define the smallest shared helper for repeated tab command entries without swallowing feature-specific command loaders
@@ -176,3 +176,44 @@ First code targets:
 Done definition:
 - the first generic tab-command normalization batch is chosen
 - the helper stays narrower than a full command framework
+
+Result:
+- the first normalization batch should target a shared helper for:
+  - tab option entries from `tab.optionsController`
+  - `Close tab`
+  - `New tab`
+  - optional `Rename tab`
+
+### Why this is the right cut
+
+- Docker and Servers share the full pattern:
+  - tab options
+  - rename
+  - close
+  - new
+- Kubernetes shares the same pattern minus rename
+- that means the helper can stay narrow and support optional rename rather than forcing a uniform feature command set
+
+### First code targets
+
+- `docker_view.dart`
+- `server_workspace_view.dart`
+- `kubernetes_context_list.dart`
+
+### Explicitly deferred
+
+- settings tab-switch commands
+- feature-specific picker/open-host/open-context commands
+- non-tab module commands
+- command generation from metadata
+
+## Task 14.55: implement shared generic tab command contribution
+Status: queued
+
+Goal:
+- extract the repeated generic tab command entry assembly into a shared shell helper without touching feature-specific command entries
+
+Done definition:
+- Docker, Servers, and Kubernetes use one shared helper for the generic tab-command portion of their command loaders
+- rename remains optional
+- feature-specific command entries stay local
