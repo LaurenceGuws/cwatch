@@ -610,6 +610,7 @@ What landed next:
 - [explorer_ops_test.dart](/home/home/personal/cwatch/test/model/services/explorer_ops_test.dart) now locks down the cleaned non-widget explorer behavior seam
 - [docker_client_service_test.dart](/home/home/personal/cwatch/test/model/features/docker/services/docker_client_service_test.dart) now locks down Docker parsing plus graceful missing-CLI behavior as a capability-unavailable path
 - [kubernetes_dashboard_service_test.dart](/home/home/personal/cwatch/test/model/services_infra/kubernetes/kubernetes_dashboard_service_test.dart) now locks down Kubernetes dashboard shaping plus graceful backend-unavailable behavior
+- [path_loading_service_test.dart](/home/home/personal/cwatch/test/model/services/path_loading_service_test.dart) now locks down path loading, refresh, search option forwarding, and cached-session hydration
 
 ### Task 12.8: scope `settingsTabIndex` removal from root settings
 Status: completed

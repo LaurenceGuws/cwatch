@@ -330,6 +330,29 @@ Verification:
 - `flutter test test/model/services_infra/kubernetes/kubernetes_dashboard_service_test.dart`
 - `flutter analyze`
 
+### Task 13.9: add `path_loading_service_test.dart`
+Status: completed
+
+What landed:
+- [path_loading_service_test.dart](/home/home/personal/cwatch/test/model/services/path_loading_service_test.dart)
+
+Coverage added:
+- skip behavior when the requested path is already current
+- path normalization and filtering of `.` / `..`
+- parent-row injection rules for root vs non-root paths
+- search option forwarding and error results
+- refresh behavior for empty and non-empty current paths
+- cached-session hydration for file entries only
+
+Why this matters:
+- it locks down the service seam underneath the explorer workflow tests
+- it validates path-shaping behavior independently from widget or controller code
+- it gives later file-explorer cleanup work a regression floor around path loading and cached edit hydration
+
+Verification:
+- `flutter test test/model/services/path_loading_service_test.dart`
+- `flutter analyze`
+
 ## Test Organization
 
 Recommended structure:
