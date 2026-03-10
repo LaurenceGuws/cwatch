@@ -570,6 +570,39 @@ Verification:
 - `flutter test test/view/shared/widgets/explorer_dialog_builders_test.dart`
 - `flutter analyze`
 
+### Task 13.19: re-scope after the shared dialog batch
+Status: completed
+
+What this re-scope checked:
+- whether to keep broadening explorer-specific widget coverage
+- whether to jump into heavier auth/runtime-driven dialogs
+- or whether another shared dialog/helper seam now gives the best value
+
+Conclusion:
+- keep the widget work on small shared dialog seams
+- the next best target is `SettingsUiAdapter`
+
+Why this is next:
+- it provides shared password/passphrase/confirmation dialogs used by settings and key-management flows
+- it is narrower and less stateful than `SshAuthPrompter`, which also pulls in async decrypt/validation behavior
+- it continues the current pattern:
+  - reusable seam
+  - user-critical dialog behavior
+  - minimal feature/runtime harness cost
+
+What should wait:
+- `SshAuthPrompter`
+  - still valuable, but it mixes UI with async key-service retry behavior and should be taken as its own focused batch
+- broader explorer widget interaction coverage
+- terminal/editor shell surface tests that require heavier focus/input harnesses
+
+Next executable batch:
+- `Task 13.20`: add `settings_ui_adapter_dialog_test.dart`
+
+Done definition:
+- the next widget-level target is chosen from seam value and harness cost
+- the roadmap explicitly explains why `SettingsUiAdapter` comes before SSH auth dialogs and broader feature surfaces
+
 ## Test Organization
 
 Recommended structure:

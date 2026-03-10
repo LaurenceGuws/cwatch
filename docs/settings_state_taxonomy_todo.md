@@ -336,6 +336,10 @@ Recent shared/widget regression-floor additions now cover:
 - shared port-forward dialog validation and apply behavior through [port_forward_dialog_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/port_forward_dialog_test.dart)
 - shared explorer dialog builder behavior through [explorer_dialog_builders_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/explorer_dialog_builders_test.dart)
 
+Current best next shared UI seam:
+- `SettingsUiAdapter` dialog helpers
+- not `SshAuthPrompter` yet, because the auth prompt flow mixes dialog behavior with async decrypt/retry policy and deserves its own narrower batch
+
 Most recent bug caught by this floor:
 - [dialog_keyboard_shortcuts.dart](/home/home/personal/cwatch/lib/view/shared/widgets/dialog_keyboard_shortcuts.dart) was allowing Enter-to-confirm while a multiline text field was focused because the active focus node could sit below `EditableText`
 - the fix now checks ancestor widgets from the focused element before enabling Enter confirm shortcuts
