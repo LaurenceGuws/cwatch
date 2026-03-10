@@ -156,7 +156,19 @@ Status: completed
 Status: completed
 
 ### Task 1.4: inspect explorer state ownership
-Status: pending
+Status: completed
+
+### Explorer hotspot checkpoint
+Status: completed
+
+Outcome:
+- explorer path helpers now live outside `view/`
+- explorer selection state now has a non-UI core
+- explorer state now lives outside `controller/`
+- the explorer hotspot no longer contributes `model -> view` or `model -> controller` imports
+
+Note:
+- file explorer still has `controller -> view` dependencies through view-side input/controller classes, but those are not the highest-value next target compared with shell/module ownership
 
 Why this is next:
 - it is now the clearest remaining `model -> controller` dependency inside the explorer hotspot
@@ -225,6 +237,9 @@ Done definition for starting this hotspot:
 - file explorer hotspot has produced a stable pattern worth reusing
 - we can describe the next batch concretely from current code, not guesses
 
+Current next-step note:
+- the next deep-dive should target shell/module ownership, because the remaining repo-level `model -> controller` dependency is outside the explorer hotspot
+
 ### Docker feature shell
 Track here when ready:
 - clarify ownership of docker workflow classes versus presentation classes
@@ -249,7 +264,7 @@ Done definition for starting this hotspot:
 | 1.1 | Explorer path utilities | completed | non-UI path helpers no longer live under `view/` |
 | 1.2 | Explorer re-scope | completed | next explorer task is written from what we learned in 1.1 |
 | 1.3 | Explorer selection ownership | completed | model no longer depends on view-local selection logic |
-| 1.4 | Explorer state ownership | pending | model no longer depends on controller-owned explorer state |
+| 1.4 | Explorer state ownership | completed | model no longer depends on controller-owned explorer state |
 | 2 | Shell/module hotspot | queued | re-scoped after explorer cleanup |
 | 3 | Docker hotspot | queued | re-scoped after earlier hotspots |
 | 4 | Servers/Kubernetes hotspot | queued | re-scoped after earlier hotspots |

@@ -4,7 +4,7 @@ import 'package:cwatch/model/models/remote_file_entry.dart';
 import 'package:cwatch/model/shared/services/explorer_selection_state.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 import 'package:cwatch/model/shared/services/path_utils.dart';
-import 'package:cwatch/controller/controllers/explorer_state.dart';
+import 'package:cwatch/model/shared/services/explorer_state.dart';
 import 'path_loading_service.dart';
 
 class ExplorerOps {
