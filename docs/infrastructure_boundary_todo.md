@@ -723,3 +723,99 @@ Why this wins:
 
 Next step:
 - Task 19.14: define the builtin-SSH failure convergence target
+
+## Task 19.14: define the builtin-SSH failure convergence target
+Status: completed
+
+Goal:
+- describe where builtin SSH should converge onto `SshRuntimeFailure`, what should remain builtin-specific, and what should remain feature-owned
+
+Questions to answer:
+- which built-in layer should own failure normalization
+- which built-in exceptions should remain internal retry/prompt signals
+- which failures should become shared runtime failures before reaching callers
+
+Done definition:
+- the builtin-SSH convergence target is explicit
+- one concrete implementation batch is chosen
+
+Result:
+- the builtin-SSH convergence target is now explicit
+
+### Current responsibility mix in builtin SSH
+
+Builtin SSH currently splits failure behavior across several layers:
+1. internal retry/prompt signals
+- `BuiltInSshKeyDecryptionRequired`
+- `BuiltInSshKeyPassphraseRequired`
+- `BuiltInSshIdentityPassphraseRequired`
+- `BuiltInSshKeyUnsupportedCipher`
+
+2. provider-facing runtime behavior
+- `BuiltInSshClientManager._wrapSshErrors(...)` decides when to retry, rethrow, or wrap builtin errors
+- it currently emits a mix of builtin-specific exceptions and generic `Exception(...)` values
+
+3. caller-visible failure surface
+- higher layers still see builtin-specific exceptions on some paths and generic runtime exceptions on others
+- that means only process SSH is currently converged onto `SshRuntimeFailure`
+
+That is the remaining builtin SSH boundary smell.
+
+### What should stay stable in the first builtin convergence batch
+
+These areas should stay stable for the first pass:
+- auth coordinator ownership and prompt gating
+- decrypt/passphrase retry behavior inside `BuiltInSshClientManager`
+- transport execution in builtin client/session code
+- feature-level wording and remediation behavior
+
+Why they stay stable:
+- the next batch should normalize the outward failure surface, not rewrite builtin auth/retry behavior
+- the internal retry signals are still doing real work and should not be flattened too early
+
+### Proposed target boundary
+
+For the next pass, split builtin SSH failure responsibility into:
+- internal retry signals
+  - keep key decrypt/passphrase/unsupported-cipher exceptions internal to builtin auth/runtime coordination
+- outward runtime failure mapping
+  - `BuiltInSshClientManager` should convert caller-visible terminal failures into `SshRuntimeFailure`
+- feature policy seam
+  - higher layers decide how to present auth/unavailable/runtime failure states, but they should not need builtin-specific runtime exception knowledge
+
+### What should remain builtin-specific
+
+These should remain internal builtin signals for now:
+- decrypt required
+- built-in key passphrase required
+- identity passphrase required
+- unsupported key cipher during builtin key handling
+
+They are coordination signals, not final caller-facing runtime failures.
+
+### What should converge onto `SshRuntimeFailure`
+
+The first builtin convergence batch should map caller-visible failures such as:
+- authentication failure
+- timeout
+- unavailable identity/runtime conditions such as no usable identity
+- generic builtin command/runtime failure
+
+That mapping should happen in `BuiltInSshClientManager._wrapSshErrors(...)`, because that is where retry ownership already lives.
+
+### First implementation batch
+
+The first builtin convergence batch should extract:
+- a builtin SSH failure mapper/adaptor seam
+- `BuiltInSshClientManager._wrapSshErrors(...)` updates so post-retry caller-visible failures normalize onto `SshRuntimeFailure`
+- focused tests around builtin failure mapping behavior
+
+`BuiltInRemoteShellService` should stay stable in this batch.
+
+Why this is the right cut:
+- it converges builtin and process providers at the caller-visible runtime boundary
+- it keeps internal retry/prompt coordination intact
+- it avoids reopening auth UI, decrypt gating, and transport implementation in one step
+
+Next step:
+- Task 19.15: implement builtin-SSH failure convergence
