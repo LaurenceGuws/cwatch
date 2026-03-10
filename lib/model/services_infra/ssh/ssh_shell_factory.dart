@@ -1,11 +1,11 @@
 import 'package:cwatch/model/models/ssh_host.dart';
-
-import 'package:cwatch/model/models/ssh_client_backend.dart';
 import '../settings/app_settings_controller.dart';
 import 'builtin/builtin_ssh_key_service.dart';
 import 'known_hosts_store.dart';
 import 'remote_shell_service.dart';
 import 'ssh_auth_coordinator.dart';
+import 'ssh_shell_provider_request.dart';
+import 'ssh_shell_provider_selector.dart';
 import 'package:cwatch/model/models/app_settings.dart';
 import '../logging/app_logger.dart';
 
@@ -14,16 +14,19 @@ class SshShellFactory {
     required this.settingsController,
     required this.keyService,
     SshAuthCoordinator? authCoordinator,
+    SshShellProviderSelector? selector,
     KnownHostsStore? knownHostsStore,
     RemoteCommandObserver? observer,
   }) : knownHostsStore = knownHostsStore ?? const KnownHostsStore(),
        authCoordinator = authCoordinator ?? const SshAuthCoordinator(),
+       _selector = selector ?? const SshShellProviderSelector(),
        _defaultObserver = observer ?? AppLogger.remoteCommandObserver;
 
   final AppSettingsController settingsController;
   final BuiltInSshKeyService keyService;
   final KnownHostsStore knownHostsStore;
   final SshAuthCoordinator authCoordinator;
+  final SshShellProviderSelector _selector;
   final RemoteCommandObserver? _defaultObserver;
 
   RemoteShellService? _builtinShell;
@@ -34,19 +37,18 @@ class SshShellFactory {
 
   RemoteShellService forHost(SshHost host, {Duration? connectTimeout}) {
     final settings = settingsController.settings;
-    final usingBuiltIn =
-        settings.sshPreferences.clientBackend == SshClientBackend.builtin;
-    if (usingBuiltIn) {
-      if (connectTimeout != null) {
-        return _ensureBuiltinShellWithTimeout(settings, connectTimeout);
-      }
-      return _ensureBuiltinShell(settings);
+    final request = _selector.select(
+      settings: settings,
+      connectTimeout: connectTimeout,
+    );
+    if (request.usesBuiltIn) {
+      return _ensureBuiltinShell(settings, request);
     }
-    return _ensureProcessShell(settings);
+    return _ensureProcessShell(settings, request);
   }
 
   void handleSettingsChanged(AppSettings settings) {
-    final nextSignature = _signatureFor(settings);
+    final nextSignature = _selector.settingsSignature(settings);
     if (nextSignature != _shellSignature) {
       _shellSignature = nextSignature;
       _builtinShell = null;
@@ -59,48 +61,37 @@ class SshShellFactory {
     }
   }
 
-  RemoteShellService _ensureBuiltinShell(AppSettings settings) {
-    final signature = _signatureFor(settings);
+  RemoteShellService _ensureBuiltinShell(
+    AppSettings settings,
+    SshShellProviderRequest request,
+  ) {
+    if (request.connectTimeout != null) {
+      final signature = request.cacheSignature;
+      if (_builtinShellWithTimeout != null &&
+          _shellTimeoutSignature == signature) {
+        return _builtinShellWithTimeout!;
+      }
+      _builtinShellWithTimeout = _buildBuiltinShell(
+        settings,
+        connectTimeout: request.connectTimeout,
+      );
+      _shellTimeoutSignature = signature;
+      return _builtinShellWithTimeout!;
+    }
+    final signature = request.cacheSignature;
     if (_builtinShell != null && _shellSignature == signature) {
       return _builtinShell!;
     }
-    final observer = settings.debugMode ? _defaultObserver : null;
-    _builtinShell = keyService.buildShellService(
-      hostKeyBindings: settings.sshPreferences.builtinHostKeyBindings,
-      debugMode: settings.debugMode,
-      observer: observer,
-      knownHostsStore: knownHostsStore,
-      authCoordinator: authCoordinator,
-    );
+    _builtinShell = _buildBuiltinShell(settings);
     _shellSignature = signature;
     return _builtinShell!;
   }
 
-  RemoteShellService _ensureBuiltinShellWithTimeout(
+  RemoteShellService _ensureProcessShell(
     AppSettings settings,
-    Duration connectTimeout,
+    SshShellProviderRequest request,
   ) {
-    final signature =
-        '${_signatureFor(settings)}|timeout:${connectTimeout.inMilliseconds}';
-    if (_builtinShellWithTimeout != null &&
-        _shellTimeoutSignature == signature) {
-      return _builtinShellWithTimeout!;
-    }
-    final observer = settings.debugMode ? _defaultObserver : null;
-    _builtinShellWithTimeout = keyService.buildShellService(
-      hostKeyBindings: settings.sshPreferences.builtinHostKeyBindings,
-      debugMode: settings.debugMode,
-      observer: observer,
-      knownHostsStore: knownHostsStore,
-      authCoordinator: authCoordinator,
-      connectTimeout: connectTimeout,
-    );
-    _shellTimeoutSignature = signature;
-    return _builtinShellWithTimeout!;
-  }
-
-  RemoteShellService _ensureProcessShell(AppSettings settings) {
-    final signature = '${_signatureFor(settings)}|process';
+    final signature = request.cacheSignature;
     if (_processShell != null && _shellSignature == signature) {
       return _processShell!;
     }
@@ -113,16 +104,18 @@ class SshShellFactory {
     return _processShell!;
   }
 
-  String _signatureFor(AppSettings settings) {
-    final bindings = settings.sshPreferences.builtinHostKeyBindings.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
-    final bindingsSig = bindings
-        .map((entry) => '${entry.key}:${entry.value}')
-        .join(',');
-    return [
-      settings.sshPreferences.clientBackend.name,
-      settings.debugMode,
-      bindingsSig,
-    ].join('|');
+  RemoteShellService _buildBuiltinShell(
+    AppSettings settings, {
+    Duration? connectTimeout,
+  }) {
+    final observer = settings.debugMode ? _defaultObserver : null;
+    return keyService.buildShellService(
+      hostKeyBindings: settings.sshPreferences.builtinHostKeyBindings,
+      debugMode: settings.debugMode,
+      observer: observer,
+      knownHostsStore: knownHostsStore,
+      authCoordinator: authCoordinator,
+      connectTimeout: connectTimeout,
+    );
   }
 }
