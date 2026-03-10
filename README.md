@@ -111,12 +111,14 @@ Current integration-smell status:
 Current vertical-slice sequence:
 - Explorer checkpointed as the first vertical slice
 - Docker checkpointed as the second vertical slice
-- Servers queued as the third vertical slice
+- Servers checkpointed as the third vertical slice
+- Kubernetes active as the fourth vertical slice
 
 Current follow-up docs:
 - `docs/explorer_vertical_slice_todo.md`
 - `docs/docker_vertical_slice_todo.md`
 - `docs/server_vertical_slice_todo.md`
+- `docs/kubernetes_vertical_slice_todo.md`
 
 Current shared scaffolding contract now covers:
 - `SettingsSection`

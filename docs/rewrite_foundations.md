@@ -233,6 +233,14 @@ Why:
 - it already benefits from earlier runtime, tab-shell, SSH-auth, and settings cleanup
 - it is the strongest next proof of the architecture on a feature with heavier host/workspace lifecycle behavior than Docker
 
+Next recommendation after the Server checkpoint:
+- continue with `kubernetes` as the fourth vertical slice
+
+Why:
+- runtime ownership and capability-aware behavior are already in a workable place
+- kubernetes still has a mixed top-level feature shell in `kubernetes_context_list.dart`
+- it is the cleanest next proof before shifting back to broader infrastructure policy cleanup
+
 ### Focus Area E: infrastructure boundary cleanup
 Questions to answer:
 - Where are transport, parsing, and policy mixed today?
