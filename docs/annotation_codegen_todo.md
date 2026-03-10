@@ -318,7 +318,7 @@ Result:
 - the next batch should implement the descriptor types and first manual registry surface from the annotated models
 
 ## Task 14.36: implement first config descriptor registry
-Status: queued
+Status: completed
 
 Goal:
 - add the first descriptor types and a manual descriptor registry for the annotated primitive grouped preference models
@@ -332,3 +332,18 @@ Done definition:
 - descriptor types exist
 - the first registry module exists
 - later codegen can replace the manual registry without changing its public shape
+
+Result:
+- [config_metadata_descriptor.dart](/home/home/personal/cwatch/lib/model/config/config_metadata_descriptor.dart) now defines the descriptor types
+- [config_metadata_registry.dart](/home/home/personal/cwatch/lib/model/config/config_metadata_registry.dart) now provides the first manual registry surface
+- the registry is shaped as the future generated output rather than a temporary ad hoc helper
+
+## Task 14.37: re-scope the next annotation/codegen batch
+Status: queued
+
+Goal:
+- decide whether the next batch should add a first consumer of the descriptor registry, add tests around the registry, or move toward generator tooling
+
+Done definition:
+- the next batch is explicitly chosen
+- the annotation/codegen track stays incremental instead of turning into a broad tooling rewrite
