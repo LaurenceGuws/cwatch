@@ -665,3 +665,37 @@ Why this is the right cut:
 
 Next step:
 - Task 19.12: implement the first SSH runtime failure split
+
+## Task 19.12: implement the first SSH runtime failure split
+Status: completed
+
+Goal:
+- introduce a shared SSH runtime failure shape and normalize the process-provider failure path onto it while keeping the shell gateway stable
+
+First code targets:
+- `ProcessRemoteShellService`
+- a new shared SSH runtime failure type under `lib/model/services_infra/ssh/`
+- a process-provider failure mapper seam
+- focused SSH tests around failure classification
+
+What stayed stable in this batch:
+- builtin SSH exception behavior
+- auth coordinator ownership and prompt gating
+- feature call sites consuming `RemoteShellService`
+- transport implementations themselves
+
+Done definition:
+- process-provider runtime failures no longer stay as ad hoc generic exceptions
+- a shared SSH runtime failure vocabulary exists
+- existing caller behavior stays stable under focused tests
+
+Result:
+- added `SshRuntimeFailure` as the shared SSH runtime failure shape
+- added `ProcessSshFailureMapper` as the first provider-specific failure adapter seam
+- `ProcessRemoteShellService` now routes raw process/timeout/auth failures through the mapper instead of leaving them as ad hoc generic exceptions
+- builtin SSH behavior stayed stable for this first failure batch
+- added focused coverage for process failure classification in `process_ssh_failure_mapper_test.dart`
+
+Validation:
+- `flutter test test/model/services_infra/ssh/process_ssh_failure_mapper_test.dart test/model/services_infra/ssh/ssh_shell_factory_test.dart`
+- `flutter analyze`

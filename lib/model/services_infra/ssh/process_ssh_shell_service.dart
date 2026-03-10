@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:cwatch/model/models/remote_file_entry.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import '../logging/app_logger.dart';
+import 'process_ssh_failure_mapper.dart';
 import 'remote_shell_base.dart';
 import 'terminal_session.dart';
 import 'process_ssh_runner.dart';
@@ -13,25 +14,11 @@ class ProcessRemoteShellService extends RemoteShellService {
   const ProcessRemoteShellService({super.debugMode = false, super.observer});
 
   final ProcessSshRunner _runner = const ProcessSshRunner();
+  final ProcessSshFailureMapper _failureMapper = const ProcessSshFailureMapper();
 
   /// Handles SSH command errors, detecting authentication failures.
   Never _handleSshError(SshHost host, ProcessResult result) {
-    final stderrOutput = (result.stderr as String?)?.trim();
-    final errorMessage = stderrOutput?.isNotEmpty == true
-        ? stderrOutput
-        : 'SSH exited with ${result.exitCode}';
-
-    // Check for common authentication failure patterns
-    if (stderrOutput?.contains('Permission denied') == true ||
-        stderrOutput?.contains('Authentication failed') == true ||
-        stderrOutput?.contains('Host key verification failed') == true ||
-        result.exitCode == 255) {
-      throw Exception(
-        'SSH authentication failed for ${host.name}: $errorMessage',
-      );
-    }
-
-    throw Exception(errorMessage);
+    throw _failureMapper.fromProcessResult(host, result);
   }
 
   @override
@@ -45,11 +32,10 @@ class ProcessRemoteShellService extends RemoteShellService {
     final lsCommand =
         "cd '${escapeSingleQuotes(sanitizedPath)}' && ls -al --time-style=+%Y-%m-%dT%H:%M:%S";
     try {
-      final run = await _runner.runSsh(
+      final run = await _runSsh(
         host,
         lsCommand,
         timeout: timeout,
-        onSshError: _handleSshError,
         onTimeout: onTimeout,
       );
       emitDebugEvent(
@@ -165,11 +151,10 @@ class ProcessRemoteShellService extends RemoteShellService {
       final filesCommand =
           "$commandBase find . $prunePrefix\\( ${buildPredicate('f', includeName: false)} \\) -exec grep $grepFlags -- '$escapedQuery' {} + 2>/dev/null || true";
       dirOutput = '';
-      await _runner.runSshStreaming(
+      await _runSshStreaming(
         host,
         filesCommand,
         timeout: effectiveTimeout,
-        onSshError: _handleSshError,
         onTimeout: onTimeout,
         cancellation: cancellation,
         onStdoutLine: (line) {
@@ -184,22 +169,20 @@ class ProcessRemoteShellService extends RemoteShellService {
           "$commandBase find . ${buildPredicate('d', includeName: true)} $printFlag 2>/dev/null || true";
       final filesCommand =
           "$commandBase find . ${buildPredicate('f', includeName: true)} $printFlag 2>/dev/null || true";
-      final dirsFuture = _runner.runSshStreaming(
+      final dirsFuture = _runSshStreaming(
         host,
         dirsCommand,
         timeout: effectiveTimeout,
-        onSshError: _handleSshError,
         onTimeout: onTimeout,
         cancellation: cancellation,
         onStdoutLine: (line) {
           addEntries(line, isDirectory: true);
         },
       );
-      final filesFuture = _runner.runSshStreaming(
+      final filesFuture = _runSshStreaming(
         host,
         filesCommand,
         timeout: effectiveTimeout,
-        onSshError: _handleSshError,
         onTimeout: onTimeout,
         cancellation: cancellation,
         onStdoutLine: (line) {
@@ -222,11 +205,10 @@ class ProcessRemoteShellService extends RemoteShellService {
     RunTimeoutHandler? onTimeout,
   }) async {
     try {
-      final run = await _runner.runSsh(
+      final run = await _runSsh(
         host,
         'echo \$HOME',
         timeout: timeout,
-        onSshError: _handleSshError,
         onTimeout: onTimeout,
       );
       final output = run.stdout.trim();
@@ -266,11 +248,10 @@ class ProcessRemoteShellService extends RemoteShellService {
     RunTimeoutHandler? onTimeout,
   }) async {
     final normalized = sanitizePath(path);
-    final run = await _runner.runProcess(
+    final run = await _runProcess(
+      host,
       _runner.buildSshCommand(host, "cat '${escapeSingleQuotes(normalized)}'"),
       timeout: timeout,
-      hostForErrors: host,
-      onSshError: _handleSshError,
       onTimeout: onTimeout,
     );
     return run.stdout;
@@ -287,14 +268,13 @@ class ProcessRemoteShellService extends RemoteShellService {
     final normalized = sanitizePath(path);
     final delimiter = randomDelimiter();
     final encoded = base64.encode(utf8.encode(contents));
-    final run = await _runner.runProcess(
+    final run = await _runProcess(
+      host,
       _runner.buildSshCommand(
         host,
         "base64 -d > '${escapeSingleQuotes(normalized)}' <<'$delimiter'\n$encoded\n$delimiter",
       ),
       timeout: timeout,
-      hostForErrors: host,
-      onSshError: _handleSshError,
       onTimeout: onTimeout,
     );
     final verification = await _verifyPathExists(
@@ -328,11 +308,10 @@ class ProcessRemoteShellService extends RemoteShellService {
       dirnameFromPath(normalizedDest),
       onTimeout: onTimeout,
     );
-    final run = await _runner.runHostCommand(
+    final run = await _runHostCommand(
       host,
       "mv '${escapeSingleQuotes(normalizedSource)}' '${escapeSingleQuotes(normalizedDest)}'",
       timeout: timeout,
-      onSshError: _handleSshError,
       onTimeout: onTimeout,
     );
     final verification = await _verifyPathExists(
@@ -377,11 +356,10 @@ class ProcessRemoteShellService extends RemoteShellService {
       onTimeout: onTimeout,
     );
     final flag = recursive ? '-R ' : '';
-    final run = await _runner.runHostCommand(
+    final run = await _runHostCommand(
       host,
       "cp $flag'${escapeSingleQuotes(normalizedSource)}' '${escapeSingleQuotes(normalizedDest)}'",
       timeout: timeout,
-      onSshError: _handleSshError,
       onTimeout: onTimeout,
     );
     final verification = await _verifyPathExists(
@@ -408,11 +386,10 @@ class ProcessRemoteShellService extends RemoteShellService {
     RunTimeoutHandler? onTimeout,
   }) async {
     final normalized = sanitizePath(path);
-    final run = await _runner.runHostCommand(
+    final run = await _runHostCommand(
       host,
       "rm -rf '${escapeSingleQuotes(normalized)}'",
       timeout: timeout,
-      onSshError: _handleSshError,
       onTimeout: onTimeout,
     );
     final verification = await _verifyPathExists(
@@ -463,11 +440,10 @@ class ProcessRemoteShellService extends RemoteShellService {
           )
           ..add(_formatRemoteSpec(sourceHost, normalizedSource))
           ..add(_formatRemoteSpec(destinationHost, normalizedDest));
-    final run = await _runner.runProcess(
+    final run = await _runProcess(
+      sourceHost,
       args,
       timeout: timeout,
-      hostForErrors: sourceHost,
-      onSshError: _handleSshError,
       onTimeout: onTimeout,
     );
     final verification = await _verifyPathExists(
@@ -507,11 +483,10 @@ class ProcessRemoteShellService extends RemoteShellService {
           )
           ..add(_formatRemoteSpec(host, normalizedSource))
           ..add(localDestination);
-    await _runner.runProcess(
+    await _runProcess(
+      host,
       args,
       timeout: timeout,
-      hostForErrors: host,
-      onSshError: _handleSshError,
       onTimeout: onTimeout,
     );
   }
@@ -541,11 +516,10 @@ class ProcessRemoteShellService extends RemoteShellService {
           )
           ..add(source)
           ..add(_formatRemoteSpec(host, normalizedDest));
-    final run = await _runner.runProcess(
+    final run = await _runProcess(
+      host,
       args,
       timeout: timeout,
-      hostForErrors: host,
-      onSshError: _handleSshError,
       onTimeout: onTimeout,
     );
     final verification = await _verifyPathExists(
@@ -573,11 +547,10 @@ class ProcessRemoteShellService extends RemoteShellService {
   }) async {
     ensureShellAllowed(host);
     _logProcess('Running command on ${host.name}: $command');
-    final run = await _runner.runSsh(
+    final run = await _runSsh(
       host,
       command,
       timeout: timeout,
-      onSshError: _handleSshError,
       onTimeout: onTimeout,
     );
     emitDebugEvent(
@@ -604,11 +577,10 @@ class ProcessRemoteShellService extends RemoteShellService {
   }) async {
     ensureShellAllowed(host);
     _logProcess('Running command on ${host.name}: $command');
-    final run = await _runner.runSshStreaming(
+    final run = await _runSshStreaming(
       host,
       command,
       timeout: timeout,
-      onSshError: _handleSshError,
       onTimeout: onTimeout,
       cancellation: cancellation,
       onStdoutLine: onStdoutLine,
@@ -852,10 +824,9 @@ class ProcessRemoteShellService extends RemoteShellService {
     if (directory.isEmpty) {
       return;
     }
-    await _runner.runHostCommand(
+    await _runHostCommand(
       host,
       "mkdir -p '${escapeSingleQuotes(directory)}'",
-      onSshError: _handleSshError,
       onTimeout: onTimeout,
     );
   }
@@ -872,11 +843,10 @@ class ProcessRemoteShellService extends RemoteShellService {
     }
     final command =
         "[ -e '${escapeSingleQuotes(path)}' ] && echo 'EXISTS' || echo 'MISSING'";
-    final run = await _runner.runSsh(
+    final run = await _runSsh(
       host,
       command,
       timeout: timeout,
-      onSshError: _handleSshError,
       onTimeout: onTimeout,
     );
     final exists = run.stdout.trim() == 'EXISTS';
@@ -885,6 +855,91 @@ class ProcessRemoteShellService extends RemoteShellService {
       output: run.stdout,
       passed: shouldExist ? exists : !exists,
     );
+  }
+
+  Future<RunResult> _runSsh(
+    SshHost host,
+    String command, {
+    Duration timeout = const Duration(seconds: 10),
+    RunTimeoutHandler? onTimeout,
+  }) async {
+    try {
+      return await _runner.runSsh(
+        host,
+        command,
+        timeout: timeout,
+        onSshError: _handleSshError,
+        onTimeout: onTimeout,
+      );
+    } catch (error) {
+      throw _failureMapper.map(host, error);
+    }
+  }
+
+  Future<RunResult> _runSshStreaming(
+    SshHost host,
+    String command, {
+    Duration timeout = const Duration(seconds: 10),
+    RunTimeoutHandler? onTimeout,
+    RemoteCommandCancellation? cancellation,
+    void Function(String line)? onStdoutLine,
+    void Function(String line)? onStderrLine,
+  }) async {
+    try {
+      return await _runner.runSshStreaming(
+        host,
+        command,
+        timeout: timeout,
+        onSshError: _handleSshError,
+        onTimeout: onTimeout,
+        cancellation: cancellation,
+        onStdoutLine: onStdoutLine,
+        onStderrLine: onStderrLine,
+      );
+    } catch (error) {
+      if (error is RemoteCommandCancelled) {
+        rethrow;
+      }
+      throw _failureMapper.map(host, error);
+    }
+  }
+
+  Future<RunResult> _runHostCommand(
+    SshHost host,
+    String command, {
+    Duration timeout = const Duration(seconds: 10),
+    RunTimeoutHandler? onTimeout,
+  }) async {
+    try {
+      return await _runner.runHostCommand(
+        host,
+        command,
+        timeout: timeout,
+        onSshError: _handleSshError,
+        onTimeout: onTimeout,
+      );
+    } catch (error) {
+      throw _failureMapper.map(host, error);
+    }
+  }
+
+  Future<RunResult> _runProcess(
+    SshHost host,
+    List<String> command, {
+    Duration timeout = const Duration(seconds: 10),
+    RunTimeoutHandler? onTimeout,
+  }) async {
+    try {
+      return await _runner.runProcess(
+        command,
+        timeout: timeout,
+        hostForErrors: host,
+        onSshError: _handleSshError,
+        onTimeout: onTimeout,
+      );
+    } catch (error) {
+      throw _failureMapper.map(host, error);
+    }
   }
 }
 
