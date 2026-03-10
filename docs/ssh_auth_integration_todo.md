@@ -282,7 +282,7 @@ Reason:
 ## Next Executable Batch
 
 ### Task 14.21: scope builtin SSH auth consolidation
-Status: queued
+Status: completed
 
 Goal:
 - define the smallest code batch that consolidates decrypt/prompt ownership into `BuiltInSshClientManager` without broad SSH API churn
@@ -296,6 +296,87 @@ Done definition:
 - the first consolidation slice is chosen
 - duplicated coordination points to remove are named
 - the batch is narrow enough to implement incrementally
+
+## Result Of The Scope Pass
+
+The first consolidation slice should be:
+
+1. remove builtin prompt/decrypt coordination from [builtin_identity_manager.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/builtin/builtin_identity_manager.dart)
+2. keep one canonical pending-decrypt path in [builtin_ssh_client_manager.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/builtin/builtin_ssh_client_manager.dart)
+3. collapse [trash_tab_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/trash_tab_controller.dart) onto that builtin auth path instead of letting it run a parallel auth loop
+
+This is the right first slice because it removes the overlapping coordination where it is most obvious without requiring immediate churn in:
+- server workspace adapter wiring
+- docker overview adapter wiring
+- `SshAuthPrompter`
+- CLI/system-provider paths
+
+## Why This Slice Is Narrow Enough
+
+It avoids broad churn in these areas:
+- `server_workspace_ui_adapter.dart`
+- `docker_overview_ui_adapter.dart`
+- `server_workspace_binding.dart`
+- `docker_overview_actions_controller.dart`
+- `port_forward_service.dart`
+
+Those are real follow-ups, but they should come after builtin runtime ownership is singular.
+
+## Duplicated Coordination To Remove First
+
+### Remove from `BuiltInSshIdentityManager`
+- `_pendingDecrypts`
+- direct `promptDecrypt` ownership
+- direct decrypt-prompt fallback in `ensureDecrypted(...)`
+- direct decrypt-prompt fallback in `loadIdentities(...)`
+
+Desired replacement:
+- identity manager reports auth/decrypt state upward through builtin SSH exceptions
+- client manager performs the retry/prompt coordination
+
+### Remove from `TrashTabController`
+- `_decryptInProgress`
+- `_pendingPassphrasePrompts`
+- `_withBuiltinDecrypt(...)`
+- `_promptDecrypt(...)`
+- `_awaitPassphraseInput(...)`
+- controller-owned retry loop around builtin SSH auth exceptions
+
+Desired replacement:
+- the controller calls shell operations through the builtin SSH layer
+- builtin SSH layer handles decrypt/passphrase coordination
+- controller only surfaces final user-facing outcomes
+
+## Keep For The First Slice
+
+Keep for now:
+- `SshAuthPrompter` as the UI prompt adapter
+- `buildSshAuthCoordinator(...)` call sites in high-level UI adapters
+- `withDecryptFallback(...)` compatibility paths where they are still used by non-builtin callers
+
+Reason:
+- those are not the source of the current duplicated lock ownership
+- moving them first would hide the real builtin-runtime ambiguity rather than remove it
+
+## First Code Batch After This Scope
+
+### Task 14.22: consolidate builtin decrypt coordination
+Status: queued
+
+Goal:
+- make `BuiltInSshClientManager` the only builtin decrypt/prompt coordination owner
+
+Likely files in scope:
+- [builtin_ssh_client_manager.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/builtin/builtin_ssh_client_manager.dart)
+- [builtin_identity_manager.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/builtin/builtin_identity_manager.dart)
+- [trash_tab_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/trash_tab_controller.dart)
+- [trash_tab_binding.dart](/home/home/personal/cwatch/lib/controller/di/bindings/trash_tab_binding.dart)
+
+Done definition:
+- builtin decrypt coordination exists in one place
+- identity manager no longer owns overlapping pending-decrypt state
+- trash tab no longer owns decrypt/prompt state machines
+- concurrent requests for the same key still converge correctly
 
 ## Explicit Concurrency Rules
 

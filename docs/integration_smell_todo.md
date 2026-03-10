@@ -523,3 +523,17 @@ Current follow-up doc:
 
 Next executable batch:
 - `Task 14.21`: scope builtin SSH auth consolidation
+
+### Task 14.21: scope builtin SSH auth consolidation
+Status: completed
+
+What this task established:
+- the first code batch should not start at server/docker adapter wiring
+- the first code batch should remove duplicated builtin decrypt coordination at the actual subsystem boundary
+- `BuiltInSshIdentityManager` and `TrashTabController` are the first cleanup targets around the canonical owner in `BuiltInSshClientManager`
+
+Current follow-up doc:
+- [ssh_auth_integration_todo.md](/home/home/personal/cwatch/docs/ssh_auth_integration_todo.md)
+
+Next executable batch:
+- `Task 14.22`: consolidate builtin decrypt coordination

@@ -291,6 +291,12 @@ Current implementation-ready direction:
 - consolidate builtin auth coordination around `BuiltInSshClientManager`
 - then remove duplicated prompt/decrypt coordination from lower and higher layers
 
+Current first code direction:
+- remove overlapping builtin decrypt coordination from:
+  - `BuiltInSshIdentityManager`
+  - `TrashTabController`
+- keep adapter-level auth coordinator wiring for now until the builtin runtime owner is singular
+
 ## Success Criteria
 
 This layer is working when:
