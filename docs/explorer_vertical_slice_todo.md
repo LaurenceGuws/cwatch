@@ -158,7 +158,7 @@ Result:
 - kept dense entry-list, selection, drag/drop, and file-operation initiation local to [file_explorer_tab.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart)
 
 ## Task 15.4: re-scope the next explorer slice batch
-Status: queued
+Status: completed
 
 Goal:
 - decide the next smallest explorer-local seam after the presenter split without broadening the slice into generic file-manager abstractions
@@ -171,3 +171,44 @@ Likely candidates:
 Done definition:
 - the next explorer batch is chosen from current code shape
 - the choice reflects the presenter split that just landed
+
+Result:
+- the next explorer seam should be explorer-level action/file-operation orchestration, not entry-list rendering
+- the remaining dense weight in [file_explorer_tab.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart) is concentrated in:
+  - entry context-menu wiring
+  - rename/move/delete flows
+  - paste/upload/download flows
+  - local edit sync/refresh/clear flows
+  - drop handling and refresh helpers
+- entry-list rendering, selection behavior, and row-level interaction remain intentionally local for now
+
+Why this is the right next cut:
+- it removes workflow orchestration from the tab without forcing generic entry-list abstractions
+- it follows the presenter split cleanly:
+  - presenter owns top-level tab state shaping
+  - next seam should own explorer action/file-operation coordination
+- it preserves the current local ownership of dense pointer/keyboard/list behavior
+
+## Task 15.5: implement explorer action/file-operation split
+Status: queued
+
+Goal:
+- extract explorer-level action and file-operation orchestration out of `file_explorer_tab.dart` while keeping entry-list rendering and selection behavior local
+
+First code targets:
+- entry context-menu action routing
+- rename/move/delete orchestration
+- paste/upload/download orchestration
+- local edit sync/refresh/clear orchestration
+- refresh/drop helpers that primarily support file operations
+
+What should stay local in this batch:
+- `_buildEntriesList()`
+- selection controller integration
+- list key handling wiring
+- row rendering and drag-selection behavior
+
+Done definition:
+- `file_explorer_tab.dart` no longer owns most explorer action/file-operation workflow code
+- the extracted seam is explorer-specific and narrow, not a generic file-manager action framework
+- dense list/input behavior remains local and readable
