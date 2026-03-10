@@ -605,6 +605,7 @@ What landed next:
   - grouped `AppSettings` serialization
 - [workspace_root_controller_test.dart](/home/home/personal/cwatch/test/model/services_infra/settings/workspace_root_controller_test.dart) now locks down the dedicated workspace-root seam with characterization coverage
 - [workspace_persistence_test.dart](/home/home/personal/cwatch/test/controller/core/workspace/workspace_persistence_test.dart) now locks down signature-based restore/persist behavior on top of that seam
+- [app_settings_serialization_test.dart](/home/home/personal/cwatch/test/model/models/app_settings_serialization_test.dart) now locks down the grouped settings/config JSON contract
 
 ### Task 12.8: scope `settingsTabIndex` removal from root settings
 Status: completed

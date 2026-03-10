@@ -195,6 +195,26 @@ Verification:
 - `flutter test test/controller/core/workspace/workspace_persistence_test.dart`
 - `flutter analyze`
 
+### Task 13.4: add `app_settings_serialization_test.dart`
+Status: completed
+
+What landed:
+- [app_settings_serialization_test.dart](/home/home/personal/cwatch/test/model/models/app_settings_serialization_test.dart)
+
+Coverage added:
+- grouped preference/config sections serialize under the new nested keys
+- obsolete flat preference/config keys are not written anymore
+- grouped sections round-trip through `AppSettings.fromJson` / `toJson`
+
+Why this matters:
+- it locks down the cleanup away from the old root-level settings sprawl
+- it makes regressions toward flat fallback-style persistence obvious
+- it validates the grouped contract without requiring UI or storage integration tests
+
+Verification:
+- `flutter test test/model/models/app_settings_serialization_test.dart`
+- `flutter analyze`
+
 ## Test Organization
 
 Recommended structure:
