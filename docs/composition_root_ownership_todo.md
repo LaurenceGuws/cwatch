@@ -208,7 +208,7 @@ Important limit:
 - it must not centralize the landing-page implementation in shell/framework code
 
 ### Task 11.5: re-scope server shell against the runtime-object pattern
-Status: queued
+Status: completed
 
 Why this is next:
 - Docker and Kubernetes now show the same composition pattern
@@ -222,6 +222,63 @@ Done definition:
 Verification:
 - follow-up task added before the next structural change starts
 
+Result of Task 11.5:
+- server should use a staged runtime extraction, not a full-shell runtime move in one pass
+- the module-scoped runtime graph is mixed today with feature-owned landing behavior and host-list orchestration
+- the first extraction should take only the clearly module-scoped service graph:
+  - `ServerWorkspaceUiAdapter`
+  - `SshShellFactory`
+  - `HostDistroManager`
+  - `PortForwardService`
+  - `ServerPortForwardController`
+  - `SettingsController`
+  - `ServerTabBuilder`
+  - `ServerWorkspaceController`
+- the server feature view should keep ownership of:
+  - host loading
+  - host availability probing
+  - `_hostsFutureNotifier`
+  - placeholder tab creation
+  - placeholder/list landing behavior
+  - action flows that replace placeholder tabs with working tabs
+
+Why this staging is required:
+- the placeholder tab contract is strict
+- server landing behavior is feature-owned and should not be centralized into a generic runtime/container abstraction
+- host loading is currently intertwined with the server landing surface, not just the service graph
+
+### Task 11.6: extract the server module runtime without moving placeholder behavior
+Status: queued
+
+Why this is next:
+- it applies the validated runtime-object pattern to the heaviest remaining shell
+- it keeps the high-risk part out of scope:
+  - placeholder tab UI/behavior
+  - host loading/orchestration
+
+Current files in scope:
+- `lib/view/features/servers/server_workspace_view.dart`
+- `lib/controller/di/bindings/server_workspace_binding.dart`
+- `lib/controller/di/bindings/ssh_shell_factory_binding.dart`
+- `lib/controller/di/bindings/settings_binding.dart`
+- `lib/view/features/servers/server_tab_builder.dart`
+- `lib/view/features/servers/server_workspace_controller.dart`
+
+Actions:
+- extract a `ServerWorkspaceRuntime` for the clearly module-scoped graph
+- leave host-loading futures, notifier state, placeholder-tab creation, and landing behavior in the feature view
+- make disposal of the extracted graph explicit in the runtime object
+- do not introduce a generic picker/placeholder abstraction
+
+Done definition:
+- `ServerWorkspaceView` no longer constructs the extracted module-scoped graph field-by-field in `initState`
+- server placeholder-tab behavior remains feature-owned in the view
+- runtime ownership/disposal of the extracted graph is clearer than it is today
+
+Verification:
+- `flutter analyze`
+- manual smoke check of server landing tab, add-server flow, and one action transition from placeholder to working tab
+
 ## Tracking Table
 
 | Item | Scope | Status | Done When |
@@ -230,7 +287,8 @@ Verification:
 | 11.2 | Composition hotspot re-scope | completed | next step is written from what 11.1 proves |
 | 11.3 | Next runtime-graph target | completed | next composition-root batch is chosen from current evidence |
 | 11.4 | Kubernetes runtime graph | completed | Kubernetes module-scoped runtime construction is explicit |
-| 11.5 | Server runtime re-scope | queued | next server batch is chosen from the validated runtime-object pattern |
+| 11.5 | Server runtime re-scope | completed | next server batch is chosen from the validated runtime-object pattern |
+| 11.6 | Server staged runtime extraction | queued | extracted server runtime graph is explicit while placeholder behavior stays feature-owned |
 
 ## Completion Metric
 
