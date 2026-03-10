@@ -456,10 +456,6 @@ class AppSettings {
 
       'kubernetesConfigPaths': kubernetesConfigPaths,
       'kubernetesBackend': kubernetesBackend.name,
-      if (serverWorkspace != null) 'serverWorkspace': serverWorkspace!.toJson(),
-      if (kubernetesWorkspace != null)
-        'kubernetesWorkspace': kubernetesWorkspace!.toJson(),
-      if (wslWorkspace != null) 'wslWorkspace': wslWorkspace!.toJson(),
       'settingsTabIndex': settingsTabIndex,
       'shortcutBindings': shortcutBindings,
       if (editorThemeLight != null) 'editorThemeLight': editorThemeLight,
@@ -470,7 +466,6 @@ class AppSettings {
 
       if (dockerSelectedContext != null)
         'dockerSelectedContext': dockerSelectedContext,
-      if (dockerWorkspace != null) 'dockerWorkspace': dockerWorkspace!.toJson(),
       'dockerLogsTail': dockerLogsTailClamped,
       if (terminalFontFamily != null) 'terminalFontFamily': terminalFontFamily,
       'terminalFontSize': terminalFontSize,

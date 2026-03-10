@@ -462,7 +462,7 @@ Verification:
 - result: no issues found
 
 ### Task 12.6: remove legacy embedded workspace fields from `AppSettings`
-Status: queued
+Status: completed
 
 Goal:
 - stop serializing workspace snapshots in [app_settings.dart](/home/home/personal/cwatch/lib/model/models/app_settings.dart)
@@ -478,6 +478,23 @@ Done definition:
 - new writes to `settings.json` no longer include workspace snapshots
 - startup can still recover workspaces from older embedded settings files
 - all workspace restore behavior still flows through `WorkspaceRootController`
+
+What landed:
+- [app_settings.dart](/home/home/personal/cwatch/lib/model/models/app_settings.dart) no longer serializes:
+  - `serverWorkspace`
+  - `kubernetesWorkspace`
+  - `wslWorkspace`
+  - `dockerWorkspace`
+- legacy parsing remains in place so older `settings.json` files still load embedded workspace snapshots for migration fallback
+
+Result:
+- new `settings.json` writes are now application-settings only
+- `workspaces.json` is the authoritative write target for workspace snapshots
+- compatibility with older embedded settings files remains intact
+
+Verification:
+- `flutter analyze`
+- result: no issues found
 
 ## Completion Metric
 
