@@ -21,12 +21,7 @@ class AppSettings {
     this.zoomFactor = 1.0,
     this.serverAutoRefresh = true,
     this.serverShowOffline = true,
-    this.shellSidebarWidth,
-    this.shellDestination,
-    this.shellSidebarCollapsed = false,
-    this.shellSidebarPlacement = 'dynamic',
-    this.windowUseSystemDecorations = true,
-    this.closeToTray = false,
+    this.shellPreferences = const ShellPreferences(),
     this.appFontFamily,
     this.appThemeKey = 'blue-grey',
     this.uiDensity = AppUiDensity.compact,
@@ -45,26 +40,15 @@ class AppSettings {
     this.kubernetesWorkspace,
     this.wslWorkspace,
     this.shortcutBindings = const {},
-    this.editorThemeLight,
-    this.editorThemeDark,
-    this.editorFontFamily,
-    this.editorFontSize = 14,
-    this.editorLineHeight = 1.35,
+    this.editorPreferences = const EditorPreferences(),
     this.dockerRemoteHosts = const [],
     this.dockerSelectedContext,
     this.dockerWorkspace,
     this.dockerLogsTail = 200,
-    this.terminalFontFamily = 'JetBrainsMono Nerd Font',
-    this.terminalFontSize = 14,
-    this.terminalLineHeight = 1.15,
-    this.terminalPaddingX = 8,
-    this.terminalPaddingY = 10,
-    this.terminalThemeDark = 'dracula',
-    this.terminalThemeLight = 'solarized-light',
+    this.terminalPreferences = const TerminalPreferences(),
     this.fileTransferUploadConcurrency = 2,
     this.fileTransferDownloadConcurrency = 2,
-    this.explorerRowHeight = 36,
-    this.explorerShowBreadcrumbs = true,
+    this.explorerPreferences = const ExplorerPreferences(),
   });
 
   final ThemeMode themeMode;
@@ -72,12 +56,7 @@ class AppSettings {
   final double zoomFactor;
   final bool serverAutoRefresh;
   final bool serverShowOffline;
-  final double? shellSidebarWidth;
-  final String? shellDestination;
-  final bool shellSidebarCollapsed;
-  final String? shellSidebarPlacement;
-  final bool windowUseSystemDecorations;
-  final bool closeToTray;
+  final ShellPreferences shellPreferences;
   final String? appFontFamily;
   final String appThemeKey;
   final AppUiDensity uiDensity;
@@ -96,56 +75,17 @@ class AppSettings {
   final KubernetesWorkspaceState? kubernetesWorkspace;
   final WslWorkspaceState? wslWorkspace;
   final Map<String, String> shortcutBindings;
-  final String? editorThemeLight;
-  final String? editorThemeDark;
-  final String? editorFontFamily;
-  final double editorFontSize;
-  final double editorLineHeight;
+  final EditorPreferences editorPreferences;
   final List<String> dockerRemoteHosts;
   final String? dockerSelectedContext;
   final DockerWorkspaceState? dockerWorkspace;
   final int dockerLogsTail;
-  final String? terminalFontFamily;
-  final double terminalFontSize;
-  final double terminalLineHeight;
-  final double terminalPaddingX;
-  final double terminalPaddingY;
-  final String terminalThemeDark;
-  final String terminalThemeLight;
+  final TerminalPreferences terminalPreferences;
   final int fileTransferUploadConcurrency;
   final int fileTransferDownloadConcurrency;
-  final double explorerRowHeight;
-  final bool explorerShowBreadcrumbs;
+  final ExplorerPreferences explorerPreferences;
 
   int get dockerLogsTailClamped => _sanitizeTailLines(dockerLogsTail);
-  TerminalPreferences get terminalPreferences => TerminalPreferences(
-    fontFamily: terminalFontFamily,
-    fontSize: terminalFontSize,
-    lineHeight: terminalLineHeight,
-    paddingX: terminalPaddingX,
-    paddingY: terminalPaddingY,
-    themeDark: terminalThemeDark,
-    themeLight: terminalThemeLight,
-  );
-  EditorPreferences get editorPreferences => EditorPreferences(
-    themeLight: editorThemeLight,
-    themeDark: editorThemeDark,
-    fontFamily: editorFontFamily,
-    fontSize: editorFontSize,
-    lineHeight: editorLineHeight,
-  );
-  ExplorerPreferences get explorerPreferences => ExplorerPreferences(
-    rowHeight: explorerRowHeight,
-    showBreadcrumbs: explorerShowBreadcrumbs,
-  );
-  ShellPreferences get shellPreferences => ShellPreferences(
-    sidebarWidth: shellSidebarWidth,
-    destination: shellDestination,
-    sidebarCollapsed: shellSidebarCollapsed,
-    sidebarPlacement: shellSidebarPlacement,
-    useSystemDecorations: windowUseSystemDecorations,
-    closeToTray: closeToTray,
-  );
 
   AppSettings copyWith({
     ThemeMode? themeMode,
@@ -153,12 +93,7 @@ class AppSettings {
     double? zoomFactor,
     bool? serverAutoRefresh,
     bool? serverShowOffline,
-    double? shellSidebarWidth,
-    String? shellDestination,
-    bool? shellSidebarCollapsed,
-    String? shellSidebarPlacement,
-    bool? windowUseSystemDecorations,
-    bool? closeToTray,
+    ShellPreferences? shellPreferences,
     String? appFontFamily,
     String? appThemeKey,
     AppUiDensity? uiDensity,
@@ -177,30 +112,15 @@ class AppSettings {
     KubernetesWorkspaceState? kubernetesWorkspace,
     WslWorkspaceState? wslWorkspace,
     Map<String, String>? shortcutBindings,
-    String? editorThemeLight,
-    String? editorThemeDark,
-    String? editorFontFamily,
-    double? editorFontSize,
-    double? editorLineHeight,
     EditorPreferences? editorPreferences,
     List<String>? dockerRemoteHosts,
     String? dockerSelectedContext,
     DockerWorkspaceState? dockerWorkspace,
     int? dockerLogsTail,
-    String? terminalFontFamily,
-    double? terminalFontSize,
-    double? terminalLineHeight,
-    double? terminalPaddingX,
-    double? terminalPaddingY,
-    String? terminalThemeDark,
-    String? terminalThemeLight,
     TerminalPreferences? terminalPreferences,
     int? fileTransferUploadConcurrency,
     int? fileTransferDownloadConcurrency,
-    double? explorerRowHeight,
-    bool? explorerShowBreadcrumbs,
     ExplorerPreferences? explorerPreferences,
-    ShellPreferences? shellPreferences,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -208,28 +128,7 @@ class AppSettings {
       zoomFactor: zoomFactor ?? this.zoomFactor,
       serverAutoRefresh: serverAutoRefresh ?? this.serverAutoRefresh,
       serverShowOffline: serverShowOffline ?? this.serverShowOffline,
-      shellSidebarWidth:
-          shellPreferences?.sidebarWidth ??
-          shellSidebarWidth ??
-          this.shellSidebarWidth,
-      shellDestination:
-          shellPreferences?.destination ??
-          shellDestination ??
-          this.shellDestination,
-      shellSidebarCollapsed:
-          shellPreferences?.sidebarCollapsed ??
-          shellSidebarCollapsed ??
-          this.shellSidebarCollapsed,
-      shellSidebarPlacement:
-          shellPreferences?.sidebarPlacement ??
-          shellSidebarPlacement ??
-          this.shellSidebarPlacement,
-      windowUseSystemDecorations:
-          shellPreferences?.useSystemDecorations ??
-          windowUseSystemDecorations ??
-          this.windowUseSystemDecorations,
-      closeToTray:
-          shellPreferences?.closeToTray ?? closeToTray ?? this.closeToTray,
+      shellPreferences: shellPreferences ?? this.shellPreferences,
       appFontFamily: appFontFamily ?? this.appFontFamily,
       appThemeKey: appThemeKey ?? this.appThemeKey,
       uiDensity: uiDensity ?? this.uiDensity,
@@ -251,74 +150,26 @@ class AppSettings {
       kubernetesWorkspace: kubernetesWorkspace ?? this.kubernetesWorkspace,
       wslWorkspace: wslWorkspace ?? this.wslWorkspace,
       shortcutBindings: shortcutBindings ?? this.shortcutBindings,
-      editorThemeLight:
-          editorPreferences?.themeLight ??
-          editorThemeLight ??
-          this.editorThemeLight,
-      editorThemeDark:
-          editorPreferences?.themeDark ??
-          editorThemeDark ??
-          this.editorThemeDark,
-      editorFontFamily:
-          editorPreferences?.fontFamily ??
-          editorFontFamily ??
-          this.editorFontFamily,
-      editorFontSize:
-          editorPreferences?.fontSize ??
-          editorFontSize ??
-          this.editorFontSize,
-      editorLineHeight:
-          editorPreferences?.lineHeight ??
-          editorLineHeight ??
-          this.editorLineHeight,
+      editorPreferences: editorPreferences ?? this.editorPreferences,
       dockerRemoteHosts: dockerRemoteHosts ?? this.dockerRemoteHosts,
       dockerSelectedContext:
           dockerSelectedContext ?? this.dockerSelectedContext,
       dockerWorkspace: dockerWorkspace ?? this.dockerWorkspace,
       dockerLogsTail: _sanitizeTailLines(dockerLogsTail ?? this.dockerLogsTail),
-      terminalFontFamily:
-          terminalPreferences?.fontFamily ??
-          terminalFontFamily ??
-          this.terminalFontFamily,
-      terminalFontSize:
-          terminalPreferences?.fontSize ??
-          terminalFontSize ??
-          this.terminalFontSize,
-      terminalLineHeight:
-          terminalPreferences?.lineHeight ??
-          terminalLineHeight ??
-          this.terminalLineHeight,
-      terminalPaddingX:
-          terminalPreferences?.paddingX ??
-          terminalPaddingX ??
-          this.terminalPaddingX,
-      terminalPaddingY:
-          terminalPreferences?.paddingY ??
-          terminalPaddingY ??
-          this.terminalPaddingY,
-      terminalThemeDark:
-          terminalPreferences?.themeDark ??
-          terminalThemeDark ??
-          this.terminalThemeDark,
-      terminalThemeLight:
-          terminalPreferences?.themeLight ??
-          terminalThemeLight ??
-          this.terminalThemeLight,
+      terminalPreferences: terminalPreferences ?? this.terminalPreferences,
       fileTransferUploadConcurrency: _sanitizeTransferConcurrency(
         fileTransferUploadConcurrency ?? this.fileTransferUploadConcurrency,
       ),
       fileTransferDownloadConcurrency: _sanitizeTransferConcurrency(
         fileTransferDownloadConcurrency ?? this.fileTransferDownloadConcurrency,
       ),
-      explorerRowHeight: _sanitizeExplorerRowHeight(
-        explorerPreferences?.rowHeight ??
-            explorerRowHeight ??
-            this.explorerRowHeight,
+      explorerPreferences: ExplorerPreferences(
+        rowHeight: _sanitizeExplorerRowHeight(
+          (explorerPreferences ?? this.explorerPreferences).rowHeight,
+        ),
+        showBreadcrumbs:
+            (explorerPreferences ?? this.explorerPreferences).showBreadcrumbs,
       ),
-      explorerShowBreadcrumbs:
-          explorerPreferences?.showBreadcrumbs ??
-          explorerShowBreadcrumbs ??
-          this.explorerShowBreadcrumbs,
     );
   }
 
@@ -367,14 +218,16 @@ class AppSettings {
       zoomFactor: (json['zoomFactor'] as num?)?.toDouble() ?? 1.0,
       serverAutoRefresh: json['serverAutoRefresh'] as bool? ?? true,
       serverShowOffline: json['serverShowOffline'] as bool? ?? true,
-      shellSidebarWidth: (shellJson?['sidebarWidth'] as num?)?.toDouble(),
-      shellDestination: shellJson?['destination'] as String?,
-      shellSidebarCollapsed: shellJson?['sidebarCollapsed'] as bool? ?? false,
-      shellSidebarPlacement:
-          shellJson?['sidebarPlacement'] as String? ?? 'dynamic',
-      windowUseSystemDecorations:
-          shellJson?['useSystemDecorations'] as bool? ?? true,
-      closeToTray: shellJson?['closeToTray'] as bool? ?? false,
+      shellPreferences: ShellPreferences(
+        sidebarWidth: (shellJson?['sidebarWidth'] as num?)?.toDouble(),
+        destination: shellJson?['destination'] as String?,
+        sidebarCollapsed: shellJson?['sidebarCollapsed'] as bool? ?? false,
+        sidebarPlacement:
+            shellJson?['sidebarPlacement'] as String? ?? 'dynamic',
+        useSystemDecorations:
+            shellJson?['useSystemDecorations'] as bool? ?? true,
+        closeToTray: shellJson?['closeToTray'] as bool? ?? false,
+      ),
       appFontFamily: json['appFontFamily'] as String?,
       appThemeKey: json['appThemeKey'] as String? ?? 'blue-grey',
       uiDensity: AppUiDensityParsing.fromJson(json['uiDensity'] as String?),
@@ -471,12 +324,13 @@ class AppSettings {
             (key, value) => MapEntry(key, value.toString()),
           ) ??
           const {},
-      editorThemeLight: editorJson?['themeLight'] as String?,
-      editorThemeDark: editorJson?['themeDark'] as String?,
-      editorFontFamily: editorJson?['fontFamily'] as String?,
-      editorFontSize: (editorJson?['fontSize'] as num?)?.toDouble() ?? 14,
-      editorLineHeight:
-          (editorJson?['lineHeight'] as num?)?.toDouble() ?? 1.35,
+      editorPreferences: EditorPreferences(
+        themeLight: editorJson?['themeLight'] as String?,
+        themeDark: editorJson?['themeDark'] as String?,
+        fontFamily: editorJson?['fontFamily'] as String?,
+        fontSize: (editorJson?['fontSize'] as num?)?.toDouble() ?? 14,
+        lineHeight: (editorJson?['lineHeight'] as num?)?.toDouble() ?? 1.35,
+      ),
       dockerRemoteHosts:
           (json['dockerRemoteHosts'] as List<dynamic>?)
               ?.whereType<String>()
@@ -500,18 +354,18 @@ class AppSettings {
         }
         return null;
       }(),
-      terminalFontFamily:
-          terminalJson?['fontFamily'] as String? ?? 'JetBrainsMono Nerd Font',
-      terminalFontSize: (terminalJson?['fontSize'] as num?)?.toDouble() ?? 14,
-      terminalLineHeight:
-          (terminalJson?['lineHeight'] as num?)?.toDouble() ?? 1.15,
-      terminalPaddingX: (terminalJson?['paddingX'] as num?)?.toDouble() ?? 8,
-      terminalPaddingY:
-          (terminalJson?['paddingY'] as num?)?.toDouble() ?? 10,
-      terminalThemeDark:
-          terminalJson?['themeDark'] as String? ?? 'dracula',
-      terminalThemeLight:
-          terminalJson?['themeLight'] as String? ?? 'solarized-light',
+      terminalPreferences: TerminalPreferences(
+        fontFamily:
+            terminalJson?['fontFamily'] as String? ??
+            'JetBrainsMono Nerd Font',
+        fontSize: (terminalJson?['fontSize'] as num?)?.toDouble() ?? 14,
+        lineHeight: (terminalJson?['lineHeight'] as num?)?.toDouble() ?? 1.15,
+        paddingX: (terminalJson?['paddingX'] as num?)?.toDouble() ?? 8,
+        paddingY: (terminalJson?['paddingY'] as num?)?.toDouble() ?? 10,
+        themeDark: terminalJson?['themeDark'] as String? ?? 'dracula',
+        themeLight:
+            terminalJson?['themeLight'] as String? ?? 'solarized-light',
+      ),
       fileTransferUploadConcurrency: _sanitizeTransferConcurrency(
         (json['fileTransferUploadConcurrency'] as num?)?.toInt() ?? 2,
       ),
@@ -521,10 +375,12 @@ class AppSettings {
       dockerLogsTail: _sanitizeTailLines(
         (json['dockerLogsTail'] as num?)?.toInt() ?? 200,
       ),
-      explorerRowHeight: _sanitizeExplorerRowHeight(
-        (explorerJson?['rowHeight'] as num?)?.toDouble() ?? 36,
+      explorerPreferences: ExplorerPreferences(
+        rowHeight: _sanitizeExplorerRowHeight(
+          (explorerJson?['rowHeight'] as num?)?.toDouble() ?? 36,
+        ),
+        showBreadcrumbs: explorerJson?['showBreadcrumbs'] as bool? ?? true,
       ),
-      explorerShowBreadcrumbs: explorerJson?['showBreadcrumbs'] as bool? ?? true,
     );
   }
 
