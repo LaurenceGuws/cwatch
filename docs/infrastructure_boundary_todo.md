@@ -230,7 +230,7 @@ Result:
   - timeout
 
 ## Task 19.4: re-scope the next Docker infrastructure batch
-Status: pending
+Status: completed
 
 Goal:
 - decide whether the next Docker infra step should split parsing from the gateway or checkpoint and move to another infrastructure seam
@@ -242,3 +242,33 @@ Questions to answer:
 Done definition:
 - the next infrastructure batch is explicit
 - the choice is based on the post-executor code shape, not a prewritten multi-step rewrite
+
+Result:
+- Docker parsing is not the highest-value next move
+- the next infrastructure seam should be Kubernetes CLI/API policy cleanup
+
+Why:
+- Docker now has a clearer transport/failure seam and useful direct coverage
+- parsing inside `DockerClientService` is still mixed, but it is lower-risk and mostly local to one gateway
+- Kubernetes still mixes more concerns in one place:
+  - backend selection
+  - CLI vs API transport choice
+  - warning accumulation
+  - partial-failure handling
+  - empty-snapshot degradation behavior
+- that makes Kubernetes the stronger next system-wide policy seam
+
+## Task 19.5: define the Kubernetes infrastructure boundary target
+Status: pending
+
+Goal:
+- describe what part of the current Kubernetes dashboard path is transport, what part is shaping/parsing, and what part is backend/failure policy
+
+Questions to answer:
+- what should remain in `KubernetesDashboardService`
+- what should move to a narrower backend-policy seam
+- what should remain feature-owned in Kubernetes views/controllers
+
+Done definition:
+- the first Kubernetes infra boundary is explicit
+- one concrete implementation batch is chosen
