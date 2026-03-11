@@ -55,13 +55,24 @@ Important: the current `view/controller/model` split is not a clean architecture
 - Patched packages in `packages/` should stay in sync with upstream; document deltas in PR notes.
 
 ## Rewrite Context
-The repo is preparing for a large structural cleanup. Current high-level focus areas are:
+The repo has already completed major first-pass work in:
 - dependency direction and layer boundaries
 - composition root and service ownership
 - settings/state separation
 - vertical slice decomposition
 - infrastructure boundary cleanup
 - test seam creation
+- product polish on major shared shell surfaces
+
+Current fresh-review hotspot order is:
+1. Docker feature decomposition
+2. StructuredDataTable risk reduction
+3. SSH runtime simplification
+4. Theme/token decomposition
+
+Use the current-state review docs as the handover source of truth before reopening older rewrite priorities:
+- `docs/current_code_smell_review.md`
+- `docs/docker_current_hotspot_todo.md`
 
 Use the planning docs to deepen one focus area at a time instead of attempting broad rewrite-by-replacement.
 

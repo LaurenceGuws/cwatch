@@ -165,8 +165,17 @@ Current dashboard polish checkpoint:
   - legend chrome
   - simple feedback states
 
-Current next polish hotspot:
-- structured table/list chrome consistency around `StructuredDataTable`
+Current fresh current-state review:
+- `docs/current_code_smell_review.md`
+
+Current active hotspot order:
+1. Docker feature decomposition
+2. StructuredDataTable risk reduction
+3. SSH runtime simplification
+4. Theme/token decomposition
+
+Current active next TODO:
+- `docs/docker_current_hotspot_todo.md`
 
 Current table/list polish checkpoint:
 - shared table host/scaffold now exists in:

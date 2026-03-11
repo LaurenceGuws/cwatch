@@ -440,3 +440,19 @@ Create separate follow-up docs for:
 - keep behavior stable while introducing seams
 - prefer incremental migration with explicit checkpoints
 - update documentation whenever the target architecture meaningfully changes
+
+
+## Current Fresh-Review Checkpoint
+
+The earlier rewrite sequence materially improved the repo-wide structural problems.
+A fresh current-state review now shows that the main remaining issues are concentrated subsystem complexity hotspots rather than global boundary collapse.
+
+Current active hotspot order:
+1. Docker feature decomposition
+2. StructuredDataTable risk reduction
+3. SSH runtime simplification
+4. Theme/token decomposition
+
+Current handover/source-of-truth docs for this phase:
+- `docs/current_code_smell_review.md`
+- `docs/docker_current_hotspot_todo.md`
