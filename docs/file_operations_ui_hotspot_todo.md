@@ -44,3 +44,30 @@ Why this is the right first cut:
 - the same transfer-completion and failure orchestration is repeated across download, file upload, folder upload, and dropped-path upload flows
 - that support logic is orthogonal to the item-specific upload/download tasks
 - this creates a direct regression seam without forcing a broader file-operation rewrite
+
+## Task 27.3: define the next bounded file-operation UI batch
+Status: completed
+
+Goal:
+- choose the next repeated transfer-UI support seam from the current code state
+- keep the batch on per-item progress scaffolding rather than changing file-operation semantics
+
+Done definition:
+- one next batch is explicit
+- the stop condition reflects the repeated item progress code still left in `FileOperationsUiHandler`
+
+Result:
+- the next bounded file-operation UI batch is now:
+  - extract shared item-progress scaffolding from `FileOperationsUiHandler`
+- target files:
+  - [file_operations_ui_handler.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operations_ui_handler.dart)
+  - new helper under `lib/controller/adapters/`
+- stop condition:
+  - repeated item start/byte-tracking/complete/fail wiring no longer repeats across download/upload variants
+  - focused regression coverage exists for the new helper
+  - the per-flow operation work stays stable
+
+Why this is the right next cut:
+- after the transfer-session split, the strongest remaining repetition is the per-item progress controller wiring
+- that support logic is still orthogonal to the actual download/upload task behavior
+- this narrows the handler toward flow orchestration without forcing a broader file-operations redesign

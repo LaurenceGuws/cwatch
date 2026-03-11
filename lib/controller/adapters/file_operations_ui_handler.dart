@@ -9,6 +9,7 @@ import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/view/shared/widgets/file_operation_progress_dialog.dart';
 import 'package:cwatch/model/services/explorer_clipboard.dart';
 import 'package:cwatch/model/services/file_operations_service.dart';
+import 'file_operation_item_progress.dart';
 import 'explorer_ui_adapter.dart';
 import 'file_operation_transfer_session.dart';
 
@@ -232,13 +233,11 @@ class FileOperationsUiHandler {
           final entry = downloadEntries[index];
           if (!context.mounted) return;
           if (progressController.cancelled) return;
-          progressController.markInProgress(index);
-          var sawBytes = false;
-          void handleBytes(int bytes) {
-            if (bytes <= 0) return;
-            sawBytes = true;
-            progressController.addItemBytes(index, bytes);
-          }
+          final itemProgress = FileOperationItemProgress(
+            controller: progressController,
+            label: entry.label,
+            itemIndex: index,
+          )..start();
 
           try {
             if (entry.isDirectory) {
@@ -248,15 +247,15 @@ class FileOperationsUiHandler {
                 remotePath: entry.remotePath,
                 localDestination: entry.localDestination,
                 recursive: false,
-                onBytes: handleBytes,
+                onBytes: itemProgress.onBytes,
               );
             }
             if (!context.mounted) return;
             successCount++;
-            progressController.markCompleted(index, addSize: !sawBytes);
+            itemProgress.complete();
           } catch (error) {
             if (!context.mounted) return;
-            progressController.markFailed(index);
+            itemProgress.fail();
             AppLogger().warn(
               'Failed to download ${entry.label}',
               tag: 'Explorer',
@@ -371,13 +370,11 @@ class FileOperationsUiHandler {
               : (file.path != null ? p.basename(file.path!) : 'file_$i');
           final remotePath = joinPath(targetDirectory, fileName);
 
-          progressController.markInProgress(i);
-          var sawBytes = false;
-          void handleBytes(int bytes) {
-            if (bytes <= 0) return;
-            sawBytes = true;
-            progressController.addItemBytes(i, bytes);
-          }
+          final itemProgress = FileOperationItemProgress(
+            controller: progressController,
+            label: fileName,
+            itemIndex: i,
+          )..start();
 
           try {
             if (file.path == null || file.path!.isEmpty) {
@@ -394,7 +391,7 @@ class FileOperationsUiHandler {
                 'Skipping directory in file upload: ${file.path}',
                 tag: 'Explorer',
               );
-              progressController.markFailed(i);
+              itemProgress.fail();
               return;
             }
 
@@ -402,15 +399,15 @@ class FileOperationsUiHandler {
               localPath: file.path!,
               remoteDestination: remotePath,
               recursive: false,
-              onBytes: handleBytes,
+              onBytes: itemProgress.onBytes,
             );
             if (!context.mounted) return;
             successCount++;
-            progressController.markCompleted(i, addSize: !sawBytes);
+            itemProgress.complete();
           } catch (error) {
             if (!context.mounted) return;
             failCount++;
-            progressController.markFailed(i);
+            itemProgress.fail();
             AppLogger().warn(
               'Failed to upload $fileName',
               tag: 'Explorer',
@@ -539,19 +536,11 @@ class FileOperationsUiHandler {
             final entry = uploadEntries[index];
             if (!context.mounted) return;
             if (progressController.cancelled) return;
-            if (entry.itemIndex != -1) {
-              progressController.markInProgress(entry.itemIndex);
-            }
-            var sawBytes = false;
-            void handleBytes(int bytes) {
-              if (bytes <= 0) return;
-              sawBytes = true;
-              if (entry.itemIndex != -1) {
-                progressController.addItemBytes(entry.itemIndex, bytes);
-              } else {
-                progressController.addBytes(bytes);
-              }
-            }
+            final itemProgress = FileOperationItemProgress(
+              controller: progressController,
+              label: entry.remotePath,
+              itemIndex: entry.itemIndex,
+            )..start();
 
             final remoteDir = p.dirname(entry.remotePath).replaceAll('\\', '/');
             try {
@@ -560,22 +549,15 @@ class FileOperationsUiHandler {
                 localPath: entry.localPath,
                 remoteDestination: entry.remotePath,
                 recursive: false,
-                onBytes: handleBytes,
+                onBytes: itemProgress.onBytes,
               );
               if (!context.mounted) return;
               successCount++;
-              if (entry.itemIndex != -1) {
-                progressController.markCompleted(
-                  entry.itemIndex,
-                  addSize: !sawBytes,
-                );
-              }
+              itemProgress.complete();
             } catch (error) {
               if (!context.mounted) return;
               failCount++;
-              if (entry.itemIndex != -1) {
-                progressController.markFailed(entry.itemIndex);
-              }
+              itemProgress.fail();
               AppLogger().warn(
                 'Failed to upload ${entry.remotePath}',
                 tag: 'Explorer',
@@ -704,21 +686,11 @@ class FileOperationsUiHandler {
         final itemIndex = uiItems.indexWhere((item) {
           return item.label == name || item.label.startsWith('$name/');
         });
-        if (itemIndex != -1) {
-          progressController.markInProgress(itemIndex);
-        } else {
-          progressController.updateProgress(currentItem: name);
-        }
-        var sawBytes = false;
-        void handleBytes(int bytes) {
-          if (bytes <= 0) return;
-          sawBytes = true;
-          if (itemIndex != -1) {
-            progressController.addItemBytes(itemIndex, bytes);
-          } else {
-            progressController.addBytes(bytes);
-          }
-        }
+        final itemProgress = FileOperationItemProgress(
+          controller: progressController,
+          label: name,
+          itemIndex: itemIndex,
+        )..start();
 
         try {
           final isDirectory = entityType == FileSystemEntityType.directory;
@@ -726,14 +698,10 @@ class FileOperationsUiHandler {
             localPath: localPath,
             remoteDestination: remotePath,
             recursive: isDirectory,
-            onBytes: handleBytes,
+            onBytes: itemProgress.onBytes,
           );
           successCount++;
-          if (itemIndex != -1) {
-            progressController.markCompleted(itemIndex, addSize: !sawBytes);
-          } else {
-            progressController.increment();
-          }
+          itemProgress.complete();
         } catch (error) {
           failCount++;
           AppLogger().warn(
@@ -741,11 +709,7 @@ class FileOperationsUiHandler {
             tag: 'Explorer',
             error: error,
           );
-          if (itemIndex != -1) {
-            progressController.markFailed(itemIndex);
-          } else {
-            progressController.increment();
-          }
+          itemProgress.fail();
         }
       },
     );
