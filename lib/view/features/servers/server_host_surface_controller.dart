@@ -36,12 +36,12 @@ class ServerHostSurfaceController {
   Future<List<SshHost>> hostsFuture = Future.value(const []);
   List<SshHost> lastHosts = const [];
 
-  Future<List<SshHost>> loadHosts() async {
+  Future<List<SshHost>> loadHosts({bool refreshAvailability = true}) async {
     final existing = _loadHostsInFlight;
     if (existing != null) {
       return existing;
     }
-    final future = _loadHostsInternal();
+    final future = _loadHostsInternal(refreshAvailability: refreshAvailability);
     _loadHostsInFlight = future;
     future.whenComplete(() {
       if (identical(_loadHostsInFlight, future)) {
@@ -51,7 +51,9 @@ class ServerHostSurfaceController {
     return future;
   }
 
-  Future<List<SshHost>> _loadHostsInternal() async {
+  Future<List<SshHost>> _loadHostsInternal({
+    required bool refreshAvailability,
+  }) async {
     final override = _loadHostsOverride;
     if (override != null) {
       final hosts = await override();
@@ -69,7 +71,9 @@ class ServerHostSurfaceController {
       checkAvailability: false,
     );
     lastHosts = hosts;
-    _updateAvailabilityInBackground(hosts);
+    if (refreshAvailability) {
+      _updateAvailabilityInBackground(hosts);
+    }
     return hosts;
   }
 

@@ -133,7 +133,8 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
     );
     _viewShell = ServerWorkspaceShell(
       moduleId: widget.moduleId,
-      loadHosts: _hostSurfaceController.loadHosts,
+      loadHosts: () => _hostSurfaceController.loadHosts(refreshAvailability: false),
+      reloadHosts: () => _hostSurfaceController.loadHosts(refreshAvailability: true),
       updateCustomHosts: (customHosts) => _hostSurfaceController.updateCustomHosts(
         customHosts,
         onHostsChanged: () {
@@ -176,7 +177,7 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
       renameTab: _renameTab,
       customHosts: () => widget.settingsController.settings.sshPreferences.customHosts,
     );
-    final initialHostsFuture = _viewShell.initializeHosts();
+    final initialHostsFuture = _viewShell.initializeHosts(widget.hostsFuture);
     _hostSurfaceController.setHostsFuture(initialHostsFuture);
     _tabBuilder = ServerTabBuilder(
       settingsController: widget.settingsController,
@@ -190,7 +191,7 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
       appSettingsController: widget.settingsController,
       keyService: widget.keyService,
       hostsFuture: initialHostsFuture,
-      hostsLoader: _hostSurfaceController.loadHosts,
+      hostsLoader: () => _hostSurfaceController.loadHosts(refreshAvailability: false),
       tabBuilder: _tabBuilder,
       baseTabBuilder: _createPlaceholderTab,
     );
@@ -216,7 +217,7 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   void didUpdateWidget(covariant ServerWorkspaceView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.hostsFuture != oldWidget.hostsFuture) {
-      _hostSurfaceController.setHostsFuture(_hostSurfaceController.loadHosts());
+      _hostSurfaceController.setHostsFuture(widget.hostsFuture);
     }
   }
 

@@ -29,13 +29,15 @@ void main() {
       );
     });
 
-    test('initializeHosts seeds signatures and loads hosts', () async {
+    test('initializeHosts seeds signatures from the provided host future', () async {
       final harness = _ServerShellHarness();
+      final initialFuture = Future<List<SshHost>>.value(const [_host]);
 
-      final hosts = await harness.shell.initializeHosts();
+      final hosts = await harness.shell.initializeHosts(initialFuture);
 
       expect(hosts, hasLength(1));
-      expect(harness.loadHostsCalls, 1);
+      expect(harness.loadHostsCalls, 0);
+      expect(harness.reloadHostsCalls, 0);
       expect(harness.setHostsFutureCalls, 1);
     });
 
@@ -106,14 +108,15 @@ void main() {
       expect(harness.selectedIndices, [1, 0]);
     });
 
-    test('handleSettingsChanged reloads hosts when config paths change', () async {
+    test('handleSettingsChanged refreshes hosts without probing when config paths change', () async {
       final harness = _ServerShellHarness();
-      harness.shell.initializeHosts();
+      harness.shell.initializeHosts(Future<List<SshHost>>.value(const [_host]));
       harness.pathsSignature = 'paths-v2';
 
       await harness.shell.handleSettingsChanged();
 
-      expect(harness.loadHostsCalls, 2);
+      expect(harness.loadHostsCalls, 1);
+      expect(harness.reloadHostsCalls, 0);
       expect(harness.updateCustomHostsCalls, 0);
       expect(harness.restoreWorkspaceCalls, 0);
       expect(harness.persistIfPendingCalls, 1);
@@ -121,25 +124,37 @@ void main() {
 
     test('handleSettingsChanged updates custom hosts when custom signature changes', () async {
       final harness = _ServerShellHarness();
-      harness.shell.initializeHosts();
+      harness.shell.initializeHosts(Future<List<SshHost>>.value(const [_host]));
       harness.customHostsSignature = 'custom-v2';
 
       await harness.shell.handleSettingsChanged();
 
-      expect(harness.loadHostsCalls, 1);
+      expect(harness.loadHostsCalls, 0);
+      expect(harness.reloadHostsCalls, 0);
       expect(harness.updateCustomHostsCalls, 1);
       expect(harness.persistIfPendingCalls, 1);
     });
 
     test('handleSettingsChanged restores workspace when signatures diverge', () async {
       final harness = _ServerShellHarness();
-      harness.shell.initializeHosts();
+      harness.shell.initializeHosts(Future<List<SshHost>>.value(const [_host]));
       harness.persistedSignature = 'persisted-v2';
 
       await harness.shell.handleSettingsChanged();
 
       expect(harness.restoreWorkspaceCalls, 1);
       expect(harness.persistIfPendingCalls, 1);
+    });
+
+    test('reloadServerList uses the explicit probing refresh path', () {
+      final harness = _ServerShellHarness();
+
+      harness.shell.reloadServerList();
+
+      expect(harness.loadHostsCalls, 0);
+      expect(harness.reloadHostsCalls, 1);
+      expect(harness.requestViewRefreshCalls, 1);
+      expect(harness.setHostsFutureCalls, 1);
     });
 
     test('replaceTabWithAction replaces placeholder and selects index', () {
@@ -220,6 +235,7 @@ class _ServerShellHarness {
   int _selectedIndex;
 
   int loadHostsCalls = 0;
+  int reloadHostsCalls = 0;
   int updateCustomHostsCalls = 0;
   int setHostsFutureCalls = 0;
   int requestViewRefreshCalls = 0;
@@ -246,6 +262,10 @@ class _ServerShellHarness {
     moduleId: _moduleId,
     loadHosts: () async {
       loadHostsCalls += 1;
+      return const [_host];
+    },
+    reloadHosts: () async {
+      reloadHostsCalls += 1;
       return const [_host];
     },
     updateCustomHosts: (hosts) async {

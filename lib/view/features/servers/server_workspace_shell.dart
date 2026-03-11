@@ -15,6 +15,7 @@ class ServerWorkspaceShell {
   ServerWorkspaceShell({
     required this.moduleId,
     required Future<List<SshHost>> Function() loadHosts,
+    required Future<List<SshHost>> Function() reloadHosts,
     required Future<List<SshHost>> Function(List<CustomSshHost> customHosts)
     updateCustomHosts,
     required String Function() buildCustomHostsSignature,
@@ -45,6 +46,7 @@ class ServerWorkspaceShell {
     required Future<void> Function(int index) renameTab,
     required List<CustomSshHost> Function() customHosts,
   }) : _loadHosts = loadHosts,
+       _reloadHosts = reloadHosts,
        _updateCustomHosts = updateCustomHosts,
        _buildCustomHostsSignature = buildCustomHostsSignature,
        _buildPathsSignature = buildPathsSignature,
@@ -71,6 +73,7 @@ class ServerWorkspaceShell {
 
   final String moduleId;
   final Future<List<SshHost>> Function() _loadHosts;
+  final Future<List<SshHost>> Function() _reloadHosts;
   final Future<List<SshHost>> Function(List<CustomSshHost> customHosts)
   _updateCustomHosts;
   final String Function() _buildCustomHostsSignature;
@@ -132,13 +135,12 @@ class ServerWorkspaceShell {
     commandPaletteHandle: commandPaletteHandle,
   );
 
-  Future<List<SshHost>> initializeHosts() {
+  Future<List<SshHost>> initializeHosts(Future<List<SshHost>> initialHostsFuture) {
     _customHostsSignature = _buildCustomHostsSignature();
     _pathsSignature = _buildPathsSignature();
     _disabledHostsSignature = _buildDisabledHostsSignature();
-    final future = _loadHosts();
-    _setHostsFuture(future);
-    return future;
+    _setHostsFuture(initialHostsFuture);
+    return initialHostsFuture;
   }
 
   void initializeWorkspaceChrome() {
@@ -192,7 +194,7 @@ class ServerWorkspaceShell {
   }
 
   void reloadServerList() {
-    _setHostsFuture(_loadHosts());
+    _setHostsFuture(_reloadHosts());
     _requestViewRefresh();
   }
 
