@@ -21,6 +21,7 @@ import 'package:cwatch/view/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/view/core/tabs/tabbed_workspace_shell.dart';
 import 'package:cwatch/view/core/tabs/workspace_tab_chip_builder.dart';
 import 'package:cwatch/view/core/tabs/tab_bar_visibility.dart';
+import 'package:cwatch/view/core/tabs/workspace_host_lifecycle.dart';
 import 'package:cwatch/view/core/tabs/workspace_tab_registry_builder.dart';
 import 'package:cwatch/view/core/tabs/workspace_settings_sync.dart';
 import 'package:cwatch/model/models/docker_workspace_state.dart';
@@ -73,8 +74,7 @@ class _DockerViewState extends State<DockerView> {
   late final TabViewRegistry<WorkspaceTab> _tabRegistry;
   late final DockerUiAdapter _uiAdapter;
   late final DockerLocalStateController _localStateController;
-  late final VoidCallback _settingsListener;
-  late final VoidCallback _tabsListener;
+  late final WorkspaceHostLifecycle _hostLifecycle;
   late final VoidCallback _viewControllerListener;
   late final DockerViewShell _viewShell;
   final DockerViewDashboardHelper _dashboardHelper =
@@ -176,22 +176,26 @@ class _DockerViewState extends State<DockerView> {
       renameTab: _renameTab,
     );
     unawaited(_viewShell.initialize());
-
-    _tabsListener = () {
-      setState(() {});
-    };
-    _workspaceController.addListener(_tabsListener);
-
-    _settingsListener = _handleSettingsChanged;
-    widget.settingsController.addListener(_settingsListener);
-    _restoreWorkspace();
+    _hostLifecycle = WorkspaceHostLifecycle(
+      workspaceListenable: _workspaceController,
+      settingsListenable: widget.settingsController,
+      requestRefresh: () {
+        setState(() {});
+      },
+      handleSettingsChanged: () async {
+        _handleSettingsChanged();
+      },
+      restoreWorkspace: _restoreWorkspace,
+      initializeShellChrome: () {},
+      disposeShellChrome: () {},
+    );
+    _hostLifecycle.initialize();
   }
 
   @override
   void dispose() {
-    _workspaceController.removeListener(_tabsListener);
+    _hostLifecycle.dispose();
     _viewController.removeListener(_viewControllerListener);
-    widget.settingsController.removeListener(_settingsListener);
     _localStateController.dispose();
     _viewShell.dispose();
     _runtime.dispose();

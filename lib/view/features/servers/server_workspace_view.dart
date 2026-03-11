@@ -17,6 +17,7 @@ import 'package:cwatch/model/services_infra/cache/distro_cache_controller.dart';
 import 'package:cwatch/view/features/servers/server_workspace_ui_adapter.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
+import 'package:cwatch/view/core/tabs/workspace_host_lifecycle.dart';
 import 'servers/servers_widgets.dart';
 import 'servers/server_models.dart';
 import 'server_tab_builder.dart';
@@ -60,8 +61,7 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   final ServerWorkspaceTabHelper _tabHelper = const ServerWorkspaceTabHelper();
   final WorkspaceTabRegistryBuilder _registryBuilder =
       const WorkspaceTabRegistryBuilder();
-  late final VoidCallback _settingsListener;
-  late final VoidCallback _tabsListener;
+  late final WorkspaceHostLifecycle _hostLifecycle;
   late final TabViewRegistry<WorkspaceTab> _tabRegistry;
   static int _placeholderSequence = 0;
   bool _showListSettings = false;
@@ -196,17 +196,20 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
     );
 
     _tabRegistry = _registryBuilder.build(viewKeyPrefix: 'server-tab');
-    _viewShell.initializeWorkspaceChrome();
-
-    _tabsListener = () {
-      setState(() {});
-    };
-    _workspaceController.addListener(_tabsListener);
-
-    _settingsListener = _handleSettingsChanged;
-    widget.settingsController.addListener(_settingsListener);
-
-    _restoreWorkspace();
+    _hostLifecycle = WorkspaceHostLifecycle(
+      workspaceListenable: _workspaceController,
+      settingsListenable: widget.settingsController,
+      requestRefresh: () {
+        setState(() {});
+      },
+      handleSettingsChanged: () async {
+        _handleSettingsChanged();
+      },
+      restoreWorkspace: _restoreWorkspace,
+      initializeShellChrome: _viewShell.initializeWorkspaceChrome,
+      disposeShellChrome: _viewShell.dispose,
+    );
+    _hostLifecycle.initialize();
   }
 
   @override
@@ -219,10 +222,8 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
 
   @override
   void dispose() {
-    _workspaceController.removeListener(_tabsListener);
+    _hostLifecycle.dispose();
     _hostSurfaceController.dispose();
-    widget.settingsController.removeListener(_settingsListener);
-    _viewShell.dispose();
     _runtime.dispose();
     super.dispose();
   }

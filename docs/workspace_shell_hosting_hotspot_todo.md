@@ -94,3 +94,48 @@ Why this is the right next cut:
 - WSL was the strongest mismatch, and that mismatch is now reduced
 - the next real repeated seam is the remaining feature-entry bootstrap code around registry setup and shell-host initialization
 - this keeps the hotspot focused on proven duplication instead of over-generalizing too early
+
+## Task 26.5: implement the next bounded workspace-shell hosting batch
+Status: completed
+
+Goal:
+- reduce the repeated feature-entry bootstrap around workspace listeners, settings listeners, shell-host initialization, and restore kickoff
+- keep placeholder/picker creation and feature-specific shell behavior local
+
+Done definition:
+- Server, Docker, and WSL no longer hand-wire the same workspace host lifecycle in widget state
+- the shared lifecycle seam lives in a shared workspace helper
+- focused coverage exists for the shared lifecycle helper
+
+Result:
+- shared workspace host lifecycle wiring now lives in:
+  - [workspace_host_lifecycle.dart](/home/home/personal/cwatch/lib/view/core/tabs/workspace_host_lifecycle.dart)
+- Server, Docker, and WSL now delegate the repeated bootstrap wiring:
+  - [server_workspace_view.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_view.dart)
+  - [docker_view.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view.dart)
+  - [wsl_view.dart](/home/home/personal/cwatch/lib/view/features/wsl/wsl_view.dart)
+- focused coverage now exists in:
+  - [workspace_host_lifecycle_test.dart](/home/home/personal/cwatch/test/view/core/tabs/workspace_host_lifecycle_test.dart)
+
+## Task 26.6: define the next bounded workspace-shell hosting batch
+Status: completed
+
+Goal:
+- choose the next workspace-hosting seam from the current post-lifecycle state
+- avoid forcing a broad shared host contract unless the remaining duplication is still concrete
+
+Done definition:
+- one explicit next move is named from the current code state
+- the stop condition reflects the smaller remaining duplication
+
+Result:
+- the next bounded workspace-shell hosting move should be:
+  - checkpoint this hotspot unless fresh evidence shows another concrete shared host seam with real payoff
+- stop condition:
+  - no broader shared workspace-host contract is introduced without a stronger repeated seam than the current code state shows
+  - future work reopens from concrete duplication, not from momentum alone
+
+Why this is the right next move:
+- the largest remaining repeated host-lifecycle seam is now extracted
+- what remains is more feature-local runtime and placeholder behavior than shared workspace hosting
+- pushing further now risks over-generalizing valid feature differences

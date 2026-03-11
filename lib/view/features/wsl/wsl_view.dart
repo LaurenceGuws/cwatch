@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:cwatch/view/core/tabs/tab_bar_visibility.dart';
+import 'package:cwatch/view/core/tabs/workspace_host_lifecycle.dart';
 import 'package:cwatch/view/core/tabs/workspace_tab_registry_builder.dart';
 import 'package:cwatch/view/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/view/core/tabs/tabbed_workspace_shell.dart';
@@ -52,9 +53,8 @@ class _WslViewState extends State<WslView> {
   late final WslWorkspaceController _workspaceController;
   late final WslUiAdapter _uiAdapter;
   late final WslViewShell _shell;
+  late final WorkspaceHostLifecycle _hostLifecycle;
   late final TabViewRegistry<WorkspaceTab> _tabRegistry;
-  late final VoidCallback _settingsListener;
-  late final VoidCallback _tabsListener;
   final WorkspaceTabRegistryBuilder _registryBuilder =
       const WorkspaceTabRegistryBuilder();
 
@@ -98,25 +98,26 @@ class _WslViewState extends State<WslView> {
     );
 
     _tabRegistry = _registryBuilder.build(viewKeyPrefix: 'wsl-tab');
-
-    _tabsListener = () {
-      setState(() {});
-    };
-    _workspaceController.addListener(_tabsListener);
-
-    _settingsListener = _handleSettingsChanged;
-    widget.settingsController.addListener(_settingsListener);
-
-    _shell.initializeWorkspaceChrome();
-    _restoreWorkspace();
+    _hostLifecycle = WorkspaceHostLifecycle(
+      workspaceListenable: _workspaceController,
+      settingsListenable: widget.settingsController,
+      requestRefresh: () {
+        setState(() {});
+      },
+      handleSettingsChanged: () async {
+        _handleSettingsChanged();
+      },
+      restoreWorkspace: _restoreWorkspace,
+      initializeShellChrome: _shell.initializeWorkspaceChrome,
+      disposeShellChrome: _shell.dispose,
+    );
+    _hostLifecycle.initialize();
   }
 
   @override
   void dispose() {
-    _workspaceController.removeListener(_tabsListener);
+    _hostLifecycle.dispose();
     _workspaceController.dispose();
-    widget.settingsController.removeListener(_settingsListener);
-    _shell.dispose();
     super.dispose();
   }
 
