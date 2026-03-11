@@ -10,8 +10,8 @@ import 'package:cwatch/view/shared/widgets/file_operation_progress_dialog.dart';
 import 'package:cwatch/model/services/explorer_clipboard.dart';
 import 'package:cwatch/model/services/file_operations_service.dart';
 import 'file_operation_item_progress.dart';
+import 'file_operation_transfer_runtime.dart';
 import 'explorer_ui_adapter.dart';
-import 'file_operation_transfer_session.dart';
 
 class FileOperationsUiHandler {
   FileOperationsUiHandler({required this.service, required this.uiAdapter});
@@ -204,23 +204,16 @@ class FileOperationsUiHandler {
     final totalItems = items.isNotEmpty ? items.length : entries.length;
 
     if (!context.mounted) return;
-    late final FileOperationProgressController progressController;
-    progressController = FileOperationProgressDialog.show(
-      context,
+    final runtime = FileOperationTransferRuntime.show(
+      context: context,
       operation: 'Downloading',
       totalItems: totalItems,
       items: items,
       maxConcurrency: service.downloadConcurrency,
-      showConcurrencyControls: true,
-      onCancel: () {
-        progressController.cancel();
-      },
-    );
-    final transferSession = FileOperationTransferSession(
-      progressController: progressController,
-      isMounted: () => context.mounted,
       showMessage: _showSnackBar,
     );
+    final progressController = runtime.progressController;
+    final transferSession = runtime.session;
 
     var successCount = 0;
 
@@ -329,23 +322,16 @@ class FileOperationsUiHandler {
         .toList();
 
     if (!context.mounted) return;
-    late final FileOperationProgressController progressController;
-    progressController = FileOperationProgressDialog.show(
-      context,
+    final runtime = FileOperationTransferRuntime.show(
+      context: context,
       operation: 'Uploading',
       totalItems: uiItems.length,
       items: uiItems,
       maxConcurrency: service.uploadConcurrency,
-      showConcurrencyControls: true,
-      onCancel: () {
-        progressController.cancel();
-      },
-    );
-    final transferSession = FileOperationTransferSession(
-      progressController: progressController,
-      isMounted: () => context.mounted,
       showMessage: _showSnackBar,
     );
+    final progressController = runtime.progressController;
+    final transferSession = runtime.session;
 
     try {
       int successCount = 0;
@@ -480,23 +466,16 @@ class FileOperationsUiHandler {
         .toList();
 
     if (!context.mounted) return;
-    late final FileOperationProgressController progressController;
-    progressController = FileOperationProgressDialog.show(
-      context,
+    final runtime = FileOperationTransferRuntime.show(
+      context: context,
       operation: 'Uploading',
       totalItems: totalItems,
       items: uiItems,
       maxConcurrency: service.uploadConcurrency,
-      showConcurrencyControls: true,
-      onCancel: () {
-        progressController.cancel();
-      },
-    );
-    final transferSession = FileOperationTransferSession(
-      progressController: progressController,
-      isMounted: () => context.mounted,
       showMessage: _showSnackBar,
     );
+    final progressController = runtime.progressController;
+    final transferSession = runtime.session;
 
     try {
       int successCount = 0;
@@ -639,23 +618,16 @@ class FileOperationsUiHandler {
     if (!context.mounted) {
       return;
     }
-    late final FileOperationProgressController progressController;
-    progressController = FileOperationProgressDialog.show(
-      context,
+    final runtime = FileOperationTransferRuntime.show(
+      context: context,
       operation: 'Uploading',
       totalItems: totalItems,
       items: uiItems.isEmpty ? null : uiItems,
       maxConcurrency: service.uploadConcurrency,
-      showConcurrencyControls: true,
-      onCancel: () {
-        progressController.cancel();
-      },
-    );
-    final transferSession = FileOperationTransferSession(
-      progressController: progressController,
-      isMounted: () => context.mounted,
       showMessage: _showSnackBar,
     );
+    final progressController = runtime.progressController;
+    final transferSession = runtime.session;
 
     var successCount = 0;
     var failCount = 0;

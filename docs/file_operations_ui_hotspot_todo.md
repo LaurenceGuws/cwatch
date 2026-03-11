@@ -71,3 +71,30 @@ Why this is the right next cut:
 - after the transfer-session split, the strongest remaining repetition is the per-item progress controller wiring
 - that support logic is still orthogonal to the actual download/upload task behavior
 - this narrows the handler toward flow orchestration without forcing a broader file-operations redesign
+
+## Task 27.4: define the next bounded file-operation UI batch
+Status: completed
+
+Goal:
+- choose the next repeated transfer-hosting seam from the current code state
+- keep the batch on progress-runtime bootstrap rather than broader operation redesign
+
+Done definition:
+- one next batch is explicit
+- the stop condition reflects the repeated dialog/controller/session setup still left in `FileOperationsUiHandler`
+
+Result:
+- the next bounded file-operation UI batch is now:
+  - extract shared transfer runtime bootstrap from `FileOperationsUiHandler`
+- target files:
+  - [file_operations_ui_handler.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operations_ui_handler.dart)
+  - new helper under `lib/controller/adapters/`
+- stop condition:
+  - repeated progress-dialog creation and transfer-session bootstrap no longer repeats across transfer flows
+  - focused regression coverage continues to protect transfer-session behavior
+  - per-flow transfer work stays stable
+
+Why this is the right next cut:
+- after the transfer-session and item-progress splits, the strongest remaining repetition is the progress runtime bootstrap itself
+- that code is still identical across download and upload variants
+- this narrows the handler further toward true flow-specific behavior without inventing a broader abstraction
