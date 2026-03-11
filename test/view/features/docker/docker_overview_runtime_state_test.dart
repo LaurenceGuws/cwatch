@@ -5,11 +5,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:cwatch/controller/adapters/docker_overview_ui_adapter.dart';
 import 'package:cwatch/controller/controllers/docker_overview_controller.dart';
+import 'package:cwatch/model/features/docker/services/container_distro_key.dart';
 import 'package:cwatch/model/features/docker/services/container_distro_manager.dart';
 import 'package:cwatch/model/features/docker/services/docker_client_service.dart';
 import 'package:cwatch/model/models/docker_container.dart';
 import 'package:cwatch/model/services_infra/cache/cache_storage.dart';
 import 'package:cwatch/model/services_infra/cache/distro_cache_controller.dart';
+import 'package:cwatch/model/models/ssh_host.dart';
+import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 import 'package:cwatch/view/features/docker/widgets/docker_overview_action_state.dart';
 import 'package:cwatch/view/features/docker/widgets/docker_overview_runtime_state.dart';
 
@@ -62,6 +65,33 @@ class _FakeDockerClientService extends DockerClientService {
   }
 }
 
+class _FakeContainerDistroManager extends ContainerDistroManager {
+  _FakeContainerDistroManager()
+    : super(
+        distroCacheController: DistroCacheController(
+          storage: _MemoryCacheStorage(),
+        ),
+        docker: _FakeDockerClientService(),
+      );
+
+  final List<String> ensuredContainerIds = <String>[];
+  final Set<String> cachedKeys = <String>{};
+
+  @override
+  bool hasCached(String key) => cachedKeys.contains(key);
+
+  @override
+  Future<void> ensureDistroForContainer(
+    DockerContainer container, {
+    String? contextName,
+    SshHost? remoteHost,
+    RemoteShellService? shellService,
+    bool force = false,
+  }) async {
+    ensuredContainerIds.add(container.id);
+  }
+}
+
 class _FakeDockerOverviewController extends DockerOverviewController {
   _FakeDockerOverviewController({
     required super.docker,
@@ -108,15 +138,18 @@ void main() {
   DockerOverviewRuntimeState runtime({
     required _FakeDockerOverviewController controller,
     required DockerOverviewUiAdapter uiAdapter,
+    ContainerDistroManager? containerDistroManager,
   }) {
     return DockerOverviewRuntimeState(
       controller: controller,
-      containerDistroManager: ContainerDistroManager(
-        distroCacheController: DistroCacheController(
-          storage: _MemoryCacheStorage(),
-        ),
-        docker: controller.docker,
-      ),
+      containerDistroManager:
+          containerDistroManager ??
+          ContainerDistroManager(
+            distroCacheController: DistroCacheController(
+              storage: _MemoryCacheStorage(),
+            ),
+            docker: controller.docker,
+          ),
       actionState: const DockerOverviewActionState(),
       uiAdapter: uiAdapter,
     );
@@ -201,6 +234,30 @@ void main() {
         controller.cachedContainers.map((item) => item.id).toList(),
         ['b', 'a2'],
       );
+    });
+
+    testWidgets('warms distro cache only for uncached running containers on demand', (
+      tester,
+    ) async {
+      final controller =
+          _FakeDockerOverviewController(docker: _FakeDockerClientService());
+      final uiAdapter = await buildUiAdapter(tester);
+      final distroManager = _FakeContainerDistroManager()
+        ..cachedKeys.add(containerDistroCacheKey(container(id: 'cached')));
+
+      runtime(
+        controller: controller,
+        uiAdapter: uiAdapter,
+        containerDistroManager: distroManager,
+      ).ensureContainerDistroOnDemand([
+        container(id: 'cached'),
+        container(id: 'running'),
+        container(id: 'stopped', stateValue: 'exited', status: 'stopped'),
+      ]);
+
+      await tester.pump();
+
+      expect(distroManager.ensuredContainerIds, ['running']);
     });
   });
 }

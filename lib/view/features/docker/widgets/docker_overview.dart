@@ -211,7 +211,6 @@ class _DockerOverviewState extends State<DockerOverview>
                   return const Center(child: Text('No data.'));
                 }
                 final containers = _controller.ensureHydrated(data);
-                _runtimeState.trackContainerDistro(containers);
                 final images = data.images;
                 final networks = data.networks;
                 final volumes = data.volumes;
@@ -416,6 +415,7 @@ class _DockerOverviewState extends State<DockerOverview>
             selectedIds: _controller.selectedContainerIds,
             containers: _currentContainers,
           );
+    _runtimeState.ensureContainerDistroOnDemand(selection);
     final isMulti = selection.length > 1;
     final title = isMulti
         ? '${selection.length} containers selected'

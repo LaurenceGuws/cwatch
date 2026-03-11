@@ -25,34 +25,23 @@ class DockerOverviewRuntimeState {
   final DockerOverviewActionState _actionState;
   final DockerOverviewUiAdapter _uiAdapter;
 
-  final Map<String, bool> _containerRunning = {};
-  bool _didProbeDistro = false;
-
-  void trackContainerDistro(List<DockerContainer> containers) {
-    if (_didProbeDistro) {
-      return;
-    }
-    _didProbeDistro = true;
+  void ensureContainerDistroOnDemand(Iterable<DockerContainer> containers) {
     for (final container in containers) {
-      final key = containerDistroCacheKey(container);
-      final wasRunning = _containerRunning[key] ?? false;
-      _containerRunning[key] = container.isRunning;
       if (!container.isRunning) {
         continue;
       }
-      final needsProbe =
-          !_containerDistroManager.hasCached(key) || !wasRunning;
-      if (needsProbe) {
-        unawaited(
-          _containerDistroManager.ensureDistroForContainer(
-            container,
-            contextName: _controller.contextName,
-            remoteHost: _controller.remoteHost,
-            shellService: _controller.shellService,
-            force: !wasRunning,
-          ),
-        );
+      final key = containerDistroCacheKey(container);
+      if (_containerDistroManager.hasCached(key)) {
+        continue;
       }
+      unawaited(
+        _containerDistroManager.ensureDistroForContainer(
+          container,
+          contextName: _controller.contextName,
+          remoteHost: _controller.remoteHost,
+          shellService: _controller.shellService,
+        ),
+      );
     }
   }
 
