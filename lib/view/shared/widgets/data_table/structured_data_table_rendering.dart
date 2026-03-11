@@ -4,6 +4,8 @@ part of 'structured_data_table.dart';
 mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
   StructuredDataTableColumnResizePlanner<T> get _columnResizePlanner =>
       StructuredDataTableColumnResizePlanner<T>();
+  StructuredDataTableColumnReorderProjection<T> get _columnReorderProjection =>
+      StructuredDataTableColumnReorderProjection<T>();
 
   List<Widget> _buildRowCells(
     BuildContext context, {
@@ -312,13 +314,19 @@ mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
           );
 
           void reorderFrom(int from) {
+            final result = _columnReorderProjection.reorder(
+              columns: _columns,
+              columnWidthOverrides: _columnWidthOverrides,
+              fromIndex: from,
+              targetIndex: index,
+            );
             setState(() {
-              final moved = _columns.removeAt(from);
-              _columns.insert(index, moved);
-              final movedWidth = _columnWidthOverrides.removeAt(from);
-              _columnWidthOverrides.insert(index, movedWidth);
-              _sortColumnIndex = null;
-              _sortAscending = true;
+              _columns = result.columns;
+              _columnWidthOverrides = result.columnWidthOverrides;
+              if (result.resetSort) {
+                _sortColumnIndex = null;
+                _sortAscending = true;
+              }
               _listController.clearSelection();
             });
             widget.onColumnsReordered?.call(
@@ -371,7 +379,11 @@ mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
 
           final target = DragTarget<int>(
             hitTestBehavior: HitTestBehavior.deferToChild,
-            onWillAcceptWithDetails: (details) => details.data != index,
+            onWillAcceptWithDetails: (details) => _columnReorderProjection
+                .canAcceptDrop(
+                  sourceIndex: details.data,
+                  targetIndex: index,
+                ),
             onAcceptWithDetails: (details) => reorderFrom(details.data),
             builder: (context, candidateData, rejectedData) {
               final highlight = candidateData.isNotEmpty;

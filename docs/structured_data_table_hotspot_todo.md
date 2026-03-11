@@ -242,3 +242,24 @@ Result:
   - [structured_data_table_scrolling.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_scrolling.dart)
 - focused regression coverage exists in:
   - [structured_data_table_scroll_schedule_state_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/data_table/structured_data_table_scroll_schedule_state_test.dart)
+
+## Task 23.12: extract column reorder projection from header rendering
+Status: completed
+
+Goal:
+- reduce remaining shared engine complexity in header rendering without redesigning drag widgets or drop highlighting
+- move pure reorder acceptance and reordered column/width projection into a dedicated helper
+
+Done definition:
+- reorder acceptance no longer lives inline in header rendering
+- column reorder projection no longer lives inline in header rendering
+- drag widgets, drop highlighting, and widget-side setState remain in rendering
+- focused regression coverage exists for the new helper
+
+Result:
+- pure reorder projection now lives in:
+  - [structured_data_table_column_reorder_projection.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_column_reorder_projection.dart)
+- header rendering now delegates reorder acceptance and reordered state projection:
+  - [structured_data_table_rendering.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_rendering.dart)
+- focused regression coverage exists in:
+  - [structured_data_table_column_reorder_projection_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/data_table/structured_data_table_column_reorder_projection_test.dart)
