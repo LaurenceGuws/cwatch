@@ -240,3 +240,25 @@ Done definition:
 Result:
 - builtin SFTP execution now lives in a dedicated helper
 - `BuiltInSshClientManager` is further narrowed toward the remaining streaming execution branch
+
+
+## Task 23.14: implement builtin streaming execution cleanup
+Status: completed
+
+Goal:
+- extract the builtin streaming command workflow out of `BuiltInSshClientManager`
+
+Done definition:
+- one builtin-local helper owns:
+  - session creation for streaming commands
+  - cancellation wiring
+  - stdout/stderr collection orchestration
+  - timeout wrapping for the streaming session
+  - session/client kill-on-timeout behavior
+  - final stdout result shaping
+- `BuiltInSshClientManager.runCommandStreaming(...)` no longer owns that inline workflow
+- focused regression coverage exists for the new helper
+
+Result:
+- builtin streaming execution now lives in a dedicated helper
+- `BuiltInSshClientManager` is reduced to thin workflow wrappers around extracted builtin helpers

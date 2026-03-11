@@ -18,6 +18,7 @@ import 'builtin_ssh_logging.dart';
 import 'builtin_ssh_retry_handler.dart';
 import 'builtin_ssh_sftp_runner.dart';
 import 'builtin_ssh_stream_output_collector.dart';
+import 'builtin_ssh_streaming_runner.dart';
 import 'builtin_ssh_timeout_runner.dart';
 import 'builtin_ssh_vault.dart';
 
@@ -53,6 +54,12 @@ class BuiltInSshClientManager {
     timeoutRunner: _timeoutRunner,
     clientLifecycle: _clientLifecycle,
   );
+  late final BuiltInSshStreamingRunner _streamingRunner =
+      BuiltInSshStreamingRunner(
+        timeoutRunner: _timeoutRunner,
+        clientLifecycle: _clientLifecycle,
+        streamOutputCollector: _streamOutputCollector,
+      );
   late final BuiltInSshAuthChallengeHandler _authChallengeHandler =
       BuiltInSshAuthChallengeHandler(
         vault: vault,
@@ -149,52 +156,18 @@ class BuiltInSshClientManager {
     void Function(String line)? onStderrLine,
   }) async {
     final safeCommand = await _commandPreparer.prepareCommand(host, command);
-    logBuiltInSsh('Running command on ${host.name}: $safeCommand');
-    final stdoutBuffer = StringBuffer();
-    final stderrBuffer = StringBuffer();
-
-    final bytes = await _withClient(host, (client) async {
-      final session = await client.execute(safeCommand);
-      if (cancellation?.isCancelled == true) {
-        session.close();
-        throw const RemoteCommandCancelled();
-      }
-      cancellation?.onCancel(() {
-        _clientLifecycle.killSession(session);
-        _clientLifecycle.killClient(client);
-      });
-      final stdoutDone = _streamOutputCollector.collect(
-        stream: session.stdout,
-        buffer: stdoutBuffer,
-        onLine: onStdoutLine,
-      );
-      final stderrDone = _streamOutputCollector.collect(
-        stream: session.stderr,
-        buffer: stderrBuffer,
-        onLine: onStderrLine,
-      );
-      await _timeoutRunner.run(
-        future: Future.wait([
-          session.done,
-          stdoutDone,
-          stderrDone,
-        ]),
-        timeout: timeout,
+    return _withClient(host, (client) {
+      return _streamingRunner.runCommandStreaming(
         host: host,
-        commandDescription: safeCommand,
+        client: client,
+        safeCommand: safeCommand,
+        timeout: timeout,
         onTimeout: onTimeout,
-        onKill: () {
-          _clientLifecycle.killSession(session);
-          _clientLifecycle.killClient(client);
-        },
+        cancellation: cancellation,
+        onStdoutLine: onStdoutLine,
+        onStderrLine: onStderrLine,
       );
-      return stdoutBuffer.toString();
     });
-    final output = bytes;
-    logBuiltInSsh(
-      'Command on ${host.name} completed. Output length=${output.length}',
-    );
-    return output;
   }
 
   Future<T> withSftp<T>(
