@@ -151,3 +151,27 @@ Result:
   - [debug_logs_performance_panel.dart](/home/home/personal/cwatch/lib/view/features/debug_logs/debug_logs_performance_panel.dart)
 - the remaining debug logs shell is narrowed:
   - [debug_logs_view.dart](/home/home/personal/cwatch/lib/view/features/debug_logs/debug_logs_view.dart)
+
+## Task 28.8: checkpoint the local complexity reevaluation pass
+Status: completed
+
+Goal:
+- stop the reopened local-complexity pass once the strongest mixed-surface files have been narrowed
+- avoid forcing splits in large files whose remaining weight is mostly one coherent responsibility
+
+Done definition:
+- the local-complexity pass is recorded as checkpointed from the current code state
+- the remaining notable large files are described as review-only candidates rather than active cleanup targets
+
+Result:
+- the local-complexity reevaluation pass is now checkpointed from the current code state
+- completed current-state file-level reductions are:
+  - Docker storage lists out of `docker_lists.dart`
+  - breadcrumb widgets out of `path_navigator.dart`
+  - performance panel out of `debug_logs_view.dart`
+- remaining large files such as [connectivity_tab.dart](/home/home/personal/cwatch/lib/view/features/servers/widgets/connectivity_tab.dart) are now treated as review-only candidates until fresh evidence shows another mixed-surface split with clear value
+
+Why checkpoint is correct now:
+- the strongest current file-level mixed-surface seams have already been removed
+- the next obvious large files are heavier because of coherent runtime behavior, not just because unrelated widgets are co-located
+- continuing by default would risk low-value churn instead of meaningful decomposition
