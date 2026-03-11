@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:cwatch/model/models/remote_file_entry.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import '../logging/app_logger.dart';
+import 'process_ssh_file_operation_planner.dart';
 import 'process_ssh_run_result_handler.dart';
 import 'process_ssh_failure_mapper.dart';
 import 'remote_shell_base.dart';
@@ -18,6 +19,8 @@ class ProcessRemoteShellService extends RemoteShellService {
   final ProcessSshFailureMapper _failureMapper = const ProcessSshFailureMapper();
   final ProcessSshRunResultHandler _resultHandler =
       const ProcessSshRunResultHandler();
+  final ProcessSshFileOperationPlanner _filePlanner =
+      const ProcessSshFileOperationPlanner();
 
   /// Handles SSH command errors, detecting authentication failures.
   Never _handleSshError(SshHost host, ProcessResult result) {
@@ -251,10 +254,10 @@ class ProcessRemoteShellService extends RemoteShellService {
     Duration timeout = const Duration(seconds: 15),
     RunTimeoutHandler? onTimeout,
   }) async {
-    final normalized = sanitizePath(path);
+    final normalized = _filePlanner.normalize(path);
     final run = await _runProcess(
       host,
-      _runner.buildSshCommand(host, "cat '${escapeSingleQuotes(normalized)}'"),
+      _runner.buildSshCommand(host, _filePlanner.readFileCommand(normalized)),
       timeout: timeout,
       onTimeout: onTimeout,
     );
@@ -269,14 +272,18 @@ class ProcessRemoteShellService extends RemoteShellService {
     Duration timeout = const Duration(seconds: 15),
     RunTimeoutHandler? onTimeout,
   }) async {
-    final normalized = sanitizePath(path);
+    final normalized = _filePlanner.normalize(path);
     final delimiter = randomDelimiter();
     final encoded = base64.encode(utf8.encode(contents));
     final run = await _runProcess(
       host,
       _runner.buildSshCommand(
         host,
-        "base64 -d > '${escapeSingleQuotes(normalized)}' <<'$delimiter'\n$encoded\n$delimiter",
+        _filePlanner.writeFileCommand(
+          path: normalized,
+          encodedContents: encoded,
+          delimiter: delimiter,
+        ),
       ),
       timeout: timeout,
       onTimeout: onTimeout,
@@ -305,16 +312,16 @@ class ProcessRemoteShellService extends RemoteShellService {
     Duration timeout = const Duration(seconds: 15),
     RunTimeoutHandler? onTimeout,
   }) async {
-    final normalizedSource = sanitizePath(source);
-    final normalizedDest = sanitizePath(destination);
+    final normalizedSource = _filePlanner.normalize(source);
+    final normalizedDest = _filePlanner.normalize(destination);
     await _ensureRemoteDirectory(
       host,
-      dirnameFromPath(normalizedDest),
+      _filePlanner.parentDirectory(normalizedDest),
       onTimeout: onTimeout,
     );
     final run = await _runHostCommand(
       host,
-      "mv '${escapeSingleQuotes(normalizedSource)}' '${escapeSingleQuotes(normalizedDest)}'",
+      _filePlanner.movePathCommand(normalizedSource, normalizedDest),
       timeout: timeout,
       onTimeout: onTimeout,
     );
@@ -352,17 +359,20 @@ class ProcessRemoteShellService extends RemoteShellService {
     Duration timeout = const Duration(seconds: 20),
     RunTimeoutHandler? onTimeout,
   }) async {
-    final normalizedSource = sanitizePath(source);
-    final normalizedDest = sanitizePath(destination);
+    final normalizedSource = _filePlanner.normalize(source);
+    final normalizedDest = _filePlanner.normalize(destination);
     await _ensureRemoteDirectory(
       host,
-      dirnameFromPath(normalizedDest),
+      _filePlanner.parentDirectory(normalizedDest),
       onTimeout: onTimeout,
     );
-    final flag = recursive ? '-R ' : '';
     final run = await _runHostCommand(
       host,
-      "cp $flag'${escapeSingleQuotes(normalizedSource)}' '${escapeSingleQuotes(normalizedDest)}'",
+      _filePlanner.copyPathCommand(
+        normalizedSource,
+        normalizedDest,
+        recursive: recursive,
+      ),
       timeout: timeout,
       onTimeout: onTimeout,
     );
@@ -389,10 +399,10 @@ class ProcessRemoteShellService extends RemoteShellService {
     Duration timeout = const Duration(seconds: 15),
     RunTimeoutHandler? onTimeout,
   }) async {
-    final normalized = sanitizePath(path);
+    final normalized = _filePlanner.normalize(path);
     final run = await _runHostCommand(
       host,
-      "rm -rf '${escapeSingleQuotes(normalized)}'",
+      _filePlanner.deletePathCommand(normalized),
       timeout: timeout,
       onTimeout: onTimeout,
     );
@@ -422,11 +432,11 @@ class ProcessRemoteShellService extends RemoteShellService {
     Duration timeout = const Duration(minutes: 2),
     RunTimeoutHandler? onTimeout,
   }) async {
-    final normalizedSource = sanitizePath(sourcePath);
-    final normalizedDest = sanitizePath(destinationPath);
+    final normalizedSource = _filePlanner.normalize(sourcePath);
+    final normalizedDest = _filePlanner.normalize(destinationPath);
     await _ensureRemoteDirectory(
       destinationHost,
-      dirnameFromPath(normalizedDest),
+      _filePlanner.parentDirectory(normalizedDest),
       onTimeout: onTimeout,
     );
     final sharedPort = sourceHost.port == destinationHost.port
@@ -476,7 +486,7 @@ class ProcessRemoteShellService extends RemoteShellService {
     void Function(int bytesTransferred)? onBytes,
     RunTimeoutHandler? onTimeout,
   }) async {
-    final normalizedSource = sanitizePath(remotePath);
+    final normalizedSource = _filePlanner.normalize(remotePath);
     final destinationDir = Directory(localDestination);
     await destinationDir.create(recursive: true);
     final args =
@@ -505,11 +515,11 @@ class ProcessRemoteShellService extends RemoteShellService {
     void Function(int bytesTransferred)? onBytes,
     RunTimeoutHandler? onTimeout,
   }) async {
-    final normalizedDest = sanitizePath(remoteDestination);
+    final normalizedDest = _filePlanner.normalize(remoteDestination);
     final source = localPath;
     await _ensureRemoteDirectory(
       host,
-      dirnameFromPath(normalizedDest),
+      _filePlanner.parentDirectory(normalizedDest),
       onTimeout: onTimeout,
     );
     final args =
@@ -830,7 +840,7 @@ class ProcessRemoteShellService extends RemoteShellService {
     }
     await _runHostCommand(
       host,
-      "mkdir -p '${escapeSingleQuotes(directory)}'",
+      _filePlanner.ensureDirectoryCommand(directory),
       onTimeout: onTimeout,
     );
   }
@@ -845,8 +855,7 @@ class ProcessRemoteShellService extends RemoteShellService {
     if (!debugMode) {
       return null;
     }
-    final command =
-        "[ -e '${escapeSingleQuotes(path)}' ] && echo 'EXISTS' || echo 'MISSING'";
+    final command = _filePlanner.existsCheckCommand(path);
     final run = await _runSsh(
       host,
       command,

@@ -69,3 +69,15 @@ Done definition:
 - one SSH-local helper owns run-result debug emission and exists-check verification shaping
 - `ProcessRemoteShellService` no longer repeats the same result-to-debug/result-to-verification pattern inline across multiple methods
 - focused regression coverage exists for the new helper
+
+
+## Task 23.4: implement the process SSH file-operation command assembly split
+Status: completed
+
+Goal:
+- extract repeated remote file-operation command planning out of `ProcessRemoteShellService`
+
+Done definition:
+- one SSH-local helper owns file-operation command assembly and path-derived directory planning
+- `ProcessRemoteShellService` no longer owns inline file-operation shell command string construction across read/write/move/copy/delete/verification flows
+- focused regression coverage exists for the new helper
