@@ -107,3 +107,47 @@ Result:
   - [path_breadcrumbs_view.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/path_breadcrumbs_view.dart)
 - the remaining path navigator shell is narrowed:
   - [path_navigator.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/path_navigator.dart)
+
+## Task 28.6: define the next bounded local complexity batch
+Status: completed
+
+Goal:
+- choose the next large file whose size still reflects multiple distinct local surfaces in one file
+- prefer a pure file-level split over runtime-heavy files whose size is mostly one coherent responsibility
+
+Done definition:
+- one explicit next batch is named from fresh current-state evidence
+- the stop condition narrows one file without reopening broader architecture work
+
+Result:
+- the next bounded local-complexity batch is now:
+  - split the performance tab surface out of `debug_logs_view.dart`
+- target files:
+  - [debug_logs_view.dart](/home/home/personal/cwatch/lib/view/features/debug_logs/debug_logs_view.dart)
+  - new performance-panel widget file under `lib/view/features/debug_logs/`
+- stop condition:
+  - the performance tab widget tree and its local rendering helpers no longer live in the same file as the debug log table panel
+  - `DebugLogsView` remains the public entry widget
+  - behavior stays stable
+
+Why this is the right next cut:
+- `debug_logs_view.dart` still hosts two genuinely separate tab panels
+- the performance panel has a self-contained filter/chart surface
+- this improves navigation and maintenance without redesigning logging behavior
+
+## Task 28.7: implement the performance panel split
+Status: completed
+
+Goal:
+- move the debug-log performance tab surface into its own file while keeping the top-level debug logs screen stable
+
+Done definition:
+- the performance panel and its local chart/render helpers no longer live in `debug_logs_view.dart`
+- the remaining file is materially narrower around the tab shell and networking log table
+- focused validation stays green
+
+Result:
+- debug-log performance tab widgets now live in:
+  - [debug_logs_performance_panel.dart](/home/home/personal/cwatch/lib/view/features/debug_logs/debug_logs_performance_panel.dart)
+- the remaining debug logs shell is narrowed:
+  - [debug_logs_view.dart](/home/home/personal/cwatch/lib/view/features/debug_logs/debug_logs_view.dart)
