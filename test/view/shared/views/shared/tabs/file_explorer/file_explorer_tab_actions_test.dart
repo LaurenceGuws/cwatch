@@ -17,8 +17,6 @@ import 'package:cwatch/model/services_infra/settings/app_settings_controller.dar
 import 'package:cwatch/model/services_infra/ssh/remote_editor_cache.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 import 'package:cwatch/model/services_infra/ssh/terminal_session.dart';
-import 'package:cwatch/model/shared/services/explorer_selection_state.dart';
-import 'package:cwatch/model/shared/services/path_utils.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/file_explorer/file_explorer_tab_actions.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/file_explorer/selection_controller.dart';
 
@@ -182,10 +180,6 @@ class _ActionsTestController extends FileExplorerController {
     required super.uiAdapter,
   }) {
     currentPath = '/srv';
-    selectionState = ExplorerSelectionState(
-      currentPath: currentPath,
-      joinPath: PathUtils.joinPath,
-    );
     clipboardHandler = ClipboardOperationsHandler(
       host: host,
       currentPath: currentPath,
