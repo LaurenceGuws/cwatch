@@ -63,7 +63,7 @@ class FileExplorerTabEntryInteractions {
           actions.showEntryContextMenu(context, entry, position),
       onBackgroundContextMenu: null,
       onKeyEvent: (node, event, entries) =>
-          _handleListKeyEvent(node, event, entries),
+          handleListKeyEvent(node, event, entries),
       onSyncLocalEdit: actions.syncLocalEdit,
       onRefreshCacheFromServer: actions.refreshCacheFromServer,
       onClearCachedCopy: actions.clearCachedCopy,
@@ -79,7 +79,7 @@ class FileExplorerTabEntryInteractions {
     );
   }
 
-  KeyEventResult _handleListKeyEvent(
+  KeyEventResult handleListKeyEvent(
     FocusNode node,
     KeyEvent event,
     List entries,

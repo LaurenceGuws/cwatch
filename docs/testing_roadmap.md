@@ -637,6 +637,27 @@ Verification:
 - `flutter test test/view/features/servers/server_host_surface_controller_test.dart test/view/features/docker/docker_local_state_controller_test.dart test/view/features/kubernetes/kubernetes_context_list_state_test.dart`
 - `flutter analyze`
 
+### Task 13.21: add explorer interaction seam coverage
+Status: completed
+
+What landed:
+- [file_explorer_tab_entry_interactions_test.dart](/home/home/personal/cwatch/test/view/shared/views/shared/tabs/file_explorer/file_explorer_tab_entry_interactions_test.dart)
+- [file_explorer_tab_entry_interactions.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/file_explorer_tab_entry_interactions.dart) now exposes `handleListKeyEvent(...)` as a direct seam entry point
+
+Coverage added:
+- paste keyboard routing delegates to the actions seam with the current explorer path
+- multi-delete keyboard routing delegates with the currently selected entries
+- rename keyboard routing delegates with the primary selected entry
+
+Why this matters:
+- it covers the riskiest remaining extracted explorer-local seam after the earlier presenter/actions split
+- it validates the extracted interaction router directly without recreating the full explorer widget harness
+- it keeps the test on the actual seam instead of pushing the same behavior back into a giant widget test
+
+Verification:
+- `flutter test test/view/shared/views/shared/tabs/file_explorer/file_explorer_tab_entry_interactions_test.dart`
+- `flutter analyze`
+
 ## Test Organization
 
 Recommended structure:
