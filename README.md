@@ -169,19 +169,19 @@ Current fresh current-state review:
 - `docs/current_code_smell_review.md`
 
 Current active hotspot order:
-1. Runtime/composition ownership cleanup
-2. Workspace-shell hosting reuse
-3. feature-local settings workflow reevaluation only if fresh evidence reopens it
-4. SSH runtime/feature integration reevaluation only if fresh evidence reopens it
-5. file-operation flow reevaluation only if fresh evidence reopens it
+1. Workspace-shell hosting reuse
+2. feature-local settings workflow reevaluation only if fresh evidence reopens it
+3. SSH runtime/feature integration reevaluation only if fresh evidence reopens it
+4. file-operation flow reevaluation only if fresh evidence reopens it
 
 Current active next TODO:
 - `docs/ui_adapter_surface_hotspot_todo.md` checkpointed
+- `docs/runtime_composition_hotspot_todo.md` checkpointed
 - `docs/settings_hotspot_todo.md` checkpointed
 - `docs/ssh_current_hotspot_todo.md` checkpointed
 - `docs/file_operations_ui_hotspot_todo.md` checkpointed
 - `docs/config_metadata_hotspot_todo.md` checkpointed
-- next hotspot should be chosen from the current review, most likely runtime/composition ownership cleanup unless fresh evidence justifies reopening a narrower feature-local seam
+- next hotspot should be chosen from the current review, most likely workspace-shell hosting reuse
 
 Current enforced design checkpoints:
 - Docker feature decomposition is checkpointed and should only reopen from fresh evidence
@@ -190,6 +190,7 @@ Current enforced design checkpoints:
 - file-operation UI deduplication is checkpointed and should only reopen from fresh evidence
 - config metadata single-source-of-truth cleanup is checkpointed and should only reopen from fresh evidence
 - UI-adapter surface reduction is checkpointed and should only reopen from fresh evidence
+- runtime/composition ownership cleanup is checkpointed and should only reopen from fresh evidence
 - theme/token decomposition is checkpointed and should only reopen from fresh evidence
 - StructuredDataTable engine projection decomposition is checkpointed and should only reopen from fresh evidence
 - settings mutation ownership cleanup is checkpointed and should only reopen from fresh evidence

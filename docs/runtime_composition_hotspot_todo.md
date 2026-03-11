@@ -1,6 +1,6 @@
 # Runtime Composition Hotspot TODO
 
-Status: active
+Status: checkpointed
 Purpose: track the next bounded cleanup batches for the current highest-value repo hotspot: runtime and composition ownership.
 
 ## Task 25.15: resume the runtime/composition hotspot from the current code state
@@ -73,6 +73,18 @@ Why this is the right next cut:
 - the Kubernetes binding still owns feature assembly rather than shared DI behavior
 - the feature entry widget depends on that binding directly
 - moving the assembly feature-local continues the runtime ownership cleanup consistently across modules
+
+## Checkpoint
+
+Current state:
+- server-specific runtime assembly already lives in the server feature runtime seam
+- Docker-specific runtime/controller assembly now lives in the Docker feature runtime seam
+- Kubernetes-specific runtime/controller assembly now lives in the Kubernetes feature runtime seam
+- the earlier repeated shared shell-host policies remain extracted in shared workspace helpers
+
+What this means:
+- runtime/composition ownership cleanup should now be treated as an enforced baseline, not as the next active repo hotspot
+- future work here should reopen only from fresh evidence in a specific feature/runtime seam, not from the older binding-centered ownership pass
 
 ## Task 25.1: start the runtime/composition hotspot pass
 Status: completed

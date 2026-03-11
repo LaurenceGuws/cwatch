@@ -454,11 +454,10 @@ A fresh current-state review now shows that the main remaining issues are:
 - narrower feature-local workflow density that should reopen only from fresh evidence
 
 Current active hotspot order:
-1. Runtime/composition ownership cleanup
-2. Workspace-shell hosting reuse
-3. feature-local settings workflow reevaluation only if fresh evidence reopens it
-4. SSH runtime/feature integration reevaluation only if fresh evidence reopens it
-5. file-operation flow reevaluation only if fresh evidence reopens it
+1. Workspace-shell hosting reuse
+2. feature-local settings workflow reevaluation only if fresh evidence reopens it
+3. SSH runtime/feature integration reevaluation only if fresh evidence reopens it
+4. file-operation flow reevaluation only if fresh evidence reopens it
 
 Current handover/source-of-truth docs for this phase:
 - `docs/current_code_smell_review.md`

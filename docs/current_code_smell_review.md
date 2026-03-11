@@ -27,20 +27,7 @@ What remains is less about one giant file and more about architecture drift:
 
 ## Current Highest-Value Hotspots
 
-### 1. Runtime and composition ownership blur
-Primary files:
-- [server_workspace_binding.dart](/home/home/personal/cwatch/lib/controller/di/bindings/server_workspace_binding.dart)
-- [docker_view_binding.dart](/home/home/personal/cwatch/lib/controller/di/bindings/docker_view_binding.dart)
-- [kubernetes_context_binding.dart](/home/home/personal/cwatch/lib/controller/di/bindings/kubernetes_context_binding.dart)
-- [server_workspace_controller.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_controller.dart)
-- [docker_workspace_controller.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_workspace_controller.dart)
-
-Why it matters now:
-- feature runtime assembly is still split across `controller/di`, feature `view/` trees, and feature-local controllers
-- persistence, restore logic, UI-adapter creation, and feature workflow ownership are not centered in one clear feature composition seam
-- this is now the clearest decoupling problem in the current code state
-
-### 2. Workspace-shell hosting duplication
+### 1. Workspace-shell hosting duplication
 Primary files:
 - [docker_view.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view.dart)
 - [server_workspace_view.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_view.dart)
@@ -49,9 +36,9 @@ Primary files:
 Why it matters now:
 - the same workspace-shell setup pattern is still repeated across features
 - tab restore/setup, listeners, placeholder/base-tab creation, and shell/runtime glue are still re-expressed per feature
-- this is both a DRY problem and an ownership problem
+- this is now the strongest remaining DRY and ownership problem in the current code state
 
-### 3. Feature-local settings workflow density
+### 2. Feature-local settings workflow density
 Primary files:
 - [builtin_ssh_settings.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/builtin_ssh_settings.dart)
 - [ssh_settings_controls.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/ssh_settings_controls.dart)
@@ -62,7 +49,7 @@ Why it matters now:
 - what remains is denser feature-local workflow around built-in SSH key management, host bindings, and picker/prompt orchestration
 - this is now a narrower local complexity seam, not the same repo-level DRY hotspot as before
 
-### 4. SSH runtime/feature integration reevaluation
+### 3. SSH runtime/feature integration reevaluation
 Primary files:
 - [ssh_shell_factory.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_factory.dart)
 - [process_ssh_shell_service.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/process_ssh_shell_service.dart)
@@ -73,7 +60,7 @@ Why it matters now:
 - what remains is narrower runtime hosting and feature-integration behavior that should only be reopened from fresh evidence
 - this is no longer a top repo-wide over-engineering target in the current code state
 
-### 5. File-operation flow reevaluation
+### 4. File-operation flow reevaluation
 Primary files:
 - [file_operations_ui_handler.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operations_ui_handler.dart)
 - [file_operation_transfer_session.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operation_transfer_session.dart)
@@ -94,6 +81,7 @@ The following earlier hotspots should now be treated as checkpointed current-sta
 - file-operation UI deduplication
 - config metadata single-source-of-truth cleanup
 - UI-adapter surface reduction
+- runtime/composition ownership cleanup
 - theme/token decomposition
 - StructuredDataTable engine projection decomposition
 - settings mutation ownership cleanup
@@ -113,19 +101,14 @@ The repo now has direct tests in many extracted seams, but the following still c
 
 ## Recommended Next Order
 
-1. Runtime/composition ownership cleanup
-2. Workspace-shell hosting reuse
-3. feature-local settings workflow reevaluation only if fresh evidence reopens it
-4. SSH runtime/feature integration reevaluation only if fresh evidence reopens it
-5. file-operation flow reevaluation only if fresh evidence reopens it
+1. Workspace-shell hosting reuse
+2. feature-local settings workflow reevaluation only if fresh evidence reopens it
+3. SSH runtime/feature integration reevaluation only if fresh evidence reopens it
+4. file-operation flow reevaluation only if fresh evidence reopens it
 
 ## Why This Order
 
-### Runtime/composition ownership first
-- it is the clearest remaining architecture smell
-- it directly affects decoupling, disposal ownership, and feature-local reasoning
-
-### Workspace-shell hosting second
+### Workspace-shell hosting first
 - it is the strongest repeated workflow pattern left in the feature layer
 - a cleaner host contract will reduce duplicate feature setup logic
 
