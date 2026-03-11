@@ -198,29 +198,9 @@ It currently covers:
 - shared straightforward loading/error/empty feedback around table-hosted surfaces
 
 Current next polish move:
-- floating settings and auxiliary panel chrome consistency
+- re-scope the next visible consistency hotspot from evidence instead of continuing floating-panel work by default
 
 Why:
-- several active feature surfaces now use the same lightweight floating panel pattern:
-  - [floating_settings_window.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/settings/floating_settings_window.dart)
-  - Docker picker settings overlay
-  - Kubernetes list settings overlay
-  - explorer floating settings host
-  - editor and terminal floating settings panels
-- these surfaces are now a more visible source of drift than the checkpointed dashboard and table hosts
-- this is a shell-facing polish concern, not a structural ownership problem
-
-Current floating-panel polish direction:
-- standardize the visible chrome around lightweight floating settings/panel surfaces
-- not the internal settings controls or feature-specific actions
-
-What should become shared:
-- header/title/close spacing
-- panel border/radius/elevation treatment
-- default interior padding and section spacing
-- consistent close-affordance framing
-
-What should stay feature-owned:
-- panel contents
-- feature-specific actions and quick toggles
-- special sizing constraints where a feature genuinely needs them
+- floating settings and auxiliary panel chrome is now at a good checkpoint
+- the shared panel surface already improved the repeated visible drift across Docker, Kubernetes, explorer, editor, and terminal
+- any further panel work now needs a sharper product-facing issue, not more default expansion

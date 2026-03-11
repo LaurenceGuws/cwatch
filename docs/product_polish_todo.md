@@ -455,3 +455,56 @@ First implementation batch:
   - Docker picker settings overlay
   - Kubernetes list settings overlay
   - explorer floating settings host
+
+## Task 21.17: implement the first floating settings/panel polish batch
+Status: completed
+
+Goal:
+- tighten the shared chrome around lightweight floating settings/panel surfaces
+- improve the visible shell-facing panel treatment without changing feature-local panel contents
+
+Done definition:
+- the shared floating panel surface has more intentional chrome
+- Docker, Kubernetes, explorer, editor, and terminal all inherit the shared improvement
+- no feature-specific content wiring changes are needed
+
+Result:
+- [floating_settings_window.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/settings/floating_settings_window.dart) now has:
+  - stronger elevation and clipping
+  - cleaner border/radius treatment
+  - more intentional header spacing
+  - improved close affordance styling
+  - normalized interior padding and divider tone
+  - normalized body text spacing inside panel content
+
+Why this is a good checkpoint:
+- it improves a reused shell-facing surface directly
+- it benefits multiple active features at once
+- it stays inside the shared chrome boundary and does not flatten feature-specific panel contents
+
+## Task 21.18: checkpoint floating settings/panel polish
+Status: completed
+
+Goal:
+- stop the floating-panel polish layer at a defensible point
+- make the current shared panel chrome language explicit as a checkpoint
+
+Done definition:
+- the floating-panel polish layer is recorded as checkpointed
+- the docs no longer imply that floating-panel work should keep expanding by default
+
+Result:
+- floating settings and auxiliary panel chrome consistency is now treated as a product-polish checkpoint
+- the shared floating-panel language currently covers:
+  - header/title/close spacing
+  - border/radius/elevation treatment
+  - interior padding and divider tone
+  - normalized panel body text spacing
+- any further floating-panel work should reopen from a narrower visible issue such as:
+  - drag affordance polish
+  - panel sizing heuristics
+  - panel-specific action-bar consistency
+
+Why this is the right stop:
+- the biggest repeated floating-panel drift is already reduced
+- pushing further without a sharper target would risk generic cleanup instead of product value
