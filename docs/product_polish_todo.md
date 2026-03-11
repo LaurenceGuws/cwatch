@@ -779,3 +779,53 @@ First implementation batch:
 - prove it first on:
   - global help entry wording
   - editor/terminal/explorer shortcut section presentation
+
+## Task 21.29: implement the first shortcut and help-surface polish batch
+Status: completed
+
+Goal:
+- tighten shared shortcut/help presentation without changing shortcut behavior
+- improve reused shell-facing shortcut/help surfaces directly
+
+Done definition:
+- shortcut settings sections have clearer shared phrasing
+- the global help entry uses clearer wording
+- feature-specific shortcut content stays intact
+
+Result:
+- [shortcuts_settings_tab.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/shortcuts_settings_tab.dart) now has:
+  - clearer category titles and descriptions
+  - more explicit shared capture guidance
+  - better default-binding helper text
+- [home_shell_command_palette.dart](/home/home/personal/cwatch/lib/view/core/navigation/home_shell_command_palette.dart) now uses clearer shortcut-help wording
+
+Why this is a good checkpoint:
+- it improves core shortcut/help surfaces directly
+- it benefits global help and shortcut settings at once
+- it stays inside the shortcut/help polish contract
+
+## Task 21.30: checkpoint shortcut and help-surface polish
+Status: completed
+
+Goal:
+- stop the shortcut/help polish layer at a defensible point
+- make the current shared shortcut/help language explicit as a checkpoint
+
+Done definition:
+- the shortcut/help polish layer is recorded as checkpointed
+- the docs no longer imply that shortcut/help work should keep expanding by default
+
+Result:
+- shortcut and help-surface polish is now treated as a product-polish checkpoint
+- the shared shortcut/help language currently covers:
+  - clearer section phrasing
+  - clearer shared binding capture guidance
+  - clearer global shortcut-help entry wording
+- any further shortcut/help work should reopen from a narrower visible issue such as:
+  - shortcut label token styling
+  - input-help dialog density
+  - richer category-level grouping polish
+
+Why this is the right stop:
+- the biggest repeated shortcut/help presentation drift is already reduced
+- pushing further without a sharper target would risk generic cleanup instead of product value
