@@ -39,6 +39,7 @@ class _NavigationButtonState extends State<NavigationButton> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final spacing = context.appTheme.spacing;
+    final listTokens = context.appTheme.list;
     final defaultColor = colorScheme.onSurfaceVariant;
     final hoverColor = colorScheme.primary.withValues(alpha: 0.75);
     final iconColor = widget.selected
@@ -47,6 +48,10 @@ class _NavigationButtonState extends State<NavigationButton> {
     final indicatorColor = widget.selected
         ? colorScheme.primary
         : Colors.transparent;
+    final backgroundColor = widget.selected
+        ? listTokens.selectedBackground
+        : (_hovering ? listTokens.hoverBackground : Colors.transparent);
+    final borderColor = _hovering ? listTokens.hoverBorder : Colors.transparent;
 
     final iconSizes = context.appTheme.iconSizes;
     final dimensions = context.appTheme.dimensions;
@@ -62,41 +67,48 @@ class _NavigationButtonState extends State<NavigationButton> {
     final buttonWidth = widget.vertical
         ? widget.verticalWidth
         : double.infinity;
-    final button = InkWell(
-      onTap: () => widget.onSelect(widget.destinationId),
-      splashColor: Colors.transparent,
-      hoverColor: Colors.transparent,
-      highlightColor: Colors.transparent,
-      child: SizedBox(
-        width: buttonWidth,
-        height: dimensions.navigationButtonHeight,
-        child: widget.vertical
-            ? Row(
-                children: [
-                  Container(
-                    width: dimensions.navigationIndicatorWidth,
-                    height: dimensions.navigationButtonHeight,
-                    color: indicatorColor,
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: Padding(padding: iconPadding, child: iconWidget),
+    final button = AnimatedContainer(
+      duration: const Duration(milliseconds: 120),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        border: Border.all(color: borderColor),
+      ),
+      child: InkWell(
+        onTap: () => widget.onSelect(widget.destinationId),
+        splashColor: Colors.transparent,
+        hoverColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        child: SizedBox(
+          width: buttonWidth,
+          height: dimensions.navigationButtonHeight,
+          child: widget.vertical
+              ? Row(
+                  children: [
+                    Container(
+                      width: dimensions.navigationIndicatorWidth,
+                      height: dimensions.navigationButtonHeight,
+                      color: indicatorColor,
                     ),
-                  ),
-                ],
-              )
-            : Column(
-                children: [
-                  Container(
-                    width: double.infinity,
-                    height: dimensions.navigationIndicatorWidth,
-                    color: indicatorColor,
-                  ),
-                  const Spacer(),
-                  iconWidget,
-                  const Spacer(),
-                ],
-              ),
+                    Expanded(
+                      child: Center(
+                        child: Padding(padding: iconPadding, child: iconWidget),
+                      ),
+                    ),
+                  ],
+                )
+              : Column(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      height: dimensions.navigationIndicatorWidth,
+                      color: indicatorColor,
+                    ),
+                    const Spacer(),
+                    iconWidget,
+                    const Spacer(),
+                  ],
+                ),
+        ),
       ),
     );
 
