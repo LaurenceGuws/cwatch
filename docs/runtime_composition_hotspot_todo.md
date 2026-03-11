@@ -244,3 +244,52 @@ Result:
   - [wsl_view.dart](/home/home/personal/cwatch/lib/view/features/wsl/wsl_view.dart)
 - focused regression coverage exists in:
   - [workspace_settings_sync_test.dart](/home/home/personal/cwatch/test/view/core/tabs/workspace_settings_sync_test.dart)
+
+## Task 25.11: define the next cross-feature workspace hosting cut
+Status: completed
+
+Goal:
+- choose the next small but real shared workspace-hosting seam from the current cross-feature state
+- keep the batch on repeated tab-host setup rather than broader shell contract redesign
+
+Done definition:
+- one new cross-feature seam is explicit
+- the seam is proven by repetition across server, docker, and WSL
+
+Result:
+- the next bounded runtime/composition batch is now:
+  - shared workspace tab-registry builder split
+- target files:
+  - [server_workspace_view.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_view.dart)
+  - [docker_view.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view.dart)
+  - [wsl_view.dart](/home/home/personal/cwatch/lib/view/features/wsl/wsl_view.dart)
+  - new shared helper under `lib/view/core/tabs/`
+- stop condition:
+  - repeated `TabViewRegistry<WorkspaceTab>` creation with the same keep-alive wrapper no longer lives inline in those feature entry views
+  - behavior stays stable
+
+Why this is the right next cut:
+- the registry setup is duplicated nearly verbatim across the workspace modules
+- it is a pure shared host concern, not feature policy
+- it reduces duplication without forcing a larger generic workspace entry abstraction yet
+
+## Task 25.12: implement the next cross-feature workspace hosting cut
+Status: completed
+
+Goal:
+- extract shared workspace tab-registry construction into a dedicated tab-host helper
+
+Done definition:
+- one shared helper owns standard `TabViewRegistry<WorkspaceTab>` construction
+- server, docker, and WSL entry views no longer repeat that setup inline
+- focused regression coverage exists for the helper
+
+Result:
+- shared tab-registry construction now lives in:
+  - [workspace_tab_registry_builder.dart](/home/home/personal/cwatch/lib/view/core/tabs/workspace_tab_registry_builder.dart)
+- server, docker, and WSL workspace entry views now delegate that shared host concern:
+  - [server_workspace_view.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_view.dart)
+  - [docker_view.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view.dart)
+  - [wsl_view.dart](/home/home/personal/cwatch/lib/view/features/wsl/wsl_view.dart)
+- focused regression coverage exists in:
+  - [workspace_tab_registry_builder_test.dart](/home/home/personal/cwatch/test/view/core/tabs/workspace_tab_registry_builder_test.dart)

@@ -6,10 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:cwatch/view/core/navigation/tab_navigation_registry.dart';
 import 'package:cwatch/view/core/tabs/tab_bar_visibility.dart';
 import 'package:cwatch/view/core/tabs/workspace_settings_sync.dart';
+import 'package:cwatch/view/core/tabs/workspace_tab_registry_builder.dart';
 import 'package:cwatch/view/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/view/core/tabs/tabbed_workspace_shell.dart';
 import 'package:cwatch/view/core/tabs/workspace_tab_chip_builder.dart';
-import 'package:cwatch/view/core/widgets/keep_alive.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
 import 'package:cwatch/model/features/wsl/models/wsl_tab_data.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
@@ -57,6 +57,8 @@ class _WslViewState extends State<WslView> {
   late final VoidCallback _settingsListener;
   late final VoidCallback _tabsListener;
   final WorkspaceSettingsSync _settingsSync = const WorkspaceSettingsSync();
+  final WorkspaceTabRegistryBuilder _registryBuilder =
+      const WorkspaceTabRegistryBuilder();
 
   late Future<List<WslDistribution>> _distrosFuture;
 
@@ -79,12 +81,7 @@ class _WslViewState extends State<WslView> {
       baseTabBuilder: () => _distroPickerTab(),
     );
 
-    _tabRegistry = TabViewRegistry<WorkspaceTab>(
-      tabId: (tab) => tab.id,
-      keepAliveBuilder: (child, key) =>
-          KeepAliveWrapper(key: key, child: child),
-      viewKeyPrefix: 'wsl-tab',
-    );
+    _tabRegistry = _registryBuilder.build(viewKeyPrefix: 'wsl-tab');
 
     _tabNavigator = TabNavigationHandle(
       next: () {

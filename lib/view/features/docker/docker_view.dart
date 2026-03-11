@@ -22,9 +22,9 @@ import 'package:cwatch/view/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/view/core/tabs/tabbed_workspace_shell.dart';
 import 'package:cwatch/view/core/tabs/workspace_tab_chip_builder.dart';
 import 'package:cwatch/view/core/tabs/tab_bar_visibility.dart';
+import 'package:cwatch/view/core/tabs/workspace_tab_registry_builder.dart';
 import 'package:cwatch/view/core/tabs/workspace_settings_sync.dart';
 import 'package:cwatch/model/models/docker_workspace_state.dart';
-import 'package:cwatch/view/core/widgets/keep_alive.dart';
 import 'widgets/docker_engine_picker.dart';
 import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/settings/floating_settings_window.dart';
@@ -85,6 +85,8 @@ class _DockerViewState extends State<DockerView> {
   final DockerViewTabStateHelper _tabStateHelper =
       const DockerViewTabStateHelper();
   final WorkspaceSettingsSync _settingsSync = const WorkspaceSettingsSync();
+  final WorkspaceTabRegistryBuilder _registryBuilder =
+      const WorkspaceTabRegistryBuilder();
   bool _showListSettings = false;
 
   DockerWorkspaceController get _workspaceController =>
@@ -170,12 +172,7 @@ class _DockerViewState extends State<DockerView> {
     _viewController.addListener(_viewControllerListener);
     _uiAdapter = DockerUiAdapter(context: context);
 
-    _tabRegistry = TabViewRegistry<WorkspaceTab>(
-      tabId: (tab) => tab.id,
-      keepAliveBuilder: (child, key) =>
-          KeepAliveWrapper(key: key, child: child),
-      viewKeyPrefix: 'engine-tab',
-    );
+    _tabRegistry = _registryBuilder.build(viewKeyPrefix: 'engine-tab');
     _viewShell = DockerViewShell(
       moduleId: widget.moduleId,
       runtime: _runtime,

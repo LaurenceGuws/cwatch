@@ -22,7 +22,7 @@ import 'servers/server_models.dart';
 import 'server_tab_builder.dart';
 import 'server_workspace_controller.dart';
 import 'package:cwatch/view/core/tabs/tab_view_registry.dart';
-import 'package:cwatch/view/core/widgets/keep_alive.dart';
+import 'package:cwatch/view/core/tabs/workspace_tab_registry_builder.dart';
 import 'server_host_surface_controller.dart';
 import 'server_host_selection_surface.dart';
 import 'server_workspace_runtime.dart';
@@ -58,6 +58,8 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   late final ServerHostSurfaceController _hostSurfaceController;
   late final ServerTabBuilder _tabBuilder;
   final ServerWorkspaceTabHelper _tabHelper = const ServerWorkspaceTabHelper();
+  final WorkspaceTabRegistryBuilder _registryBuilder =
+      const WorkspaceTabRegistryBuilder();
   late final VoidCallback _settingsListener;
   late final VoidCallback _tabsListener;
   late final TabViewRegistry<WorkspaceTab> _tabRegistry;
@@ -193,12 +195,7 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
       baseTabBuilder: _createPlaceholderTab,
     );
 
-    _tabRegistry = TabViewRegistry<WorkspaceTab>(
-      tabId: (tab) => tab.id,
-      keepAliveBuilder: (child, key) =>
-          KeepAliveWrapper(key: key, child: child),
-      viewKeyPrefix: 'server-tab',
-    );
+    _tabRegistry = _registryBuilder.build(viewKeyPrefix: 'server-tab');
     _viewShell.initializeWorkspaceChrome();
 
     _tabsListener = () {
