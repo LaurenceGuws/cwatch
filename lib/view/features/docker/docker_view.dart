@@ -30,6 +30,7 @@ import 'package:cwatch/view/shared/views/shared/tabs/settings/floating_settings_
 import 'docker_tab_builder.dart';
 import 'docker_workspace_controller.dart';
 import 'docker_workspace_tab_restorer.dart';
+import 'docker_view_tab_state_helper.dart';
 import 'package:cwatch/view/features/settings/settings/docker_settings_controls.dart';
 import 'package:cwatch/controller/adapters/docker_ui_adapter.dart';
 import 'package:cwatch/controller/controllers/docker_view_controller.dart';
@@ -77,6 +78,8 @@ class _DockerViewState extends State<DockerView> {
   late final VoidCallback _tabsListener;
   late final VoidCallback _viewControllerListener;
   late final DockerViewShell _viewShell;
+  final DockerViewTabStateHelper _tabStateHelper =
+      const DockerViewTabStateHelper();
   bool _showListSettings = false;
 
   DockerWorkspaceController get _workspaceController =>
@@ -434,30 +437,10 @@ class _DockerViewState extends State<DockerView> {
     final trimmed = newName.trim();
     if (trimmed.isEmpty || trimmed == tab.title) return;
 
-    // Update title
-    final updated = tab.copyWith(title: trimmed, label: trimmed);
-    // Update persisted state title
-    if (tab.workspaceState is DockerTabData) {
-      final data = tab.workspaceState as DockerTabData;
-      final newState = data.persistedState.copyWith(
-        title: trimmed,
-        label: trimmed,
-      );
-      // We need to update the tab with new workspace state
-      // WorkspaceTab is immutable, so we create a new one
-      // But DockerTabData is immutable too.
-      // So we need to reconstruct the hierarchy.
-      // Actually, replacing the tab in controller is enough.
-      final newTabWithState = updated.copyWith(
-        workspaceState: DockerTabData(
-          kind: data.kind,
-          persistedState: newState,
-        ),
-      );
-      _workspaceController.replaceTab(tab.id, newTabWithState);
-    } else {
-      _workspaceController.replaceTab(tab.id, updated);
-    }
+    _workspaceController.replaceTab(
+      tab.id,
+      _tabStateHelper.renameTab(tab, trimmed),
+    );
   }
 
   Future<void> _openContextDashboard(
@@ -590,13 +573,7 @@ class _DockerViewState extends State<DockerView> {
   }
 
   void _refreshPickerTabs() {
-    final pickerIds = _tabs
-        .where((tab) {
-          final data = tab.workspaceState as DockerTabData?;
-          return data?.kind == DockerTabKind.picker;
-        })
-        .map((t) => t.id)
-        .toList();
+    final pickerIds = _tabStateHelper.pickerTabIds(_tabs);
 
     _workspaceController.runWithoutPersist(() {
       for (final id in pickerIds) {
@@ -622,18 +599,10 @@ class _DockerViewState extends State<DockerView> {
   void _updateExplorerPath(String tabId, String path) {
     final index = _tabs.indexWhere((t) => t.id == tabId);
     if (index != -1) {
-      final tab = _tabs[index];
-      final data = tab.workspaceState as DockerTabData?;
-      if (data != null) {
-        final newState = data.persistedState.copyWith(path: path);
-        final newTab = tab.copyWith(
-          workspaceState: DockerTabData(
-            kind: data.kind,
-            persistedState: newState,
-          ),
-        );
-        _workspaceController.replaceTab(tabId, newTab);
-      }
+      _workspaceController.replaceTab(
+        tabId,
+        _tabStateHelper.updateExplorerPath(_tabs[index], path),
+      );
     }
   }
 

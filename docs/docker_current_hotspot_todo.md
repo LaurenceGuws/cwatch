@@ -321,3 +321,42 @@ Done definition:
 - one Docker-local helper owns tab-state decoding, command sanitization, and restored tab reconstruction for Docker workspace tabs
 - `DockerWorkspaceController` keeps workspace persistence and remote discovery only
 - focused regression coverage exists for restored command/explorer behavior and invalid host restore cases
+
+## Task 22.17: define the next bounded Docker batch after the workspace restore split
+Status: completed
+
+Goal:
+- choose the next Docker-only cleanup slice from the current code state after the workspace restore split
+- keep the batch on repeated Docker-local orchestration rather than prompt/menu rendering
+
+Done definition:
+- one new Docker batch is explicit
+- the batch has a clear stop condition
+- later Docker concerns remain queued
+
+Result:
+- the next bounded Docker batch is now:
+  - Docker view tab-state mutation split
+- target files:
+  - [docker_view.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view.dart)
+  - new Docker-local helper under `lib/view/features/docker/`
+- stop condition:
+  - rename, explorer-path persistence, and picker-tab filtering logic no longer live inline in `DockerView`
+  - dialog/menu presentation stays in `docker_view.dart`
+  - workspace controller and tab builder contracts stay stable in this batch
+
+Why this is the right next cut:
+- `docker_view.dart` still repeats Docker-specific persisted-tab mutation rules in multiple places
+- the repeated `DockerTabData` reconstruction is local orchestration smell, not just file size
+- it creates a direct seam for focused regression coverage without reopening prompt/menu flows
+
+## Task 22.18: implement the Docker view tab-state mutation split
+Status: completed
+
+Goal:
+- extract Docker tab rename/path/picker-state mutation rules into a dedicated Docker-local helper
+
+Done definition:
+- one Docker-local helper owns rename-state updates, explorer-path persistence updates, and picker-tab filtering for `DockerView`
+- `DockerView` keeps dialog/menu hosting and workspace actions only
+- focused regression coverage exists for rename/path/picker mutation behavior
