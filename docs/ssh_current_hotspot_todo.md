@@ -81,3 +81,15 @@ Done definition:
 - one SSH-local helper owns file-operation command assembly and path-derived directory planning
 - `ProcessRemoteShellService` no longer owns inline file-operation shell command string construction across read/write/move/copy/delete/verification flows
 - focused regression coverage exists for the new helper
+
+
+## Task 23.5: implement the process SSH search-planning split
+Status: completed
+
+Goal:
+- extract search predicate and find-command planning out of `ProcessRemoteShellService`
+
+Done definition:
+- one SSH-local helper owns search timeout policy, predicate building, prune-clause building, and path-pattern normalization for search flows
+- `ProcessRemoteShellService` no longer owns inline search-pattern/predicate planning blocks
+- focused regression coverage exists for the new helper

@@ -6,6 +6,7 @@ import 'package:cwatch/model/models/remote_file_entry.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import '../logging/app_logger.dart';
 import 'process_ssh_file_operation_planner.dart';
+import 'process_ssh_search_planner.dart';
 import 'process_ssh_run_result_handler.dart';
 import 'process_ssh_failure_mapper.dart';
 import 'remote_shell_base.dart';
@@ -21,6 +22,8 @@ class ProcessRemoteShellService extends RemoteShellService {
       const ProcessSshRunResultHandler();
   final ProcessSshFileOperationPlanner _filePlanner =
       const ProcessSshFileOperationPlanner();
+  final ProcessSshSearchPlanner _searchPlanner =
+      const ProcessSshSearchPlanner();
 
   /// Handles SSH command errors, detecting authentication failures.
   Never _handleSshError(SshHost host, ProcessResult result) {
@@ -82,42 +85,15 @@ class ProcessRemoteShellService extends RemoteShellService {
     Duration timeout = const Duration(seconds: 30),
     RunTimeoutHandler? onTimeout,
   }) async {
-    final effectiveTimeout = searchContents
-        ? const Duration(minutes: 2)
-        : timeout;
-    final sanitizedPath = sanitizePath(basePath);
-    final escapedQuery = escapeSingleQuotes(query.trim());
-    final pattern = escapedQuery.isEmpty
-        ? '*'
-        : (matchWholeWord ? escapedQuery : '*$escapedQuery*');
-    final nameFlag = matchCase ? '-name' : '-iname';
-    String buildPredicate(String typeFlag, {required bool includeName}) {
-      final predicates = <String>['-type $typeFlag'];
-      if (includeName) {
-        predicates.add("$nameFlag '$pattern'");
-      }
-      final include = _buildPatternClause(
-        includePattern,
-        nameFlag: nameFlag,
-        basePath: sanitizedPath,
-        allowDeepNameMatch: false,
-      );
-      if (include.isNotEmpty) {
-        predicates.add('-a \\( $include \\)');
-      }
-      final exclude = _buildPatternClause(
-        excludePattern,
-        nameFlag: nameFlag,
-        basePath: sanitizedPath,
-        allowDeepNameMatch: true,
-      );
-      if (exclude.isNotEmpty) {
-        predicates.add('-a ! \\( $exclude \\)');
-      }
-      return predicates.join(' ');
-    }
-
-    final commandBase = "cd '${escapeSingleQuotes(sanitizedPath)}' &&";
+    final plan = _searchPlanner.createPlan(
+      basePath: basePath,
+      query: query,
+      matchCase: matchCase,
+      searchContents: searchContents,
+      timeout: timeout,
+    );
+    final effectiveTimeout =
+        Duration(seconds: plan.effectiveTimeoutSeconds);
     String dirOutput;
     final entries = <RemoteFileEntry>[];
     final now = DateTime.now();
@@ -147,16 +123,16 @@ class ProcessRemoteShellService extends RemoteShellService {
         if (!matchCase) '-i',
         if (matchWholeWord) '-w',
       ].join(' ');
-      final excludePrune = _buildPruneClause(
+      final excludePrune = _searchPlanner.buildPruneClause(
         excludePattern,
-        nameFlag: nameFlag,
-        basePath: sanitizedPath,
+        nameFlag: plan.nameFlag,
+        basePath: plan.basePath,
       );
       final prunePrefix = excludePrune.isEmpty
           ? ''
           : "\\( -type d \\( $excludePrune \\) -prune \\) -o ";
       final filesCommand =
-          "$commandBase find . $prunePrefix\\( ${buildPredicate('f', includeName: false)} \\) -exec grep $grepFlags -- '$escapedQuery' {} + 2>/dev/null || true";
+          "${plan.commandBase} find . $prunePrefix\\( ${_searchPlanner.buildPredicate(typeFlag: 'f', includeName: false, plan: plan, matchWholeWord: matchWholeWord, includePattern: includePattern, excludePattern: excludePattern)} \\) -exec grep $grepFlags -- '${plan.escapedQuery}' {} + 2>/dev/null || true";
       dirOutput = '';
       await _runSshStreaming(
         host,
@@ -173,9 +149,9 @@ class ProcessRemoteShellService extends RemoteShellService {
           ? "-exec printf '%s\\n' {} \\;"
           : '-print';
       final dirsCommand =
-          "$commandBase find . ${buildPredicate('d', includeName: true)} $printFlag 2>/dev/null || true";
+          "${plan.commandBase} find . ${_searchPlanner.buildPredicate(typeFlag: 'd', includeName: true, plan: plan, matchWholeWord: matchWholeWord, includePattern: includePattern, excludePattern: excludePattern)} $printFlag 2>/dev/null || true";
       final filesCommand =
-          "$commandBase find . ${buildPredicate('f', includeName: true)} $printFlag 2>/dev/null || true";
+          "${plan.commandBase} find . ${_searchPlanner.buildPredicate(typeFlag: 'f', includeName: true, plan: plan, matchWholeWord: matchWholeWord, includePattern: includePattern, excludePattern: excludePattern)} $printFlag 2>/dev/null || true";
       final dirsFuture = _runSshStreaming(
         host,
         dirsCommand,
@@ -669,120 +645,6 @@ class ProcessRemoteShellService extends RemoteShellService {
       );
       rethrow;
     }
-  }
-
-  String _buildPatternClause(
-    String? rawPatterns, {
-    required String nameFlag,
-    required String basePath,
-    required bool allowDeepNameMatch,
-  }) {
-    final patterns = rawPatterns
-        ?.split(',')
-        .map((pattern) => pattern.trim())
-        .where((pattern) => pattern.isNotEmpty)
-        .toList();
-    if (patterns == null || patterns.isEmpty) {
-      return '';
-    }
-    final clauses = <String>[];
-    for (final pattern in patterns) {
-      final normalizedPattern = _normalizePathPattern(pattern, basePath);
-      if (normalizedPattern.contains('/')) {
-        final normalized = normalizedPattern;
-        final hadTrailingSlash = normalized.endsWith('/');
-        final trimmed = hadTrailingSlash
-            ? normalized.substring(0, normalized.length - 1)
-            : normalized;
-        final hasGlob =
-            trimmed.contains('*') ||
-            trimmed.contains('?') ||
-            trimmed.contains('[');
-        if (hasGlob) {
-          clauses.add("-path '${escapeSingleQuotes(trimmed)}'");
-        } else if (hadTrailingSlash) {
-          clauses.add("-path '${escapeSingleQuotes('$trimmed/*')}'");
-        } else {
-          clauses.add("-path '${escapeSingleQuotes(trimmed)}'");
-          clauses.add("-path '${escapeSingleQuotes('$trimmed/*')}'");
-        }
-      } else {
-        final escaped = escapeSingleQuotes(normalizedPattern);
-        if (allowDeepNameMatch) {
-          clauses.add("$nameFlag '$escaped'");
-          clauses.add("-path './$escaped'");
-          clauses.add("-path './$escaped/*'");
-          clauses.add("-path './*/$escaped/*'");
-        } else {
-          clauses.add("-path './$escaped'");
-          clauses.add("-path './$escaped/*'");
-        }
-      }
-    }
-    return clauses.join(' -o ');
-  }
-
-  String _buildPruneClause(
-    String? rawPatterns, {
-    required String nameFlag,
-    required String basePath,
-  }) {
-    final patterns = rawPatterns
-        ?.split(',')
-        .map((pattern) => pattern.trim())
-        .where((pattern) => pattern.isNotEmpty)
-        .toList();
-    if (patterns == null || patterns.isEmpty) {
-      return '';
-    }
-    final clauses = <String>[];
-    for (final pattern in patterns) {
-      final normalizedPattern = _normalizePathPattern(pattern, basePath);
-      if (normalizedPattern.contains('/')) {
-        final normalized = normalizedPattern;
-        final trimmed = normalized.endsWith('/')
-            ? normalized.substring(0, normalized.length - 1)
-            : normalized;
-        final hasGlob =
-            trimmed.contains('*') ||
-            trimmed.contains('?') ||
-            trimmed.contains('[');
-        if (hasGlob) {
-          clauses.add("-path '${escapeSingleQuotes(trimmed)}'");
-        } else {
-          clauses.add("-path '${escapeSingleQuotes(trimmed)}'");
-          clauses.add("-path '${escapeSingleQuotes('$trimmed/*')}'");
-        }
-      } else {
-        final escaped = escapeSingleQuotes(normalizedPattern);
-        clauses.add("$nameFlag '$escaped'");
-      }
-    }
-    return clauses.join(' -o ');
-  }
-
-  String _normalizePathPattern(String pattern, String basePath) {
-    var normalized = pattern.trim();
-    if (!normalized.contains('/')) {
-      return normalized;
-    }
-    if (normalized.startsWith(basePath)) {
-      normalized = normalized.substring(basePath.length);
-    }
-    if (normalized.startsWith('/')) {
-      normalized = normalized.substring(1);
-    }
-    if (normalized.isEmpty) {
-      return '.';
-    }
-    if (!normalized.startsWith('./') &&
-        !normalized.startsWith('/') &&
-        normalized.contains('/')) {
-      normalized = './$normalized';
-    } else if (normalized.contains('/') && normalized.startsWith('/')) {
-      normalized = '.$normalized';
-    }
-    return normalized;
   }
 
   Map<String, String> _sessionEnvironment() {
