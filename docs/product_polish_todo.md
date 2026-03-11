@@ -324,3 +324,29 @@ Why this is a good checkpoint:
 - the surrounding hosting chrome for shared tables is now more coherent
 - feature-specific columns, row actions, and domain chips remain untouched
 - this proves the table-host polish seam without reopening `StructuredDataTable` internals
+
+## Task 21.12: re-scope the next structured table/list batch
+Status: completed
+
+Goal:
+- decide whether table/list polish has one more real shared batch after the first host/scaffold pass
+
+Done definition:
+- either the table/list layer is checkpointed
+- or one narrower next batch is chosen from visible repeated drift
+
+Result:
+- there is one more real shared batch:
+  - straightforward table-host feedback consistency
+- this should cover:
+  - loading framing around table-hosted surfaces
+  - empty-state framing around shared tables
+- this should not cover:
+  - debug-log filter bars
+  - richer search/filter dashboards
+  - feature-specific remediation or action bars
+
+Why this is the right next cut:
+- it is still a repeated visible surface around `StructuredDataTable`
+- it keeps the batch narrow and product-facing
+- it avoids drifting into feature-specific search/filter UX

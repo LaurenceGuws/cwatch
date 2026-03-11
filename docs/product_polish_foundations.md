@@ -180,3 +180,11 @@ What should stay feature-owned:
 - row actions and context menus
 - row metadata chips
 - row-level icons and value formatting
+
+Current next table/list polish move:
+- straightforward table-host feedback consistency
+
+Why:
+- the next visible shared drift is in loading and empty framing around table-hosted surfaces
+- Kubernetes context selection and Docker context/remote tables still vary in surrounding feedback treatment
+- debug logs and richer filtered surfaces should remain local for now because they carry more feature-specific controls
