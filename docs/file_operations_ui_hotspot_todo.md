@@ -1,6 +1,6 @@
 # File Operations UI Hotspot TODO
 
-Status: active
+Status: checkpointed
 Purpose: track bounded cleanup batches for the current file-operation UI deduplication hotspot.
 
 ## Task 27.1: start the file-operation UI hotspot pass
@@ -98,3 +98,34 @@ Why this is the right next cut:
 - after the transfer-session and item-progress splits, the strongest remaining repetition is the progress runtime bootstrap itself
 - that code is still identical across download and upload variants
 - this narrows the handler further toward true flow-specific behavior without inventing a broader abstraction
+
+## Task 27.5: checkpoint the file-operation UI hotspot
+Status: completed
+
+Goal:
+- record that the current file-operation UI pass removed the main repeated transfer scaffolding seam from the current code state
+- stop here before forcing weaker flow-specific extractions
+
+Done definition:
+- this TODO is checkpointed from the current code state
+- completed file-operation UI work is recorded as enforced baseline
+- the remaining file-operation weight is described accurately
+
+Result:
+- shared transfer completion/failure orchestration now lives in:
+  - [file_operation_transfer_session.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operation_transfer_session.dart)
+- shared per-item progress scaffolding now lives in:
+  - [file_operation_item_progress.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operation_item_progress.dart)
+- shared transfer runtime bootstrap now lives in:
+  - [file_operation_transfer_runtime.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operation_transfer_runtime.dart)
+- [file_operations_ui_handler.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operations_ui_handler.dart) is materially narrower and now hosts mostly flow-specific upload/download behavior
+- focused regression coverage exists in:
+  - [file_operation_transfer_session_test.dart](/home/home/personal/cwatch/test/controller/adapters/file_operation_transfer_session_test.dart)
+  - [file_operation_item_progress_test.dart](/home/home/personal/cwatch/test/controller/adapters/file_operation_item_progress_test.dart)
+
+What remains:
+- [file_operations_ui_handler.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operations_ui_handler.dart) still contains distinct flow-specific work for file uploads, directory uploads, dropped-path uploads, and downloads
+- that remaining weight is now mostly valid operation-specific behavior rather than the same repeated transfer-UI scaffolding hotspot
+
+Checkpoint rule:
+- future file-operation UI work should reopen from fresh evidence in specific transfer flows or broader service/controller boundaries, not from the older repeated progress/cancel/result scaffolding hotspot

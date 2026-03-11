@@ -51,15 +51,7 @@ Why it matters now:
 - tab restore/setup, listeners, placeholder/base-tab creation, and shell/runtime glue are still re-expressed per feature
 - this is both a DRY problem and an ownership problem
 
-### 3. File-operation UI flow duplication
-Primary file:
-- [file_operations_ui_handler.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operations_ui_handler.dart)
-
-Why it matters now:
-- progress dialog lifecycle, byte accounting, success/failure shaping, and cancellation behavior are still repeated across multiple flows
-- changes to one operation path can still drift from the others
-
-### 4. Config metadata abstraction drift
+### 3. Config metadata abstraction drift
 Primary files:
 - [config_metadata_annotations.dart](/home/home/personal/cwatch/lib/model/config/config_metadata_annotations.dart)
 - [config_metadata_descriptor.dart](/home/home/personal/cwatch/lib/model/config/config_metadata_descriptor.dart)
@@ -70,7 +62,7 @@ Why it matters now:
 - that is a DRY failure unless one layer is the actual source of truth
 - this subsystem is now a live over-engineering candidate
 
-### 5. Controller to concrete UI-adapter coupling
+### 4. Controller to concrete UI-adapter coupling
 Primary files:
 - [settings_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/settings_controller.dart)
 - [server_port_forward_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/server_port_forward_controller.dart)
@@ -81,7 +73,7 @@ Why it matters now:
 - controller logic still depends on concrete dialog/snackbar/prompt adapters
 - this is better than `model -> view` coupling, but still keeps workflow logic shaped around widget-era interaction seams
 
-### 6. Feature-local settings workflow density
+### 5. Feature-local settings workflow density
 Primary files:
 - [builtin_ssh_settings.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/builtin_ssh_settings.dart)
 - [ssh_settings_controls.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/ssh_settings_controls.dart)
@@ -92,7 +84,7 @@ Why it matters now:
 - what remains is denser feature-local workflow around built-in SSH key management, host bindings, and picker/prompt orchestration
 - this is now a narrower local complexity seam, not the same repo-level DRY hotspot as before
 
-### 7. SSH runtime/feature integration reevaluation
+### 6. SSH runtime/feature integration reevaluation
 Primary files:
 - [ssh_shell_factory.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_factory.dart)
 - [process_ssh_shell_service.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/process_ssh_shell_service.dart)
@@ -103,12 +95,25 @@ Why it matters now:
 - what remains is narrower runtime hosting and feature-integration behavior that should only be reopened from fresh evidence
 - this is no longer a top repo-wide over-engineering target in the current code state
 
+### 7. File-operation flow reevaluation
+Primary files:
+- [file_operations_ui_handler.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operations_ui_handler.dart)
+- [file_operation_transfer_session.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operation_transfer_session.dart)
+- [file_operation_item_progress.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operation_item_progress.dart)
+- [file_operation_transfer_runtime.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operation_transfer_runtime.dart)
+
+Why it matters now:
+- the main repeated transfer-UI scaffolding seam is materially reduced
+- what remains is narrower flow-specific upload/download behavior that should only be reopened from fresh evidence
+- this is no longer the clearest active DRY hotspot in the repo
+
 ## Current Design Checkpoint
 
 The following earlier hotspots should now be treated as checkpointed current-state design, not as the active repo focus:
 - Docker feature decomposition
 - SSH runtime support decomposition
 - SSH shell-factory/runtime-cache simplification
+- file-operation UI deduplication
 - theme/token decomposition
 - StructuredDataTable engine projection decomposition
 - settings mutation ownership cleanup
@@ -130,11 +135,11 @@ The repo now has direct tests in many extracted seams, but the following still c
 
 1. Runtime/composition ownership cleanup
 2. Workspace-shell hosting reuse
-3. File-operation UI deduplication
-4. Config metadata single-source-of-truth cleanup
-5. UI adapter surface reduction
-6. feature-local settings workflow reevaluation only if fresh evidence reopens it
-7. SSH runtime/feature integration reevaluation only if fresh evidence reopens it
+3. Config metadata single-source-of-truth cleanup
+4. UI adapter surface reduction
+5. feature-local settings workflow reevaluation only if fresh evidence reopens it
+6. SSH runtime/feature integration reevaluation only if fresh evidence reopens it
+7. file-operation flow reevaluation only if fresh evidence reopens it
 
 ## Why This Order
 
@@ -146,10 +151,10 @@ The repo now has direct tests in many extracted seams, but the following still c
 - it is the strongest repeated workflow pattern left in the feature layer
 - a cleaner host contract will reduce duplicate feature setup logic
 
-### File operations third
-- file-operation UI flow still has repeated orchestration risk
-- it is now the clearest active DRY/behavior-drift risk after runtime and workspace hosting
-
-### Config and UI-adapter work after that
+### Config third
 - config metadata is a good candidate for de-complexing once the higher-value ownership seams are clearer
+- it is now the clearest active over-engineering and single-source-of-truth problem after runtime and workspace hosting
+
+### UI-adapter and local-flow work after that
 - controller/dialog adapter coupling is still a live structural smell once the stronger repetition seams are addressed
+- narrower feature-local or file-operation flow work should now reopen only from fresh evidence
