@@ -477,3 +477,42 @@ Done definition:
 - one Docker-local helper owns container-menu action routing for logs/shell/copy/forward/explore/lifecycle actions
 - `docker_overview.dart` keeps container menu content/rendering only
 - focused regression coverage exists for multi-copy, local fallback explorer routing, and lifecycle dispatch
+
+## Task 22.25: define the next bounded Docker batch after the container-menu split
+Status: completed
+
+Goal:
+- choose the next Docker-only cleanup slice from the current code state after the container-menu split
+- keep the batch on the next densest menu-action block instead of broad overview decomposition
+
+Done definition:
+- one new Docker batch is explicit
+- the batch has a clear stop condition
+- later Docker concerns remain queued
+
+Result:
+- the next bounded Docker batch is now:
+  - Docker overview image-menu action split
+- target files:
+  - [docker_overview.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_overview.dart)
+  - new Docker-local helper under `lib/view/features/docker/widgets/`
+- stop condition:
+  - image menu action dispatch no longer lives inline in `docker_overview.dart`
+  - prompt/menu rendering stays in `docker_overview.dart`
+  - network/volume menus remain untouched in this batch
+
+Why this is the right next cut:
+- the image menu still carries the next densest remaining action-routing block
+- it includes prompt handling, reference shaping, and action-specific dispatch
+- it creates a direct seam for focused regression coverage without reopening the rest of the overview menus
+
+## Task 22.26: implement the Docker overview image-menu action split
+Status: completed
+
+Goal:
+- extract Docker overview image-menu action dispatch into a dedicated Docker-local helper
+
+Done definition:
+- one Docker-local helper owns image reference shaping and image-menu action routing for pull/tag/push/inspect/history/remove
+- `docker_overview.dart` keeps image menu content/rendering only
+- focused regression coverage exists for reference shaping, tag routing, and remove dispatch

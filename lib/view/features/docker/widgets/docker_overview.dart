@@ -21,6 +21,7 @@ import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
 import 'docker_lists.dart';
 import 'docker_overview_action_state.dart';
 import 'docker_overview_container_menu_helper.dart';
+import 'docker_overview_image_menu_helper.dart';
 import 'docker_overview_interaction_helper.dart';
 import 'docker_overview_runtime_state.dart';
 import 'docker_shared.dart';
@@ -59,6 +60,8 @@ class _DockerOverviewState extends State<DockerOverview>
       const DockerOverviewActionState();
   final DockerOverviewContainerMenuHelper _containerMenuHelper =
       const DockerOverviewContainerMenuHelper();
+  final DockerOverviewImageMenuHelper _imageMenuHelper =
+      const DockerOverviewImageMenuHelper();
   final DockerOverviewInteractionHelper _interactionHelper =
       const DockerOverviewInteractionHelper();
   late final DockerOverviewController _controller;
@@ -526,10 +529,7 @@ class _DockerOverviewState extends State<DockerOverview>
             images: _currentImages,
           );
     final isMulti = selection.length > 1;
-    final ref = [
-      image.repository.isNotEmpty ? image.repository : '<none>',
-      image.tag.isNotEmpty ? image.tag : '<none>',
-    ].join(':');
+    final ref = _imageMenuHelper.imageReference(image);
     final title = isMulti ? '${selection.length} images selected' : ref;
     final detailsMap = isMulti
         ? {'Selected': '${selection.length}'}
@@ -560,56 +560,27 @@ class _DockerOverviewState extends State<DockerOverview>
       copyLabel: copyLabel,
       extraActions: extraActions,
       onAction: (action) async {
-        switch (action) {
-          case 'pull':
-            final imageName = await _uiAdapter.showTextInputDialog(
-              title: 'Pull Image',
-              label: 'Image name',
-              hintText: 'e.g., nginx:latest, ubuntu:22.04',
-            );
-            if (imageName != null && imageName.isNotEmpty) {
-              await _actions.pullImage(imageName);
-            }
-            break;
-          case 'tag':
-            final imageRef = [
-              selection.first.repository,
-              selection.first.tag,
-            ].where((s) => s.isNotEmpty).join(':');
-            final newTag = await _uiAdapter.showTextInputDialog(
-              title: 'Tag Image',
-              label: 'New tag',
-              hintText: 'e.g., myregistry.com/myimage:v1.0',
-              initialValue: imageRef,
-            );
-            if (newTag != null && newTag.isNotEmpty) {
-              await _actions.tagImage(
-                sourceImage: imageRef,
-                targetImage: newTag,
-                sourceImageId: selection.first.id,
-              );
-            }
-            break;
-          case 'push':
-            final imageRef = [
-              selection.first.repository,
-              selection.first.tag,
-            ].where((s) => s.isNotEmpty).join(':');
-            await _actions.pushImage(imageRef, imageId: selection.first.id);
-            break;
-          case 'inspect':
-            await _actions.inspectImage(selection.first.id);
-            break;
-          case 'history':
-            await _actions.showImageHistory(selection.first.id);
-            break;
-          case 'remove':
-            final imageIds = selection.map((img) => img.id).toList();
-            await _handleRemoveImages(imageIds);
-            break;
-          default:
-            break;
-        }
+        await _imageMenuHelper.handleAction(
+          action: action,
+          selection: selection,
+          promptTag: (initialValue) => _uiAdapter.showTextInputDialog(
+            title: 'Tag Image',
+            label: 'New tag',
+            hintText: 'e.g., myregistry.com/myimage:v1.0',
+            initialValue: initialValue,
+          ),
+          promptPull: () => _uiAdapter.showTextInputDialog(
+            title: 'Pull Image',
+            label: 'Image name',
+            hintText: 'e.g., nginx:latest, ubuntu:22.04',
+          ),
+          pullImage: _actions.pullImage,
+          tagImage: _actions.tagImage,
+          pushImage: _actions.pushImage,
+          inspectImage: _actions.inspectImage,
+          showImageHistory: _actions.showImageHistory,
+          removeImages: _handleRemoveImages,
+        );
       },
     );
   }
