@@ -16,6 +16,7 @@ import 'file_explorer_tab_actions.dart';
 import 'file_explorer_tab_entry_interactions.dart';
 import 'file_explorer_tab_presenter.dart';
 import 'file_explorer_tab_surface.dart';
+import 'file_explorer_tab_chrome_state.dart';
 import 'selection_controller.dart';
 
 class FileExplorerTab extends StatefulWidget {
@@ -46,10 +47,10 @@ class _FileExplorerTabState extends State<FileExplorerTab>
   late FileExplorerTabPresenter _presenter;
   late FileExplorerTabActions _actions;
   late FileExplorerTabEntryInteractions _entryInteractions;
+  late FileExplorerTabChromeState _chromeState;
   late final VoidCallback _controllerListener;
   final FocusNode _listFocusNode = FocusNode(debugLabel: 'file-explorer-list');
   final ScrollController _scrollController = ScrollController();
-  bool _dropHover = false;
 
   @override
   void initState() {
@@ -76,6 +77,15 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       listFocusNode: _listFocusNode,
       scrollController: _scrollController,
       markNeedsBuild: _controller.markNeedsBuild,
+    );
+    _chromeState = FileExplorerTabChromeState(
+      controller: _controller,
+      showSettings: () => _presenter.showSettings,
+      onToggleSettings: _toggleSettings,
+      onUploadFiles: _actions.handleUploadFiles,
+      onUploadFolder: _actions.handleUploadFolder,
+      onOpenTrash: () => widget.onOpenTrash(_controller.explorerContext),
+      onOpenTerminalTab: widget.onOpenTerminalTab,
     );
     _controllerListener = () {
       if (!mounted) return;
@@ -116,6 +126,15 @@ class _FileExplorerTabState extends State<FileExplorerTab>
         scrollController: _scrollController,
         markNeedsBuild: _controller.markNeedsBuild,
       );
+      _chromeState = FileExplorerTabChromeState(
+        controller: _controller,
+        showSettings: () => _presenter.showSettings,
+        onToggleSettings: _toggleSettings,
+        onUploadFiles: _actions.handleUploadFiles,
+        onUploadFolder: _actions.handleUploadFolder,
+        onOpenTrash: () => widget.onOpenTrash(_controller.explorerContext),
+        onOpenTerminalTab: widget.onOpenTerminalTab,
+      );
       _controller.addListener(_controllerListener);
       unawaited(_controller.initialize());
     }
@@ -145,6 +164,15 @@ class _FileExplorerTabState extends State<FileExplorerTab>
         listFocusNode: _listFocusNode,
         scrollController: _scrollController,
         markNeedsBuild: _controller.markNeedsBuild,
+      );
+      _chromeState = FileExplorerTabChromeState(
+        controller: _controller,
+        showSettings: () => _presenter.showSettings,
+        onToggleSettings: _toggleSettings,
+        onUploadFiles: _actions.handleUploadFiles,
+        onUploadFolder: _actions.handleUploadFolder,
+        onOpenTrash: () => widget.onOpenTrash(_controller.explorerContext),
+        onOpenTerminalTab: widget.onOpenTerminalTab,
       );
       _updateTabOptions();
     }
@@ -243,7 +271,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
             constraints: constraints,
           ),
           supportsDesktopDrop: _supportsDesktopDrop,
-          dropHover: _dropHover,
+          dropHover: _chromeState.dropHover,
           onDragEntered: (_) => _handleDropEntered(),
           onDragUpdated: (_) => _handleDropUpdated(),
           onDragExited: _handleDropExited,
@@ -269,34 +297,28 @@ class _FileExplorerTabState extends State<FileExplorerTab>
   }
 
   void _handleDropEntered() {
-    if (_controller.isOsDragActive ||
-        _controller.isSelfDragTarget(_controller.currentPath)) {
+    if (_chromeState.shouldIgnoreDropHover()) {
       return;
     }
     AppLogger().debug('Drop entered ${_controller.currentPath}', tag: 'Explorer');
-    if (!_dropHover) {
-      setState(() => _dropHover = true);
+    if (_chromeState.handleDropEntered()) {
+      setState(() {});
     }
   }
 
   void _handleDropUpdated() {
-    if (_controller.isOsDragActive ||
-        _controller.isSelfDragTarget(_controller.currentPath)) {
-      return;
-    }
-    if (!_dropHover) {
-      setState(() => _dropHover = true);
+    if (_chromeState.handleDropUpdated()) {
+      setState(() {});
     }
   }
 
   void _handleDropExited() {
-    if (_controller.isOsDragActive ||
-        _controller.isSelfDragTarget(_controller.currentPath)) {
+    if (_chromeState.shouldIgnoreDropHover()) {
       return;
     }
     AppLogger().debug('Drop exited ${_controller.currentPath}', tag: 'Explorer');
-    if (_dropHover) {
-      setState(() => _dropHover = false);
+    if (_chromeState.handleDropExited()) {
+      setState(() {});
     }
   }
 
@@ -315,8 +337,8 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       'Drop done ${details.files.length} files at ${details.localPosition}',
       tag: 'Explorer',
     );
-    if (_dropHover) {
-      setState(() => _dropHover = false);
+    if (_chromeState.clearDropHover()) {
+      setState(() {});
     }
     await _actions.handleDropDone(details);
   }
@@ -334,55 +356,6 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     if (controller == null) {
       return;
     }
-    final options = <TabChipOption>[];
-    options.add(
-      TabChipOption(
-        label: 'Upload files…',
-        icon: Icons.upload_file,
-        onSelected: () => _actions.handleUploadFiles(_controller.currentPath),
-      ),
-    );
-    options.add(
-      TabChipOption(
-        label: _controller.state.searchActive ? 'Hide search' : 'Show search',
-        icon: _controller.state.searchActive ? Icons.search_off : Icons.search,
-        onSelected: () {
-          unawaited(
-            _controller.setSearchActive(!_controller.state.searchActive),
-          );
-        },
-      ),
-    );
-    options.add(
-      TabChipOption(
-        label: 'Upload folder…',
-        icon: Icons.folder,
-        onSelected: () => _actions.handleUploadFolder(_controller.currentPath),
-      ),
-    );
-    options.add(
-      TabChipOption(
-        label: 'Open trash',
-        icon: Icons.delete_outline,
-        onSelected: () => widget.onOpenTrash(_controller.explorerContext),
-      ),
-    );
-    if (widget.onOpenTerminalTab != null) {
-      options.add(
-        TabChipOption(
-          label: 'Open terminal here',
-          icon: Icons.terminal,
-          onSelected: () => widget.onOpenTerminalTab!(_controller.currentPath),
-        ),
-      );
-    }
-    options.add(
-      TabChipOption(
-        label: _presenter.showSettings ? 'Hide settings' : 'Settings',
-        icon: Icons.settings,
-        onSelected: _toggleSettings,
-      ),
-    );
-    queueTabOptions(controller, options, useBase: true);
+    _chromeState.updateTabOptions(controller);
   }
 }
