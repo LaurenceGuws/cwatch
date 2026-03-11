@@ -21,13 +21,16 @@ What remains is mostly concentrated in a smaller set of heavy subsystems and sha
 
 ## Current Highest-Value Hotspots
 
-### 1. Theme/token centralization
-Primary file:
-- [app_theme.dart](/home/home/personal/cwatch/lib/model/shared/theme/app_theme.dart)
+### 1. Active watchlist shell maintenance
+Primary files:
+- [server_workspace_view.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_view.dart)
+- [kubernetes_context_list.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/kubernetes_context_list.dart)
+- [file_explorer_tab.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart)
 
 Why it still matters:
-- Too many design concerns are centralized in one file.
-- It works, but it is difficult to evolve safely because unrelated design primitives live together.
+- These are no longer architectural failures.
+- They are still large enough to regress quickly if unchecked.
+- `kubernetes_context_list.dart` is cleaner after the context-selection surface split, but all three remain watchlist files rather than “finished” surfaces.
 
 ### 2. SSH subsystem complexity
 Primary files:
@@ -40,7 +43,15 @@ Why it still matters:
 - Provider selection, runtime caching, builtin/process differences, auth coordination, and failure mapping still create a high-complexity subsystem.
 - This is now more of a subsystem-complexity problem than an ownership problem.
 
-### 3. StructuredDataTable shared risk
+### 3. Theme/token centralization
+Primary file:
+- [app_theme.dart](/home/home/personal/cwatch/lib/model/shared/theme/app_theme.dart)
+
+Why it still matters:
+- Too many design concerns are centralized in one file.
+- It works, but it is difficult to evolve safely because unrelated design primitives live together.
+
+### 4. StructuredDataTable shared risk
 Primary files:
 - [structured_data_table.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table.dart)
 - [structured_data_table_state.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_state.dart)
@@ -57,7 +68,7 @@ Current checkpoint:
 - cell navigation, cell selection, hit-test, resize, scroll, and reorder projection have been split out
 - the remaining risk is now more about widget/rendering glue than pure engine complexity
 
-### 4. Docker feature complexity
+### 5. Docker feature complexity
 Primary files:
 - [docker_lists.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_lists.dart)
 - [docker_overview.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_overview.dart)
@@ -68,17 +79,6 @@ Why it still matters:
 - Docker remains the largest visible feature subsystem by concentrated file size and mixed responsibility.
 - The feature has better ownership than before, but too much behavior still lives in a few large files.
 - This is the best next feature-level cleanup target after SSH.
-
-### 5. Active watchlist feature shells
-Primary files:
-- [server_workspace_view.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_view.dart)
-- [kubernetes_context_list.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/kubernetes_context_list.dart)
-- [file_explorer_tab.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart)
-
-Why they still matter:
-- These are no longer architectural failures.
-- They are still large enough to regress quickly if unchecked.
-- They should be treated as watchlist files rather than immediate rewrite targets.
 
 ## Current Test-Risk View
 
