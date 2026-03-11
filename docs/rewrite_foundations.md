@@ -276,6 +276,37 @@ Reasonable next directions:
 - product polish and consistency work on the stabilized shared/feature surfaces
 - a broader rewrite checkpoint and prioritization pass before the next active layer
 
+Current prioritized next-layer ranking:
+1. targeted regression coverage around the newly extracted local seams
+2. product polish and consistency work on the stabilized shared and feature surfaces
+3. a new structural rewrite layer only after those two are re-scoped from evidence
+
+Why this ranking is correct:
+- the last several phases introduced many new local controllers, shell helpers, and feature-local seams
+- those seams are architecturally better, but still young enough that regression coverage now has higher leverage than another immediate rewrite layer
+- once those seams have a stronger regression floor, polish work becomes safer because the shared shell and feature surfaces are finally explicit enough to refine deliberately
+- forcing another structural layer before that would likely optimize for rewrite momentum rather than actual repo risk
+
+What "targeted regression coverage" should mean here:
+- add focused tests around the newly extracted local seams rather than reopening giant widget harnesses
+- prioritize:
+  - `server_host_surface_controller.dart`
+  - `docker_local_state_controller.dart`
+  - `kubernetes_context_list_state.dart`
+  - any remaining thin shell helpers created in the vertical slices
+
+What "product polish and consistency" should mean here:
+- refine the now-stabilized shared shell surfaces and feature-local placeholders without changing ownership boundaries again
+- prioritize visible, intentional improvements to:
+  - placeholder/empty states
+  - section/list consistency
+  - tab-shell polish
+  - capability breadcrumbs
+
+What should not happen next by default:
+- do not start another broad ownership layer just because there is still code that could be moved
+- do not reopen already checkpointed cross-cutting layers without concrete evidence from tests, runtime bugs, or product polish work
+
 ### Focus Area E: infrastructure boundary cleanup
 Questions to answer:
 - Where are transport, parsing, and policy mixed today?

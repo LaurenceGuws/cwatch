@@ -130,6 +130,11 @@ Current likely focus:
   - product polish and consistency work on stabilized shared/feature surfaces
   - broader rewrite checkpoint/prioritization before the next structural layer
 
+Current priority order:
+1. targeted regression coverage around the new local seams
+2. product polish and consistency work on stabilized shared/feature surfaces
+3. only then choose the next structural rewrite layer
+
 Current follow-up docs:
 - `docs/rewrite_foundations.md`
 - `docs/local_feature_complexity_todo.md`
