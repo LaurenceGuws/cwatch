@@ -200,3 +200,23 @@ Done definition:
 Result:
 - builtin client connection setup now lives in a dedicated helper
 - `BuiltInSshClientManager` is further narrowed toward command/session workflow orchestration
+
+
+## Task 23.12: implement builtin plain-command execution cleanup
+Status: completed
+
+Goal:
+- extract the plain builtin command execution workflow out of `BuiltInSshClientManager`
+
+Done definition:
+- one builtin-local helper owns:
+  - command execution through `SSHClient.run(...)`
+  - timeout wrapping
+  - client kill-on-timeout behavior
+  - output decoding and completion logging
+- `BuiltInSshClientManager.runCommand(...)` no longer owns that inline workflow
+- focused regression coverage exists for the new helper
+
+Result:
+- plain builtin command execution now lives in a dedicated helper
+- `BuiltInSshClientManager` is further narrowed toward the remaining streaming and SFTP execution branches

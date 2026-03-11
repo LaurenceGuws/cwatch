@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:dartssh2/dartssh2.dart';
@@ -10,6 +9,7 @@ import '../ssh_auth_coordinator.dart';
 import 'builtin_ssh_auth_challenge_handler.dart';
 import 'builtin_ssh_client_connector.dart';
 import 'builtin_ssh_command_preparer.dart';
+import 'builtin_ssh_command_runner.dart';
 import 'builtin_ssh_client_lifecycle.dart';
 import 'builtin_ssh_failure_mapper.dart';
 import 'package:cwatch/model/shared/services/host_shell_policy.dart';
@@ -44,6 +44,10 @@ class BuiltInSshClientManager {
   final BuiltInSshTimeoutRunner _timeoutRunner = const BuiltInSshTimeoutRunner();
   final BuiltInSshStreamOutputCollector _streamOutputCollector =
       const BuiltInSshStreamOutputCollector();
+  late final BuiltInSshCommandRunner _commandRunner = BuiltInSshCommandRunner(
+    timeoutRunner: _timeoutRunner,
+    clientLifecycle: _clientLifecycle,
+  );
   late final BuiltInSshAuthChallengeHandler _authChallengeHandler =
       BuiltInSshAuthChallengeHandler(
         vault: vault,
@@ -119,23 +123,15 @@ class BuiltInSshClientManager {
     RunTimeoutHandler? onTimeout,
   }) async {
     final safeCommand = await _commandPreparer.prepareCommand(host, command);
-    logBuiltInSsh('Running command on ${host.name}: $safeCommand');
-    final bytes = await _withClient(host, (client) async {
-      final future = client.run(safeCommand);
-      return _timeoutRunner.run(
-        future: future,
-        timeout: timeout,
+    return _withClient(host, (client) {
+      return _commandRunner.runCommand(
         host: host,
-        commandDescription: safeCommand,
+        client: client,
+        safeCommand: safeCommand,
+        timeout: timeout,
         onTimeout: onTimeout,
-        onKill: () => _clientLifecycle.killClient(client),
       );
     });
-    final output = utf8.decode(bytes, allowMalformed: true);
-    logBuiltInSsh(
-      'Command on ${host.name} completed. Output length=${output.length}',
-    );
-    return output;
   }
 
   Future<String> runCommandStreaming(
