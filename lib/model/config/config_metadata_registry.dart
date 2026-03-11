@@ -14,7 +14,6 @@ const configMetadataRegistry = <ConfigGroupDescriptor>[
     fields: [
       ConfigFieldDescriptor(
         key: 'sidebarWidth',
-        fieldName: 'sidebarWidth',
         label: 'Sidebar Width',
         description:
             'Preferred sidebar width when the shell sidebar is visible.',
@@ -23,14 +22,12 @@ const configMetadataRegistry = <ConfigGroupDescriptor>[
       ),
       ConfigFieldDescriptor(
         key: 'destination',
-        fieldName: 'destination',
         label: 'Destination',
         description: 'Preferred default shell destination identifier.',
         kind: ConfigValueKind.string,
       ),
       ConfigFieldDescriptor(
         key: 'sidebarCollapsed',
-        fieldName: 'sidebarCollapsed',
         label: 'Sidebar Collapsed',
         description: 'Whether the shell sidebar starts collapsed.',
         kind: ConfigValueKind.boolean,
@@ -38,7 +35,6 @@ const configMetadataRegistry = <ConfigGroupDescriptor>[
       ),
       ConfigFieldDescriptor(
         key: 'sidebarPlacement',
-        fieldName: 'sidebarPlacement',
         label: 'Sidebar Placement',
         description: 'Placement mode for the shell sidebar.',
         kind: ConfigValueKind.string,
@@ -46,7 +42,6 @@ const configMetadataRegistry = <ConfigGroupDescriptor>[
       ),
       ConfigFieldDescriptor(
         key: 'useSystemDecorations',
-        fieldName: 'useSystemDecorations',
         label: 'Use System Decorations',
         description: 'Whether the shell uses native window decorations.',
         kind: ConfigValueKind.boolean,
@@ -54,7 +49,6 @@ const configMetadataRegistry = <ConfigGroupDescriptor>[
       ),
       ConfigFieldDescriptor(
         key: 'closeToTray',
-        fieldName: 'closeToTray',
         label: 'Close To Tray',
         description: 'Whether closing the shell minimizes to the tray instead.',
         kind: ConfigValueKind.boolean,
@@ -71,28 +65,24 @@ const configMetadataRegistry = <ConfigGroupDescriptor>[
     fields: [
       ConfigFieldDescriptor(
         key: 'themeLight',
-        fieldName: 'themeLight',
         label: 'Light Theme',
         description: 'Preferred editor theme when the app is in light mode.',
         kind: ConfigValueKind.string,
       ),
       ConfigFieldDescriptor(
         key: 'themeDark',
-        fieldName: 'themeDark',
         label: 'Dark Theme',
         description: 'Preferred editor theme when the app is in dark mode.',
         kind: ConfigValueKind.string,
       ),
       ConfigFieldDescriptor(
         key: 'fontFamily',
-        fieldName: 'fontFamily',
         label: 'Font Family',
         description: 'Preferred editor font family.',
         kind: ConfigValueKind.string,
       ),
       ConfigFieldDescriptor(
         key: 'fontSize',
-        fieldName: 'fontSize',
         label: 'Font Size',
         description: 'Preferred editor font size.',
         kind: ConfigValueKind.doubleValue,
@@ -101,7 +91,6 @@ const configMetadataRegistry = <ConfigGroupDescriptor>[
       ),
       ConfigFieldDescriptor(
         key: 'lineHeight',
-        fieldName: 'lineHeight',
         label: 'Line Height',
         description: 'Preferred editor line height multiplier.',
         kind: ConfigValueKind.doubleValue,
@@ -118,7 +107,6 @@ const configMetadataRegistry = <ConfigGroupDescriptor>[
     fields: [
       ConfigFieldDescriptor(
         key: 'fontFamily',
-        fieldName: 'fontFamily',
         label: 'Font Family',
         description: 'Preferred terminal font family.',
         kind: ConfigValueKind.string,
@@ -126,7 +114,6 @@ const configMetadataRegistry = <ConfigGroupDescriptor>[
       ),
       ConfigFieldDescriptor(
         key: 'fontSize',
-        fieldName: 'fontSize',
         label: 'Font Size',
         description: 'Preferred terminal font size.',
         kind: ConfigValueKind.doubleValue,
@@ -135,7 +122,6 @@ const configMetadataRegistry = <ConfigGroupDescriptor>[
       ),
       ConfigFieldDescriptor(
         key: 'lineHeight',
-        fieldName: 'lineHeight',
         label: 'Line Height',
         description: 'Preferred terminal line height multiplier.',
         kind: ConfigValueKind.doubleValue,
@@ -143,7 +129,6 @@ const configMetadataRegistry = <ConfigGroupDescriptor>[
       ),
       ConfigFieldDescriptor(
         key: 'paddingX',
-        fieldName: 'paddingX',
         label: 'Horizontal Padding',
         description: 'Horizontal terminal padding.',
         kind: ConfigValueKind.doubleValue,
@@ -152,7 +137,6 @@ const configMetadataRegistry = <ConfigGroupDescriptor>[
       ),
       ConfigFieldDescriptor(
         key: 'paddingY',
-        fieldName: 'paddingY',
         label: 'Vertical Padding',
         description: 'Vertical terminal padding.',
         kind: ConfigValueKind.doubleValue,
@@ -161,7 +145,6 @@ const configMetadataRegistry = <ConfigGroupDescriptor>[
       ),
       ConfigFieldDescriptor(
         key: 'themeDark',
-        fieldName: 'themeDark',
         label: 'Dark Theme',
         description: 'Preferred terminal theme in dark mode.',
         kind: ConfigValueKind.string,
@@ -169,7 +152,6 @@ const configMetadataRegistry = <ConfigGroupDescriptor>[
       ),
       ConfigFieldDescriptor(
         key: 'themeLight',
-        fieldName: 'themeLight',
         label: 'Light Theme',
         description: 'Preferred terminal theme in light mode.',
         kind: ConfigValueKind.string,
@@ -186,7 +168,6 @@ const configMetadataRegistry = <ConfigGroupDescriptor>[
     fields: [
       ConfigFieldDescriptor(
         key: 'rowHeight',
-        fieldName: 'rowHeight',
         label: 'Row Height',
         description: 'Preferred explorer row height.',
         kind: ConfigValueKind.doubleValue,
@@ -195,7 +176,6 @@ const configMetadataRegistry = <ConfigGroupDescriptor>[
       ),
       ConfigFieldDescriptor(
         key: 'showBreadcrumbs',
-        fieldName: 'showBreadcrumbs',
         label: 'Show Breadcrumbs',
         description: 'Whether the explorer shows breadcrumb navigation.',
         kind: ConfigValueKind.boolean,

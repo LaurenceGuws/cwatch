@@ -46,3 +46,24 @@ Why this is the right first cut:
 - the annotations are not used as a runtime or generated source of truth today
 - the handwritten registry is the actual metadata surface used by tests and renderers
 - removing the dead annotation layer de-complexes the subsystem immediately without guessing at a future codegen design
+
+## Task 28.3: remove registry field-name duplication
+Status: completed
+
+Goal:
+- reduce repeated descriptor boilerplate inside the handwritten registry
+- keep the registry as the active source of truth without introducing a heavier metadata system
+
+Done definition:
+- `ConfigFieldDescriptor` can default `fieldName` from `key`
+- the registry no longer repeats identical `key` and `fieldName` values across standard entries
+- markdown/summary output stays unchanged
+
+Result:
+- `ConfigFieldDescriptor` now defaults `fieldName` to `key`
+- the config metadata registry no longer repeats identical field-name wiring for the current preference groups
+- the metadata renderers still produce the same output surface
+
+Why this is the right next cut:
+- the registry is still the right active seam, but it carried avoidable boilerplate
+- this removes repetition without hiding metadata behind a new builder or generation layer

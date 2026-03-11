@@ -3,13 +3,13 @@ enum ConfigValueKind { string, boolean, integer, doubleValue, enumValue }
 class ConfigFieldDescriptor {
   const ConfigFieldDescriptor({
     required this.key,
-    required this.fieldName,
+    String? fieldName,
     required this.label,
     required this.description,
     required this.kind,
     this.unit,
     this.defaultValueDoc,
-  });
+  }) : fieldName = fieldName ?? key;
 
   final String key;
   final String fieldName;
