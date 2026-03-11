@@ -42,8 +42,8 @@ void main() {
           return completer.future;
         },
       ),
-      setBuiltInKeyPassphrase: (_, __) {},
-      setIdentityPassphrase: (_, __) {},
+      setBuiltInKeyPassphrase: (keyId, passphrase) {},
+      setIdentityPassphrase: (identityPath, passphrase) {},
     );
     final error = BuiltInSshKeyDecryptionRequired('host', 'k1', 'label');
 
@@ -69,7 +69,7 @@ void main() {
         storedKey = keyId;
         storedPassphrase = passphrase;
       },
-      setIdentityPassphrase: (_, __) {},
+      setIdentityPassphrase: (identityPath, passphrase) {},
     );
 
     final result = await handler.handleBuiltInPassphrase(
@@ -94,7 +94,7 @@ void main() {
       authCoordinator: const SshAuthCoordinator(
         onRequestPassphrase: _provideBuiltInPassphrase,
       ),
-      setBuiltInKeyPassphrase: (_, __) {},
+      setBuiltInKeyPassphrase: (keyId, passphrase) {},
       setIdentityPassphrase: (path, passphrase) {
         storedPath = path;
         storedPassphrase = passphrase;

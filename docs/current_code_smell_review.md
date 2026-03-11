@@ -93,21 +93,20 @@ The repo now has direct tests in the major new seams, but the following still ca
 
 ## Recommended Next Order
 
-1. Active watchlist shell maintenance
-2. SSH runtime simplification
+1. SSH runtime simplification
+2. Active watchlist shell maintenance
 3. Theme/token decomposition
 
 ## Why This Order
 
-### Watchlist first
-- the major active hotspots are now mostly checkpointed
-- the most practical next risk is regression or re-growth in the large shell files already on the watchlist
-- this is now higher leverage than forcing another weaker subsystem pass
+### SSH first
+- the watchlist files are materially cleaner after the latest surface extractions
+- the remaining heaviest concentrated subsystem is now SSH
+- builtin runtime glue, auth challenge handling, and shell-factory/runtime caching remain the clearest next-value cleanup area
 
-### SSH second
-- the current pass materially reduced the strongest process-provider complexity
-- the remaining weight is more legitimate builtin runtime glue and shell-factory caching behavior
-- still important, but no longer the strongest next move
+### Watchlist second
+- the major watchlist files are still worth monitoring for regression
+- but they are no longer the strongest active code-smell hotspot after the recent extractions
 
 ### Theme third
 - the current pass materially reduced centralization in [app_theme.dart](/home/home/personal/cwatch/lib/model/shared/theme/app_theme.dart)
