@@ -12,9 +12,9 @@ import 'package:cwatch/controller/adapters/kubernetes_ui_adapter.dart';
 import 'package:cwatch/view/shared/widgets/data_table/structured_data_table.dart';
 import 'package:cwatch/view/shared/widgets/lists/section_list.dart';
 import 'package:cwatch/view/shared/widgets/standard_empty_state.dart';
-import 'package:cwatch/controller/di/bindings/kubernetes_context_binding.dart';
 
 import 'package:cwatch/controller/controllers/kubernetes_context_controller.dart';
+import 'package:cwatch/view/features/kubernetes/kubernetes_runtime.dart';
 
 class KubernetesContextPicker extends StatefulWidget {
   const KubernetesContextPicker({
@@ -40,8 +40,6 @@ class KubernetesContextPicker extends StatefulWidget {
 }
 
 class _KubernetesContextPickerState extends State<KubernetesContextPicker> {
-  final KubernetesContextBinding _contextBinding =
-      const KubernetesContextBinding();
   late final KubernetesContextController _contextController;
   late final KubernetesUiAdapter _uiAdapter;
   final Map<String, bool> _collapsedByConfigPath = {};
@@ -50,7 +48,7 @@ class _KubernetesContextPickerState extends State<KubernetesContextPicker> {
   @override
   void initState() {
     super.initState();
-    _contextController = _contextBinding.create();
+    _contextController = KubernetesRuntime.createContextController();
     _uiAdapter = KubernetesUiAdapter(context: context);
   }
 

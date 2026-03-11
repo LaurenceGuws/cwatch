@@ -46,6 +46,34 @@ Why this is the right next cut:
 - the feature view still hides a real ownership blur by assembling runtime parts in multiple places
 - moving this construction into the feature runtime seam matches the earlier server cleanup and sharpens feature-local ownership
 
+## Task 25.17: define the next bounded runtime/composition batch
+Status: completed
+
+Goal:
+- choose the next feature-runtime ownership seam from the current post-Docker state
+- keep the batch on feature-local runtime construction rather than broad Kubernetes workspace redesign
+
+Done definition:
+- one explicit Kubernetes runtime batch is named
+- the stop condition reflects the current code shape
+
+Result:
+- the next bounded runtime/composition batch is now:
+  - move Kubernetes runtime assembly into the Kubernetes feature runtime seam
+- target files:
+  - [kubernetes_context_binding.dart](/home/home/personal/cwatch/lib/controller/di/bindings/kubernetes_context_binding.dart)
+  - [kubernetes_context_list.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/kubernetes_context_list.dart)
+  - [kubernetes_runtime.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/kubernetes_runtime.dart)
+- stop condition:
+  - Kubernetes-specific runtime/controller assembly no longer depends on a dedicated cross-folder binding
+  - the Kubernetes feature runtime is the obvious place to find Kubernetes runtime construction
+  - behavior stays stable
+
+Why this is the right next cut:
+- the Kubernetes binding still owns feature assembly rather than shared DI behavior
+- the feature entry widget depends on that binding directly
+- moving the assembly feature-local continues the runtime ownership cleanup consistently across modules
+
 ## Task 25.1: start the runtime/composition hotspot pass
 Status: completed
 

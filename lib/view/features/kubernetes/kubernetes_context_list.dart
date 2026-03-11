@@ -18,7 +18,6 @@ import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/controller/core/workspace/tab_options.dart';
-import 'package:cwatch/controller/di/bindings/kubernetes_context_binding.dart';
 import 'widgets/kubernetes_dashboard_view.dart';
 
 import 'package:cwatch/controller/controllers/kubernetes_context_controller.dart';
@@ -50,8 +49,6 @@ class KubernetesContextList extends StatefulWidget {
 }
 
 class _KubernetesContextListState extends State<KubernetesContextList> {
-  final KubernetesContextBinding _contextBinding =
-      const KubernetesContextBinding();
   late final KubernetesRuntime _runtime;
   late final KubernetesTabBuilder _tabBuilder;
   late final KubernetesWorkspaceShell _workspaceShell;
@@ -93,7 +90,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
       placeholderConfig: '__k8s_placeholder__',
     );
 
-    _runtime = _contextBinding.createRuntime(
+    _runtime = KubernetesRuntime.create(
       context: context,
       appSettingsController: widget.settingsController,
       keyService: widget.keyService,
