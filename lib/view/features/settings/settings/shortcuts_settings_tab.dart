@@ -269,15 +269,7 @@ class _ShortcutRowState extends State<_ShortcutRow> {
   }
 
   void _updateBinding(String? value) {
-    widget.controller.update((current) {
-      final updated = Map<String, String>.from(current.shortcutBindings);
-      if (value == null || value.trim().isEmpty) {
-        updated.remove(widget.definition.id);
-      } else {
-        updated[widget.definition.id] = value.trim();
-      }
-      return current.copyWith(shortcutBindings: updated);
-    });
+    widget.controller.setShortcutBinding(widget.definition.id, value);
   }
 
   void _setError(String? message) {

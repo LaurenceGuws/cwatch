@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import 'package:cwatch/model/models/app_settings.dart';
 import 'package:cwatch/model/models/input_mode_preference.dart';
+import 'package:cwatch/model/models/kubernetes_backend.dart';
 import 'package:cwatch/model/models/ssh_client_backend.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
@@ -154,6 +155,22 @@ class SettingsController extends ChangeNotifier {
   Future<void> enableServerHost(String hostKey) async {
     await update(
       (current) => SettingsUpdateSupport.enableServerHost(current, hostKey),
+    );
+  }
+
+  Future<void> setKubernetesBackend(KubernetesBackend value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setKubernetesBackend(current, value),
+    );
+  }
+
+  Future<void> setShortcutBinding(String shortcutId, String? value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setShortcutBinding(
+        current,
+        shortcutId: shortcutId,
+        value: value,
+      ),
     );
   }
 

@@ -37,13 +37,7 @@ class KubernetesSettingsControls extends StatelessWidget {
           ],
           onChanged: (value) {
             if (value == null) return;
-            settingsController.update(
-              (s) => s.copyWith(
-                kubernetesPreferences: s.kubernetesPreferences.copyWith(
-                  backend: value,
-                ),
-              ),
-            );
+            settingsController.setKubernetesBackend(value);
           },
         ),
         const FormSpacer(),

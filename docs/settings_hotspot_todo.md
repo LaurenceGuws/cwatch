@@ -75,3 +75,32 @@ Why this is the right next cut:
 - these are the most obvious remaining direct settings-tree writes in the active settings surface
 - they still repeat the same UI-to-model mutation pattern across multiple widgets
 - this is a bounded ownership improvement without forcing a larger settings-section redesign
+
+## Task 26.4: define the next bounded settings batch
+Status: completed
+
+Goal:
+- choose the last clear controller-owned mutation seam from the current settings surface
+- keep the batch on lightweight update ownership, not on feature-specific key-vault or file-picker workflows
+
+Done definition:
+- one next batch is explicit
+- the stop condition reflects the small amount of direct settings writes still left in widgets
+
+Result:
+- the next bounded settings batch is now:
+  - move Kubernetes backend and shortcut-binding updates into the settings controller seam
+- target files:
+  - [kubernetes_settings_controls.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/kubernetes_settings_controls.dart)
+  - [shortcuts_settings_tab.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/shortcuts_settings_tab.dart)
+  - [settings_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/settings_controller.dart)
+  - [settings_update_support.dart](/home/home/personal/cwatch/lib/controller/controllers/settings_update_support.dart)
+- stop condition:
+  - those widgets no longer own direct `settingsController.update` settings-tree mutation blocks
+  - controller-owned methods cover the remaining generic settings writes
+  - focused regression coverage exists for the extracted mutation support
+
+Why this is the right next cut:
+- the remaining direct writes are now small and clearly generic
+- finishing them gives the settings surface one obvious ownership seam for mutation behavior
+- it avoids mixing in the more feature-local SSH vault and file-picker workflows

@@ -6,6 +6,7 @@ import 'package:cwatch/model/models/app_settings.dart';
 import 'package:cwatch/model/models/editor_preferences.dart';
 import 'package:cwatch/model/models/explorer_preferences.dart';
 import 'package:cwatch/model/models/input_mode_preference.dart';
+import 'package:cwatch/model/models/kubernetes_backend.dart';
 import 'package:cwatch/model/models/shell_preferences.dart';
 import 'package:cwatch/model/models/ssh_preferences.dart';
 import 'package:cwatch/model/models/terminal_preferences.dart';
@@ -182,6 +183,37 @@ void main() {
       final updated = SettingsUpdateSupport.enableServerHost(current, 'alpha');
 
       expect(updated.sshPreferences.disabledServerHosts, ['beta']);
+    });
+
+    test('updates kubernetes backend', () {
+      final current = const AppSettings();
+
+      final updated = SettingsUpdateSupport.setKubernetesBackend(
+        current,
+        KubernetesBackend.api,
+      );
+
+      expect(updated.kubernetesPreferences.backend, KubernetesBackend.api);
+    });
+
+    test('sets and clears shortcut bindings', () {
+      final current = const AppSettings(
+        shortcutBindings: {'terminal.copy': 'ctrl+shift+c'},
+      );
+
+      final updated = SettingsUpdateSupport.setShortcutBinding(
+        current,
+        shortcutId: 'terminal.paste',
+        value: ' ctrl+shift+v ',
+      );
+      final cleared = SettingsUpdateSupport.setShortcutBinding(
+        updated,
+        shortcutId: 'terminal.copy',
+        value: '  ',
+      );
+
+      expect(updated.shortcutBindings['terminal.paste'], 'ctrl+shift+v');
+      expect(cleared.shortcutBindings.containsKey('terminal.copy'), isFalse);
     });
   });
 }

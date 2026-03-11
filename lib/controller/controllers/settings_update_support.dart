@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cwatch/model/models/app_settings.dart';
 import 'package:cwatch/model/models/editor_preferences.dart';
 import 'package:cwatch/model/models/input_mode_preference.dart';
+import 'package:cwatch/model/models/kubernetes_backend.dart';
 import 'package:cwatch/model/models/terminal_preferences.dart';
 
 class SettingsUpdateSupport {
@@ -106,6 +107,31 @@ class SettingsUpdateSupport {
         disabledServerHosts: next,
       ),
     );
+  }
+
+  static AppSettings setKubernetesBackend(
+    AppSettings current,
+    KubernetesBackend value,
+  ) {
+    return current.copyWith(
+      kubernetesPreferences: current.kubernetesPreferences.copyWith(
+        backend: value,
+      ),
+    );
+  }
+
+  static AppSettings setShortcutBinding(
+    AppSettings current, {
+    required String shortcutId,
+    required String? value,
+  }) {
+    final updated = Map<String, String>.from(current.shortcutBindings);
+    if (value == null || value.trim().isEmpty) {
+      updated.remove(shortcutId);
+    } else {
+      updated[shortcutId] = value.trim();
+    }
+    return current.copyWith(shortcutBindings: updated);
   }
 
   static AppSettings setTerminalFontFamily(AppSettings current, String value) {
