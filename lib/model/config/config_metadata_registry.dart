@@ -1,4 +1,3 @@
-import 'package:cwatch/model/config/config_metadata_annotations.dart';
 import 'package:cwatch/model/config/config_metadata_descriptor.dart';
 import 'package:cwatch/model/models/editor_preferences.dart';
 import 'package:cwatch/model/models/explorer_preferences.dart';
@@ -17,7 +16,8 @@ const configMetadataRegistry = <ConfigGroupDescriptor>[
         key: 'sidebarWidth',
         fieldName: 'sidebarWidth',
         label: 'Sidebar Width',
-        description: 'Preferred sidebar width when the shell sidebar is visible.',
+        description:
+            'Preferred sidebar width when the shell sidebar is visible.',
         kind: ConfigValueKind.doubleValue,
         unit: 'px',
       ),

@@ -1,4 +1,4 @@
-import 'package:cwatch/model/config/config_metadata_annotations.dart';
+enum ConfigValueKind { string, boolean, integer, doubleValue, enumValue }
 
 class ConfigFieldDescriptor {
   const ConfigFieldDescriptor({
