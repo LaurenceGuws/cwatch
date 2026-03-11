@@ -130,24 +130,23 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
 
     Widget body;
     if (loading && snapshot == null) {
-      body = const Center(child: CircularProgressIndicator());
+      body = const DashboardFeedbackState(
+        message: 'Loading resource metrics...',
+        loading: true,
+      );
     } else if (error != null) {
-      body = Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('Failed to load resources: $error'),
-            SizedBox(height: spacing.lg),
-            FilledButton.icon(
-              onPressed: () => _controller.loadResources(initial: true),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
-            ),
-          ],
-        ),
+      body = DashboardFeedbackState(
+        title: 'Resources unavailable',
+        message: 'Failed to load resources: $error',
+        icon: Icons.error_outline,
+        actionLabel: 'Retry',
+        onAction: () => _controller.loadResources(initial: true),
       );
     } else if (snapshot == null) {
-      body = const Center(child: Text('No resource metrics available.'));
+      body = const DashboardFeedbackState(
+        message: 'No resource metrics available.',
+        icon: Icons.insights_outlined,
+      );
     } else {
       body = ListView(
         padding: EdgeInsets.all(spacing.sm),

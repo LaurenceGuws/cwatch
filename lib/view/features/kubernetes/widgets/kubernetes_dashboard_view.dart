@@ -76,7 +76,10 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
     final error = _controller.error;
 
     if (loading && snapshot == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const DashboardFeedbackState(
+        message: 'Loading dashboard...',
+        loading: true,
+      );
     }
     if (error != null) {
       return _buildError(context, error);
@@ -731,28 +734,12 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
   }
 
   Widget _buildError(BuildContext context, String message) {
-    final spacing = context.appTheme.spacing;
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(spacing.lg),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Dashboard unavailable',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            SizedBox(height: spacing.sm),
-            Text(message, textAlign: TextAlign.center),
-            SizedBox(height: spacing.lg),
-            FilledButton.icon(
-              onPressed: _controller.refresh,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
-            ),
-          ],
-        ),
-      ),
+    return DashboardFeedbackState(
+      title: 'Dashboard unavailable',
+      message: message,
+      icon: Icons.error_outline,
+      actionLabel: 'Retry',
+      onAction: _controller.refresh,
     );
   }
 

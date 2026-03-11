@@ -102,9 +102,18 @@ class _DockerResourcesState extends State<DockerResources>
           SizedBox(height: spacing.md),
           Expanded(
             child: loading
-                ? const Center(child: CircularProgressIndicator())
+                ? const DashboardFeedbackState(
+                    message: 'Loading container stats...',
+                    loading: true,
+                  )
                 : error != null
-                ? Center(child: Text('Failed to load stats: $error'))
+                ? DashboardFeedbackState(
+                    title: 'Stats unavailable',
+                    message: 'Failed to load stats: $error',
+                    icon: Icons.error_outline,
+                    actionLabel: 'Retry',
+                    onAction: () => _controller.loadStats(initial: true),
+                  )
                 : stats.isEmpty
                 ? const StandardEmptyState(message: 'No container stats found.')
                 : LayoutBuilder(
@@ -441,7 +450,10 @@ class _DockerResourcesState extends State<DockerResources>
                       duration: const Duration(milliseconds: 250),
                       curve: Curves.easeInOut,
                     )
-                  : const Center(child: Text('No history yet')),
+                  : const DashboardFeedbackState(
+                      message: 'No history yet',
+                      icon: Icons.show_chart,
+                    ),
             ),
           ],
         ),

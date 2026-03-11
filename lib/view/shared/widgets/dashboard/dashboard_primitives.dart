@@ -242,3 +242,56 @@ class DashboardLegendChip extends StatelessWidget {
     );
   }
 }
+
+class DashboardFeedbackState extends StatelessWidget {
+  const DashboardFeedbackState({
+    super.key,
+    this.title,
+    required this.message,
+    this.icon,
+    this.actionLabel,
+    this.onAction,
+    this.loading = false,
+  });
+
+  final String? title;
+  final String message;
+  final IconData? icon;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(spacing.lg),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (loading)
+              const CircularProgressIndicator()
+            else if (icon != null)
+              Icon(icon, size: 28, color: scheme.onSurfaceVariant),
+            if (loading || icon != null) SizedBox(height: spacing.md),
+            if (title != null) ...[
+              Text(title!, style: Theme.of(context).textTheme.titleLarge),
+              SizedBox(height: spacing.sm),
+            ],
+            Text(message, textAlign: TextAlign.center),
+            if (actionLabel != null && onAction != null) ...[
+              SizedBox(height: spacing.lg),
+              FilledButton.icon(
+                onPressed: onAction,
+                icon: const Icon(Icons.refresh),
+                label: Text(actionLabel!),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}

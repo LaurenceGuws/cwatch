@@ -178,3 +178,28 @@ Result:
 Why this is a good checkpoint:
 - the remaining chart chrome now reads as one product surface
 - it improves consistency without touching chart logic, data shaping, or feature-specific metrics
+
+## Task 21.7: normalize dashboard feedback states
+Status: completed
+
+Goal:
+- tighten the remaining shared drift in dashboard loading/error/empty feedback
+- keep richer domain-specific remediation local while standardizing straightforward feedback states
+
+Done definition:
+- one shared dashboard feedback primitive exists
+- Docker resources use it for loading/error/chart-empty feedback
+- Kubernetes dashboard/resources use it for loading/error/empty feedback
+
+Result:
+- [dashboard_primitives.dart](/home/home/personal/cwatch/lib/view/shared/widgets/dashboard/dashboard_primitives.dart) now includes `DashboardFeedbackState`
+- Docker resources now use the shared feedback path in:
+  - [docker_resources.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_resources.dart)
+- Kubernetes dashboard/resources now use the same feedback path in:
+  - [kubernetes_dashboard_view.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/widgets/kubernetes_dashboard_view.dart)
+  - [kubernetes_resources.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/widgets/kubernetes_resources.dart)
+
+Why this is a good checkpoint:
+- the remaining obvious dashboard-state drift is reduced
+- feedback now reads as one system for straightforward loading/error/empty cases
+- richer dashboard-specific guidance is still free to stay local
