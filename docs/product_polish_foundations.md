@@ -164,3 +164,19 @@ Current first implementation batch:
 - scope the shared table/list chrome language around `StructuredDataTable`
 - start with hosting/frame consistency, not table internals
 - keep feature-specific row actions, domain columns, and row chips local
+
+Current table/list polish direction:
+- standardize the hosting surface around `StructuredDataTable`
+- not the internal row/column engine
+
+What should become shared:
+- table section framing
+- title/subtitle/action-bar layout above shared tables
+- straightforward loading/empty/filter feedback around shared tables
+- default density signals where the same table surface appears across features
+
+What should stay feature-owned:
+- domain-specific columns
+- row actions and context menus
+- row metadata chips
+- row-level icons and value formatting

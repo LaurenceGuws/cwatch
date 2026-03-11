@@ -264,3 +264,38 @@ First implementation batch:
 - scope the shared hosting/frame language around `StructuredDataTable`
 - start with table hosting chrome and density signals
 - keep feature-specific row actions, column sets, and domain chips local
+
+## Task 21.10: define the structured table/list chrome contract
+Status: completed
+
+Goal:
+- define the correct boundary for polishing the shared table/list surface
+- avoid drifting into a rewrite of `StructuredDataTable` internals or feature-specific row behavior
+
+Done definition:
+- the shared vs feature-owned parts of the table/list surface are explicit
+- one narrow first implementation batch is chosen
+
+Result:
+- the shared shell-owned part is now scoped as:
+  - hosting/frame consistency around `StructuredDataTable`
+  - section title/subtitle/action layout above the table
+  - straightforward empty/loading/filter feedback around the table surface
+  - default density signals where the same table surface repeats
+- the feature-owned part is now scoped as:
+  - columns
+  - row actions
+  - domain chips
+  - row-level icons and formatting
+
+Why this is the right boundary:
+- it gives a high-leverage polish surface without destabilizing the table engine
+- it keeps feature behavior and domain expression local
+- it matches how the current drift actually appears in server, Docker, Kubernetes, explorer, and debug-log surfaces
+
+First implementation batch:
+- define a shared table host/scaffold surface around `StructuredDataTable`
+- prove it first on:
+  - server host list sections
+  - kubernetes context selection sections
+  - one Docker table-hosting surface
