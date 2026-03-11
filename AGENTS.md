@@ -76,6 +76,7 @@ Use the current-state review docs as the handover source of truth before reopeni
 - `docs/current_code_smell_review.md`
 - `docs/runtime_composition_hotspot_todo.md`
 - `docs/settings_hotspot_todo.md`
+- `docs/ui_adapter_surface_hotspot_todo.md`
 
 Checkpointed design baselines that should be treated as current enforced state unless new evidence reopens them:
 - Docker feature decomposition

@@ -1,3 +1,4 @@
+import 'package:cwatch/controller/adapters/port_forward_ui.dart';
 import 'package:flutter/material.dart';
 
 import 'package:cwatch/model/models/custom_ssh_host.dart';
@@ -8,13 +9,14 @@ import 'package:cwatch/view/shared/widgets/dialog_keyboard_shortcuts.dart';
 import 'package:cwatch/view/shared/widgets/port_forward_dialog.dart'
     as port_forward;
 
-class ServerWorkspaceUiAdapter {
+class ServerWorkspaceUiAdapter implements PortForwardUi {
   ServerWorkspaceUiAdapter({required this.context});
 
   final BuildContext context;
 
   bool get mounted => context.mounted;
 
+  @override
   void showSnackBar(String message) {
     if (!context.mounted) return;
     ScaffoldMessenger.of(
@@ -22,7 +24,8 @@ class ServerWorkspaceUiAdapter {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<List<PortForwardRequest>?> promptPortForwardDialog({
+  @override
+  Future<List<PortForwardRequest>?> showPortForwardDialog({
     required String title,
     required List<PortForwardRequest> requests,
     required Future<bool> Function(int port) portValidator,

@@ -18,6 +18,7 @@ import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 
 import '../adapters/docker_overview_ui_adapter.dart';
+import 'docker_port_forward_controller.dart';
 
 class DockerOverviewActionsController {
   DockerOverviewActionsController({
@@ -51,6 +52,16 @@ class DockerOverviewActionsController {
   int get _tailLines => settingsController.settings.dockerLogsTailClamped;
   bool get _supportsForwarding =>
       _isRemote && _remoteHost != null && _shellService != null;
+
+  DockerPortForwardController get _portForwardController =>
+      DockerPortForwardController(
+        portForwardService: portForwardService,
+        settingsController: settingsController,
+        keyService: keyService,
+        ui: uiAdapter,
+        remoteHost: _supportsForwarding ? _remoteHost : null,
+        cachedContainers: () => controller.cachedContainers,
+      );
 
   String logsBaseCommand(String containerId) {
     final contextFlag = _contextName != null && _contextName!.isNotEmpty
@@ -106,47 +117,6 @@ class DockerOverviewActionsController {
       return suffixed;
     }
     return '$historyPrefix; clear; $suffixed';
-  }
-
-  List<int> _extractPorts(String raw) {
-    final parts = raw
-        .split(',')
-        .map((p) => p.trim())
-        .where((p) => p.isNotEmpty);
-    final ports = <int>{};
-    for (final part in parts) {
-      final arrowIndex = part.indexOf('->');
-      if (arrowIndex != -1) {
-        final hostSide = part.substring(0, arrowIndex);
-        final segments = hostSide.split(':');
-        final candidate = segments.isNotEmpty ? segments.last : hostSide;
-        final parsed = int.tryParse(
-          RegExp(r'([0-9]+)').stringMatch(candidate) ?? '',
-        );
-        if (parsed != null) {
-          ports.add(parsed);
-          continue;
-        }
-      }
-      final startMatch = RegExp(r'^([0-9]+)').firstMatch(part);
-      if (startMatch != null) {
-        ports.add(int.parse(startMatch.group(1)!));
-      }
-    }
-    final list = ports.toList()..sort();
-    return list;
-  }
-
-  Future<int> _pickLocalPort(Set<int> reserved, int preferred) async {
-    var candidate = preferred;
-    while (candidate < 65535) {
-      if (!reserved.contains(candidate) &&
-          await portForwardService.isPortAvailable(candidate)) {
-        return candidate;
-      }
-      candidate += 1;
-    }
-    throw Exception('No free local ports available for $preferred');
   }
 
   Future<void> runContainerAction({
@@ -558,188 +528,15 @@ class DockerOverviewActionsController {
   Future<void> forwardContainerPorts({
     required DockerContainer container,
   }) async {
-    final hostKeyBindings =
-        settingsController.settings.sshPreferences.builtinHostKeyBindings;
-    if (!_supportsForwarding) {
-      return;
-    }
-    final detected = _extractPorts(container.ports);
-    final activeForwards = _remoteHost != null
-        ? portForwardService.forwardsForHost(_remoteHost!).toList()
-        : const <ActivePortForward>[];
-    if (detected.isEmpty) {
-      uiAdapter.showSnackBar('No published ports detected.');
-      return;
-    }
-    final requests = <PortForwardRequest>[];
-    for (final port in detected) {
-      final existing = activeForwards
-          .expand((f) => f.requests)
-          .firstWhere(
-            (r) => r.remotePort == port,
-            orElse: () => PortForwardRequest(
-              remoteHost: '127.0.0.1',
-              remotePort: 0,
-              localPort: 0,
-            ),
-          );
-      final local = existing.remotePort == port && existing.localPort > 0
-          ? existing.localPort
-          : await portForwardService.suggestLocalPort(port);
-      AppLogger().debug(
-        'Forward default for ${container.id}: remote=$port local=$local '
-        '(existingMatch=${existing.remotePort == port && existing.localPort > 0})',
-        tag: 'PortForward',
-      );
-      requests.add(
-        PortForwardRequest(
-          remoteHost: '127.0.0.1',
-          remotePort: port,
-          localPort: local,
-          label: container.name.isNotEmpty ? container.name : container.id,
-        ),
-      );
-    }
-    final result = await uiAdapter.showPortForwardDialog(
-      title:
-          'Forward ports (${container.name.isNotEmpty ? container.name : container.id})',
-      requests: requests,
-      portValidator: portForwardService.isPortAvailable,
-      active: activeForwards,
-    );
-    if (result == null || result.isEmpty) return;
-    try {
-      await portForwardService.startForward(
-        host: _remoteHost!,
-        requests: result,
-        settingsController: settingsController,
-        builtInKeyService: keyService,
-        hostKeyBindings: hostKeyBindings,
-      );
-      final summary = result
-          .map((r) => '${r.localPort}->${r.remotePort}')
-          .join(', ');
-      uiAdapter.showSnackBar('Forwarding $summary via SSH.');
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Failed to create port forward for ${container.name}',
-        tag: 'Docker',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      uiAdapter.showSnackBar('Port forward failed: $error');
-    }
+    await _portForwardController.forwardContainerPorts(container: container);
   }
 
   Future<void> stopForwardsForHost() async {
-    if (!_supportsForwarding || _remoteHost == null) return;
-    final forwards = portForwardService.forwardsForHost(_remoteHost!).toList();
-    if (forwards.isEmpty) {
-      uiAdapter.showSnackBar('No active forwards.');
-      return;
-    }
-    for (final forward in forwards) {
-      await portForwardService.stopForward(forward.id);
-    }
-    uiAdapter.showSnackBar('Stopped active port forwards.');
+    await _portForwardController.stopForwardsForHost();
   }
 
   Future<void> forwardComposePorts({required String project}) async {
-    final hostKeyBindings =
-        settingsController.settings.sshPreferences.builtinHostKeyBindings;
-    if (!_supportsForwarding) return;
-    final ports = <int>{};
-    for (final container in controller.cachedContainers) {
-      if (container.composeProject == project) {
-        ports.addAll(_extractPorts(container.ports));
-      }
-    }
-    final sorted = ports.toList()..sort();
-    if (sorted.isEmpty) {
-      uiAdapter.showSnackBar('No published ports detected.');
-      return;
-    }
-    final portServices = <int, Set<String>>{};
-    for (final container in controller.cachedContainers) {
-      if (container.composeProject != project) continue;
-      final serviceName = (container.composeService?.isNotEmpty ?? false)
-          ? container.composeService!
-          : (container.name.isNotEmpty ? container.name : project);
-      final containerPorts = _extractPorts(container.ports);
-      for (final p in containerPorts) {
-        portServices.putIfAbsent(p, () => <String>{}).add(serviceName);
-      }
-    }
-
-    final activeForwards = _remoteHost != null
-        ? portForwardService.forwardsForHost(_remoteHost!).toList()
-        : const <ActivePortForward>[];
-    final requests = <PortForwardRequest>[];
-    final reservedLocals = activeForwards
-        .expand((f) => f.requests.map((r) => r.localPort))
-        .where((p) => p > 0)
-        .toSet();
-    for (final port in sorted) {
-      final existing = activeForwards
-          .expand((f) => f.requests)
-          .firstWhere(
-            (r) => r.remotePort == port,
-            orElse: () => PortForwardRequest(
-              remoteHost: '127.0.0.1',
-              remotePort: 0,
-              localPort: 0,
-            ),
-          );
-      final local = existing.remotePort == port && existing.localPort > 0
-          ? existing.localPort
-          : await _pickLocalPort(reservedLocals, port);
-      reservedLocals.add(local);
-      AppLogger().debug(
-        'Compose $project forward default: remote=$port local=$local '
-        '(existingMatch=${existing.remotePort == port && existing.localPort > 0})',
-        tag: 'PortForward',
-      );
-      final services = portServices[port];
-      final label = (services != null && services.isNotEmpty)
-          ? services.join(', ')
-          : project;
-      requests.add(
-        PortForwardRequest(
-          remoteHost: '127.0.0.1',
-          remotePort: port,
-          localPort: local,
-          label: label,
-        ),
-      );
-    }
-    final result = await uiAdapter.showPortForwardDialog(
-      title: 'Forward ports (Compose $project)',
-      requests: requests,
-      portValidator: portForwardService.isPortAvailable,
-      active: activeForwards,
-    );
-    if (result == null || result.isEmpty) return;
-    try {
-      await portForwardService.startForward(
-        host: _remoteHost!,
-        requests: result,
-        settingsController: settingsController,
-        builtInKeyService: keyService,
-        hostKeyBindings: hostKeyBindings,
-      );
-      final summary = result
-          .map((r) => '${r.localPort}->${r.remotePort}')
-          .join(', ');
-      uiAdapter.showSnackBar('Forwarding $summary for $project.');
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Failed to create compose port forward for $project',
-        tag: 'Docker',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      uiAdapter.showSnackBar('Port forward failed: $error');
-    }
+    await _portForwardController.forwardComposePorts(project: project);
   }
 
   Future<void> openLogsTab({required DockerContainer container}) async {

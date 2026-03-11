@@ -177,6 +177,7 @@ Current active hotspot order:
 6. file-operation flow reevaluation only if fresh evidence reopens it
 
 Current active next TODO:
+- `docs/ui_adapter_surface_hotspot_todo.md` active
 - `docs/settings_hotspot_todo.md` checkpointed
 - `docs/ssh_current_hotspot_todo.md` checkpointed
 - `docs/file_operations_ui_hotspot_todo.md` checkpointed

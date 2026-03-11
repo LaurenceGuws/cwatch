@@ -7,13 +7,16 @@ import 'package:cwatch/view/shared/widgets/port_forward_dialog.dart'
     as port_forward;
 import 'package:cwatch/view/shared/widgets/shared_prompt_dialogs.dart';
 
-class DockerOverviewUiAdapter {
+import 'port_forward_ui.dart';
+
+class DockerOverviewUiAdapter implements PortForwardUi {
   DockerOverviewUiAdapter({required this.context});
 
   final BuildContext context;
 
   bool get mounted => context.mounted;
 
+  @override
   void showSnackBar(String message) {
     if (!context.mounted) return;
     ScaffoldMessenger.of(
@@ -70,6 +73,7 @@ class DockerOverviewUiAdapter {
     );
   }
 
+  @override
   Future<List<PortForwardRequest>?> showPortForwardDialog({
     required String title,
     required List<PortForwardRequest> requests,

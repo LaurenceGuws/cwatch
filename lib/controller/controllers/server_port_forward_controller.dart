@@ -1,4 +1,4 @@
-import 'package:cwatch/view/features/servers/server_workspace_ui_adapter.dart';
+import 'package:cwatch/controller/adapters/port_forward_ui.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/services_infra/port_forwarding/port_forward_service.dart';
@@ -16,7 +16,7 @@ class ServerPortForwardController {
   final PortForwardService portForwardService;
   final AppSettingsController settingsController;
   final BuiltInSshKeyService keyService;
-  final ServerWorkspaceUiAdapter uiAdapter;
+  final PortForwardUi uiAdapter;
 
   Future<void> openDialog(SshHost host) async {
     final active = portForwardService.forwardsForHost(host).toList();
@@ -32,7 +32,7 @@ class ServerPortForwardController {
               label: 'Mapping 1',
             ),
           ];
-    final result = await uiAdapter.promptPortForwardDialog(
+    final result = await uiAdapter.showPortForwardDialog(
       title: 'Port forwarding (${host.name})',
       requests: initial,
       portValidator: portForwardService.isPortAvailable,
