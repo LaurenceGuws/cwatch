@@ -126,8 +126,12 @@ class _TabChipState extends State<TabChip> {
       onExit: (_) => _setHovering(false),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onSecondaryTapDown: (details) =>
-            _showContextMenu(context, details.globalPosition, menuOptions),
+        onSecondaryTapDown: (details) {
+          if (!widget.selected) {
+            widget.onSelect();
+          }
+          _showContextMenu(context, details.globalPosition, menuOptions);
+        },
         child: Transform.translate(
           offset: Offset(
             0,
