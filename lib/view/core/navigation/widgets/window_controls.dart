@@ -94,12 +94,16 @@ class _CaptionButtonState extends State<_CaptionButton> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final listTokens = context.appTheme.list;
     final hoverColor = widget.destructive
         ? scheme.error.withValues(alpha: 0.8)
-        : scheme.surfaceContainerHighest.withValues(alpha: 0.35);
+        : listTokens.hoverBackground;
     final iconColor = widget.destructive
         ? (_hovering ? scheme.onError : scheme.onSurface)
         : scheme.onSurface;
+    final borderColor = widget.destructive
+        ? Colors.transparent
+        : (_hovering ? listTokens.hoverBorder : Colors.transparent);
     return Tooltip(
       message: widget.tooltip,
       child: MouseRegion(
@@ -112,7 +116,10 @@ class _CaptionButtonState extends State<_CaptionButton> {
           child: Container(
             width: WindowControlsConstants.buttonWidth,
             height: WindowControlsConstants.height,
-            color: _hovering ? hoverColor : Colors.transparent,
+            decoration: BoxDecoration(
+              color: _hovering ? hoverColor : Colors.transparent,
+              border: Border.all(color: borderColor),
+            ),
             child: Icon(
               widget.icon,
               size: context.appTheme.iconSizes.medium,
