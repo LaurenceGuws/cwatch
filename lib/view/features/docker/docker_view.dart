@@ -12,6 +12,7 @@ import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/controller/controllers/docker_shell_callbacks.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
+import 'package:cwatch/model/services_infra/settings/workspace_root_controller.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
@@ -119,6 +120,26 @@ class _DockerViewState extends State<DockerView> {
       portForwardService: portForwardService,
       hostsFuture: widget.hostsFuture,
     );
+    final workspaceController = DockerWorkspaceController(
+      settingsController: widget.settingsController,
+      workspaceRootController: WorkspaceRootController(
+        settingsController: widget.settingsController,
+      ),
+      baseTabBuilder: _enginePickerTab,
+    );
+    _localStateController = DockerLocalStateController(
+      settingsController: widget.settingsController,
+      workspaceController: workspaceController,
+      viewController: _viewController,
+      shellFactory: widget.shellFactory,
+      hostsFuture: widget.hostsFuture,
+      requestRefresh: () {
+        if (mounted) {
+          setState(() {});
+        }
+      },
+      refreshPickerTabs: _refreshPickerTabs,
+    );
     _runtime = _viewBinding.createRuntime(
       settingsController: widget.settingsController,
       keyService: widget.keyService,
@@ -131,7 +152,7 @@ class _DockerViewState extends State<DockerView> {
       portForwardService: portForwardService,
       shellCallbacks: _shellCallbacks,
       tabBuilder: _tabBuilder,
-      baseTabBuilder: _enginePickerTab,
+      workspaceController: workspaceController,
     );
     _viewControllerListener = () {
       if (!mounted) return;
@@ -139,19 +160,6 @@ class _DockerViewState extends State<DockerView> {
     };
     _viewController.addListener(_viewControllerListener);
     _uiAdapter = DockerUiAdapter(context: context);
-    _localStateController = DockerLocalStateController(
-      settingsController: widget.settingsController,
-      workspaceController: _workspaceController,
-      viewController: _viewController,
-      shellFactory: widget.shellFactory,
-      hostsFuture: widget.hostsFuture,
-      requestRefresh: () {
-        if (mounted) {
-          setState(() {});
-        }
-      },
-      refreshPickerTabs: _refreshPickerTabs,
-    );
 
     _tabRegistry = TabViewRegistry<WorkspaceTab>(
       tabId: (tab) => tab.id,
