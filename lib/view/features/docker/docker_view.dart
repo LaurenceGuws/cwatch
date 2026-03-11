@@ -30,6 +30,7 @@ import 'package:cwatch/view/shared/views/shared/tabs/settings/floating_settings_
 import 'docker_tab_builder.dart';
 import 'docker_workspace_controller.dart';
 import 'docker_workspace_tab_restorer.dart';
+import 'docker_view_dashboard_helper.dart';
 import 'docker_view_tab_state_helper.dart';
 import 'package:cwatch/view/features/settings/settings/docker_settings_controls.dart';
 import 'package:cwatch/controller/adapters/docker_ui_adapter.dart';
@@ -78,6 +79,8 @@ class _DockerViewState extends State<DockerView> {
   late final VoidCallback _tabsListener;
   late final VoidCallback _viewControllerListener;
   late final DockerViewShell _viewShell;
+  final DockerViewDashboardHelper _dashboardHelper =
+      const DockerViewDashboardHelper();
   final DockerViewTabStateHelper _tabStateHelper =
       const DockerViewTabStateHelper();
   bool _showListSettings = false;
@@ -451,26 +454,14 @@ class _DockerViewState extends State<DockerView> {
     final icons = context.appTheme.icons;
     final choice = await _pickDashboardTarget(contextName, icons.cloud, anchor);
     if (choice == null || !mounted) return;
-    final newId = 'ctx-$contextName-${DateTime.now().microsecondsSinceEpoch}';
-    final newTab = choice == _DashboardTarget.resources
-        ? _tabBuilder.resources(
-            id: newId,
-            title: contextName,
-            label: contextName,
-            icon: icons.cloud,
-            contextName: contextName,
-            onOpenTab: _openChildTab,
-            onCloseTab: _closeTabById,
-          )
-        : _tabBuilder.overview(
-            id: newId,
-            title: contextName,
-            label: contextName,
-            icon: icons.cloud,
-            contextName: contextName,
-            onOpenTab: _openChildTab,
-            onCloseTab: _closeTabById,
-          );
+    final newTab = _dashboardHelper.buildContextDashboardTab(
+      contextName: contextName,
+      target: choice,
+      icon: icons.cloud,
+      tabBuilder: _tabBuilder,
+      onOpenTab: _openChildTab,
+      onCloseTab: _closeTabById,
+    );
     _replaceTab(tabId, newTab);
   }
 
@@ -479,7 +470,6 @@ class _DockerViewState extends State<DockerView> {
     SshHost host,
     Offset? anchor,
   ) async {
-    final shell = _shellCallbacks.shellForHost(host);
     final icons = context.appTheme.icons;
     final choice = await _pickDashboardTarget(
       host.name,
@@ -487,32 +477,19 @@ class _DockerViewState extends State<DockerView> {
       anchor,
     );
     if (choice == null || !mounted) return;
-    final newId = 'host-${host.name}-${DateTime.now().microsecondsSinceEpoch}';
-    final newTab = choice == _DashboardTarget.resources
-        ? _tabBuilder.resources(
-            id: newId,
-            title: host.name,
-            label: host.name,
-            icon: icons.cloudOutline,
-            remoteHost: host,
-            shellService: shell,
-            onOpenTab: _openChildTab,
-            onCloseTab: _closeTabById,
-          )
-        : _tabBuilder.overview(
-            id: newId,
-            title: host.name,
-            label: host.name,
-            icon: icons.cloudOutline,
-            remoteHost: host,
-            shellService: shell,
-            onOpenTab: _openChildTab,
-            onCloseTab: _closeTabById,
-          );
+    final newTab = _dashboardHelper.buildHostDashboardTab(
+      host: host,
+      target: choice,
+      icon: icons.cloudOutline,
+      shellCallbacks: _shellCallbacks,
+      tabBuilder: _tabBuilder,
+      onOpenTab: _openChildTab,
+      onCloseTab: _closeTabById,
+    );
     _replaceTab(tabId, newTab);
   }
 
-  Future<_DashboardTarget?> _pickDashboardTarget(
+  Future<DockerDashboardTarget?> _pickDashboardTarget(
     String title,
     IconData icon,
     Offset? anchor,
@@ -526,7 +503,7 @@ class _DockerViewState extends State<DockerView> {
         overlayBase + Offset(overlaySize.width / 2, overlaySize.height / 2);
     final left = anchorPoint.dx - overlayBase.dx;
     final top = anchorPoint.dy - overlayBase.dy;
-    return showMenu<_DashboardTarget>(
+    return showMenu<DockerDashboardTarget>(
       context: context,
       useRootNavigator: true,
       position: RelativeRect.fromLTRB(
@@ -537,7 +514,7 @@ class _DockerViewState extends State<DockerView> {
       ),
       items: [
         PopupMenuItem(
-          value: _DashboardTarget.overview,
+          value: DockerDashboardTarget.overview,
           child: ListTile(
             contentPadding: EdgeInsets.zero,
             leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
@@ -546,7 +523,7 @@ class _DockerViewState extends State<DockerView> {
           ),
         ),
         PopupMenuItem(
-          value: _DashboardTarget.resources,
+          value: DockerDashboardTarget.resources,
           child: ListTile(
             contentPadding: EdgeInsets.zero,
             leading: Icon(
@@ -665,5 +642,3 @@ class _DockerViewState extends State<DockerView> {
     return '${host.name}-docker';
   }
 }
-
-enum _DashboardTarget { overview, resources }

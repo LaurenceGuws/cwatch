@@ -360,3 +360,42 @@ Done definition:
 - one Docker-local helper owns rename-state updates, explorer-path persistence updates, and picker-tab filtering for `DockerView`
 - `DockerView` keeps dialog/menu hosting and workspace actions only
 - focused regression coverage exists for rename/path/picker mutation behavior
+
+## Task 22.19: define the next bounded Docker batch after the tab-state mutation split
+Status: completed
+
+Goal:
+- choose the next Docker-only cleanup slice from the current code state after the tab-state mutation split
+- keep the batch on repeated dashboard-opening orchestration instead of generic prompt/menu hosting
+
+Done definition:
+- one new Docker batch is explicit
+- the batch has a clear stop condition
+- later Docker concerns remain queued
+
+Result:
+- the next bounded Docker batch is now:
+  - Docker view dashboard replacement-tab split
+- target files:
+  - [docker_view.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view.dart)
+  - new Docker-local helper under `lib/view/features/docker/`
+- stop condition:
+  - context/host dashboard replacement-tab construction and target routing no longer live inline in `DockerView`
+  - menu presentation stays in `docker_view.dart`
+  - tab builder and shell callback contracts stay stable in this batch
+
+Why this is the right next cut:
+- `docker_view.dart` still duplicates context and host dashboard-opening orchestration
+- repeated target handling, id generation, and replacement-tab construction are real feature-local smell
+- it creates a direct seam for focused regression coverage without reopening widget layout work
+
+## Task 22.20: implement the Docker view dashboard replacement-tab split
+Status: completed
+
+Goal:
+- extract Docker dashboard replacement-tab construction for context and host flows into a dedicated Docker-local helper
+
+Done definition:
+- one Docker-local helper owns context/host dashboard target routing and replacement-tab construction
+- `DockerView` keeps menu display and workspace replacement only
+- focused regression coverage exists for context/host dashboard projection behavior
