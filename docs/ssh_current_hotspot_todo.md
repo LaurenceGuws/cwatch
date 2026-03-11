@@ -262,3 +262,29 @@ Done definition:
 Result:
 - builtin streaming execution now lives in a dedicated helper
 - `BuiltInSshClientManager` is reduced to thin workflow wrappers around extracted builtin helpers
+
+
+## Task 23.15: checkpoint the resumed builtin SSH pass
+Status: completed
+
+Goal:
+- stop the resumed builtin SSH pass at a real checkpoint instead of forcing smaller and smaller extractions
+
+Done definition:
+- the SSH tracker explicitly marks the resumed builtin pass as checkpointed
+- the remaining SSH weight is described as shell-factory/runtime-cache glue rather than inline builtin workflow bulk
+- the broader current-state review is aligned with the new state
+
+Result:
+- builtin workflow bulk has been materially reduced through dedicated helpers for:
+  - auth challenge handling
+  - lifecycle
+  - command preparation
+  - timeout handling
+  - retry/error policy
+  - stream output collection
+  - client connection setup
+  - plain command execution
+  - SFTP execution
+  - streaming execution
+- the remaining SSH hotspot is now the shell-factory/runtime-cache seam, not the old builtin manager knot

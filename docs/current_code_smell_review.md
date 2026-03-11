@@ -42,9 +42,9 @@ Primary files:
 - [builtin_ssh_client_manager.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/builtin/builtin_ssh_client_manager.dart)
 
 Why it still matters:
-- Boundary cleanup improved the subsystem, but it remains operationally dense.
-- Provider selection, runtime caching, builtin/process differences, auth coordination, and failure mapping still create a high-complexity subsystem.
-- This is now more of a subsystem-complexity problem than an ownership problem.
+- Boundary cleanup improved the subsystem, and the latest pass materially reduced builtin runtime bulk.
+- The remaining SSH complexity is now concentrated more in shell-factory/runtime-cache semantics and builtin/process coordination than in one giant manager file.
+- This is still a subsystem-complexity problem, but it is now much narrower than before.
 
 ### 3. Theme/token centralization
 Primary file:
@@ -93,20 +93,19 @@ The repo now has direct tests in the major new seams, but the following still ca
 
 ## Recommended Next Order
 
-1. SSH runtime simplification
-2. Active watchlist shell maintenance
+1. Active watchlist shell maintenance
+2. SSH runtime simplification
 3. Theme/token decomposition
 
 ## Why This Order
 
-### SSH first
-- the watchlist files are materially cleaner after the latest surface extractions
-- the remaining heaviest concentrated subsystem is now SSH
-- builtin runtime glue, auth challenge handling, and shell-factory/runtime caching remain the clearest next-value cleanup area
+### Watchlist first
+- the major watchlist files are still the most likely surfaces to regress in day-to-day feature work
+- they are materially cleaner, but they remain large enough to deserve the top caution rank
 
-### Watchlist second
-- the major watchlist files are still worth monitoring for regression
-- but they are no longer the strongest active code-smell hotspot after the recent extractions
+### SSH second
+- the latest SSH pass removed the densest builtin runtime knot
+- SSH still matters, but its remaining hotspot is now narrower and more infrastructure-specific
 
 ### Theme third
 - the current pass materially reduced centralization in [app_theme.dart](/home/home/personal/cwatch/lib/model/shared/theme/app_theme.dart)
