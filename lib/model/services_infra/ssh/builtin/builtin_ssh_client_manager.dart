@@ -17,6 +17,7 @@ import 'package:cwatch/model/shared/services/host_shell_policy.dart';
 import 'builtin_identity_manager.dart';
 import 'builtin_ssh_exceptions.dart';
 import 'builtin_ssh_logging.dart';
+import 'builtin_ssh_timeout_runner.dart';
 import 'builtin_ssh_vault.dart';
 
 class BuiltInSshClientManager {
@@ -40,6 +41,7 @@ class BuiltInSshClientManager {
   final KnownHostsStore knownHostsStore;
   final BuiltInSshFailureMapper _failureMapper = const BuiltInSshFailureMapper();
   final BuiltInSshClientLifecycle _clientLifecycle = const BuiltInSshClientLifecycle();
+  final BuiltInSshTimeoutRunner _timeoutRunner = const BuiltInSshTimeoutRunner();
   late final BuiltInSshAuthChallengeHandler _authChallengeHandler =
       BuiltInSshAuthChallengeHandler(
         vault: vault,
@@ -108,7 +110,7 @@ class BuiltInSshClientManager {
     logBuiltInSsh('Running command on ${host.name}: $safeCommand');
     final bytes = await _withClient(host, (client) async {
       final future = client.run(safeCommand);
-      return _waitWithTimeout(
+      return _timeoutRunner.run(
         future: future,
         timeout: timeout,
         host: host,
@@ -204,7 +206,7 @@ class BuiltInSshClientManager {
           stderrDone.complete,
         ),
       );
-      await _waitWithTimeout(
+      await _timeoutRunner.run(
         future: Future.wait([
           session.done,
           stdoutDone.future,
@@ -237,7 +239,7 @@ class BuiltInSshClientManager {
     return _withClient(host, (client) async {
       final sftp = await client.sftp();
       try {
-        return await _waitWithTimeout(
+        return await _timeoutRunner.run(
           future: action(sftp),
           timeout: timeout,
           host: host,
@@ -332,41 +334,6 @@ class BuiltInSshClientManager {
           error: e,
         );
         throw _failureMapper.map(host, e);
-      }
-    }
-  }
-
-  Future<T> _waitWithTimeout<T>({
-    required Future<T> future,
-    required Duration timeout,
-    required SshHost host,
-    required String commandDescription,
-    RunTimeoutHandler? onTimeout,
-    required void Function() onKill,
-  }) async {
-    var nextTimeout = timeout;
-    final stopwatch = Stopwatch()..start();
-    while (true) {
-      try {
-        return await future.timeout(nextTimeout);
-      } on TimeoutException {
-        final resolution = onTimeout != null
-            ? await onTimeout(
-                TimeoutContext(
-                  host: host,
-                  commandDescription: commandDescription,
-                  elapsed: stopwatch.elapsed,
-                ),
-              )
-            : const TimeoutResolution.kill();
-        if (resolution.shouldKill) {
-          onKill();
-          throw TimeoutException(
-            'SSH command timed out after ${stopwatch.elapsed.inSeconds}s',
-            stopwatch.elapsed,
-          );
-        }
-        nextTimeout = resolution.extendBy ?? timeout;
       }
     }
   }
