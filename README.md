@@ -142,6 +142,8 @@ Current recommendation:
 Current follow-up docs:
 - `docs/rewrite_foundations.md`
 - `docs/local_feature_complexity_todo.md`
+- `docs/product_polish_foundations.md`
+- `docs/product_polish_todo.md`
 
 Current shared scaffolding contract now covers:
 - `SettingsSection`

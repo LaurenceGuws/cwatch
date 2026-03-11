@@ -319,6 +319,10 @@ Why:
 - continuing the same layer immediately would now have lower leverage and higher odds of test padding
 - the next highest-value work is to improve the now-stabilized shared and feature surfaces with less regression risk
 
+Current follow-up docs:
+- `docs/product_polish_foundations.md`
+- `docs/product_polish_todo.md`
+
 ### Focus Area E: infrastructure boundary cleanup
 Questions to answer:
 - Where are transport, parsing, and policy mixed today?
