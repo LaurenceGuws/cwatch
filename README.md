@@ -151,6 +151,14 @@ Current first dashboard polish batch:
 - start with section framing, metric summary cards, and metadata label/value styling
 - keep feature-specific dashboard actions and domain grouping local
 
+Current dashboard polish checkpoint:
+- shared dashboard primitives now exist in:
+  - `lib/view/shared/widgets/dashboard/dashboard_primitives.dart`
+- first adopters are:
+  - server resource panels
+  - Docker resources
+  - Kubernetes dashboard/resources
+
 Current follow-up docs:
 - `docs/rewrite_foundations.md`
 - `docs/local_feature_complexity_todo.md`

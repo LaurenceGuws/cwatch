@@ -12,6 +12,7 @@ import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'package:cwatch/view/shared/widgets/standard_empty_state.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
 import '../docker_tab_builder.dart';
+import 'package:cwatch/view/shared/widgets/dashboard/dashboard_primitives.dart';
 
 class DockerResources extends StatefulWidget {
   const DockerResources({
@@ -110,6 +111,8 @@ class _DockerResourcesState extends State<DockerResources>
                     builder: (context, constraints) {
                       return ListView(
                         children: [
+                          _buildSummary(stats),
+                          SizedBox(height: spacing.xl),
                           _buildCharts(constraints.maxWidth),
                           SizedBox(height: spacing.xl),
                           _buildContainerTable(constraints.maxWidth, stats),
@@ -131,6 +134,71 @@ class _DockerResourcesState extends State<DockerResources>
       return _controller.sortAscending ? result : -result;
     });
     return stats;
+  }
+
+  Widget _buildSummary(List<DockerContainerStat> stats) {
+    final spacing = context.appTheme.spacing;
+    final source = _controller.remoteHost?.name ?? 'Local Docker CLI';
+    final contextValue = _controller.contextName?.isNotEmpty == true
+        ? _controller.contextName!
+        : 'Default';
+    final topCpu = stats
+        .map(_cpuPercent)
+        .whereType<double>()
+        .fold<double>(0, math.max);
+    final topMem = stats
+        .map(_memPercent)
+        .whereType<double>()
+        .fold<double>(0, math.max);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: spacing.base,
+          runSpacing: spacing.base,
+          children: [
+            DashboardMetricCard(
+              title: 'Containers',
+              value: stats.length.toString(),
+              subtitle: 'Reported by docker stats',
+              icon: Icons.inventory_2_outlined,
+              width: 220,
+            ),
+            DashboardMetricCard(
+              title: 'Peak CPU',
+              value: '${topCpu.toStringAsFixed(1)}%',
+              subtitle: 'Across visible containers',
+              icon: Icons.memory,
+              width: 220,
+            ),
+            DashboardMetricCard(
+              title: 'Peak Memory',
+              value: '${topMem.toStringAsFixed(1)}%',
+              subtitle: 'Across visible containers',
+              icon: Icons.storage,
+              width: 220,
+            ),
+          ],
+        ),
+        SizedBox(height: spacing.md),
+        Wrap(
+          spacing: spacing.base,
+          runSpacing: spacing.base,
+          children: [
+            DashboardMetadataCard(
+              label: 'Source',
+              value: source,
+              icon: Icons.dns_outlined,
+            ),
+            DashboardMetadataCard(
+              label: 'Context',
+              value: contextValue,
+              icon: Icons.settings_input_component,
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   Widget _buildCharts(double maxCardWidth) {
@@ -201,78 +269,70 @@ class _DockerResourcesState extends State<DockerResources>
     double maxCardWidth,
     List<DockerContainerStat> stats,
   ) {
-    final spacing = context.appTheme.spacing;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Container stats', style: Theme.of(context).textTheme.titleMedium),
-        SizedBox(height: spacing.md),
-        Card(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minWidth: maxCardWidth),
-              child: DataTable(
-                sortColumnIndex: _controller.sortColumnIndex,
-                sortAscending: _controller.sortAscending,
-                columns: [
-                  DataColumn(
-                    label: const Text('Container'),
-                    onSort: (index, ascending) =>
-                        _controller.setSort(index, ascending),
-                  ),
-                  DataColumn(
-                    numeric: true,
-                    label: const Text('CPU'),
-                    onSort: (index, ascending) =>
-                        _controller.setSort(index, ascending),
-                  ),
-                  DataColumn(
-                    numeric: true,
-                    label: const Text('Mem'),
-                    onSort: (index, ascending) =>
-                        _controller.setSort(index, ascending),
-                  ),
-                  DataColumn(
-                    numeric: true,
-                    label: const Text('Net I/O'),
-                    onSort: (index, ascending) =>
-                        _controller.setSort(index, ascending),
-                  ),
-                  DataColumn(
-                    numeric: true,
-                    label: const Text('Block I/O'),
-                    onSort: (index, ascending) =>
-                        _controller.setSort(index, ascending),
-                  ),
-                  DataColumn(
-                    numeric: true,
-                    label: const Text('PIDs'),
-                    onSort: (index, ascending) =>
-                        _controller.setSort(index, ascending),
-                  ),
-                ],
-                rows: stats
-                    .map(
-                      (stat) => DataRow(
-                        cells: [
-                          DataCell(Text(_nameOf(stat))),
-                          DataCell(Text(stat.cpu)),
-                          DataCell(
-                            Text('${stat.memUsage} (${stat.memPercent})'),
-                          ),
-                          DataCell(Text(stat.netIO)),
-                          DataCell(Text(stat.blockIO)),
-                          DataCell(Text(stat.pids)),
-                        ],
-                      ),
-                    )
-                    .toList(),
+    return DashboardSectionCard(
+      title: 'Container stats',
+      subtitle: '${stats.length} containers in the current sample',
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minWidth: maxCardWidth),
+          child: DataTable(
+            sortColumnIndex: _controller.sortColumnIndex,
+            sortAscending: _controller.sortAscending,
+            columns: [
+              DataColumn(
+                label: const Text('Container'),
+                onSort: (index, ascending) =>
+                    _controller.setSort(index, ascending),
               ),
-            ),
+              DataColumn(
+                numeric: true,
+                label: const Text('CPU'),
+                onSort: (index, ascending) =>
+                    _controller.setSort(index, ascending),
+              ),
+              DataColumn(
+                numeric: true,
+                label: const Text('Mem'),
+                onSort: (index, ascending) =>
+                    _controller.setSort(index, ascending),
+              ),
+              DataColumn(
+                numeric: true,
+                label: const Text('Net I/O'),
+                onSort: (index, ascending) =>
+                    _controller.setSort(index, ascending),
+              ),
+              DataColumn(
+                numeric: true,
+                label: const Text('Block I/O'),
+                onSort: (index, ascending) =>
+                    _controller.setSort(index, ascending),
+              ),
+              DataColumn(
+                numeric: true,
+                label: const Text('PIDs'),
+                onSort: (index, ascending) =>
+                    _controller.setSort(index, ascending),
+              ),
+            ],
+            rows: stats
+                .map(
+                  (stat) => DataRow(
+                    cells: [
+                      DataCell(Text(_nameOf(stat))),
+                      DataCell(Text(stat.cpu)),
+                      DataCell(Text('${stat.memUsage} (${stat.memPercent})')),
+                      DataCell(Text(stat.netIO)),
+                      DataCell(Text(stat.blockIO)),
+                      DataCell(Text(stat.pids)),
+                    ],
+                  ),
+                )
+                .toList(),
           ),
         ),
-      ],
+      ),
     );
   }
 
@@ -359,36 +419,31 @@ class _DockerResourcesState extends State<DockerResources>
     final hasPoints = series.any((s) => s.values.isNotEmpty);
     return SizedBox(
       width: maxWidth,
-      child: Card(
-        child: Padding(
-          padding: EdgeInsets.all(spacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: Theme.of(context).textTheme.titleSmall),
-              SizedBox(height: spacing.xs),
-              Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-              SizedBox(height: spacing.md),
-              Wrap(
-                spacing: spacing.lg,
-                runSpacing: spacing.sm,
-                children: series
-                    .map((s) => _ChartLegend(label: s.label, color: s.color))
-                    .toList(),
-              ),
-              SizedBox(height: spacing.md),
-              SizedBox(
-                height: context.scale(240),
-                child: hasPoints
-                    ? LineChart(
-                        _lineChartData(series, unitSuffix: unitSuffix),
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeInOut,
-                      )
-                    : const Center(child: Text('No history yet')),
-              ),
-            ],
-          ),
+      child: DashboardSectionCard(
+        title: title,
+        subtitle: subtitle,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: spacing.lg,
+              runSpacing: spacing.sm,
+              children: series
+                  .map((s) => _ChartLegend(label: s.label, color: s.color))
+                  .toList(),
+            ),
+            SizedBox(height: spacing.md),
+            SizedBox(
+              height: context.scale(240),
+              child: hasPoints
+                  ? LineChart(
+                      _lineChartData(series, unitSuffix: unitSuffix),
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeInOut,
+                    )
+                  : const Center(child: Text('No history yet')),
+            ),
+          ],
         ),
       ),
     );

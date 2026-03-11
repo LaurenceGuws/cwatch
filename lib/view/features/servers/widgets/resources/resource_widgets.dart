@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import 'package:cwatch/model/shared/theme/app_theme.dart';
+import 'package:cwatch/view/shared/widgets/dashboard/dashboard_primitives.dart';
 import 'resource_models.dart';
 
 /// Card wrapper for resource sections
@@ -23,51 +24,11 @@ class SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final spacing = context.appTheme.spacing;
-    final surface = context.appTheme.section.surface;
-    return Card(
-      elevation: surface.elevation,
-      margin: surface.margin,
-      shape: RoundedRectangleBorder(borderRadius: surface.radius),
-      child: Container(
-        decoration: BoxDecoration(
-          color: surface.background,
-          borderRadius: surface.radius,
-          border: Border.all(color: surface.borderColor),
-        ),
-        padding: surface.padding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      if (subtitle != null) ...[
-                        SizedBox(height: spacing.xs),
-                        Text(
-                          subtitle!,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                if (trailing != null) trailing!,
-              ],
-            ),
-            SizedBox(height: spacing.sm),
-            child,
-          ],
-        ),
-      ),
+    return DashboardSectionCard(
+      title: title,
+      subtitle: subtitle,
+      trailing: trailing,
+      child: child,
     );
   }
 }

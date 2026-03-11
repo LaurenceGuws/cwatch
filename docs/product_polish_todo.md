@@ -126,3 +126,32 @@ First implementation batch:
   - metric summary cards
   - metadata label/value styling
 - do not rewrite chart logic or data shaping in the first batch
+
+## Task 21.5: implement the first resource dashboard polish batch
+Status: completed
+
+Goal:
+- introduce shared dashboard primitives for the first consistency pass
+- adopt them in the most visible server, Docker, and Kubernetes resource surfaces
+- improve framing and metadata styling without changing feature data flow or chart logic
+
+Done definition:
+- one shared dashboard primitives file exists
+- server resource panels use the shared section framing
+- Docker resources use the shared section framing plus first summary/metadata cards
+- Kubernetes dashboard/resources use the shared section framing plus first summary/metadata cards
+
+Result:
+- added [dashboard_primitives.dart](/home/home/personal/cwatch/lib/view/shared/widgets/dashboard/dashboard_primitives.dart)
+- server resource panels now inherit shared dashboard section framing through:
+  - [resource_widgets.dart](/home/home/personal/cwatch/lib/view/features/servers/widgets/resources/resource_widgets.dart)
+- Docker resources now use shared dashboard primitives in:
+  - [docker_resources.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_resources.dart)
+- Kubernetes dashboard/resources now use shared dashboard primitives in:
+  - [kubernetes_dashboard_view.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/widgets/kubernetes_dashboard_view.dart)
+  - [kubernetes_resources.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/widgets/kubernetes_resources.dart)
+
+Why this is a good checkpoint:
+- the dashboards now share a visible section/card language without becoming one generic dashboard framework
+- metadata presentation is more intentional on Docker and Kubernetes surfaces
+- chart logic, table logic, and feature-specific actions remain local

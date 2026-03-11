@@ -8,6 +8,7 @@ import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'package:cwatch/controller/di/bindings/kubernetes_resources_binding.dart';
+import 'package:cwatch/view/shared/widgets/dashboard/dashboard_primitives.dart';
 
 class _SeriesData {
   const _SeriesData({
@@ -236,7 +237,6 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
 
   Widget _buildSummary(KubeResourceSnapshot snapshot) {
     final spacing = context.appTheme.spacing;
-    final scheme = Theme.of(context).colorScheme;
     final cards = [
       (
         title: 'Nodes',
@@ -266,43 +266,10 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
           .map(
             (card) => SizedBox(
               width: 220,
-              child: Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(2),
-                  side: BorderSide(color: scheme.outlineVariant),
-                ),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: spacing.base * 1.25,
-                    vertical: spacing.base * 1.25,
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(card.icon, color: scheme.primary),
-                      SizedBox(width: spacing.base),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              card.title,
-                              style: Theme.of(context).textTheme.labelMedium
-                                  ?.copyWith(color: scheme.onSurfaceVariant),
-                            ),
-                            SizedBox(height: spacing.sm),
-                            Text(
-                              card.value,
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              child: DashboardMetricCard(
+                title: card.title,
+                value: card.value,
+                icon: card.icon,
               ),
             ),
           )
@@ -422,7 +389,6 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
   }
 
   Widget _buildNodeTable(KubeResourceSnapshot snapshot) {
-    final scheme = Theme.of(context).colorScheme;
     final nodes = [...snapshot.nodes];
     nodes.sort((a, b) {
       int result;
@@ -448,12 +414,9 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
       return _controller.nodeSortAscending ? result : -result;
     });
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(2),
-        side: BorderSide(color: scheme.outlineVariant),
-      ),
+    return DashboardSectionCard(
+      title: 'Nodes',
+      subtitle: '${nodes.length} nodes in the current sample',
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
@@ -485,7 +448,6 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
   }
 
   Widget _buildPodTable(KubeResourceSnapshot snapshot) {
-    final scheme = Theme.of(context).colorScheme;
     final pods = _filterPods(snapshot);
     pods.sort((a, b) {
       int result;
@@ -506,12 +468,9 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
       return _controller.podSortAscending ? result : -result;
     });
     final topPods = pods.take(_controller.podLimit).toList();
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(2),
-        side: BorderSide(color: scheme.outlineVariant),
-      ),
+    return DashboardSectionCard(
+      title: 'Pods',
+      subtitle: '${topPods.length} pods after filters',
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(

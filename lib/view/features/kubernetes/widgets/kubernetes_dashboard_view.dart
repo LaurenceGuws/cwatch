@@ -8,6 +8,7 @@ import 'package:cwatch/model/services_infra/settings/app_settings_controller.dar
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/view/shared/widgets/data_table/structured_data_table.dart';
 import 'package:cwatch/controller/di/bindings/kubernetes_dashboard_binding.dart';
+import 'package:cwatch/view/shared/widgets/dashboard/dashboard_primitives.dart';
 
 class KubernetesDashboardView extends StatefulWidget {
   const KubernetesDashboardView({
@@ -125,26 +126,30 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
                 spacing: spacing.md,
                 runSpacing: spacing.xs,
                 children: [
-                  _metaChip(
+                  _metaCard(
                     context,
-                    label: data.summary.clusterName,
+                    label: 'Cluster',
+                    value: data.summary.clusterName,
                     icon: Icons.hub,
                   ),
                   if (data.summary.namespace != null)
-                    _metaChip(
+                    _metaCard(
                       context,
-                      label: 'ns: ${data.summary.namespace}',
+                      label: 'Namespace',
+                      value: data.summary.namespace!,
                       icon: Icons.folder,
                     ),
                   if (data.summary.server != null)
-                    _metaChip(
+                    _metaCard(
                       context,
-                      label: data.summary.server!,
+                      label: 'Server',
+                      value: data.summary.server!,
                       icon: Icons.link,
                     ),
-                  _metaChip(
+                  _metaCard(
                     context,
-                    label: _backendLabel(_controller.backend),
+                    label: 'Backend',
+                    value: _backendLabel(_controller.backend),
                     icon: Icons.settings_input_component,
                   ),
                 ],
@@ -762,26 +767,11 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
     required String value,
     required String subtitle,
   }) {
-    final spacing = context.appTheme.spacing;
-    final surface = context.appTheme.section.surface;
-    return Container(
+    return DashboardMetricCard(
+      title: title,
+      value: value,
+      subtitle: subtitle,
       width: 200,
-      padding: EdgeInsets.all(spacing.md),
-      decoration: BoxDecoration(
-        color: surface.background,
-        borderRadius: surface.radius,
-        border: Border.all(color: surface.borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.labelLarge),
-          SizedBox(height: spacing.sm),
-          Text(value, style: Theme.of(context).textTheme.headlineSmall),
-          SizedBox(height: spacing.xs),
-          Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-        ],
-      ),
     );
   }
 
@@ -790,23 +780,9 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
     required String title,
     required Widget child,
   }) {
-    final spacing = context.appTheme.spacing;
-    final surface = context.appTheme.section.surface;
-    return Container(
-      padding: EdgeInsets.all(spacing.md),
-      decoration: BoxDecoration(
-        color: surface.background,
-        borderRadius: surface.radius,
-        border: Border.all(color: surface.borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.titleSmall),
-          SizedBox(height: spacing.sm),
-          child,
-        ],
-      ),
+    return DashboardSectionCard(
+      title: title,
+      child: child,
     );
   }
 
@@ -901,31 +877,16 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
     );
   }
 
-  Widget _metaChip(
+  Widget _metaCard(
     BuildContext context, {
     required String label,
+    required String value,
     required IconData icon,
   }) {
-    final spacing = context.appTheme.spacing;
-    final surface = context.appTheme.section.surface;
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: spacing.sm,
-        vertical: spacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: surface.background,
-        borderRadius: surface.radius,
-        border: Border.all(color: surface.borderColor),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: context.appTheme.iconSizes.small),
-          SizedBox(width: spacing.xs),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
-        ],
-      ),
+    return DashboardMetadataCard(
+      label: label,
+      value: value,
+      icon: icon,
     );
   }
 
