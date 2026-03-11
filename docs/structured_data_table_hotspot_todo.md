@@ -1,6 +1,6 @@
 # StructuredDataTable Hotspot TODO
 
-Status: active
+Status: checkpointed
 Purpose: track the next bounded cleanup batches for the highest-risk remaining shared framework surface.
 
 ## Task 23.1: start the StructuredDataTable hotspot pass
@@ -263,3 +263,22 @@ Result:
   - [structured_data_table_rendering.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_rendering.dart)
 - focused regression coverage exists in:
   - [structured_data_table_column_reorder_projection_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/data_table/structured_data_table_column_reorder_projection_test.dart)
+
+## Checkpoint
+
+The `StructuredDataTable` hotspot is now at a good checkpoint.
+
+What was materially reduced:
+- pure projection and planning logic no longer lives inline in the main mixins
+- interaction policy drift has been standardized in the highest-traffic surfaces
+- shared table engine state is split across smaller, directly testable helpers
+
+What still remains, but is no longer the same class of hotspot:
+- widget-side rendering glue in:
+  - [structured_data_table_rendering.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_rendering.dart)
+- context-menu/widget callback assembly
+- future product-level polish or behavior work in specific adopters
+
+Why stopping here is correct:
+- the remaining weight is more UI glue than pure shared-engine knot
+- pushing further right now would likely create smaller wrappers without much architectural gain

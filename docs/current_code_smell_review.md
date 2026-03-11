@@ -47,7 +47,8 @@ Why it still matters:
 Current checkpoint:
 - projection logic has been split out
 - shared table selection/right-click/hover behavior has been standardized
-- the remaining risk is now more about engine complexity than obviously inconsistent interaction policy
+- cell navigation, cell selection, hit-test, resize, scroll, and reorder projection have been split out
+- the remaining risk is now more about widget/rendering glue than pure engine complexity
 
 ### 3. SSH subsystem complexity
 Primary files:
