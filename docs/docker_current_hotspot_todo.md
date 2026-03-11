@@ -282,3 +282,42 @@ Result:
 Why this is the right stop:
 - Docker list state, overview action state, overview runtime side effects, CLI execution, and CLI parsing now have dedicated seams
 - pushing further now would likely optimize for file size rather than architectural value
+
+## Task 22.15: define the next bounded Docker batch after the refreshed checkpoint
+Status: completed
+
+Goal:
+- pick one new Docker-only cleanup slice from the current code state after the refreshed checkpoint
+- keep the batch on real orchestration smell, not file-size cleanup
+
+Done definition:
+- one new Docker batch is explicit
+- the batch has a clear stop condition
+- the rest of Docker remains queued
+
+Result:
+- the next bounded Docker batch is now:
+  - Docker workspace tab restore split
+- target files:
+  - [docker_workspace_controller.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_workspace_controller.dart)
+  - new Docker-local restore helper under `lib/view/features/docker/`
+- stop condition:
+  - tab-state decoding plus restored tab reconstruction no longer live inline in `DockerWorkspaceController`
+  - workspace persistence and remote discovery remain in `DockerWorkspaceController`
+  - Docker view/widget behavior stays unchanged in this batch
+
+Why this is the right next cut:
+- `docker_workspace_controller.dart` still mixes persistence/discovery concerns with a large restored-tab construction switch
+- the repeated host/shell/editor/explorer reconstruction paths are real orchestration smell
+- it creates a direct seam for focused restore-behavior regression coverage
+
+## Task 22.16: implement the Docker workspace tab restore split
+Status: completed
+
+Goal:
+- extract Docker tab-state decoding and restored-tab reconstruction into a dedicated Docker-local helper
+
+Done definition:
+- one Docker-local helper owns tab-state decoding, command sanitization, and restored tab reconstruction for Docker workspace tabs
+- `DockerWorkspaceController` keeps workspace persistence and remote discovery only
+- focused regression coverage exists for restored command/explorer behavior and invalid host restore cases

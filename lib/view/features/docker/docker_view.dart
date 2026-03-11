@@ -29,6 +29,7 @@ import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/settings/floating_settings_window.dart';
 import 'docker_tab_builder.dart';
 import 'docker_workspace_controller.dart';
+import 'docker_workspace_tab_restorer.dart';
 import 'package:cwatch/view/features/settings/settings/docker_settings_controls.dart';
 import 'package:cwatch/controller/adapters/docker_ui_adapter.dart';
 import 'package:cwatch/controller/controllers/docker_view_controller.dart';
