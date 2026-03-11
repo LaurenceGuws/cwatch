@@ -126,3 +126,40 @@ Result:
   - process search planning
   - process terminal-session planning
 - the remaining weight is mostly builtin runtime glue and shell-factory/runtime caching behavior, which is lower-value than the next repo-level hotspot
+
+## Task 23.8: resume the SSH hotspot for builtin runtime cleanup
+Status: completed
+
+Goal:
+- reopen the SSH pass only for the still-dense builtin runtime glue
+
+Done definition:
+- the next builtin-side batch is explicit
+- the pass stays focused on builtin runtime behavior rather than reopening provider-selection or process-side work
+
+Result:
+- the resumed SSH pass now targets builtin runtime simplification
+- the first builtin batches are:
+  - auth challenge handling
+  - client lifecycle
+  - command preparation
+  - timeout handling
+  - retry/error-loop ownership
+
+## Task 23.9: implement builtin retry/error-loop cleanup
+Status: completed
+
+Goal:
+- extract builtin auth-retry and outward failure-mapping policy out of `BuiltInSshClientManager`
+
+Done definition:
+- one builtin-local helper owns retry handling for:
+  - decrypt-required
+  - built-in key passphrase
+  - identity passphrase
+- `BuiltInSshClientManager` no longer owns the retry loop inline
+- focused regression coverage exists for the new helper
+
+Result:
+- builtin retry/error-loop policy now lives in a dedicated helper
+- `BuiltInSshClientManager` is further narrowed toward workflow orchestration

@@ -15,8 +15,8 @@ import 'builtin_ssh_client_lifecycle.dart';
 import 'builtin_ssh_failure_mapper.dart';
 import 'package:cwatch/model/shared/services/host_shell_policy.dart';
 import 'builtin_identity_manager.dart';
-import 'builtin_ssh_exceptions.dart';
 import 'builtin_ssh_logging.dart';
+import 'builtin_ssh_retry_handler.dart';
 import 'builtin_ssh_timeout_runner.dart';
 import 'builtin_ssh_vault.dart';
 
@@ -55,6 +55,10 @@ class BuiltInSshClientManager {
         isNoShellHost: isNoShellHost,
         wrapSshErrors: _wrapSshErrors,
       );
+  late final BuiltInSshRetryHandler _retryHandler = BuiltInSshRetryHandler(
+    failureMapper: _failureMapper,
+    authChallengeHandler: _authChallengeHandler,
+  );
 
   String? boundKeyForHost(String hostName) =>
       _identityManager.boundKeyForHost(hostName);
@@ -277,65 +281,7 @@ class BuiltInSshClientManager {
   }
 
   Future<T> _wrapSshErrors<T>(SshHost host, Future<T> Function() action) async {
-    var retries = 0;
-    while (true) {
-      try {
-        if (isNoShellHost(host)) {
-          throw NoShellHostException(host);
-        }
-        return await action();
-      } on SSHAuthFailError catch (error) {
-        logBuiltInSshWarning(
-          'Authentication failed for ${host.name}',
-          error: error,
-        );
-        throw _failureMapper.map(
-          host,
-          BuiltInSshAuthenticationFailed(
-          hostName: host.name,
-          message: error.toString(),
-          ),
-        );
-      } on SSHStateError catch (error) {
-        logBuiltInSshWarning('SSH state error for ${host.name}', error: error);
-        throw _failureMapper.map(
-          host,
-          Exception('SSH connection failed for ${host.name}: $error'),
-        );
-      } catch (e) {
-        logBuiltInSshWarning('SSH operation failed for ${host.name}', error: e);
-        if (e is BuiltInSshKeyDecryptionRequired) {
-          if (retries > 2) rethrow;
-          final decrypted = await _authChallengeHandler.handleDecryptRequired(e);
-          retries++;
-          if (decrypted) {
-            continue;
-          }
-        } else if (e is BuiltInSshKeyPassphraseRequired) {
-          if (retries > 2) rethrow;
-          final provided = await _authChallengeHandler.handleBuiltInPassphrase(e);
-          retries++;
-          if (provided) {
-            continue;
-          }
-        } else if (e is BuiltInSshIdentityPassphraseRequired) {
-          if (retries > 2) rethrow;
-          final provided = await _authChallengeHandler.handleIdentityPassphrase(e);
-          retries++;
-          if (provided) {
-            continue;
-          }
-        } else if (e is BuiltInSshKeyUnsupportedCipher ||
-            e is NoShellHostException) {
-          rethrow;
-        }
-        logBuiltInSshWarning(
-          'Error in SSH operation for ${host.name}',
-          error: e,
-        );
-        throw _failureMapper.map(host, e);
-      }
-    }
+    return _retryHandler.run(host, action);
   }
 
   Future<SSHClient> _openClient(SshHost host) async {
@@ -400,4 +346,3 @@ class BuiltInSshClientManager {
   }
 
 }
-
