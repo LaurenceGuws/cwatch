@@ -24,6 +24,7 @@ import 'docker_overview_container_menu_helper.dart';
 import 'docker_overview_image_menu_helper.dart';
 import 'docker_overview_interaction_helper.dart';
 import 'docker_overview_runtime_state.dart';
+import 'docker_overview_storage_menu_helper.dart';
 import 'docker_shared.dart';
 import 'package:cwatch/controller/controllers/docker_overview_controller.dart';
 import 'package:cwatch/controller/adapters/docker_overview_ui_adapter.dart';
@@ -62,6 +63,8 @@ class _DockerOverviewState extends State<DockerOverview>
       const DockerOverviewContainerMenuHelper();
   final DockerOverviewImageMenuHelper _imageMenuHelper =
       const DockerOverviewImageMenuHelper();
+  final DockerOverviewStorageMenuHelper _storageMenuHelper =
+      const DockerOverviewStorageMenuHelper();
   final DockerOverviewInteractionHelper _interactionHelper =
       const DockerOverviewInteractionHelper();
   late final DockerOverviewController _controller;
@@ -590,30 +593,19 @@ class _DockerOverviewState extends State<DockerOverview>
     TapDownDetails details, {
     List<DockerNetwork>? selectedRows,
   }) {
-    final selection = selectedRows?.isNotEmpty == true
-        ? selectedRows!
-        : _actionState.selectedNetworksForAction(
-            fallback: network,
-            selectedKeys: _controller.selectedNetworkKeys,
-            networks: _currentNetworks,
-          );
-    final isMulti = selection.length > 1;
-    final title = isMulti
-        ? '${selection.length} networks selected'
-        : network.name;
-    final detailsMap = isMulti
-        ? {'Selected': '${selection.length}'}
-        : {'Driver': network.driver, 'Scope': network.scope};
-    final copyValue = isMulti
-        ? selection.map(_actionState.networkKey).join('\n')
-        : _actionState.networkKey(network);
-    final copyLabel = isMulti ? 'Network IDs' : 'Network ID';
+    final projection = _storageMenuHelper.projectNetworkMenu(
+      network: network,
+      selectedRows: selectedRows,
+      selectedKeys: _controller.selectedNetworkKeys,
+      networks: _currentNetworks,
+      actionState: _actionState,
+    );
     _menus.showItemMenu(
       globalPosition: details.globalPosition,
-      title: title,
-      details: detailsMap,
-      copyValue: copyValue,
-      copyLabel: copyLabel,
+      title: projection.title,
+      details: projection.details,
+      copyValue: projection.copyValue,
+      copyLabel: projection.copyLabel,
     );
   }
 
@@ -622,34 +614,19 @@ class _DockerOverviewState extends State<DockerOverview>
     TapDownDetails details, {
     List<DockerVolume>? selectedRows,
   }) {
-    final selection = selectedRows?.isNotEmpty == true
-        ? selectedRows!
-        : _actionState.selectedVolumesForAction(
-            fallback: volume,
-            selectedKeys: _controller.selectedVolumeKeys,
-            volumes: _currentVolumes,
-          );
-    final isMulti = selection.length > 1;
-    final title = isMulti
-        ? '${selection.length} volumes selected'
-        : volume.name;
-    final detailsMap = isMulti
-        ? {'Selected': '${selection.length}'}
-        : {
-            'Driver': volume.driver,
-            'Mountpoint': volume.mountpoint ?? '—',
-            'Scope': volume.scope ?? '—',
-          };
-    final copyValue = isMulti
-        ? selection.map((item) => item.name).join('\n')
-        : volume.name;
-    final copyLabel = isMulti ? 'Volume names' : 'Volume name';
+    final projection = _storageMenuHelper.projectVolumeMenu(
+      volume: volume,
+      selectedRows: selectedRows,
+      selectedKeys: _controller.selectedVolumeKeys,
+      volumes: _currentVolumes,
+      actionState: _actionState,
+    );
     _menus.showItemMenu(
       globalPosition: details.globalPosition,
-      title: title,
-      details: detailsMap,
-      copyValue: copyValue,
-      copyLabel: copyLabel,
+      title: projection.title,
+      details: projection.details,
+      copyValue: projection.copyValue,
+      copyLabel: projection.copyLabel,
     );
   }
 

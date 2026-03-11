@@ -516,3 +516,42 @@ Done definition:
 - one Docker-local helper owns image reference shaping and image-menu action routing for pull/tag/push/inspect/history/remove
 - `docker_overview.dart` keeps image menu content/rendering only
 - focused regression coverage exists for reference shaping, tag routing, and remove dispatch
+
+## Task 22.27: define the next bounded Docker batch after the image-menu split
+Status: completed
+
+Goal:
+- choose the next Docker-only cleanup slice from the current code state after the image-menu split
+- only continue if the remaining weight still includes repeated orchestration rather than valid feature-local hosting
+
+Done definition:
+- one new Docker batch is explicit
+- the batch has a clear stop condition
+- later Docker concerns remain queued or Docker is ready to checkpoint
+
+Result:
+- the next bounded Docker batch is now:
+  - Docker overview network/volume menu projection split
+- target files:
+  - [docker_overview.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_overview.dart)
+  - new Docker-local helper under `lib/view/features/docker/widgets/`
+- stop condition:
+  - network/volume menu projection and copy-value shaping no longer live inline in `docker_overview.dart`
+  - menu rendering stays in `docker_overview.dart`
+  - selection handlers and keyboard behavior remain untouched in this batch
+
+Why this is the right next cut:
+- the remaining overview weight is thin, but network/volume menu shaping is still repeated local orchestration
+- bundling both together avoids stretching into overly tiny cleanup commits
+- it gives one last direct seam before deciding whether Docker should checkpoint again
+
+## Task 22.28: implement the Docker overview network/volume menu projection split
+Status: completed
+
+Goal:
+- extract Docker overview network/volume menu projection into a dedicated Docker-local helper
+
+Done definition:
+- one Docker-local helper owns network/volume title/details/copy-value projection
+- `docker_overview.dart` keeps network/volume menu rendering only
+- focused regression coverage exists for selected-network fallback and multi-volume projection behavior
