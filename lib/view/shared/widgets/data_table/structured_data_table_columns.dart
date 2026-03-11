@@ -4,6 +4,8 @@ part of 'structured_data_table.dart';
 mixin _StructuredDataTableColumns<T> on _StructuredDataTableStateBase<T> {
   StructuredDataTableProjection<T> get _projection =>
       StructuredDataTableProjection<T>();
+  StructuredDataTableColumnWidthPlanner<T> get _columnWidthPlanner =>
+      StructuredDataTableColumnWidthPlanner<T>();
 
   List<T> get _visibleRows {
     final filtered = _applySearch(widget.rows);
@@ -112,11 +114,7 @@ mixin _StructuredDataTableColumns<T> on _StructuredDataTableStateBase<T> {
   }
 
   double _tableContentWidth(List<double> columnWidths, double gapWidth) {
-    final totalGaps = max(0, _columns.length - 1);
-    final totalWidth =
-        columnWidths.fold<double>(0, (sum, width) => sum + width) +
-        totalGaps * gapWidth;
-    return totalWidth.ceilToDouble();
+    return _columnWidthPlanner.tableContentWidth(columnWidths, gapWidth);
   }
 
   double _minWidthForColumn(int index, {required bool respectOverride}) {
@@ -183,89 +181,16 @@ mixin _StructuredDataTableColumns<T> on _StructuredDataTableStateBase<T> {
   }
 
   List<double> _computeColumnWidths(double availableWidth) {
-    final flexIndices = <int>[];
-    final effectiveFlexes = List<int>.filled(_columns.length, 0);
-    var totalFlex = 0;
-    var fixedWidth = 0.0;
-    for (var i = 0; i < _columns.length; i++) {
-      final column = _columns[i];
-      final override = i < _columnWidthOverrides.length
-          ? _columnWidthOverrides[i]
-          : null;
-      final maxAllowed = _maxWidthForColumn(i);
-      final hasExplicitWidth = override != null || column.width != null;
-      var effectiveFlex = column.flex;
-      if (widget.fitColumnsToWidth && effectiveFlex == 0 && !hasExplicitWidth) {
-        effectiveFlex = 1;
-      }
-      effectiveFlexes[i] = effectiveFlex;
-      final isFixed = hasExplicitWidth || effectiveFlex == 0;
-      if (!isFixed) {
-        flexIndices.add(i);
-        totalFlex += effectiveFlex;
-      } else {
-        if (hasExplicitWidth) {
-          final target = override ?? column.width ?? 0.0;
-          final minWidth = max(column.minWidth ?? 0, target);
-          fixedWidth += _clampWidth(minWidth, minWidth, maxAllowed);
-        } else {
-          // flex == 0, use minWidth or default
-          final minWidth = max(_minColumnWidth, column.minWidth ?? 0);
-          fixedWidth += _clampWidth(minWidth, minWidth, maxAllowed);
-        }
-      }
-    }
-
-    final minFlexWidth = flexIndices.fold<double>(
-      0,
-      (sum, index) => sum + max(_minColumnWidth, _columns[index].minWidth ?? 0),
+    return _columnWidthPlanner.computeColumnWidths(
+      StructuredDataTableColumnWidthPlanInput<T>(
+        columns: _columns,
+        columnWidthOverrides: _columnWidthOverrides,
+        availableWidth: availableWidth,
+        fitColumnsToWidth: widget.fitColumnsToWidth,
+        minColumnWidth: _minColumnWidth,
+        maxWidthForColumn: _maxWidthForColumn,
+        gapWidth: widget.cellSelectionEnabled ? 0.0 : context.spacing.base * 1.5,
+      ),
     );
-    final remainingForFlex = max(availableWidth - fixedWidth, minFlexWidth);
-    final widths = <double>[];
-
-    for (var i = 0; i < _columns.length; i++) {
-      final column = _columns[i];
-      final effectiveFlex = effectiveFlexes[i];
-      final override = i < _columnWidthOverrides.length
-          ? _columnWidthOverrides[i]
-          : null;
-      final maxAllowed = _maxWidthForColumn(i);
-      if (override != null) {
-        final minWidth = max(column.minWidth ?? 0, override);
-        widths.add(_clampWidth(minWidth, minWidth, maxAllowed));
-        continue;
-      }
-      if (column.width != null) {
-        final minWidth = max(column.minWidth ?? 0, column.width!);
-        widths.add(_clampWidth(minWidth, minWidth, maxAllowed));
-        continue;
-      }
-      if (effectiveFlex == 0) {
-        // Non-flexing column, use minWidth or default
-        widths.add(max(_minColumnWidth, column.minWidth ?? 0));
-        continue;
-      }
-      final flexShare = totalFlex == 0
-          ? remainingForFlex
-          : remainingForFlex / totalFlex;
-      final target = totalFlex == 0
-          ? remainingForFlex
-          : flexShare * effectiveFlex;
-      widths.add(max(_minColumnWidth, max(column.minWidth ?? 0, target)));
-    }
-    if (widget.fitColumnsToWidth && widths.isNotEmpty) {
-      final totalWidth = widths.fold<double>(0, (sum, width) => sum + width);
-      if (totalWidth < availableWidth) {
-        final extra = availableWidth - totalWidth;
-        final targetIndex = _columns.length - 1;
-        final maxAllowed = _maxWidthForColumn(targetIndex);
-        widths[targetIndex] = _clampWidth(
-          widths[targetIndex] + extra,
-          widths[targetIndex],
-          maxAllowed,
-        );
-      }
-    }
-    return widths;
   }
 }

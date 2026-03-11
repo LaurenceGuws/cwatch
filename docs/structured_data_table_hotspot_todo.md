@@ -135,3 +135,24 @@ Result:
   - [structured_data_table_selection.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_selection.dart)
 - focused regression coverage exists in:
   - [structured_data_table_cell_selection_state_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/data_table/structured_data_table_cell_selection_state_test.dart)
+
+## Task 23.7: extract column-width planning rules from the columns mixin
+Status: completed
+
+Goal:
+- reduce remaining shared engine complexity in the columns mixin without redesigning header rendering or auto-fit behavior
+- move pure width planning and content-width math into a dedicated helper
+
+Done definition:
+- table content-width math no longer lives inline in the columns mixin
+- computed fixed/flex/fit-to-width planning no longer lives inline in the columns mixin
+- auto-fit measurement stays in the mixin for now
+- focused regression coverage exists for the new helper
+
+Result:
+- pure column-width planning now lives in:
+  - [structured_data_table_column_width_planner.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_column_width_planner.dart)
+- the columns mixin now delegates width planning instead of owning those rules inline:
+  - [structured_data_table_columns.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_columns.dart)
+- focused regression coverage exists in:
+  - [structured_data_table_column_width_planner_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/data_table/structured_data_table_column_width_planner_test.dart)
