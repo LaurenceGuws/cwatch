@@ -165,6 +165,9 @@ Current dashboard polish checkpoint:
   - legend chrome
   - simple feedback states
 
+Current next polish hotspot:
+- structured table/list chrome consistency around `StructuredDataTable`
+
 Current follow-up docs:
 - `docs/rewrite_foundations.md`
 - `docs/local_feature_complexity_todo.md`

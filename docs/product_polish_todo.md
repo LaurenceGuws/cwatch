@@ -231,3 +231,36 @@ Result:
 Why this is the right stop:
 - the biggest cross-feature dashboard drift is already reduced
 - pushing further without a sharper target would risk generic cleanup for its own sake
+
+## Task 21.9: define the structured table/list polish target
+Status: completed
+
+Goal:
+- identify the next visible repeated shell surface after the dashboard checkpoint
+- choose a narrow product-polish hotspot with multiple real adopters
+
+Done definition:
+- one next polish hotspot is chosen from current UI evidence
+- the first implementation cut is explicit
+
+Result:
+- the next visible hotspot is:
+  - structured table/list chrome consistency
+- the strongest repeated shared surface is:
+  - [structured_data_table.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table.dart)
+- real adopters include:
+  - server host lists
+  - Docker list/resource screens
+  - Kubernetes context/resource screens
+  - explorer entry lists
+  - debug logs
+
+Why this is the right next move:
+- it is now one of the most reused visible work surfaces in the app
+- the likely remaining drift is in hosting chrome, spacing, and surrounding actions/empty states, not in dashboard cards
+- it gives a high-leverage polish surface without reopening structural cleanup
+
+First implementation batch:
+- scope the shared hosting/frame language around `StructuredDataTable`
+- start with table hosting chrome and density signals
+- keep feature-specific row actions, column sets, and domain chips local

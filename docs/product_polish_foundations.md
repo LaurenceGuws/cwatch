@@ -100,10 +100,13 @@ Candidate surfaces:
 - section nav bars
 - section overflow menus
 - grouped list headers in server/docker/kubernetes placeholders
+- `StructuredDataTable` hosting surfaces across server/docker/kubernetes/explorer/debug logs
 
 Questions:
 - where do section titles, spacing, actions, and secondary labels drift
 - what should be the default shell-style section framing
+- what should the default table/list hosting chrome be around `StructuredDataTable`
+- where are empty/filter/action states around shared tables still inconsistent
 
 ### Hotspot D: tab-shell polish
 Candidate surfaces:
@@ -150,4 +153,14 @@ Current dashboard checkpoint includes:
 - shared straightforward loading/error/empty feedback
 
 Current next polish move:
-- re-scope the next visible consistency hotspot from evidence instead of continuing dashboard work by default
+- structured table/list chrome consistency
+
+Why:
+- `StructuredDataTable` is now one of the most reused visible shell surfaces in the app
+- it appears under server host lists, Docker resource/list screens, Kubernetes context/resource surfaces, explorer lists, and debug logs
+- the remaining drift is now more about table hosting chrome, density, and surrounding empty/action framing than about dashboard cards
+
+Current first implementation batch:
+- scope the shared table/list chrome language around `StructuredDataTable`
+- start with hosting/frame consistency, not table internals
+- keep feature-specific row actions, domain columns, and row chips local
