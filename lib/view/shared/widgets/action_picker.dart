@@ -31,29 +31,47 @@ class ActionPicker {
         final scheme = Theme.of(dialogContext).colorScheme;
         final spacing = dialogContext.appTheme.spacing;
         return AlertDialog(
+          titlePadding: EdgeInsets.fromLTRB(
+            spacing.lg,
+            spacing.lg,
+            spacing.lg,
+            spacing.sm,
+          ),
+          contentPadding: EdgeInsets.fromLTRB(
+            spacing.md,
+            0,
+            spacing.md,
+            spacing.md,
+          ),
+          actionsPadding: EdgeInsets.fromLTRB(
+            spacing.md,
+            0,
+            spacing.md,
+            spacing.md,
+          ),
           title: Text(title),
           content: SizedBox(
             width: dialogContext.appTheme.dimensions.dialogMinWidth,
-            child: SectionList(
-              children: List.generate(options.length, (index) {
-                final option = options[index];
-                return SelectableListItem(
-                  stripeIndex: index,
-                  title: option.title,
-                  subtitle: option.subtitle,
-                  leading: Icon(option.icon, color: scheme.primary),
-                  onTap: () => Navigator.of(dialogContext).pop(option.value),
-                );
-              }),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: SectionList(
+                children: List.generate(options.length, (index) {
+                  final option = options[index];
+                  return SelectableListItem(
+                    stripeIndex: index,
+                    title: option.title,
+                    subtitle: option.subtitle,
+                    leading: Icon(option.icon, color: scheme.primary),
+                    onTap: () => Navigator.of(dialogContext).pop(option.value),
+                  );
+                }),
+              ),
             ),
           ),
           actions: [
-            Padding(
-              padding: EdgeInsets.only(right: spacing.base),
-              child: TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: Text(cancelLabel),
-              ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(cancelLabel),
             ),
           ],
         );

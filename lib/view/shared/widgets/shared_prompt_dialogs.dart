@@ -19,45 +19,51 @@ Future<String?> showTextPromptDialog({
   try {
     return await showDialog<String>(
       context: context,
-      builder: (dialogContext) => DialogKeyboardShortcuts(
-        onCancel: () => Navigator.of(dialogContext).pop(),
-        onConfirm: () =>
-            Navigator.of(dialogContext).pop(controller.text.trim()),
-        child: AlertDialog(
-          title: Text(title),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ...contentBeforeField,
-              if (contentBeforeField.isNotEmpty) const SizedBox(height: 16),
-              TextField(
-                controller: controller,
-                autofocus: true,
-                obscureText: obscureText,
-                decoration: InputDecoration(
-                  labelText: label,
-                  hintText: hintText,
-                  helperText: helperText,
+      builder: (dialogContext) {
+        final spacing = const EdgeInsets.fromLTRB(24, 20, 24, 24);
+        return DialogKeyboardShortcuts(
+          onCancel: () => Navigator.of(dialogContext).pop(),
+          onConfirm: () =>
+              Navigator.of(dialogContext).pop(controller.text.trim()),
+          child: AlertDialog(
+            titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+            contentPadding: spacing,
+            actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            title: Text(title),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ...contentBeforeField,
+                if (contentBeforeField.isNotEmpty) const SizedBox(height: 16),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  obscureText: obscureText,
+                  decoration: InputDecoration(
+                    labelText: label,
+                    hintText: hintText,
+                    helperText: helperText,
+                  ),
+                  onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
                 ),
-                onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
+              ],
+            ),
+            actions: [
+              ...extraActions.map((action) => action.build(dialogContext)),
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: Text(cancelLabel),
+              ),
+              FilledButton(
+                onPressed: () =>
+                    Navigator.of(dialogContext).pop(controller.text.trim()),
+                child: Text(submitLabel),
               ),
             ],
           ),
-          actions: [
-            ...extraActions.map((action) => action.build(dialogContext)),
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(cancelLabel),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.of(dialogContext).pop(controller.text.trim()),
-              child: Text(submitLabel),
-            ),
-          ],
-        ),
-      ),
+        );
+      },
     );
   } finally {
     WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
@@ -78,6 +84,9 @@ Future<bool> showConfirmPromptDialog({
       onCancel: () => Navigator.of(dialogContext).pop(false),
       onConfirm: () => Navigator.of(dialogContext).pop(true),
       child: AlertDialog(
+        titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+        contentPadding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         title: Text(title),
         content: Text(message),
         actions: [
