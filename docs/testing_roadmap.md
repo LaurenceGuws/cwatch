@@ -603,6 +603,40 @@ Done definition:
 - the next widget-level target is chosen from seam value and harness cost
 - the roadmap explicitly explains why `SettingsUiAdapter` comes before SSH auth dialogs and broader feature surfaces
 
+### Task 13.20: add focused regression coverage for extracted local seams
+Status: completed
+
+What landed:
+- [server_host_surface_controller_test.dart](/home/home/personal/cwatch/test/view/features/servers/server_host_surface_controller_test.dart)
+- [docker_local_state_controller_test.dart](/home/home/personal/cwatch/test/view/features/docker/docker_local_state_controller_test.dart)
+- [kubernetes_context_list_state_test.dart](/home/home/personal/cwatch/test/view/features/kubernetes/kubernetes_context_list_state_test.dart)
+
+Coverage added:
+- server host surface:
+  - stable custom-host signature generation
+  - sorted config-path signature generation
+  - custom-host merge behavior preserving existing availability
+  - on-demand distro forcing behavior after availability tracking resets
+- docker local state:
+  - local-context future caching and refresh invalidation
+  - remote scan lifecycle start/complete/cancel behavior
+  - host enablement filtering for unavailable, disabled, and no-shell hosts
+- kubernetes local state:
+  - context loading and cache population
+  - cached-context fallback when async snapshots are empty
+  - collapsed-section toggle and expand/collapse-all behavior
+  - selected-row replacement behavior per grouped table
+  - list-settings visibility toggling
+
+Why this matters:
+- it is the first regression batch aligned to the new repo priority order after the local-complexity checkpoint
+- it locks down the newly extracted feature-local seams before product polish or another structural layer reopens them
+- it gives direct coverage to the recent refactors without inflating them into heavy widget or runtime harnesses
+
+Verification:
+- `flutter test test/view/features/servers/server_host_surface_controller_test.dart test/view/features/docker/docker_local_state_controller_test.dart test/view/features/kubernetes/kubernetes_context_list_state_test.dart`
+- `flutter analyze`
+
 ## Test Organization
 
 Recommended structure:

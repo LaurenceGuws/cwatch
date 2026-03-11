@@ -11,6 +11,8 @@ class KubernetesContextListState {
   final Set<String> _selectedContextKeys = {};
   bool showListSettings = false;
 
+  Set<String> get selectedContextKeys => Set.unmodifiable(_selectedContextKeys);
+
   Future<List<KubeconfigContext>> loadContexts(
     KubernetesContextController contextController,
     AppSettingsController settingsController,
