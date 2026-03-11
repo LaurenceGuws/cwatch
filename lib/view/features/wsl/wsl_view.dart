@@ -3,9 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'package:cwatch/view/core/navigation/tab_navigation_registry.dart';
 import 'package:cwatch/view/core/tabs/tab_bar_visibility.dart';
-import 'package:cwatch/view/core/tabs/workspace_settings_sync.dart';
 import 'package:cwatch/view/core/tabs/workspace_tab_registry_builder.dart';
 import 'package:cwatch/view/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/view/core/tabs/tabbed_workspace_shell.dart';
@@ -25,6 +23,7 @@ import 'package:cwatch/controller/di/bindings/wsl_workspace_controller_binding.d
 
 import 'package:cwatch/controller/controllers/wsl_workspace_controller.dart';
 import 'package:cwatch/view/features/wsl/wsl_tab_builder.dart';
+import 'package:cwatch/view/features/wsl/wsl_view_shell.dart';
 
 class WslView extends StatefulWidget {
   const WslView({
@@ -52,11 +51,10 @@ class _WslViewState extends State<WslView> {
   late final WslTabBuilder _tabBuilder;
   late final WslWorkspaceController _workspaceController;
   late final WslUiAdapter _uiAdapter;
+  late final WslViewShell _shell;
   late final TabViewRegistry<WorkspaceTab> _tabRegistry;
-  late final TabNavigationHandle _tabNavigator;
   late final VoidCallback _settingsListener;
   late final VoidCallback _tabsListener;
-  final WorkspaceSettingsSync _settingsSync = const WorkspaceSettingsSync();
   final WorkspaceTabRegistryBuilder _registryBuilder =
       const WorkspaceTabRegistryBuilder();
 
@@ -80,26 +78,26 @@ class _WslViewState extends State<WslView> {
       settingsController: widget.settingsController,
       baseTabBuilder: () => _distroPickerTab(),
     );
-
-    _tabRegistry = _registryBuilder.build(viewKeyPrefix: 'wsl-tab');
-
-    _tabNavigator = TabNavigationHandle(
-      next: () {
-        final length = _tabs.length;
-        if (length <= 1) return false;
-        final next = (_selectedIndex + 1) % length;
-        _workspaceController.select(next);
-        return true;
-      },
-      previous: () {
-        final length = _tabs.length;
-        if (length <= 1) return false;
-        final prev = (_selectedIndex - 1 + length) % length;
-        _workspaceController.select(prev);
-        return true;
+    _shell = WslViewShell(
+      moduleId: widget.moduleId,
+      tabs: () => _tabs,
+      selectedIndex: () => _selectedIndex,
+      selectTab: _workspaceController.select,
+      closeTab: _workspaceController.closeTab,
+      renameTab: _renameTab,
+      addPickerTab: _addPickerTab,
+      persistedWorkspaceSignature: () =>
+          _workspaceController.workspacePersistence.read()?.signature,
+      currentWorkspaceSignature: _workspaceController.currentWorkspaceSignature,
+      restoreWorkspace: _restoreWorkspace,
+      persistIfPending: () async {
+        _workspaceController.workspacePersistence.persistIfPending(
+          () => _workspaceController.persistState(),
+        );
       },
     );
-    TabNavigationRegistry.instance.register(widget.moduleId, _tabNavigator);
+
+    _tabRegistry = _registryBuilder.build(viewKeyPrefix: 'wsl-tab');
 
     _tabsListener = () {
       setState(() {});
@@ -109,6 +107,7 @@ class _WslViewState extends State<WslView> {
     _settingsListener = _handleSettingsChanged;
     widget.settingsController.addListener(_settingsListener);
 
+    _shell.initializeWorkspaceChrome();
     _restoreWorkspace();
   }
 
@@ -117,7 +116,7 @@ class _WslViewState extends State<WslView> {
     _workspaceController.removeListener(_tabsListener);
     _workspaceController.dispose();
     widget.settingsController.removeListener(_settingsListener);
-    TabNavigationRegistry.instance.unregister(widget.moduleId, _tabNavigator);
+    _shell.dispose();
     super.dispose();
   }
 
@@ -237,17 +236,7 @@ class _WslViewState extends State<WslView> {
   }
 
   void _handleSettingsChanged() {
-    _settingsSync.handleSettingsChangedAsync(
-      mounted: mounted,
-      persistedSignature: _workspaceController.workspacePersistence.read()?.signature,
-      currentSignature: _workspaceController.currentWorkspaceSignature(),
-      restoreWorkspace: _restoreWorkspace,
-      persistIfPending: () {
-        _workspaceController.workspacePersistence.persistIfPending(
-          () => _workspaceController.persistState(),
-        );
-      },
-    );
+    unawaited(_shell.handleSettingsChanged());
   }
 
   Future<void> _restoreWorkspace() async {

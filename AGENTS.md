@@ -72,6 +72,7 @@ Current fresh-review hotspot order is:
 
 Use the current-state review docs as the handover source of truth before reopening older rewrite priorities:
 - `docs/current_code_smell_review.md`
+- `docs/workspace_shell_hosting_hotspot_todo.md`
 - `docs/runtime_composition_hotspot_todo.md`
 - `docs/settings_hotspot_todo.md`
 - `docs/ui_adapter_surface_hotspot_todo.md`

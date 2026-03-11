@@ -175,6 +175,7 @@ Current active hotspot order:
 4. file-operation flow reevaluation only if fresh evidence reopens it
 
 Current active next TODO:
+- `docs/workspace_shell_hosting_hotspot_todo.md` active
 - `docs/ui_adapter_surface_hotspot_todo.md` checkpointed
 - `docs/runtime_composition_hotspot_todo.md` checkpointed
 - `docs/settings_hotspot_todo.md` checkpointed
