@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:cwatch/model/features/servers/services/host_distro_key.dart';
@@ -150,6 +152,36 @@ void main() {
 
       expect(fakeManager.ensureCalls, 2);
       expect(fakeManager.forcedValues, [false, true]);
+    });
+
+    test('loadHosts reuses in-flight loader work', () async {
+      final completer = Completer<List<SshHost>>();
+      var loadCalls = 0;
+      final controller = ServerHostSurfaceController(
+        appSettingsController: AppSettingsController(),
+        distroManager: _fakeDistroManagerFactory,
+        loadHostsOverride: () {
+          loadCalls += 1;
+          return completer.future;
+        },
+      );
+
+      final first = controller.loadHosts();
+      final second = controller.loadHosts();
+
+      expect(loadCalls, 1);
+
+      completer.complete(const [
+        SshHost(
+          name: 'alpha',
+          hostname: 'alpha.example.com',
+          port: 22,
+          available: true,
+        ),
+      ]);
+
+      expect(await first, hasLength(1));
+      expect(await second, hasLength(1));
     });
   });
 }

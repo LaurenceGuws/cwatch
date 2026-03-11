@@ -16,15 +16,19 @@ class ServerHostSurfaceController {
   ServerHostSurfaceController({
     required AppSettingsController appSettingsController,
     required HostDistroManager Function() distroManager,
+    Future<List<SshHost>> Function()? loadHostsOverride,
   }) : _appSettingsController = appSettingsController,
-       _distroManager = distroManager;
+       _distroManager = distroManager,
+       _loadHostsOverride = loadHostsOverride;
 
   final AppSettingsController _appSettingsController;
   final HostDistroManager Function() _distroManager;
+  final Future<List<SshHost>> Function()? _loadHostsOverride;
 
   final Map<String, bool> _hostAvailability = {};
   final Set<String> _pendingCustomAvailabilityChecks = {};
   bool _didProbeHostDistro = false;
+  Future<List<SshHost>>? _loadHostsInFlight;
 
   final ValueNotifier<Future<List<SshHost>>> hostsFutureNotifier =
       ValueNotifier(Future.value(const []));
@@ -33,6 +37,27 @@ class ServerHostSurfaceController {
   List<SshHost> lastHosts = const [];
 
   Future<List<SshHost>> loadHosts() async {
+    final existing = _loadHostsInFlight;
+    if (existing != null) {
+      return existing;
+    }
+    final future = _loadHostsInternal();
+    _loadHostsInFlight = future;
+    future.whenComplete(() {
+      if (identical(_loadHostsInFlight, future)) {
+        _loadHostsInFlight = null;
+      }
+    });
+    return future;
+  }
+
+  Future<List<SshHost>> _loadHostsInternal() async {
+    final override = _loadHostsOverride;
+    if (override != null) {
+      final hosts = await override();
+      lastHosts = hosts;
+      return hosts;
+    }
     final settings = _appSettingsController.settings;
     final ssh = settings.sshPreferences;
     final hosts = await SshConfigService(
