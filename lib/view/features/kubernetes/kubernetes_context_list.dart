@@ -21,6 +21,7 @@ import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/settings/floating_settings_window.dart';
 import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'package:cwatch/view/shared/widgets/data_table/structured_data_table.dart';
+import 'package:cwatch/view/shared/widgets/data_table/structured_data_table_host.dart';
 import 'package:cwatch/view/shared/widgets/lists/section_list.dart';
 import 'package:cwatch/view/shared/widgets/standard_empty_state.dart';
 import 'package:cwatch/controller/adapters/external_app_launcher.dart';
@@ -435,30 +436,34 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                 children: collapsed
                     ? const []
                     : [
-                        StructuredDataTable<KubeconfigContext>(
-                          rows: contextsForPath,
-                          columns: _contextColumns(context),
-                          rowHeight: 64,
-                          shrinkToContent: true,
-                          useZebraStripes: false,
-                          surfaceBackgroundColor: sectionColor,
-                          primaryDoubleClickOpensContextMenu: false,
-                          metadataBuilder: _contextMetadata,
-                          onRowDoubleTap: (ctx) =>
-                              _workspaceShell.openContextTab(
-                                ctx,
-                                replaceTabId: replaceTabId,
-                              ),
-                          rowContextMenuBuilder: _buildContextMenuActions,
-                          onSelectionChanged: (selectedRows) {
-                            setState(() {
-                              _listState.updateSelectedRows(
-                                contextsForPath,
-                                selectedRows,
-                                _contextSelectionKey,
-                              );
-                            });
-                          },
+                        StructuredDataTableHost(
+                          title: 'Contexts',
+                          subtitle: '${contextsForPath.length} contexts in this kubeconfig',
+                          child: StructuredDataTable<KubeconfigContext>(
+                            rows: contextsForPath,
+                            columns: _contextColumns(context),
+                            rowHeight: 64,
+                            shrinkToContent: true,
+                            useZebraStripes: false,
+                            surfaceBackgroundColor: sectionColor,
+                            primaryDoubleClickOpensContextMenu: false,
+                            metadataBuilder: _contextMetadata,
+                            onRowDoubleTap: (ctx) =>
+                                _workspaceShell.openContextTab(
+                                  ctx,
+                                  replaceTabId: replaceTabId,
+                                ),
+                            rowContextMenuBuilder: _buildContextMenuActions,
+                            onSelectionChanged: (selectedRows) {
+                              setState(() {
+                                _listState.updateSelectedRows(
+                                  contextsForPath,
+                                  selectedRows,
+                                  _contextSelectionKey,
+                                );
+                              });
+                            },
+                          ),
                         ),
                       ],
               ),

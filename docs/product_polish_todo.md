@@ -299,3 +299,28 @@ First implementation batch:
   - server host list sections
   - kubernetes context selection sections
   - one Docker table-hosting surface
+
+## Task 21.11: implement the first structured table/list polish batch
+Status: completed
+
+Goal:
+- introduce a shared host/scaffold around `StructuredDataTable`
+- prove it on the first three visible surfaces without touching table internals or feature row behavior
+
+Done definition:
+- one shared table host/scaffold widget exists
+- server host list sections use it
+- kubernetes context selection sections use it
+- one Docker table-hosting surface uses it
+
+Result:
+- added [structured_data_table_host.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_host.dart)
+- first adopters are:
+  - [host_list.dart](/home/home/personal/cwatch/lib/view/features/servers/servers/host_list.dart)
+  - [kubernetes_context_list.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/kubernetes_context_list.dart)
+  - [docker_engine_picker.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_engine_picker.dart)
+
+Why this is a good checkpoint:
+- the surrounding hosting chrome for shared tables is now more coherent
+- feature-specific columns, row actions, and domain chips remain untouched
+- this proves the table-host polish seam without reopening `StructuredDataTable` internals

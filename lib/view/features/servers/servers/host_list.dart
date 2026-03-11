@@ -11,6 +11,7 @@ import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/shared/theme/distro_icons.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/view/shared/widgets/data_table/structured_data_table.dart';
+import 'package:cwatch/view/shared/widgets/data_table/structured_data_table_host.dart';
 import 'package:cwatch/view/shared/widgets/lists/section_list.dart';
 import 'package:cwatch/view/shared/widgets/section_overflow_menu.dart';
 import 'package:cwatch/view/shared/widgets/standard_empty_state.dart';
@@ -306,38 +307,41 @@ class _HostListState extends State<HostList> {
     
     // Use a stable key per section source to avoid unnecessary rebuilds across tabs
     // The key stays the same for a given source, allowing the table to update rows efficiently
-    return StructuredDataTable<SshHost>(
-      key: tableKey,
-      rows: hosts,
-      columns: _columns(),
-      rowHeight: context.scale(64),
-      shrinkToContent: true,
-      primaryDoubleClickOpensContextMenu: true,
-      useZebraStripes: false,
-      surfaceBackgroundColor: surfaceColor,
-      onRowTap: (host) {
-        widget.onHostVisible?.call(host);
-        widget.onSelect?.call(host);
-      },
-      onRowDoubleTap: (host) {
-        if (_isHostDisabled(host)) {
-          return;
-        }
-        widget.onHostVisible?.call(host);
-        widget.onActivate?.call(host);
-      },
-      onRowPointerEnter: (index, host, event) {
-        // Trigger distro detection when row is hovered
-        widget.onHostVisible?.call(host);
-      },
-      refreshListenable: widget.settingsController,
-      rowContextMenuBuilder: _buildContextMenuActions,
-      onSelectionChanged: (selectedRows) {
-        _syncSelection(hosts, selectedRows);
-      },
-      emptyState: Padding(
-        padding: EdgeInsets.all(spacing.xl),
-        child: const StandardEmptyState(message: 'No servers in this group.'),
+    return StructuredDataTableHost(
+      title: 'Servers',
+      subtitle: '${hosts.length} hosts in this group',
+      child: StructuredDataTable<SshHost>(
+        key: tableKey,
+        rows: hosts,
+        columns: _columns(),
+        rowHeight: context.scale(64),
+        shrinkToContent: true,
+        primaryDoubleClickOpensContextMenu: true,
+        useZebraStripes: false,
+        surfaceBackgroundColor: surfaceColor,
+        onRowTap: (host) {
+          widget.onHostVisible?.call(host);
+          widget.onSelect?.call(host);
+        },
+        onRowDoubleTap: (host) {
+          if (_isHostDisabled(host)) {
+            return;
+          }
+          widget.onHostVisible?.call(host);
+          widget.onActivate?.call(host);
+        },
+        onRowPointerEnter: (index, host, event) {
+          widget.onHostVisible?.call(host);
+        },
+        refreshListenable: widget.settingsController,
+        rowContextMenuBuilder: _buildContextMenuActions,
+        onSelectionChanged: (selectedRows) {
+          _syncSelection(hosts, selectedRows);
+        },
+        emptyState: Padding(
+          padding: EdgeInsets.all(spacing.xl),
+          child: const StandardEmptyState(message: 'No servers in this group.'),
+        ),
       ),
     );
   }

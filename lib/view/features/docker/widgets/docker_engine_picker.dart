@@ -9,6 +9,7 @@ import 'package:cwatch/model/features/servers/services/host_distro_key.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/shared/theme/distro_icons.dart';
 import 'package:cwatch/view/shared/widgets/data_table/structured_data_table.dart';
+import 'package:cwatch/view/shared/widgets/data_table/structured_data_table_host.dart';
 import 'package:cwatch/view/shared/widgets/distro_leading_slot.dart';
 import 'package:cwatch/view/shared/widgets/lists/section_list.dart';
 import 'package:cwatch/view/shared/widgets/section_overflow_menu.dart';
@@ -164,28 +165,30 @@ class _EnginePickerState extends State<EnginePicker> {
                                         detail: 'Checking...',
                                       ))
                                   .toList();
-                          return StructuredDataTable<LocalDockerContextStatus>(
-                            rows: rows,
-                            columns: _contextColumns(context),
-                            rowHeight: context.scale(64),
-                            shrinkToContent: true,
-                            useZebraStripes: false,
-                            surfaceBackgroundColor: sectionColor,
-                            primaryDoubleClickOpensContextMenu: true,
-                            metadataBuilder: _contextMetadata,
-                            onRowContextMenu: (status, selectedRows, anchor) {
-                              // Disable context menu for unavailable contexts
-                              if (status.available) {
-                                widget.onOpenContext(status.context.name, anchor);
-                              }
-                            },
-                            onRowTap: (status) {
-                              // Disable tap for unavailable contexts
-                              if (!status.available) {
-                                return; // Don't allow interaction with unavailable contexts
-                              }
-                            },
-                            rowSelectionPredicate: (status) => status.available,
+                          return StructuredDataTableHost(
+                            title: 'Contexts',
+                            subtitle: '${rows.length} local contexts',
+                            child: StructuredDataTable<LocalDockerContextStatus>(
+                              rows: rows,
+                              columns: _contextColumns(context),
+                              rowHeight: context.scale(64),
+                              shrinkToContent: true,
+                              useZebraStripes: false,
+                              surfaceBackgroundColor: sectionColor,
+                              primaryDoubleClickOpensContextMenu: true,
+                              metadataBuilder: _contextMetadata,
+                              onRowContextMenu: (status, selectedRows, anchor) {
+                                if (status.available) {
+                                  widget.onOpenContext(status.context.name, anchor);
+                                }
+                              },
+                              onRowTap: (status) {
+                                if (!status.available) {
+                                  return;
+                                }
+                              },
+                              rowSelectionPredicate: (status) => status.available,
+                            ),
                           );
                         },
                       ),
