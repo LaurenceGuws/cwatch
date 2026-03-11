@@ -508,3 +508,58 @@ Result:
 Why this is the right stop:
 - the biggest repeated floating-panel drift is already reduced
 - pushing further without a sharper target would risk generic cleanup instead of product value
+
+## Task 21.19: define the tab-shell polish target
+Status: completed
+
+Goal:
+- identify the next visible repeated shell surface after the floating-panel checkpoint
+- choose a narrow product-polish hotspot with multiple real adopters
+
+Done definition:
+- one next polish hotspot is chosen from current UI evidence
+- the first implementation cut is explicit
+
+Result:
+- the next visible hotspot is:
+  - tab-shell polish
+- the strongest repeated shared surface is:
+  - [workspace_tab_chip_builder.dart](/home/home/personal/cwatch/lib/view/core/tabs/workspace_tab_chip_builder.dart)
+  - [tab_chip.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/tab_chip.dart)
+- the clearest remaining drift is in:
+  - placeholder-tab labels
+  - placeholder icon semantics
+  - small tab-chip affordance consistency across feature modules
+
+Why this is the right next move:
+- tab chips are always visible in active module surfaces
+- the shared shell path already exists, so polish can happen without reopening ownership cleanup
+- the likely remaining drift is in naming and chrome details, not feature tab behavior
+
+## Task 21.20: define the tab-shell polish contract
+Status: completed
+
+Goal:
+- define what part of tab-shell treatment should become more consistent
+- keep feature-specific tab behavior and domain identity local
+
+Done definition:
+- the shared polish boundary is explicit
+- the first implementation batch is locked
+
+Result:
+- shared:
+  - placeholder-tab naming conventions
+  - placeholder icon semantics
+  - small tab-chip affordance treatment where the same shell rule repeats
+- feature-owned:
+  - feature-specific tab actions
+  - feature-specific working-tab titles
+  - domain-specific icons for concrete non-placeholder tabs
+
+First implementation batch:
+- tighten placeholder tab naming and icon consistency across:
+  - Docker picker tabs
+  - Kubernetes placeholder/context-list tabs
+  - server placeholder tabs
+- only touch shared chip chrome if at least two adopters need the same visible adjustment
