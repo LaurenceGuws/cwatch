@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:dartssh2/dartssh2.dart';
@@ -17,6 +16,7 @@ import 'package:cwatch/model/shared/services/host_shell_policy.dart';
 import 'builtin_identity_manager.dart';
 import 'builtin_ssh_logging.dart';
 import 'builtin_ssh_retry_handler.dart';
+import 'builtin_ssh_stream_output_collector.dart';
 import 'builtin_ssh_timeout_runner.dart';
 import 'builtin_ssh_vault.dart';
 
@@ -42,6 +42,8 @@ class BuiltInSshClientManager {
   final BuiltInSshFailureMapper _failureMapper = const BuiltInSshFailureMapper();
   final BuiltInSshClientLifecycle _clientLifecycle = const BuiltInSshClientLifecycle();
   final BuiltInSshTimeoutRunner _timeoutRunner = const BuiltInSshTimeoutRunner();
+  final BuiltInSshStreamOutputCollector _streamOutputCollector =
+      const BuiltInSshStreamOutputCollector();
   late final BuiltInSshAuthChallengeHandler _authChallengeHandler =
       BuiltInSshAuthChallengeHandler(
         vault: vault,
@@ -143,40 +145,6 @@ class BuiltInSshClientManager {
     logBuiltInSsh('Running command on ${host.name}: $safeCommand');
     final stdoutBuffer = StringBuffer();
     final stderrBuffer = StringBuffer();
-    var stdoutRemainder = '';
-    var stderrRemainder = '';
-
-    Future<void> handleStream(
-      Stream<Uint8List> stream,
-      StringBuffer buffer,
-      void Function(String line)? onLine,
-      void Function(String value) setRemainder,
-      String Function() getRemainder,
-      void Function() onDone,
-    ) async {
-      await stream
-          .cast<List<int>>()
-          .transform(const Utf8Decoder(allowMalformed: true))
-          .forEach((chunk) {
-            buffer.write(chunk);
-            if (onLine == null) {
-              return;
-            }
-            final combined = getRemainder() + chunk;
-            final parts = combined.split('\n');
-            setRemainder(parts.removeLast());
-            for (final line in parts) {
-              onLine(line);
-            }
-          });
-      if (onLine != null) {
-        final remainder = getRemainder();
-        if (remainder.isNotEmpty) {
-          onLine(remainder);
-        }
-      }
-      onDone();
-    }
 
     final bytes = await _withClient(host, (client) async {
       final session = await client.execute(safeCommand);
@@ -188,33 +156,21 @@ class BuiltInSshClientManager {
         _clientLifecycle.killSession(session);
         _clientLifecycle.killClient(client);
       });
-      final stdoutDone = Completer<void>();
-      final stderrDone = Completer<void>();
-      unawaited(
-        handleStream(
-          session.stdout,
-          stdoutBuffer,
-          onStdoutLine,
-          (value) => stdoutRemainder = value,
-          () => stdoutRemainder,
-          stdoutDone.complete,
-        ),
+      final stdoutDone = _streamOutputCollector.collect(
+        stream: session.stdout,
+        buffer: stdoutBuffer,
+        onLine: onStdoutLine,
       );
-      unawaited(
-        handleStream(
-          session.stderr,
-          stderrBuffer,
-          onStderrLine,
-          (value) => stderrRemainder = value,
-          () => stderrRemainder,
-          stderrDone.complete,
-        ),
+      final stderrDone = _streamOutputCollector.collect(
+        stream: session.stderr,
+        buffer: stderrBuffer,
+        onLine: onStderrLine,
       );
       await _timeoutRunner.run(
         future: Future.wait([
           session.done,
-          stdoutDone.future,
-          stderrDone.future,
+          stdoutDone,
+          stderrDone,
         ]),
         timeout: timeout,
         host: host,

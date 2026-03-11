@@ -163,3 +163,19 @@ Done definition:
 Result:
 - builtin retry/error-loop policy now lives in a dedicated helper
 - `BuiltInSshClientManager` is further narrowed toward workflow orchestration
+
+
+## Task 23.10: implement builtin streaming-output cleanup
+Status: completed
+
+Goal:
+- extract UTF-8 line buffering and trailing-remainder flush behavior out of `BuiltInSshClientManager`
+
+Done definition:
+- one builtin-local helper owns streaming output collection and line emission
+- `BuiltInSshClientManager.runCommandStreaming(...)` no longer owns inline stream chunk/remainder parsing
+- focused regression coverage exists for the new helper
+
+Result:
+- builtin streaming output collection now lives in a dedicated helper
+- `BuiltInSshClientManager` is further narrowed toward session workflow orchestration
