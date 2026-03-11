@@ -23,15 +23,14 @@ What remains is mostly concentrated in a smaller set of heavy subsystems and sha
 
 ### 1. SSH subsystem complexity
 Primary files:
-- [docker_lists.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_lists.dart)
-- [docker_overview.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_overview.dart)
-- [docker_view.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view.dart)
-- [docker_client_service.dart](/home/home/personal/cwatch/lib/model/features/docker/services/docker_client_service.dart)
+- [ssh_shell_factory.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_factory.dart)
+- [process_ssh_shell_service.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/process_ssh_shell_service.dart)
+- [builtin_ssh_client_manager.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/builtin/builtin_ssh_client_manager.dart)
 
 Why it still matters:
-- Docker remains the largest visible feature subsystem by concentrated file size and mixed responsibility.
-- The feature has better ownership than before, but too much behavior still lives in a few large files.
-- This is the best next feature-level cleanup target.
+- Boundary cleanup improved the subsystem, but it remains operationally dense.
+- Provider selection, runtime caching, builtin/process differences, auth coordination, and failure mapping still create a high-complexity subsystem.
+- This is now more of a subsystem-complexity problem than an ownership problem.
 
 ### 2. StructuredDataTable shared risk
 Primary files:
@@ -52,14 +51,15 @@ Current checkpoint:
 
 ### 3. Docker feature complexity
 Primary files:
-- [ssh_shell_factory.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_factory.dart)
-- [process_ssh_shell_service.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/process_ssh_shell_service.dart)
-- [builtin_ssh_client_manager.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/builtin/builtin_ssh_client_manager.dart)
+- [docker_lists.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_lists.dart)
+- [docker_overview.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_overview.dart)
+- [docker_view.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view.dart)
+- [docker_client_service.dart](/home/home/personal/cwatch/lib/model/features/docker/services/docker_client_service.dart)
 
 Why it still matters:
-- Boundary cleanup improved the subsystem, but it remains operationally dense.
-- Provider selection, runtime caching, builtin/process differences, auth coordination, and failure mapping still create a high-complexity subsystem.
-- This is now more of a subsystem-complexity problem than an ownership problem.
+- Docker remains the largest visible feature subsystem by concentrated file size and mixed responsibility.
+- The feature has better ownership than before, but too much behavior still lives in a few large files.
+- This is the best next feature-level cleanup target after SSH.
 
 ### 4. Theme/token centralization
 Primary file:
