@@ -29,49 +29,6 @@ class _ScaledSeries {
   final String unit;
 }
 
-class _LegendChip extends StatelessWidget {
-  const _LegendChip({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final spacing = context.appTheme.spacing;
-    return Container(
-      padding: spacing.inset(horizontal: 2, vertical: 1),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(2),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(2),
-              border: Border.all(color: scheme.surface),
-            ),
-          ),
-          SizedBox(width: spacing.base * 1.5),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: scheme.onSurface,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class KubernetesResources extends StatefulWidget {
   const KubernetesResources({
     super.key,
@@ -695,7 +652,7 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
               spacing: spacing.sm,
               runSpacing: spacing.sm * 0.5,
               children: series
-                  .map((s) => _LegendChip(label: s.label, color: s.color))
+                  .map((s) => DashboardLegendChip(label: s.label, color: s.color))
                   .toList(),
             ),
           ],

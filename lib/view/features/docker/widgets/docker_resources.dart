@@ -631,22 +631,7 @@ class _ChartLegend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final spacing = context.appTheme.spacing;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: context.scale(12),
-          height: context.scale(12),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(2 * context.zoomFactor),
-          ),
-        ),
-        SizedBox(width: spacing.base * 1.5),
-        Text(label, style: Theme.of(context).textTheme.labelMedium),
-      ],
-    );
+    return DashboardLegendChip(label: label, color: color);
   }
 }
 

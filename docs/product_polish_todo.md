@@ -155,3 +155,26 @@ Why this is a good checkpoint:
 - the dashboards now share a visible section/card language without becoming one generic dashboard framework
 - metadata presentation is more intentional on Docker and Kubernetes surfaces
 - chart logic, table logic, and feature-specific actions remain local
+
+## Task 21.6: tighten shared dashboard chart chrome
+Status: completed
+
+Goal:
+- remove the remaining obvious drift in chart legend styling across dashboard/resource surfaces
+- extend the shared dashboard language only where there is already clear cross-feature reuse
+
+Done definition:
+- chart legends use one shared visual treatment
+- Docker and Kubernetes resource charts both adopt it
+- no new graph/data abstraction is introduced
+
+Result:
+- [dashboard_primitives.dart](/home/home/personal/cwatch/lib/view/shared/widgets/dashboard/dashboard_primitives.dart) now includes `DashboardLegendChip`
+- Docker chart legends now use the shared legend chip in:
+  - [docker_resources.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_resources.dart)
+- Kubernetes chart legends now use the same shared legend chip in:
+  - [kubernetes_resources.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/widgets/kubernetes_resources.dart)
+
+Why this is a good checkpoint:
+- the remaining chart chrome now reads as one product surface
+- it improves consistency without touching chart logic, data shaping, or feature-specific metrics

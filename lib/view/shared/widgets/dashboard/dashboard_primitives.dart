@@ -195,3 +195,50 @@ class DashboardMetadataCard extends StatelessWidget {
     );
   }
 }
+
+class DashboardLegendChip extends StatelessWidget {
+  const DashboardLegendChip({
+    super.key,
+    required this.label,
+    required this.color,
+  });
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final spacing = context.appTheme.spacing;
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: spacing.inset(horizontal: 2, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(2),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(2),
+              border: Border.all(color: scheme.surface),
+            ),
+          ),
+          SizedBox(width: spacing.base * 1.5),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: scheme.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
