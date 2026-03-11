@@ -8,6 +8,7 @@ import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/view/core/navigation/command_palette_registry.dart';
 import 'package:cwatch/view/core/navigation/generic_tab_command_entries.dart';
 import 'package:cwatch/view/core/navigation/tab_navigation_registry.dart';
+import 'package:cwatch/view/core/tabs/workspace_settings_sync.dart';
 
 class ServerWorkspaceShell {
   ServerWorkspaceShell({
@@ -98,6 +99,7 @@ class ServerWorkspaceShell {
   final Future<ServerAction?> Function(SshHost host) _pickAction;
   final Future<void> Function(int index) _renameTab;
   final List<CustomSshHost> Function() _customHosts;
+  final WorkspaceSettingsSync _settingsSync = const WorkspaceSettingsSync();
 
   String _customHostsSignature = '';
   String _pathsSignature = '';
@@ -176,13 +178,13 @@ class ServerWorkspaceShell {
       _requestViewRefresh();
     }
 
-    final persistedSignature = _persistedWorkspaceSignature();
-    if (persistedSignature != null &&
-        persistedSignature != _currentWorkspaceSignature()) {
-      await _restoreWorkspace();
-    }
-
-    await _persistIfPending();
+    await _settingsSync.handleSettingsChanged(
+      mounted: true,
+      persistedSignature: _persistedWorkspaceSignature(),
+      currentSignature: _currentWorkspaceSignature(),
+      restoreWorkspace: _restoreWorkspace,
+      persistIfPending: _persistIfPending,
+    );
   }
 
   void reloadServerList() {

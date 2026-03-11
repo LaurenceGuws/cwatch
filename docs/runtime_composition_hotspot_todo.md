@@ -194,3 +194,53 @@ Result:
   - [server_workspace_view.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_view.dart)
 - focused regression coverage exists in:
   - [server_workspace_tab_helper_test.dart](/home/home/personal/cwatch/test/view/features/servers/server_workspace_tab_helper_test.dart)
+
+## Task 25.9: define the first cross-feature workspace-shell hosting cut
+Status: completed
+
+Goal:
+- choose the first real shared seam across server, docker, and WSL workspace hosting
+- keep the batch on repeated hosting policy rather than attempting a broad generic workspace shell abstraction
+
+Done definition:
+- one cross-feature seam is explicit
+- the batch reflects repeated logic proven in multiple feature modules
+
+Result:
+- the next bounded runtime/composition batch is now:
+  - shared workspace settings-sync policy split
+- target files:
+  - [server_workspace_shell.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_shell.dart)
+  - [docker_view.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view.dart)
+  - [wsl_view.dart](/home/home/personal/cwatch/lib/view/features/wsl/wsl_view.dart)
+  - new shared helper under `lib/view/core/tabs/`
+- stop condition:
+  - restore-on-settings-change and persist-if-pending policy no longer repeats across workspace modules
+  - feature-specific side effects remain local
+  - behavior stays stable
+
+Why this is the right first cross-feature cut:
+- the repeated restore/persist policy is already shared conceptually across server, docker, and WSL
+- the logic is small, pure, and easy to test directly
+- it reduces duplication without forcing premature convergence of richer feature-specific shell behavior
+
+## Task 25.10: implement the first cross-feature workspace-shell hosting cut
+Status: completed
+
+Goal:
+- extract shared workspace settings-sync policy into a dedicated tab-shell helper
+
+Done definition:
+- one shared helper owns restore-on-settings-change and persist-if-pending orchestration
+- server, docker, and WSL workspace hosts no longer repeat that policy inline
+- focused regression coverage exists for the helper
+
+Result:
+- shared workspace settings-sync policy now lives in:
+  - [workspace_settings_sync.dart](/home/home/personal/cwatch/lib/view/core/tabs/workspace_settings_sync.dart)
+- server, docker, and WSL workspace hosting now delegate that shared policy:
+  - [server_workspace_shell.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_shell.dart)
+  - [docker_view.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view.dart)
+  - [wsl_view.dart](/home/home/personal/cwatch/lib/view/features/wsl/wsl_view.dart)
+- focused regression coverage exists in:
+  - [workspace_settings_sync_test.dart](/home/home/personal/cwatch/test/view/core/tabs/workspace_settings_sync_test.dart)

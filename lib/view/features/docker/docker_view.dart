@@ -22,6 +22,7 @@ import 'package:cwatch/view/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/view/core/tabs/tabbed_workspace_shell.dart';
 import 'package:cwatch/view/core/tabs/workspace_tab_chip_builder.dart';
 import 'package:cwatch/view/core/tabs/tab_bar_visibility.dart';
+import 'package:cwatch/view/core/tabs/workspace_settings_sync.dart';
 import 'package:cwatch/model/models/docker_workspace_state.dart';
 import 'package:cwatch/view/core/widgets/keep_alive.dart';
 import 'widgets/docker_engine_picker.dart';
@@ -83,6 +84,7 @@ class _DockerViewState extends State<DockerView> {
       const DockerViewDashboardHelper();
   final DockerViewTabStateHelper _tabStateHelper =
       const DockerViewTabStateHelper();
+  final WorkspaceSettingsSync _settingsSync = const WorkspaceSettingsSync();
   bool _showListSettings = false;
 
   DockerWorkspaceController get _workspaceController =>
@@ -584,21 +586,16 @@ class _DockerViewState extends State<DockerView> {
   }
 
   void _handleSettingsChanged() {
-    if (!mounted) return;
-
-    // Only restore if the persisted workspace differs from our current tabs.
-    // This avoids a restore loop when our own persistence writes trigger the
-    // settings listener (especially noticeable when multiple picker tabs exist).
-    final persistedSignature =
-        _workspaceController.workspacePersistence.read()?.signature;
-    if (persistedSignature != null &&
-        persistedSignature !=
-            _workspaceController.currentWorkspaceSignature()) {
-      unawaited(_restoreWorkspace());
-    }
-
-    _workspaceController.workspacePersistence.persistIfPending(
-      () => _workspaceController.persistState(),
+    _settingsSync.handleSettingsChangedAsync(
+      mounted: mounted,
+      persistedSignature: _workspaceController.workspacePersistence.read()?.signature,
+      currentSignature: _workspaceController.currentWorkspaceSignature(),
+      restoreWorkspace: _restoreWorkspace,
+      persistIfPending: () {
+        _workspaceController.workspacePersistence.persistIfPending(
+          () => _workspaceController.persistState(),
+        );
+      },
     );
   }
 

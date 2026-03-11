@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'package:cwatch/view/core/navigation/tab_navigation_registry.dart';
 import 'package:cwatch/view/core/tabs/tab_bar_visibility.dart';
+import 'package:cwatch/view/core/tabs/workspace_settings_sync.dart';
 import 'package:cwatch/view/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/view/core/tabs/tabbed_workspace_shell.dart';
 import 'package:cwatch/view/core/tabs/workspace_tab_chip_builder.dart';
@@ -55,6 +56,7 @@ class _WslViewState extends State<WslView> {
   late final TabNavigationHandle _tabNavigator;
   late final VoidCallback _settingsListener;
   late final VoidCallback _tabsListener;
+  final WorkspaceSettingsSync _settingsSync = const WorkspaceSettingsSync();
 
   late Future<List<WslDistribution>> _distrosFuture;
 
@@ -238,17 +240,16 @@ class _WslViewState extends State<WslView> {
   }
 
   void _handleSettingsChanged() {
-    if (!mounted) return;
-    final persistedSignature =
-        _workspaceController.workspacePersistence.read()?.signature;
-    if (persistedSignature != null &&
-        persistedSignature !=
-            _workspaceController.currentWorkspaceSignature()) {
-      unawaited(_restoreWorkspace());
-    }
-
-    _workspaceController.workspacePersistence.persistIfPending(
-      () => _workspaceController.persistState(),
+    _settingsSync.handleSettingsChangedAsync(
+      mounted: mounted,
+      persistedSignature: _workspaceController.workspacePersistence.read()?.signature,
+      currentSignature: _workspaceController.currentWorkspaceSignature(),
+      restoreWorkspace: _restoreWorkspace,
+      persistIfPending: () {
+        _workspaceController.workspacePersistence.persistIfPending(
+          () => _workspaceController.persistState(),
+        );
+      },
     );
   }
 
