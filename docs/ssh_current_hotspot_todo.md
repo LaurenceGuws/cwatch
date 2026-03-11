@@ -259,6 +259,44 @@ Done definition:
 - `BuiltInSshClientManager.runCommandStreaming(...)` no longer owns that inline workflow
 - focused regression coverage exists for the new helper
 
+## Task 23.15: re-scope the next SSH batch from the current code state
+Status: completed
+
+Goal:
+- choose the next real SSH cleanup slice from the current code state after the builtin/runtime pass
+- avoid blindly continuing older shell-factory assumptions if the hotspot shifted
+
+Done definition:
+- one new SSH batch is explicit
+- the batch reflects the current file-state rather than the earlier pass ordering
+
+Result:
+- the next bounded SSH batch is now:
+  - process SSH execution-adapter split
+- target files:
+  - [process_ssh_shell_service.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/process_ssh_shell_service.dart)
+  - new SSH-local helper under `lib/model/services_infra/ssh/`
+- stop condition:
+  - repeated runner/failure-mapping wrappers no longer live inline in `ProcessRemoteShellService`
+  - command planning, provider selection, and public `RemoteShellService` behavior stay stable in this batch
+  - builtin SSH remains untouched in this batch
+
+Why this is the right next cut:
+- [process_ssh_shell_service.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/process_ssh_shell_service.dart) is now the densest remaining SSH file
+- the remaining repeated `_runSsh` / `_runHostCommand` / `_runProcess` wrappers are real runtime-orchestration smell
+- it gives a direct seam for focused regression coverage without reopening already-cleaned planners
+
+## Task 23.16: implement the process SSH execution-adapter split
+Status: completed
+
+Goal:
+- extract repeated process-runner and failure-mapping wrappers out of `ProcessRemoteShellService`
+
+Done definition:
+- one SSH-local helper owns process SSH runner delegation and failure/cancellation mapping
+- `ProcessRemoteShellService` no longer owns repeated runner/failure wrapper methods inline
+- focused regression coverage exists for ssh/host/process mapping and streaming-cancellation behavior
+
 Result:
 - builtin streaming execution now lives in a dedicated helper
 - `BuiltInSshClientManager` is reduced to thin workflow wrappers around extracted builtin helpers

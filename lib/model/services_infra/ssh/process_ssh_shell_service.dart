@@ -9,16 +9,31 @@ import 'process_ssh_file_operation_planner.dart';
 import 'process_ssh_search_planner.dart';
 import 'process_ssh_run_result_handler.dart';
 import 'process_ssh_terminal_session_planner.dart';
+import 'process_ssh_execution_adapter.dart';
 import 'process_ssh_failure_mapper.dart';
 import 'remote_shell_base.dart';
 import 'terminal_session.dart';
 import 'process_ssh_runner.dart';
 
 class ProcessRemoteShellService extends RemoteShellService {
-  const ProcessRemoteShellService({super.debugMode = false, super.observer});
+  ProcessRemoteShellService({
+    super.debugMode = false,
+    super.observer,
+    ProcessSshRunner? runner,
+    ProcessSshFailureMapper? failureMapper,
+    ProcessSshExecutionAdapter? executionAdapter,
+  }) : _runner = runner ?? const ProcessSshRunner(),
+       _failureMapper = failureMapper ?? const ProcessSshFailureMapper(),
+       _executionAdapter =
+           executionAdapter ??
+           ProcessSshExecutionAdapter(
+             runner: runner,
+             failureMapper: failureMapper,
+           );
 
-  final ProcessSshRunner _runner = const ProcessSshRunner();
-  final ProcessSshFailureMapper _failureMapper = const ProcessSshFailureMapper();
+  final ProcessSshRunner _runner;
+  final ProcessSshFailureMapper _failureMapper;
+  final ProcessSshExecutionAdapter _executionAdapter;
   final ProcessSshRunResultHandler _resultHandler =
       const ProcessSshRunResultHandler();
   final ProcessSshFileOperationPlanner _filePlanner =
@@ -716,7 +731,7 @@ class ProcessRemoteShellService extends RemoteShellService {
     RunTimeoutHandler? onTimeout,
   }) async {
     try {
-      return await _runner.runSsh(
+      return await _executionAdapter.runSsh(
         host,
         command,
         timeout: timeout,
@@ -724,7 +739,7 @@ class ProcessRemoteShellService extends RemoteShellService {
         onTimeout: onTimeout,
       );
     } catch (error) {
-      throw _failureMapper.map(host, error);
+      rethrow;
     }
   }
 
@@ -738,7 +753,7 @@ class ProcessRemoteShellService extends RemoteShellService {
     void Function(String line)? onStderrLine,
   }) async {
     try {
-      return await _runner.runSshStreaming(
+      return await _executionAdapter.runSshStreaming(
         host,
         command,
         timeout: timeout,
@@ -749,10 +764,7 @@ class ProcessRemoteShellService extends RemoteShellService {
         onStderrLine: onStderrLine,
       );
     } catch (error) {
-      if (error is RemoteCommandCancelled) {
-        rethrow;
-      }
-      throw _failureMapper.map(host, error);
+      rethrow;
     }
   }
 
@@ -763,7 +775,7 @@ class ProcessRemoteShellService extends RemoteShellService {
     RunTimeoutHandler? onTimeout,
   }) async {
     try {
-      return await _runner.runHostCommand(
+      return await _executionAdapter.runHostCommand(
         host,
         command,
         timeout: timeout,
@@ -771,7 +783,7 @@ class ProcessRemoteShellService extends RemoteShellService {
         onTimeout: onTimeout,
       );
     } catch (error) {
-      throw _failureMapper.map(host, error);
+      rethrow;
     }
   }
 
@@ -782,15 +794,15 @@ class ProcessRemoteShellService extends RemoteShellService {
     RunTimeoutHandler? onTimeout,
   }) async {
     try {
-      return await _runner.runProcess(
+      return await _executionAdapter.runProcess(
+        host,
         command,
         timeout: timeout,
-        hostForErrors: host,
         onSshError: _handleSshError,
         onTimeout: onTimeout,
       );
     } catch (error) {
-      throw _failureMapper.map(host, error);
+      rethrow;
     }
   }
 }
