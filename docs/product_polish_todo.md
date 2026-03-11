@@ -563,3 +563,54 @@ First implementation batch:
   - Kubernetes placeholder/context-list tabs
   - server placeholder tabs
 - only touch shared chip chrome if at least two adopters need the same visible adjustment
+
+## Task 21.21: implement the first tab-shell polish batch
+Status: completed
+
+Goal:
+- normalize the visible semantics of placeholder tabs across the main module entry surfaces
+- improve shared shell-facing clarity without changing working-tab behavior
+
+Done definition:
+- Docker, Kubernetes, and server placeholder tabs use clearer list/picker semantics
+- placeholder-tab labels and icons no longer drift as much from each other
+- working-tab titles and domain-specific working-tab icons remain untouched
+
+Result:
+- Docker placeholder and picker tabs now read as:
+  - `Docker Engines`
+  - `Engines`
+- Kubernetes placeholder tabs now read as:
+  - `Kubernetes Contexts`
+  - `Contexts`
+- server placeholder tabs now use the same list-style placeholder icon treatment
+
+Why this is a good checkpoint:
+- it improves a shared shell-facing surface directly
+- it aligns placeholder meaning without flattening working-tab identity
+- it stays inside the tab-shell polish contract
+
+## Task 21.22: checkpoint tab-shell polish
+Status: completed
+
+Goal:
+- stop the tab-shell polish layer at a defensible point
+- make the current shared placeholder-tab language explicit as a checkpoint
+
+Done definition:
+- the tab-shell polish layer is recorded as checkpointed
+- the docs no longer imply that tab-shell work should keep expanding by default
+
+Result:
+- tab-shell polish is now treated as a product-polish checkpoint
+- the shared placeholder-tab language currently covers:
+  - clearer placeholder naming conventions
+  - more consistent placeholder icon semantics
+- any further tab-shell work should reopen from a narrower visible issue such as:
+  - chip affordance spacing
+  - pin/close affordance treatment
+  - placeholder chip badge/state cues
+
+Why this is the right stop:
+- the biggest repeated placeholder-tab drift is already reduced
+- pushing further without a sharper target would risk generic cleanup instead of product value

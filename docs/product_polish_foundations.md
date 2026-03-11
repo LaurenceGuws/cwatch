@@ -198,28 +198,9 @@ It currently covers:
 - shared straightforward loading/error/empty feedback around table-hosted surfaces
 
 Current next polish move:
-- tab-shell polish
+- re-scope the next visible consistency hotspot from evidence instead of continuing tab-shell work by default
 
 Why:
-- the shared tab-chip path already exists through:
-  - [workspace_tab_chip_builder.dart](/home/home/personal/cwatch/lib/view/core/tabs/workspace_tab_chip_builder.dart)
-  - [tab_chip.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/tab_chip.dart)
-- the remaining visible drift is now in:
-  - placeholder-tab labels
-  - placeholder icon semantics
-  - small tab-chip affordance consistency between feature modules
-- this is a visible shell-facing surface and now a stronger source of product inconsistency than the checkpointed panel/table/dashboard surfaces
-
-Current tab-shell polish direction:
-- standardize tab-shell naming and small chip affordances where the shell already owns the behavior
-- not feature-specific tab actions or feature-specific tab content
-
-What should become shared:
-- placeholder-tab naming conventions
-- placeholder icon semantics
-- small chip affordance treatment when the same shell rule repeats
-
-What should stay feature-owned:
-- feature-specific tab actions
-- feature-specific tab titles once a working tab is open
-- domain-specific icons where the tab represents a concrete feature surface rather than a generic placeholder state
+- tab-shell polish is now at a good checkpoint
+- the shared placeholder-tab language already reduced the most visible drift across Docker, Kubernetes, and server entry tabs
+- any further tab-shell work now needs a sharper product-facing issue, not more default expansion
