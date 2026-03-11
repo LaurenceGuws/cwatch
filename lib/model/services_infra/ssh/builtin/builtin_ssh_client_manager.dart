@@ -9,6 +9,7 @@ import 'package:dartssh2/dartssh2.dart';
 import '../known_hosts_store.dart';
 import '../remote_shell_base.dart';
 import '../ssh_auth_coordinator.dart';
+import 'builtin_ssh_auth_challenge_handler.dart';
 import 'builtin_ssh_failure_mapper.dart';
 import 'package:cwatch/model/shared/services/host_shell_policy.dart';
 import 'builtin_identity_manager.dart';
@@ -36,7 +37,13 @@ class BuiltInSshClientManager {
   final SshAuthCoordinator authCoordinator;
   final KnownHostsStore knownHostsStore;
   final BuiltInSshFailureMapper _failureMapper = const BuiltInSshFailureMapper();
-  final Map<String, Future<bool>> _pendingDecryptRequests = {};
+  late final BuiltInSshAuthChallengeHandler _authChallengeHandler =
+      BuiltInSshAuthChallengeHandler(
+        vault: vault,
+        authCoordinator: authCoordinator,
+        setBuiltInKeyPassphrase: _identityManager.setBuiltInKeyPassphrase,
+        setIdentityPassphrase: _identityManager.setIdentityPassphrase,
+      );
 
   String? boundKeyForHost(String hostName) =>
       _identityManager.boundKeyForHost(hostName);
@@ -370,21 +377,21 @@ class BuiltInSshClientManager {
         logBuiltInSshWarning('SSH operation failed for ${host.name}', error: e);
         if (e is BuiltInSshKeyDecryptionRequired) {
           if (retries > 2) rethrow;
-          final decrypted = await _handleDecryptRequired(e);
+          final decrypted = await _authChallengeHandler.handleDecryptRequired(e);
           retries++;
           if (decrypted) {
             continue;
           }
         } else if (e is BuiltInSshKeyPassphraseRequired) {
           if (retries > 2) rethrow;
-          final provided = await _handleBuiltInPassphrase(e);
+          final provided = await _authChallengeHandler.handleBuiltInPassphrase(e);
           retries++;
           if (provided) {
             continue;
           }
         } else if (e is BuiltInSshIdentityPassphraseRequired) {
           if (retries > 2) rethrow;
-          final provided = await _handleIdentityPassphrase(e);
+          final provided = await _authChallengeHandler.handleIdentityPassphrase(e);
           retries++;
           if (provided) {
             continue;
@@ -502,79 +509,4 @@ class BuiltInSshClientManager {
     return 'HISTFILE=/dev/null HISTSIZE=0 HISTFILESIZE=0; $command';
   }
 
-  Future<bool> _handleDecryptRequired(
-    BuiltInSshKeyDecryptionRequired error,
-  ) async {
-    if (vault.isDecrypted(error.keyId)) {
-      return true;
-    }
-    final pending = _pendingDecryptRequests[error.keyId];
-    if (pending != null) {
-      return pending;
-    }
-    final future = () async {
-      final request = SshKeyDecryptRequest(
-        keyId: error.keyId,
-        hostName: error.hostName,
-        keyLabel: error.keyLabel,
-        storageEncrypted: await vault.isEncrypted(error.keyId),
-      );
-      final result = await authCoordinator.onDecryptKey?.call(request);
-      if (result == null || result.decrypted != true) {
-        return false;
-      }
-      if (!vault.isDecrypted(error.keyId) && result.password != null) {
-        try {
-          await vault.decrypt(error.keyId, result.password);
-        } catch (e) {
-          logBuiltInSshWarning(
-            'Failed to decrypt built-in key ${error.keyId}',
-            error: e,
-          );
-          return false;
-        }
-      }
-      return vault.isDecrypted(error.keyId);
-    }();
-    _pendingDecryptRequests[error.keyId] = future;
-    try {
-      return await future;
-    } finally {
-      _pendingDecryptRequests.remove(error.keyId);
-    }
-  }
-
-  Future<bool> _handleBuiltInPassphrase(
-    BuiltInSshKeyPassphraseRequired error,
-  ) async {
-    final passphrase = await authCoordinator.onRequestPassphrase?.call(
-      SshPassphraseRequest(
-        hostName: error.hostName,
-        kind: SshPassphraseKind.builtInKey,
-        targetLabel: error.keyLabel ?? error.keyId,
-      ),
-    );
-    if (passphrase == null || passphrase.isEmpty) {
-      return false;
-    }
-    _identityManager.setBuiltInKeyPassphrase(error.keyId, passphrase);
-    return true;
-  }
-
-  Future<bool> _handleIdentityPassphrase(
-    BuiltInSshIdentityPassphraseRequired error,
-  ) async {
-    final passphrase = await authCoordinator.onRequestPassphrase?.call(
-      SshPassphraseRequest(
-        hostName: error.hostName,
-        kind: SshPassphraseKind.identityFile,
-        targetLabel: error.identityPath,
-      ),
-    );
-    if (passphrase == null || passphrase.isEmpty) {
-      return false;
-    }
-    _identityManager.setIdentityPassphrase(error.identityPath, passphrase);
-    return true;
-  }
 }
