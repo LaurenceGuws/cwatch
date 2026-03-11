@@ -74,3 +74,31 @@ Why this is the right next cut:
 - the built-in SSH key flow is the densest remaining prompt/confirm/snackbar block in settings
 - it is workflow-local and materially more dialog-shaped than the generic settings mutation methods
 - extracting it narrows both controller size and concrete adapter coupling without reopening the whole settings surface
+
+## Task 29.4: define the next bounded UI-adapter batch
+Status: completed
+
+Goal:
+- choose the next Docker-specific display/prompt seam from the current UI-adapter state
+- keep the batch on a cohesive feedback/display workflow rather than broad action-controller breakup
+
+Done definition:
+- one next batch is explicit
+- the stop condition reflects a real concrete-adapter coupling seam still present in `DockerOverviewActionsController`
+
+Result:
+- the next bounded UI-adapter batch is now:
+  - extract Docker inspect/history/log-display workflow behind a narrower display UI contract
+- target files:
+  - [docker_overview_actions_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/docker_overview_actions_controller.dart)
+  - [docker_overview_ui_adapter.dart](/home/home/personal/cwatch/lib/controller/adapters/docker_overview_ui_adapter.dart)
+  - new Docker display workflow seam under `lib/controller/`
+- stop condition:
+  - inspect/history/log snapshot presentation no longer lives inline in the broad Docker action controller
+  - the extracted workflow depends on a narrower display UI contract instead of the full Docker adapter
+  - focused regression coverage exists for the new display seam
+
+Why this is the right next cut:
+- this is the clearest remaining Docker adapter-coupling block after the port-forward split
+- the workflow is cohesive: load content, map errors, and present dialogs/snackbars
+- extracting it narrows controller responsibility without forcing a larger Docker action redesign

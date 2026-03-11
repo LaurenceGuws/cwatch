@@ -7,9 +7,11 @@ import 'package:cwatch/view/shared/widgets/port_forward_dialog.dart'
     as port_forward;
 import 'package:cwatch/view/shared/widgets/shared_prompt_dialogs.dart';
 
+import 'docker_overview_display_ui.dart';
 import 'port_forward_ui.dart';
 
-class DockerOverviewUiAdapter implements PortForwardUi {
+class DockerOverviewUiAdapter
+    implements PortForwardUi, DockerOverviewDisplayUi {
   DockerOverviewUiAdapter({required this.context});
 
   final BuildContext context;
@@ -24,6 +26,7 @@ class DockerOverviewUiAdapter implements PortForwardUi {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  @override
   Future<void> showLogsDialog({
     required String title,
     required String logs,
@@ -53,6 +56,7 @@ class DockerOverviewUiAdapter implements PortForwardUi {
     );
   }
 
+  @override
   Future<void> showErrorDialog({
     required String title,
     required String message,
@@ -90,6 +94,7 @@ class DockerOverviewUiAdapter implements PortForwardUi {
     );
   }
 
+  @override
   Future<void> copyToClipboard(
     String value, {
     required String successMessage,
@@ -98,6 +103,7 @@ class DockerOverviewUiAdapter implements PortForwardUi {
     showSnackBar(successMessage);
   }
 
+  @override
   Future<void> showInspectDialog({
     required String title,
     required String content,

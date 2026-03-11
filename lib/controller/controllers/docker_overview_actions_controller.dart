@@ -18,6 +18,7 @@ import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 
 import '../adapters/docker_overview_ui_adapter.dart';
+import 'docker_overview_display_controller.dart';
 import 'docker_port_forward_controller.dart';
 
 class DockerOverviewActionsController {
@@ -61,6 +62,15 @@ class DockerOverviewActionsController {
         ui: uiAdapter,
         remoteHost: _supportsForwarding ? _remoteHost : null,
         cachedContainers: () => controller.cachedContainers,
+      );
+
+  DockerOverviewDisplayController get _displayController =>
+      DockerOverviewDisplayController(
+        docker: docker,
+        ui: uiAdapter,
+        contextName: _contextName,
+        remoteHost: _remoteHost,
+        shellService: _shellService,
       );
 
   String logsBaseCommand(String containerId) {
@@ -484,45 +494,11 @@ class DockerOverviewActionsController {
   }
 
   Future<void> inspectImage(String imageId) async {
-    try {
-      final output = await docker.inspectImage(
-        imageId: imageId,
-        context: _contextName,
-      );
-      uiAdapter.showInspectDialog(
-        title: 'Image Inspect: $imageId',
-        content: output,
-      );
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Failed to inspect image $imageId',
-        tag: 'Docker',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      uiAdapter.showSnackBar('Failed to inspect image: $error');
-    }
+    await _displayController.inspectImage(imageId);
   }
 
   Future<void> showImageHistory(String imageId) async {
-    try {
-      final output = await docker.imageHistory(
-        imageId: imageId,
-        context: _contextName,
-      );
-      uiAdapter.showInspectDialog(
-        title: 'Image History: $imageId',
-        content: output,
-      );
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Failed to get image history for $imageId',
-        tag: 'Docker',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      uiAdapter.showSnackBar('Failed to get image history: $error');
-    }
+    await _displayController.showImageHistory(imageId);
   }
 
   Future<void> forwardContainerPorts({
@@ -565,7 +541,11 @@ class DockerOverviewActionsController {
       onOpenTab!(tab);
       return;
     }
-    await _showLogsDialog(container, baseCommand, tailLines);
+    await _displayController.showLogsDialog(
+      container: container,
+      command: baseCommand,
+      tailLines: tailLines,
+    );
   }
 
   Future<void> openComposeLogsTab({required String project}) async {
@@ -591,8 +571,8 @@ class DockerOverviewActionsController {
       onOpenTab!(tab);
       return;
     }
-    await _showLogsDialog(
-      DockerContainer(
+    await _displayController.showLogsDialog(
+      container: DockerContainer(
         id: project,
         name: 'Compose $project',
         image: '',
@@ -600,8 +580,8 @@ class DockerOverviewActionsController {
         status: '',
         ports: '',
       ),
-      '$base logs',
-      tailLines,
+      command: '$base logs',
+      tailLines: tailLines,
     );
   }
 
@@ -694,66 +674,6 @@ class DockerOverviewActionsController {
   }
 
   Future<void> copyExecCommand(String containerId) async {
-    final command = execCommand(containerId);
-    await uiAdapter.copyToClipboard(
-      command,
-      successMessage: 'Exec command copied.',
-    );
-  }
-
-  Future<String> loadLogsSnapshot(
-    String command, {
-    required int tailLines,
-  }) async {
-    if (_isRemote && _shellService != null && _remoteHost != null) {
-      return _shellService!.runCommand(
-        _remoteHost!,
-        '$command --tail $tailLines',
-        timeout: const Duration(seconds: 8),
-      );
-    }
-
-    final result = await docker.processRunner(
-      'bash',
-      ['-lc', '$command --tail $tailLines'],
-      stdoutEncoding: utf8,
-      stderrEncoding: utf8,
-      runInShell: false,
-    );
-    if (result.exitCode != 0) {
-      final stderr = (result.stderr as String?)?.trim();
-      throw Exception(
-        stderr?.isNotEmpty == true
-            ? stderr
-            : 'docker logs failed with exit code ${result.exitCode}',
-      );
-    }
-    return (result.stdout as String?) ?? '';
-  }
-
-  Future<void> _showLogsDialog(
-    DockerContainer container,
-    String command,
-    int tailLines,
-  ) async {
-    try {
-      final logs = await loadLogsSnapshot(command, tailLines: tailLines);
-      await uiAdapter.showLogsDialog(
-        title:
-            'Logs: ${container.name.isNotEmpty ? container.name : container.id}',
-        logs: logs,
-      );
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Failed to load docker logs for ${container.name.isNotEmpty ? container.name : container.id}',
-        tag: 'Docker',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      await uiAdapter.showErrorDialog(
-        title: 'Failed to load logs',
-        message: error.toString(),
-      );
-    }
+    await _displayController.copyExecCommand(containerId);
   }
 }
