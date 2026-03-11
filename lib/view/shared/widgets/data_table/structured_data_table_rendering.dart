@@ -6,6 +6,8 @@ mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
       StructuredDataTableColumnResizePlanner<T>();
   StructuredDataTableColumnReorderProjection<T> get _columnReorderProjection =>
       StructuredDataTableColumnReorderProjection<T>();
+  StructuredDataTableRowVisuals get _rowVisuals =>
+      const StructuredDataTableRowVisuals();
 
   List<Widget> _buildRowCells(
     BuildContext context, {
@@ -464,24 +466,17 @@ mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
         : (1.5 * context.zoomFactor);
     final rowContentWidth = baseContentWidth + buffer;
 
-    final stripeBackground = widget.cellSelectionEnabled
-        ? Colors.transparent
-        : (widget.useZebraStripes
-              ? (index.isEven
-                    ? listTokens.stripeEvenBackground
-                    : listTokens.stripeOddBackground)
-              : Colors.transparent);
-    final rowHoverBackground =
-        widget.cellSelectionEnabled
-        ? (_hoveredCell != null && _hoveredCell!.rowIndex == index
-              ? listTokens.hoverBackground.withValues(alpha: 0.12)
-              : Colors.transparent)
-        : (_hoveredRowIndex == index ? listTokens.hoverBackground : Colors.transparent);
-    final background = widget.cellSelectionEnabled
-        ? rowHoverBackground
-        : (selected
-              ? listTokens.selectedBackground
-              : (_hoveredRowIndex == index ? rowHoverBackground : stripeBackground));
+    final rowVisualState = _rowVisuals.resolve(
+      tokens: listTokens,
+      cellSelectionEnabled: widget.cellSelectionEnabled,
+      useZebraStripes: widget.useZebraStripes,
+      rowIndex: index,
+      isSelected: selected,
+      isFocused: focused,
+      isHoveredRow: _hoveredRowIndex == index,
+      isHoveredCellRow:
+          _hoveredCell != null && _hoveredCell!.rowIndex == index,
+    );
     final overlayColor = widget.cellSelectionEnabled
         ? WidgetStateProperty.all(Colors.transparent)
         : WidgetStateProperty.resolveWith<Color?>((states) {
@@ -492,15 +487,6 @@ mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
             return null;
           });
 
-    final showFocusOutline = focused && !widget.cellSelectionEnabled;
-    final hoverOutline = !widget.cellSelectionEnabled && _hoveredRowIndex == index;
-    final border = Border.all(
-      color: showFocusOutline
-          ? listTokens.focusOutline
-          : (hoverOutline ? listTokens.hoverBorder : Colors.transparent),
-      width: showFocusOutline ? 0.9 : (hoverOutline ? 0.9 : 0.4),
-    );
-
     Offset? tapPosition;
 
     final allowRowDrag =
@@ -509,7 +495,7 @@ mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
         !_isMarqueeSelecting &&
         _rowDragAnchorIndex == index;
     final rowContent = Material(
-      color: background,
+      color: rowVisualState.background,
       child: Listener(
         behavior: HitTestBehavior.opaque,
         onPointerDown: (event) {
@@ -675,7 +661,7 @@ mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
                   borderRadius: BorderRadius.circular(
                     2 * context.zoomFactor,
                   ),
-                  border: border,
+                  border: rowVisualState.border(listTokens),
                 ),
                 child: Column(
                   mainAxisSize: widget.autoRowHeight

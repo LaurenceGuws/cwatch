@@ -22,6 +22,7 @@ part 'structured_data_table_column_resize_planner.dart';
 part 'structured_data_table_scroll_projection.dart';
 part 'structured_data_table_scroll_schedule_state.dart';
 part 'structured_data_table_column_reorder_projection.dart';
+part 'structured_data_table_row_visuals.dart';
 part 'structured_data_table_selection.dart';
 part 'structured_data_table_hit_testing.dart';
 part 'structured_data_table_scrolling.dart';

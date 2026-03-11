@@ -282,3 +282,48 @@ What still remains, but is no longer the same class of hotspot:
 Why stopping here is correct:
 - the remaining weight is more UI glue than pure shared-engine knot
 - pushing further right now would likely create smaller wrappers without much architectural gain
+
+## Task 23.13: define a rendering-state cleanup batch from the current checkpoint
+Status: completed
+
+Goal:
+- reassess the table engine from the current rendering-heavy state instead of assuming the old checkpoint is final
+- choose one bounded extraction only if a real pure helper seam still exists
+
+Done definition:
+- one current-state batch is explicit
+- the batch reflects the current rendering file shape rather than the earlier engine-heavy hotspot shape
+
+Result:
+- the next bounded StructuredDataTable batch is now:
+  - row visual-state projection split
+- target files:
+  - [structured_data_table_rendering.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_rendering.dart)
+  - new helper under the StructuredDataTable library
+- stop condition:
+  - selected/hovered/focused/zebra row visual decisions no longer live inline in rendering
+  - widget tree hosting and pointer behavior stay unchanged in this batch
+
+Why this is the right current cut:
+- `structured_data_table_rendering.dart` is still the largest remaining table file by far
+- row background and outline decisions are pure projection logic embedded in widget code
+- this gives direct regression coverage without reopening context-menu or pointer orchestration
+
+## Task 23.14: implement row visual-state projection split
+Status: completed
+
+Goal:
+- extract pure row background and outline state projection out of table rendering
+
+Done definition:
+- one helper owns selected/hovered/focused/zebra row visual projection
+- `structured_data_table_rendering.dart` no longer computes those row visuals inline
+- focused regression coverage exists for the helper
+
+Result:
+- pure row visual-state projection now lives in:
+  - [structured_data_table_row_visuals.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_row_visuals.dart)
+- table rendering now delegates row visual decisions instead of owning those branches inline:
+  - [structured_data_table_rendering.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_rendering.dart)
+- focused regression coverage exists in:
+  - [structured_data_table_row_visuals_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/data_table/structured_data_table_row_visuals_test.dart)
