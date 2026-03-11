@@ -168,6 +168,14 @@ Current dashboard polish checkpoint:
 Current next polish hotspot:
 - structured table/list chrome consistency around `StructuredDataTable`
 
+Current table/list polish checkpoint:
+- shared table host/scaffold now exists in:
+  - `lib/view/shared/widgets/data_table/structured_data_table_host.dart`
+- current shared table-host language covers:
+  - host framing
+  - section title/subtitle layout
+  - straightforward loading/error/empty feedback
+
 Current follow-up docs:
 - `docs/rewrite_foundations.md`
 - `docs/local_feature_complexity_todo.md`

@@ -188,3 +188,14 @@ Why:
 - the next visible shared drift is in loading and empty framing around table-hosted surfaces
 - Kubernetes context selection and Docker context/remote tables still vary in surrounding feedback treatment
 - debug logs and richer filtered surfaces should remain local for now because they carry more feature-specific controls
+
+Current table/list checkpoint:
+- the shared table/list host language is now in place
+
+It currently covers:
+- shared table host framing
+- shared section title/subtitle layout above hosted tables
+- shared straightforward loading/error/empty feedback around table-hosted surfaces
+
+Current next polish move:
+- re-scope the next visible consistency hotspot from evidence instead of continuing table/list work by default

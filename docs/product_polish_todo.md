@@ -374,3 +374,29 @@ Why this is a good checkpoint:
 - the visible table-host feedback drift is reduced on the main proving surfaces
 - debug logs and richer filtered views remain local as intended
 - the batch improved the shared table-host seam without expanding into feature-specific search/filter UI
+
+## Task 21.14: checkpoint table/list polish
+Status: completed
+
+Goal:
+- stop the structured table/list polish layer at a defensible point
+- make the current shared table-host language explicit as a checkpoint
+
+Done definition:
+- the table/list polish layer is recorded as checkpointed
+- the docs no longer imply that table/list work should continue by default
+
+Result:
+- structured table/list chrome consistency is now treated as a product-polish checkpoint
+- the shared table-host language currently covers:
+  - host/scaffold framing
+  - section title/subtitle layout
+  - straightforward loading/error/empty feedback
+- any further table/list work should reopen from a narrower visible issue such as:
+  - density tuning
+  - action-bar consistency
+  - richer filtered/table-dashboard surfaces
+
+Why this is the right stop:
+- the biggest repeated table-host drift is already reduced
+- pushing further without a sharper target would risk generic cleanup instead of product value
