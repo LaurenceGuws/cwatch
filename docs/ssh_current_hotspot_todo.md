@@ -57,3 +57,15 @@ Why this is the right first cut:
 - [process_ssh_shell_service.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/process_ssh_shell_service.dart) is now the densest remaining SSH file by far
 - it still mixes many method-specific command flows with repeated process-run/result-handling patterns
 - it gives a real subsystem simplification without reopening the already-cleaned provider/failure seams
+
+
+## Task 23.3: implement the process SSH run-result handling split
+Status: completed
+
+Goal:
+- extract the repeated process-run result handling pattern out of `ProcessRemoteShellService`
+
+Done definition:
+- one SSH-local helper owns run-result debug emission and exists-check verification shaping
+- `ProcessRemoteShellService` no longer repeats the same result-to-debug/result-to-verification pattern inline across multiple methods
+- focused regression coverage exists for the new helper

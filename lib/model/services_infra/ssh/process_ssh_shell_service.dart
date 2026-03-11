@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:cwatch/model/models/remote_file_entry.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import '../logging/app_logger.dart';
+import 'process_ssh_run_result_handler.dart';
 import 'process_ssh_failure_mapper.dart';
 import 'remote_shell_base.dart';
 import 'terminal_session.dart';
@@ -15,6 +16,8 @@ class ProcessRemoteShellService extends RemoteShellService {
 
   final ProcessSshRunner _runner = const ProcessSshRunner();
   final ProcessSshFailureMapper _failureMapper = const ProcessSshFailureMapper();
+  final ProcessSshRunResultHandler _resultHandler =
+      const ProcessSshRunResultHandler();
 
   /// Handles SSH command errors, detecting authentication failures.
   Never _handleSshError(SshHost host, ProcessResult result) {
@@ -38,11 +41,12 @@ class ProcessRemoteShellService extends RemoteShellService {
         timeout: timeout,
         onTimeout: onTimeout,
       );
-      emitDebugEvent(
+      _resultHandler.emitOutput(
+        shell: this,
         host: host,
         operation: 'listDirectory',
-        command: run.command,
-        output: run.stdout.trimRight(),
+        run: run,
+        trimOutput: true,
       );
       return parseLsOutput(run.stdout);
     } catch (error) {
@@ -211,12 +215,12 @@ class ProcessRemoteShellService extends RemoteShellService {
         timeout: timeout,
         onTimeout: onTimeout,
       );
-      final output = run.stdout.trim();
-      emitDebugEvent(
+      final output = _resultHandler.emitOutput(
+        shell: this,
         host: host,
         operation: 'homeDirectory',
-        command: run.command,
-        output: output,
+        run: run,
+        trimOutput: true,
       );
       return output.isEmpty ? '/' : output;
     } catch (error, stackTrace) {
@@ -284,11 +288,11 @@ class ProcessRemoteShellService extends RemoteShellService {
       timeout: timeout,
       onTimeout: onTimeout,
     );
-    emitDebugEvent(
+    _resultHandler.emitOutput(
+      shell: this,
       host: host,
       operation: 'writeFile',
-      command: run.command,
-      output: run.stdout,
+      run: run,
       verification: verification,
     );
   }
@@ -330,11 +334,11 @@ class ProcessRemoteShellService extends RemoteShellService {
     );
     final combinedVerification =
         verification?.combine(sourceGone) ?? sourceGone;
-    emitDebugEvent(
+    _resultHandler.emitOutput(
+      shell: this,
       host: host,
       operation: 'movePath',
-      command: run.command,
-      output: run.stdout,
+      run: run,
       verification: combinedVerification,
     );
   }
@@ -369,11 +373,11 @@ class ProcessRemoteShellService extends RemoteShellService {
       timeout: timeout,
       onTimeout: onTimeout,
     );
-    emitDebugEvent(
+    _resultHandler.emitOutput(
+      shell: this,
       host: host,
       operation: 'copyPath',
-      command: run.command,
-      output: run.stdout,
+      run: run,
       verification: verification,
     );
   }
@@ -399,11 +403,11 @@ class ProcessRemoteShellService extends RemoteShellService {
       timeout: timeout,
       onTimeout: onTimeout,
     );
-    emitDebugEvent(
+    _resultHandler.emitOutput(
+      shell: this,
       host: host,
       operation: 'deletePath',
-      command: run.command,
-      output: run.stdout,
+      run: run,
       verification: verification,
     );
   }
@@ -453,11 +457,11 @@ class ProcessRemoteShellService extends RemoteShellService {
       timeout: timeout,
       onTimeout: onTimeout,
     );
-    emitDebugEvent(
+    _resultHandler.emitOutput(
+      shell: this,
       host: destinationHost,
       operation: 'copyBetweenHosts',
-      command: run.command,
-      output: run.stdout,
+      run: run,
       verification: verification,
     );
   }
@@ -529,11 +533,11 @@ class ProcessRemoteShellService extends RemoteShellService {
       timeout: timeout,
       onTimeout: onTimeout,
     );
-    emitDebugEvent(
+    _resultHandler.emitOutput(
+      shell: this,
       host: host,
       operation: 'uploadPath',
-      command: run.command,
-      output: run.stdout,
+      run: run,
       verification: verification,
     );
   }
@@ -553,16 +557,16 @@ class ProcessRemoteShellService extends RemoteShellService {
       timeout: timeout,
       onTimeout: onTimeout,
     );
-    emitDebugEvent(
+    final output = _resultHandler.emitOutput(
+      shell: this,
       host: host,
       operation: 'runCommand',
-      command: run.command,
-      output: run.stdout,
+      run: run,
     );
     _logProcess(
-      'Command on ${host.name} completed. Output length=${run.stdout.length}',
+      'Command on ${host.name} completed. Output length=${output.length}',
     );
-    return run.stdout;
+    return output;
   }
 
   @override
@@ -586,16 +590,16 @@ class ProcessRemoteShellService extends RemoteShellService {
       onStdoutLine: onStdoutLine,
       onStderrLine: onStderrLine,
     );
-    emitDebugEvent(
+    final output = _resultHandler.emitOutput(
+      shell: this,
       host: host,
       operation: 'runCommandStreaming',
-      command: run.command,
-      output: run.stdout,
+      run: run,
     );
     _logProcess(
-      'Command on ${host.name} completed. Output length=${run.stdout.length}',
+      'Command on ${host.name} completed. Output length=${output.length}',
     );
-    return run.stdout;
+    return output;
   }
 
   @override
@@ -849,11 +853,9 @@ class ProcessRemoteShellService extends RemoteShellService {
       timeout: timeout,
       onTimeout: onTimeout,
     );
-    final exists = run.stdout.trim() == 'EXISTS';
-    return VerificationResult(
-      command: run.command,
-      output: run.stdout,
-      passed: shouldExist ? exists : !exists,
+    return _resultHandler.verificationFromExistsCheck(
+      run: run,
+      shouldExist: shouldExist,
     );
   }
 
