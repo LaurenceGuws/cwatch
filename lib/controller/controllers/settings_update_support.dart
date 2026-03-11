@@ -49,6 +49,65 @@ class SettingsUpdateSupport {
     );
   }
 
+  static AppSettings setUploadConcurrency(AppSettings current, int value) {
+    return current.copyWith(fileTransferUploadConcurrency: value);
+  }
+
+  static AppSettings setDownloadConcurrency(AppSettings current, int value) {
+    return current.copyWith(fileTransferDownloadConcurrency: value);
+  }
+
+  static AppSettings setUseSystemDecorations(AppSettings current, bool value) {
+    return current.copyWith(
+      shellPreferences: current.shellPreferences.copyWith(
+        useSystemDecorations: value,
+      ),
+    );
+  }
+
+  static AppSettings setCloseToTray(AppSettings current, bool value) {
+    return current.copyWith(
+      shellPreferences: current.shellPreferences.copyWith(closeToTray: value),
+    );
+  }
+
+  static AppSettings setExplorerRowHeight(AppSettings current, double value) {
+    return current.copyWith(
+      explorerPreferences: current.explorerPreferences.copyWith(
+        rowHeight: value,
+      ),
+    );
+  }
+
+  static AppSettings setExplorerShowBreadcrumbs(
+    AppSettings current,
+    bool value,
+  ) {
+    return current.copyWith(
+      explorerPreferences: current.explorerPreferences.copyWith(
+        showBreadcrumbs: value,
+      ),
+    );
+  }
+
+  static AppSettings setServerShowOffline(AppSettings current, bool value) {
+    return current.copyWith(serverShowOffline: value);
+  }
+
+  static AppSettings setServerAutoRefresh(AppSettings current, bool value) {
+    return current.copyWith(serverAutoRefresh: value);
+  }
+
+  static AppSettings enableServerHost(AppSettings current, String hostKey) {
+    final next = [...current.sshPreferences.disabledServerHosts]
+      ..remove(hostKey);
+    return current.copyWith(
+      sshPreferences: current.sshPreferences.copyWith(
+        disabledServerHosts: next,
+      ),
+    );
+  }
+
   static AppSettings setTerminalFontFamily(AppSettings current, String value) {
     final trimmed = value.trim();
     return current.copyWith(

@@ -170,11 +170,8 @@ class GeneralSettingsTab extends StatelessWidget {
                 max: 15,
                 divisions: 14,
                 label: '${settings.fileTransferUploadConcurrency}',
-                onChanged: (value) => settingsController.update(
-                  (current) => current.copyWith(
-                    fileTransferUploadConcurrency: value.round(),
-                  ),
-                ),
+                onChanged: (value) =>
+                    settingsController.setUploadConcurrency(value.round()),
               ),
               const FormSpacer(),
               Text(
@@ -187,11 +184,8 @@ class GeneralSettingsTab extends StatelessWidget {
                 max: 15,
                 divisions: 14,
                 label: '${settings.fileTransferDownloadConcurrency}',
-                onChanged: (value) => settingsController.update(
-                  (current) => current.copyWith(
-                    fileTransferDownloadConcurrency: value.round(),
-                  ),
-                ),
+                onChanged: (value) =>
+                    settingsController.setDownloadConcurrency(value.round()),
               ),
             ],
           ),
@@ -264,13 +258,7 @@ class GeneralSettingsTab extends StatelessWidget {
                     'Turn off to use a custom/frameless window (where supported). Requires app restart.',
                   ),
                   value: shell.useSystemDecorations,
-                  onChanged: (value) => settingsController.update(
-                    (current) => current.copyWith(
-                      shellPreferences: current.shellPreferences.copyWith(
-                        useSystemDecorations: value,
-                      ),
-                    ),
-                  ),
+                  onChanged: settingsController.setUseSystemDecorations,
                 ),
                 const FormSpacer(),
                 SwitchListTile(
@@ -280,13 +268,7 @@ class GeneralSettingsTab extends StatelessWidget {
                     'Closing the window hides the app in the system tray.',
                   ),
                   value: shell.closeToTray,
-                  onChanged: (value) => settingsController.update(
-                    (current) => current.copyWith(
-                      shellPreferences: current.shellPreferences.copyWith(
-                        closeToTray: value,
-                      ),
-                    ),
-                  ),
+                  onChanged: settingsController.setCloseToTray,
                 ),
               ],
             ),

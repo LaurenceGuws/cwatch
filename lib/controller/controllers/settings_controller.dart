@@ -101,6 +101,62 @@ class SettingsController extends ChangeNotifier {
     );
   }
 
+  Future<void> setUploadConcurrency(int value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setUploadConcurrency(current, value),
+    );
+  }
+
+  Future<void> setDownloadConcurrency(int value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setDownloadConcurrency(current, value),
+    );
+  }
+
+  Future<void> setUseSystemDecorations(bool value) async {
+    await update(
+      (current) =>
+          SettingsUpdateSupport.setUseSystemDecorations(current, value),
+    );
+  }
+
+  Future<void> setCloseToTray(bool value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setCloseToTray(current, value),
+    );
+  }
+
+  Future<void> setExplorerRowHeight(double value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setExplorerRowHeight(current, value),
+    );
+  }
+
+  Future<void> setExplorerShowBreadcrumbs(bool value) async {
+    await update(
+      (current) =>
+          SettingsUpdateSupport.setExplorerShowBreadcrumbs(current, value),
+    );
+  }
+
+  Future<void> setServerShowOffline(bool value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setServerShowOffline(current, value),
+    );
+  }
+
+  Future<void> setServerAutoRefresh(bool value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setServerAutoRefresh(current, value),
+    );
+  }
+
+  Future<void> enableServerHost(String hostKey) async {
+    await update(
+      (current) => SettingsUpdateSupport.enableServerHost(current, hostKey),
+    );
+  }
+
   Future<void> setTerminalFontFamily(String value) async {
     await update(
       (current) => SettingsUpdateSupport.setTerminalFontFamily(current, value),

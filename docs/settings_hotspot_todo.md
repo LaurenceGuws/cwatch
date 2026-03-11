@@ -45,3 +45,33 @@ Why this is the right first cut:
 - `settings_view.dart` is still the clearest place where the UI knows too much about persisted settings structure
 - terminal and editor preferences contain the most visible nested mutation duplication
 - this reduces coupling and repetition without introducing a speculative settings-form framework
+
+## Task 26.3: define the next bounded settings batch
+Status: completed
+
+Goal:
+- choose the next repeated settings mutation seam from the current code state
+- keep the batch on controller-owned mutation semantics rather than broader settings layout work
+
+Done definition:
+- one next batch is explicit
+- the stop condition reflects the remaining direct settings writes in control groups
+
+Result:
+- the next bounded settings batch is now:
+  - move general, explorer, and server-list control-group mutation semantics into the settings controller seam
+- target files:
+  - [general_settings_tab.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/general_settings_tab.dart)
+  - [explorer_settings_controls.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/explorer_settings_controls.dart)
+  - [server_list_settings_controls.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/server_list_settings_controls.dart)
+  - [settings_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/settings_controller.dart)
+  - [settings_update_support.dart](/home/home/personal/cwatch/lib/controller/controllers/settings_update_support.dart)
+- stop condition:
+  - those widgets no longer own nested `copyWith` chains for transfer, shell, explorer, and server-list preference updates
+  - the controller seam is the obvious place to find those update semantics
+  - focused regression coverage exists for the extracted mutation support
+
+Why this is the right next cut:
+- these are the most obvious remaining direct settings-tree writes in the active settings surface
+- they still repeat the same UI-to-model mutation pattern across multiple widgets
+- this is a bounded ownership improvement without forcing a larger settings-section redesign

@@ -32,17 +32,13 @@ class ServerListSettingsControls extends StatelessWidget {
         SwitchListTile(
           title: const Text('Show Offline Servers'),
           value: settings.serverShowOffline,
-          onChanged: (value) => settingsController.update(
-            (s) => s.copyWith(serverShowOffline: value),
-          ),
+          onChanged: settingsController.setServerShowOffline,
           contentPadding: EdgeInsets.zero,
         ),
         SwitchListTile(
           title: const Text('Auto Refresh'),
           value: settings.serverAutoRefresh,
-          onChanged: (value) => settingsController.update(
-            (s) => s.copyWith(serverAutoRefresh: value),
-          ),
+          onChanged: settingsController.setServerAutoRefresh,
           contentPadding: EdgeInsets.zero,
         ),
         const Divider(),
@@ -74,16 +70,7 @@ class ServerListSettingsControls extends StatelessWidget {
                   ),
                 ),
                 TextButton(
-                  onPressed: () {
-                    final next = [...disabledHosts]..remove(key);
-                    settingsController.update(
-                      (s) => s.copyWith(
-                        sshPreferences: s.sshPreferences.copyWith(
-                          disabledServerHosts: next,
-                        ),
-                      ),
-                    );
-                  },
+                  onPressed: () => settingsController.enableServerHost(key),
                   child: const Text('Enable'),
                 ),
               ],

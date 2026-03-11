@@ -4,7 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:cwatch/controller/controllers/settings_update_support.dart';
 import 'package:cwatch/model/models/app_settings.dart';
 import 'package:cwatch/model/models/editor_preferences.dart';
+import 'package:cwatch/model/models/explorer_preferences.dart';
 import 'package:cwatch/model/models/input_mode_preference.dart';
+import 'package:cwatch/model/models/shell_preferences.dart';
+import 'package:cwatch/model/models/ssh_preferences.dart';
 import 'package:cwatch/model/models/terminal_preferences.dart';
 
 void main() {
@@ -130,6 +133,55 @@ void main() {
       expect(updated.uiDensity, AppUiDensity.comfy);
       expect(updated.inputModePreference, InputModePreference.shortcuts);
       expect(updated.dockerLogsTailClamped, 500);
+    });
+
+    test('updates transfer shell and explorer settings', () {
+      final current = const AppSettings(
+        fileTransferUploadConcurrency: 2,
+        fileTransferDownloadConcurrency: 3,
+        shellPreferences: ShellPreferences(
+          useSystemDecorations: true,
+          closeToTray: false,
+        ),
+        explorerPreferences: ExplorerPreferences(
+          rowHeight: 36,
+          showBreadcrumbs: true,
+        ),
+      );
+
+      final updated = SettingsUpdateSupport.setExplorerShowBreadcrumbs(
+        SettingsUpdateSupport.setExplorerRowHeight(
+          SettingsUpdateSupport.setCloseToTray(
+            SettingsUpdateSupport.setUseSystemDecorations(
+              SettingsUpdateSupport.setDownloadConcurrency(
+                SettingsUpdateSupport.setUploadConcurrency(current, 7),
+                9,
+              ),
+              false,
+            ),
+            true,
+          ),
+          52,
+        ),
+        false,
+      );
+
+      expect(updated.fileTransferUploadConcurrency, 7);
+      expect(updated.fileTransferDownloadConcurrency, 9);
+      expect(updated.shellPreferences.useSystemDecorations, isFalse);
+      expect(updated.shellPreferences.closeToTray, isTrue);
+      expect(updated.explorerPreferences.rowHeight, 52);
+      expect(updated.explorerPreferences.showBreadcrumbs, isFalse);
+    });
+
+    test('enableServerHost removes disabled host entry', () {
+      final current = const AppSettings(
+        sshPreferences: SshPreferences(disabledServerHosts: ['alpha', 'beta']),
+      );
+
+      final updated = SettingsUpdateSupport.enableServerHost(current, 'alpha');
+
+      expect(updated.sshPreferences.disabledServerHosts, ['beta']);
     });
   });
 }

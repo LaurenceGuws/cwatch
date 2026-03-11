@@ -28,13 +28,7 @@ class ExplorerSettingsControls extends StatelessWidget {
             max: 88,
             divisions: 16,
             label: explorer.rowHeight.toStringAsFixed(0),
-            onChanged: (value) => settingsController.update(
-              (current) => current.copyWith(
-                explorerPreferences: current.explorerPreferences.copyWith(
-                  rowHeight: value,
-                ),
-              ),
-            ),
+            onChanged: settingsController.setExplorerRowHeight,
           ),
         ),
         const FormSpacer(),
@@ -45,13 +39,7 @@ class ExplorerSettingsControls extends StatelessWidget {
             'Turn off to default to the editable path field.',
           ),
           value: explorer.showBreadcrumbs,
-          onChanged: (value) => settingsController.update(
-            (current) => current.copyWith(
-              explorerPreferences: current.explorerPreferences.copyWith(
-                showBreadcrumbs: value,
-              ),
-            ),
-          ),
+          onChanged: settingsController.setExplorerShowBreadcrumbs,
         ),
       ],
     );
