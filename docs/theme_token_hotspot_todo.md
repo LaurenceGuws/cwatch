@@ -59,3 +59,15 @@ Done definition:
 - `AppSpacing` and `AppTypographyTokens` no longer live inline in `app_theme.dart`
 - the public `AppThemeTokens` and `BuildContextAppTheme` surface stays stable
 - no visual behavior changes are introduced in this batch
+
+
+## Task 24.5: implement theme runtime-policy extraction
+Status: completed
+
+Goal:
+- centralize zoom and density normalization instead of repeating clamps and base values across theme-related surfaces
+
+Done definition:
+- one theme-local runtime-policy helper owns zoom clamping, base radius, spacing base, visual density, and text-scaler shaping
+- `ThemeFactory`, app bootstrap, and shell zoom updates no longer repeat inline zoom/density normalization
+- public settings and theme APIs stay stable

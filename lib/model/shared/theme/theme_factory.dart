@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cwatch/model/models/app_settings.dart';
 import 'app_theme.dart';
+import 'theme_runtime_policy.dart';
 
 class ThemeFactory {
   /// Builds the ThemeData based on the current AppSettings and target brightness.
@@ -9,9 +10,7 @@ class ThemeFactory {
     required Brightness brightness,
   }) {
     final appFontFamily = settings.appFontFamily;
-    final zoomFactor = settings.zoomFactor.clamp(0.5, 2.0).toDouble();
-    final baseRadius = BorderRadius.circular(2 * zoomFactor);
-    final spacingBase = settings.uiDensity == AppUiDensity.comfy ? 5.0 : 4.0;
+    final policy = ThemeRuntimePolicy.fromSettings(settings);
     final seed = seedForKey(settings.appThemeKey);
 
     final scheme = ColorScheme.fromSeed(
@@ -23,26 +22,24 @@ class ThemeFactory {
         ? AppThemeTokens.light(
             scheme,
             fontFamily: appFontFamily,
-            surfaceRadius: baseRadius,
-            spacingBase: spacingBase,
-            zoomFactor: zoomFactor,
+            surfaceRadius: policy.baseRadius,
+            spacingBase: policy.spacingBase,
+            zoomFactor: policy.zoomFactor,
           )
         : AppThemeTokens.dark(
             scheme,
             fontFamily: appFontFamily,
-            surfaceRadius: baseRadius,
-            spacingBase: spacingBase,
-            zoomFactor: zoomFactor,
+            surfaceRadius: policy.baseRadius,
+            spacingBase: policy.spacingBase,
+            zoomFactor: policy.zoomFactor,
           );
 
     return _buildThemeData(
       scheme,
       tokens,
       appFontFamily,
-      baseRadius: baseRadius,
-      visualDensity: settings.uiDensity == AppUiDensity.comfy
-          ? VisualDensity.standard
-          : VisualDensity.compact,
+      baseRadius: policy.baseRadius,
+      visualDensity: policy.visualDensity,
     );
   }
 

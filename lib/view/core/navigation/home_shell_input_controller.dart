@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'package:cwatch/model/models/app_settings.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
+import 'package:cwatch/model/shared/theme/theme_runtime_policy.dart';
 import 'package:cwatch/model/shared/gestures/gesture_activators.dart';
 import 'package:cwatch/model/shared/gestures/gesture_service.dart';
 import 'package:cwatch/model/shared/shortcuts/input_mode_resolver.dart';
@@ -109,7 +110,8 @@ class HomeShellInputController {
 
   Future<void> changeAppZoom(double delta) async {
     await settingsController.update((current) {
-      final next = (current.zoomFactor + delta).clamp(0.5, 2.0).toDouble();
+      final policy = ThemeRuntimePolicy.fromSettings(current);
+      final next = policy.clampZoom(current.zoomFactor + delta);
       return current.copyWith(zoomFactor: next);
     });
   }

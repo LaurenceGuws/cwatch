@@ -8,6 +8,7 @@ import 'package:cwatch/model/services_infra/window/window_chrome_service.dart';
 import 'package:cwatch/view/core/navigation/app_shell.dart';
 import 'package:cwatch/model/shared/theme/theme_config_loader.dart';
 import 'package:cwatch/model/shared/theme/theme_factory.dart';
+import 'package:cwatch/model/shared/theme/theme_runtime_policy.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/terminal/terminal_theme_presets.dart';
 
 Future<void> runAppBootstrap() async {
@@ -57,9 +58,11 @@ class _CwatchAppState extends State<CwatchApp> {
           ),
           builder: (context, child) {
             final mediaQuery = MediaQuery.of(context);
-            final zoom = settings.zoomFactor.clamp(0.5, 2.0).toDouble();
+            final themePolicy = ThemeRuntimePolicy.fromSettings(settings);
             return MediaQuery(
-              data: mediaQuery.copyWith(textScaler: TextScaler.linear(zoom)),
+              data: mediaQuery.copyWith(
+                textScaler: themePolicy.textScalerFor(settings),
+              ),
               child: child ?? const SizedBox.shrink(),
             );
           },
