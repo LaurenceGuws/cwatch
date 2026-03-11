@@ -27,17 +27,8 @@ What remains is less about one giant file and more about architecture drift:
 
 ## Current Highest-Value Hotspots
 
-### 1. File-operation flow reevaluation
-Primary files:
-- [file_operations_ui_handler.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operations_ui_handler.dart)
-- [file_operation_transfer_session.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operation_transfer_session.dart)
-- [file_operation_item_progress.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operation_item_progress.dart)
-- [file_operation_transfer_runtime.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operation_transfer_runtime.dart)
-
-Why it matters now:
-- the main repeated transfer-UI scaffolding seam is materially reduced
-- what remains is narrower flow-specific upload/download behavior that should only be reopened from fresh evidence
-- this is a narrower reevaluation seam, not the clearest active DRY hotspot in the repo
+There is no single broad repo-wide cleanup hotspot left from the earlier review order.
+The remaining work should reopen only from fresh evidence in concrete local seams.
 
 ## Current Design Checkpoint
 
@@ -51,6 +42,7 @@ The following earlier hotspots should now be treated as checkpointed current-sta
 - runtime/composition ownership cleanup
 - workspace-shell hosting reuse
 - SSH runtime/feature integration reevaluation
+- file-operation flow reevaluation
 - theme/token decomposition
 - StructuredDataTable engine projection decomposition
 - settings mutation ownership cleanup
@@ -71,13 +63,17 @@ The repo now has direct tests in many extracted seams, but the following still c
 
 ## Recommended Next Order
 
-1. file-operation flow reevaluation only if fresh evidence reopens it
+- reopen only from fresh evidence in a concrete local seam
+- likely candidates, if evidence appears:
+  - file-operation flow behavior
+  - SSH runtime/feature integration
+  - settings feature-local workflow
 
 ## Why This Order
 
 ### File-operation reevaluation
-- the SSH reevaluation seam is now checkpointed from the current code state
-- file-operation flow behavior is the clearest remaining place where fresh evidence could still justify reopening a structural cleanup
+- the SSH and settings reevaluation seams are now checkpointed from the current code state
+- file-operation flow behavior is still a plausible reopen candidate, but not an active rewrite mandate without fresh evidence
 
 ### Everything else only from fresh evidence
 - narrower feature-local or file-operation flow work should now reopen only from fresh evidence
