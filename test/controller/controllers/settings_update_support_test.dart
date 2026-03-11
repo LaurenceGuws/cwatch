@@ -196,6 +196,22 @@ void main() {
       expect(updated.kubernetesPreferences.backend, KubernetesBackend.api);
     });
 
+    test('updates kubernetes cli command and trims blanks to default', () {
+      const current = AppSettings();
+
+      final updated = SettingsUpdateSupport.setKubernetesCliCommand(
+        current,
+        '  brommer-kubectl  ',
+      );
+      final reset = SettingsUpdateSupport.setKubernetesCliCommand(
+        updated,
+        '   ',
+      );
+
+      expect(updated.kubernetesPreferences.cliCommand, 'brommer-kubectl');
+      expect(reset.kubernetesPreferences.cliCommand, 'kubectl');
+    });
+
     test('sets and clears shortcut bindings', () {
       final current = const AppSettings(
         shortcutBindings: {'terminal.copy': 'ctrl+shift+c'},

@@ -120,6 +120,18 @@ class SettingsUpdateSupport {
     );
   }
 
+  static AppSettings setKubernetesCliCommand(
+    AppSettings current,
+    String value,
+  ) {
+    final trimmed = value.trim();
+    return current.copyWith(
+      kubernetesPreferences: current.kubernetesPreferences.copyWith(
+        cliCommand: trimmed.isEmpty ? 'kubectl' : trimmed,
+      ),
+    );
+  }
+
   static AppSettings setShortcutBinding(
     AppSettings current, {
     required String shortcutId,

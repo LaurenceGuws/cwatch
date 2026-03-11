@@ -41,6 +41,16 @@ class KubernetesSettingsControls extends StatelessWidget {
           },
         ),
         const FormSpacer(),
+        const Text('CLI Command'),
+        const SizedBox(height: 8),
+        TextFormField(
+          initialValue: kubernetes.cliCommand,
+          decoration: const InputDecoration(
+            hintText: 'kubectl',
+          ),
+          onChanged: settingsController.setKubernetesCliCommand,
+        ),
+        const FormSpacer(),
         const Text('Kubeconfig Files'),
         const SizedBox(height: 8),
         Wrap(
@@ -67,7 +77,7 @@ class KubernetesSettingsControls extends StatelessWidget {
         Text(
           kubernetes.backend == KubernetesBackend.api
               ? 'API backend uses kubeconfig auth (token/certs). exec/auth-provider not supported yet.'
-              : 'Using kubectl on this host for Kubernetes data.',
+              : 'Using ${kubernetes.cliCommand} for Kubernetes CLI data.',
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ],

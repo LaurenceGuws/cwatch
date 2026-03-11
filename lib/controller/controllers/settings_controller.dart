@@ -164,6 +164,13 @@ class SettingsController extends ChangeNotifier {
     );
   }
 
+  Future<void> setKubernetesCliCommand(String value) async {
+    await update(
+      (current) =>
+          SettingsUpdateSupport.setKubernetesCliCommand(current, value),
+    );
+  }
+
   Future<void> setShortcutBinding(String shortcutId, String? value) async {
     await update(
       (current) => SettingsUpdateSupport.setShortcutBinding(

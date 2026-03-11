@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:cwatch/controller/adapters/kubernetes_ui_adapter.dart';
 import 'package:cwatch/controller/controllers/kubernetes_resources_controller.dart';
 import 'package:cwatch/model/models/kubernetes/kubernetes_resource_models.dart';
+import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/controller/core/workspace/tab_options.dart';
@@ -34,11 +35,13 @@ class KubernetesResources extends StatefulWidget {
     super.key,
     required this.contextName,
     required this.configPath,
+    required this.settingsController,
     this.optionsController,
   });
 
   final String contextName;
   final String configPath;
+  final AppSettingsController settingsController;
   final TabOptionsController? optionsController;
 
   @override
@@ -60,6 +63,7 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
     _controller = _binding.create(
       contextName: widget.contextName,
       configPath: widget.configPath,
+      settings: widget.settingsController.settings,
     );
     _controllerListener = () {
       if (!mounted) return;

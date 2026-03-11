@@ -261,6 +261,7 @@ class AppSettings {
         backend: KubernetesBackendParsing.fromJson(
           kubernetesJson?['backend'] as String?,
         ),
+        cliCommand: kubernetesJson?['cliCommand'] as String? ?? 'kubectl',
       ),
       serverWorkspace: () {
         final raw = json['serverWorkspace'];
@@ -405,6 +406,7 @@ class AppSettings {
       'kubernetesPreferences': {
         'configPaths': kubernetesPreferences.configPaths,
         'backend': kubernetesPreferences.backend.name,
+        'cliCommand': kubernetesPreferences.cliCommand,
       },
       'shortcutBindings': shortcutBindings,
       'editorPreferences': {

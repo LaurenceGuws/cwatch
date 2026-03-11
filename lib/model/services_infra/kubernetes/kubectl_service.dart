@@ -46,7 +46,9 @@ class KubeResourceSnapshot {
 }
 
 class KubectlService {
-  const KubectlService();
+  const KubectlService({this.command = 'kubectl'});
+
+  final String command;
 
   Future<KubeResourceSnapshot> fetchResources({
     required String contextName,
@@ -85,7 +87,7 @@ class KubectlService {
     final localLogger = AppLogger(tag: tag);
     final contextLabel = _contextLabelFromArgs(args);
     final stopwatch = Stopwatch()..start();
-    final display = 'kubectl ${args.join(' ')}';
+    final display = '$command ${args.join(' ')}';
     logger.debug(
       'Running $display',
       remote: RemoteCommandDetails(
@@ -97,7 +99,7 @@ class KubectlService {
     );
     try {
       final result = await Process.run(
-        'kubectl',
+        command,
         args,
       ).timeout(const Duration(seconds: 8));
       stopwatch.stop();
@@ -142,7 +144,7 @@ class KubectlService {
           contextLabel: contextLabel,
         ),
       );
-      throw Exception('kubectl timed out');
+      throw Exception('$command timed out');
     } catch (e) {
       stopwatch.stop();
       logger.error(
@@ -156,7 +158,7 @@ class KubectlService {
         ),
       );
       if (e is Exception) rethrow;
-      throw Exception('Failed to run kubectl: $e');
+      throw Exception('Failed to run $command: $e');
     }
   }
 

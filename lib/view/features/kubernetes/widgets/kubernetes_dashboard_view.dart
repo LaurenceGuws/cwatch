@@ -41,6 +41,7 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
     _controller = _binding.create(
       context: widget.context,
       initialBackend: widget.settingsController.settings.kubernetesPreferences.backend,
+      settings: widget.settingsController.settings,
     );
     _controllerListener = () {
       if (!mounted) return;
