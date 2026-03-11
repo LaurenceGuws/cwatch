@@ -263,6 +263,19 @@ Why:
 Current follow-up doc:
 - `docs/local_feature_complexity_todo.md`
 
+Current recommendation after the local-complexity checkpoint:
+- re-scope the broader rewrite sequence again instead of forcing another hotspot layer
+
+Why:
+- the major cross-cutting rewrite layers are already checkpointed
+- the local-complexity layer is now also checkpointed across the heaviest remaining feature surfaces
+- the next work should be chosen from evidence again, not by continuing cleanup momentum past the point of architectural value
+
+Reasonable next directions:
+- targeted regression coverage around the new local seams
+- product polish and consistency work on the stabilized shared/feature surfaces
+- a broader rewrite checkpoint and prioritization pass before the next active layer
+
 ### Focus Area E: infrastructure boundary cleanup
 Questions to answer:
 - Where are transport, parsing, and policy mixed today?

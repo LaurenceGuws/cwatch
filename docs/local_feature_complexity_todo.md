@@ -504,7 +504,7 @@ Result:
 - `KubernetesWorkspaceShell`, `KubernetesTabBuilder`, `KubernetesDashboardView`, and context menu actions stayed stable in this batch
 
 ## Task 20.16: re-scope the next Kubernetes local-complexity batch
-Status: pending
+Status: completed
 
 Goal:
 - decide whether the Kubernetes local-complexity hotspot should continue or checkpoint here
@@ -515,3 +515,25 @@ Questions to answer:
 
 Done definition:
 - the next local-complexity move is explicit
+
+Result:
+- the Kubernetes local-complexity hotspot is now at a good checkpoint
+- the broader local-complexity layer is also at a good checkpoint
+
+Why this is the right stop:
+- the previous Kubernetes batches already removed:
+  - top-level workspace-shell orchestration
+  - context-list state orchestration
+- what remains in `kubernetes_context_list.dart` is mostly valid Kubernetes-local behavior:
+  - context row rendering
+  - dashboard hosting
+  - context menu actions
+  - workspace-tab glue
+- extracting more now would likely create fake local wrappers instead of a stronger feature-local seam
+
+Checkpoint summary:
+- server local-complexity hotspot is checkpointed
+- explorer local-complexity hotspot is checkpointed
+- docker local-complexity hotspot is checkpointed
+- kubernetes local-complexity hotspot is checkpointed
+- broader local-complexity layer is checkpointed

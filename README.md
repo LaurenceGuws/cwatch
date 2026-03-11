@@ -121,13 +121,18 @@ Current follow-up docs:
 - `docs/kubernetes_vertical_slice_todo.md`
 
 Current next rewrite layer:
-- infrastructure boundary cleanup
+- broader rewrite re-scope after the local-complexity checkpoint
 
 Current likely focus:
-- clarify Docker/Kubernetes/SSH transport, parsing, capability policy, and degradation ownership before starting another major slice
+- choose the next active layer from evidence instead of continuing cleanup momentum by default
+- likely candidates are:
+  - targeted regression coverage around the new local seams
+  - product polish and consistency work on stabilized shared/feature surfaces
+  - broader rewrite checkpoint/prioritization before the next structural layer
 
-Current follow-up doc:
-- `docs/infrastructure_boundary_todo.md`
+Current follow-up docs:
+- `docs/rewrite_foundations.md`
+- `docs/local_feature_complexity_todo.md`
 
 Current shared scaffolding contract now covers:
 - `SettingsSection`
@@ -171,3 +176,6 @@ Current shared scaffolding contract now covers:
 - `docs/explorer_vertical_slice_todo.md`: first vertical slice checkpoint for explorer.
 - `docs/docker_vertical_slice_todo.md`: second vertical slice checkpoint for Docker.
 - `docs/server_vertical_slice_todo.md`: active TODO for the third vertical slice on servers.
+- `docs/kubernetes_vertical_slice_todo.md`: active TODO for the fourth vertical slice on kubernetes.
+- `docs/infrastructure_boundary_todo.md`: infrastructure boundary cleanup checkpoint.
+- `docs/local_feature_complexity_todo.md`: local feature complexity cleanup checkpoint.
