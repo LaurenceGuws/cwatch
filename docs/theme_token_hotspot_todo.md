@@ -47,3 +47,15 @@ These are intentionally not yet active:
 - theme factory / settings seam cleanup
 - dynamic spacing and zoom-policy cleanup
 - theme docs/descriptor cleanup
+
+
+## Task 24.4: implement spacing and typography extraction
+Status: completed
+
+Goal:
+- move spacing and typography token families out of `app_theme.dart` without changing caller usage
+
+Done definition:
+- `AppSpacing` and `AppTypographyTokens` no longer live inline in `app_theme.dart`
+- the public `AppThemeTokens` and `BuildContextAppTheme` surface stays stable
+- no visual behavior changes are introduced in this batch

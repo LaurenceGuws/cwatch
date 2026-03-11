@@ -8,6 +8,8 @@ part 'tokens/app_dimensions_tokens.dart';
 part 'tokens/app_docker_tokens.dart';
 part 'tokens/app_tab_chip_tokens.dart';
 part 'tokens/app_section_tokens.dart';
+part 'tokens/app_spacing_tokens.dart';
+part 'tokens/app_typography_tokens.dart';
 
 /// Theme extension that exposes cascading styling primitives for the app.
 class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
@@ -149,87 +151,6 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
       dimensions: AppDimensionsTokens.lerp(dimensions, other.dimensions, t),
       docker: AppDockerTokens.lerp(docker, other.docker, t),
       distroColors: DistroColors.lerp(distroColors, other.distroColors, t),
-    );
-  }
-}
-
-class AppSpacing {
-  const AppSpacing({this.base = 4, this.zoomFactor = 1.0});
-
-  final double base;
-  final double zoomFactor;
-
-  double get effectiveBase => base * zoomFactor;
-
-  double get xs => effectiveBase * 0.5;
-  double get sm => effectiveBase;
-  double get md => effectiveBase * 2;
-  double get lg => effectiveBase * 3;
-  double get xl => effectiveBase * 4;
-
-  EdgeInsets inset({double horizontal = 1, double vertical = 1}) {
-    return EdgeInsets.symmetric(
-      horizontal: effectiveBase * horizontal,
-      vertical: effectiveBase * vertical,
-    );
-  }
-
-  EdgeInsets all(double factor) => EdgeInsets.all(effectiveBase * factor);
-}
-
-
-class AppTypographyTokens {
-  const AppTypographyTokens({
-    required this.sectionTitle,
-    required this.body,
-    required this.caption,
-    required this.code,
-    required this.tabLabel,
-  });
-
-  final TextStyle sectionTitle;
-  final TextStyle body;
-  final TextStyle caption;
-  final TextStyle code;
-  final TextStyle tabLabel;
-
-  factory AppTypographyTokens.fromTextTheme(
-    TextTheme textTheme, {
-    double zoomFactor = 1.0,
-  }) {
-    // Note: TextScaler in MediaQuery handles text scaling, but we ensure
-    // fallback sizes also scale for consistency
-    return AppTypographyTokens(
-      sectionTitle: (textTheme.titleLarge ??
-              const TextStyle(fontSize: 20, fontWeight: FontWeight.w600))
-          .copyWith(fontSize: 20 * zoomFactor),
-      body: (textTheme.bodyMedium ?? const TextStyle(fontSize: 14))
-          .copyWith(fontSize: 14 * zoomFactor),
-      caption: (textTheme.bodySmall ?? const TextStyle(fontSize: 12))
-          .copyWith(fontSize: 12 * zoomFactor),
-      code: (textTheme.bodySmall ?? const TextStyle())
-          .copyWith(
-            fontFamily: 'monospace',
-            fontSize: 12 * zoomFactor,
-          ),
-      tabLabel: (textTheme.labelLarge ??
-              const TextStyle(fontSize: 14, fontWeight: FontWeight.w600))
-          .copyWith(fontSize: 14 * zoomFactor),
-    );
-  }
-
-  static AppTypographyTokens lerp(
-    AppTypographyTokens a,
-    AppTypographyTokens b,
-    double t,
-  ) {
-    return AppTypographyTokens(
-      sectionTitle:
-          TextStyle.lerp(a.sectionTitle, b.sectionTitle, t) ?? a.sectionTitle,
-      body: TextStyle.lerp(a.body, b.body, t) ?? a.body,
-      caption: TextStyle.lerp(a.caption, b.caption, t) ?? a.caption,
-      code: TextStyle.lerp(a.code, b.code, t) ?? a.code,
-      tabLabel: TextStyle.lerp(a.tabLabel, b.tabLabel, t) ?? a.tabLabel,
     );
   }
 }
