@@ -208,3 +208,41 @@ Why this is the right stop:
 - the Docker list surfaces are materially cleaner
 - the densest non-rendering overview orchestration has been split
 - pushing further now would likely optimize for file size rather than architectural value
+
+## Task 22.11: re-scope the next Docker batch from the current code state
+Status: completed
+
+Goal:
+- choose the next real Docker cleanup slice after the `StructuredDataTable` checkpoint
+- avoid blindly continuing older Docker UI batches if the hotspot has shifted
+
+Done definition:
+- one new Docker batch is explicit
+- the batch reflects the current code state instead of the earlier pass ordering
+
+Result:
+- the next bounded Docker batch is now:
+  - Docker CLI parser organization split
+- target files:
+  - [docker_client_service.dart](/home/home/personal/cwatch/lib/model/features/docker/services/docker_client_service.dart)
+  - new Docker parser helper under `lib/model/features/docker/services/`
+- stop condition:
+  - Docker JSON-line parsing and value normalization no longer live inline in `DockerClientService`
+  - command execution, failure mapping, and gateway behavior stay in `DockerClientService`
+  - Docker overview/widget surfaces remain untouched in this batch
+
+Why this is the right next cut:
+- `docker_client_service.dart` is now the clearest remaining Docker hotspot by file size and mixed responsibility
+- it is a real subsystem boundary improvement, not file-size cleanup
+- it gives direct parser coverage without reopening transport ownership
+
+## Task 22.12: implement the Docker CLI parser organization split
+Status: completed
+
+Goal:
+- extract JSON-line parsing and value normalization into a dedicated Docker parser helper
+
+Done definition:
+- one Docker helper owns context/container/image/network/volume/stats parsing
+- `DockerClientService` no longer owns inline JSON-line loops and map-to-model shaping
+- focused regression coverage exists for the new helper

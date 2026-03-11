@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:cwatch/model/features/docker/services/docker_cli_executor.dart';
 import 'package:cwatch/model/features/docker/services/docker_cli_failure.dart';
+import 'package:cwatch/model/features/docker/services/docker_cli_parsers.dart';
 import 'package:cwatch/model/models/docker_context.dart';
 import 'package:cwatch/model/models/docker_container.dart';
 import 'package:cwatch/model/models/docker_container_stat.dart';
@@ -16,7 +17,9 @@ class DockerClientService {
   DockerClientService({
     this.processRunner = Process.run,
     DockerCliExecutor? executor,
-  }) : _executor = executor ?? DockerCliExecutor(processRunner: processRunner);
+    DockerCliParsers? parsers,
+  }) : _executor = executor ?? DockerCliExecutor(processRunner: processRunner),
+       _parsers = parsers ?? const DockerCliParsers();
 
   final Future<ProcessResult> Function(
     String executable,
@@ -29,6 +32,7 @@ class DockerClientService {
   })
   processRunner;
   final DockerCliExecutor _executor;
+  final DockerCliParsers _parsers;
 
   Future<List<DockerContext>> listContexts({
     Duration timeout = const Duration(seconds: 6),
@@ -52,70 +56,11 @@ class DockerClientService {
 
       final output = (result.stdout as String?) ?? '';
       _log('Contexts output length=${output.length}');
-      return _parseJsonLines(output);
+      return _parsers.parseContexts(output);
     } on DockerCliFailure catch (error, stackTrace) {
       _logDockerCliFailure('listing contexts', error, stackTrace);
       throw _mapDockerCliFailure(error, timeoutLabel: 'listing Docker contexts');
     }
-  }
-
-  List<DockerContext> _parseJsonLines(String output) {
-    final contexts = <DockerContext>[];
-    for (final line in const LineSplitter().convert(output)) {
-      if (line.trim().isEmpty) {
-        continue;
-      }
-      try {
-        final decoded = jsonDecode(line);
-        if (decoded is Map<String, dynamic>) {
-          contexts.add(_fromMap(decoded));
-        }
-      } catch (error, stackTrace) {
-        AppLogger().warn(
-          'Failed to parse docker context line',
-          tag: 'Docker',
-          error: error,
-          stackTrace: stackTrace,
-        );
-        continue;
-      }
-    }
-    return contexts;
-  }
-
-  DockerContext _fromMap(Map<String, dynamic> map) {
-    String readString(String key) {
-      final value = map[key];
-      if (value is String) {
-        return value.trim();
-      }
-      return '';
-    }
-
-    bool readCurrent() {
-      final value = map['Current'];
-      if (value is bool) return value;
-      if (value is String) {
-        final trimmed = value.trim();
-        return trimmed == '*' || trimmed.toLowerCase() == 'true';
-      }
-      return false;
-    }
-
-    return DockerContext(
-      name: readString('Name'),
-      dockerEndpoint: readString('DockerEndpoint'),
-      description: readString('Description').isEmpty
-          ? null
-          : readString('Description'),
-      kubernetesEndpoint: readString('KubernetesEndpoint').isEmpty
-          ? null
-          : readString('KubernetesEndpoint'),
-      orchestrator: readString('Orchestrator').isEmpty
-          ? null
-          : readString('Orchestrator'),
-      current: readCurrent(),
-    );
   }
 
   Future<List<DockerContainer>> listContainers({
@@ -158,7 +103,7 @@ class DockerClientService {
 
       final output = (result.stdout as String?) ?? '';
       _log('Containers output length=${output.length}');
-      return _parseContainerLines(output);
+      return _parsers.parseContainers(output);
     } on DockerCliFailure catch (error, stackTrace) {
       _logDockerCliFailure('listing containers', error, stackTrace);
       throw _mapDockerCliFailure(
@@ -166,65 +111,6 @@ class DockerClientService {
         timeoutLabel: 'listing containers',
       );
     }
-  }
-
-  List<DockerContainer> _parseContainerLines(String output) {
-    final items = <DockerContainer>[];
-    for (final line in const LineSplitter().convert(output)) {
-      if (line.trim().isEmpty) continue;
-      try {
-        final decoded = jsonDecode(line);
-        if (decoded is Map<String, dynamic>) {
-          items.add(_containerFromMap(decoded));
-        }
-      } catch (error, stackTrace) {
-        AppLogger().warn(
-          'Failed to parse docker container line',
-          tag: 'Docker',
-          error: error,
-          stackTrace: stackTrace,
-        );
-        continue;
-      }
-    }
-    return items;
-  }
-
-  DockerContainer _containerFromMap(Map<String, dynamic> map) {
-    String read(String key) {
-      final value = map[key];
-      if (value is String) return value.trim();
-      return '';
-    }
-
-    Map<String, String> labelMap(String raw) {
-      final entries = <String, String>{};
-      for (final part in raw.split(',')) {
-        final kv = part.split('=');
-        if (kv.length == 2) {
-          entries[kv[0].trim()] = kv[1].trim();
-        }
-      }
-      return entries;
-    }
-
-    final labelsRaw = read('Labels');
-    final labels = labelsRaw.isEmpty
-        ? const <String, String>{}
-        : labelMap(labelsRaw);
-    return DockerContainer(
-      id: read('ID'),
-      name: read('Names'),
-      image: read('Image'),
-      state: read('State'),
-      status: read('Status'),
-      ports: read('Ports'),
-      command: read('Command').isEmpty ? null : read('Command'),
-      createdAt: read('RunningFor').isEmpty ? null : read('RunningFor'),
-      composeProject: labels['com.docker.compose.project'],
-      composeService: labels['com.docker.compose.service'],
-      startedAt: _parseDockerDate(read('StartedAt')),
-    );
   }
 
   Future<String> execInContainer(
@@ -305,49 +191,11 @@ class DockerClientService {
 
       final output = (result.stdout as String?) ?? '';
       _log('Images output length=${output.length}');
-      return _parseImageLines(output);
+      return _parsers.parseImages(output);
     } on DockerCliFailure catch (error, stackTrace) {
       _logDockerCliFailure('listing images', error, stackTrace);
       throw _mapDockerCliFailure(error, timeoutLabel: 'listing images');
     }
-  }
-
-  List<DockerImage> _parseImageLines(String output) {
-    final items = <DockerImage>[];
-    for (final line in const LineSplitter().convert(output)) {
-      if (line.trim().isEmpty) continue;
-      try {
-        final decoded = jsonDecode(line);
-        if (decoded is Map<String, dynamic>) {
-          items.add(_imageFromMap(decoded));
-        }
-      } catch (error, stackTrace) {
-        AppLogger().warn(
-          'Failed to parse docker image line',
-          tag: 'Docker',
-          error: error,
-          stackTrace: stackTrace,
-        );
-        continue;
-      }
-    }
-    return items;
-  }
-
-  DockerImage _imageFromMap(Map<String, dynamic> map) {
-    String read(String key) {
-      final value = map[key];
-      if (value is String) return value.trim();
-      return '';
-    }
-
-    return DockerImage(
-      id: read('ID'),
-      repository: read('Repository'),
-      tag: read('Tag'),
-      size: read('Size'),
-      createdSince: read('CreatedSince').isEmpty ? null : read('CreatedSince'),
-    );
   }
 
   Future<List<DockerNetwork>> listNetworks({
@@ -381,36 +229,7 @@ class DockerClientService {
     }
     final output = (result.stdout as String?) ?? '';
     _log('Networks output length=${output.length}');
-    return _parseNetworks(output);
-  }
-
-  List<DockerNetwork> _parseNetworks(String output) {
-    final items = <DockerNetwork>[];
-    for (final line in const LineSplitter().convert(output)) {
-      if (line.trim().isEmpty) continue;
-      try {
-        final decoded = jsonDecode(line);
-        if (decoded is Map<String, dynamic>) {
-          items.add(
-            DockerNetwork(
-              id: (decoded['ID'] as String?)?.trim() ?? '',
-              name: (decoded['Name'] as String?)?.trim() ?? '',
-              driver: (decoded['Driver'] as String?)?.trim() ?? '',
-              scope: (decoded['Scope'] as String?)?.trim() ?? '',
-            ),
-          );
-        }
-      } catch (error, stackTrace) {
-        AppLogger().warn(
-          'Failed to parse docker network line',
-          tag: 'Docker',
-          error: error,
-          stackTrace: stackTrace,
-        );
-        continue;
-      }
-    }
-    return items;
+    return _parsers.parseNetworks(output);
   }
 
   Future<List<DockerVolume>> listVolumes({
@@ -445,7 +264,7 @@ class DockerClientService {
     }
     final output = (result.stdout as String?) ?? '';
     _log('Volumes output length=${output.length}');
-    var volumes = _parseVolumes(output);
+    var volumes = _parsers.parseVolumes(output);
     if (includeSizes) {
       final sizes = await _fetchVolumeSizes(context: context);
       volumes = _applyVolumeSizes(volumes, sizes);
@@ -525,7 +344,7 @@ class DockerClientService {
     final output = ((result.stdout as String?) ?? '').trim();
     if (output.isEmpty) return null;
     final cleaned = output.replaceAll('"', '');
-    return _parseDockerDate(cleaned);
+    return _parsers.parseDockerDate(cleaned);
   }
 
   Future<void> removeContainer({
@@ -712,7 +531,7 @@ class DockerClientService {
       );
     }
     final output = (result.stdout as String?) ?? '';
-    return _parseStats(output);
+    return _parsers.parseStats(output);
   }
 
   /// Get aggregate CPU and RAM usage for a Docker context.
@@ -748,7 +567,7 @@ class DockerClientService {
       }
 
       // Parse total memory (e.g., "15.5GiB" -> bytes)
-      final memTotalBytes = _parseMemoryBytes(memTotalStr);
+      final memTotalBytes = _parsers.parseMemoryBytes(memTotalStr);
       if (memTotalBytes == null || memTotalBytes == 0) {
         return null;
       }
@@ -800,7 +619,7 @@ class DockerClientService {
 
         // Parse memory usage (e.g., "1.2GiB / 15.5GiB" -> use first part)
         final memUsageStr = parts[1];
-        final memBytes = _parseMemoryBytes(memUsageStr);
+        final memBytes = _parsers.parseMemoryBytes(memUsageStr);
         if (memBytes != null) {
           totalMemBytes += memBytes;
         }
@@ -821,102 +640,6 @@ class DockerClientService {
       );
       return null;
     }
-  }
-
-  /// Parse memory string (e.g., "15.5GiB", "1.2MiB", "512KiB") to bytes.
-  int? _parseMemoryBytes(String memoryStr) {
-    final trimmed = memoryStr.trim();
-    if (trimmed.isEmpty) return null;
-
-    // Handle formats like "1.2GiB / 15.5GiB" - take first part
-    final parts = trimmed.split('/');
-    final memStr = parts[0].trim();
-
-    // Extract number and unit
-    final match = RegExp(r'^([\d.]+)\s*(GiB|MiB|KiB|B)$', caseSensitive: false)
-        .firstMatch(memStr);
-    if (match == null) return null;
-
-    final value = double.tryParse(match.group(1) ?? '');
-    if (value == null) return null;
-
-    final unit = (match.group(2) ?? '').toLowerCase();
-    switch (unit) {
-      case 'gib':
-        return (value * 1024 * 1024 * 1024).round();
-      case 'mib':
-        return (value * 1024 * 1024).round();
-      case 'kib':
-        return (value * 1024).round();
-      case 'b':
-        return value.round();
-      default:
-        return null;
-    }
-  }
-
-  List<DockerVolume> _parseVolumes(String output) {
-    final items = <DockerVolume>[];
-    for (final line in const LineSplitter().convert(output)) {
-      if (line.trim().isEmpty) continue;
-      try {
-        final decoded = jsonDecode(line);
-        if (decoded is Map<String, dynamic>) {
-          items.add(
-            DockerVolume(
-              name: (decoded['Name'] as String?)?.trim() ?? '',
-              driver: (decoded['Driver'] as String?)?.trim() ?? '',
-              mountpoint: (decoded['Mountpoint'] as String?)?.trim(),
-              scope: (decoded['Scope'] as String?)?.trim(),
-              size: _volumeSizeOrNull((decoded['Size'] as String?)?.trim()),
-            ),
-          );
-        }
-      } catch (error, stackTrace) {
-        AppLogger().warn(
-          'Failed to parse docker volume line',
-          tag: 'Docker',
-          error: error,
-          stackTrace: stackTrace,
-        );
-        continue;
-      }
-    }
-    return items;
-  }
-
-  List<DockerContainerStat> _parseStats(String output) {
-    final items = <DockerContainerStat>[];
-    for (final line in const LineSplitter().convert(output)) {
-      final trimmed = line.trim();
-      if (trimmed.isEmpty) continue;
-      try {
-        final decoded = jsonDecode(trimmed);
-        if (decoded is Map<String, dynamic>) {
-          items.add(
-            DockerContainerStat(
-              id: (decoded['Container'] as String?)?.trim() ?? '',
-              name: (decoded['Name'] as String?)?.trim() ?? '',
-              cpu: (decoded['CPUPerc'] as String?)?.trim() ?? '',
-              memUsage: (decoded['MemUsage'] as String?)?.trim() ?? '',
-              memPercent: (decoded['MemPerc'] as String?)?.trim() ?? '',
-              netIO: (decoded['NetIO'] as String?)?.trim() ?? '',
-              blockIO: (decoded['BlockIO'] as String?)?.trim() ?? '',
-              pids: (decoded['PIDs'] as String?)?.trim() ?? '',
-            ),
-          );
-        }
-      } catch (error, stackTrace) {
-        AppLogger().warn(
-          'Failed to parse docker stats line',
-          tag: 'Docker',
-          error: error,
-          stackTrace: stackTrace,
-        );
-        continue;
-      }
-    }
-    return items;
   }
 
   void _log(String message) {
@@ -966,12 +689,6 @@ class DockerClientService {
     }
   }
 
-  String? _volumeSizeOrNull(String? raw) {
-    final value = raw?.trim() ?? '';
-    if (value.isEmpty || value.toUpperCase() == 'N/A') return null;
-    return value;
-  }
-
   Future<Map<String, String>> _fetchVolumeSizes({
     String? context,
     Duration timeout = const Duration(seconds: 8),
@@ -998,35 +715,7 @@ class DockerClientService {
         return const {};
       }
       final output = (result.stdout as String?) ?? '';
-      final map = <String, String>{};
-      for (final line in const LineSplitter().convert(output)) {
-        final trimmed = line.trim();
-        if (trimmed.isEmpty) continue;
-        try {
-          final decoded = jsonDecode(trimmed);
-          if (decoded is Map<String, dynamic>) {
-            final type = (decoded['Type'] as String?)?.trim();
-            if (type != null && type.toLowerCase() == 'volume') {
-              final name = (decoded['Name'] as String?)?.trim();
-              final size = _volumeSizeOrNull(
-                (decoded['Size'] as String?)?.trim(),
-              );
-              if (name != null && name.isNotEmpty && size != null) {
-                map[name] = size;
-              }
-            }
-          }
-        } catch (error, stackTrace) {
-          AppLogger().warn(
-            'Failed to parse docker volume size entry',
-            tag: 'Docker',
-            error: error,
-            stackTrace: stackTrace,
-          );
-          continue;
-        }
-      }
-      return map;
+      return _parsers.parseVolumeSizes(output);
     } catch (error, stackTrace) {
       AppLogger().warn(
         'Failed to fetch docker volume sizes',
@@ -1056,16 +745,6 @@ class DockerClientService {
               : v,
         )
         .toList();
-  }
-
-  DateTime? _parseDockerDate(String raw) {
-    final value = raw.trim();
-    if (value.isEmpty) return null;
-    final cleaned = value
-        .replaceAll(' +0000 UTC', 'Z')
-        .replaceAll(RegExp(r' [A-Z]{3}$'), '')
-        .replaceFirst(' ', 'T');
-    return DateTime.tryParse(cleaned);
   }
 
   Future<void> _runDockerCommand(
