@@ -8,6 +8,7 @@ import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/view/core/navigation/command_palette_registry.dart';
 import 'package:cwatch/view/core/navigation/generic_tab_command_entries.dart';
 import 'package:cwatch/view/core/navigation/tab_navigation_registry.dart';
+import 'package:cwatch/view/core/navigation/workspace_shell_chrome.dart';
 import 'package:cwatch/view/core/tabs/workspace_settings_sync.dart';
 
 class ServerWorkspaceShell {
@@ -125,6 +126,11 @@ class ServerWorkspaceShell {
   late final CommandPaletteHandle commandPaletteHandle = CommandPaletteHandle(
     loader: buildCommandPaletteEntries,
   );
+  late final WorkspaceShellChrome _shellChrome = WorkspaceShellChrome(
+    moduleId: moduleId,
+    tabNavigator: tabNavigator,
+    commandPaletteHandle: commandPaletteHandle,
+  );
 
   Future<List<SshHost>> initializeHosts() {
     _customHostsSignature = _buildCustomHostsSignature();
@@ -136,13 +142,11 @@ class ServerWorkspaceShell {
   }
 
   void initializeWorkspaceChrome() {
-    TabNavigationRegistry.instance.register(moduleId, tabNavigator);
-    CommandPaletteRegistry.instance.register(moduleId, commandPaletteHandle);
+    _shellChrome.register();
   }
 
   void dispose() {
-    TabNavigationRegistry.instance.unregister(moduleId, tabNavigator);
-    CommandPaletteRegistry.instance.unregister(moduleId, commandPaletteHandle);
+    _shellChrome.unregister();
   }
 
   List<CommandPaletteEntry> buildCommandPaletteEntries() {

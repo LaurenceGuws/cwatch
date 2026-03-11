@@ -7,6 +7,7 @@ import 'package:cwatch/model/models/docker_context.dart';
 import 'package:cwatch/view/core/navigation/command_palette_registry.dart';
 import 'package:cwatch/view/core/navigation/generic_tab_command_entries.dart';
 import 'package:cwatch/view/core/navigation/tab_navigation_registry.dart';
+import 'package:cwatch/view/core/navigation/workspace_shell_chrome.dart';
 import 'package:cwatch/view/features/docker/docker_tab_builder.dart';
 import 'package:cwatch/view/features/docker/docker_view_runtime.dart';
 
@@ -61,10 +62,14 @@ class DockerViewShell {
   late final CommandPaletteHandle commandPaletteHandle = CommandPaletteHandle(
     loader: buildCommandPaletteEntries,
   );
+  late final WorkspaceShellChrome _shellChrome = WorkspaceShellChrome(
+    moduleId: moduleId,
+    tabNavigator: tabNavigator,
+    commandPaletteHandle: commandPaletteHandle,
+  );
 
   Future<void> initialize() async {
-    TabNavigationRegistry.instance.register(moduleId, tabNavigator);
-    CommandPaletteRegistry.instance.register(moduleId, commandPaletteHandle);
+    _shellChrome.register();
     unawaited(
       viewController.loadContexts().catchError(
         (_) => const <DockerContext>[],
@@ -73,8 +78,7 @@ class DockerViewShell {
   }
 
   void dispose() {
-    TabNavigationRegistry.instance.unregister(moduleId, tabNavigator);
-    CommandPaletteRegistry.instance.unregister(moduleId, commandPaletteHandle);
+    _shellChrome.unregister();
   }
 
   void refreshContexts() {

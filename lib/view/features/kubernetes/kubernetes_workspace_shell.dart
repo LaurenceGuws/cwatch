@@ -5,6 +5,7 @@ import 'package:cwatch/model/models/kubernetes/kubeconfig_context.dart';
 import 'package:cwatch/view/core/navigation/command_palette_registry.dart';
 import 'package:cwatch/view/core/navigation/generic_tab_command_entries.dart';
 import 'package:cwatch/view/core/navigation/tab_navigation_registry.dart';
+import 'package:cwatch/view/core/navigation/workspace_shell_chrome.dart';
 
 class KubernetesWorkspaceShell {
   KubernetesWorkspaceShell({
@@ -93,15 +94,18 @@ class KubernetesWorkspaceShell {
   late final CommandPaletteHandle commandPaletteHandle = CommandPaletteHandle(
     loader: buildCommandPaletteEntries,
   );
+  late final WorkspaceShellChrome _shellChrome = WorkspaceShellChrome(
+    moduleId: moduleId,
+    tabNavigator: tabNavigator,
+    commandPaletteHandle: commandPaletteHandle,
+  );
 
   void initializeWorkspaceChrome() {
-    TabNavigationRegistry.instance.register(moduleId, tabNavigator);
-    CommandPaletteRegistry.instance.register(moduleId, commandPaletteHandle);
+    _shellChrome.register();
   }
 
   void dispose() {
-    TabNavigationRegistry.instance.unregister(moduleId, tabNavigator);
-    CommandPaletteRegistry.instance.unregister(moduleId, commandPaletteHandle);
+    _shellChrome.unregister();
   }
 
   Future<List<KubeconfigContext>> initializeContexts() {

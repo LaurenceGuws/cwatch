@@ -293,3 +293,53 @@ Result:
   - [wsl_view.dart](/home/home/personal/cwatch/lib/view/features/wsl/wsl_view.dart)
 - focused regression coverage exists in:
   - [workspace_tab_registry_builder_test.dart](/home/home/personal/cwatch/test/view/core/tabs/workspace_tab_registry_builder_test.dart)
+
+## Task 25.13: define the next shared workspace chrome cut
+Status: completed
+
+Goal:
+- choose the next small shared shell-host concern from the current cross-feature state
+- keep the batch on repeated shell chrome registration lifecycle rather than generic feature-host redesign
+
+Done definition:
+- one new cross-feature seam is explicit
+- the seam is proven by repetition across multiple workspace shells
+
+Result:
+- the next bounded runtime/composition batch is now:
+  - shared workspace shell-chrome registration split
+- target files:
+  - [server_workspace_shell.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_shell.dart)
+  - [docker_view_shell.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view_shell.dart)
+  - [kubernetes_workspace_shell.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/kubernetes_workspace_shell.dart)
+  - new shared helper under `lib/view/core/navigation/`
+- stop condition:
+  - repeated command-palette/tab-navigation registration and teardown no longer lives inline in those feature shells
+  - feature-specific navigation and command loading stay local
+  - behavior stays stable
+
+Why this is the right next cut:
+- the registration lifecycle is repeated nearly verbatim across the feature workspace shells
+- it is a clear shell/framework concern, not feature policy
+- it reduces duplication without forcing WSL into a command-palette shape it does not currently use
+
+## Task 25.14: implement the next shared workspace chrome cut
+Status: completed
+
+Goal:
+- extract shared workspace shell-chrome registration lifecycle into a dedicated navigation helper
+
+Done definition:
+- one shared helper owns command-palette/tab-navigation registration and teardown
+- server, docker, and Kubernetes shells no longer repeat that lifecycle inline
+- focused regression coverage exists for the helper
+
+Result:
+- shared workspace shell-chrome registration now lives in:
+  - [workspace_shell_chrome.dart](/home/home/personal/cwatch/lib/view/core/navigation/workspace_shell_chrome.dart)
+- server, docker, and Kubernetes workspace shells now delegate that shared lifecycle:
+  - [server_workspace_shell.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_shell.dart)
+  - [docker_view_shell.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view_shell.dart)
+  - [kubernetes_workspace_shell.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/kubernetes_workspace_shell.dart)
+- focused regression coverage exists in:
+  - [workspace_shell_chrome_test.dart](/home/home/personal/cwatch/test/view/core/navigation/workspace_shell_chrome_test.dart)
