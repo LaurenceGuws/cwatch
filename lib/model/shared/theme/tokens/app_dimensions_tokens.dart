@@ -1,4 +1,4 @@
-part of app_theme;
+part of 'package:cwatch/model/shared/theme/app_theme.dart';
 
 class AppDimensionsTokens {
   const AppDimensionsTokens({this.zoomFactor = 1.0});
