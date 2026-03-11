@@ -21,7 +21,7 @@ What remains is mostly concentrated in a smaller set of heavy subsystems and sha
 
 ## Current Highest-Value Hotspots
 
-### 1. Docker feature complexity
+### 1. SSH subsystem complexity
 Primary files:
 - [docker_lists.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_lists.dart)
 - [docker_overview.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_overview.dart)
@@ -50,7 +50,7 @@ Current checkpoint:
 - cell navigation, cell selection, hit-test, resize, scroll, and reorder projection have been split out
 - the remaining risk is now more about widget/rendering glue than pure engine complexity
 
-### 3. SSH subsystem complexity
+### 3. Docker feature complexity
 Primary files:
 - [ssh_shell_factory.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_factory.dart)
 - [process_ssh_shell_service.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/process_ssh_shell_service.dart)
@@ -90,24 +90,20 @@ The repo now has direct tests in the major new seams, but the following still ca
 
 ## Recommended Next Order
 
-1. Docker feature decomposition
-2. StructuredDataTable risk reduction
-3. SSH runtime simplification
-4. Theme/token decomposition
+1. SSH runtime simplification
+2. Docker feature decomposition
+3. Theme/token decomposition
 
 ## Why This Order
 
-### Docker first
-- highest remaining feature-level payoff
-- strongest concentrated complexity hotspot
-- likely to produce the clearest next structural win
+### SSH first
+- the strongest remaining subsystem-level complexity knot
+- still mixes provider selection, runtime caching, builtin/process differences, and failure behavior
+- now the clearest cross-feature runtime hotspot after the Docker pass
 
-### StructuredDataTable second
-- highest remaining shared-engine risk
-- easier to scope well after Docker clarifies what should stay feature-local vs table-engine-local
+### Docker second
+- still large, but the refreshed pass materially reduced the mixed-responsibility hotspots
+- the remaining weight is more legitimate feature-local UI hosting than cross-cutting orchestration smell
 
-### SSH third
-- still complex, but less entangled with day-to-day UI churn than Docker and the shared table engine
-
-### Theme fourth
-- important, but lower urgency than the two biggest runtime/feature hotspots
+### Theme third
+- important, but lower urgency than the remaining runtime/subsystem hotspot

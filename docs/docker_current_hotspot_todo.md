@@ -1,6 +1,6 @@
 # Docker Current Hotspot TODO
 
-Status: active
+Status: checkpointed
 Purpose: track the next bounded cleanup batches for the current largest remaining feature hotspot.
 
 ## Task 22.1: start the current Docker hotspot pass
@@ -258,3 +258,27 @@ Done definition:
 - one Docker-local helper owns container distro probe triggering, start-time loading, compose-project sync, and post-action cache updates
 - `docker_overview.dart` no longer owns those runtime-side-effect helpers inline
 - focused regression coverage exists for the new helper
+
+
+## Task 22.14: checkpoint the refreshed Docker hotspot pass
+Status: completed
+
+Goal:
+- stop the Docker pass at the point where the remaining weight is mostly valid feature-local UI hosting and prompt/menu behavior
+
+Done definition:
+- the tracker explicitly records Docker as checkpointed for the refreshed pass
+- the next repo hotspot is named from the fresh review order
+
+Result:
+- the refreshed Docker hotspot pass is now checkpointed
+- the remaining weight in [docker_overview.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_overview.dart) and [docker_view.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view.dart) is mostly valid Docker-local hosting behavior:
+  - prompt/menu flows
+  - widget hosting and tab composition
+  - feature-specific dashboard-opening and child-tab flows
+- the next ranked hotspot is now:
+  - SSH runtime simplification
+
+Why this is the right stop:
+- Docker list state, overview action state, overview runtime side effects, CLI execution, and CLI parsing now have dedicated seams
+- pushing further now would likely optimize for file size rather than architectural value
