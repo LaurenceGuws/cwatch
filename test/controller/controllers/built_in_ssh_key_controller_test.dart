@@ -68,6 +68,25 @@ void main() {
     );
     expect(service.deletedKeys, ['key-1']);
   });
+
+  test('updateHostBinding writes builtin host key binding through settings', () async {
+    final settingsController = AppSettingsController()
+      ..applyOverrides((_) => const AppSettings());
+    final controller = BuiltInSshKeyController(
+      settingsController: settingsController,
+      keyService: _FakeBuiltInSshKeyService(),
+      hostsFuture: Future.value(const <SshHost>[]),
+      ui: _FakeSettingsKeyUi(),
+      updateSettings: settingsController.update,
+    );
+
+    await controller.updateHostBinding('prod', 'key-1');
+
+    expect(
+      settingsController.settings.sshPreferences.builtinHostKeyBindings,
+      {'prod': 'key-1'},
+    );
+  });
 }
 
 BuiltInSshKeyController _controller({

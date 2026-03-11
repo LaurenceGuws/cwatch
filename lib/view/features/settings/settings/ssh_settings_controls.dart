@@ -62,7 +62,11 @@ class _SshSettingsControlsState extends State<SshSettingsControls> {
               ],
             ),
           ),
-        if (usingBuiltIn) BuiltInSshSettings(controller: widget.controller),
+        if (usingBuiltIn)
+          BuiltInSshSettings(
+            keyController: widget.controller.keyController,
+            sshPreferences: ssh,
+          ),
         const Divider(),
         SettingsSection(
           title: 'Detected SSH config files',

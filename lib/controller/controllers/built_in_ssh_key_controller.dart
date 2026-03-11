@@ -190,6 +190,27 @@ class BuiltInSshKeyController {
     return true;
   }
 
+  Future<void> updateHostBinding(String hostName, String? keyId) async {
+    final current = settingsController.settings.sshPreferences.builtinHostKeyBindings;
+    final updated = Map<String, String>.from(current);
+    if (keyId == null) {
+      updated.remove(hostName);
+    } else {
+      updated[hostName] = keyId;
+    }
+    AppLogger().debug(
+      'Host $hostName now uses ${keyId ?? 'platform default'} for SSH.',
+      tag: 'Settings',
+    );
+    await updateSettings(
+      (current) => current.copyWith(
+        sshPreferences: current.sshPreferences.copyWith(
+          builtinHostKeyBindings: updated,
+        ),
+      ),
+    );
+  }
+
   void clearDecryptedKeys() {
     keyService.clearAllDecrypted();
     AppLogger().debug(

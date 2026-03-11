@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
 
-import 'package:cwatch/controller/controllers/settings_controller.dart';
+import 'package:cwatch/controller/controllers/built_in_ssh_key_controller.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
+import 'package:cwatch/model/models/ssh_preferences.dart';
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_entry.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/view/shared/widgets/form_spacer.dart';
 
 /// Built-in SSH settings widget for managing SSH keys
 class BuiltInSshSettings extends StatefulWidget {
-  const BuiltInSshSettings({super.key, required this.controller});
+  const BuiltInSshSettings({
+    super.key,
+    required this.keyController,
+    required this.sshPreferences,
+  });
 
-  final SettingsController controller;
+  final BuiltInSshKeyController keyController;
+  final SshPreferences sshPreferences;
 
   @override
   State<BuiltInSshSettings> createState() => _BuiltInSshSettingsState();
@@ -30,14 +36,14 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
   @override
   void initState() {
     super.initState();
-    _keysFuture = widget.controller.listBuiltInKeys();
+    _keysFuture = widget.keyController.listBuiltInKeys();
     _vaultListener = () => setState(() {});
-    widget.controller.keyVaultListenable.addListener(_vaultListener);
+    widget.keyController.keyVaultListenable.addListener(_vaultListener);
   }
 
   @override
   void dispose() {
-    widget.controller.keyVaultListenable.removeListener(_vaultListener);
+    widget.keyController.keyVaultListenable.removeListener(_vaultListener);
     _labelController.dispose();
     _keyController.dispose();
     _passwordController.dispose();
@@ -46,7 +52,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
 
   void _refreshKeys() {
     setState(() {
-      _keysFuture = widget.controller.listBuiltInKeys();
+      _keysFuture = widget.keyController.listBuiltInKeys();
     });
   }
 
@@ -56,7 +62,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
     final password = _passwordController.text.trim();
     setState(() => _isSaving = true);
     try {
-      final added = await widget.controller.addBuiltInKey(
+      final added = await widget.keyController.addBuiltInKey(
         label: label,
         keyText: keyText,
         password: password,
@@ -76,22 +82,22 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
   }
 
   Future<void> _decryptKey(String keyId) async {
-    await widget.controller.decryptBuiltInKey(keyId);
+    await widget.keyController.decryptBuiltInKey(keyId);
   }
 
   Future<void> _removeKeyEntry(String keyId) async {
-    final removed = await widget.controller.removeBuiltInKey(keyId);
+    final removed = await widget.keyController.removeBuiltInKey(keyId);
     if (removed) {
       _refreshKeys();
     }
   }
 
   void _clearDecrypted() {
-    widget.controller.clearDecryptedKeys();
+    widget.keyController.clearDecryptedKeys();
   }
 
   void _updateHostBinding(String hostName, String? keyId) {
-    widget.controller.updateHostBinding(hostName, keyId);
+    widget.keyController.updateHostBinding(hostName, keyId);
   }
 
   @override
@@ -122,7 +128,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
             // Auto-decrypt plaintext keys
             if (keys.isNotEmpty) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                widget.controller.decryptPlaintextKeysIfNeeded(keys);
+                widget.keyController.decryptPlaintextKeysIfNeeded(keys);
               });
             }
 
@@ -149,7 +155,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
           future: _keysFuture,
           builder: (context, keysSnapshot) {
             return FutureBuilder<List<SshHost>>(
-              future: widget.controller.hostsFuture,
+              future: widget.keyController.hostsFuture,
               builder: (context, hostsSnapshot) {
                 // Update cache when data is available
                 if (keysSnapshot.hasData && keysSnapshot.data != null) {
@@ -301,7 +307,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
   }
 
   Future<void> _pickKeyFile() async {
-    final loaded = await widget.controller.loadPrivateKeyContents();
+    final loaded = await widget.keyController.loadPrivateKeyContents();
     if (loaded == null) {
       return;
     }
@@ -317,7 +323,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
   Widget _buildKeyTile(BuiltInSshKeyEntry entry, BuildContext context) {
     // Plaintext keys are always considered decrypted
     final isDecrypted =
-        widget.controller.isKeyDecrypted(entry.id) || !entry.isEncrypted;
+        widget.keyController.isKeyDecrypted(entry.id) || !entry.isEncrypted;
     final fingerprint = entry.fingerprint.length > 12
         ? '${entry.fingerprint.substring(0, 12)}…'
         : entry.fingerprint;
@@ -384,11 +390,11 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
   }
 
   void _clearKey(String keyId) {
-    widget.controller.clearDecryptedKey(keyId);
+    widget.keyController.clearDecryptedKey(keyId);
   }
 
   Future<void> _encryptKey(String keyId) async {
-    final encrypted = await widget.controller.encryptBuiltInKey(keyId);
+    final encrypted = await widget.keyController.encryptBuiltInKey(keyId);
     if (encrypted) {
       _refreshKeys();
     }
@@ -414,7 +420,7 @@ class _BuiltInSshSettingsState extends State<BuiltInSshSettings> {
 
   Widget _buildHostMapping(SshHost host) {
     final mapping =
-        widget.controller.settings.sshPreferences.builtinHostKeyBindings[host.name];
+        widget.sshPreferences.builtinHostKeyBindings[host.name];
     final seen = <String>{};
     final keyItems = <DropdownMenuItem<String?>>[
       const DropdownMenuItem(

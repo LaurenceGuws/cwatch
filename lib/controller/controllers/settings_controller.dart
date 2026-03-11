@@ -9,9 +9,7 @@ import 'package:cwatch/model/models/input_mode_preference.dart';
 import 'package:cwatch/model/models/kubernetes_backend.dart';
 import 'package:cwatch/model/models/ssh_client_backend.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
-import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
-import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_entry.dart';
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
 
 import '../adapters/settings_ui_adapter.dart';
@@ -369,63 +367,6 @@ class SettingsController extends ChangeNotifier {
       ),
     );
   }
-
-  Listenable get keyVaultListenable => keyController.keyVaultListenable;
-
-  bool isKeyDecrypted(String keyId) => keyController.isKeyDecrypted(keyId);
-
-  Future<List<BuiltInSshKeyEntry>> listBuiltInKeys() =>
-      keyController.listBuiltInKeys();
-
-  void decryptPlaintextKeysIfNeeded(List<BuiltInSshKeyEntry> keys) =>
-      keyController.decryptPlaintextKeysIfNeeded(keys);
-
-  Future<bool> addBuiltInKey({
-    required String label,
-    required String keyText,
-    String? password,
-  }) => keyController.addBuiltInKey(
-        label: label,
-        keyText: keyText,
-        password: password,
-      );
-
-  Future<void> decryptBuiltInKey(String keyId) =>
-      keyController.decryptBuiltInKey(keyId);
-
-  Future<bool> removeBuiltInKey(String keyId) =>
-      keyController.removeBuiltInKey(keyId);
-
-  void clearDecryptedKeys() => keyController.clearDecryptedKeys();
-
-  void updateHostBinding(String hostName, String? keyId) {
-    final current = settings.sshPreferences.builtinHostKeyBindings;
-    final updated = Map<String, String>.from(current);
-    if (keyId == null) {
-      updated.remove(hostName);
-    } else {
-      updated[hostName] = keyId;
-    }
-    AppLogger().debug(
-      'Host $hostName now uses ${keyId ?? 'platform default'} for SSH.',
-      tag: 'Settings',
-    );
-    update(
-      (current) => current.copyWith(
-        sshPreferences: current.sshPreferences.copyWith(
-          builtinHostKeyBindings: updated,
-        ),
-      ),
-    );
-  }
-
-  void clearDecryptedKey(String keyId) => keyController.clearDecryptedKey(keyId);
-
-  Future<bool> encryptBuiltInKey(String keyId) =>
-      keyController.encryptBuiltInKey(keyId);
-
-  Future<LoadedKeyFile?> loadPrivateKeyContents() =>
-      keyController.loadPrivateKeyContents();
 
   @override
   void dispose() {
