@@ -438,3 +438,42 @@ Done definition:
 - one Docker-local helper owns tab-surface clear routing, secondary-click selection routing, and compose-action dispatch
 - `docker_overview.dart` keeps menu content and widget hosting only
 - focused regression coverage exists for the extracted interaction behavior
+
+## Task 22.23: define the next bounded Docker batch after the overview interaction split
+Status: completed
+
+Goal:
+- choose the next Docker-only cleanup slice from the current code state after the overview interaction split
+- keep the batch on the densest remaining menu-action orchestration instead of broad overview decomposition
+
+Done definition:
+- one new Docker batch is explicit
+- the batch has a clear stop condition
+- later Docker concerns remain queued
+
+Result:
+- the next bounded Docker batch is now:
+  - Docker overview container-menu action split
+- target files:
+  - [docker_overview.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_overview.dart)
+  - new Docker-local helper under `lib/view/features/docker/widgets/`
+- stop condition:
+  - container menu action dispatch no longer lives inline in `docker_overview.dart`
+  - menu content/rendering stays in `docker_overview.dart`
+  - image/network/volume menus remain untouched in this batch
+
+Why this is the right next cut:
+- the container menu still owns the densest remaining action-routing block in the overview surface
+- it includes repeated multi-selection loops, local-context fallback, and action-specific runtime update wiring
+- it creates a direct seam for focused regression coverage without reopening the rest of the overview menus
+
+## Task 22.24: implement the Docker overview container-menu action split
+Status: completed
+
+Goal:
+- extract Docker overview container-menu action dispatch into a dedicated Docker-local helper
+
+Done definition:
+- one Docker-local helper owns container-menu action routing for logs/shell/copy/forward/explore/lifecycle actions
+- `docker_overview.dart` keeps container menu content/rendering only
+- focused regression coverage exists for multi-copy, local fallback explorer routing, and lifecycle dispatch

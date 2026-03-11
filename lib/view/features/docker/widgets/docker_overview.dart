@@ -20,6 +20,7 @@ import 'package:cwatch/view/shared/widgets/standard_empty_state.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
 import 'docker_lists.dart';
 import 'docker_overview_action_state.dart';
+import 'docker_overview_container_menu_helper.dart';
 import 'docker_overview_interaction_helper.dart';
 import 'docker_overview_runtime_state.dart';
 import 'docker_shared.dart';
@@ -56,6 +57,8 @@ class _DockerOverviewState extends State<DockerOverview>
     with SingleTickerProviderStateMixin, TabOptionsMixin {
   final DockerOverviewActionState _actionState =
       const DockerOverviewActionState();
+  final DockerOverviewContainerMenuHelper _containerMenuHelper =
+      const DockerOverviewContainerMenuHelper();
   final DockerOverviewInteractionHelper _interactionHelper =
       const DockerOverviewInteractionHelper();
   late final DockerOverviewController _controller;
@@ -454,92 +457,43 @@ class _DockerOverviewState extends State<DockerOverview>
       copyLabel: copyLabel,
       extraActions: extraActions,
       onAction: (action) async {
-        switch (action) {
-          case 'logs':
-            for (final target in selection) {
-              if (!mounted) return;
-              await _actions.openLogsTab(container: target);
-            }
-            break;
-          case 'shell':
-            for (final target in selection) {
-              if (!mounted) return;
-              await _actions.openExecTerminal(target);
-            }
-            break;
-          case 'copyExec':
-            if (selection.length == 1) {
-              await _actions.copyExecCommand(selection.first.id);
-            } else {
-              final commands = selection
-                  .map((item) => _actions.execCommand(item.id))
-                  .join('\n');
-              await _uiAdapter.copyToClipboard(
-                commands,
-                successMessage: 'Exec commands copied (${selection.length}).',
-              );
-            }
-            break;
-          case 'stopForward':
-            await _actions.stopForwardsForHost();
-            break;
-          case 'forward':
-            for (final target in selection) {
-              await _actions.forwardContainerPorts(container: target);
-            }
-            break;
-          case 'explore':
-            for (final target in selection) {
-              await _actions.openContainerExplorer(
+        await _containerMenuHelper.handleAction(
+          action: action,
+          selection: selection,
+          dockerContextNameFor: _dockerContextName,
+          remoteHost: _controller.remoteHost,
+          openLogs: (target) async {
+            if (!mounted) return;
+            await _actions.openLogsTab(container: target);
+          },
+          openShell: (target) async {
+            if (!mounted) return;
+            await _actions.openExecTerminal(target);
+          },
+          copyExecCommand: _actions.copyExecCommand,
+          execCommand: _actions.execCommand,
+          copyExecCommands: (commands, count) => _uiAdapter.copyToClipboard(
+            commands,
+            successMessage: 'Exec commands copied ($count).',
+          ),
+          stopForwards: _actions.stopForwardsForHost,
+          forwardPorts: (target) =>
+              _actions.forwardContainerPorts(container: target),
+          openExplorer: (target, dockerContextName) =>
+              _actions.openContainerExplorer(
                 container: target,
-                dockerContextName: _dockerContextName(
-                  _controller.remoteHost ??
-                      const SshHost(
-                        name: 'local',
-                        hostname: 'localhost',
-                        port: 22,
-                        available: true,
-                        user: null,
-                        identityFiles: <String>[],
-                        source: 'local',
-                      ),
-                ),
-              );
-            }
-            break;
-          case 'start':
-          case 'stop':
-          case 'restart':
-            await Future.wait(
-              selection.map(
-                (target) => _actions.runContainerAction(
-                  container: target,
-                  action: action,
-                  onRestarted: () => _runtimeState.updateContainerAfterRestart(target),
-                  onStarted: () => _runtimeState.updateContainerAfterStart(target),
-                  onStopped: () => _runtimeState.markContainerStopped(target.id),
-                  onRefresh: _refresh,
-                  loadStartTime: () => _runtimeState.loadStartTime(target),
-                ),
+                dockerContextName: dockerContextName,
               ),
-            );
-            break;
-          case 'remove':
-            for (final target in selection) {
-              await _actions.runContainerAction(
-                container: target,
-                action: action,
-                onRestarted: () => _runtimeState.updateContainerAfterRestart(target),
-                onStarted: () => _runtimeState.updateContainerAfterStart(target),
-                onStopped: () => _runtimeState.markContainerStopped(target.id),
-                onRefresh: _refresh,
-                loadStartTime: () => _runtimeState.loadStartTime(target),
-              );
-            }
-            break;
-          default:
-            break;
-        }
+          runAction: (target, selectedAction) => _actions.runContainerAction(
+            container: target,
+            action: selectedAction,
+            onRestarted: () => _runtimeState.updateContainerAfterRestart(target),
+            onStarted: () => _runtimeState.updateContainerAfterStart(target),
+            onStopped: () => _runtimeState.markContainerStopped(target.id),
+            onRefresh: _refresh,
+            loadStartTime: () => _runtimeState.loadStartTime(target),
+          ),
+        );
       },
     );
   }
