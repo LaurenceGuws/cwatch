@@ -13,6 +13,7 @@ part 'structured_data_table_constants.dart';
 part 'structured_data_table_types.dart';
 part 'structured_data_table_state.dart';
 part 'structured_data_table_columns.dart';
+part 'structured_data_table_projection.dart';
 part 'structured_data_table_selection.dart';
 part 'structured_data_table_hit_testing.dart';
 part 'structured_data_table_scrolling.dart';

@@ -41,9 +41,7 @@ abstract class _StructuredDataTableStateBase<T>
 
   List<T> get _visibleRows;
   List<T> _applySearch(List<T> rows);
-  bool _rowMatchesQuery(T row, String query, String Function(T row)? builder);
   List<StructuredDataColumn<T>> _buildVisibleColumns();
-  int _compareNullable(Comparable<Object?>? a, Comparable<Object?>? b);
   void _toggleSort(int index);
   Comparable<Object?>? Function(T row)? _sortValueForColumn(int index);
   void _autoFitColumn(int index);

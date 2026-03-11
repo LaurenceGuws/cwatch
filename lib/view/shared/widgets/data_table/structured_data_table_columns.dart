@@ -2,72 +2,34 @@
 part of 'structured_data_table.dart';
 
 mixin _StructuredDataTableColumns<T> on _StructuredDataTableStateBase<T> {
+  StructuredDataTableProjection<T> get _projection =>
+      StructuredDataTableProjection<T>();
+
   List<T> get _visibleRows {
     final filtered = _applySearch(widget.rows);
-    final sortIndex = _sortColumnIndex;
-    if (sortIndex == null) return filtered;
-    if (sortIndex < 0 || sortIndex >= _columns.length) return filtered;
-    final sortValue = _sortValueForColumn(sortIndex);
-    if (sortValue == null) return filtered;
-
-    final sorted = filtered.toList(growable: false);
-    sorted.sort((a, b) {
-      final av = sortValue(a);
-      final bv = sortValue(b);
-      final result = _compareNullable(av, bv);
-      return _sortAscending ? result : -result;
-    });
-    return sorted;
+    return _projection.sortVisibleRows(
+      rows: filtered,
+      columns: _columns,
+      sortColumnIndex: _sortColumnIndex,
+      sortAscending: _sortAscending,
+    );
   }
 
   List<T> _applySearch(List<T> rows) {
-    final query = widget.searchQuery.trim().toLowerCase();
-    if (query.isEmpty) return rows;
-    final builder = widget.rowSearchTextBuilder;
-    return rows
-        .where((row) => _rowMatchesQuery(row, query, builder))
-        .toList(growable: false);
-  }
-
-  bool _rowMatchesQuery(T row, String query, String Function(T row)? builder) {
-    if (builder != null) {
-      return builder(row).toLowerCase().contains(query);
-    }
-    var hasSearchableColumn = false;
-    for (final column in _columns) {
-      final textExtractor = column.autoFitText;
-      if (textExtractor == null) continue;
-      hasSearchableColumn = true;
-      if (textExtractor(row).toLowerCase().contains(query)) {
-        return true;
-      }
-    }
-    return !hasSearchableColumn;
+    return _projection.applySearch(
+      rows: rows,
+      query: widget.searchQuery,
+      columns: _columns,
+      rowSearchTextBuilder: widget.rowSearchTextBuilder,
+    );
   }
 
   List<StructuredDataColumn<T>> _buildVisibleColumns() {
-    if (widget.hiddenColumnIds.isEmpty) {
-      return List.of(widget.columns);
-    }
-    final idFor = widget.columnIdBuilder ?? (column) => column.label.trim();
-    final visible = <StructuredDataColumn<T>>[];
-    for (var i = 0; i < widget.columns.length; i++) {
-      final column = widget.columns[i];
-      if (!widget.hiddenColumnIds.contains(idFor(column))) {
-        visible.add(column);
-      }
-    }
-    if (visible.isEmpty && widget.columns.isNotEmpty) {
-      visible.add(widget.columns.first);
-    }
-    return visible;
-  }
-
-  int _compareNullable(Comparable<Object?>? a, Comparable<Object?>? b) {
-    if (a == null && b == null) return 0;
-    if (a == null) return 1;
-    if (b == null) return -1;
-    return a.compareTo(b);
+    return _projection.buildVisibleColumns(
+      columns: widget.columns,
+      hiddenColumnIds: widget.hiddenColumnIds,
+      columnIdBuilder: widget.columnIdBuilder,
+    );
   }
 
   void _toggleSort(int index) {
@@ -87,12 +49,7 @@ mixin _StructuredDataTableColumns<T> on _StructuredDataTableStateBase<T> {
   }
 
   Comparable<Object?>? Function(T row)? _sortValueForColumn(int index) {
-    if (index < 0 || index >= _columns.length) return null;
-    final column = _columns[index];
-    if (column.sortValue != null) return column.sortValue;
-    final textExtractor = column.autoFitText;
-    if (textExtractor == null) return null;
-    return (row) => textExtractor(row).toLowerCase();
+    return _projection.sortValueForColumn(_columns, index);
   }
 
   void _autoFitColumn(int index) {

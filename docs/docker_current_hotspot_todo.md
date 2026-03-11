@@ -183,3 +183,28 @@ Done definition:
 - one Docker-local helper owns selection fallback and post-action container/image/network/volume targeting helpers
 - `_DockerOverviewState` no longer owns inline selection and update helper blocks
 - focused regression coverage exists for the new helper
+
+## Task 22.10: checkpoint the current Docker hotspot pass
+Status: completed
+
+Goal:
+- stop the Docker pass at the point where the remaining weight is mostly valid feature-local hosting state
+
+Done definition:
+- the tracker explicitly records Docker as checkpointed for the current pass
+- the next repo hotspot is named
+
+Result:
+- the current Docker hotspot pass is now checkpointed
+- the remaining weight in [docker_overview.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_overview.dart) is mostly valid Docker-local hosting behavior:
+  - snapshot/tab hosting
+  - distro probe triggering
+  - container keyboard focus behavior
+  - dashboard tab composition
+- the next ranked hotspot is now:
+  - `StructuredDataTable` risk reduction
+
+Why this is the right stop:
+- the Docker list surfaces are materially cleaner
+- the densest non-rendering overview orchestration has been split
+- pushing further now would likely optimize for file size rather than architectural value
