@@ -198,9 +198,29 @@ It currently covers:
 - shared straightforward loading/error/empty feedback around table-hosted surfaces
 
 Current next polish move:
-- re-scope the next visible consistency hotspot from evidence instead of continuing tab-shell work by default
+- dialog and action-sheet polish
 
 Why:
-- tab-shell polish is now at a good checkpoint
-- the shared placeholder-tab language already reduced the most visible drift across Docker, Kubernetes, and server entry tabs
-- any further tab-shell work now needs a sharper product-facing issue, not more default expansion
+- the shared dialog/action substrate already exists through:
+  - [dialog_keyboard_shortcuts.dart](/home/home/personal/cwatch/lib/view/shared/widgets/dialog_keyboard_shortcuts.dart)
+  - [shared_prompt_dialogs.dart](/home/home/personal/cwatch/lib/view/shared/widgets/shared_prompt_dialogs.dart)
+  - [action_picker.dart](/home/home/personal/cwatch/lib/view/shared/widgets/action_picker.dart)
+- the remaining visible drift is now in:
+  - lightweight dialog header/body/action spacing
+  - action-sheet item density and subtitle treatment
+  - destructive vs neutral dialog affordance consistency
+- this is a reused shell-facing surface and now a stronger source of product inconsistency than the checkpointed tab/panel/table/dashboard surfaces
+
+Current dialog polish direction:
+- standardize lightweight dialog and action-sheet chrome where the shared shell already owns the behavior
+- not domain-specific dialog flows or rich multi-step forms
+
+What should become shared:
+- header/body/footer spacing for simple dialogs
+- action button treatment for confirm/cancel/destructive flows
+- action-sheet row spacing and subtitle hierarchy
+
+What should stay feature-owned:
+- domain-specific dialog copy
+- multi-step or high-context dialogs
+- feature-specific actions and remediation flows

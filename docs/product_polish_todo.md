@@ -614,3 +614,59 @@ Result:
 Why this is the right stop:
 - the biggest repeated placeholder-tab drift is already reduced
 - pushing further without a sharper target would risk generic cleanup instead of product value
+
+## Task 21.23: define the dialog and action-sheet polish target
+Status: completed
+
+Goal:
+- identify the next visible repeated shell surface after the tab-shell checkpoint
+- choose a narrow product-polish hotspot with multiple real adopters
+
+Done definition:
+- one next polish hotspot is chosen from current UI evidence
+- the first implementation cut is explicit
+
+Result:
+- the next visible hotspot is:
+  - dialog and action-sheet polish
+- the strongest repeated shared surfaces are:
+  - [dialog_keyboard_shortcuts.dart](/home/home/personal/cwatch/lib/view/shared/widgets/dialog_keyboard_shortcuts.dart)
+  - [shared_prompt_dialogs.dart](/home/home/personal/cwatch/lib/view/shared/widgets/shared_prompt_dialogs.dart)
+  - [action_picker.dart](/home/home/personal/cwatch/lib/view/shared/widgets/action_picker.dart)
+- the clearest remaining drift is in:
+  - lightweight dialog spacing and button treatment
+  - action-sheet row density and subtitle hierarchy
+  - destructive vs neutral action emphasis
+
+Why this is the right next move:
+- these surfaces are reused across settings, server actions, prompts, and simple confirmations
+- the shared shell path already exists, so polish can happen without reopening ownership cleanup
+- the likely remaining drift is in chrome and interaction clarity, not dialog behavior
+
+## Task 21.24: define the dialog and action-sheet polish contract
+Status: completed
+
+Goal:
+- define what part of lightweight dialog/action-sheet treatment should become more consistent
+- keep feature-specific copy and richer domain flows local
+
+Done definition:
+- the shared polish boundary is explicit
+- the first implementation batch is locked
+
+Result:
+- shared:
+  - lightweight dialog header/body/footer spacing
+  - confirm/cancel/destructive action affordance treatment
+  - action-sheet row spacing and subtitle hierarchy
+- feature-owned:
+  - domain-specific copy
+  - richer multi-step dialogs
+  - feature-specific remediation and action flows
+
+First implementation batch:
+- tighten shared action-sheet row hierarchy in [action_picker.dart](/home/home/personal/cwatch/lib/view/shared/widgets/action_picker.dart)
+- tighten simple dialog action spacing in [shared_prompt_dialogs.dart](/home/home/personal/cwatch/lib/view/shared/widgets/shared_prompt_dialogs.dart)
+- prove it first on:
+  - server host action picker
+  - shared text/secret prompts
