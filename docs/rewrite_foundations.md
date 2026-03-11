@@ -307,6 +307,18 @@ What should not happen next by default:
 - do not start another broad ownership layer just because there is still code that could be moved
 - do not reopen already checkpointed cross-cutting layers without concrete evidence from tests, runtime bugs, or product polish work
 
+Current recommendation after the first local-seam regression batch:
+- checkpoint the targeted-regression layer and move to product polish/consistency work
+
+Why:
+- the main extracted local seams now have direct focused coverage:
+  - `server_host_surface_controller.dart`
+  - `docker_local_state_controller.dart`
+  - `kubernetes_context_list_state.dart`
+  - `file_explorer_tab_entry_interactions.dart`
+- continuing the same layer immediately would now have lower leverage and higher odds of test padding
+- the next highest-value work is to improve the now-stabilized shared and feature surfaces with less regression risk
+
 ### Focus Area E: infrastructure boundary cleanup
 Questions to answer:
 - Where are transport, parsing, and policy mixed today?

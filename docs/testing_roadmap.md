@@ -658,6 +658,30 @@ Verification:
 - `flutter test test/view/shared/views/shared/tabs/file_explorer/file_explorer_tab_entry_interactions_test.dart`
 - `flutter analyze`
 
+### Task 13.22: re-scope after the first local-seam regression batch
+Status: completed
+
+What this re-scope checked:
+- whether to continue expanding tests around every newly extracted seam
+- or whether the current regression floor is now strong enough to stop priority 1 intentionally
+
+Conclusion:
+- the targeted local-seam regression layer is now at a good checkpoint
+- the next repo priority should move to product polish and consistency work
+
+Why:
+- the highest-value extracted seams are now covered directly:
+  - local server host surface coordination
+  - local Docker scan/probe/readiness coordination
+  - local Kubernetes context-list state
+  - local explorer interaction routing
+- the earlier shell, presenter, actions, and service seams already had direct focused tests
+- continuing this layer now would have a higher risk of low-value test padding than of catching new structural regressions
+
+Done definition:
+- the testing layer has an explicit checkpoint
+- the roadmap no longer implies that every remaining refactor helper needs immediate direct test expansion before polish can start
+
 ## Test Organization
 
 Recommended structure:
