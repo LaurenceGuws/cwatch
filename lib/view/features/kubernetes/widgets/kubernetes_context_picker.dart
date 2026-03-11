@@ -11,6 +11,7 @@ import 'package:cwatch/controller/adapters/external_app_launcher.dart';
 import 'package:cwatch/controller/adapters/kubernetes_ui_adapter.dart';
 import 'package:cwatch/view/shared/widgets/data_table/structured_data_table.dart';
 import 'package:cwatch/view/shared/widgets/lists/section_list.dart';
+import 'package:cwatch/view/shared/widgets/standard_empty_state.dart';
 import 'package:cwatch/controller/di/bindings/kubernetes_context_binding.dart';
 
 import 'package:cwatch/controller/controllers/kubernetes_context_controller.dart';
@@ -69,37 +70,21 @@ class _KubernetesContextPickerState extends State<KubernetesContextPicker> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('Failed to load contexts: ${snapshot.error}'),
-                SizedBox(height: spacing.lg),
-                FilledButton.icon(
-                  onPressed: widget.onRefreshContexts,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Retry'),
-                ),
-              ],
-            ),
+          return StandardEmptyState(
+            icon: Icons.error_outline,
+            message: 'Failed to load Kubernetes contexts: ${snapshot.error}',
+            actionLabel: 'Retry',
+            onAction: widget.onRefreshContexts,
           );
         }
 
         final contexts = snapshot.data ?? widget.cachedContexts;
         if (contexts.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('No Kubernetes contexts found.'),
-                SizedBox(height: spacing.lg),
-                FilledButton.icon(
-                  onPressed: widget.onRefreshContexts,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Reload'),
-                ),
-              ],
-            ),
+          return StandardEmptyState(
+            icon: Icons.hub_outlined,
+            message: 'No Kubernetes contexts found.',
+            actionLabel: 'Reload',
+            onAction: widget.onRefreshContexts,
           );
         }
 

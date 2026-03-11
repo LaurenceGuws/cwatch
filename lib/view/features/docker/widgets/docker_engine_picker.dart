@@ -380,6 +380,7 @@ class RemoteSection extends StatelessWidget {
               return RemoteHostList(
                 hosts: hosts,
                 onOpenHost: onOpenHost,
+                onScan: onScan,
                 settingsController: settingsController,
                 distroCacheController: distroCacheController,
                 dockerService: dockerService,
@@ -417,12 +418,18 @@ class RemoteSection extends StatelessWidget {
               if (hosts.isEmpty) {
                 return Padding(
                   padding: spacing.inset(horizontal: 1, vertical: 2),
-                  child: const Text('No Docker-ready remote hosts found.'),
+                  child: StandardEmptyState(
+                    icon: Icons.cloud_off,
+                    message: 'No Docker-ready remote hosts found.',
+                    actionLabel: 'Scan again',
+                    onAction: onScan,
+                  ),
                 );
               }
               return RemoteHostList(
                 hosts: hosts,
                 onOpenHost: onOpenHost,
+                onScan: onScan,
                 settingsController: settingsController,
                 distroCacheController: distroCacheController,
                 dockerService: dockerService,
@@ -478,6 +485,7 @@ class RemoteHostList extends StatefulWidget {
     super.key,
     required this.hosts,
     required this.onOpenHost,
+    required this.onScan,
     required this.settingsController,
     required this.distroCacheController,
     this.dockerService,
@@ -487,6 +495,7 @@ class RemoteHostList extends StatefulWidget {
 
   final List<RemoteDockerStatus> hosts;
   final void Function(SshHost host, Offset? anchor) onOpenHost;
+  final VoidCallback onScan;
   final AppSettingsController settingsController;
   final DistroCacheController distroCacheController;
   final DockerClientService? dockerService;
@@ -513,7 +522,12 @@ class _RemoteHostListState extends State<RemoteHostList> {
       onRowContextMenu: (status, selectedRows, anchor) => widget.onOpenHost(status.host, anchor),
       emptyState: Padding(
         padding: EdgeInsets.all(context.appTheme.spacing.xl),
-        child: const Text('No Docker-ready remote hosts found.'),
+        child: StandardEmptyState(
+          icon: Icons.cloud_off,
+          message: 'No Docker-ready remote hosts found.',
+          actionLabel: 'Scan again',
+          onAction: widget.onScan,
+        ),
       ),
     );
   }

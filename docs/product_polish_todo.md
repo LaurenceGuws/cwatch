@@ -58,3 +58,24 @@ First implementation batch:
 - normalize Kubernetes context placeholder/list empty states onto `StandardEmptyState`
 - normalize Docker remote picker "no ready remotes" framing onto the same shared path
 - only extend `StandardEmptyState` if the two adopters reveal one real missing shared affordance
+
+## Task 21.3: implement the first placeholder/empty-state polish batch
+Status: completed
+
+Goal:
+- normalize the first visible placeholder/empty-state inconsistencies onto the existing shared empty-state path
+
+Done definition:
+- Kubernetes placeholder/list empty states no longer use plain `Text` fallback blocks
+- Docker remote picker empty/unavailable states use the same shared empty-state framing quality
+- no new generic dashboard framework is introduced
+
+Result:
+- [kubernetes_context_list.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/kubernetes_context_list.dart) now uses `StandardEmptyState` for context-load failure and no-context states
+- [kubernetes_context_picker.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/widgets/kubernetes_context_picker.dart) now uses `StandardEmptyState` for context-load failure and no-context states
+- [docker_engine_picker.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_engine_picker.dart) now uses `StandardEmptyState` for remote "no Docker-ready hosts" states with a real retry action
+
+Why this batch is a good checkpoint:
+- it improves the most visible placeholder-entry surfaces without reopening ownership work
+- it strengthens one canonical shared path instead of adding a new UI abstraction
+- it leaves richer dashboard-specific unavailable states for a later dashboard-focused polish batch
