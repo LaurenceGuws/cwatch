@@ -63,6 +63,7 @@ class KubernetesContextSelectionSurface extends StatelessWidget {
     final uiAdapter = KubernetesUiAdapter(context: context);
     return buildKubernetesContextMenuActions(
       selection: selection,
+      cliCommand: settingsController.settings.kubernetesPreferences.cliCommand,
       openContext: (target) => workspaceShell.openContextTab(target),
       copyText: (text) => uiAdapter.copyToClipboard(text),
       openConfigFile: (configPath) =>

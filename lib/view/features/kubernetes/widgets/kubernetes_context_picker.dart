@@ -226,6 +226,7 @@ class _KubernetesContextPickerState extends State<KubernetesContextPicker> {
     final selection = selected.isNotEmpty ? selected : [ctx];
     return buildKubernetesContextMenuActions(
       selection: selection,
+      cliCommand: widget.settingsController.settings.kubernetesPreferences.cliCommand,
       openContext: widget.onOpenContext,
       copyText: _copyText,
       openConfigFile: (configPath) =>

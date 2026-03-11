@@ -104,14 +104,14 @@ class _KubernetesResourcesState extends State<KubernetesResources> {
           label: 'Copy `kubectl top nodes`',
           icon: NerdIcon.copy.data,
           onSelected: () => _uiAdapter.copyToClipboard(
-            'kubectl --context=${widget.contextName} --kubeconfig=${widget.configPath} top nodes',
+            '${widget.settingsController.settings.kubernetesPreferences.cliCommand} --context=${widget.contextName} --kubeconfig=${widget.configPath} top nodes',
           ),
         ),
         TabChipOption(
           label: 'Copy `kubectl top pods -A`',
           icon: NerdIcon.copy.data,
           onSelected: () => _uiAdapter.copyToClipboard(
-            'kubectl --context=${widget.contextName} --kubeconfig=${widget.configPath} top pods -A',
+            '${widget.settingsController.settings.kubernetesPreferences.cliCommand} --context=${widget.contextName} --kubeconfig=${widget.configPath} top pods -A',
           ),
         ),
       ];

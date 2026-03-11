@@ -4,12 +4,16 @@ import 'package:cwatch/model/models/kubernetes/kubeconfig_context.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/view/shared/widgets/data_table/structured_data_table.dart';
 
-String kubectlCommandForContext(KubeconfigContext context) {
-  return 'kubectl --context=${context.name} --kubeconfig=${context.configPath}';
+String kubectlCommandForContext(
+  KubeconfigContext context, {
+  String cliCommand = 'kubectl',
+}) {
+  return '$cliCommand --context=${context.name} --kubeconfig=${context.configPath}';
 }
 
 List<StructuredDataMenuAction<KubeconfigContext>> buildKubernetesContextMenuActions({
   required List<KubeconfigContext> selection,
+  required String cliCommand,
   required void Function(KubeconfigContext context) openContext,
   required Future<void> Function(String text) copyText,
   required Future<void> Function(String configPath) openConfigFile,
@@ -33,7 +37,7 @@ List<StructuredDataMenuAction<KubeconfigContext>> buildKubernetesContextMenuActi
       label: 'Copy kubectl command',
       icon: NerdIcon.copy.data,
       onSelected: (_, primary) {
-        copyText(kubectlCommandForContext(primary));
+        copyText(kubectlCommandForContext(primary, cliCommand: cliCommand));
       },
     ),
     StructuredDataMenuAction<KubeconfigContext>(

@@ -27,6 +27,10 @@ void main() {
       kubectlCommandForContext(primary),
       'kubectl --context=dev --kubeconfig=/tmp/dev-kubeconfig',
     );
+    expect(
+      kubectlCommandForContext(primary, cliCommand: 'brommer-kubectl'),
+      'brommer-kubectl --context=dev --kubeconfig=/tmp/dev-kubeconfig',
+    );
   });
 
   test('single-selection actions include copy command and enabled config open', () async {
@@ -36,6 +40,7 @@ void main() {
 
     final actions = buildKubernetesContextMenuActions(
       selection: const [primary],
+      cliCommand: 'brommer-kubectl',
       openContext: (context) => openedContext = context,
       copyText: (text) async => copied = text,
       openConfigFile: (configPath) async => openedConfig = configPath,
@@ -72,7 +77,10 @@ void main() {
     );
 
     expect(openedContext, primary);
-    expect(copied, 'kubectl --context=dev --kubeconfig=/tmp/dev-kubeconfig');
+    expect(
+      copied,
+      'brommer-kubectl --context=dev --kubeconfig=/tmp/dev-kubeconfig',
+    );
     expect(openedConfig, '/tmp/dev-kubeconfig');
   });
 
@@ -80,6 +88,7 @@ void main() {
     final opened = <KubeconfigContext>[];
     final actions = buildKubernetesContextMenuActions(
       selection: const [primary, secondary],
+      cliCommand: 'brommer-kubectl',
       openContext: opened.add,
       copyText: (_) async {},
       openConfigFile: (_) async {},
