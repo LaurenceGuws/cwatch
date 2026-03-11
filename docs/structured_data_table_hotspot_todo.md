@@ -75,3 +75,21 @@ Result:
   - [selectable_list_item.dart](/home/home/personal/cwatch/lib/view/shared/widgets/lists/selectable_list_item.dart)
 - focused regression coverage exists in:
   - [structured_data_table_interaction_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/data_table/structured_data_table_interaction_test.dart)
+
+Follow-up results from the same interaction-policy pass:
+- the same right-click-implies-selection rule now also applies on high-traffic non-table surfaces:
+  - [docker_overview.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_overview.dart)
+  - [process_tree_view.dart](/home/home/personal/cwatch/lib/view/features/servers/widgets/resources/process_tree_view.dart)
+  - [tab_chip.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/tab_chip.dart)
+- deselection is now improved on feature-local blank surfaces where a local selection model exists:
+  - Docker grouped-list tabs
+  - process tree blank background
+- the breadcrumb-style bordered hover language is now carried into shared and shell-facing surfaces beyond the table engine:
+  - [selectable_list_item.dart](/home/home/personal/cwatch/lib/view/shared/widgets/lists/selectable_list_item.dart)
+  - [navigation_button.dart](/home/home/personal/cwatch/lib/view/core/navigation/widgets/navigation_button.dart)
+  - [sidebar_menu_button.dart](/home/home/personal/cwatch/lib/view/core/navigation/widgets/sidebar_menu_button.dart)
+  - [window_controls.dart](/home/home/personal/cwatch/lib/view/core/navigation/widgets/window_controls.dart)
+
+Checkpoint:
+- the highest-traffic selection/right-click/hover inconsistency is now materially reduced
+- remaining drift is likely limited to lower-value custom local surfaces rather than the main shared app language

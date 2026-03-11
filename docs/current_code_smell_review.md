@@ -44,6 +44,11 @@ Why it still matters:
 - It owns rendering, keyboarding, selection, hit testing, resizing, and context menus.
 - The blast radius is high because many features depend on it.
 
+Current checkpoint:
+- projection logic has been split out
+- shared table selection/right-click/hover behavior has been standardized
+- the remaining risk is now more about engine complexity than obviously inconsistent interaction policy
+
 ### 3. SSH subsystem complexity
 Primary files:
 - [ssh_shell_factory.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_factory.dart)
