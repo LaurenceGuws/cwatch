@@ -16,7 +16,6 @@ import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/model/services_infra/cache/distro_cache_controller.dart';
 import 'package:cwatch/view/features/servers/server_workspace_ui_adapter.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
-import 'package:cwatch/controller/di/bindings/server_workspace_binding.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'servers/servers_widgets.dart';
 import 'server_tab_builder.dart';
@@ -52,7 +51,6 @@ class ServerWorkspaceView extends StatefulWidget {
 }
 
 class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
-  final ServerWorkspaceBinding _binding = const ServerWorkspaceBinding();
   late final ServerWorkspaceRuntime _runtime;
   late final ServerWorkspaceShell _viewShell;
   late final ServerHostSurfaceController _hostSurfaceController;
@@ -166,7 +164,7 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
       keyService: widget.keyService,
       hostsFuture: initialHostsFuture,
     );
-    _runtime = _binding.createRuntime(
+    _runtime = ServerWorkspaceRuntime.create(
       context: context,
       appSettingsController: widget.settingsController,
       keyService: widget.keyService,
