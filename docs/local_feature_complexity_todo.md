@@ -352,7 +352,7 @@ First implementation batch:
 - leave `DockerViewShell`, `DockerTabBuilder`, and infra service seams stable for the first batch
 
 ## Task 20.11: implement the Docker local state split
-Status: pending
+Status: completed
 
 Goal:
 - extract the Docker-local scan/probe/readiness orchestration seam out of `docker_view.dart`
@@ -374,3 +374,26 @@ What stays stable in this batch:
 Done definition:
 - `docker_view.dart` no longer owns the full scan/probe/readiness lifecycle directly
 - the extracted seam remains Docker-local and does not become shared shell infrastructure
+
+Result:
+- extracted [docker_local_state_controller.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_local_state_controller.dart) as the Docker-local scan/probe/readiness seam
+- `docker_view.dart` now delegates:
+  - remote scan state and cancellation bookkeeping
+  - cached-ready loading and notifier updates
+  - local context status future lifecycle
+  - remote host filtering and probe coordination
+  - picker refresh triggers caused by readiness updates
+- `DockerViewShell`, `DockerTabBuilder`, `EnginePicker`, and Docker infra seams stayed stable in this batch
+
+## Task 20.12: re-scope the next Docker local-complexity batch
+Status: pending
+
+Goal:
+- decide whether the Docker local-complexity hotspot should continue or checkpoint here
+
+Questions to answer:
+- is there one more bounded Docker-local seam with real value
+- or is the remaining Docker view weight now mostly valid feature-local behavior
+
+Done definition:
+- the next local-complexity move is explicit
