@@ -114,3 +114,24 @@ Result:
   - [structured_data_table_keyboard.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_keyboard.dart)
 - focused regression coverage exists in:
   - [structured_data_table_cell_navigation_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/data_table/structured_data_table_cell_navigation_test.dart)
+
+## Task 23.6: extract pure cell-selection state rules from the selection mixin
+Status: completed
+
+Goal:
+- reduce remaining shared engine complexity in the selection mixin without redesigning the table selection model
+- move pure cell-coordinate/range state shaping into a dedicated helper
+
+Done definition:
+- coordinate clamping no longer lives inline in the selection mixin
+- pure range/anchor/extent state shaping no longer lives inline in the selection mixin
+- range membership checks no longer live inline in the selection mixin
+- focused regression coverage exists for the helper
+
+Result:
+- pure cell-selection state logic now lives in:
+  - [structured_data_table_cell_selection_state.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_cell_selection_state.dart)
+- the selection mixin now delegates coordinate/range state shaping:
+  - [structured_data_table_selection.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_selection.dart)
+- focused regression coverage exists in:
+  - [structured_data_table_cell_selection_state_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/data_table/structured_data_table_cell_selection_state_test.dart)

@@ -2,6 +2,20 @@
 part of 'structured_data_table.dart';
 
 mixin _StructuredDataTableSelection<T> on _StructuredDataTableStateBase<T> {
+  StructuredDataTableCellSelectionState get _cellSelectionState =>
+      const StructuredDataTableCellSelectionState();
+
+  StructuredDataTableCellSelectionSnapshot get _cellSelectionSnapshot =>
+      StructuredDataTableCellSelectionSnapshot(
+        selectedCell: _selectedCell,
+        focusedCell: _focusedCell,
+        anchor: _cellSelectionAnchor,
+        extent: _cellSelectionExtent,
+        additionalSelectedCells: Set<StructuredDataCellCoordinate>.from(
+          _additionalSelectedCells,
+        ),
+      );
+
   void _clearTableSelection({bool clearFocus = false}) {
     _listController.clearSelection(clearFocus: clearFocus);
     if (!widget.cellSelectionEnabled) {
@@ -115,28 +129,32 @@ mixin _StructuredDataTableSelection<T> on _StructuredDataTableStateBase<T> {
     if (!widget.cellSelectionEnabled || _visibleRows.isEmpty) {
       return;
     }
-    final clampedRow = rowIndex.clamp(0, _visibleRows.length - 1);
-    final clampedColumn = columnIndex.clamp(0, _columns.length - 1);
-    final coordinate = StructuredDataCellCoordinate(
-      rowIndex: clampedRow,
-      columnIndex: clampedColumn,
+    final coordinate = _cellSelectionState.clampCoordinate(
+      rowIndex: rowIndex,
+      columnIndex: columnIndex,
+      rowCount: _visibleRows.length,
+      columnCount: _columns.length,
     );
+    final clampedRow = coordinate.rowIndex;
+    final clampedColumn = coordinate.columnIndex;
     if (_selectedCell == coordinate) {
       _listController.focus(clampedRow);
       _focusedCell = coordinate;
       return;
     }
+    final nextState = _cellSelectionState.updateSelection(
+      current: _cellSelectionSnapshot,
+      coordinate: coordinate,
+      extend: extend,
+    );
     setState(() {
-      _selectedCell = coordinate;
-      _focusedCell = coordinate;
-      if (extend) {
-        _cellSelectionAnchor ??= _cellSelectionExtent ?? coordinate;
-        _cellSelectionExtent = coordinate;
-      } else {
-        _cellSelectionAnchor = coordinate;
-        _cellSelectionExtent = coordinate;
-        _additionalSelectedCells.clear();
-      }
+      _selectedCell = nextState.selectedCell;
+      _focusedCell = nextState.focusedCell;
+      _cellSelectionAnchor = nextState.anchor;
+      _cellSelectionExtent = nextState.extent;
+      _additionalSelectedCells
+        ..clear()
+        ..addAll(nextState.additionalSelectedCells);
     });
     _listController.focus(clampedRow);
     if (!_focusNode.hasFocus) {
@@ -162,25 +180,11 @@ mixin _StructuredDataTableSelection<T> on _StructuredDataTableStateBase<T> {
 
   bool _isCellSelected(int rowIndex, int columnIndex) {
     if (!widget.cellSelectionEnabled) return false;
-    if (_additionalSelectedCells.contains(
-      StructuredDataCellCoordinate(
-        rowIndex: rowIndex,
-        columnIndex: columnIndex,
-      ),
-    )) {
-      return true;
-    }
-    final anchor = _cellSelectionAnchor;
-    final extent = _cellSelectionExtent ?? _selectedCell;
-    if (anchor == null || extent == null) return false;
-    final top = min(anchor.rowIndex, extent.rowIndex);
-    final bottom = max(anchor.rowIndex, extent.rowIndex);
-    final left = min(anchor.columnIndex, extent.columnIndex);
-    final right = max(anchor.columnIndex, extent.columnIndex);
-    return rowIndex >= top &&
-        rowIndex <= bottom &&
-        columnIndex >= left &&
-        columnIndex <= right;
+    return _cellSelectionState.isCellSelected(
+      current: _cellSelectionSnapshot,
+      rowIndex: rowIndex,
+      columnIndex: columnIndex,
+    );
   }
 
   bool _isHoveredCell(int rowIndex, int columnIndex) {
@@ -204,12 +208,15 @@ mixin _StructuredDataTableSelection<T> on _StructuredDataTableStateBase<T> {
     if (_cellEditMode) {
       _exitCellEditMode(commit: false);
     }
+    final nextState = _cellSelectionState.beginMarquee(coordinate: coordinate);
     setState(() {
-      _selectedCell = coordinate;
-      _focusedCell = coordinate;
-      _cellSelectionAnchor = coordinate;
-      _cellSelectionExtent = coordinate;
-      _additionalSelectedCells.clear();
+      _selectedCell = nextState.selectedCell;
+      _focusedCell = nextState.focusedCell;
+      _cellSelectionAnchor = nextState.anchor;
+      _cellSelectionExtent = nextState.extent;
+      _additionalSelectedCells
+        ..clear()
+        ..addAll(nextState.additionalSelectedCells);
     });
   }
 
@@ -227,18 +234,24 @@ mixin _StructuredDataTableSelection<T> on _StructuredDataTableStateBase<T> {
     if (!widget.cellSelectionEnabled || _visibleRows.isEmpty) {
       return;
     }
-    final clampedRow = rowIndex.clamp(0, _visibleRows.length - 1);
-    final clampedColumn = columnIndex.clamp(0, _columns.length - 1);
-    final coordinate = StructuredDataCellCoordinate(
-      rowIndex: clampedRow,
-      columnIndex: clampedColumn,
+    final coordinate = _cellSelectionState.clampCoordinate(
+      rowIndex: rowIndex,
+      columnIndex: columnIndex,
+      rowCount: _visibleRows.length,
+      columnCount: _columns.length,
     );
+    final clampedRow = coordinate.rowIndex;
+    final clampedColumn = coordinate.columnIndex;
     if (_focusedCell == coordinate) {
       _listController.focus(clampedRow);
       return;
     }
+    final nextState = _cellSelectionState.updateFocus(
+      current: _cellSelectionSnapshot,
+      coordinate: coordinate,
+    );
     setState(() {
-      _focusedCell = coordinate;
+      _focusedCell = nextState.focusedCell;
     });
     _listController.focus(clampedRow);
     if (!_focusNode.hasFocus) {

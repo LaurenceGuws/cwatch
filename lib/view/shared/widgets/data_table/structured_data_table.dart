@@ -15,6 +15,7 @@ part 'structured_data_table_state.dart';
 part 'structured_data_table_columns.dart';
 part 'structured_data_table_projection.dart';
 part 'structured_data_table_cell_navigation.dart';
+part 'structured_data_table_cell_selection_state.dart';
 part 'structured_data_table_selection.dart';
 part 'structured_data_table_hit_testing.dart';
 part 'structured_data_table_scrolling.dart';
