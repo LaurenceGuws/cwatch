@@ -51,20 +51,7 @@ Why it matters now:
 - tab restore/setup, listeners, placeholder/base-tab creation, and shell/runtime glue are still re-expressed per feature
 - this is both a DRY problem and an ownership problem
 
-### 3. Settings mutation and composition duplication
-Primary files:
-- [settings_view.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/settings_view.dart)
-- [general_settings_tab.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/general_settings_tab.dart)
-- [terminal_settings_controls.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/terminal_settings_controls.dart)
-- [editor_settings_controls.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/editor_settings_controls.dart)
-- [builtin_ssh_settings.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/builtin_ssh_settings.dart)
-
-Why it matters now:
-- the settings UI still owns too much nested `copyWith` mutation plumbing
-- section wiring and preference updates are repeated across tabs and control groups
-- UI code is still too aware of the persisted settings tree shape
-
-### 4. SSH factory and runtime-cache indirection
+### 3. SSH factory and runtime-cache indirection
 Primary files:
 - [ssh_shell_factory.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_factory.dart)
 - [ssh_shell_factory_binding.dart](/home/home/personal/cwatch/lib/controller/di/bindings/ssh_shell_factory_binding.dart)
@@ -76,7 +63,7 @@ Why it matters now:
 - the ownership is spread across selector/request/factory/binding/cache semantics
 - this is a good current example of over-engineering rather than under-decomposition
 
-### 5. File-operation UI flow duplication
+### 4. File-operation UI flow duplication
 Primary file:
 - [file_operations_ui_handler.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operations_ui_handler.dart)
 
@@ -84,7 +71,7 @@ Why it matters now:
 - progress dialog lifecycle, byte accounting, success/failure shaping, and cancellation behavior are still repeated across multiple flows
 - changes to one operation path can still drift from the others
 
-### 6. Config metadata abstraction drift
+### 5. Config metadata abstraction drift
 Primary files:
 - [config_metadata_annotations.dart](/home/home/personal/cwatch/lib/model/config/config_metadata_annotations.dart)
 - [config_metadata_descriptor.dart](/home/home/personal/cwatch/lib/model/config/config_metadata_descriptor.dart)
@@ -95,7 +82,7 @@ Why it matters now:
 - that is a DRY failure unless one layer is the actual source of truth
 - this subsystem is now a live over-engineering candidate
 
-### 7. Controller to concrete UI-adapter coupling
+### 6. Controller to concrete UI-adapter coupling
 Primary files:
 - [settings_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/settings_controller.dart)
 - [server_port_forward_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/server_port_forward_controller.dart)
@@ -106,6 +93,17 @@ Why it matters now:
 - controller logic still depends on concrete dialog/snackbar/prompt adapters
 - this is better than `model -> view` coupling, but still keeps workflow logic shaped around widget-era interaction seams
 
+### 7. Feature-local settings workflow density
+Primary files:
+- [builtin_ssh_settings.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/builtin_ssh_settings.dart)
+- [ssh_settings_controls.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/ssh_settings_controls.dart)
+- [settings_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/settings_controller.dart)
+
+Why it matters now:
+- the repeated generic settings-tree mutation plumbing is materially reduced
+- what remains is denser feature-local workflow around built-in SSH key management, host bindings, and picker/prompt orchestration
+- this is now a narrower local complexity seam, not the same repo-level DRY hotspot as before
+
 ## Current Design Checkpoint
 
 The following earlier hotspots should now be treated as checkpointed current-state design, not as the active repo focus:
@@ -113,6 +111,7 @@ The following earlier hotspots should now be treated as checkpointed current-sta
 - SSH runtime support decomposition
 - theme/token decomposition
 - StructuredDataTable engine projection decomposition
+- settings mutation ownership cleanup
 
 What that means:
 - those areas were materially improved and should remain enforced as the current baseline
@@ -131,11 +130,11 @@ The repo now has direct tests in many extracted seams, but the following still c
 
 1. Runtime/composition ownership cleanup
 2. Workspace-shell hosting reuse
-3. Settings mutation/composition cleanup
-4. SSH factory/runtime-cache simplification
-5. File-operation UI deduplication
-6. Config metadata single-source-of-truth cleanup
-7. UI adapter surface reduction
+3. SSH factory/runtime-cache simplification
+4. File-operation UI deduplication
+5. Config metadata single-source-of-truth cleanup
+6. UI adapter surface reduction
+7. feature-local settings workflow reevaluation only if fresh evidence reopens it
 
 ## Why This Order
 
@@ -147,10 +146,10 @@ The repo now has direct tests in many extracted seams, but the following still c
 - it is the strongest repeated workflow pattern left in the feature layer
 - a cleaner host contract will reduce duplicate feature setup logic
 
-### Settings third
-- settings still carries the strongest UI-side mutation duplication
-- this is high-value DRY cleanup without reopening lower-level infrastructure
-
-### SSH and config after that
+### SSH third
 - SSH still has a real simplification opportunity, but now more from over-indirection than raw bulk
+- it is now the clearest over-engineering candidate in the current code state
+
+### File operations and config after that
+- file-operation UI flow still has repeated orchestration risk
 - config metadata is a good candidate for de-complexing once the higher-value ownership seams are clearer

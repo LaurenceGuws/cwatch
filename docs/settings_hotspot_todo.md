@@ -1,6 +1,6 @@
 # Settings Hotspot TODO
 
-Status: active
+Status: checkpointed
 Purpose: track bounded cleanup batches for the current settings mutation and composition hotspot.
 
 ## Task 26.1: start the settings hotspot pass
@@ -104,3 +104,36 @@ Why this is the right next cut:
 - the remaining direct writes are now small and clearly generic
 - finishing them gives the settings surface one obvious ownership seam for mutation behavior
 - it avoids mixing in the more feature-local SSH vault and file-picker workflows
+
+## Task 26.5: checkpoint the settings hotspot
+Status: completed
+
+Goal:
+- record that the current settings pass removed the main repeated mutation-plumbing seam from the codebase
+- leave remaining settings work to reopen only from fresh evidence instead of continuing cleanup momentum blindly
+
+Done definition:
+- this TODO is checkpointed from the current code state
+- completed settings work is recorded as enforced baseline
+- the remaining settings weight is described accurately
+
+Result:
+- generic settings mutation ownership now lives behind:
+  - [settings_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/settings_controller.dart)
+  - [settings_update_support.dart](/home/home/personal/cwatch/lib/controller/controllers/settings_update_support.dart)
+- the main settings surface no longer owns repeated nested settings-tree writes across:
+  - [settings_view.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/settings_view.dart)
+  - [general_settings_tab.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/general_settings_tab.dart)
+  - [explorer_settings_controls.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/explorer_settings_controls.dart)
+  - [server_list_settings_controls.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/server_list_settings_controls.dart)
+  - [kubernetes_settings_controls.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/kubernetes_settings_controls.dart)
+  - [shortcuts_settings_tab.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/shortcuts_settings_tab.dart)
+- focused regression coverage exists in:
+  - [settings_update_support_test.dart](/home/home/personal/cwatch/test/controller/controllers/settings_update_support_test.dart)
+
+What remains:
+- [builtin_ssh_settings.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/builtin_ssh_settings.dart) is still a dense feature-local key-vault and host-binding workflow
+- some settings sections still have substantial UI composition weight, but that is now more about feature-local behavior and form layout than repeated generic mutation plumbing
+
+Checkpoint rule:
+- future settings work should reopen from fresh evidence in feature-local workflows or broader settings-state design, not from the older generic mutation-plumbing hotspot
