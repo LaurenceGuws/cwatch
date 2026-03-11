@@ -27,7 +27,6 @@ class ServerHostSelectionSurface extends StatelessWidget {
     required this.lastHosts,
     required this.disabledHostKeys,
     required this.trackHostDistroChecks,
-    required this.ensureDistroForHostOnDemand,
     required this.onSelect,
     required this.onActivate,
     required this.onAction,
@@ -56,7 +55,6 @@ class ServerHostSelectionSurface extends StatelessWidget {
     required Set<String> disabledHostKeys,
   })
   trackHostDistroChecks;
-  final ValueChanged<SshHost> ensureDistroForHostOnDemand;
   final ValueChanged<SshHost>? onSelect;
   final ValueChanged<SshHost> onActivate;
   final void Function(SshHost, ServerAction)? onAction;
@@ -98,7 +96,6 @@ class ServerHostSelectionSurface extends StatelessWidget {
           settingsController: appSettingsController,
           distroCacheController: distroCacheController,
           keyService: keyService,
-          onHostVisible: ensureDistroForHostOnDemand,
           onOpenConnectivity: onOpenConnectivity,
           onOpenResources: onOpenResources,
           onOpenTerminal: (host) {

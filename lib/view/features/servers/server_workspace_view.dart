@@ -259,7 +259,6 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
           lastHosts: _lastHosts,
           disabledHostKeys: _disabledHostKeys(),
           trackHostDistroChecks: _hostSurfaceController.trackHostDistroChecks,
-          ensureDistroForHostOnDemand: _ensureDistroForHostOnDemand,
           onSelect: onHostSelected,
           onActivate: onHostActivate ?? _viewShell.startActionFlowForHost,
           onAction: onAction,

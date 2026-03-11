@@ -39,7 +39,6 @@ class HostList extends StatefulWidget {
     this.onOpenTerminal,
     this.onOpenExplorer,
     this.onOpenPortForward,
-    this.onHostVisible,
   });
 
   final List<SshHost> hosts;
@@ -57,7 +56,6 @@ class HostList extends StatefulWidget {
   final ValueChanged<SshHost>? onOpenTerminal;
   final ValueChanged<SshHost>? onOpenExplorer;
   final ValueChanged<SshHost>? onOpenPortForward;
-  final ValueChanged<SshHost>? onHostVisible;
 
   @override
   State<HostList> createState() => _HostListState();
@@ -319,19 +317,12 @@ class _HostListState extends State<HostList> {
         primaryDoubleClickOpensContextMenu: true,
         useZebraStripes: false,
         surfaceBackgroundColor: surfaceColor,
-        onRowTap: (host) {
-          widget.onHostVisible?.call(host);
-          widget.onSelect?.call(host);
-        },
+        onRowTap: widget.onSelect,
         onRowDoubleTap: (host) {
           if (_isHostDisabled(host)) {
             return;
           }
-          widget.onHostVisible?.call(host);
           widget.onActivate?.call(host);
-        },
-        onRowPointerEnter: (index, host, event) {
-          widget.onHostVisible?.call(host);
         },
         refreshListenable: widget.settingsController,
         rowContextMenuBuilder: _buildContextMenuActions,
