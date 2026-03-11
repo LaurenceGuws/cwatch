@@ -1,9 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
 import 'package:cwatch/model/models/app_settings.dart';
+import 'package:cwatch/model/models/input_mode_preference.dart';
 import 'package:cwatch/model/models/ssh_client_backend.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
@@ -13,6 +15,7 @@ import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.
 
 import '../adapters/settings_ui_adapter.dart';
 import '../repositories/settings_repository.dart';
+import 'settings_update_support.dart';
 
 class LoadedKeyFile {
   const LoadedKeyFile({required this.contents, required this.fileName});
@@ -50,6 +53,126 @@ class SettingsController extends ChangeNotifier {
     await settingsController.update(transform);
   }
 
+  Future<void> setThemeMode(ThemeMode value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setThemeMode(current, value),
+    );
+  }
+
+  Future<void> setDebugMode(bool value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setDebugMode(current, value),
+    );
+  }
+
+  Future<void> setZoomFactor(double value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setZoomFactor(current, value),
+    );
+  }
+
+  Future<void> setAppFontFamily(String value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setAppFontFamily(current, value),
+    );
+  }
+
+  Future<void> setAppThemeKey(String value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setAppThemeKey(current, value),
+    );
+  }
+
+  Future<void> setUiDensity(AppUiDensity value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setUiDensity(current, value),
+    );
+  }
+
+  Future<void> setInputModePreference(InputModePreference value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setInputModePreference(current, value),
+    );
+  }
+
+  Future<void> setDockerLogsTail(int value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setDockerLogsTail(current, value),
+    );
+  }
+
+  Future<void> setTerminalFontFamily(String value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setTerminalFontFamily(current, value),
+    );
+  }
+
+  Future<void> setTerminalFontSize(double value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setTerminalFontSize(current, value),
+    );
+  }
+
+  Future<void> setTerminalLineHeight(double value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setTerminalLineHeight(current, value),
+    );
+  }
+
+  Future<void> setTerminalPaddingX(double value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setTerminalPaddingX(current, value),
+    );
+  }
+
+  Future<void> setTerminalPaddingY(double value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setTerminalPaddingY(current, value),
+    );
+  }
+
+  Future<void> setTerminalDarkTheme(String value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setTerminalDarkTheme(current, value),
+    );
+  }
+
+  Future<void> setTerminalLightTheme(String value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setTerminalLightTheme(current, value),
+    );
+  }
+
+  Future<void> setEditorFontFamily(String value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setEditorFontFamily(current, value),
+    );
+  }
+
+  Future<void> setEditorFontSize(double value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setEditorFontSize(current, value),
+    );
+  }
+
+  Future<void> setEditorLineHeight(double value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setEditorLineHeight(current, value),
+    );
+  }
+
+  Future<void> setEditorLightTheme(String value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setEditorLightTheme(current, value),
+    );
+  }
+
+  Future<void> setEditorDarkTheme(String value) async {
+    await update(
+      (current) => SettingsUpdateSupport.setEditorDarkTheme(current, value),
+    );
+  }
+
   void applyOverrides(AppSettings Function(AppSettings current) transform) {
     settingsController.applyOverrides(transform);
   }
@@ -76,9 +199,7 @@ class SettingsController extends ChangeNotifier {
   Future<void> setSshClientBackend(SshClientBackend target) async {
     await update(
       (current) => current.copyWith(
-        sshPreferences: current.sshPreferences.copyWith(
-          clientBackend: target,
-        ),
+        sshPreferences: current.sshPreferences.copyWith(clientBackend: target),
       ),
     );
   }

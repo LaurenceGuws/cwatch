@@ -167,38 +167,18 @@ class _SettingsViewState extends State<SettingsView>
                           selectedTheme: settings.themeMode,
                           debugMode: settings.debugMode,
                           zoomFactor: settings.zoomFactor,
-                          onThemeChanged: (mode) => _controller.update(
-                            (current) => current.copyWith(themeMode: mode),
-                          ),
-                          onDebugModeChanged: (value) => _controller.update(
-                            (current) => current.copyWith(debugMode: value),
-                          ),
-                          onZoomChanged: (value) => _controller.update(
-                            (current) => current.copyWith(zoomFactor: value),
-                          ),
+                          onThemeChanged: _controller.setThemeMode,
+                          onDebugModeChanged: _controller.setDebugMode,
+                          onZoomChanged: _controller.setZoomFactor,
                           appFontFamily: settings.appFontFamily,
-                          onAppFontFamilyChanged: (value) => _controller.update(
-                            (current) => current.copyWith(
-                              appFontFamily: value.trim().isEmpty
-                                  ? null
-                                  : value.trim(),
-                            ),
-                          ),
+                          onAppFontFamilyChanged: _controller.setAppFontFamily,
                           appThemeKey: settings.appThemeKey,
-                          onAppThemeChanged: (value) => _controller.update(
-                            (current) => current.copyWith(appThemeKey: value),
-                          ),
+                          onAppThemeChanged: _controller.setAppThemeKey,
                           uiDensity: settings.uiDensity,
-                          onUiDensityChanged: (value) => _controller.update(
-                            (current) => current.copyWith(uiDensity: value),
-                          ),
+                          onUiDensityChanged: _controller.setUiDensity,
                           inputModePreference: settings.inputModePreference,
-                          onInputModePreferenceChanged: (value) =>
-                              _controller.update(
-                                (current) => current.copyWith(
-                                  inputModePreference: value,
-                                ),
-                              ),
+                          onInputModePreferenceChanged:
+                              _controller.setInputModePreference,
                         ),
                         ExplorerSettingsTab(
                           settings: settings,
@@ -210,15 +190,7 @@ class _SettingsViewState extends State<SettingsView>
                         ),
                         DockerSettingsTab(
                           logsTail: settings.dockerLogsTailClamped,
-                          onLogsTailChanged: (value) => _controller.update(
-                            (current) =>
-                                current.copyWith(
-                                  dockerPreferences:
-                                      current.dockerPreferences.copyWith(
-                                        logsTail: value,
-                                      ),
-                                ),
-                          ),
+                          onLogsTailChanged: _controller.setDockerLogsTail,
                         ),
                         KubernetesSettingsTab(
                           settings: settings,
@@ -234,64 +206,16 @@ class _SettingsViewState extends State<SettingsView>
                           paddingY: settings.terminalPreferences.paddingY,
                           darkTheme: settings.terminalPreferences.themeDark,
                           lightTheme: settings.terminalPreferences.themeLight,
-                          onFontFamilyChanged: (value) => _controller.update(
-                            (current) => current.copyWith(
-                              terminalPreferences:
-                                  current.terminalPreferences.copyWith(
-                                    fontFamily: value.trim().isEmpty
-                                        ? null
-                                        : value.trim(),
-                                  ),
-                            ),
-                          ),
-                          onFontSizeChanged: (value) => _controller.update(
-                            (current) => current.copyWith(
-                              terminalPreferences:
-                                  current.terminalPreferences.copyWith(
-                                    fontSize: value,
-                                  ),
-                            ),
-                          ),
-                          onLineHeightChanged: (value) => _controller.update(
-                            (current) => current.copyWith(
-                              terminalPreferences:
-                                  current.terminalPreferences.copyWith(
-                                    lineHeight: value,
-                                  ),
-                            ),
-                          ),
-                          onPaddingXChanged: (value) => _controller.update(
-                            (current) => current.copyWith(
-                              terminalPreferences:
-                                  current.terminalPreferences.copyWith(
-                                    paddingX: value,
-                                  ),
-                            ),
-                          ),
-                          onPaddingYChanged: (value) => _controller.update(
-                            (current) => current.copyWith(
-                              terminalPreferences:
-                                  current.terminalPreferences.copyWith(
-                                    paddingY: value,
-                                  ),
-                            ),
-                          ),
-                          onDarkThemeChanged: (value) => _controller.update(
-                            (current) => current.copyWith(
-                              terminalPreferences:
-                                  current.terminalPreferences.copyWith(
-                                    themeDark: value,
-                                  ),
-                            ),
-                          ),
-                          onLightThemeChanged: (value) => _controller.update(
-                            (current) => current.copyWith(
-                              terminalPreferences:
-                                  current.terminalPreferences.copyWith(
-                                    themeLight: value,
-                                  ),
-                            ),
-                          ),
+                          onFontFamilyChanged:
+                              _controller.setTerminalFontFamily,
+                          onFontSizeChanged: _controller.setTerminalFontSize,
+                          onLineHeightChanged:
+                              _controller.setTerminalLineHeight,
+                          onPaddingXChanged: _controller.setTerminalPaddingX,
+                          onPaddingYChanged: _controller.setTerminalPaddingY,
+                          onDarkThemeChanged: _controller.setTerminalDarkTheme,
+                          onLightThemeChanged:
+                              _controller.setTerminalLightTheme,
                         ),
                         EditorSettingsTab(
                           settings: settings,
@@ -299,50 +223,13 @@ class _SettingsViewState extends State<SettingsView>
                           fontFamily: settings.editorPreferences.fontFamily,
                           fontSize: settings.editorPreferences.fontSize,
                           lineHeight: settings.editorPreferences.lineHeight,
-                          onFontFamilyChanged: (value) => _controller.update(
-                            (current) => current.copyWith(
-                              editorPreferences:
-                                  current.editorPreferences.copyWith(
-                                    fontFamily: value.trim().isEmpty
-                                        ? null
-                                        : value.trim(),
-                                  ),
-                            ),
-                          ),
-                          onFontSizeChanged: (value) => _controller.update(
-                            (current) => current.copyWith(
-                              editorPreferences:
-                                  current.editorPreferences.copyWith(
-                                    fontSize: value,
-                                  ),
-                            ),
-                          ),
-                          onLineHeightChanged: (value) => _controller.update(
-                            (current) => current.copyWith(
-                              editorPreferences:
-                                  current.editorPreferences.copyWith(
-                                    lineHeight: value,
-                                  ),
-                            ),
-                          ),
+                          onFontFamilyChanged: _controller.setEditorFontFamily,
+                          onFontSizeChanged: _controller.setEditorFontSize,
+                          onLineHeightChanged: _controller.setEditorLineHeight,
                           lightTheme: settings.editorPreferences.themeLight,
                           darkTheme: settings.editorPreferences.themeDark,
-                          onLightThemeChanged: (value) => _controller.update(
-                            (current) => current.copyWith(
-                              editorPreferences:
-                                  current.editorPreferences.copyWith(
-                                    themeLight: value,
-                                  ),
-                            ),
-                          ),
-                          onDarkThemeChanged: (value) => _controller.update(
-                            (current) => current.copyWith(
-                              editorPreferences:
-                                  current.editorPreferences.copyWith(
-                                    themeDark: value,
-                                  ),
-                            ),
-                          ),
+                          onLightThemeChanged: _controller.setEditorLightTheme,
+                          onDarkThemeChanged: _controller.setEditorDarkTheme,
                         ),
                       ],
                     )

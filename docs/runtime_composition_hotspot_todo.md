@@ -1,6 +1,6 @@
 # Runtime Composition Hotspot TODO
 
-Status: active
+Status: checkpointed
 Purpose: track the next bounded cleanup batches for the current highest-value repo hotspot: runtime and composition ownership.
 
 ## Task 25.1: start the runtime/composition hotspot pass
