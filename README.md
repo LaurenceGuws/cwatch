@@ -169,12 +169,11 @@ Current fresh current-state review:
 - `docs/current_code_smell_review.md`
 
 Current active hotspot order:
-1. feature-local settings workflow reevaluation only if fresh evidence reopens it
-2. SSH runtime/feature integration reevaluation only if fresh evidence reopens it
-3. file-operation flow reevaluation only if fresh evidence reopens it
+1. SSH runtime/feature integration reevaluation only if fresh evidence reopens it
+2. file-operation flow reevaluation only if fresh evidence reopens it
 
 Current active next TODO:
-- `docs/settings_workflow_reevaluation_todo.md` active
+- `docs/settings_workflow_reevaluation_todo.md` checkpointed
 - `docs/workspace_shell_hosting_hotspot_todo.md` checkpointed
 - `docs/ui_adapter_surface_hotspot_todo.md` checkpointed
 - `docs/runtime_composition_hotspot_todo.md` checkpointed
@@ -182,7 +181,7 @@ Current active next TODO:
 - `docs/ssh_current_hotspot_todo.md` checkpointed
 - `docs/file_operations_ui_hotspot_todo.md` checkpointed
 - `docs/config_metadata_hotspot_todo.md` checkpointed
-- next hotspot should be chosen from the current review, most likely a settings or SSH reevaluation only if fresh evidence justifies reopening it
+- next hotspot should be chosen from the current review, most likely an SSH reevaluation only if fresh evidence justifies reopening it
 
 Current enforced design checkpoints:
 - Docker feature decomposition is checkpointed and should only reopen from fresh evidence
@@ -196,6 +195,7 @@ Current enforced design checkpoints:
 - theme/token decomposition is checkpointed and should only reopen from fresh evidence
 - StructuredDataTable engine projection decomposition is checkpointed and should only reopen from fresh evidence
 - settings mutation ownership cleanup is checkpointed and should only reopen from fresh evidence
+- settings workflow reevaluation is checkpointed and should only reopen from fresh evidence
 
 Current table/list polish checkpoint:
 - shared table host/scaffold now exists in:

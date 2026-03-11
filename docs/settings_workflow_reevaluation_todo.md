@@ -1,6 +1,6 @@
 # Settings Workflow Reevaluation TODO
 
-Status: active
+Status: checkpointed
 Purpose: track bounded reevaluation work in the remaining settings-specific workflow seams after the generic settings mutation cleanup pass was checkpointed.
 
 ## Task 27.1: start the settings workflow reevaluation pass
@@ -69,3 +69,14 @@ Result:
   - [settings_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/settings_controller.dart)
 - focused coverage now includes host-binding ownership in:
   - [built_in_ssh_key_controller_test.dart](/home/home/personal/cwatch/test/controller/controllers/built_in_ssh_key_controller_test.dart)
+
+## Checkpoint
+
+Current state:
+- the broad settings mutation-plumbing hotspot remains closed and enforced
+- built-in SSH key workflow ownership now lives behind the dedicated key controller instead of the broad settings controller
+- the remaining state in `builtin_ssh_settings.dart` is mostly feature-local form, caching, and presentation state
+
+What this means:
+- settings workflow reevaluation should now be treated as a checkpointed current-state baseline, not as the next active repo hotspot
+- future work here should reopen only from fresh evidence in a concrete settings workflow seam

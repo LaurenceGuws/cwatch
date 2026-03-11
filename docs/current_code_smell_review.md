@@ -27,17 +27,7 @@ What remains is less about one giant file and more about architecture drift:
 
 ## Current Highest-Value Hotspots
 
-### 1. Feature-local settings workflow density
-Primary files:
-- [builtin_ssh_settings.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/builtin_ssh_settings.dart)
-- [ssh_settings_controls.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/ssh_settings_controls.dart)
-- [settings_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/settings_controller.dart)
-
-Why it matters now:
-- the repeated generic settings-tree mutation plumbing is materially reduced
-- what remains is denser feature-local workflow around built-in SSH key management, host bindings, and picker/prompt orchestration
-- this is now the strongest remaining complexity seam in the current code state, but it should only reopen from fresh evidence if the local workflow density still blocks change
-### 2. SSH runtime/feature integration reevaluation
+### 1. SSH runtime/feature integration reevaluation
 Primary files:
 - [ssh_shell_factory.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_factory.dart)
 - [process_ssh_shell_service.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/process_ssh_shell_service.dart)
@@ -46,8 +36,8 @@ Primary files:
 Why it matters now:
 - the previous SSH runtime bulk and shell-factory indirection hotspots are materially reduced
 - what remains is narrower runtime hosting and feature-integration behavior that should only be reopened from fresh evidence
-- this is a narrower reevaluation seam, not the first active hotspot anymore
-### 3. File-operation flow reevaluation
+- this is now the first active reevaluation seam in the current code state
+### 2. File-operation flow reevaluation
 Primary files:
 - [file_operations_ui_handler.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operations_ui_handler.dart)
 - [file_operation_transfer_session.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operation_transfer_session.dart)
@@ -73,6 +63,7 @@ The following earlier hotspots should now be treated as checkpointed current-sta
 - theme/token decomposition
 - StructuredDataTable engine projection decomposition
 - settings mutation ownership cleanup
+- settings workflow reevaluation
 
 What that means:
 - those areas were materially improved and should remain enforced as the current baseline
@@ -89,15 +80,14 @@ The repo now has direct tests in many extracted seams, but the following still c
 
 ## Recommended Next Order
 
-1. feature-local settings workflow reevaluation only if fresh evidence reopens it
-2. SSH runtime/feature integration reevaluation only if fresh evidence reopens it
-3. file-operation flow reevaluation only if fresh evidence reopens it
+1. SSH runtime/feature integration reevaluation only if fresh evidence reopens it
+2. file-operation flow reevaluation only if fresh evidence reopens it
 
 ## Why This Order
 
-### Settings/local-flow reevaluation first
-- the broad repeated mutation seam is already reduced, but the remaining built-in SSH settings workflow is still the most plausible place where fresh evidence could reopen design work
-- this should be treated as a reevaluation target, not as an assumed rewrite mandate
+### SSH reevaluation first
+- the settings reevaluation cut is now checkpointed from the current code state
+- SSH remains the next most plausible area where fresh evidence could still justify reopening a structural cleanup
 
-### SSH and file-operation reevaluation after that
+### File-operation reevaluation after that
 - narrower feature-local or file-operation flow work should now reopen only from fresh evidence
