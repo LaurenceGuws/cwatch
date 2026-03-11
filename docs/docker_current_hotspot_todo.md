@@ -107,3 +107,41 @@ Done definition:
 - one Docker-local helper owns repository grouping, grouped rows, expansion-state lifecycle, total tag/repo counts, and aggregate size formatting
 - `_ImagePeekState` no longer owns inline grouping/size helpers or expansion map lifecycle
 - focused regression coverage exists for the new helper
+
+## Task 22.6: define the third bounded Docker batch
+Status: completed
+
+Goal:
+- choose the next Docker cleanup slice from the remaining real hotspots after the image peek split
+
+Done definition:
+- one next batch is explicit
+- the batch has a clear stop condition
+- later Docker concerns remain queued instead of over-planned
+
+Result:
+- the third bounded Docker batch is now:
+  - network/volume section-state orchestration split
+- target files:
+  - [docker_lists.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_lists.dart)
+  - new Docker-local helper for grouped section collapse and list projection
+- stop condition:
+  - grouping-by-compose-ish and collapsed-section state ownership no longer live inline in `_NetworkListState` / `_VolumeListState`
+  - rendering stays in `docker_lists.dart`
+  - `docker_overview.dart` remains untouched in this batch
+
+Why this is the right third cut:
+- it removes repeated local orchestration smell from two more Docker list surfaces at once
+- it stays feature-local and does not reopen broader Docker ownership or overview complexity yet
+- it gives a direct seam for focused regression coverage
+
+## Task 22.7: implement the network/volume section-state split
+Status: completed
+
+Goal:
+- extract grouped section projection and collapse-state ownership for Docker networks and volumes into a dedicated Docker-local helper
+
+Done definition:
+- one Docker-local helper owns compose-ish grouping, sorted section projection, collapsed-section toggling, and section count labels for network/volume lists
+- `_NetworkListState` and `_VolumeListState` no longer own inline grouping/collapse helpers
+- focused regression coverage exists for the new helper

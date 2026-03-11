@@ -16,6 +16,7 @@ import 'package:cwatch/view/shared/widgets/distro_leading_slot.dart';
 import 'package:cwatch/view/shared/widgets/lists/section_list.dart';
 import 'package:cwatch/view/shared/widgets/lists/selectable_list_item.dart';
 import 'docker_container_peek_state_controller.dart';
+import 'docker_grouped_section_state_controller.dart';
 import 'docker_image_peek_state_controller.dart';
 import 'docker_lists_helpers.dart';
 
@@ -1485,7 +1486,8 @@ class NetworkList extends StatefulWidget {
 }
 
 class _NetworkListState extends State<NetworkList> {
-  final Set<String> _collapsed = {};
+  final DockerGroupedSectionStateController<DockerNetwork> _stateController =
+      DockerGroupedSectionStateController<DockerNetwork>();
 
   @override
   Widget build(BuildContext context) {
@@ -1494,15 +1496,17 @@ class _NetworkListState extends State<NetworkList> {
       return const EmptyCard(message: 'No networks found.');
     }
     final spacing = context.appTheme.spacing;
-    final groups = _groupByComposeish(widget.networks);
-    final entries = groups.entries.toList();
+    final sections = _stateController.buildSections(
+      widget.networks,
+      (network) => _inferComposeGroup(network.name),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: List.generate(entries.length, (index) {
-        final entry = entries[index];
-        final group = entry.key;
-        final items = entry.value;
-        final collapsed = _collapsed.contains(group);
+      children: List.generate(sections.length, (index) {
+        final section = sections[index];
+        final group = section.group;
+        final items = section.items;
+        final collapsed = section.collapsed;
         final sectionColor = _sectionBackgroundForIndex(context, index);
         return Padding(
           padding: EdgeInsets.only(bottom: spacing.sm),
@@ -1513,7 +1517,7 @@ class _NetworkListState extends State<NetworkList> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '${items.length} networks',
+                  section.countLabel('network'),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(width: 8),
@@ -1525,11 +1529,7 @@ class _NetworkListState extends State<NetworkList> {
                   tooltip: collapsed ? 'Expand' : 'Collapse',
                   onPressed: () {
                     setState(() {
-                      if (collapsed) {
-                        _collapsed.remove(group);
-                      } else {
-                        _collapsed.add(group);
-                      }
+                      _stateController.toggle(group);
                     });
                   },
                 ),
@@ -1625,18 +1625,6 @@ class _NetworkListState extends State<NetworkList> {
       ),
     ];
   }
-
-  Map<String, List<DockerNetwork>> _groupByComposeish(
-    List<DockerNetwork> networks,
-  ) {
-    final map = <String, List<DockerNetwork>>{};
-    for (final net in networks) {
-      final inferred = _inferComposeGroup(net.name);
-      map.putIfAbsent(inferred, () => []).add(net);
-    }
-    final keys = map.keys.toList()..sort();
-    return {for (final k in keys) k: map[k]!};
-  }
 }
 
 class VolumeList extends StatefulWidget {
@@ -1661,7 +1649,8 @@ class VolumeList extends StatefulWidget {
 }
 
 class _VolumeListState extends State<VolumeList> {
-  final Set<String> _collapsed = {};
+  final DockerGroupedSectionStateController<DockerVolume> _stateController =
+      DockerGroupedSectionStateController<DockerVolume>();
 
   @override
   Widget build(BuildContext context) {
@@ -1670,15 +1659,17 @@ class _VolumeListState extends State<VolumeList> {
       return const EmptyCard(message: 'No volumes found.');
     }
     final spacing = context.appTheme.spacing;
-    final groups = _groupByComposeish(widget.volumes);
-    final entries = groups.entries.toList();
+    final sections = _stateController.buildSections(
+      widget.volumes,
+      (volume) => _inferComposeGroup(volume.name),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: List.generate(entries.length, (index) {
-        final entry = entries[index];
-        final group = entry.key;
-        final items = entry.value;
-        final collapsed = _collapsed.contains(group);
+      children: List.generate(sections.length, (index) {
+        final section = sections[index];
+        final group = section.group;
+        final items = section.items;
+        final collapsed = section.collapsed;
         final sectionColor = _sectionBackgroundForIndex(context, index);
         return Padding(
           padding: EdgeInsets.only(bottom: spacing.sm),
@@ -1689,7 +1680,7 @@ class _VolumeListState extends State<VolumeList> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '${items.length} volumes',
+                  section.countLabel('volume'),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(width: 8),
@@ -1701,11 +1692,7 @@ class _VolumeListState extends State<VolumeList> {
                   tooltip: collapsed ? 'Expand' : 'Collapse',
                   onPressed: () {
                     setState(() {
-                      if (collapsed) {
-                        _collapsed.remove(group);
-                      } else {
-                        _collapsed.add(group);
-                      }
+                      _stateController.toggle(group);
                     });
                   },
                 ),
@@ -1801,18 +1788,6 @@ class _VolumeListState extends State<VolumeList> {
         cellBuilder: (context, volume) => Text(_valueOrDash(volume.scope)),
       ),
     ];
-  }
-
-  Map<String, List<DockerVolume>> _groupByComposeish(
-    List<DockerVolume> volumes,
-  ) {
-    final map = <String, List<DockerVolume>>{};
-    for (final vol in volumes) {
-      final inferred = _inferComposeGroup(vol.name);
-      map.putIfAbsent(inferred, () => []).add(vol);
-    }
-    final keys = map.keys.toList()..sort();
-    return {for (final k in keys) k: map[k]!};
   }
 }
 
