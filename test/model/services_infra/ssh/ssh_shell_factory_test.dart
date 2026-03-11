@@ -9,17 +9,18 @@ import 'package:cwatch/model/services_infra/ssh/builtin/builtin_remote_shell_ser
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/model/services_infra/ssh/process_ssh_shell_service.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
-import 'package:cwatch/model/services_infra/ssh/ssh_shell_provider_selector.dart';
 
 void main() {
   group('SshShellFactory', () {
     test('uses process shell when platform backend is selected', () {
       final controller = AppSettingsController()
-        ..applyOverrides((_) => _settings(
-          sshPreferences: const SshPreferences(
-            clientBackend: SshClientBackend.platform,
+        ..applyOverrides(
+          (_) => _settings(
+            sshPreferences: const SshPreferences(
+              clientBackend: SshClientBackend.platform,
+            ),
           ),
-        ));
+        );
       final factory = SshShellFactory(
         settingsController: controller,
         keyService: BuiltInSshKeyService(),
@@ -75,7 +76,6 @@ void main() {
       final factory = SshShellFactory(
         settingsController: controller,
         keyService: BuiltInSshKeyService(),
-        selector: const SshShellProviderSelector(),
       );
 
       final first = factory.forHost(_host());

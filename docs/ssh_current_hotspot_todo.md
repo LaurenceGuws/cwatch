@@ -254,10 +254,39 @@ Done definition:
   - cancellation wiring
   - stdout/stderr collection orchestration
   - timeout wrapping for the streaming session
-  - session/client kill-on-timeout behavior
-  - final stdout result shaping
+- session/client kill-on-timeout behavior
+- final stdout result shaping
 - `BuiltInSshClientManager.runCommandStreaming(...)` no longer owns that inline workflow
 - focused regression coverage exists for the new helper
+
+## Task 23.15: define the SSH shell-factory simplification batch
+Status: completed
+
+Goal:
+- choose the first bounded batch for the reopened SSH factory/runtime-cache hotspot
+- keep the batch on low-payoff indirection removal rather than broader runtime behavior changes
+
+Done definition:
+- one explicit shell-factory batch is named
+- the stop condition reflects the current over-engineered factory shape
+
+Result:
+- the next bounded SSH batch is now:
+  - collapse selector/request indirection into `SshShellFactory`
+- target files:
+  - [ssh_shell_factory.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_factory.dart)
+  - [ssh_shell_provider_selector.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_provider_selector.dart)
+  - [ssh_shell_provider_request.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_provider_request.dart)
+  - [ssh_shell_factory_binding.dart](/home/home/personal/cwatch/lib/controller/di/bindings/ssh_shell_factory_binding.dart)
+- stop condition:
+  - factory cache and provider-selection logic are understandable from the factory itself
+  - request/selector wrappers are removed if they are not shared beyond the factory
+  - behavior and cache invalidation stay stable
+
+Why this is the right next cut:
+- the actual selection behavior is tiny
+- the request and selector types do not currently provide meaningful reuse outside the factory
+- the binding is also a one-off constructor wrapper, so this batch removes real indirection without reopening SSH runtime behavior
 
 ## Task 23.15: re-scope the next SSH batch from the current code state
 Status: completed

@@ -5,7 +5,6 @@ import 'package:cwatch/controller/controllers/server_port_forward_controller.dar
 import 'package:cwatch/controller/controllers/settings_controller.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
 import 'package:cwatch/controller/di/bindings/settings_binding.dart';
-import 'package:cwatch/controller/di/bindings/ssh_shell_factory_binding.dart';
 import 'package:cwatch/model/features/servers/services/host_distro_manager.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/services_infra/cache/distro_cache_controller.dart';
@@ -59,7 +58,7 @@ class ServerWorkspaceRuntime {
       context: context,
       keyService: keyService,
     );
-    final shellFactory = const SshShellFactoryBinding().create(
+    final shellFactory = SshShellFactory(
       settingsController: appSettingsController,
       keyService: keyService,
       authCoordinator: authCoordinator,
