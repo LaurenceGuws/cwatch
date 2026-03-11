@@ -2,6 +2,9 @@
 part of 'structured_data_table.dart';
 
 mixin _StructuredDataTableScrolling<T> on _StructuredDataTableStateBase<T> {
+  StructuredDataTableScrollProjection get _scrollProjection =>
+      const StructuredDataTableScrollProjection();
+
   int _pageStep(BuildContext context) {
     if (!_verticalController.hasClients) {
       return 10;
@@ -9,10 +12,11 @@ mixin _StructuredDataTableScrolling<T> on _StructuredDataTableStateBase<T> {
     final dividerHeight = context.appTheme.dimensions.dividerHeight;
     final rowExtent = widget.rowHeight + dividerHeight;
     final viewport = _verticalController.position.viewportDimension;
-    if (viewport <= 0) {
-      return 10;
-    }
-    return max(1, (viewport / rowExtent).floor());
+    return _scrollProjection.pageStep(
+      viewport: viewport,
+      rowExtent: rowExtent,
+      fallback: 10,
+    );
   }
 
   void _scrollToRow(int rowIndex, BuildContext context) {
@@ -25,15 +29,14 @@ mixin _StructuredDataTableScrolling<T> on _StructuredDataTableStateBase<T> {
     final viewport = position.viewportDimension;
     final minOffset = position.minScrollExtent;
     final maxOffset = position.maxScrollExtent;
-    var target = position.pixels;
-    final rowTop = rowIndex * rowExtent;
-    final rowBottom = rowTop + rowExtent;
-    if (rowTop < position.pixels) {
-      target = rowTop;
-    } else if (rowBottom > position.pixels + viewport) {
-      target = rowBottom - viewport;
-    }
-    target = target.clamp(minOffset, maxOffset);
+    final target = _scrollProjection.revealRowOffset(
+      rowIndex: rowIndex,
+      rowExtent: rowExtent,
+      currentOffset: position.pixels,
+      viewport: viewport,
+      minOffset: minOffset,
+      maxOffset: maxOffset,
+    );
     if ((target - position.pixels).abs() < 1) {
       return;
     }
@@ -51,19 +54,16 @@ mixin _StructuredDataTableScrolling<T> on _StructuredDataTableStateBase<T> {
     final viewport = position.viewportDimension;
     final minOffset = position.minScrollExtent;
     final maxOffset = position.maxScrollExtent;
-    var left = _lastRowPaddingX;
-    for (var i = 0; i < columnIndex; i++) {
-      left += _lastColumnWidths[i];
-      left += _lastGapWidth;
-    }
-    final right = left + _lastColumnWidths[columnIndex];
-    var target = position.pixels;
-    if (left < position.pixels) {
-      target = left;
-    } else if (right > position.pixels + viewport) {
-      target = right - viewport;
-    }
-    target = target.clamp(minOffset, maxOffset);
+    final target = _scrollProjection.revealColumnOffset(
+      columnIndex: columnIndex,
+      columnWidths: _lastColumnWidths,
+      currentOffset: position.pixels,
+      viewport: viewport,
+      minOffset: minOffset,
+      maxOffset: maxOffset,
+      rowPaddingX: _lastRowPaddingX,
+      gapWidth: _lastGapWidth,
+    );
     if ((target - position.pixels).abs() < 1) {
       return;
     }

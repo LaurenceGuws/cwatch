@@ -199,3 +199,25 @@ Result:
   - [structured_data_table_columns.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_columns.dart)
 - focused regression coverage exists in:
   - [structured_data_table_column_resize_planner_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/data_table/structured_data_table_column_resize_planner_test.dart)
+
+## Task 23.10: extract scroll reveal projection from the scrolling mixin
+Status: completed
+
+Goal:
+- reduce remaining shared engine complexity in the scrolling mixin without redesigning post-frame scheduling or controller ownership
+- move pure page-step and row/column reveal target calculation into a dedicated helper
+
+Done definition:
+- page-step calculation no longer lives inline in the scrolling mixin
+- row reveal target calculation no longer lives inline in the scrolling mixin
+- column reveal target calculation no longer lives inline in the scrolling mixin
+- controller jumps and post-frame scheduling stay in the mixin for now
+- focused regression coverage exists for the new helper
+
+Result:
+- pure scroll reveal projection now lives in:
+  - [structured_data_table_scroll_projection.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_scroll_projection.dart)
+- the scrolling mixin now delegates target calculation instead of owning those rules inline:
+  - [structured_data_table_scrolling.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_scrolling.dart)
+- focused regression coverage exists in:
+  - [structured_data_table_scroll_projection_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/data_table/structured_data_table_scroll_projection_test.dart)
