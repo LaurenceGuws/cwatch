@@ -386,7 +386,7 @@ Result:
 - `DockerViewShell`, `DockerTabBuilder`, `EnginePicker`, and Docker infra seams stayed stable in this batch
 
 ## Task 20.12: re-scope the next Docker local-complexity batch
-Status: pending
+Status: completed
 
 Goal:
 - decide whether the Docker local-complexity hotspot should continue or checkpoint here
@@ -397,3 +397,47 @@ Questions to answer:
 
 Done definition:
 - the next local-complexity move is explicit
+
+Result:
+- the Docker local-complexity hotspot is now at a good checkpoint
+- the next active hotspot in this layer should move to Kubernetes local context-row/dashboard state complexity
+
+Why this is the right stop:
+- the previous Docker batches already removed:
+  - top-level shell orchestration
+  - scan/probe/readiness state orchestration
+- what remains in `docker_view.dart` is mostly valid Docker-local behavior:
+  - picker overlay visibility
+  - rename-tab flow
+  - dashboard-opening and child-tab flows
+  - workspace restore glue
+- extracting more now would likely create a fake local manager layer instead of a stronger architecture seam
+
+Checkpoint summary:
+- Docker local-complexity hotspot is checkpointed
+
+## Task 20.13: choose the next local complexity hotspot
+Status: completed
+
+Result:
+- the next local complexity hotspot should be Kubernetes local context-row/dashboard state complexity
+
+Why this wins now:
+- it is the strongest remaining feature-local surface after the server, explorer, and Docker checkpoints
+- the earlier Kubernetes shell split removed top-level orchestration, but local row/dashboard state is still concentrated in one feature surface
+- it is the natural next hotspot before ending or checkpointing the local-complexity layer more broadly
+
+## Task 20.14: define the Kubernetes local state cleanup boundary
+Status: pending
+
+Goal:
+- define exactly what part of the remaining Kubernetes-local complexity should be addressed first
+
+Questions to answer:
+- what should remain local to `kubernetes_context_list.dart`
+- what should be split into a narrower Kubernetes-local seam
+- what state/interaction behavior should not be pushed into shared shell code
+
+Done definition:
+- one bounded Kubernetes-local cleanup seam is chosen
+- the first implementation batch is clear
