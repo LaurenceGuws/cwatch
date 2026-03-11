@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -125,6 +126,7 @@ class _ProcessTreeViewState extends State<ProcessTreeView> {
                   ),
                   SizedBox(height: spacing.md),
                   Container(
+                    key: const ValueKey('process-tree-surface'),
                     width: tableWidth,
                     decoration: BoxDecoration(
                       color: Theme.of(
@@ -138,34 +140,37 @@ class _ProcessTreeViewState extends State<ProcessTreeView> {
                         behavior: const ScrollBehavior().copyWith(
                           scrollbars: true,
                         ),
-                        child: ListView.builder(
-                          itemCount: rows.length,
-                          padding: EdgeInsets.zero,
-                          itemBuilder: (context, index) {
-                            final row = rows[index];
-                            return ProcessTreeRow(
-                              row: row,
-                              selected: row.info.pid == _selectedPid,
-                              onTap: () {
-                                _focusNode.requestFocus();
-                                setState(() => _selectedPid = row.info.pid);
-                              },
-                              onToggleCollapse: row.isExpandable
-                                  ? () => setState(() {
-                                      if (_collapsedPids.contains(
-                                        row.info.pid,
-                                      )) {
-                                        _collapsedPids.remove(row.info.pid);
-                                      } else {
-                                        _collapsedPids.add(row.info.pid);
-                                      }
-                                    })
-                                  : null,
-                              onContextMenu: (position) =>
-                                  _showContextMenu(context, position, row.info),
-                              onDoubleTap: row.isExpandable
-                                  ? () {
-                                      setState(() {
+                        child: Listener(
+                          behavior: HitTestBehavior.translucent,
+                          onPointerDown: (event) {
+                            final isPrimary =
+                                event.kind == PointerDeviceKind.touch ||
+                                (event.buttons & kPrimaryButton) != 0;
+                            if (!isPrimary) {
+                              return;
+                            }
+                            final localY = event.localPosition.dy;
+                            final rowIndex = (localY / rowHeight).floor();
+                            if (rowIndex < 0 || rowIndex >= rows.length) {
+                              if (_selectedPid != null) {
+                                setState(() => _selectedPid = null);
+                              }
+                            }
+                          },
+                          child: ListView.builder(
+                            itemCount: rows.length,
+                            padding: EdgeInsets.zero,
+                            itemBuilder: (context, index) {
+                              final row = rows[index];
+                              return ProcessTreeRow(
+                                row: row,
+                                selected: row.info.pid == _selectedPid,
+                                onTap: () {
+                                  _focusNode.requestFocus();
+                                  setState(() => _selectedPid = row.info.pid);
+                                },
+                                onToggleCollapse: row.isExpandable
+                                    ? () => setState(() {
                                         if (_collapsedPids.contains(
                                           row.info.pid,
                                         )) {
@@ -173,11 +178,29 @@ class _ProcessTreeViewState extends State<ProcessTreeView> {
                                         } else {
                                           _collapsedPids.add(row.info.pid);
                                         }
-                                      });
-                                    }
-                                  : null,
-                            );
-                          },
+                                      })
+                                    : null,
+                                onContextMenu: (position) {
+                                  _focusNode.requestFocus();
+                                  setState(() => _selectedPid = row.info.pid);
+                                  _showContextMenu(context, position, row.info);
+                                },
+                                onDoubleTap: row.isExpandable
+                                    ? () {
+                                        setState(() {
+                                          if (_collapsedPids.contains(
+                                            row.info.pid,
+                                          )) {
+                                            _collapsedPids.remove(row.info.pid);
+                                          } else {
+                                            _collapsedPids.add(row.info.pid);
+                                          }
+                                        });
+                                      }
+                                    : null,
+                              );
+                            },
+                          ),
                         ),
                       ),
                     ),
@@ -435,7 +458,7 @@ class _ProcessTreeViewState extends State<ProcessTreeView> {
 }
 
 /// Process tree row widget
-class ProcessTreeRow extends StatelessWidget {
+class ProcessTreeRow extends StatefulWidget {
   const ProcessTreeRow({
     super.key,
     required this.row,
@@ -454,48 +477,64 @@ class ProcessTreeRow extends StatelessWidget {
   final ValueChanged<Offset>? onContextMenu;
 
   @override
+  State<ProcessTreeRow> createState() => _ProcessTreeRowState();
+}
+
+class _ProcessTreeRowState extends State<ProcessTreeRow> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
     final spacing = context.appTheme.spacing;
     final theme = Theme.of(context);
     final textStyle = theme.textTheme.bodyMedium;
-    final prefix = _buildPrefix(row.ancestorLastFlags);
-    final displayCpu = row.isCollapsed ? row.totalCpu : row.info.cpu;
-    final displayMemBytes = row.isCollapsed
-        ? row.totalMem
-        : row.info.memoryBytes;
-    final highlight = selected
+    final prefix = _buildPrefix(widget.row.ancestorLastFlags);
+    final displayCpu = widget.row.isCollapsed ? widget.row.totalCpu : widget.row.info.cpu;
+    final displayMemBytes = widget.row.isCollapsed
+        ? widget.row.totalMem
+        : widget.row.info.memoryBytes;
+    final highlight = widget.selected
         ? theme.colorScheme.primary.withValues(alpha: 0.15)
-        : Colors.transparent;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      onDoubleTap: onDoubleTap ?? onToggleCollapse,
-      onSecondaryTapDown: (details) =>
-          onContextMenu?.call(details.globalPosition),
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: spacing.base,
-          vertical: spacing.xs,
-        ),
-        decoration: BoxDecoration(
-          color: highlight,
-          border: Border(
-            bottom: BorderSide(
-              color: theme.colorScheme.surfaceContainerHighest.withValues(
-                alpha: 0.4,
+        : (_hovered ? theme.colorScheme.surfaceContainerHighest : Colors.transparent);
+    final borderColor = _hovered
+        ? theme.colorScheme.outlineVariant
+        : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4);
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        onDoubleTap: widget.onDoubleTap ?? widget.onToggleCollapse,
+        onSecondaryTapDown: (details) =>
+            widget.onContextMenu?.call(details.globalPosition),
+        child: Container(
+          key: ValueKey('process-tree-row-${widget.row.info.pid}'),
+          padding: EdgeInsets.symmetric(
+            horizontal: spacing.base,
+            vertical: spacing.xs,
+          ),
+          decoration: BoxDecoration(
+            color: highlight,
+            border: Border(
+              top: BorderSide(
+                color: _hovered ? borderColor : Colors.transparent,
+                width: _hovered ? 0.9 : 0,
               ),
-              width: 0.5,
+              bottom: BorderSide(
+                color: borderColor,
+                width: _hovered ? 0.9 : 0.5,
+              ),
             ),
           ),
-        ),
-        child: Row(
-          children: [
+          child: Row(
+            children: [
             Expanded(
               flex: _pidFlex,
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  '${row.info.pid}',
+                  '${widget.row.info.pid}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -507,11 +546,11 @@ class ProcessTreeRow extends StatelessWidget {
                 padding: EdgeInsets.only(left: spacing.sm),
                 child: Row(
                   children: [
-                    if (row.isExpandable)
+                    if (widget.row.isExpandable)
                       GestureDetector(
-                        onTap: onToggleCollapse,
+                        onTap: widget.onToggleCollapse,
                         child: Icon(
-                          row.isCollapsed
+                          widget.row.isCollapsed
                               ? Icons.chevron_right
                               : Icons.expand_more,
                           size: 16,
@@ -529,7 +568,7 @@ class ProcessTreeRow extends StatelessWidget {
                       ),
                     Expanded(
                       child: Text(
-                        row.info.command,
+                        widget.row.info.command,
                         style: textStyle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -559,7 +598,8 @@ class ProcessTreeRow extends StatelessWidget {
                 ),
               ),
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );
