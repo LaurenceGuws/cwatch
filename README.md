@@ -169,12 +169,21 @@ Current fresh current-state review:
 - `docs/current_code_smell_review.md`
 
 Current active hotspot order:
-1. Docker feature decomposition
-2. SSH runtime simplification
-3. Theme/token decomposition
+1. Runtime/composition ownership cleanup
+2. Workspace-shell hosting reuse
+3. Settings mutation/composition cleanup
+4. SSH factory/runtime-cache simplification
+5. File-operation UI deduplication
+6. Config metadata single-source-of-truth cleanup
 
 Current active next TODO:
-- `docs/docker_current_hotspot_todo.md`
+- `docs/runtime_composition_hotspot_todo.md`
+
+Current enforced design checkpoints:
+- Docker feature decomposition is checkpointed and should only reopen from fresh evidence
+- SSH runtime support decomposition is checkpointed and should only reopen from fresh evidence
+- theme/token decomposition is checkpointed and should only reopen from fresh evidence
+- StructuredDataTable engine projection decomposition is checkpointed and should only reopen from fresh evidence
 
 Current table/list polish checkpoint:
 - shared table host/scaffold now exists in:

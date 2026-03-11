@@ -65,14 +65,22 @@ The repo has already completed major first-pass work in:
 - product polish on major shared shell surfaces
 
 Current fresh-review hotspot order is:
-1. Docker feature decomposition
-2. StructuredDataTable risk reduction
-3. SSH runtime simplification
-4. Theme/token decomposition
+1. Runtime/composition ownership cleanup
+2. Workspace-shell hosting reuse
+3. Settings mutation/composition cleanup
+4. SSH factory/runtime-cache simplification
+5. File-operation UI deduplication
+6. Config metadata single-source-of-truth cleanup
 
 Use the current-state review docs as the handover source of truth before reopening older rewrite priorities:
 - `docs/current_code_smell_review.md`
-- `docs/docker_current_hotspot_todo.md`
+- `docs/runtime_composition_hotspot_todo.md`
+
+Checkpointed design baselines that should be treated as current enforced state unless new evidence reopens them:
+- Docker feature decomposition
+- SSH runtime support decomposition
+- theme/token decomposition
+- StructuredDataTable engine projection decomposition
 
 Use the planning docs to deepen one focus area at a time instead of attempting broad rewrite-by-replacement.
 

@@ -445,13 +445,22 @@ Create separate follow-up docs for:
 ## Current Fresh-Review Checkpoint
 
 The earlier rewrite sequence materially improved the repo-wide structural problems.
-A fresh current-state review now shows that the main remaining issues are concentrated subsystem complexity hotspots rather than global boundary collapse.
+The Docker, SSH, theme/token, and StructuredDataTable hotspot passes are now checkpointed design progress and should be treated as the current enforced baseline, not as the active repo focus.
+
+A fresh current-state review now shows that the main remaining issues are:
+- runtime and composition ownership blur
+- repeated workspace-shell hosting
+- settings mutation/composition duplication
+- low-payoff runtime and metadata indirection
 
 Current active hotspot order:
-1. Docker feature decomposition
-2. SSH runtime simplification
-3. Theme/token decomposition
+1. Runtime/composition ownership cleanup
+2. Workspace-shell hosting reuse
+3. Settings mutation/composition cleanup
+4. SSH factory/runtime-cache simplification
+5. File-operation UI deduplication
+6. Config metadata single-source-of-truth cleanup
 
 Current handover/source-of-truth docs for this phase:
 - `docs/current_code_smell_review.md`
-- `docs/docker_current_hotspot_todo.md`
+- `docs/runtime_composition_hotspot_todo.md`
