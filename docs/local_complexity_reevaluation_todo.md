@@ -63,3 +63,47 @@ Result:
   - [docker_lists_helpers.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_lists_helpers.dart)
 - the remaining mixed-surface file is narrowed:
   - [docker_lists.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_lists.dart)
+
+## Task 28.4: define the next bounded local complexity batch
+Status: completed
+
+Goal:
+- choose the next large file whose size still reflects multiple distinct local UI surfaces in one file
+- keep the batch on file-level decomposition without reopening broader file explorer architecture work
+
+Done definition:
+- one explicit next batch is named from fresh current-state evidence
+- the stop condition reflects a narrower file, not a behavior redesign
+
+Result:
+- the next bounded local-complexity batch is now:
+  - split breadcrumb navigation widgets out of `path_navigator.dart`
+- target files:
+  - [path_navigator.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/path_navigator.dart)
+  - new breadcrumb widget file under `lib/view/shared/views/shared/tabs/file_explorer/`
+- stop condition:
+  - breadcrumb view and breadcrumb button/menu widgets no longer live in the same file as the path text field and search shell
+  - `PathNavigator` remains the public entry widget
+  - behavior stays stable
+
+Why this is the right next cut:
+- `path_navigator.dart` is large because it still hosts two distinct local surfaces
+- the breadcrumb subsystem is self-contained enough for a clean file split
+- this improves navigation and maintenance without changing file explorer behavior
+
+## Task 28.5: implement the breadcrumb split
+Status: completed
+
+Goal:
+- move the breadcrumb navigation subsystem into its own file while keeping `PathNavigator` as the stable public shell
+
+Done definition:
+- breadcrumb widgets no longer live in `path_navigator.dart`
+- the remaining file is materially narrower around path entry, search, and row-height behavior
+- focused file-explorer validation stays green
+
+Result:
+- breadcrumb navigation widgets now live in:
+  - [path_breadcrumbs_view.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/path_breadcrumbs_view.dart)
+- the remaining path navigator shell is narrowed:
+  - [path_navigator.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/path_navigator.dart)
