@@ -335,6 +335,44 @@ Done definition:
 - `ProcessRemoteShellService` no longer owns that transfer-support block inline
 - focused regression coverage exists for SCP flags/identity shaping and remote-spec formatting
 
+## Task 23.19: define the next SSH batch from the current process support shape
+Status: completed
+
+Goal:
+- choose the next real SSH cleanup slice from the current code state after the transfer-support split
+- keep the batch on repeated directory/verification support rather than broader method rewrites
+
+Done definition:
+- one new SSH batch is explicit
+- the batch reflects the current file shape instead of older assumptions
+
+Result:
+- the next bounded SSH batch is now:
+  - process SSH path-support split
+- target files:
+  - [process_ssh_shell_service.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/process_ssh_shell_service.dart)
+  - new SSH-local helper under `lib/model/services_infra/ssh/`
+- stop condition:
+  - remote-directory creation support and debug exists-check verification no longer live inline in `ProcessRemoteShellService`
+  - file-operation behavior and public `RemoteShellService` contracts stay stable in this batch
+  - builtin SSH remains untouched in this batch
+
+Why this is the right next cut:
+- `ProcessRemoteShellService` still carries a small repeated support block for mkdir and debug verification flows
+- that support logic is orthogonal to the higher-level SSH operations that call it
+- it gives a direct seam for focused regression coverage without forcing weaker flow-by-flow splits
+
+## Task 23.20: implement the process SSH path-support split
+Status: completed
+
+Goal:
+- extract process SSH remote-directory creation and exists-check verification support into a dedicated SSH-local helper
+
+Done definition:
+- one SSH-local helper owns remote-directory creation and debug exists-check verification shaping
+- `ProcessRemoteShellService` no longer owns that path-support block inline
+- focused regression coverage exists for empty-directory skip, mkdir command shaping, and debug verification behavior
+
 Result:
 - builtin streaming execution now lives in a dedicated helper
 - `BuiltInSshClientManager` is reduced to thin workflow wrappers around extracted builtin helpers

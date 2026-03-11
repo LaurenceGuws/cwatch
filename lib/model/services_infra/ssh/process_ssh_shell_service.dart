@@ -10,6 +10,7 @@ import 'process_ssh_search_planner.dart';
 import 'process_ssh_run_result_handler.dart';
 import 'process_ssh_terminal_session_planner.dart';
 import 'process_ssh_execution_adapter.dart';
+import 'process_ssh_path_support.dart';
 import 'process_ssh_transfer_support.dart';
 import 'process_ssh_failure_mapper.dart';
 import 'remote_shell_base.dart';
@@ -43,6 +44,7 @@ class ProcessRemoteShellService extends RemoteShellService {
       const ProcessSshSearchPlanner();
   final ProcessSshTerminalSessionPlanner _terminalSessionPlanner =
       const ProcessSshTerminalSessionPlanner();
+  final ProcessSshPathSupport _pathSupport = const ProcessSshPathSupport();
   final ProcessSshTransferSupport _transferSupport =
       const ProcessSshTransferSupport();
 
@@ -285,12 +287,17 @@ class ProcessRemoteShellService extends RemoteShellService {
       timeout: timeout,
       onTimeout: onTimeout,
     );
-    final verification = await _verifyPathExists(
+    final verification = await _pathSupport.verifyPathExists(
       host,
       normalized,
       shouldExist: true,
-      timeout: timeout,
-      onTimeout: onTimeout,
+      debugMode: debugMode,
+      runSsh: (targetHost, command) => _runSsh(
+        targetHost,
+        command,
+        timeout: timeout,
+        onTimeout: onTimeout,
+      ),
     );
     _resultHandler.emitOutput(
       shell: this,
@@ -311,10 +318,14 @@ class ProcessRemoteShellService extends RemoteShellService {
   }) async {
     final normalizedSource = _filePlanner.normalize(source);
     final normalizedDest = _filePlanner.normalize(destination);
-    await _ensureRemoteDirectory(
+    await _pathSupport.ensureRemoteDirectory(
       host,
       _filePlanner.parentDirectory(normalizedDest),
-      onTimeout: onTimeout,
+      runHostCommand: (targetHost, command) => _runHostCommand(
+        targetHost,
+        command,
+        onTimeout: onTimeout,
+      ),
     );
     final run = await _runHostCommand(
       host,
@@ -322,19 +333,29 @@ class ProcessRemoteShellService extends RemoteShellService {
       timeout: timeout,
       onTimeout: onTimeout,
     );
-    final verification = await _verifyPathExists(
+    final verification = await _pathSupport.verifyPathExists(
       host,
       normalizedDest,
       shouldExist: true,
-      timeout: timeout,
-      onTimeout: onTimeout,
+      debugMode: debugMode,
+      runSsh: (targetHost, command) => _runSsh(
+        targetHost,
+        command,
+        timeout: timeout,
+        onTimeout: onTimeout,
+      ),
     );
-    final sourceGone = await _verifyPathExists(
+    final sourceGone = await _pathSupport.verifyPathExists(
       host,
       normalizedSource,
       shouldExist: false,
-      timeout: timeout,
-      onTimeout: onTimeout,
+      debugMode: debugMode,
+      runSsh: (targetHost, command) => _runSsh(
+        targetHost,
+        command,
+        timeout: timeout,
+        onTimeout: onTimeout,
+      ),
     );
     final combinedVerification =
         verification?.combine(sourceGone) ?? sourceGone;
@@ -358,10 +379,14 @@ class ProcessRemoteShellService extends RemoteShellService {
   }) async {
     final normalizedSource = _filePlanner.normalize(source);
     final normalizedDest = _filePlanner.normalize(destination);
-    await _ensureRemoteDirectory(
+    await _pathSupport.ensureRemoteDirectory(
       host,
       _filePlanner.parentDirectory(normalizedDest),
-      onTimeout: onTimeout,
+      runHostCommand: (targetHost, command) => _runHostCommand(
+        targetHost,
+        command,
+        onTimeout: onTimeout,
+      ),
     );
     final run = await _runHostCommand(
       host,
@@ -373,12 +398,17 @@ class ProcessRemoteShellService extends RemoteShellService {
       timeout: timeout,
       onTimeout: onTimeout,
     );
-    final verification = await _verifyPathExists(
+    final verification = await _pathSupport.verifyPathExists(
       host,
       normalizedDest,
       shouldExist: true,
-      timeout: timeout,
-      onTimeout: onTimeout,
+      debugMode: debugMode,
+      runSsh: (targetHost, command) => _runSsh(
+        targetHost,
+        command,
+        timeout: timeout,
+        onTimeout: onTimeout,
+      ),
     );
     _resultHandler.emitOutput(
       shell: this,
@@ -403,12 +433,17 @@ class ProcessRemoteShellService extends RemoteShellService {
       timeout: timeout,
       onTimeout: onTimeout,
     );
-    final verification = await _verifyPathExists(
+    final verification = await _pathSupport.verifyPathExists(
       host,
       normalized,
       shouldExist: false,
-      timeout: timeout,
-      onTimeout: onTimeout,
+      debugMode: debugMode,
+      runSsh: (targetHost, command) => _runSsh(
+        targetHost,
+        command,
+        timeout: timeout,
+        onTimeout: onTimeout,
+      ),
     );
     _resultHandler.emitOutput(
       shell: this,
@@ -431,10 +466,14 @@ class ProcessRemoteShellService extends RemoteShellService {
   }) async {
     final normalizedSource = _filePlanner.normalize(sourcePath);
     final normalizedDest = _filePlanner.normalize(destinationPath);
-    await _ensureRemoteDirectory(
+    await _pathSupport.ensureRemoteDirectory(
       destinationHost,
       _filePlanner.parentDirectory(normalizedDest),
-      onTimeout: onTimeout,
+      runHostCommand: (targetHost, command) => _runHostCommand(
+        targetHost,
+        command,
+        onTimeout: onTimeout,
+      ),
     );
     final sharedPort = sourceHost.port == destinationHost.port
         ? sourceHost.port
@@ -469,12 +508,17 @@ class ProcessRemoteShellService extends RemoteShellService {
       timeout: timeout,
       onTimeout: onTimeout,
     );
-    final verification = await _verifyPathExists(
+    final verification = await _pathSupport.verifyPathExists(
       destinationHost,
       normalizedDest,
       shouldExist: true,
-      timeout: timeout,
-      onTimeout: onTimeout,
+      debugMode: debugMode,
+      runSsh: (targetHost, command) => _runSsh(
+        targetHost,
+        command,
+        timeout: timeout,
+        onTimeout: onTimeout,
+      ),
     );
     _resultHandler.emitOutput(
       shell: this,
@@ -532,10 +576,14 @@ class ProcessRemoteShellService extends RemoteShellService {
   }) async {
     final normalizedDest = _filePlanner.normalize(remoteDestination);
     final source = localPath;
-    await _ensureRemoteDirectory(
+    await _pathSupport.ensureRemoteDirectory(
       host,
       _filePlanner.parentDirectory(normalizedDest),
-      onTimeout: onTimeout,
+      runHostCommand: (targetHost, command) => _runHostCommand(
+        targetHost,
+        command,
+        onTimeout: onTimeout,
+      ),
     );
     final args =
         _transferSupport.buildScpArgs(
@@ -557,12 +605,17 @@ class ProcessRemoteShellService extends RemoteShellService {
       timeout: timeout,
       onTimeout: onTimeout,
     );
-    final verification = await _verifyPathExists(
+    final verification = await _pathSupport.verifyPathExists(
       host,
       normalizedDest,
       shouldExist: true,
-      timeout: timeout,
-      onTimeout: onTimeout,
+      debugMode: debugMode,
+      runSsh: (targetHost, command) => _runSsh(
+        targetHost,
+        command,
+        timeout: timeout,
+        onTimeout: onTimeout,
+      ),
     );
     _resultHandler.emitOutput(
       shell: this,
@@ -675,44 +728,6 @@ class ProcessRemoteShellService extends RemoteShellService {
       rethrow;
     }
   }
-  Future<void> _ensureRemoteDirectory(
-    SshHost host,
-    String directory, {
-    RunTimeoutHandler? onTimeout,
-  }) async {
-    if (directory.isEmpty) {
-      return;
-    }
-    await _runHostCommand(
-      host,
-      _filePlanner.ensureDirectoryCommand(directory),
-      onTimeout: onTimeout,
-    );
-  }
-
-  Future<VerificationResult?> _verifyPathExists(
-    SshHost host,
-    String path, {
-    required bool shouldExist,
-    Duration timeout = const Duration(seconds: 5),
-    RunTimeoutHandler? onTimeout,
-  }) async {
-    if (!debugMode) {
-      return null;
-    }
-    final command = _filePlanner.existsCheckCommand(path);
-    final run = await _runSsh(
-      host,
-      command,
-      timeout: timeout,
-      onTimeout: onTimeout,
-    );
-    return _resultHandler.verificationFromExistsCheck(
-      run: run,
-      shouldExist: shouldExist,
-    );
-  }
-
   Future<RunResult> _runSsh(
     SshHost host,
     String command, {
