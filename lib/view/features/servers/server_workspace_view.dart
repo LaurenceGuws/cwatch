@@ -8,6 +8,7 @@ import 'package:cwatch/model/features/servers/models/server_tab_data.dart';
 import 'package:cwatch/model/models/explorer_context.dart';
 import 'package:cwatch/model/models/server_action.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
+import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'package:cwatch/model/services_infra/filesystem/explorer_trash_manager.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
@@ -17,21 +18,16 @@ import 'package:cwatch/view/features/servers/server_workspace_ui_adapter.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/controller/di/bindings/server_workspace_binding.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
-import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
-import 'package:cwatch/view/core/tabs/tab_bar_visibility.dart';
-import 'package:cwatch/view/core/tabs/workspace_tab_chip_builder.dart';
-import 'servers/server_models.dart';
 import 'servers/servers_widgets.dart';
 import 'server_tab_builder.dart';
-import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'server_workspace_controller.dart';
 import 'package:cwatch/view/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/view/core/widgets/keep_alive.dart';
-import 'package:cwatch/view/core/tabs/tabbed_workspace_shell.dart';
 import 'server_host_surface_controller.dart';
 import 'server_host_selection_surface.dart';
 import 'server_workspace_runtime.dart';
 import 'server_workspace_shell.dart';
+import 'server_workspace_tab_surface.dart';
 
 class ServerWorkspaceView extends StatefulWidget {
   const ServerWorkspaceView({
@@ -280,80 +276,23 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   }
 
   Widget _buildTabWorkspace() {
-    final appTheme = context.appTheme;
-    return Column(
-      children: [
-        Expanded(
-          child: Material(
-            color: appTheme.section.toolbarBackground,
-            child: TabbedWorkspaceShell<WorkspaceTab>(
-              controller: _workspaceController,
-              registry: _tabRegistry,
-              tabBarHeight: 36,
-              showTabBar: TabBarVisibilityController.instance,
-              enableWindowDrag: !widget
-                  .settingsController
-                  .settings
-                  .shellPreferences.useSystemDecorations,
-              leading: widget.leading,
-              onReorder: _workspaceController.reorder,
-              onAddTab: _viewShell.startEmptyTab,
-              buildChip: (context, index, tab) {
-                return ValueListenableBuilder<List<TabChipOption>>(
-                  key: ValueKey(tab.id),
-                  valueListenable: tab.optionsController ?? ValueNotifier([]),
-                  builder: (context, options, _) {
-                    final data = tab.workspaceState as ServerTabData?;
-                    final host = data?.host ?? const PlaceholderHost();
-                    final canRename = tab.canRename;
-                    final canDrag = tab.canDrag;
-
-                    final chipOptions = [
-                      ...options,
-                      TabChipOption(
-                        label: 'Add server',
-                        icon: Icons.add,
-                        onSelected: _openAddServerDialog,
-                      ),
-                      TabChipOption(
-                        label: 'Reload server list',
-                        icon: NerdIcon.refresh.data,
-                        onSelected: _reloadServerListView,
-                      ),
-                      TabChipOption(
-                        label: _showListSettings
-                            ? 'Hide list settings'
-                            : 'List settings',
-                        icon: Icons.settings,
-                        onSelected: _toggleListSettings,
-                      ),
-                    ];
-
-                    return WorkspaceTabChipBuilder(
-                      tab: tab,
-                      selected: index == _selectedTabIndex,
-                      host: host,
-                      onSelect: () => _selectTab(index),
-                      onClose: () => _workspaceController.closeTab(index),
-                      onRename: () => _renameTab(index),
-                      index: index,
-                      canRename: canRename,
-                      canDrag: canDrag,
-                      extraOptions: chipOptions,
-                      closeWarning: _closeWarningForTab(tab),
-                    );
-                  },
-                );
-              },
-              buildBody: (tab) => tab.body,
-            ),
-          ),
-        ),
-        Padding(
-          padding: appTheme.spacing.inset(horizontal: 2, vertical: 0),
-          child: Divider(height: 1, color: appTheme.section.divider),
-        ),
-      ],
+    return ServerWorkspaceTabSurface(
+      controller: _workspaceController,
+      registry: _tabRegistry,
+      leading: widget.leading,
+      useSystemDecorations: widget
+          .settingsController
+          .settings
+          .shellPreferences.useSystemDecorations,
+      selectedTabIndex: _selectedTabIndex,
+      showListSettings: _showListSettings,
+      onSelectTab: _selectTab,
+      onAddTab: _viewShell.startEmptyTab,
+      onRenameTab: _renameTab,
+      onOpenAddServerDialog: _openAddServerDialog,
+      onReloadServerList: _reloadServerListView,
+      onToggleListSettings: _toggleListSettings,
+      closeWarningForTab: _closeWarningForTab,
     );
   }
 
