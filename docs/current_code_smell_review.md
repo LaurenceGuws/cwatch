@@ -90,20 +90,21 @@ The repo now has direct tests in the major new seams, but the following still ca
 
 ## Recommended Next Order
 
-1. SSH runtime simplification
-2. Docker feature decomposition
-3. Theme/token decomposition
+1. Theme/token decomposition
+2. SSH runtime simplification
+3. Active watchlist shell maintenance
 
 ## Why This Order
 
-### SSH first
-- the strongest remaining subsystem-level complexity knot
-- still mixes provider selection, runtime caching, builtin/process differences, and failure behavior
-- now the clearest cross-feature runtime hotspot after the Docker pass
+### Theme first
+- now the clearest remaining shared-system hotspot
+- [app_theme.dart](/home/home/personal/cwatch/lib/model/shared/theme/app_theme.dart) still centralizes too many unrelated design concerns
+- this is now higher leverage than forcing another weaker SSH batch
 
-### Docker second
-- still large, but the refreshed pass materially reduced the mixed-responsibility hotspots
-- the remaining weight is more legitimate feature-local UI hosting than cross-cutting orchestration smell
+### SSH second
+- the current pass materially reduced the strongest process-provider complexity
+- the remaining weight is more legitimate builtin runtime glue and shell-factory caching behavior
+- still important, but no longer the strongest next move
 
-### Theme third
-- important, but lower urgency than the remaining runtime/subsystem hotspot
+### Watchlist third
+- server, kubernetes, and explorer shells should now be treated as maintenance watchlist files rather than active rewrite hotspots

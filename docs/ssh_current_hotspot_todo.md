@@ -105,3 +105,24 @@ Done definition:
 - one SSH-local helper owns terminal session launch planning
 - `ProcessRemoteShellService` no longer owns inline terminal executable/argument/environment branching
 - focused regression coverage exists for the new helper
+
+
+## Task 23.7: checkpoint the current SSH hotspot pass
+Status: completed
+
+Goal:
+- stop the SSH pass at a real checkpoint instead of forcing another weak batch
+
+Done definition:
+- the SSH pass is explicitly checkpointed in the tracker
+- the remaining SSH weight is described as legitimate provider/runtime glue rather than the same hotspot class we started with
+- the broader current-state review reflects the next hotspot order
+
+Result:
+- the current SSH pass is checkpointed
+- the strongest SSH smells addressed in this pass are now:
+  - process run-result handling
+  - process file-operation planning
+  - process search planning
+  - process terminal-session planning
+- the remaining weight is mostly builtin runtime glue and shell-factory/runtime caching behavior, which is lower-value than the next repo-level hotspot
