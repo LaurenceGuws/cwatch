@@ -308,7 +308,7 @@ Why this wins now:
 - it is lower interaction risk than reopening more explorer pointer/selection work
 
 ## Task 20.10: define the Docker local state cleanup boundary
-Status: pending
+Status: completed
 
 Goal:
 - define exactly what part of the remaining Docker-local complexity should be addressed first
@@ -321,3 +321,56 @@ Questions to answer:
 Done definition:
 - one bounded Docker-local cleanup seam is chosen
 - the first implementation batch is clear
+
+Result:
+- the first Docker-local cleanup seam should be scan/probe/readiness state orchestration
+
+What should remain local to `docker_view.dart`:
+- tab shell composition and chip wiring
+- rename-tab flow
+- picker overlay visibility state
+- dashboard-opening and child-tab opening flows
+- workspace restore glue
+
+What should be split into a narrower Docker-local seam:
+- remote scan state and cancellation bookkeeping
+- remote status future lifecycle
+- scan progress notifier updates
+- cached-ready state loading and picker refresh triggers
+- local context probe/readiness future lifecycle
+- host filtering and reachability/probe orchestration used by the picker surface
+
+Why this is the right cut:
+- this is the densest remaining non-rendering local state block in the Docker view
+- it is still feature-local behavior, not shell or infra ownership
+- it avoids flattening picker/dashboard UI into another fake shared layer
+- it gives one seam that owns Docker picker readiness and scan lifecycle coherently
+
+First implementation batch:
+- extract a Docker-local scan/probe state coordinator from `docker_view.dart`
+- keep it feature-owned under `lib/view/features/docker/`
+- leave `DockerViewShell`, `DockerTabBuilder`, and infra service seams stable for the first batch
+
+## Task 20.11: implement the Docker local state split
+Status: pending
+
+Goal:
+- extract the Docker-local scan/probe/readiness orchestration seam out of `docker_view.dart`
+
+First code targets:
+- remote scan state and cancellation bookkeeping
+- cached-ready load/update helpers
+- local context status future lifecycle
+- remote host filtering and probe coordination
+- picker refresh triggers caused by scan/readiness updates
+
+What stays stable in this batch:
+- `DockerViewShell`
+- `DockerTabBuilder`
+- `EnginePicker`
+- Docker infra service seams
+- dashboard-opening flows
+
+Done definition:
+- `docker_view.dart` no longer owns the full scan/probe/readiness lifecycle directly
+- the extracted seam remains Docker-local and does not become shared shell infrastructure
