@@ -10,6 +10,7 @@ import '../known_hosts_store.dart';
 import '../remote_shell_base.dart';
 import '../ssh_auth_coordinator.dart';
 import 'builtin_ssh_auth_challenge_handler.dart';
+import 'builtin_ssh_client_lifecycle.dart';
 import 'builtin_ssh_failure_mapper.dart';
 import 'package:cwatch/model/shared/services/host_shell_policy.dart';
 import 'builtin_identity_manager.dart';
@@ -37,6 +38,7 @@ class BuiltInSshClientManager {
   final SshAuthCoordinator authCoordinator;
   final KnownHostsStore knownHostsStore;
   final BuiltInSshFailureMapper _failureMapper = const BuiltInSshFailureMapper();
+  final BuiltInSshClientLifecycle _clientLifecycle = const BuiltInSshClientLifecycle();
   late final BuiltInSshAuthChallengeHandler _authChallengeHandler =
       BuiltInSshAuthChallengeHandler(
         vault: vault,
@@ -115,16 +117,7 @@ class BuiltInSshClientManager {
         host: host,
         commandDescription: safeCommand,
         onTimeout: onTimeout,
-        onKill: () {
-          try {
-            client.close();
-          } catch (error) {
-            logBuiltInSshWarning(
-              'Failed to close SSH client on kill',
-              error: error,
-            );
-          }
-        },
+        onKill: () => _clientLifecycle.killClient(client),
       );
     });
     final output = utf8.decode(bytes, allowMalformed: true);
@@ -199,22 +192,8 @@ class BuiltInSshClientManager {
         throw const RemoteCommandCancelled();
       }
       cancellation?.onCancel(() {
-        try {
-          session.close();
-        } catch (error) {
-          logBuiltInSshWarning(
-            'Failed to close SSH session on cancel',
-            error: error,
-          );
-        }
-        try {
-          client.close();
-        } catch (error) {
-          logBuiltInSshWarning(
-            'Failed to close SSH client on cancel',
-            error: error,
-          );
-        }
+        _clientLifecycle.killSession(session);
+        _clientLifecycle.killClient(client);
       });
       final stdoutDone = Completer<void>();
       final stderrDone = Completer<void>();
@@ -249,22 +228,8 @@ class BuiltInSshClientManager {
         commandDescription: safeCommand,
         onTimeout: onTimeout,
         onKill: () {
-          try {
-            session.close();
-          } catch (error) {
-            logBuiltInSshWarning(
-              'Failed to close SSH session on kill',
-              error: error,
-            );
-          }
-          try {
-            client.close();
-          } catch (error) {
-            logBuiltInSshWarning(
-              'Failed to close SSH client on kill',
-              error: error,
-            );
-          }
+          _clientLifecycle.killSession(session);
+          _clientLifecycle.killClient(client);
         },
       );
       return stdoutBuffer.toString();
@@ -292,26 +257,12 @@ class BuiltInSshClientManager {
           commandDescription: 'sftp:${host.name}',
           onTimeout: onTimeout,
           onKill: () {
-            try {
-              sftp.close();
-            } catch (error) {
-              logBuiltInSshWarning(
-                'Failed to close SFTP client on kill',
-                error: error,
-              );
-            }
-            try {
-              client.close();
-            } catch (error) {
-              logBuiltInSshWarning(
-                'Failed to close SSH client on kill',
-                error: error,
-              );
-            }
+            _clientLifecycle.killSftp(sftp);
+            _clientLifecycle.killClient(client);
           },
         );
       } finally {
-        sftp.close();
+        _clientLifecycle.killSftp(sftp);
       }
     });
   }
@@ -328,22 +279,11 @@ class BuiltInSshClientManager {
     Future<T> Function(SSHClient client) action,
   ) async {
     return _wrapSshErrors(host, () async {
-      SSHClient? client;
-      try {
-        await _identityManager.ensureDecrypted(host);
-        client = await _openClient(host);
-        return await action(client);
-      } finally {
-        client?.close();
-        try {
-          await client?.done;
-        } catch (error) {
-          logBuiltInSshWarning(
-            'Failed waiting for SSH client to close',
-            error: error,
-          );
-        }
-      }
+      await _identityManager.ensureDecrypted(host);
+      return _clientLifecycle.withManagedClient(
+        () => _openClient(host),
+        action,
+      );
     });
   }
 
