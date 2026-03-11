@@ -66,9 +66,11 @@ The repo has already completed major first-pass work in:
 
 Current fresh-review hotspot order is:
 - no broad active hotspot; reopen only from fresh evidence in a concrete local seam
+- current active local pass: file-level complexity reevaluation
 
 Use the current-state review docs as the handover source of truth before reopening older rewrite priorities:
 - `docs/current_code_smell_review.md`
+- `docs/local_complexity_reevaluation_todo.md`
 - `docs/settings_workflow_reevaluation_todo.md`
 - `docs/workspace_shell_hosting_hotspot_todo.md`
 - `docs/runtime_composition_hotspot_todo.md`

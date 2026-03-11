@@ -170,8 +170,10 @@ Current fresh current-state review:
 
 Current active hotspot order:
 - no broad active hotspot; reopen only from fresh evidence in a concrete local seam
+- current active local pass: file-level complexity reevaluation
 
 Current active next TODO:
+- `docs/local_complexity_reevaluation_todo.md` active
 - `docs/settings_workflow_reevaluation_todo.md` checkpointed
 - `docs/workspace_shell_hosting_hotspot_todo.md` checkpointed
 - `docs/ui_adapter_surface_hotspot_todo.md` checkpointed
