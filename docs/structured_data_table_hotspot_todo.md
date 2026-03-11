@@ -327,3 +327,48 @@ Result:
   - [structured_data_table_rendering.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_rendering.dart)
 - focused regression coverage exists in:
   - [structured_data_table_row_visuals_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/data_table/structured_data_table_row_visuals_test.dart)
+
+## Task 23.15: define a surface-contrast cleanup batch from the current rendering state
+Status: completed
+
+Goal:
+- reassess the remaining rendering glue from the current file shape
+- choose one more bounded helper split only if there is still pure repeated logic embedded in rendering
+
+Done definition:
+- one current-state batch is explicit
+- the batch reflects the repeated contrast logic that still exists after the row-visual split
+
+Result:
+- the next bounded StructuredDataTable batch is now:
+  - surface-contrast projection split
+- target files:
+  - [structured_data_table_rendering.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_rendering.dart)
+  - new helper under the StructuredDataTable library
+- stop condition:
+  - header border and divider contrast projection no longer live inline in rendering
+  - widget composition and table behavior stay unchanged in this batch
+
+Why this is the right current cut:
+- rendering still repeats brightness-based contrast shaping in multiple places
+- that logic is pure projection rather than widget hosting
+- it gives direct regression coverage without reopening pointer or layout behavior
+
+## Task 23.16: implement surface-contrast projection split
+Status: completed
+
+Goal:
+- extract pure brightness-based header/divider contrast projection out of table rendering
+
+Done definition:
+- one helper owns header-border and divider contrast shaping
+- `structured_data_table_rendering.dart` no longer computes those contrast values inline
+- focused regression coverage exists for the helper
+
+Result:
+- pure surface-contrast projection now lives in:
+  - [structured_data_table_surface_contrast.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_surface_contrast.dart)
+- table rendering now delegates contrast projection instead of owning those branches inline:
+  - [structured_data_table_rendering.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_rendering.dart)
+- focused regression coverage exists in:
+  - [structured_data_table_surface_contrast_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/data_table/structured_data_table_surface_contrast_test.dart)

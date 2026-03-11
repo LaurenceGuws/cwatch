@@ -8,6 +8,8 @@ mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
       StructuredDataTableColumnReorderProjection<T>();
   StructuredDataTableRowVisuals get _rowVisuals =>
       const StructuredDataTableRowVisuals();
+  StructuredDataTableSurfaceContrast get _surfaceContrast =>
+      const StructuredDataTableSurfaceContrast();
 
   List<Widget> _buildRowCells(
     BuildContext context, {
@@ -192,13 +194,10 @@ mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
         widget.surfaceBackgroundColor ?? surface.background;
     final effectiveHeaderHeight =
         widget.headerHeight ?? dimensions.dataTableHeaderHeight;
-    
-    // Calculate header border color based on background brightness for better contrast
-    final backgroundBrightness = ThemeData.estimateBrightnessForColor(surfaceBackground);
-    final isLightBackground = backgroundBrightness == Brightness.light;
-    final headerBorderColor = isLightBackground
-        ? scheme.outlineVariant.withValues(alpha: 0.5) // More opaque for light backgrounds
-        : scheme.outlineVariant.withValues(alpha: 0.35); // Increased from 0.18 for dark backgrounds
+    final headerBorderColor = _surfaceContrast.headerBorderColor(
+      background: surfaceBackground,
+      outlineVariant: scheme.outlineVariant,
+    );
     
     final textStyle = Theme.of(
       context,
@@ -931,14 +930,10 @@ mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
     final scheme = Theme.of(context).colorScheme;
     final surfaceBackground =
         widget.surfaceBackgroundColor ?? surface.background;
-    
-    // Calculate divider color based on background brightness for better contrast
-    // Lighter backgrounds (alternate sections) need darker dividers
-    final backgroundBrightness = ThemeData.estimateBrightnessForColor(surfaceBackground);
-    final isLightBackground = backgroundBrightness == Brightness.light;
-    final dividerColor = isLightBackground
-        ? scheme.outlineVariant.withValues(alpha: 0.75) // More opaque for light backgrounds
-        : scheme.outlineVariant.withValues(alpha: 0.5); // Standard for dark backgrounds
+    final dividerColor = _surfaceContrast.dividerColor(
+      background: surfaceBackground,
+      outlineVariant: scheme.outlineVariant,
+    );
     
     final listView = ScrollConfiguration(
       behavior: const ScrollBehavior().copyWith(scrollbars: false),
