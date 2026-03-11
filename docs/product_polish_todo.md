@@ -893,3 +893,66 @@ Result:
 Why this is the right stop:
 - the main shared help-surface quality drift is now reduced
 - more work here now would need a sharper user-facing issue such as compact mode, search, or richer gesture grouping rather than more default polish expansion
+
+
+## Task 21.34: define the command-palette polish target
+Status: completed
+
+Goal:
+- identify the most visible remaining drift in the shared command palette surface
+- choose one narrow shell-facing polish batch without reopening command behavior or command-loading structure
+
+Done definition:
+- one concrete command-palette surface target is chosen
+- the first implementation batch is explicit
+
+Result:
+- the next active polish target is [command_palette.dart](/home/home/personal/cwatch/lib/view/shared/widgets/command_palette.dart)
+- the first batch should focus on:
+  - header and search-field framing
+  - result list hierarchy and category chip treatment
+  - empty-state quality when no commands match
+- the batch should not change:
+  - command loading
+  - command execution behavior
+  - feature-specific command entries
+
+Why this is the right cut:
+- the command palette is one of the most reused shell-facing surfaces left without a dedicated polish pass
+- recent work already improved help wording, tab commands, and dialog chrome around it
+- the remaining visible drift is now in the command palette body surface itself
+
+## Task 21.35: implement the first command-palette polish batch
+Status: completed
+
+Goal:
+- tighten the shared command palette surface without changing command behavior or loader structure
+
+Done definition:
+- the command palette has clearer header/search framing
+- result rows read with stronger hierarchy
+- empty search results use better shared framing
+- no command behavior changes are introduced
+
+
+## Task 21.36: checkpoint command-palette polish
+Status: completed
+
+Goal:
+- stop the command-palette batch at a defensible point
+- record the current shared command-palette language as a checkpoint instead of expanding it by default
+
+Done definition:
+- the shared command-palette polish is recorded as checkpointed
+- the docs no longer imply that more command-palette work should continue by default
+
+Result:
+- [command_palette.dart](/home/home/personal/cwatch/lib/view/shared/widgets/command_palette.dart) now has:
+  - clearer header and search framing
+  - stronger result-row hierarchy and category chip treatment
+  - better empty-result feedback
+- the command-palette surface now reads more like a deliberate shell tool than a raw search dialog
+
+Why this is the right stop:
+- the main shared command-palette presentation drift is now reduced
+- more work here now would need a sharper issue such as keyboard hint presentation, category grouping, or recent-command behavior rather than more default polish expansion

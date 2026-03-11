@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import 'package:cwatch/view/core/navigation/command_palette_registry.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
+import 'package:cwatch/view/shared/widgets/standard_empty_state.dart';
 import 'lists/selectable_list_item.dart';
 
 class CommandPalette extends StatefulWidget {
@@ -74,7 +75,7 @@ class _CommandPaletteState extends State<CommandPalette> {
 
   void _select(int index, BuildContext context) {
     if (index < 0 || index >= _filtered.length) return;
-    final itemExtent = context.scale(64);
+    final itemExtent = context.scale(72);
     setState(() => _selectedIndex = index);
     _scrollController.animateTo(
       (index.clamp(0, _filtered.length - 1)) * itemExtent,
@@ -91,10 +92,13 @@ class _CommandPaletteState extends State<CommandPalette> {
   @override
   Widget build(BuildContext context) {
     final appTheme = context.appTheme;
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final filtered = _filtered;
+    final queryActive = _controller.text.trim().isNotEmpty;
+
     return Dialog(
-      elevation: 10,
+      elevation: 14,
       insetPadding: EdgeInsets.symmetric(
         horizontal: appTheme.spacing.base * 8,
         vertical: appTheme.spacing.base * 4,
@@ -129,24 +133,91 @@ class _CommandPaletteState extends State<CommandPalette> {
         },
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            maxHeight: context.scale(520),
-            minWidth: context.scale(640),
+            maxHeight: context.scale(560),
+            minWidth: context.scale(680),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Padding(
-                padding: appTheme.spacing.inset(horizontal: 3, vertical: 2),
-                child: TextField(
-                  controller: _controller,
-                  focusNode: _focusNode,
-                  decoration: InputDecoration(
-                    hintText: 'Type a command…',
-                    prefixIcon: Icon(Icons.search, size: appTheme.iconSizes.medium),
-                    isDense: true,
-                  ),
-                  onSubmitted: (_) => _activate(_selectedIndex),
-                  onEditingComplete: () {},
+                padding: appTheme.spacing.inset(horizontal: 2.25, vertical: 1.75),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.keyboard_command_key,
+                          size: appTheme.iconSizes.medium,
+                          color: scheme.primary,
+                        ),
+                        SizedBox(width: appTheme.spacing.sm),
+                        Expanded(
+                          child: Text(
+                            'Command palette',
+                            style: theme.textTheme.titleMedium,
+                          ),
+                        ),
+                        Text(
+                          queryActive
+                              ? '${filtered.length} matches'
+                              : '${widget.entries.length} commands',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: appTheme.spacing.sm),
+                    Text(
+                      'Search app and module actions. Use arrows to move and Enter to run the selected command.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                    SizedBox(height: appTheme.spacing.lg),
+                    TextField(
+                      controller: _controller,
+                      focusNode: _focusNode,
+                      decoration: InputDecoration(
+                        hintText: 'Search commands, categories, or descriptions',
+                        prefixIcon: Icon(
+                          Icons.search,
+                          size: appTheme.iconSizes.medium,
+                        ),
+                        suffixIcon: queryActive
+                            ? IconButton(
+                                tooltip: 'Clear search',
+                                onPressed: () => _controller.clear(),
+                                icon: const Icon(Icons.close),
+                              )
+                            : null,
+                        isDense: true,
+                        filled: true,
+                        fillColor: scheme.surfaceContainerHighest.withValues(
+                          alpha: 0.45,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(context.scale(14)),
+                          borderSide: BorderSide(
+                            color: scheme.outlineVariant.withValues(alpha: 0.45),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(context.scale(14)),
+                          borderSide: BorderSide(
+                            color: scheme.outlineVariant.withValues(alpha: 0.45),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(context.scale(14)),
+                          borderSide: BorderSide(color: scheme.primary),
+                        ),
+                      ),
+                      onSubmitted: (_) => _activate(_selectedIndex),
+                      onEditingComplete: () {},
+                    ),
+                  ],
                 ),
               ),
               Divider(height: appTheme.dimensions.dividerHeight),
@@ -155,49 +226,87 @@ class _CommandPaletteState extends State<CommandPalette> {
                     ? Center(
                         child: Padding(
                           padding: EdgeInsets.all(appTheme.spacing.xl),
-                          child: Text(
-                            'No commands match your search.',
-                            style: Theme.of(context).textTheme.bodyMedium,
+                          child: StandardEmptyState(
+                            icon: Icons.search_off,
+                            message: queryActive
+                                ? 'No matching commands. Try a broader term or search by category instead.'
+                                : 'No commands are available right now.',
                           ),
                         ),
                       )
                     : ListView.separated(
                         controller: _scrollController,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: appTheme.spacing.lg,
+                          vertical: appTheme.spacing.md,
+                        ),
                         itemCount: filtered.length,
-                        separatorBuilder: (context, index) => Divider(
-                          height: appTheme.dimensions.dividerHeight,
-                          color: scheme.outlineVariant.withValues(alpha: 0.4),
+                        separatorBuilder: (context, index) => SizedBox(
+                          height: appTheme.spacing.sm,
                         ),
                         itemBuilder: (context, index) {
                           final entry = filtered[index];
                           final selected = index == _selectedIndex;
 
-                          return SelectableListItem(
-                            title: entry.label,
-                            subtitle: entry.description,
-                            selected: selected,
-                            onTap: () => _activate(index),
-                            leading: entry.icon != null
-                                ? Icon(
-                                    entry.icon,
-                                    size: appTheme.iconSizes.medium,
+                          return DecoratedBox(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(
+                                context.scale(14),
+                              ),
+                              border: Border.all(
+                                color: selected
+                                    ? scheme.primary.withValues(alpha: 0.28)
+                                    : scheme.outlineVariant.withValues(alpha: 0.22),
+                              ),
+                              color: selected
+                                  ? scheme.primary.withValues(alpha: 0.08)
+                                  : scheme.surfaceContainerHighest.withValues(
+                                      alpha: 0.16,
+                                    ),
+                            ),
+                            child: SelectableListItem(
+                              title: entry.label,
+                              subtitle: entry.description,
+                              selected: selected,
+                              onTap: () => _activate(index),
+                              leading: entry.icon != null
+                                  ? Icon(
+                                      entry.icon,
+                                      size: appTheme.iconSizes.medium,
+                                      color: selected
+                                          ? scheme.primary
+                                          : scheme.onSurfaceVariant,
+                                    )
+                                  : null,
+                              trailing: Container(
+                                padding: appTheme.spacing.inset(
+                                  horizontal: 1.5,
+                                  vertical: 0.75,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: selected
+                                      ? scheme.primary.withValues(alpha: 0.12)
+                                      : scheme.surfaceContainerHighest,
+                                  borderRadius: BorderRadius.circular(
+                                    context.scale(999),
+                                  ),
+                                  border: Border.all(
+                                    color: selected
+                                        ? scheme.primary.withValues(alpha: 0.24)
+                                        : scheme.outlineVariant.withValues(
+                                            alpha: 0.25,
+                                          ),
+                                  ),
+                                ),
+                                child: Text(
+                                  entry.category,
+                                  style: theme.textTheme.labelSmall?.copyWith(
                                     color: selected
                                         ? scheme.primary
                                         : scheme.onSurfaceVariant,
-                                  )
-                                : null,
-                            trailing: Container(
-                              padding: appTheme.spacing.inset(
-                                horizontal: 2,
-                                vertical: 1,
-                              ),
-                              decoration: BoxDecoration(
-                                color: scheme.surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(2 * context.zoomFactor),
-                              ),
-                              child: Text(
-                                entry.category,
-                                style: Theme.of(context).textTheme.labelSmall,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ),
                             ),
                           );

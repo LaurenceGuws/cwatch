@@ -201,6 +201,6 @@ Current next polish move:
 - re-scope the next visible product-polish hotspot from current UI evidence
 
 Why:
-- the shared help-dialog body is now at a good checkpoint
-- recent polish passes already covered placeholder states, dashboards, table chrome, floating panels, tab placeholders, dialogs, and help surfaces
-- the next move should come from the most visible remaining drift rather than from continuing one hotspot by default
+- the shared command-palette surface is now at a good checkpoint
+- the product-polish layer has already covered the most visible shell-facing shared surfaces
+- the next move should come from a sharper remaining drift instead of continuing palette work by default
