@@ -145,3 +145,41 @@ Done definition:
 - one Docker-local helper owns compose-ish grouping, sorted section projection, collapsed-section toggling, and section count labels for network/volume lists
 - `_NetworkListState` and `_VolumeListState` no longer own inline grouping/collapse helpers
 - focused regression coverage exists for the new helper
+
+## Task 22.8: define the fourth bounded Docker batch
+Status: completed
+
+Goal:
+- choose the next Docker cleanup slice from the remaining real hotspots after the list-surface splits
+
+Done definition:
+- one next batch is explicit
+- the batch has a clear stop condition
+- later Docker concerns remain queued instead of over-planned
+
+Result:
+- the fourth bounded Docker batch is now:
+  - Docker overview action/update orchestration split
+- target files:
+  - [docker_overview.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_overview.dart)
+  - new Docker-local helper for selection-based action routing and container/image update flows
+- stop condition:
+  - selection fallback helpers, tap-down action routing, image/network/volume menu routing, and container start/stop/restart update helpers no longer live inline in `_DockerOverviewState`
+  - rendering, menus, and widget hosting stay in `docker_overview.dart`
+  - Docker service/controller contracts stay stable in this batch
+
+Why this is the right fourth cut:
+- it removes the densest remaining non-rendering orchestration block in the Docker overview surface
+- it stays feature-local and avoids reopening Docker transport/parser work
+- it gives a direct seam for focused regression coverage
+
+## Task 22.9: implement the Docker overview action/update split
+Status: completed
+
+Goal:
+- extract selection-based action routing and post-action cache update helpers into a dedicated Docker-local overview helper
+
+Done definition:
+- one Docker-local helper owns selection fallback and post-action container/image/network/volume targeting helpers
+- `_DockerOverviewState` no longer owns inline selection and update helper blocks
+- focused regression coverage exists for the new helper

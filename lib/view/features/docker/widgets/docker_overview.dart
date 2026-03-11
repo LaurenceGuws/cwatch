@@ -20,6 +20,7 @@ import 'package:cwatch/view/shared/widgets/section_nav_bar.dart';
 import 'package:cwatch/view/shared/widgets/standard_empty_state.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
 import 'docker_lists.dart';
+import 'docker_overview_action_state.dart';
 import 'docker_shared.dart';
 import 'package:cwatch/controller/controllers/docker_overview_controller.dart';
 import 'package:cwatch/controller/adapters/docker_overview_ui_adapter.dart';
@@ -53,6 +54,8 @@ class DockerOverview extends StatefulWidget {
 
 class _DockerOverviewState extends State<DockerOverview>
     with SingleTickerProviderStateMixin, TabOptionsMixin {
+  final DockerOverviewActionState _actionState =
+      const DockerOverviewActionState();
   late final DockerOverviewController _controller;
   late final DockerOverviewActionsController _actions;
   late final DockerOverviewUiAdapter _uiAdapter;
@@ -383,64 +386,19 @@ class _DockerOverviewState extends State<DockerOverview>
     return StandardEmptyState(message: message);
   }
 
-  List<DockerContainer> _selectedContainersForAction(DockerContainer fallback) {
-    final selectedIds = _controller.selectedContainerIds;
-    if (selectedIds.isEmpty) {
-      return [fallback];
-    }
-    final selected = _currentContainers
-        .where((container) => selectedIds.contains(container.id))
-        .toList();
-    return selected.isEmpty ? [fallback] : selected;
-  }
-
-  String _networkKey(DockerNetwork network) {
-    return network.id.isNotEmpty ? network.id : network.name;
-  }
-
-  List<DockerImage> _selectedImagesForAction(DockerImage fallback) {
-    final selectedKeys = _controller.selectedImageKeys;
-    if (selectedKeys.isEmpty) {
-      return [fallback];
-    }
-    final selected = _currentImages
-        .where((image) => selectedKeys.contains(_imageKey(image)))
-        .toList();
-    return selected.isEmpty ? [fallback] : selected;
-  }
-
-  List<DockerNetwork> _selectedNetworksForAction(DockerNetwork fallback) {
-    final selectedKeys = _controller.selectedNetworkKeys;
-    if (selectedKeys.isEmpty) {
-      return [fallback];
-    }
-    final selected = _currentNetworks
-        .where((network) => selectedKeys.contains(_networkKey(network)))
-        .toList();
-    return selected.isEmpty ? [fallback] : selected;
-  }
-
-  List<DockerVolume> _selectedVolumesForAction(DockerVolume fallback) {
-    final selectedKeys = _controller.selectedVolumeKeys;
-    if (selectedKeys.isEmpty) {
-      return [fallback];
-    }
-    final selected = _currentVolumes
-        .where((volume) => selectedKeys.contains(volume.name))
-        .toList();
-    return selected.isEmpty ? [fallback] : selected;
-  }
-
   void _openContainerMenu(
     DockerContainer container,
     TapDownDetails details, {
     List<DockerContainer>? selectedRows,
   }) {
     final scheme = Theme.of(context).colorScheme;
-    // Use provided selectedRows if available, otherwise fall back to helper function
     final selection = selectedRows?.isNotEmpty == true
         ? selectedRows!
-        : _selectedContainersForAction(container);
+        : _actionState.selectedContainersForAction(
+            fallback: container,
+            selectedIds: _controller.selectedContainerIds,
+            containers: _currentContainers,
+          );
     final isMulti = selection.length > 1;
     final title = isMulti
         ? '${selection.length} containers selected'
@@ -613,10 +571,13 @@ class _DockerOverviewState extends State<DockerOverview>
     List<DockerImage>? selectedRows,
   }) {
     final scheme = Theme.of(context).colorScheme;
-    // Use provided selectedRows if available, otherwise fall back to helper function
     final selection = selectedRows?.isNotEmpty == true
         ? selectedRows!
-        : _selectedImagesForAction(image);
+        : _actionState.selectedImagesForAction(
+            fallback: image,
+            selectedKeys: _controller.selectedImageKeys,
+            images: _currentImages,
+          );
     final isMulti = selection.length > 1;
     final ref = [
       image.repository.isNotEmpty ? image.repository : '<none>',
@@ -711,10 +672,13 @@ class _DockerOverviewState extends State<DockerOverview>
     TapDownDetails details, {
     List<DockerNetwork>? selectedRows,
   }) {
-    // Use provided selectedRows if available, otherwise fall back to helper function
     final selection = selectedRows?.isNotEmpty == true
         ? selectedRows!
-        : _selectedNetworksForAction(network);
+        : _actionState.selectedNetworksForAction(
+            fallback: network,
+            selectedKeys: _controller.selectedNetworkKeys,
+            networks: _currentNetworks,
+          );
     final isMulti = selection.length > 1;
     final title = isMulti
         ? '${selection.length} networks selected'
@@ -723,8 +687,8 @@ class _DockerOverviewState extends State<DockerOverview>
         ? {'Selected': '${selection.length}'}
         : {'Driver': network.driver, 'Scope': network.scope};
     final copyValue = isMulti
-        ? selection.map(_networkKey).join('\n')
-        : _networkKey(network);
+        ? selection.map(_actionState.networkKey).join('\n')
+        : _actionState.networkKey(network);
     final copyLabel = isMulti ? 'Network IDs' : 'Network ID';
     _menus.showItemMenu(
       globalPosition: details.globalPosition,
@@ -740,10 +704,13 @@ class _DockerOverviewState extends State<DockerOverview>
     TapDownDetails details, {
     List<DockerVolume>? selectedRows,
   }) {
-    // Use provided selectedRows if available, otherwise fall back to helper function
     final selection = selectedRows?.isNotEmpty == true
         ? selectedRows!
-        : _selectedVolumesForAction(volume);
+        : _actionState.selectedVolumesForAction(
+            fallback: volume,
+            selectedKeys: _controller.selectedVolumeKeys,
+            volumes: _currentVolumes,
+          );
     final isMulti = selection.length > 1;
     final title = isMulti
         ? '${selection.length} volumes selected'
@@ -770,61 +737,33 @@ class _DockerOverviewState extends State<DockerOverview>
 
   Future<void> _updateContainerAfterRestart(DockerContainer container) async {
     final startedAt = await _loadStartTime(container);
-    _controller.mapCachedContainers((c) {
-      if (c.id != container.id) return c;
-      return DockerContainer(
-        id: c.id,
-        name: c.name,
-        image: c.image,
-        state: 'running',
-        status: 'running',
-        ports: c.ports,
-        command: c.command,
-        createdAt: c.createdAt,
-        composeProject: c.composeProject,
-        composeService: c.composeService,
-        startedAt: startedAt ?? DateTime.now().toUtc(),
-      );
-    });
+    _controller.updateCachedContainers(
+      _actionState.applyRestartedContainer(
+        _controller.cachedContainers,
+        container,
+        startedAt: startedAt,
+      ),
+    );
   }
 
   Future<void> _updateContainerAfterStart(DockerContainer container) async {
     final startedAt = await _loadStartTime(container);
-    _controller.mapCachedContainers((c) {
-      if (c.id != container.id) return c;
-      return DockerContainer(
-        id: c.id,
-        name: c.name,
-        image: c.image,
-        state: 'running',
-        status: 'running',
-        ports: c.ports,
-        command: c.command,
-        createdAt: c.createdAt,
-        composeProject: c.composeProject,
-        composeService: c.composeService,
-        startedAt: startedAt ?? DateTime.now().toUtc(),
-      );
-    });
+    _controller.updateCachedContainers(
+      _actionState.applyStartedContainer(
+        _controller.cachedContainers,
+        container,
+        startedAt: startedAt,
+      ),
+    );
   }
 
   void _markContainerStopped(String containerId) {
-    _controller.mapCachedContainers((c) {
-      if (c.id != containerId) return c;
-      return DockerContainer(
-        id: c.id,
-        name: c.name,
-        image: c.image,
-        state: 'exited',
-        status: 'stopped',
-        ports: c.ports,
-        command: c.command,
-        createdAt: c.createdAt,
-        composeProject: c.composeProject,
-        composeService: c.composeService,
-        startedAt: null,
-      );
-    });
+    _controller.updateCachedContainers(
+      _actionState.applyStoppedContainer(
+        _controller.cachedContainers,
+        containerId,
+      ),
+    );
   }
 
   void _handleContainerTapDown(
@@ -893,7 +832,7 @@ class _DockerOverviewState extends State<DockerOverview>
     _controller.replaceSelection(
       _controller.selectedImageKeys,
       tableKeys,
-      selected.map(_imageKey),
+      selected.map(_actionState.imageKey),
     );
   }
 
@@ -904,9 +843,7 @@ class _DockerOverviewState extends State<DockerOverview>
     _controller.replaceSelection(
       _controller.selectedNetworkKeys,
       tableKeys,
-      selected.map(
-        (network) => network.id.isNotEmpty ? network.id : network.name,
-      ),
+      selected.map(_actionState.networkKey),
     );
   }
 
@@ -981,12 +918,6 @@ class _DockerOverviewState extends State<DockerOverview>
     return '${host.name}-docker';
   }
 
-  String _imageKey(DockerImage image) {
-    final repo = image.repository.isNotEmpty ? image.repository : '<none>';
-    final tag = image.tag.isNotEmpty ? image.tag : '<none>';
-    return '$repo:$tag:${image.id}';
-  }
-
   Future<DateTime?> _loadStartTime(DockerContainer container) async {
     try {
       if (_controller.remoteHost != null && _controller.shellService != null) {
@@ -1018,13 +949,13 @@ class _DockerOverviewState extends State<DockerOverview>
   Future<void> _syncProjectContainers(String project) async {
     try {
       final allContainers = await _controller.fetchContainers();
-      final updatedProject = allContainers
-          .where((c) => c.composeProject == project)
-          .toList();
-      final others = _controller.cachedContainers
-          .where((c) => c.composeProject != project)
-          .toList();
-      _controller.updateCachedContainers([...others, ...updatedProject]);
+      _controller.updateCachedContainers(
+        _actionState.mergeProjectContainers(
+          cached: _controller.cachedContainers,
+          fetched: allContainers,
+          project: project,
+        ),
+      );
     } catch (error, stackTrace) {
       AppLogger().warn(
         'Failed to sync compose project $project',
