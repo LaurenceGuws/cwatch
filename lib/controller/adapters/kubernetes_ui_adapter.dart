@@ -15,10 +15,13 @@ class KubernetesUiAdapter {
     );
   }
 
-  Future<void> copyToClipboard(String text) async {
+  Future<void> copyToClipboard(
+    String text, {
+    String message = 'Copied to clipboard',
+  }) async {
     await Clipboard.setData(ClipboardData(text: text));
     if (context.mounted) {
-      showSnackBar('Command copied to clipboard');
+      showSnackBar(message);
     }
   }
 }

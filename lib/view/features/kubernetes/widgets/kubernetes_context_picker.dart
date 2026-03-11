@@ -15,6 +15,7 @@ import 'package:cwatch/view/shared/widgets/standard_empty_state.dart';
 
 import 'package:cwatch/controller/controllers/kubernetes_context_controller.dart';
 import 'package:cwatch/view/features/kubernetes/kubernetes_runtime.dart';
+import 'package:cwatch/view/features/kubernetes/kubernetes_context_actions.dart';
 
 class KubernetesContextPicker extends StatefulWidget {
   const KubernetesContextPicker({
@@ -222,37 +223,13 @@ class _KubernetesContextPickerState extends State<KubernetesContextPicker> {
     List<KubeconfigContext> selected,
     Offset? anchor,
   ) {
-    // Use the selectedRows parameter from StructuredDataTable
     final selection = selected.isNotEmpty ? selected : [ctx];
-    final singleSelection = selection.length == 1;
-
-    return [
-      StructuredDataMenuAction<KubeconfigContext>(
-        label: 'Open',
-        icon: NerdIcon.kubernetes.data,
-        onSelected: (_, primary) => widget.onOpenContext(primary),
-      ),
-      StructuredDataMenuAction<KubeconfigContext>(
-        label: 'Copy context name',
-        icon: NerdIcon.copy.data,
-        onSelected: (_, primary) => unawaited(_copyText(primary.name)),
-      ),
-      StructuredDataMenuAction<KubeconfigContext>(
-        label: 'Copy kubectl command',
-        icon: NerdIcon.copy.data,
-        onSelected: (_, primary) => unawaited(
-          _copyText(
-            'kubectl --context=${primary.name} --kubeconfig=${primary.configPath}',
-          ),
-        ),
-      ),
-      StructuredDataMenuAction<KubeconfigContext>(
-        label: 'Open kubeconfig',
-        icon: Icons.open_in_new,
-        enabled: singleSelection,
-        onSelected: (_, primary) =>
-            ExternalAppLauncher.openConfigFile(primary.configPath, context),
-      ),
-    ];
+    return buildKubernetesContextMenuActions(
+      selection: selection,
+      openContext: widget.onOpenContext,
+      copyText: _copyText,
+      openConfigFile: (configPath) =>
+          ExternalAppLauncher.openConfigFile(configPath, context),
+    );
   }
 }

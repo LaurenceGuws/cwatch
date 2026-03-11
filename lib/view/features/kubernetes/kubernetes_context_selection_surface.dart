@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 
 import 'package:cwatch/controller/adapters/external_app_launcher.dart';
-import 'package:cwatch/controller/controllers/kubernetes_context_controller.dart';
 import 'package:cwatch/controller/controllers/settings_controller.dart';
 import 'package:cwatch/model/models/kubernetes/kubeconfig_context.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
@@ -14,6 +12,9 @@ import 'package:cwatch/view/shared/widgets/data_table/structured_data_table.dart
 import 'package:cwatch/view/shared/widgets/data_table/structured_data_table_host.dart';
 import 'package:cwatch/view/shared/widgets/lists/section_list.dart';
 
+import 'package:cwatch/controller/adapters/kubernetes_ui_adapter.dart';
+import 'package:cwatch/controller/controllers/kubernetes_context_controller.dart';
+import 'kubernetes_context_actions.dart';
 import 'kubernetes_context_list_state.dart';
 import 'kubernetes_workspace_shell.dart';
 
@@ -40,14 +41,6 @@ class KubernetesContextSelectionSurface extends StatelessWidget {
   String _contextSelectionKey(KubeconfigContext ctx) =>
       '${ctx.configPath}|${ctx.name}';
 
-  Future<void> _copyText(BuildContext context, String text) async {
-    await Clipboard.setData(ClipboardData(text: text));
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Copied to clipboard')),
-    );
-  }
-
   List<StructuredDataChip> _contextMetadata(KubeconfigContext ctx) {
     final chips = <StructuredDataChip>[];
     if (ctx.isCurrent) {
@@ -67,37 +60,14 @@ class KubernetesContextSelectionSurface extends StatelessWidget {
     Offset? anchor,
   ) {
     final selection = selected.isNotEmpty ? selected : [ctx];
-    final singleSelection = selection.length == 1;
-
-    return [
-      StructuredDataMenuAction<KubeconfigContext>(
-        label: 'Open details',
-        icon: NerdIcon.kubernetes.data,
-        onSelected: (_, primary) => workspaceShell.openContextTab(primary),
-      ),
-      StructuredDataMenuAction<KubeconfigContext>(
-        label: 'Copy context name',
-        icon: NerdIcon.copy.data,
-        onSelected: (_, primary) => _copyText(context, primary.name),
-      ),
-      StructuredDataMenuAction<KubeconfigContext>(
-        label: 'Open kubeconfig',
-        icon: Icons.open_in_new,
-        enabled: singleSelection,
-        onSelected: (_, primary) =>
-            ExternalAppLauncher.openConfigFile(primary.configPath, context),
-      ),
-      StructuredDataMenuAction<KubeconfigContext>(
-        label: 'Open details in new tabs',
-        icon: NerdIcon.kubernetes.data,
-        enabled: selection.length > 1,
-        onSelected: (_, _) {
-          for (final target in selection) {
-            workspaceShell.openContextTab(target);
-          }
-        },
-      ),
-    ];
+    final uiAdapter = KubernetesUiAdapter(context: context);
+    return buildKubernetesContextMenuActions(
+      selection: selection,
+      openContext: (target) => workspaceShell.openContextTab(target),
+      copyText: (text) => uiAdapter.copyToClipboard(text),
+      openConfigFile: (configPath) =>
+          ExternalAppLauncher.openConfigFile(configPath, context),
+    );
   }
 
   List<StructuredDataColumn<KubeconfigContext>> _contextColumns(
