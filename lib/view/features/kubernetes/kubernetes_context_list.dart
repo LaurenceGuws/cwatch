@@ -23,7 +23,6 @@ import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'package:cwatch/view/shared/widgets/data_table/structured_data_table.dart';
 import 'package:cwatch/view/shared/widgets/data_table/structured_data_table_host.dart';
 import 'package:cwatch/view/shared/widgets/lists/section_list.dart';
-import 'package:cwatch/view/shared/widgets/standard_empty_state.dart';
 import 'package:cwatch/controller/adapters/external_app_launcher.dart';
 import 'package:cwatch/controller/adapters/kubernetes_ui_adapter.dart';
 import 'package:cwatch/controller/di/bindings/kubernetes_context_binding.dart';
@@ -384,24 +383,36 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
         final spacing = context.appTheme.spacing;
         if (snapshot.connectionState == ConnectionState.waiting &&
             _listState.cachedContexts.isEmpty) {
-          return const Center(child: CircularProgressIndicator());
+          return const StructuredDataTableFeedback(
+            title: 'Contexts',
+            subtitle: 'Loading kubeconfig contexts',
+            message: 'Loading contexts...',
+            loading: true,
+            padding: EdgeInsets.zero,
+          );
         }
         if (snapshot.hasError) {
-          return StandardEmptyState(
-            icon: Icons.error_outline,
+          return StructuredDataTableFeedback(
+            title: 'Contexts',
+            subtitle: 'Kubeconfig discovery failed',
             message: 'Failed to load Kubernetes contexts: ${snapshot.error}',
+            icon: Icons.error_outline,
             actionLabel: 'Retry',
             onAction: _workspaceShell.refreshContexts,
+            padding: EdgeInsets.zero,
           );
         }
 
         final contexts = _listState.resolveContexts(snapshot);
         if (contexts.isEmpty) {
-          return StandardEmptyState(
-            icon: Icons.hub_outlined,
+          return StructuredDataTableFeedback(
+            title: 'Contexts',
+            subtitle: 'No kubeconfig contexts available',
             message: 'No Kubernetes contexts found.',
+            icon: Icons.hub_outlined,
             actionLabel: 'Reload',
             onAction: _workspaceShell.refreshContexts,
+            padding: EdgeInsets.zero,
           );
         }
 

@@ -350,3 +350,27 @@ Why this is the right next cut:
 - it is still a repeated visible surface around `StructuredDataTable`
 - it keeps the batch narrow and product-facing
 - it avoids drifting into feature-specific search/filter UX
+
+## Task 21.13: implement the table-host feedback batch
+Status: completed
+
+Goal:
+- normalize straightforward loading and empty framing around shared table-hosted surfaces
+- keep richer feature-specific filters and remediation local
+
+Done definition:
+- the shared table host surface has a feedback variant
+- Kubernetes context selection uses it for loading/error/empty states
+- Docker local-context hosting uses it for loading state
+
+Result:
+- [structured_data_table_host.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_host.dart) now includes `StructuredDataTableFeedback`
+- Kubernetes context selection now uses the shared feedback host in:
+  - [kubernetes_context_list.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/kubernetes_context_list.dart)
+- Docker local-context hosting now uses the same feedback host in:
+  - [docker_engine_picker.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_engine_picker.dart)
+
+Why this is a good checkpoint:
+- the visible table-host feedback drift is reduced on the main proving surfaces
+- debug logs and richer filtered views remain local as intended
+- the batch improved the shared table-host seam without expanding into feature-specific search/filter UI

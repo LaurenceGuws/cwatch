@@ -36,3 +36,43 @@ class StructuredDataTableHost extends StatelessWidget {
     );
   }
 }
+
+class StructuredDataTableFeedback extends StatelessWidget {
+  const StructuredDataTableFeedback({
+    super.key,
+    required this.title,
+    this.subtitle,
+    required this.message,
+    this.icon,
+    this.actionLabel,
+    this.onAction,
+    this.loading = false,
+    this.padding,
+  });
+
+  final String title;
+  final String? subtitle;
+  final String message;
+  final IconData? icon;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  final bool loading;
+  final EdgeInsetsGeometry? padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return StructuredDataTableHost(
+      title: title,
+      subtitle: subtitle,
+      padding: padding,
+      child: DashboardFeedbackState(
+        title: null,
+        message: message,
+        icon: icon,
+        actionLabel: actionLabel,
+        onAction: onAction,
+        loading: loading,
+      ),
+    );
+  }
+}

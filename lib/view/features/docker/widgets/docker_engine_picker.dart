@@ -155,6 +155,16 @@ class _EnginePickerState extends State<EnginePicker> {
                       FutureBuilder<List<LocalDockerContextStatus>>(
                         future: widget.contextsStatusFuture,
                         builder: (context, statusSnapshot) {
+                          if (statusSnapshot.connectionState ==
+                                  ConnectionState.waiting &&
+                              statusSnapshot.data == null) {
+                            return const StructuredDataTableFeedback(
+                              title: 'Contexts',
+                              subtitle: 'Checking local Docker context availability',
+                              message: 'Loading local context status...',
+                              loading: true,
+                            );
+                          }
                           // Show contexts immediately, readiness will update when available
                           final statuses = statusSnapshot.data;
                           final rows = statuses ??
