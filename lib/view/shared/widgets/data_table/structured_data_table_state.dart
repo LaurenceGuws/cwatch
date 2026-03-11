@@ -59,6 +59,7 @@ abstract class _StructuredDataTableStateBase<T>
   List<double> _computeColumnWidths(double availableWidth);
   void _setMarqueeSelecting(bool value);
   void _setRowDragAnchor(int? rowIndex, int? pointer);
+  void _clearTableSelection({bool clearFocus = false});
   void _handleSelectionChanged();
   List<T> _selectedRows();
   void _selectSingle(int index);

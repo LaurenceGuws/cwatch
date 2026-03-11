@@ -2,6 +2,21 @@
 part of 'structured_data_table.dart';
 
 mixin _StructuredDataTableSelection<T> on _StructuredDataTableStateBase<T> {
+  void _clearTableSelection({bool clearFocus = false}) {
+    _listController.clearSelection(clearFocus: clearFocus);
+    if (!widget.cellSelectionEnabled) {
+      return;
+    }
+    setState(() {
+      _selectedCell = null;
+      _focusedCell = null;
+      _cellSelectionAnchor = null;
+      _cellSelectionExtent = null;
+      _additionalSelectedCells.clear();
+      _cellEditMode = false;
+    });
+  }
+
   void _setMarqueeSelecting(bool value) {
     if (!mounted) return;
     if (_isMarqueeSelecting == value) return;

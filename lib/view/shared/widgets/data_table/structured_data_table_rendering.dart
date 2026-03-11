@@ -1029,6 +1029,7 @@ mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
               if (rowIndex != null) {
                 return;
               }
+              _clearTableSelection();
               widget.onBackgroundContextMenu?.call(details.globalPosition);
             },
             child: listView,
@@ -1055,17 +1056,7 @@ mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
           if ((event.buttons & kPrimaryButton) == 0) return;
           final rowIndex = _rowIndexForOffset(event.localPosition, context);
         if (rowIndex == null) {
-          _listController.clearSelection();
-          if (widget.cellSelectionEnabled) {
-            setState(() {
-              _selectedCell = null;
-              _focusedCell = null;
-              _cellSelectionAnchor = null;
-              _cellSelectionExtent = null;
-              _additionalSelectedCells.clear();
-              _cellEditMode = false;
-            });
-          }
+          _clearTableSelection();
           _setRowDragAnchor(null, null);
           return;
         }
