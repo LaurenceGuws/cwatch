@@ -39,6 +39,30 @@ void main() {
       expect(controller.containerAnchorIndex, 1);
     });
 
+
+
+    test('clearContainerSelection clears ids and focus state', () {
+      final controller = DockerOverviewController(docker: _FakeDockerClientService());
+      controller.selectedContainerIds.addAll({'alpha', 'beta'});
+      controller.focusedContainerIndex = 1;
+      controller.containerAnchorIndex = 0;
+
+      controller.clearContainerSelection();
+
+      expect(controller.selectedContainerIds, isEmpty);
+      expect(controller.focusedContainerIndex, isNull);
+      expect(controller.containerAnchorIndex, isNull);
+    });
+
+    test('clearSelection clears keyed selection sets', () {
+      final controller = DockerOverviewController(docker: _FakeDockerClientService());
+      controller.selectedNetworkKeys.addAll({'n1', 'n2'});
+
+      controller.clearSelection(controller.selectedNetworkKeys);
+
+      expect(controller.selectedNetworkKeys, isEmpty);
+    });
+
     test('selectSingleKey replaces selection for simple keyed sets', () {
       final controller = DockerOverviewController(docker: _FakeDockerClientService());
       controller.selectedImageKeys.addAll({'repo:a', 'repo:b'});

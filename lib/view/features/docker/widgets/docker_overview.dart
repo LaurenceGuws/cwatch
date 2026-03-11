@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cwatch/controller/core/workspace/tab_options.dart';
@@ -290,87 +291,107 @@ class _DockerOverviewState extends State<DockerOverview>
                     ),
                     containers.isEmpty
                         ? _buildEmptyTab('No containers found.')
-                        : ListView(
-                            children: [
-                              Focus(
-                                focusNode: _containerFocus,
-                                onKeyEvent: _handleContainerKey,
-                                child: ContainerPeek(
-                                  containers: containers,
-                                  onTapDown: _handleContainerTapDown,
-                                  onSelectionChanged:
-                                      _handleContainerSelectionChanged,
-                                  selectedIds: _controller.selectedContainerIds,
-                                  busyIds: _controller
-                                      .containerActionInProgress
-                                      .keys
-                                      .toSet(),
-                                  actionLabels:
-                                      _controller.containerActionInProgress,
-                                  onComposeAction: _handleComposeAction,
-                                  onComposeForward:
-                                      _controller.remoteHost != null
-                                      ? (project) =>
-                                            _actions.forwardComposePorts(
-                                              project: project,
-                                            )
-                                      : null,
-                                  onComposeStopForward:
-                                      _controller.remoteHost != null
-                                      ? (_) => _actions.stopForwardsForHost()
-                                      : null,
-                                  settingsController: widget.settingsController,
-                                  distroCacheController:
-                                      widget.distroCacheController,
-                                  dockerService: _controller.docker,
-                                  contextName: _controller.contextName,
+                        : Listener(
+                            behavior: HitTestBehavior.translucent,
+                            onPointerDown: (event) =>
+                                _handleTabSurfacePointerDown(1, event),
+                            child: ListView(
+                              children: [
+                                Focus(
+                                  focusNode: _containerFocus,
+                                  onKeyEvent: _handleContainerKey,
+                                  child: ContainerPeek(
+                                    containers: containers,
+                                    onTapDown: _handleContainerTapDown,
+                                    onSelectionChanged:
+                                        _handleContainerSelectionChanged,
+                                    selectedIds: _controller.selectedContainerIds,
+                                    busyIds: _controller
+                                        .containerActionInProgress
+                                        .keys
+                                        .toSet(),
+                                    actionLabels:
+                                        _controller.containerActionInProgress,
+                                    onComposeAction: _handleComposeAction,
+                                    onComposeForward:
+                                        _controller.remoteHost != null
+                                        ? (project) =>
+                                              _actions.forwardComposePorts(
+                                                project: project,
+                                              )
+                                        : null,
+                                    onComposeStopForward:
+                                        _controller.remoteHost != null
+                                        ? (_) => _actions.stopForwardsForHost()
+                                        : null,
+                                    settingsController: widget.settingsController,
+                                    distroCacheController:
+                                        widget.distroCacheController,
+                                    dockerService: _controller.docker,
+                                    contextName: _controller.contextName,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                     images.isEmpty
                         ? _buildEmptyTab('No images found.')
-                        : ListView(
-                            children: [
-                              ImagePeek(
-                                images: images,
-                                onTapDown: _handleImageTapDown,
-                                onSelectionChanged:
-                                    _handleImageSelectionChanged,
-                                selectedIds: _controller.selectedImageKeys,
-                                busyIds: _controller.imageActionInProgress.keys.toSet(),
-                                actionLabels: _controller.imageActionInProgress,
-                                onRemoveImages: _handleRemoveImages,
-                                onPruneImages: _handlePruneImages,
-                                onPullImage: _handlePullImage,
-                              ),
-                            ],
+                        : Listener(
+                            behavior: HitTestBehavior.translucent,
+                            onPointerDown: (event) =>
+                                _handleTabSurfacePointerDown(2, event),
+                            child: ListView(
+                              children: [
+                                ImagePeek(
+                                  images: images,
+                                  onTapDown: _handleImageTapDown,
+                                  onSelectionChanged:
+                                      _handleImageSelectionChanged,
+                                  selectedIds: _controller.selectedImageKeys,
+                                  busyIds: _controller.imageActionInProgress.keys.toSet(),
+                                  actionLabels: _controller.imageActionInProgress,
+                                  onRemoveImages: _handleRemoveImages,
+                                  onPruneImages: _handlePruneImages,
+                                  onPullImage: _handlePullImage,
+                                ),
+                              ],
+                            ),
                           ),
                     networks.isEmpty
                         ? _buildEmptyTab('No networks found.')
-                        : ListView(
-                            children: [
-                              NetworkList(
-                                networks: networks,
-                                onTapDown: _handleNetworkTapDown,
-                                onSelectionChanged:
-                                    _handleNetworkSelectionChanged,
-                                selectedIds: _controller.selectedNetworkKeys,
-                              ),
-                            ],
+                        : Listener(
+                            behavior: HitTestBehavior.translucent,
+                            onPointerDown: (event) =>
+                                _handleTabSurfacePointerDown(3, event),
+                            child: ListView(
+                              children: [
+                                NetworkList(
+                                  networks: networks,
+                                  onTapDown: _handleNetworkTapDown,
+                                  onSelectionChanged:
+                                      _handleNetworkSelectionChanged,
+                                  selectedIds: _controller.selectedNetworkKeys,
+                                ),
+                              ],
+                            ),
                           ),
                     volumes.isEmpty
                         ? _buildEmptyTab('No volumes found.')
-                        : ListView(
-                            children: [
-                              VolumeList(
-                                volumes: volumes,
-                                onTapDown: _handleVolumeTapDown,
-                                onSelectionChanged:
-                                    _handleVolumeSelectionChanged,
-                                selectedIds: _controller.selectedVolumeKeys,
-                              ),
-                            ],
+                        : Listener(
+                            behavior: HitTestBehavior.translucent,
+                            onPointerDown: (event) =>
+                                _handleTabSurfacePointerDown(4, event),
+                            child: ListView(
+                              children: [
+                                VolumeList(
+                                  volumes: volumes,
+                                  onTapDown: _handleVolumeTapDown,
+                                  onSelectionChanged:
+                                      _handleVolumeSelectionChanged,
+                                  selectedIds: _controller.selectedVolumeKeys,
+                                ),
+                              ],
+                            ),
                           ),
                   ],
                 );
@@ -384,6 +405,35 @@ class _DockerOverviewState extends State<DockerOverview>
 
   Widget _buildEmptyTab(String message) {
     return StandardEmptyState(message: message);
+  }
+
+  void _handleTabSurfacePointerDown(int tabIndex, PointerDownEvent event) {
+    final primaryPointer =
+        event.kind == PointerDeviceKind.touch ||
+        (event.buttons & kPrimaryButton) != 0;
+    if (!primaryPointer) {
+      return;
+    }
+    final hardware = HardwareKeyboard.instance;
+    if (hardware.isShiftPressed ||
+        hardware.isControlPressed ||
+        hardware.isMetaPressed) {
+      return;
+    }
+    switch (tabIndex) {
+      case 1:
+        _controller.clearContainerSelection();
+        break;
+      case 2:
+        _controller.clearSelection(_controller.selectedImageKeys);
+        break;
+      case 3:
+        _controller.clearSelection(_controller.selectedNetworkKeys);
+        break;
+      case 4:
+        _controller.clearSelection(_controller.selectedVolumeKeys);
+        break;
+    }
   }
 
   void _openContainerMenu(

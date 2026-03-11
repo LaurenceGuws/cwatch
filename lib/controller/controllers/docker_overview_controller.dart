@@ -157,6 +157,26 @@ class DockerOverviewController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void clearContainerSelection() {
+    if (selectedContainerIds.isEmpty &&
+        focusedContainerIndex == null &&
+        containerAnchorIndex == null) {
+      return;
+    }
+    selectedContainerIds.clear();
+    focusedContainerIndex = null;
+    containerAnchorIndex = null;
+    notifyListeners();
+  }
+
+  void clearSelection(Set<String> set) {
+    if (set.isEmpty) {
+      return;
+    }
+    set.clear();
+    notifyListeners();
+  }
+
   void _updateSelection(
     Set<String> set,
     String key, {
