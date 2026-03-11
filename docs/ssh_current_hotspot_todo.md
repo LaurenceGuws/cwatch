@@ -373,6 +373,44 @@ Done definition:
 - `ProcessRemoteShellService` no longer owns that path-support block inline
 - focused regression coverage exists for empty-directory skip, mkdir command shaping, and debug verification behavior
 
+## Task 23.21: define the next SSH batch from the current process command-support shape
+Status: completed
+
+Goal:
+- choose the next real SSH cleanup slice from the current code state after the path-support split
+- keep the batch on repeated command/logging/output support rather than broad flow rewrites
+
+Done definition:
+- one new SSH batch is explicit
+- the batch reflects the current file shape instead of older assumptions
+
+Result:
+- the next bounded SSH batch is now:
+  - process SSH command-support split
+- target files:
+  - [process_ssh_shell_service.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/process_ssh_shell_service.dart)
+  - new SSH-local helper under `lib/model/services_infra/ssh/`
+- stop condition:
+  - repeated command start/complete logging and command-output emission no longer live inline in `ProcessRemoteShellService`
+  - public `RemoteShellService` behavior stays stable in this batch
+  - builtin SSH remains untouched in this batch
+
+Why this is the right next cut:
+- `ProcessRemoteShellService` still repeats the same logging/output support around list, home, and plain command flows
+- that support logic is orthogonal to the higher-level SSH operations that call it
+- it gives a direct seam for focused regression coverage without forcing weaker flow-by-flow splits
+
+## Task 23.22: implement the process SSH command-support split
+Status: completed
+
+Goal:
+- extract process SSH command logging and output-emission support into a dedicated SSH-local helper
+
+Done definition:
+- one SSH-local helper owns command start/complete logging, structured failure logging, and result-handler output emission for process-side command flows
+- `ProcessRemoteShellService` no longer owns that command-support block inline
+- focused regression coverage exists for output emission and structured failure logging
+
 Result:
 - builtin streaming execution now lives in a dedicated helper
 - `BuiltInSshClientManager` is reduced to thin workflow wrappers around extracted builtin helpers

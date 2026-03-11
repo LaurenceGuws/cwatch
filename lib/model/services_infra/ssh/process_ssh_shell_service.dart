@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:cwatch/model/models/remote_file_entry.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import '../logging/app_logger.dart';
+import 'process_ssh_command_support.dart';
 import 'process_ssh_file_operation_planner.dart';
 import 'process_ssh_search_planner.dart';
 import 'process_ssh_run_result_handler.dart';
@@ -38,6 +39,8 @@ class ProcessRemoteShellService extends RemoteShellService {
   final ProcessSshExecutionAdapter _executionAdapter;
   final ProcessSshRunResultHandler _resultHandler =
       const ProcessSshRunResultHandler();
+  final ProcessSshCommandSupport _commandSupport =
+      const ProcessSshCommandSupport();
   final ProcessSshFileOperationPlanner _filePlanner =
       const ProcessSshFileOperationPlanner();
   final ProcessSshSearchPlanner _searchPlanner =
@@ -70,7 +73,7 @@ class ProcessRemoteShellService extends RemoteShellService {
         timeout: timeout,
         onTimeout: onTimeout,
       );
-      _resultHandler.emitOutput(
+      _commandSupport.emitCommandOutput(
         shell: this,
         host: host,
         operation: 'listDirectory',
@@ -79,15 +82,11 @@ class ProcessRemoteShellService extends RemoteShellService {
       );
       return parseLsOutput(run.stdout);
     } catch (error) {
-      AppLogger.remote(tag: 'SSH', source: 'ssh', host: host).warn(
-        'listDirectory failed',
+      _commandSupport.logFailure(
+        host: host,
+        operation: 'listDirectory',
+        command: lsCommand,
         error: error,
-        remote: RemoteCommandDetails(
-          operation: 'listDirectory',
-          command: lsCommand,
-          output: 'Error: $error',
-          contextLabel: host.name,
-        ),
       );
       rethrow;
     }
@@ -217,7 +216,7 @@ class ProcessRemoteShellService extends RemoteShellService {
         timeout: timeout,
         onTimeout: onTimeout,
       );
-      final output = _resultHandler.emitOutput(
+      final output = _commandSupport.emitCommandOutput(
         shell: this,
         host: host,
         operation: 'homeDirectory',
@@ -634,22 +633,20 @@ class ProcessRemoteShellService extends RemoteShellService {
     RunTimeoutHandler? onTimeout,
   }) async {
     ensureShellAllowed(host);
-    _logProcess('Running command on ${host.name}: $command');
+    _commandSupport.logCommandStart(host: host, command: command);
     final run = await _runSsh(
       host,
       command,
       timeout: timeout,
       onTimeout: onTimeout,
     );
-    final output = _resultHandler.emitOutput(
+    final output = _commandSupport.emitCommandOutput(
       shell: this,
       host: host,
       operation: 'runCommand',
       run: run,
     );
-    _logProcess(
-      'Command on ${host.name} completed. Output length=${output.length}',
-    );
+    _commandSupport.logCommandComplete(host: host, output: output);
     return output;
   }
 
@@ -664,7 +661,7 @@ class ProcessRemoteShellService extends RemoteShellService {
     void Function(String line)? onStderrLine,
   }) async {
     ensureShellAllowed(host);
-    _logProcess('Running command on ${host.name}: $command');
+    _commandSupport.logCommandStart(host: host, command: command);
     final run = await _runSshStreaming(
       host,
       command,
@@ -674,15 +671,13 @@ class ProcessRemoteShellService extends RemoteShellService {
       onStdoutLine: onStdoutLine,
       onStderrLine: onStderrLine,
     );
-    final output = _resultHandler.emitOutput(
+    final output = _commandSupport.emitCommandOutput(
       shell: this,
       host: host,
       operation: 'runCommandStreaming',
       run: run,
     );
-    _logProcess(
-      'Command on ${host.name} completed. Output length=${output.length}',
-    );
+    _commandSupport.logCommandComplete(host: host, output: output);
     return output;
   }
 
@@ -809,8 +804,4 @@ class ProcessRemoteShellService extends RemoteShellService {
       rethrow;
     }
   }
-}
-
-void _logProcess(String message) {
-  AppLogger().debug(message, tag: 'ProcessSSH');
 }
