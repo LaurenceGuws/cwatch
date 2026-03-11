@@ -20,9 +20,9 @@ class KubernetesTabBuilder {
     final controller = TabOptionsController();
     return WorkspaceTab(
       id: id,
-      title: 'Kubernetes',
-      label: 'Kubernetes',
-      icon: NerdIcon.kubernetes.data,
+      title: 'Kubernetes Contexts',
+      label: 'Contexts',
+      icon: Icons.view_list_rounded,
       body: body,
       canDrag: false,
       canRename: false,
@@ -35,8 +35,8 @@ class KubernetesTabBuilder {
           kind: 'placeholder',
           contextName: placeholderName,
           path: placeholderConfig,
-          title: 'Kubernetes',
-          label: 'Kubernetes',
+          title: 'Kubernetes Contexts',
+          label: 'Contexts',
         ),
       ),
       optionsController: controller,

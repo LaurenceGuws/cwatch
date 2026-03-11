@@ -476,9 +476,9 @@ class DockerTabBuilder implements DockerOverviewTabFactory {
   WorkspaceTab placeholder({required String id, Widget? body}) {
     return WorkspaceTab(
       id: id,
-      title: 'Docker',
-      label: 'Docker',
-      icon: Icons.list,
+      title: 'Docker Engines',
+      label: 'Engines',
+      icon: Icons.view_list_rounded,
       body: body ?? const SizedBox.shrink(),
       canDrag: false,
       canRename: false,
@@ -492,9 +492,9 @@ class DockerTabBuilder implements DockerOverviewTabFactory {
   WorkspaceTab picker({required String id, Widget? body}) {
     return WorkspaceTab(
       id: id,
-      title: 'Docker',
-      label: 'Docker',
-      icon: Icons.list,
+      title: 'Docker Engines',
+      label: 'Engines',
+      icon: Icons.view_list_rounded,
       body: body ?? const SizedBox.shrink(),
       canDrag: false,
       canRename: false,

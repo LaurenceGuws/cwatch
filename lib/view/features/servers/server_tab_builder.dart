@@ -318,7 +318,7 @@ class ServerTabBuilder {
       id: id,
       title: host.name,
       label: host.name,
-      icon: NerdIcon.folderOpen.data,
+      icon: Icons.view_list_rounded,
       body: body,
       canDrag: false,
       canRename: false,
