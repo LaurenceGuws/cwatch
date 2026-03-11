@@ -555,3 +555,28 @@ Done definition:
 - one Docker-local helper owns network/volume title/details/copy-value projection
 - `docker_overview.dart` keeps network/volume menu rendering only
 - focused regression coverage exists for selected-network fallback and multi-volume projection behavior
+
+## Task 22.29: checkpoint the current Docker hotspot pass after the overview menu splits
+Status: completed
+
+Goal:
+- stop the Docker pass at the point where the remaining weight is mostly valid feature-local hosting and interaction glue
+
+Done definition:
+- the tracker explicitly records Docker as checkpointed again from the current code state
+- the next repo hotspot is named from the current review order
+
+Result:
+- the current Docker hotspot pass is now checkpointed again
+- the remaining weight in [docker_overview.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_overview.dart) and [docker_view.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view.dart) is mostly valid Docker-local hosting behavior:
+  - menu presentation and prompt hosting
+  - widget composition and dashboard tab wiring
+  - selection plumbing and keyboard navigation
+  - feature-specific refresh and shell-opening flows
+- the next ranked repo hotspot remains:
+  - SSH runtime simplification
+
+Why this is the right stop:
+- the dense Docker-local orchestration blocks have been split into dedicated helpers
+- further extractions now trend toward file-size cleanup more than subsystem-value cleanup
+- Docker still deserves normal maintenance during feature work, but it is no longer the clearest active hotspot
