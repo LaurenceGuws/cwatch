@@ -51,10 +51,9 @@ class _SidebarMenuButtonState extends State<SidebarMenuButton> {
         : context.scale(48.0);
 
     final colorScheme = Theme.of(context).colorScheme;
-    // Use the same hover color as tab chips
-    final hoverColor = colorScheme.surfaceContainerHighest.withValues(
-      alpha: 0.55,
-    );
+    final listTokens = context.appTheme.list;
+    final hoverColor = listTokens.hoverBackground;
+    final borderColor = _hovering ? listTokens.hoverBorder : Colors.transparent;
 
     return MouseRegion(
       onEnter: (_) => _setHovering(true),
@@ -69,10 +68,14 @@ class _SidebarMenuButtonState extends State<SidebarMenuButton> {
           child: Container(
             width: buttonSize,
             height: buttonSize,
-            color: _hovering ? hoverColor : Colors.transparent,
+            decoration: BoxDecoration(
+              color: _hovering ? hoverColor : Colors.transparent,
+              border: Border.all(color: borderColor),
+            ),
             child: Icon(
               widget.collapsed ? Icons.menu : Icons.menu_open,
               size: context.appTheme.iconSizes.medium,
+              color: colorScheme.onSurface,
             ),
           ),
         ),
