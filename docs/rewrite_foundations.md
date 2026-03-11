@@ -456,10 +456,9 @@ A fresh current-state review now shows that the main remaining issues are:
 Current active hotspot order:
 1. Runtime/composition ownership cleanup
 2. Workspace-shell hosting reuse
-3. UI adapter surface reduction
-4. feature-local settings workflow reevaluation only if fresh evidence reopens it
-5. SSH runtime/feature integration reevaluation only if fresh evidence reopens it
-6. file-operation flow reevaluation only if fresh evidence reopens it
+3. feature-local settings workflow reevaluation only if fresh evidence reopens it
+4. SSH runtime/feature integration reevaluation only if fresh evidence reopens it
+5. file-operation flow reevaluation only if fresh evidence reopens it
 
 Current handover/source-of-truth docs for this phase:
 - `docs/current_code_smell_review.md`

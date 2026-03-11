@@ -1,7 +1,7 @@
 # UI Adapter Surface Hotspot TODO
 
-Status: active
-Purpose: track bounded cleanup batches for the current controller-to-UI adapter surface reduction hotspot.
+Status: checkpointed
+Purpose: record the completed bounded cleanup batches for the controller-to-UI adapter surface reduction hotspot.
 
 ## Task 29.1: start the UI-adapter hotspot pass
 Status: completed
@@ -102,3 +102,14 @@ Why this is the right next cut:
 - this is the clearest remaining Docker adapter-coupling block after the port-forward split
 - the workflow is cohesive: load content, map errors, and present dialogs/snackbars
 - extracting it narrows controller responsibility without forcing a larger Docker action redesign
+
+## Checkpoint
+
+Current state:
+- shared port-forward prompting now goes through a controller-facing port-forward UI contract
+- built-in SSH key prompt/confirm flow is extracted behind a narrower settings-key UI contract
+- Docker inspect/history/log-display workflow is extracted behind a narrower Docker display UI contract
+
+What this means:
+- UI-adapter surface reduction should now be treated as an enforced baseline, not as the next active repo hotspot
+- future work here should reopen only from fresh evidence inside a specific feature workflow, not from the earlier broad controller-to-adapter coupling pass

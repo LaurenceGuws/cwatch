@@ -51,18 +51,7 @@ Why it matters now:
 - tab restore/setup, listeners, placeholder/base-tab creation, and shell/runtime glue are still re-expressed per feature
 - this is both a DRY problem and an ownership problem
 
-### 3. Controller to concrete UI-adapter coupling
-Primary files:
-- [settings_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/settings_controller.dart)
-- [server_port_forward_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/server_port_forward_controller.dart)
-- [docker_overview_actions_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/docker_overview_actions_controller.dart)
-- [docker_overview_ui_adapter.dart](/home/home/personal/cwatch/lib/controller/adapters/docker_overview_ui_adapter.dart)
-
-Why it matters now:
-- controller logic still depends on concrete dialog/snackbar/prompt adapters
-- this is better than `model -> view` coupling, but still keeps workflow logic shaped around widget-era interaction seams
-
-### 4. Feature-local settings workflow density
+### 3. Feature-local settings workflow density
 Primary files:
 - [builtin_ssh_settings.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/builtin_ssh_settings.dart)
 - [ssh_settings_controls.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/ssh_settings_controls.dart)
@@ -73,7 +62,7 @@ Why it matters now:
 - what remains is denser feature-local workflow around built-in SSH key management, host bindings, and picker/prompt orchestration
 - this is now a narrower local complexity seam, not the same repo-level DRY hotspot as before
 
-### 5. SSH runtime/feature integration reevaluation
+### 4. SSH runtime/feature integration reevaluation
 Primary files:
 - [ssh_shell_factory.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_factory.dart)
 - [process_ssh_shell_service.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/process_ssh_shell_service.dart)
@@ -84,7 +73,7 @@ Why it matters now:
 - what remains is narrower runtime hosting and feature-integration behavior that should only be reopened from fresh evidence
 - this is no longer a top repo-wide over-engineering target in the current code state
 
-### 6. File-operation flow reevaluation
+### 5. File-operation flow reevaluation
 Primary files:
 - [file_operations_ui_handler.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operations_ui_handler.dart)
 - [file_operation_transfer_session.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operation_transfer_session.dart)
@@ -104,6 +93,7 @@ The following earlier hotspots should now be treated as checkpointed current-sta
 - SSH shell-factory/runtime-cache simplification
 - file-operation UI deduplication
 - config metadata single-source-of-truth cleanup
+- UI-adapter surface reduction
 - theme/token decomposition
 - StructuredDataTable engine projection decomposition
 - settings mutation ownership cleanup
@@ -125,10 +115,9 @@ The repo now has direct tests in many extracted seams, but the following still c
 
 1. Runtime/composition ownership cleanup
 2. Workspace-shell hosting reuse
-3. UI adapter surface reduction
-4. feature-local settings workflow reevaluation only if fresh evidence reopens it
-5. SSH runtime/feature integration reevaluation only if fresh evidence reopens it
-6. file-operation flow reevaluation only if fresh evidence reopens it
+3. feature-local settings workflow reevaluation only if fresh evidence reopens it
+4. SSH runtime/feature integration reevaluation only if fresh evidence reopens it
+5. file-operation flow reevaluation only if fresh evidence reopens it
 
 ## Why This Order
 
@@ -141,5 +130,4 @@ The repo now has direct tests in many extracted seams, but the following still c
 - a cleaner host contract will reduce duplicate feature setup logic
 
 ### UI-adapter and local-flow work after that
-- controller/dialog adapter coupling is still a live structural smell once the stronger repetition seams are addressed
 - narrower feature-local or file-operation flow work should now reopen only from fresh evidence
