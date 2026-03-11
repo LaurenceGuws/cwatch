@@ -204,7 +204,12 @@ class _DockerViewState extends State<DockerView> {
 
   WorkspaceTab _enginePickerTab({String? id}) {
     final tabId = id ?? _uniqueId();
-    return _tabBuilder.picker(id: tabId, body: _buildPickerBody(tabId));
+    return _tabBuilder.picker(
+      id: tabId,
+      body: Builder(
+        builder: (_) => _buildPickerBody(tabId),
+      ),
+    );
   }
 
   Widget _buildPickerBody(String tabId) {
