@@ -40,7 +40,8 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
     super.initState();
     _controller = _binding.create(
       context: widget.context,
-      initialBackend: widget.settingsController.settings.kubernetesPreferences.backend,
+      initialBackend:
+          widget.settingsController.settings.kubernetesPreferences.backend,
       settings: widget.settingsController.settings,
     );
     _controllerListener = () {
@@ -65,13 +66,13 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
   }
 
   void _handleSettingsChanged() {
-    final next = widget.settingsController.settings.kubernetesPreferences.backend;
+    final next =
+        widget.settingsController.settings.kubernetesPreferences.backend;
     _controller.setBackend(next);
   }
 
   @override
   Widget build(BuildContext context) {
-    final spacing = context.appTheme.spacing;
     final snapshot = _controller.snapshot;
     final loading = _controller.loading;
     final error = _controller.error;
@@ -88,28 +89,141 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
     if (snapshot == null) {
       return _buildError(context, 'No data available.');
     }
-    return Column(
-      children: [
-        Padding(
-          padding: EdgeInsets.fromLTRB(
-            spacing.lg,
-            spacing.lg,
-            spacing.lg,
-            spacing.md,
+    final spacing = context.appTheme.spacing;
+    return Padding(
+      padding: EdgeInsets.all(spacing.lg),
+      child: _buildDashboardShell(context, snapshot),
+    );
+  }
+
+  Widget _buildDashboardShell(
+    BuildContext context,
+    KubernetesDashboardSnapshot data,
+  ) {
+    final spacing = context.appTheme.spacing;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 1180;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(context, data),
+            SizedBox(height: spacing.md),
+            _buildScopeBar(context, data),
+            if (data.warnings.isNotEmpty) ...[
+              SizedBox(height: spacing.md),
+              _buildWarnings(context, data.warnings),
+            ],
+            SizedBox(height: spacing.lg),
+            Expanded(
+              child: wide
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: 280,
+                          child: _buildStatusRail(context, data),
+                        ),
+                        SizedBox(width: spacing.lg),
+                        Expanded(child: _buildOperationsDeck(context, data)),
+                      ],
+                    )
+                  : Column(
+                      children: [
+                        _buildStatusRail(context, data),
+                        SizedBox(height: spacing.lg),
+                        Expanded(child: _buildOperationsDeck(context, data)),
+                      ],
+                    ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildStatusRail(
+    BuildContext context,
+    KubernetesDashboardSnapshot data,
+  ) {
+    final spacing = context.appTheme.spacing;
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _panel(
+            context,
+            title: 'Cluster',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _railFact(context, 'Context', data.summary.contextName),
+                _railFact(context, 'Cluster', data.summary.clusterName),
+                if (data.summary.namespace != null)
+                  _railFact(context, 'Namespace', data.summary.namespace!),
+                if (data.summary.server != null)
+                  _railFact(context, 'Server', data.summary.server!),
+                _railFact(
+                  context,
+                  'Backend',
+                  _backendLabel(_controller.backend),
+                ),
+                _railFact(
+                  context,
+                  'Updated',
+                  _formatTimestamp(data.collectedAt),
+                ),
+              ],
+            ),
           ),
-          child: _buildHeader(context, snapshot),
-        ),
-        Padding(
-          padding: EdgeInsets.fromLTRB(spacing.lg, 0, spacing.lg, spacing.md),
-          child: _buildScopeBar(context, snapshot),
-        ),
-        if (snapshot.warnings.isNotEmpty)
-          Padding(
-            padding: EdgeInsets.fromLTRB(spacing.lg, 0, spacing.lg, spacing.md),
-            child: _buildWarnings(context, snapshot.warnings),
+          SizedBox(height: spacing.md),
+          _panel(
+            context,
+            title: 'Status',
+            child: Column(
+              children: [
+                _statusMeter(
+                  context,
+                  label: 'Nodes Ready',
+                  value:
+                      '${data.summary.nodesReady}/${data.summary.nodesTotal}',
+                  emphasis: data.summary.nodesReady == data.summary.nodesTotal,
+                ),
+                SizedBox(height: spacing.sm),
+                _statusMeter(
+                  context,
+                  label: 'Namespaces',
+                  value: data.summary.namespaces.toString(),
+                ),
+                SizedBox(height: spacing.sm),
+                _statusMeter(
+                  context,
+                  label: 'Workloads',
+                  value: data.summary.workloads.toString(),
+                ),
+                SizedBox(height: spacing.sm),
+                _statusMeter(
+                  context,
+                  label: 'Pods',
+                  value: data.summary.pods.toString(),
+                ),
+                SizedBox(height: spacing.sm),
+                _statusMeter(
+                  context,
+                  label: 'Services',
+                  value: data.summary.services.toString(),
+                ),
+              ],
+            ),
           ),
-        _buildTabs(context, snapshot),
-      ],
+          SizedBox(height: spacing.md),
+          _panel(
+            context,
+            title: 'Namespaces In Scope',
+            child: _scopeList(context, data),
+          ),
+        ],
+      ),
     );
   }
 
@@ -379,7 +493,10 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
     }).toList();
   }
 
-  Widget _buildTabs(BuildContext context, KubernetesDashboardSnapshot data) {
+  Widget _buildOperationsDeck(
+    BuildContext context,
+    KubernetesDashboardSnapshot data,
+  ) {
     final spacing = context.appTheme.spacing;
     final filteredNodes = _filterNodes(data.nodes);
     final filteredNamespaces = _filterNamespaces(data.namespaces);
@@ -387,126 +504,135 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
     final filteredPods = _filterPods(data.pods);
     final filteredServices = _filterServices(data.services);
     final filteredEvents = _filterEvents(data.events);
-    return Expanded(
-      child: DefaultTabController(
-        length: 7,
-        child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stacked = constraints.maxWidth < 900;
+        if (stacked) {
+          return ListView(
+            children: [
+              _buildDeckPane(
+                context,
+                title: 'Nodes',
+                subtitle: '${filteredNodes.length} visible',
+                child: _buildNodes(context, filteredNodes),
+              ),
+              SizedBox(height: spacing.md),
+              _buildDeckPane(
+                context,
+                title: 'Workloads',
+                subtitle: '${filteredWorkloads.length} visible',
+                child: _buildWorkloads(context, filteredWorkloads),
+              ),
+              SizedBox(height: spacing.md),
+              _buildDeckPane(
+                context,
+                title: 'Pods',
+                subtitle: '${filteredPods.length} visible',
+                child: _buildPods(context, filteredPods),
+              ),
+              SizedBox(height: spacing.md),
+              _buildDeckPane(
+                context,
+                title: 'Services',
+                subtitle: '${filteredServices.length} visible',
+                child: _buildServices(context, filteredServices),
+              ),
+              SizedBox(height: spacing.md),
+              _buildDeckPane(
+                context,
+                title: 'Recent Events',
+                subtitle: '${filteredEvents.length} visible',
+                child: _buildEvents(context, filteredEvents),
+              ),
+              SizedBox(height: spacing.md),
+              _buildDeckPane(
+                context,
+                title: 'Namespaces',
+                subtitle: '${filteredNamespaces.length} visible',
+                child: _buildNamespaces(context, filteredNamespaces),
+              ),
+            ],
+          );
+        }
+
+        return Column(
           children: [
-            TabBar(
-              labelPadding: EdgeInsets.symmetric(horizontal: spacing.md),
-              tabs: const [
-                Tab(text: 'Overview'),
-                Tab(text: 'Nodes'),
-                Tab(text: 'Namespaces'),
-                Tab(text: 'Workloads'),
-                Tab(text: 'Pods'),
-                Tab(text: 'Services'),
-                Tab(text: 'Events'),
-              ],
-            ),
             Expanded(
-              child: TabBarView(
+              child: Row(
                 children: [
-                  _buildOverview(
-                    context,
-                    data,
-                    workloads: filteredWorkloads,
-                    events: filteredEvents,
+                  Expanded(
+                    child: _buildDeckPane(
+                      context,
+                      title: 'Nodes',
+                      subtitle: '${filteredNodes.length} visible',
+                      child: _buildNodes(context, filteredNodes),
+                    ),
                   ),
-                  _buildNodes(context, filteredNodes),
-                  _buildNamespaces(context, filteredNamespaces),
-                  _buildWorkloads(context, filteredWorkloads),
-                  _buildPods(context, filteredPods),
-                  _buildServices(context, filteredServices),
-                  _buildEvents(context, filteredEvents),
+                  SizedBox(width: spacing.md),
+                  Expanded(
+                    child: _buildDeckPane(
+                      context,
+                      title: 'Workloads',
+                      subtitle: '${filteredWorkloads.length} visible',
+                      child: _buildWorkloads(context, filteredWorkloads),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: spacing.md),
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildDeckPane(
+                      context,
+                      title: 'Pods',
+                      subtitle: '${filteredPods.length} visible',
+                      child: _buildPods(context, filteredPods),
+                    ),
+                  ),
+                  SizedBox(width: spacing.md),
+                  Expanded(
+                    child: _buildDeckPane(
+                      context,
+                      title: 'Services',
+                      subtitle: '${filteredServices.length} visible',
+                      child: _buildServices(context, filteredServices),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: spacing.md),
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: _buildDeckPane(
+                      context,
+                      title: 'Recent Events',
+                      subtitle: '${filteredEvents.length} visible',
+                      child: _buildEvents(context, filteredEvents),
+                    ),
+                  ),
+                  SizedBox(width: spacing.md),
+                  Expanded(
+                    flex: 2,
+                    child: _buildDeckPane(
+                      context,
+                      title: 'Namespaces',
+                      subtitle: '${filteredNamespaces.length} visible',
+                      child: _buildNamespaces(context, filteredNamespaces),
+                    ),
+                  ),
                 ],
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOverview(
-    BuildContext context,
-    KubernetesDashboardSnapshot data, {
-    required List<KubernetesWorkloadRow> workloads,
-    required List<KubernetesEventRow> events,
-  }) {
-    final spacing = context.appTheme.spacing;
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(spacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: spacing.md,
-            runSpacing: spacing.md,
-            children: [
-              _summaryCard(
-                context,
-                title: 'Nodes Ready',
-                value: '${data.summary.nodesReady}/${data.summary.nodesTotal}',
-                subtitle: 'Kubelet health',
-              ),
-              _summaryCard(
-                context,
-                title: 'Namespaces',
-                value: data.summary.namespaces.toString(),
-                subtitle: 'Active scope',
-              ),
-              _summaryCard(
-                context,
-                title: 'Workloads',
-                value: data.summary.workloads.toString(),
-                subtitle: 'Deployments',
-              ),
-              _summaryCard(
-                context,
-                title: 'Pods',
-                value: data.summary.pods.toString(),
-                subtitle: 'Running + pending',
-              ),
-              _summaryCard(
-                context,
-                title: 'Services',
-                value: data.summary.services.toString(),
-                subtitle: 'Cluster entries',
-              ),
-            ],
-          ),
-          SizedBox(height: spacing.lg),
-          Text('Quick view', style: context.appTheme.typography.sectionTitle),
-          SizedBox(height: spacing.sm),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _panel(
-                  context,
-                  title: 'Nodes',
-                  child: _compactNodes(context, data.nodes),
-                ),
-              ),
-              SizedBox(width: spacing.lg),
-              Expanded(
-                child: _panel(
-                  context,
-                  title: 'Workloads',
-                  child: _compactWorkloads(context, workloads),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: spacing.lg),
-          _panel(
-            context,
-            title: 'Recent events',
-            child: _compactEvents(context, events),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -745,21 +871,36 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
   }
 
   Widget _tableScaffold(BuildContext context, {required Widget table}) {
-    final spacing = context.appTheme.spacing;
-    return Padding(padding: EdgeInsets.all(spacing.lg), child: table);
+    return table;
   }
 
-  Widget _summaryCard(
+  Widget _buildDeckPane(
     BuildContext context, {
     required String title,
-    required String value,
     required String subtitle,
+    required Widget child,
   }) {
-    return DashboardMetricCard(
-      title: title,
-      value: value,
-      subtitle: subtitle,
-      width: 200,
+    final spacing = context.appTheme.spacing;
+    final surface = context.appTheme.section.surface;
+    return Container(
+      decoration: BoxDecoration(
+        color: surface.background,
+        borderRadius: surface.radius,
+        border: Border.all(color: surface.borderColor),
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(spacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: context.appTheme.typography.sectionTitle),
+            SizedBox(height: spacing.xs),
+            Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+            SizedBox(height: spacing.md),
+            Expanded(child: child),
+          ],
+        ),
+      ),
     );
   }
 
@@ -768,98 +909,82 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
     required String title,
     required Widget child,
   }) {
-    return DashboardSectionCard(
-      title: title,
-      child: child,
-    );
+    return DashboardSectionCard(title: title, child: child);
   }
 
-  Widget _compactNodes(BuildContext context, List<KubernetesNodeRow> rows) {
+  Widget _railFact(BuildContext context, String label, String value) {
     final spacing = context.appTheme.spacing;
-    if (rows.isEmpty) {
-      return Text(
-        'No nodes found.',
-        style: Theme.of(context).textTheme.bodySmall,
-      );
-    }
-    final visible = rows.take(6).toList();
-    return Column(
-      children: [
-        for (final row in visible)
-          Padding(
-            padding: EdgeInsets.only(bottom: spacing.xs),
-            child: Row(
-              children: [
-                Expanded(child: Text(row.name)),
-                Text(row.ready ? 'Ready' : 'Not Ready'),
-              ],
-            ),
+    return Padding(
+      padding: EdgeInsets.only(bottom: spacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.labelSmall),
+          SizedBox(height: spacing.xs / 2),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.bodyMedium,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _compactWorkloads(
-    BuildContext context,
-    List<KubernetesWorkloadRow> rows,
-  ) {
+  Widget _statusMeter(
+    BuildContext context, {
+    required String label,
+    required String value,
+    bool emphasis = false,
+  }) {
     final spacing = context.appTheme.spacing;
-    if (rows.isEmpty) {
-      return Text(
-        'No workloads found.',
-        style: Theme.of(context).textTheme.bodySmall,
-      );
-    }
-    final visible = rows.take(6).toList();
-    return Column(
-      children: [
-        for (final row in visible)
-          Padding(
-            padding: EdgeInsets.only(bottom: spacing.xs),
-            child: Row(
-              children: [
-                Expanded(child: Text('${row.namespace}/${row.name}')),
-                Text(row.ready),
-              ],
-            ),
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(spacing.sm),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        color: emphasis
+            ? scheme.primary.withValues(alpha: 0.10)
+            : scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(label, style: Theme.of(context).textTheme.bodySmall),
           ),
-      ],
+          Text(
+            value,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _compactEvents(BuildContext context, List<KubernetesEventRow> rows) {
+  Widget _scopeList(BuildContext context, KubernetesDashboardSnapshot data) {
     final spacing = context.appTheme.spacing;
-    if (rows.isEmpty) {
+    final namespaces = _namespaceOptions(
+      data,
+    ).where((value) => value != _allNamespacesLabel);
+    if (namespaces.isEmpty) {
       return Text(
-        'No events found.',
+        'No namespaces discovered.',
         style: Theme.of(context).textTheme.bodySmall,
       );
     }
-    final visible = rows.take(5).toList();
-    return Column(
+    return Wrap(
+      spacing: spacing.xs,
+      runSpacing: spacing.xs,
       children: [
-        for (final row in visible)
-          Padding(
-            padding: EdgeInsets.only(bottom: spacing.xs),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 80,
-                  child: Text(
-                    _formatAge(row.timestamp),
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    '${row.reason} - ${row.message}',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
+        for (final namespace in namespaces)
+          Chip(
+            label: Text(namespace),
+            visualDensity: VisualDensity.compact,
+            side: BorderSide.none,
           ),
       ],
     );
@@ -871,11 +996,7 @@ class _KubernetesDashboardViewState extends State<KubernetesDashboardView> {
     required String value,
     required IconData icon,
   }) {
-    return DashboardMetadataCard(
-      label: label,
-      value: value,
-      icon: icon,
-    );
+    return DashboardMetadataCard(label: label, value: value, icon: icon);
   }
 
   String _backendLabel(KubernetesBackend backend) {
