@@ -109,12 +109,21 @@ class ContainerDistroManager {
           rethrow;
         }
       });
-      final slug = await detector.detect();
+      final result = await detector.detectDetailed();
+      final slug = result.slug;
       if (slug == null) {
-        AppLogger().debug(
-          'Container distro detection failed for ${container.name}',
-          tag: 'Distro',
-        );
+        final error = result.primaryError;
+        if (error == null) {
+          AppLogger().debug(
+            'Container distro detection failed for ${container.name}',
+            tag: 'Distro',
+          );
+        } else {
+          AppLogger().debug(
+            'Container distro detection failed for ${container.name}: $error',
+            tag: 'Distro',
+          );
+        }
         return;
       }
       AppLogger().debug(

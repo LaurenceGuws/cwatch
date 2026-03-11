@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:cwatch/model/shared/theme/distro_icons.dart';
-import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 
 typedef DistroCommandRunner =
     Future<String> Function(String command, {Duration? timeout});
@@ -15,16 +14,35 @@ class DistroDetector {
     Duration osReleaseTimeout = const Duration(seconds: 6),
     Duration unameTimeout = const Duration(seconds: 4),
   }) async {
-    final release = await _readOsRelease(osReleaseTimeout);
-    final slug = release != null ? _slugFromRelease(release) : null;
-    if (slug != null) {
-      return slug;
-    }
-    final uname = await _runUname(unameTimeout);
-    return uname != null ? _slugFromUname(uname) : null;
+    final result = await detectDetailed(
+      osReleaseTimeout: osReleaseTimeout,
+      unameTimeout: unameTimeout,
+    );
+    return result.slug;
   }
 
-  Future<Map<String, String>?> _readOsRelease(Duration timeout) async {
+  Future<DistroDetectionResult> detectDetailed({
+    Duration osReleaseTimeout = const Duration(seconds: 6),
+    Duration unameTimeout = const Duration(seconds: 4),
+  }) async {
+    final releaseResult = await _readOsRelease(osReleaseTimeout);
+    final release = releaseResult.release;
+    final slug = release != null ? _slugFromRelease(release) : null;
+    if (slug != null) {
+      return DistroDetectionResult(
+        slug: slug,
+        osReleaseError: releaseResult.error,
+      );
+    }
+    final unameResult = await _runUname(unameTimeout);
+    return DistroDetectionResult(
+      slug: unameResult.uname != null ? _slugFromUname(unameResult.uname!) : null,
+      osReleaseError: releaseResult.error,
+      unameError: unameResult.error,
+    );
+  }
+
+  Future<_OsReleaseResult> _readOsRelease(Duration timeout) async {
     try {
       final output = await runner('cat /etc/os-release', timeout: timeout);
       final lines = output.split('\n');
@@ -46,37 +64,25 @@ class DistroDetector {
         result[key] = _stripQuotes(value);
       }
       if (result.isEmpty) {
-        return null;
+        return const _OsReleaseResult();
       }
-      return result;
+      return _OsReleaseResult(release: result);
     } on TimeoutException {
-      return null;
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Failed to read /etc/os-release',
-        tag: 'Distro',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      return null;
+      return const _OsReleaseResult();
+    } catch (error) {
+      return _OsReleaseResult(error: error);
     }
   }
 
-  Future<String?> _runUname(Duration timeout) async {
+  Future<_UnameResult> _runUname(Duration timeout) async {
     try {
       final output = await runner('uname -s', timeout: timeout);
       final trimmed = output.trim();
-      return trimmed.isEmpty ? null : trimmed;
+      return trimmed.isEmpty ? const _UnameResult() : _UnameResult(uname: trimmed);
     } on TimeoutException {
-      return null;
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Failed to run uname',
-        tag: 'Distro',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      return null;
+      return const _UnameResult();
+    } catch (error) {
+      return _UnameResult(error: error);
     }
   }
 
@@ -131,4 +137,32 @@ class DistroDetector {
     }
     return normalizeDistroSlug(uname);
   }
+}
+
+class DistroDetectionResult {
+  const DistroDetectionResult({
+    this.slug,
+    this.osReleaseError,
+    this.unameError,
+  });
+
+  final String? slug;
+  final Object? osReleaseError;
+  final Object? unameError;
+
+  Object? get primaryError => unameError ?? osReleaseError;
+}
+
+class _OsReleaseResult {
+  const _OsReleaseResult({this.release, this.error});
+
+  final Map<String, String>? release;
+  final Object? error;
+}
+
+class _UnameResult {
+  const _UnameResult({this.uname, this.error});
+
+  final String? uname;
+  final Object? error;
 }

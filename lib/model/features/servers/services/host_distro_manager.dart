@@ -94,12 +94,21 @@ class HostDistroManager {
           rethrow;
         }
       });
-      final slug = await detector.detect();
+      final result = await detector.detectDetailed();
+      final slug = result.slug;
       if (slug == null) {
-        AppLogger().debug(
-          'Distro detection failed for ${host.name}',
-          tag: 'Distro',
-        );
+        final error = result.primaryError;
+        if (error == null) {
+          AppLogger().debug(
+            'Distro detection failed for ${host.name}',
+            tag: 'Distro',
+          );
+        } else {
+          AppLogger().debug(
+            'Distro detection failed for ${host.name}: $error',
+            tag: 'Distro',
+          );
+        }
         return;
       }
       AppLogger().debug(
