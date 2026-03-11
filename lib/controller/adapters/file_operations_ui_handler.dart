@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -11,6 +10,7 @@ import 'package:cwatch/view/shared/widgets/file_operation_progress_dialog.dart';
 import 'package:cwatch/model/services/explorer_clipboard.dart';
 import 'package:cwatch/model/services/file_operations_service.dart';
 import 'explorer_ui_adapter.dart';
+import 'file_operation_transfer_session.dart';
 
 class FileOperationsUiHandler {
   FileOperationsUiHandler({required this.service, required this.uiAdapter});
@@ -215,6 +215,11 @@ class FileOperationsUiHandler {
         progressController.cancel();
       },
     );
+    final transferSession = FileOperationTransferSession(
+      progressController: progressController,
+      isMounted: () => context.mounted,
+      showMessage: _showSnackBar,
+    );
 
     var successCount = 0;
 
@@ -261,14 +266,12 @@ class FileOperationsUiHandler {
         },
       );
 
-      if (!context.mounted) return;
-      progressController.dismiss();
-      if (progressController.cancelled) {
-        _showSnackBar('Download cancelled');
-        return;
-      }
-      _showSnackBar(
-        'Downloaded $successCount item${successCount == 1 ? '' : 's'}',
+      await transferSession.complete(
+        successCount: successCount,
+        failCount: 0,
+        successVerb: 'Downloaded',
+        cancelledMessage: 'Download cancelled',
+        refresh: () async {},
       );
     } catch (error, stackTrace) {
       AppLogger().warn(
@@ -278,8 +281,7 @@ class FileOperationsUiHandler {
         stackTrace: stackTrace,
       );
       if (!context.mounted) return;
-      progressController.dismiss();
-      _showSnackBar('Download failed: $error');
+      transferSession.fail(error, failedVerb: 'Download');
     }
   }
 
@@ -339,6 +341,11 @@ class FileOperationsUiHandler {
       onCancel: () {
         progressController.cancel();
       },
+    );
+    final transferSession = FileOperationTransferSession(
+      progressController: progressController,
+      isMounted: () => context.mounted,
+      showMessage: _showSnackBar,
     );
 
     try {
@@ -417,22 +424,13 @@ class FileOperationsUiHandler {
         },
       );
 
-      if (!context.mounted) return;
-      progressController.dismiss();
-      await refreshCurrentPath();
-
-      if (!context.mounted) return;
-      if (progressController.cancelled) {
-        _showSnackBar('Upload cancelled');
-      } else if (failCount == 0) {
-        _showSnackBar(
-          'Uploaded $successCount item${successCount > 1 ? 's' : ''}',
-        );
-      } else {
-        _showSnackBar(
-          'Uploaded $successCount item${successCount > 1 ? 's' : ''}. $failCount failed.',
-        );
-      }
+      await transferSession.complete(
+        successCount: successCount,
+        failCount: failCount,
+        successVerb: 'Uploaded',
+        cancelledMessage: 'Upload cancelled',
+        refresh: refreshCurrentPath,
+      );
     } catch (error, stackTrace) {
       AppLogger().warn(
         'Upload operation failed',
@@ -440,10 +438,7 @@ class FileOperationsUiHandler {
         error: error,
         stackTrace: stackTrace,
       );
-      if (!context.mounted) return;
-      progressController.dismiss();
-      if (!context.mounted) return;
-      _showSnackBar('Upload failed: $error');
+      transferSession.fail(error, failedVerb: 'Upload');
     }
   }
 
@@ -499,6 +494,11 @@ class FileOperationsUiHandler {
       onCancel: () {
         progressController.cancel();
       },
+    );
+    final transferSession = FileOperationTransferSession(
+      progressController: progressController,
+      isMounted: () => context.mounted,
+      showMessage: _showSnackBar,
     );
 
     try {
@@ -609,22 +609,15 @@ class FileOperationsUiHandler {
         }
       }
 
-      if (!context.mounted) return;
-      progressController.dismiss();
-      await refreshCurrentPath();
-
-      if (!context.mounted) return;
-      if (progressController.cancelled) {
-        _showSnackBar('Upload cancelled');
-      } else if (failCount == 0) {
-        _showSnackBar(
-          'Uploaded ${directoryCounts.totalUnits} item${directoryCounts.totalUnits == 1 ? '' : 's'}',
-        );
-      } else {
-        _showSnackBar(
-          'Uploaded $successCount item${successCount == 1 ? '' : 's'}. $failCount failed.',
-        );
-      }
+      await transferSession.complete(
+        successCount: failCount == 0
+            ? directoryCounts.totalUnits
+            : successCount,
+        failCount: failCount,
+        successVerb: 'Uploaded',
+        cancelledMessage: 'Upload cancelled',
+        refresh: refreshCurrentPath,
+      );
     } catch (error, stackTrace) {
       AppLogger().warn(
         'Directory upload failed',
@@ -632,12 +625,7 @@ class FileOperationsUiHandler {
         error: error,
         stackTrace: stackTrace,
       );
-      if (!context.mounted) return;
-      if (Navigator.of(context, rootNavigator: true).canPop()) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-      if (!context.mounted) return;
-      _showSnackBar('Upload failed: $error');
+      transferSession.fail(error, failedVerb: 'Upload');
     }
   }
 
@@ -680,6 +668,11 @@ class FileOperationsUiHandler {
       onCancel: () {
         progressController.cancel();
       },
+    );
+    final transferSession = FileOperationTransferSession(
+      progressController: progressController,
+      isMounted: () => context.mounted,
+      showMessage: _showSnackBar,
     );
 
     var successCount = 0;
@@ -757,31 +750,14 @@ class FileOperationsUiHandler {
       },
     );
 
-    if (context.mounted) {
-      progressController.dismiss();
-    }
-
-    if (successCount > 0) {
-      await refreshCurrentPath();
-    }
-
-    if (!context.mounted) {
-      return;
-    }
-
-    if (progressController.cancelled) {
-      _showSnackBar('Upload cancelled');
-      return;
-    }
-    if (failCount == 0) {
-      _showSnackBar(
-        'Uploaded $successCount item${successCount == 1 ? '' : 's'}',
-      );
-    } else {
-      _showSnackBar(
-        'Uploaded $successCount item${successCount == 1 ? '' : 's'}. $failCount failed.',
-      );
-    }
+    await transferSession.complete(
+      successCount: successCount,
+      failCount: failCount,
+      successVerb: 'Uploaded',
+      cancelledMessage: 'Upload cancelled',
+      refresh: refreshCurrentPath,
+      refreshOnSuccessOnly: true,
+    );
   }
 
   void _showSnackBar(String message) {
