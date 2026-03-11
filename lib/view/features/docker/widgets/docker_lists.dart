@@ -16,6 +16,7 @@ import 'package:cwatch/view/shared/widgets/distro_leading_slot.dart';
 import 'package:cwatch/view/shared/widgets/lists/section_list.dart';
 import 'package:cwatch/view/shared/widgets/lists/selectable_list_item.dart';
 import 'docker_container_peek_state_controller.dart';
+import 'docker_image_peek_state_controller.dart';
 import 'docker_lists_helpers.dart';
 
 typedef ItemTapDown<T> =
@@ -715,28 +716,6 @@ class ContainerList extends StatelessWidget {
   }
 }
 
-class _ImageRow {
-  const _ImageRow({
-    required this.repository,
-    required this.images,
-  });
-
-  final String repository;
-  final List<DockerImage> images;
-
-  String get displayName => repository.isNotEmpty ? repository : '<none>';
-  int get tagCount => images.length;
-  String get totalSize => _calculateTotalSize(images);
-
-  static String _calculateTotalSize(List<DockerImage> images) {
-    if (images.isEmpty) return '—';
-    // Show the largest image size as representative
-    if (images.length == 1) return images.first.size;
-    // For multiple tags, show count
-    return '${images.length} tag${images.length == 1 ? '' : 's'}';
-  }
-}
-
 class ImagePeek extends StatefulWidget {
   const ImagePeek({
     super.key,
@@ -769,28 +748,12 @@ class ImagePeek extends StatefulWidget {
 }
 
 class _ImagePeekState extends State<ImagePeek> {
-  final Map<String, ValueNotifier<bool>> _expandedRows = {};
-
-  ValueNotifier<bool> _expansionFor(String repository) {
-    return _expandedRows.putIfAbsent(
-      repository,
-      () => ValueNotifier<bool>(false),
-    );
-  }
-
-  void _syncExpandedRows(List<_ImageRow> rows) {
-    if (_expandedRows.isEmpty) {
-      return;
-    }
-    final active = rows.map((r) => r.repository).toSet();
-    _expandedRows.removeWhere((repo, _) => !active.contains(repo));
-  }
+  final DockerImagePeekStateController _stateController =
+      DockerImagePeekStateController();
 
   @override
   void dispose() {
-    for (final notifier in _expandedRows.values) {
-      notifier.dispose();
-    }
+    _stateController.dispose();
     super.dispose();
   }
 
@@ -800,16 +763,12 @@ class _ImagePeekState extends State<ImagePeek> {
       return const EmptyCard(message: 'No images found.');
     }
 
-    final groups = _groupImages(widget.images);
-    final rows = groups.entries
-        .map((e) => _ImageRow(repository: e.key, images: e.value))
-        .toList();
-    _syncExpandedRows(rows);
+    final rows = _stateController.buildRows(widget.images);
 
-    final totalTags = widget.images.length;
-    final totalRepos = rows.length;
+    final totalTags = _stateController.totalTags(widget.images);
+    final totalRepos = _stateController.totalRepositories(rows);
     final selectedCount = widget.selectedIds.length;
-    final totalSize = _calculateTotalSize(widget.images);
+    final totalSize = _stateController.calculateTotalSize(widget.images);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -833,7 +792,7 @@ class _ImagePeekState extends State<ImagePeek> {
         ),
         Card(
           margin: EdgeInsets.only(top: context.appTheme.spacing.xs),
-          child: StructuredDataTable<_ImageRow>(
+          child: StructuredDataTable<DockerImageGroupRow>(
             rows: rows,
             columns: _imageColumns(context, totalTags, totalSize),
             autoRowHeight: true,
@@ -971,27 +930,27 @@ class _ImagePeekState extends State<ImagePeek> {
     await widget.onPullImage!(imageName);
   }
 
-  List<StructuredDataColumn<_ImageRow>> _imageColumns(
+  List<StructuredDataColumn<DockerImageGroupRow>> _imageColumns(
     BuildContext context,
     int totalTags,
     String totalSize,
   ) {
     return [
-      StructuredDataColumn<_ImageRow>(
+      StructuredDataColumn<DockerImageGroupRow>(
         label: '',
         width: 44,
         alignment: Alignment.topCenter,
         cellBuilder: (context, row) => _ExpandToggleCell(
-          expanded: _expansionFor(row.repository),
+          expanded: _stateController.expansionFor(row.repository),
         ),
       ),
-      StructuredDataColumn<_ImageRow>(
+      StructuredDataColumn<DockerImageGroupRow>(
         label: 'Repository',
         flex: 2,
         alignment: Alignment.topLeft,
         cellBuilder: (context, row) => _RepositoryCell(
           row: row,
-          expanded: _expansionFor(row.repository),
+          expanded: _stateController.expansionFor(row.repository),
           onTapDown: widget.onTapDown,
           onSelectionChanged: widget.onSelectionChanged,
           selectedIds: widget.selectedIds,
@@ -999,7 +958,7 @@ class _ImagePeekState extends State<ImagePeek> {
           actionLabels: widget.actionLabels,
         ),
       ),
-      StructuredDataColumn<_ImageRow>(
+      StructuredDataColumn<DockerImageGroupRow>(
         label: 'Tags ($totalTags)',
         width: 100,
         alignment: Alignment.topLeft,
@@ -1011,7 +970,7 @@ class _ImagePeekState extends State<ImagePeek> {
           ),
         ),
       ),
-      StructuredDataColumn<_ImageRow>(
+      StructuredDataColumn<DockerImageGroupRow>(
         label: 'Size ($totalSize)',
         width: 140,
         alignment: Alignment.topLeft,
@@ -1026,77 +985,6 @@ class _ImagePeekState extends State<ImagePeek> {
     ];
   }
 
-  Map<String, List<DockerImage>> _groupImages(List<DockerImage> images) {
-    final map = <String, List<DockerImage>>{};
-    for (final img in images) {
-      final key = img.repository.isNotEmpty ? img.repository : '<none>';
-      map.putIfAbsent(key, () => []).add(img);
-    }
-    final keys = map.keys.toList()..sort();
-    return {for (final k in keys) k: map[k]!};
-  }
-
-  String _calculateTotalSize(List<DockerImage> images) {
-    if (images.isEmpty) return '0 B';
-    
-    double totalBytes = 0;
-    int parsedCount = 0;
-    
-    for (final image in images) {
-      final bytes = _parseSizeToBytes(image.size);
-      if (bytes != null) {
-        totalBytes += bytes;
-        parsedCount++;
-      }
-    }
-    
-    if (parsedCount == 0) return '—';
-    
-    return _formatBytes(totalBytes);
-  }
-
-  double? _parseSizeToBytes(String size) {
-    final trimmed = size.trim();
-    if (trimmed.isEmpty || trimmed == '—') return null;
-    
-    // Parse sizes like "1.5GB", "500MB", "10.2KB", etc.
-    final regex = RegExp(r'^([\d.]+)\s*([KMGT]?B)$', caseSensitive: false);
-    final match = regex.firstMatch(trimmed);
-    
-    if (match == null) return null;
-    
-    final value = double.tryParse(match.group(1) ?? '');
-    if (value == null) return null;
-    
-    final unit = match.group(2)?.toUpperCase() ?? 'B';
-    
-    switch (unit) {
-      case 'B':
-        return value;
-      case 'KB':
-        return value * 1024;
-      case 'MB':
-        return value * 1024 * 1024;
-      case 'GB':
-        return value * 1024 * 1024 * 1024;
-      case 'TB':
-        return value * 1024 * 1024 * 1024 * 1024;
-      default:
-        return null;
-    }
-  }
-
-  String _formatBytes(double bytes) {
-    if (bytes < 1024) return '${bytes.toStringAsFixed(0)} B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    if (bytes < 1024 * 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
-    }
-    return '${(bytes / (1024 * 1024 * 1024 * 1024)).toStringAsFixed(2)} TB';
-  }
 }
 
 class _ImageActionsBar extends StatelessWidget {
@@ -1274,7 +1162,7 @@ class _RepositoryCell extends StatelessWidget {
     required this.actionLabels,
   });
 
-  final _ImageRow row;
+  final DockerImageGroupRow row;
   final ValueNotifier<bool> expanded;
   final ItemTapDown<DockerImage>? onTapDown;
   final void Function(Set<String> tableKeys, List<DockerImage> selected)?

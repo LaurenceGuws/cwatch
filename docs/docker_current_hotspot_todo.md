@@ -69,3 +69,41 @@ Done definition:
 - one Docker-local helper owns container grouping, flat-index lookup, uptime labels, and stats cache/projection
 - `_ContainerPeekState` no longer owns inline stats future/cache helpers
 - focused regression coverage exists for the new helper
+
+## Task 22.4: define the second bounded Docker batch
+Status: completed
+
+Goal:
+- choose the next Docker cleanup slice from the remaining real hotspots after the container peek split
+
+Done definition:
+- one next batch is explicit
+- the batch has a clear stop condition
+- later Docker concerns remain queued instead of over-planned
+
+Result:
+- the second bounded Docker batch is now:
+  - `ImagePeek` grouping and expansion-state orchestration split
+- target files:
+  - [docker_lists.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_lists.dart)
+  - new Docker-local helper for image list state/projection
+- stop condition:
+  - repository grouping, aggregate size formatting, expansion-state ownership, and grouped row projection no longer live inline inside `_ImagePeekState`
+  - rendering and prompt dialogs stay in `docker_lists.dart`
+  - network/volume lists remain untouched in this batch
+
+Why this is the right second cut:
+- it removes real local orchestration smell from the next-heaviest Docker list surface
+- it stays feature-local and does not reopen broader Docker ownership questions
+- it gives another direct seam for focused regression coverage
+
+## Task 22.5: implement the ImagePeek state/projection split
+Status: completed
+
+Goal:
+- extract `ImagePeek` grouping, totals, and expansion-state projection logic into a dedicated Docker-local helper
+
+Done definition:
+- one Docker-local helper owns repository grouping, grouped rows, expansion-state lifecycle, total tag/repo counts, and aggregate size formatting
+- `_ImagePeekState` no longer owns inline grouping/size helpers or expansion map lifecycle
+- focused regression coverage exists for the new helper
