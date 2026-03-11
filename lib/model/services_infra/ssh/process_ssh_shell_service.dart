@@ -8,6 +8,7 @@ import '../logging/app_logger.dart';
 import 'process_ssh_file_operation_planner.dart';
 import 'process_ssh_search_planner.dart';
 import 'process_ssh_run_result_handler.dart';
+import 'process_ssh_terminal_session_planner.dart';
 import 'process_ssh_failure_mapper.dart';
 import 'remote_shell_base.dart';
 import 'terminal_session.dart';
@@ -24,6 +25,8 @@ class ProcessRemoteShellService extends RemoteShellService {
       const ProcessSshFileOperationPlanner();
   final ProcessSshSearchPlanner _searchPlanner =
       const ProcessSshSearchPlanner();
+  final ProcessSshTerminalSessionPlanner _terminalSessionPlanner =
+      const ProcessSshTerminalSessionPlanner();
 
   /// Handles SSH command errors, detecting authentication failures.
   Never _handleSshError(SshHost host, ProcessResult result) {
@@ -594,39 +597,23 @@ class ProcessRemoteShellService extends RemoteShellService {
     required TerminalSessionOptions options,
   }) async {
     ensureShellAllowed(host);
-    final columns = options.columns > 0 ? options.columns : 80;
-    final rows = options.rows > 0 ? options.rows : 25;
     try {
-      final env = _sessionEnvironment();
-      LocalPtySession session;
-      if (Platform.isWindows) {
-        final sshArgs = _runner.buildSshArgumentsForTerminal(host).join(' ');
-        final commandLine = 'ssh $sshArgs';
-        AppLogger().debug(
-          'Starting system SSH via cmd.exe /c "$commandLine"',
-          tag: 'ProcessSSH',
-        );
-        session = LocalPtySession(
-          executable: 'cmd.exe',
-          arguments: ['/c', commandLine],
-          environment: env,
-          cols: columns,
-          rows: rows,
-        );
-      } else {
-        final args = _runner.buildSshArgumentsForTerminal(host);
-        AppLogger().debug(
-          'Starting system SSH via ssh ${args.join(' ')}',
-          tag: 'ProcessSSH',
-        );
-        session = LocalPtySession(
-          executable: 'ssh',
-          arguments: args,
-          environment: env,
-          cols: columns,
-          rows: rows,
-        );
-      }
+      final plan = _terminalSessionPlanner.createPlan(
+        host: host,
+        options: options,
+        runner: _runner,
+      );
+      AppLogger().debug(
+        'Starting system SSH via ${plan.debugCommand}',
+        tag: 'ProcessSSH',
+      );
+      final session = LocalPtySession(
+        executable: plan.executable,
+        arguments: plan.arguments,
+        environment: plan.environment,
+        cols: plan.columns,
+        rows: plan.rows,
+      );
       unawaited(
         session.exitCode.then(
           (code) => AppLogger().debug(
@@ -647,14 +634,6 @@ class ProcessRemoteShellService extends RemoteShellService {
     }
   }
 
-  Map<String, String> _sessionEnvironment() {
-    final env = Map<String, String>.from(Platform.environment);
-    env.putIfAbsent('TERM', () => 'xterm-256color');
-    if (Platform.isWindows) {
-      env.putIfAbsent('SSH_AUTH_SOCK', () => r'\\.\pipe\openssh-ssh-agent');
-    }
-    return env;
-  }
 
   List<String> _buildScpArgs({
     required Set<String> identityFiles,

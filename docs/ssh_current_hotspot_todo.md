@@ -93,3 +93,15 @@ Done definition:
 - one SSH-local helper owns search timeout policy, predicate building, prune-clause building, and path-pattern normalization for search flows
 - `ProcessRemoteShellService` no longer owns inline search-pattern/predicate planning blocks
 - focused regression coverage exists for the new helper
+
+
+## Task 23.6: implement the process SSH terminal-session planning split
+Status: completed
+
+Goal:
+- extract terminal-session launch planning and environment shaping out of `ProcessRemoteShellService`
+
+Done definition:
+- one SSH-local helper owns terminal session launch planning
+- `ProcessRemoteShellService` no longer owns inline terminal executable/argument/environment branching
+- focused regression coverage exists for the new helper
