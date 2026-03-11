@@ -1,6 +1,6 @@
 # SSH Current Hotspot TODO
 
-Status: active
+Status: checkpointed
 Purpose: track the next bounded cleanup batches for the current highest-value remaining subsystem hotspot.
 
 ## Task 23.1: start the current SSH hotspot pass
@@ -520,3 +520,34 @@ Why this is the right next cut:
 - the selector/request indirection is gone, so the remaining factory smell is now local cache-state ambiguity
 - one shared signature field still represents multiple runtime caches
 - making cache ownership explicit improves readability without inventing another abstraction layer
+
+## Task 23.25: checkpoint the SSH shell-factory hotspot
+Status: completed
+
+Goal:
+- record that the current SSH factory/runtime-cache pass removed the main over-indirection seam from the current code state
+- stop here before forcing smaller speculative SSH cleanups
+
+Done definition:
+- this TODO is checkpointed from the current code state
+- completed SSH factory/cache work is recorded as enforced baseline
+- the remaining SSH weight is described accurately
+
+Result:
+- SSH shell-provider indirection is removed from:
+  - [ssh_shell_factory.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_factory.dart)
+  - [ssh_shell_provider_selector.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_provider_selector.dart)
+  - [ssh_shell_provider_request.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_provider_request.dart)
+  - [ssh_shell_factory_binding.dart](/home/home/personal/cwatch/lib/controller/di/bindings/ssh_shell_factory_binding.dart)
+- SSH factory cache ownership is now explicit inside:
+  - [ssh_shell_factory.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_factory.dart)
+- focused regression coverage still exists in:
+  - [ssh_shell_factory_test.dart](/home/home/personal/cwatch/test/model/services_infra/ssh/ssh_shell_factory_test.dart)
+  - [server_workspace_shell_test.dart](/home/home/personal/cwatch/test/view/features/servers/server_workspace_shell_test.dart)
+
+What remains:
+- [ssh_shell_factory.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_factory.dart) still hosts valid runtime selection and cache reuse behavior
+- broader SSH runtime behavior is now mostly acceptable builtin/process hosting glue or operation-specific transport behavior, not the same over-engineering hotspot
+
+Checkpoint rule:
+- future SSH work should reopen from fresh evidence in runtime behavior or feature integration, not from the older shell-factory indirection hotspot
