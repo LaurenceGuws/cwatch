@@ -243,7 +243,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
         TabChipOption(
           label: 'Refresh contexts',
           icon: NerdIcon.refresh.data,
-          onSelected: _workspaceShell.refreshContexts,
+          onSelected: () => _workspaceShell.refreshContexts(),
         ),
       );
       options.add(
