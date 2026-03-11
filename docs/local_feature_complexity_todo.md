@@ -265,7 +265,7 @@ Result:
 - `FileEntryList`, `SelectionController`, `FileExplorerTabActions`, and `FileExplorerTabPresenter` stayed stable in this batch
 
 ## Task 20.8: re-scope the next explorer local-complexity batch
-Status: pending
+Status: completed
 
 Goal:
 - decide whether the explorer local-complexity hotspot should continue or checkpoint here
@@ -276,3 +276,48 @@ Questions to answer:
 
 Done definition:
 - the next local-complexity move is explicit
+
+Result:
+- the explorer local-complexity hotspot is now at a good checkpoint
+- the next active hotspot in this layer should move to Docker local dashboard/picker state complexity
+
+Why this is the right stop:
+- the previous explorer batches already removed:
+  - top-level presentation/orchestration
+  - action/file-operation workflow routing
+  - entry-list interaction callback assembly
+- what remains in `file_explorer_tab.dart` is mostly valid explorer-local behavior:
+  - outer drop-host wiring
+  - path navigator composition
+  - tab option updates
+  - widget lifecycle glue
+- extracting more now would likely create fake local wrappers instead of a stronger architecture seam
+
+Checkpoint summary:
+- explorer local-complexity hotspot is checkpointed
+
+## Task 20.9: choose the next local complexity hotspot
+Status: completed
+
+Result:
+- the next local complexity hotspot should be Docker local dashboard/picker state complexity
+
+Why this wins now:
+- it remains one of the heavier local feature shells after the earlier Docker slice checkpoint
+- unlike explorer, it still has meaningful local state around context probing, remote scan state, picker readiness, and overlay coordination
+- it is lower interaction risk than reopening more explorer pointer/selection work
+
+## Task 20.10: define the Docker local state cleanup boundary
+Status: pending
+
+Goal:
+- define exactly what part of the remaining Docker-local complexity should be addressed first
+
+Questions to answer:
+- what should remain local to `docker_view.dart`
+- what should be split into a narrower Docker-local seam
+- what state/probe behavior should not be pushed into generic shell code
+
+Done definition:
+- one bounded Docker-local cleanup seam is chosen
+- the first implementation batch is clear
