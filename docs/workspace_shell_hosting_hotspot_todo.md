@@ -1,6 +1,6 @@
 # Workspace Shell Hosting Hotspot TODO
 
-Status: active
+Status: checkpointed
 Purpose: track the next bounded cleanup batches for the current highest-value repo hotspot: workspace-shell hosting reuse.
 
 ## Task 26.1: start the workspace-shell hosting hotspot pass
@@ -139,3 +139,14 @@ Why this is the right next move:
 - the largest remaining repeated host-lifecycle seam is now extracted
 - what remains is more feature-local runtime and placeholder behavior than shared workspace hosting
 - pushing further now risks over-generalizing valid feature differences
+
+## Checkpoint
+
+Current state:
+- WSL now uses a dedicated feature shell helper for shell-host lifecycle ownership
+- Server, Docker, and WSL now share the extracted workspace host lifecycle bootstrap seam
+- shell-host lifecycle ownership should now be treated as an enforced current-state baseline, not as the next active repo hotspot
+
+What this means:
+- future work here should reopen only from fresh evidence in a concrete shared host seam
+- broader shared workspace-host contracts should not be introduced just to continue cleanup momentum

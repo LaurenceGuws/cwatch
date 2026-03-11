@@ -27,18 +27,7 @@ What remains is less about one giant file and more about architecture drift:
 
 ## Current Highest-Value Hotspots
 
-### 1. Workspace-shell hosting duplication
-Primary files:
-- [docker_view.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view.dart)
-- [server_workspace_view.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_view.dart)
-- [wsl_view.dart](/home/home/personal/cwatch/lib/view/features/wsl/wsl_view.dart)
-
-Why it matters now:
-- the same workspace-shell setup pattern is still repeated across features
-- tab restore/setup, listeners, placeholder/base-tab creation, and shell/runtime glue are still re-expressed per feature
-- this is now the strongest remaining DRY and ownership problem in the current code state
-
-### 2. Feature-local settings workflow density
+### 1. Feature-local settings workflow density
 Primary files:
 - [builtin_ssh_settings.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/builtin_ssh_settings.dart)
 - [ssh_settings_controls.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/ssh_settings_controls.dart)
@@ -47,9 +36,8 @@ Primary files:
 Why it matters now:
 - the repeated generic settings-tree mutation plumbing is materially reduced
 - what remains is denser feature-local workflow around built-in SSH key management, host bindings, and picker/prompt orchestration
-- this is now a narrower local complexity seam, not the same repo-level DRY hotspot as before
-
-### 3. SSH runtime/feature integration reevaluation
+- this is now the strongest remaining complexity seam in the current code state, but it should only reopen from fresh evidence if the local workflow density still blocks change
+### 2. SSH runtime/feature integration reevaluation
 Primary files:
 - [ssh_shell_factory.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_factory.dart)
 - [process_ssh_shell_service.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/process_ssh_shell_service.dart)
@@ -58,9 +46,8 @@ Primary files:
 Why it matters now:
 - the previous SSH runtime bulk and shell-factory indirection hotspots are materially reduced
 - what remains is narrower runtime hosting and feature-integration behavior that should only be reopened from fresh evidence
-- this is no longer a top repo-wide over-engineering target in the current code state
-
-### 4. File-operation flow reevaluation
+- this is a narrower reevaluation seam, not the first active hotspot anymore
+### 3. File-operation flow reevaluation
 Primary files:
 - [file_operations_ui_handler.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operations_ui_handler.dart)
 - [file_operation_transfer_session.dart](/home/home/personal/cwatch/lib/controller/adapters/file_operation_transfer_session.dart)
@@ -70,7 +57,7 @@ Primary files:
 Why it matters now:
 - the main repeated transfer-UI scaffolding seam is materially reduced
 - what remains is narrower flow-specific upload/download behavior that should only be reopened from fresh evidence
-- this is no longer the clearest active DRY hotspot in the repo
+- this is a narrower reevaluation seam, not the clearest active DRY hotspot in the repo
 
 ## Current Design Checkpoint
 
@@ -82,6 +69,7 @@ The following earlier hotspots should now be treated as checkpointed current-sta
 - config metadata single-source-of-truth cleanup
 - UI-adapter surface reduction
 - runtime/composition ownership cleanup
+- workspace-shell hosting reuse
 - theme/token decomposition
 - StructuredDataTable engine projection decomposition
 - settings mutation ownership cleanup
@@ -101,16 +89,15 @@ The repo now has direct tests in many extracted seams, but the following still c
 
 ## Recommended Next Order
 
-1. Workspace-shell hosting reuse
-2. feature-local settings workflow reevaluation only if fresh evidence reopens it
-3. SSH runtime/feature integration reevaluation only if fresh evidence reopens it
-4. file-operation flow reevaluation only if fresh evidence reopens it
+1. feature-local settings workflow reevaluation only if fresh evidence reopens it
+2. SSH runtime/feature integration reevaluation only if fresh evidence reopens it
+3. file-operation flow reevaluation only if fresh evidence reopens it
 
 ## Why This Order
 
-### Workspace-shell hosting first
-- it is the strongest repeated workflow pattern left in the feature layer
-- a cleaner host contract will reduce duplicate feature setup logic
+### Settings/local-flow reevaluation first
+- the broad repeated mutation seam is already reduced, but the remaining built-in SSH settings workflow is still the most plausible place where fresh evidence could reopen design work
+- this should be treated as a reevaluation target, not as an assumed rewrite mandate
 
-### UI-adapter and local-flow work after that
+### SSH and file-operation reevaluation after that
 - narrower feature-local or file-operation flow work should now reopen only from fresh evidence

@@ -10,6 +10,17 @@ CWatch is carrying accumulated design debt across feature, UI, and infrastructur
 
 ## Current High-Level Findings
 
+Current current-state hotspot handoff:
+- workspace-shell hosting reuse is now checkpointed from the current code state
+- the next active repo hotspots are reevaluation seams, not assumed rewrite mandates:
+  - feature-local settings workflow density
+  - SSH runtime/feature integration
+  - file-operation flow behavior
+
+Current handover docs:
+- `docs/current_code_smell_review.md`
+- `docs/workspace_shell_hosting_hotspot_todo.md`
+
 ### 1. Layer boundaries are not enforced
 - `lib/view/`, `lib/controller/`, and `lib/model/` are heavily cross-coupled.
 - `controller` imports `view` in many places.

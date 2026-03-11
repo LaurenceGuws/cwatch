@@ -65,10 +65,9 @@ The repo has already completed major first-pass work in:
 - product polish on major shared shell surfaces
 
 Current fresh-review hotspot order is:
-1. Workspace-shell hosting reuse
-2. feature-local settings workflow reevaluation only if fresh evidence reopens it
-3. SSH runtime/feature integration reevaluation only if fresh evidence reopens it
-4. file-operation flow reevaluation only if fresh evidence reopens it
+1. feature-local settings workflow reevaluation only if fresh evidence reopens it
+2. SSH runtime/feature integration reevaluation only if fresh evidence reopens it
+3. file-operation flow reevaluation only if fresh evidence reopens it
 
 Use the current-state review docs as the handover source of truth before reopening older rewrite priorities:
 - `docs/current_code_smell_review.md`
@@ -85,6 +84,7 @@ Checkpointed design baselines that should be treated as current enforced state u
 - config metadata single-source-of-truth cleanup
 - UI-adapter surface reduction
 - runtime/composition ownership cleanup
+- workspace-shell hosting reuse
 - theme/token decomposition
 - StructuredDataTable engine projection decomposition
 - settings mutation ownership cleanup
