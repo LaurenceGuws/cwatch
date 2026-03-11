@@ -399,3 +399,42 @@ Done definition:
 - one Docker-local helper owns context/host dashboard target routing and replacement-tab construction
 - `DockerView` keeps menu display and workspace replacement only
 - focused regression coverage exists for context/host dashboard projection behavior
+
+## Task 22.21: define the next bounded Docker batch after the dashboard-tab split
+Status: completed
+
+Goal:
+- choose the next Docker-only cleanup slice from the current code state after the dashboard-tab split
+- keep the batch on repeated overview interaction orchestration instead of generic menu rendering
+
+Done definition:
+- one new Docker batch is explicit
+- the batch has a clear stop condition
+- later Docker concerns remain queued
+
+Result:
+- the next bounded Docker batch is now:
+  - Docker overview interaction routing split
+- target files:
+  - [docker_overview.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_overview.dart)
+  - new Docker-local helper under `lib/view/features/docker/widgets/`
+- stop condition:
+  - secondary-click selection routing, tab-surface clear routing, and compose-action dispatch no longer live inline in `docker_overview.dart`
+  - menu content/rendering stays in `docker_overview.dart`
+  - controller/action contracts stay stable in this batch
+
+Why this is the right next cut:
+- `docker_overview.dart` still carries repeated interaction-routing logic around context menus
+- the select-if-needed and compose-action dispatch paths are real local orchestration smell
+- it creates a direct seam for focused regression coverage without reopening broader overview layout work
+
+## Task 22.22: implement the Docker overview interaction routing split
+Status: completed
+
+Goal:
+- extract Docker overview secondary-click selection routing and compose-action dispatch into a dedicated Docker-local helper
+
+Done definition:
+- one Docker-local helper owns tab-surface clear routing, secondary-click selection routing, and compose-action dispatch
+- `docker_overview.dart` keeps menu content and widget hosting only
+- focused regression coverage exists for the extracted interaction behavior

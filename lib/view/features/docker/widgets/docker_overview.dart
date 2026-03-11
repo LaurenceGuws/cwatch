@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cwatch/controller/core/workspace/tab_options.dart';
@@ -21,6 +20,7 @@ import 'package:cwatch/view/shared/widgets/standard_empty_state.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
 import 'docker_lists.dart';
 import 'docker_overview_action_state.dart';
+import 'docker_overview_interaction_helper.dart';
 import 'docker_overview_runtime_state.dart';
 import 'docker_shared.dart';
 import 'package:cwatch/controller/controllers/docker_overview_controller.dart';
@@ -56,6 +56,8 @@ class _DockerOverviewState extends State<DockerOverview>
     with SingleTickerProviderStateMixin, TabOptionsMixin {
   final DockerOverviewActionState _actionState =
       const DockerOverviewActionState();
+  final DockerOverviewInteractionHelper _interactionHelper =
+      const DockerOverviewInteractionHelper();
   late final DockerOverviewController _controller;
   late final DockerOverviewActionsController _actions;
   late final DockerOverviewUiAdapter _uiAdapter;
@@ -385,32 +387,11 @@ class _DockerOverviewState extends State<DockerOverview>
   }
 
   void _handleTabSurfacePointerDown(int tabIndex, PointerDownEvent event) {
-    final primaryPointer =
-        event.kind == PointerDeviceKind.touch ||
-        (event.buttons & kPrimaryButton) != 0;
-    if (!primaryPointer) {
-      return;
-    }
-    final hardware = HardwareKeyboard.instance;
-    if (hardware.isShiftPressed ||
-        hardware.isControlPressed ||
-        hardware.isMetaPressed) {
-      return;
-    }
-    switch (tabIndex) {
-      case 1:
-        _controller.clearContainerSelection();
-        break;
-      case 2:
-        _controller.clearSelection(_controller.selectedImageKeys);
-        break;
-      case 3:
-        _controller.clearSelection(_controller.selectedNetworkKeys);
-        break;
-      case 4:
-        _controller.clearSelection(_controller.selectedVolumeKeys);
-        break;
-    }
+    _interactionHelper.handleTabSurfacePointerDown(
+      tabIndex: tabIndex,
+      event: event,
+      controller: _controller,
+    );
   }
 
   void _openContainerMenu(
@@ -564,32 +545,17 @@ class _DockerOverviewState extends State<DockerOverview>
   }
 
   Future<void> _handleComposeAction(String project, String action) async {
-    switch (action) {
-      case 'logs':
-        await _actions.openComposeLogsTab(project: project);
-        break;
-      case 'restart':
-        await _actions.runComposeCommand(
-          project: project,
-          action: 'restart',
-          onSynced: () => _runtimeState.syncProjectContainers(project),
-        );
-        break;
-      case 'up':
-        await _actions.runComposeCommand(
-          project: project,
-          action: 'up',
-          onSynced: () => _runtimeState.syncProjectContainers(project),
-        );
-        break;
-      case 'down':
-        await _actions.runComposeCommand(
-          project: project,
-          action: 'down',
-          onSynced: () => _runtimeState.syncProjectContainers(project),
-        );
-        break;
-    }
+    await _interactionHelper.handleComposeAction(
+      project: project,
+      action: action,
+      openLogs: (targetProject) =>
+          _actions.openComposeLogsTab(project: targetProject),
+      runCommand: (targetProject, targetAction) => _actions.runComposeCommand(
+        project: targetProject,
+        action: targetAction,
+        onSynced: () => _runtimeState.syncProjectContainers(targetProject),
+      ),
+    );
   }
 
   void _openImageMenu(
@@ -770,14 +736,12 @@ class _DockerOverviewState extends State<DockerOverview>
     List<DockerContainer>? selectedRows,
   }) {
     if (secondary) {
-      if (!_controller.selectedContainerIds.contains(container.id)) {
-        final resolvedIndex =
-            flatIndex ?? _currentContainers.indexWhere((item) => item.id == container.id);
-        _controller.selectSingleContainer(
-          container.id,
-          index: resolvedIndex >= 0 ? resolvedIndex : null,
-        );
-      }
+      _interactionHelper.handleContainerSecondaryTap(
+        container: container,
+        controller: _controller,
+        containers: _currentContainers,
+        flatIndex: flatIndex,
+      );
       _openContainerMenu(container, details, selectedRows: selectedRows);
     }
   }
@@ -790,10 +754,11 @@ class _DockerOverviewState extends State<DockerOverview>
     List<DockerImage>? selectedRows,
   }) {
     if (secondary) {
-      final imageKey = _actionState.imageKey(image);
-      if (!_controller.selectedImageKeys.contains(imageKey)) {
-        _controller.selectSingleKey(_controller.selectedImageKeys, imageKey);
-      }
+      _interactionHelper.handleImageSecondaryTap(
+        image: image,
+        controller: _controller,
+        actionState: _actionState,
+      );
       _openImageMenu(image, details, selectedRows: selectedRows);
     }
   }
@@ -806,10 +771,11 @@ class _DockerOverviewState extends State<DockerOverview>
     List<DockerNetwork>? selectedRows,
   }) {
     if (secondary) {
-      final networkKey = _actionState.networkKey(network);
-      if (!_controller.selectedNetworkKeys.contains(networkKey)) {
-        _controller.selectSingleKey(_controller.selectedNetworkKeys, networkKey);
-      }
+      _interactionHelper.handleNetworkSecondaryTap(
+        network: network,
+        controller: _controller,
+        actionState: _actionState,
+      );
       _openNetworkMenu(network, details, selectedRows: selectedRows);
     }
   }
@@ -822,9 +788,10 @@ class _DockerOverviewState extends State<DockerOverview>
     List<DockerVolume>? selectedRows,
   }) {
     if (secondary) {
-      if (!_controller.selectedVolumeKeys.contains(volume.name)) {
-        _controller.selectSingleKey(_controller.selectedVolumeKeys, volume.name);
-      }
+      _interactionHelper.handleVolumeSecondaryTap(
+        volume: volume,
+        controller: _controller,
+      );
       _openVolumeMenu(volume, details, selectedRows: selectedRows);
     }
   }
