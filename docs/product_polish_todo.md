@@ -400,3 +400,58 @@ Result:
 Why this is the right stop:
 - the biggest repeated table-host drift is already reduced
 - pushing further without a sharper target would risk generic cleanup instead of product value
+
+## Task 21.15: define the floating settings/panel polish target
+Status: completed
+
+Goal:
+- identify the next visible repeated shell surface after the table/list checkpoint
+- choose a narrow product-polish hotspot with multiple real adopters
+
+Done definition:
+- one next polish hotspot is chosen from current UI evidence
+- the first implementation cut is explicit
+
+Result:
+- the next visible hotspot is:
+  - floating settings and auxiliary panel chrome consistency
+- the strongest repeated shared surface is:
+  - [floating_settings_window.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/settings/floating_settings_window.dart)
+- real adopters include:
+  - Docker picker settings overlay
+  - Kubernetes list settings overlay
+  - explorer floating settings host
+  - editor and terminal floating settings panels
+
+Why this is the right next move:
+- these overlays are now more visually inconsistent than the checkpointed dashboard and table hosts
+- they are visible, reused shell-facing surfaces
+- the likely remaining drift is in chrome, spacing, and close/header treatment, not in feature-specific controls
+
+## Task 21.16: define the floating settings/panel polish contract
+Status: completed
+
+Goal:
+- define what part of floating settings/panel treatment should become consistent
+- keep feature content and sizing decisions local where needed
+
+Done definition:
+- the shared polish boundary is explicit
+- the first implementation batch is locked
+
+Result:
+- shared:
+  - header/title/close spacing
+  - panel border/radius/elevation treatment
+  - default interior padding and section spacing
+- feature-owned:
+  - panel contents
+  - feature actions/toggles
+  - special sizing constraints when needed
+
+First implementation batch:
+- tighten shared chrome in [floating_settings_window.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/settings/floating_settings_window.dart)
+- prove it first on:
+  - Docker picker settings overlay
+  - Kubernetes list settings overlay
+  - explorer floating settings host
