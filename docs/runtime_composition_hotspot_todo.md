@@ -343,3 +343,31 @@ Result:
   - [kubernetes_workspace_shell.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/kubernetes_workspace_shell.dart)
 - focused regression coverage exists in:
   - [workspace_shell_chrome_test.dart](/home/home/personal/cwatch/test/view/core/navigation/workspace_shell_chrome_test.dart)
+
+## Task 25.15: checkpoint the current runtime/composition pass
+Status: completed
+
+Goal:
+- stop the current runtime/composition pass at a real value boundary instead of forcing broader speculative host abstraction work
+
+Done definition:
+- the tracker explicitly records the current checkpoint
+- the strongest repeated ownership seams removed in this pass are summarized
+- the remaining runtime/composition work is described from the current code state
+
+Result:
+- the current runtime/composition pass is checkpointed from the latest code state
+- the strongest ownership and hosting seams addressed in this pass are now:
+  - server-specific runtime assembly ownership
+  - server restore-time tab reconstruction ownership
+  - server feature-local tab creation/opening/rename support ownership
+  - shared workspace settings-sync policy
+  - shared workspace tab-registry construction
+  - shared workspace shell-chrome registration lifecycle
+- the remaining runtime/composition weight is now less about repeated low-risk seams and more about larger feature-host contracts in:
+  - [docker_view.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view.dart)
+  - [kubernetes_context_list.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/kubernetes_context_list.dart)
+  - [wsl_view.dart](/home/home/personal/cwatch/lib/view/features/wsl/wsl_view.dart)
+- the next reopen should come either from:
+  - a clearly bounded shared workspace-host contract with strong payoff
+  - or fresh evidence that one feature entry surface still carries a high-value ownership knot on its own
