@@ -12,13 +12,11 @@ import 'package:cwatch/model/models/explorer_context.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 
 import 'package:cwatch/view/shared/mixins/tab_options_mixin.dart';
-import 'explorer_chrome_scaffold.dart';
 import 'file_explorer_tab_actions.dart';
 import 'file_explorer_tab_entry_interactions.dart';
 import 'file_explorer_tab_presenter.dart';
+import 'file_explorer_tab_surface.dart';
 import 'selection_controller.dart';
-import 'package:cwatch/view/features/settings/settings/explorer_settings_controls.dart';
-import 'path_navigator.dart';
 
 class FileExplorerTab extends StatefulWidget {
   const FileExplorerTab({
@@ -231,21 +229,24 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       },
       child: Focus(
         autofocus: true,
-        child: ExplorerChromeScaffold(
-          pathNavigator: _buildPathNavigator(context),
+        child: FileExplorerTabSurface(
+          controller: _controller,
+          settingsController: _settingsController,
+          presenter: _presenter,
           content: contentCard,
-          showSettings: _presenter.showSettings,
-          settings: ExplorerSettingsControls(
-            settings: _settingsController.settings,
-            settingsController: _settingsController,
+          onToggleSettings: _toggleSettings,
+          onLoadPath: (path) => _actions.loadPath(path),
+          onNavigateToSubdirectory: _actions.showNavigateToSubdirectoryDialog,
+          onShowMenu: (position, items, constraints) => _controller.uiAdapter.showMenuAt(
+            position: position,
+            items: items,
+            constraints: constraints,
           ),
-          onCloseSettings: _toggleSettings,
           supportsDesktopDrop: _supportsDesktopDrop,
-          dropEnabled: true,
           dropHover: _dropHover,
           onDragEntered: (_) => _handleDropEntered(),
           onDragUpdated: (_) => _handleDropUpdated(),
-          onDragExited: (_) => _handleDropExited(),
+          onDragExited: _handleDropExited,
           onDragDone: _handleDropDone,
         ),
       ),
@@ -261,51 +262,6 @@ class _FileExplorerTabState extends State<FileExplorerTab>
   void _adjustRowHeight(double delta) {
     final next = _controller.state.rowHeight + delta;
     _controller.setRowHeight(next);
-  }
-
-  Widget _buildPathNavigator(BuildContext context) {
-    return PathNavigator(
-      currentPath: _controller.currentPath,
-      pathHistory: _controller.state.pathHistory,
-      onPathChanged: (path) => _actions.loadPath(path),
-      showBreadcrumbs: _controller.state.showBreadcrumbs,
-      onShowBreadcrumbsChanged: _controller.setShowBreadcrumbs,
-      onNavigateToSubdirectory: _actions.showNavigateToSubdirectoryDialog,
-      onPrefetchPath: _controller.prefetchPath,
-      searchActive: _controller.state.searchActive,
-      searchQuery: _controller.state.searchQuery,
-      onSearchActiveChanged: (value) {
-        unawaited(_controller.setSearchActive(value));
-      },
-      onSearchQueryChanged: _controller.setSearchQuery,
-      onSearchSubmitted: (query) {
-        unawaited(_controller.searchCurrentPath(query));
-      },
-      searchInProgress:
-          _controller.state.loading &&
-          _controller.state.searchActive &&
-          _controller.state.searchQuery.trim().isNotEmpty,
-      onSearchCancelled: _controller.cancelSearch,
-      searchInclude: _controller.state.searchInclude,
-      searchExclude: _controller.state.searchExclude,
-      searchMatchCase: _controller.state.searchMatchCase,
-      searchMatchWholeWord: _controller.state.searchMatchWholeWord,
-      onSearchIncludeChanged: _controller.setSearchInclude,
-      onSearchExcludeChanged: _controller.setSearchExclude,
-      onSearchMatchCaseChanged: _controller.toggleSearchMatchCase,
-      onSearchMatchWholeWordChanged: _controller.toggleSearchMatchWholeWord,
-      searchContents: _controller.state.searchContents,
-      onSearchContentsChanged: _controller.setSearchContents,
-      showRowHeightControl: _controller.state.showRowHeightControl,
-      rowHeight: _controller.state.rowHeight,
-      onRowHeightChanged: _controller.setRowHeight,
-      onShowMenu: (position, items, constraints) =>
-          _controller.uiAdapter.showMenuAt(
-            position: position,
-            items: items,
-            constraints: constraints,
-          ),
-    );
   }
 
   Widget _buildEntriesList() {

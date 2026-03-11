@@ -32,6 +32,7 @@ Why it still matters:
 - They are still large enough to regress quickly if unchecked.
 - `kubernetes_context_list.dart` is cleaner after the context-selection surface split.
 - `server_workspace_view.dart` is cleaner after the host-selection surface split.
+- `file_explorer_tab.dart` is cleaner after the outer surface split.
 - All three remain watchlist files rather than “finished” surfaces.
 
 ### 2. SSH subsystem complexity
