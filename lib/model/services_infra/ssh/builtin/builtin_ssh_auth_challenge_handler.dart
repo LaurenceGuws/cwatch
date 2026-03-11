@@ -48,6 +48,12 @@ class BuiltInSshAuthChallengeHandler {
       if (result == null || result.decrypted != true) {
         return false;
       }
+      if (result.password != null && result.password!.isNotEmpty) {
+        // Many built-in keys reuse the same secret for vault storage and the
+        // PEM passphrase. Seed it here so one command does not prompt twice
+        // before we know a second prompt is truly needed.
+        setBuiltInKeyPassphrase(error.keyId, result.password!);
+      }
       if (!vault.isDecrypted(error.keyId) && result.password != null) {
         try {
           await vault.decrypt(error.keyId, result.password);

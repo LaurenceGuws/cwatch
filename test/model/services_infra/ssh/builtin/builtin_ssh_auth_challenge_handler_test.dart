@@ -57,6 +57,32 @@ void main() {
     expect(vault.decryptCalls, [('k1', 'pw')]);
   });
 
+  test('decrypt success seeds built-in key passphrase from same secret', () async {
+    String? storedKey;
+    String? storedPassphrase;
+    final vault = _FakeVault()..encrypted.add('k1');
+    final handler = BuiltInSshAuthChallengeHandler(
+      vault: vault,
+      authCoordinator: const SshAuthCoordinator(
+        onDecryptKey: _provideDecryptResult,
+      ),
+      setBuiltInKeyPassphrase: (keyId, passphrase) {
+        storedKey = keyId;
+        storedPassphrase = passphrase;
+      },
+      setIdentityPassphrase: (identityPath, passphrase) {},
+    );
+
+    final result = await handler.handleDecryptRequired(
+      BuiltInSshKeyDecryptionRequired('host', 'k1', 'label'),
+    );
+
+    expect(result, true);
+    expect(storedKey, 'k1');
+    expect(storedPassphrase, 'secret');
+    expect(vault.decryptCalls, [('k1', 'secret')]);
+  });
+
   test('built in passphrase stores provided passphrase', () async {
     String? storedKey;
     String? storedPassphrase;
@@ -119,3 +145,8 @@ Future<String?> _provideBuiltInPassphrase(SshPassphraseRequest request) async {
   return 'secret';
 }
 
+Future<SshKeyDecryptResult?> _provideDecryptResult(
+  SshKeyDecryptRequest request,
+) async {
+  return const SshKeyDecryptResult(decrypted: true, password: 'secret');
+}
