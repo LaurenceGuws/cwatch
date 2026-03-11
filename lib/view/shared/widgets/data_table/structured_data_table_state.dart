@@ -92,7 +92,6 @@ abstract class _StructuredDataTableStateBase<T>
   void _scrollToColumn(int columnIndex);
   void _scheduleScrollToRow(int rowIndex, BuildContext context);
   void _scheduleScrollToColumn(int columnIndex);
-  bool _cellHasValue(int rowIndex, int columnIndex);
   int _jumpRow(int startRow, int columnIndex, int delta);
   int _jumpColumn(int rowIndex, int startColumn, int delta);
   KeyEventResult _handleCellKeyEvent(

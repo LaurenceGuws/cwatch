@@ -93,3 +93,24 @@ Follow-up results from the same interaction-policy pass:
 Checkpoint:
 - the highest-traffic selection/right-click/hover inconsistency is now materially reduced
 - remaining drift is likely limited to lower-value custom local surfaces rather than the main shared app language
+
+## Task 23.5: extract cell-navigation engine rules from the keyboard mixin
+Status: completed
+
+Goal:
+- reduce remaining shared engine complexity in the keyboard mixin without redesigning the table keyboard model
+- move pure "where focus/selection should move next" rules into a dedicated helper
+
+Done definition:
+- cell-value detection no longer lives inline in the keyboard mixin
+- row/column jump logic no longer lives inline in the keyboard mixin
+- tab wrap/clamp coordinate calculation no longer lives inline in the keyboard mixin
+- focused regression coverage exists for the helper
+
+Result:
+- pure cell-navigation logic now lives in:
+  - [structured_data_table_cell_navigation.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_cell_navigation.dart)
+- the keyboard mixin now delegates movement/projection decisions instead of owning those rules inline:
+  - [structured_data_table_keyboard.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_keyboard.dart)
+- focused regression coverage exists in:
+  - [structured_data_table_cell_navigation_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/data_table/structured_data_table_cell_navigation_test.dart)

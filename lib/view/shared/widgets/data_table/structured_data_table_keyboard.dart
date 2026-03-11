@@ -2,84 +2,27 @@
 part of 'structured_data_table.dart';
 
 mixin _StructuredDataTableKeyboard<T> on _StructuredDataTableStateBase<T> {
-  bool _cellHasValue(int rowIndex, int columnIndex) {
-    if (rowIndex < 0 || rowIndex >= _visibleRows.length) {
-      return false;
-    }
-    if (columnIndex < 0 || columnIndex >= _columns.length) {
-      return false;
-    }
-    final row = _visibleRows[rowIndex];
-    final column = _columns[columnIndex];
-    final textExtractor = column.autoFitText;
-    if (textExtractor != null) {
-      return textExtractor(row).trim().isNotEmpty;
-    }
-    final sortValue = column.sortValue;
-    if (sortValue != null) {
-      final value = sortValue(row);
-      if (value == null) return false;
-      if (value is String) return value.trim().isNotEmpty;
-      return true;
-    }
-    return true;
-  }
+  StructuredDataTableCellNavigation<T> get _cellNavigation =>
+      StructuredDataTableCellNavigation<T>();
 
   int _jumpRow(int startRow, int columnIndex, int delta) {
-    if (_visibleRows.isEmpty) return startRow;
-    final step = delta.sign;
-    if (step == 0) return startRow;
-    var row = startRow;
-    final currentHasValue = _cellHasValue(startRow, columnIndex);
-    if (currentHasValue) {
-      var next = row + step;
-      while (next >= 0 &&
-          next < _visibleRows.length &&
-          _cellHasValue(next, columnIndex)) {
-        row = next;
-        next += step;
-      }
-      return row;
-    }
-    var next = row + step;
-    while (next >= 0 &&
-        next < _visibleRows.length &&
-        !_cellHasValue(next, columnIndex)) {
-      row = next;
-      next += step;
-    }
-    if (next >= 0 && next < _visibleRows.length) {
-      return next;
-    }
-    return row;
+    return _cellNavigation.jumpRow(
+      rows: _visibleRows,
+      columns: _columns,
+      startRow: startRow,
+      columnIndex: columnIndex,
+      delta: delta,
+    );
   }
 
   int _jumpColumn(int rowIndex, int startColumn, int delta) {
-    if (_columns.isEmpty) return startColumn;
-    final step = delta.sign;
-    if (step == 0) return startColumn;
-    var col = startColumn;
-    final currentHasValue = _cellHasValue(rowIndex, startColumn);
-    if (currentHasValue) {
-      var next = col + step;
-      while (next >= 0 && next < _columns.length) {
-        if (!_cellHasValue(rowIndex, next)) {
-          break;
-        }
-        col = next;
-        next += step;
-      }
-      return col;
-    }
-    var next = col + step;
-    while (next >= 0 && next < _columns.length) {
-      if (_cellHasValue(rowIndex, next)) {
-        return next;
-      }
-      col = next;
-      next += step;
-    }
-    return col;
+    return _cellNavigation.jumpColumn(
+      rows: _visibleRows,
+      columns: _columns,
+      rowIndex: rowIndex,
+      startColumn: startColumn,
+      delta: delta,
+    );
   }
 
   KeyEventResult _handleCellKeyEvent(
@@ -151,24 +94,23 @@ mixin _StructuredDataTableKeyboard<T> on _StructuredDataTableStateBase<T> {
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.tab) {
-      final delta = isShift ? -1 : 1;
-      var nextRow = current.rowIndex;
-      var nextColumn = current.columnIndex + delta;
-      if (nextColumn < 0) {
-        nextColumn = _columns.length - 1;
-        nextRow = current.rowIndex - 1;
-      } else if (nextColumn >= _columns.length) {
-        nextColumn = 0;
-        nextRow = current.rowIndex + 1;
-      }
+      final nextCoordinate = _cellNavigation.nextTabCoordinate(
+        current: current,
+        rowCount: _visibleRows.length,
+        columnCount: _columns.length,
+        reverse: isShift,
+      );
       if (isShift) {
         _updateCellSelection(
-          rowIndex: nextRow,
-          columnIndex: nextColumn,
+          rowIndex: nextCoordinate.rowIndex,
+          columnIndex: nextCoordinate.columnIndex,
           extend: true,
         );
       } else {
-        _updateCellFocus(rowIndex: nextRow, columnIndex: nextColumn);
+        _updateCellFocus(
+          rowIndex: nextCoordinate.rowIndex,
+          columnIndex: nextCoordinate.columnIndex,
+        );
       }
       return KeyEventResult.handled;
     }
