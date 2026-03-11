@@ -670,3 +670,55 @@ First implementation batch:
 - prove it first on:
   - server host action picker
   - shared text/secret prompts
+
+## Task 21.25: implement the first dialog and action-sheet polish batch
+Status: completed
+
+Goal:
+- tighten shared action-sheet and prompt-dialog chrome
+- improve reused shell-facing dialog surfaces without changing feature-specific dialog flows
+
+Done definition:
+- `ActionPicker` has cleaner shell-facing spacing and hosting
+- shared prompt dialogs have more intentional title/content/action spacing
+- server host action picker and shared prompt flows inherit the improvement without feature-specific rewiring
+
+Result:
+- [action_picker.dart](/home/home/personal/cwatch/lib/view/shared/widgets/action_picker.dart) now has:
+  - more intentional alert-dialog title/content/action spacing
+  - cleaner sectioned hosting for action rows
+- [shared_prompt_dialogs.dart](/home/home/personal/cwatch/lib/view/shared/widgets/shared_prompt_dialogs.dart) now has:
+  - tighter title/content/footer spacing
+  - cleaner prompt action/footer treatment
+  - more consistent simple confirm dialog framing
+
+Why this is a good checkpoint:
+- it improves reused dialog surfaces directly
+- it benefits server action picking and shared prompts at once
+- it stays inside the shared dialog/action-sheet polish contract
+
+## Task 21.26: checkpoint dialog and action-sheet polish
+Status: completed
+
+Goal:
+- stop the dialog/action-sheet polish layer at a defensible point
+- make the current shared lightweight dialog language explicit as a checkpoint
+
+Done definition:
+- the dialog/action-sheet polish layer is recorded as checkpointed
+- the docs no longer imply that dialog/action-sheet work should keep expanding by default
+
+Result:
+- dialog and action-sheet polish is now treated as a product-polish checkpoint
+- the shared lightweight dialog language currently covers:
+  - more intentional header/body/footer spacing
+  - cleaner prompt action/footer treatment
+  - clearer shared action-sheet hosting
+- any further dialog work should reopen from a narrower visible issue such as:
+  - destructive-action emphasis tuning
+  - action-sheet row density refinement
+  - richer shared confirmation variants
+
+Why this is the right stop:
+- the biggest repeated lightweight dialog drift is already reduced
+- pushing further without a sharper target would risk generic cleanup instead of product value
