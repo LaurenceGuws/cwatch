@@ -722,3 +722,60 @@ Result:
 Why this is the right stop:
 - the biggest repeated lightweight dialog drift is already reduced
 - pushing further without a sharper target would risk generic cleanup instead of product value
+
+## Task 21.27: define the shortcut and help-surface polish target
+Status: completed
+
+Goal:
+- identify the next visible repeated shell surface after the dialog checkpoint
+- choose a narrow product-polish hotspot with multiple real adopters
+
+Done definition:
+- one next polish hotspot is chosen from current UI evidence
+- the first implementation cut is explicit
+
+Result:
+- the next visible hotspot is:
+  - shortcut and help-surface polish
+- the strongest repeated shared surfaces are:
+  - shortcut settings sections
+  - global help/shortcut discovery entry points
+  - visible shortcut label presentation in editor/terminal/explorer-related settings
+- the clearest remaining drift is in:
+  - shortcut/help copy consistency
+  - visible shortcut naming and formatting
+  - help-entry wording and discoverability
+
+Why this is the right next move:
+- shortcut/help surfaces are visible in core shell and settings flows
+- the shared shell path already exists, so polish can happen without reopening ownership cleanup
+- the likely remaining drift is in product presentation, not shortcut behavior
+
+## Task 21.28: define the shortcut and help-surface polish contract
+Status: completed
+
+Goal:
+- define what part of shortcut/help presentation should become more consistent
+- keep feature-specific shortcut content and routing local
+
+Done definition:
+- the shared polish boundary is explicit
+- the first implementation batch is locked
+
+Result:
+- shared:
+  - shortcut section title/help phrasing
+  - visible shortcut label formatting
+  - help-entry naming consistency
+- feature-owned:
+  - feature-specific shortcut sets
+  - domain-specific explanatory copy where needed
+  - shortcut behavior and routing
+
+First implementation batch:
+- tighten shared shortcut/help phrasing in:
+  - [shortcuts_settings_tab.dart](/home/home/personal/cwatch/lib/view/features/settings/settings/shortcuts_settings_tab.dart)
+  - [home_shell_command_palette.dart](/home/home/personal/cwatch/lib/view/core/navigation/home_shell_command_palette.dart)
+- prove it first on:
+  - global help entry wording
+  - editor/terminal/explorer shortcut section presentation

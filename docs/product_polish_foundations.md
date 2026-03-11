@@ -198,9 +198,29 @@ It currently covers:
 - shared straightforward loading/error/empty feedback around table-hosted surfaces
 
 Current next polish move:
-- re-scope the next visible consistency hotspot from evidence instead of continuing dialog/action-sheet work by default
+- shortcut and help-surface polish
 
 Why:
-- dialog and action-sheet polish is now at a good checkpoint
-- the shared dialog surfaces already reduced the most visible drift in server action picking and shared prompt flows
-- any further dialog work now needs a sharper product-facing issue, not more default expansion
+- the shared shortcut substrate already exists through:
+  - shortcut catalog and settings surfaces
+  - shared shortcut services/resolvers
+  - global command/help entry points
+- the remaining visible drift is now in:
+  - shortcut labels and help copy
+  - settings-section shortcut presentation
+  - entry-point consistency for shortcut/help discovery
+- this is a visible shell-facing surface and now a stronger source of product inconsistency than the checkpointed dialog/tab/panel/table/dashboard surfaces
+
+Current shortcut/help polish direction:
+- standardize shortcut/help presentation where the shell already owns the behavior
+- not shortcut behavior or the underlying shortcut model
+
+What should become shared:
+- shortcut section title/help phrasing
+- visible shortcut label formatting
+- help-entry naming consistency
+
+What should stay feature-owned:
+- feature-specific shortcut sets
+- domain-specific explanatory copy where the feature genuinely needs it
+- shortcut behavior and routing
