@@ -71,3 +71,23 @@ Done definition:
 - one theme-local runtime-policy helper owns zoom clamping, base radius, spacing base, visual density, and text-scaler shaping
 - `ThemeFactory`, app bootstrap, and shell zoom updates no longer repeat inline zoom/density normalization
 - public settings and theme APIs stay stable
+
+
+## Task 24.6: checkpoint the current theme/token hotspot pass
+Status: completed
+
+Goal:
+- stop the theme pass at a real checkpoint instead of forcing another weak batch
+
+Done definition:
+- the theme/token pass is explicitly checkpointed in the tracker
+- the remaining theme weight is described as smaller extension assembly and helper glue rather than the original centralization hotspot
+- the broader current-state review reflects the next hotspot order
+
+Result:
+- the current theme/token pass is checkpointed
+- the strongest theme smells addressed in this pass are now:
+  - token-family extraction
+  - spacing and typography extraction
+  - runtime zoom/density policy extraction
+- the remaining weight is lower-value than the next repo-level hotspot

@@ -90,21 +90,23 @@ The repo now has direct tests in the major new seams, but the following still ca
 
 ## Recommended Next Order
 
-1. Theme/token decomposition
+1. Active watchlist shell maintenance
 2. SSH runtime simplification
-3. Active watchlist shell maintenance
+3. Theme/token decomposition
 
 ## Why This Order
 
-### Theme first
-- now the clearest remaining shared-system hotspot
-- [app_theme.dart](/home/home/personal/cwatch/lib/model/shared/theme/app_theme.dart) still centralizes too many unrelated design concerns
-- this is now higher leverage than forcing another weaker SSH batch
+### Watchlist first
+- the major active hotspots are now mostly checkpointed
+- the most practical next risk is regression or re-growth in the large shell files already on the watchlist
+- this is now higher leverage than forcing another weaker subsystem pass
 
 ### SSH second
 - the current pass materially reduced the strongest process-provider complexity
 - the remaining weight is more legitimate builtin runtime glue and shell-factory caching behavior
 - still important, but no longer the strongest next move
 
-### Watchlist third
-- server, kubernetes, and explorer shells should now be treated as maintenance watchlist files rather than active rewrite hotspots
+### Theme third
+- the current pass materially reduced centralization in [app_theme.dart](/home/home/personal/cwatch/lib/model/shared/theme/app_theme.dart)
+- the remaining weight is smaller extension assembly and helper glue
+- still worth future cleanup, but no longer the clearest immediate hotspot
