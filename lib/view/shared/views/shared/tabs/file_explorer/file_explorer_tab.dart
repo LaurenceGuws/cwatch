@@ -57,6 +57,53 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     super.initState();
     _settingsController = widget.settingsController;
     _controller = widget.controller;
+    _rebuildExplorerSeams();
+    _controllerListener = () {
+      if (!mounted) return;
+      setState(() {});
+      _updateTabOptions();
+    };
+    _controller.addListener(_controllerListener);
+    unawaited(_controller.initialize());
+  }
+
+  @override
+  void didUpdateWidget(covariant FileExplorerTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    var needsSeamRebuild = false;
+
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_controllerListener);
+      _controller = widget.controller;
+      needsSeamRebuild = true;
+      _controller.addListener(_controllerListener);
+      unawaited(_controller.initialize());
+    }
+    if (oldWidget.settingsController != widget.settingsController) {
+      _settingsController = widget.settingsController;
+      needsSeamRebuild = true;
+    }
+    if (oldWidget.optionsController != widget.optionsController ||
+        oldWidget.onOpenTerminalTab != widget.onOpenTerminalTab ||
+        oldWidget.onOpenTrash != widget.onOpenTrash) {
+      needsSeamRebuild = true;
+    }
+
+    if (needsSeamRebuild) {
+      _rebuildExplorerSeams();
+      _updateTabOptions();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_controllerListener);
+    _listFocusNode.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _rebuildExplorerSeams() {
     _selectionController = SelectionController(state: _controller.selectionState);
     _presenter = FileExplorerTabPresenter(
       controller: _controller,
@@ -87,106 +134,6 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       onOpenTrash: () => widget.onOpenTrash(_controller.explorerContext),
       onOpenTerminalTab: widget.onOpenTerminalTab,
     );
-    _controllerListener = () {
-      if (!mounted) return;
-      setState(() {});
-      _updateTabOptions();
-    };
-    _controller.addListener(_controllerListener);
-    unawaited(_controller.initialize());
-  }
-
-  @override
-  void didUpdateWidget(covariant FileExplorerTab oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.controller != widget.controller) {
-      oldWidget.controller.removeListener(_controllerListener);
-      oldWidget.controller.dispose();
-      _controller = widget.controller;
-      _selectionController = SelectionController(
-        state: _controller.selectionState,
-      );
-      _presenter = FileExplorerTabPresenter(
-        controller: _controller,
-        settingsController: _settingsController,
-      );
-      _actions = FileExplorerTabActions(
-        controller: _controller,
-        selectionController: _selectionController,
-        scrollController: _scrollController,
-        isMounted: () => mounted,
-        showSnackBar: _showSnackBar,
-        openTerminalTab: widget.onOpenTerminalTab,
-      );
-      _entryInteractions = FileExplorerTabEntryInteractions(
-        controller: _controller,
-        selectionController: _selectionController,
-        actions: _actions,
-        listFocusNode: _listFocusNode,
-        scrollController: _scrollController,
-        markNeedsBuild: _controller.markNeedsBuild,
-      );
-      _chromeState = FileExplorerTabChromeState(
-        controller: _controller,
-        showSettings: () => _presenter.showSettings,
-        onToggleSettings: _toggleSettings,
-        onUploadFiles: _actions.handleUploadFiles,
-        onUploadFolder: _actions.handleUploadFolder,
-        onOpenTrash: () => widget.onOpenTrash(_controller.explorerContext),
-        onOpenTerminalTab: widget.onOpenTerminalTab,
-      );
-      _controller.addListener(_controllerListener);
-      unawaited(_controller.initialize());
-    }
-    if (oldWidget.settingsController != widget.settingsController) {
-      oldWidget.settingsController.dispose();
-      _settingsController = widget.settingsController;
-      _presenter = FileExplorerTabPresenter(
-        controller: _controller,
-        settingsController: _settingsController,
-      );
-    }
-    if (oldWidget.optionsController != widget.optionsController ||
-        oldWidget.onOpenTerminalTab != widget.onOpenTerminalTab ||
-        oldWidget.onOpenTrash != widget.onOpenTrash) {
-      _actions = FileExplorerTabActions(
-        controller: _controller,
-        selectionController: _selectionController,
-        scrollController: _scrollController,
-        isMounted: () => mounted,
-        showSnackBar: _showSnackBar,
-        openTerminalTab: widget.onOpenTerminalTab,
-      );
-      _entryInteractions = FileExplorerTabEntryInteractions(
-        controller: _controller,
-        selectionController: _selectionController,
-        actions: _actions,
-        listFocusNode: _listFocusNode,
-        scrollController: _scrollController,
-        markNeedsBuild: _controller.markNeedsBuild,
-      );
-      _chromeState = FileExplorerTabChromeState(
-        controller: _controller,
-        showSettings: () => _presenter.showSettings,
-        onToggleSettings: _toggleSettings,
-        onUploadFiles: _actions.handleUploadFiles,
-        onUploadFolder: _actions.handleUploadFolder,
-        onOpenTrash: () => widget.onOpenTrash(_controller.explorerContext),
-        onOpenTerminalTab: widget.onOpenTerminalTab,
-      );
-      _updateTabOptions();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller
-      ..removeListener(_controllerListener)
-      ..dispose();
-    _settingsController.dispose();
-    _listFocusNode.dispose();
-    _scrollController.dispose();
-    super.dispose();
   }
 
   void _toggleSettings() {

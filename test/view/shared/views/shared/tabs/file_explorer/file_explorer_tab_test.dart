@@ -15,7 +15,6 @@ import 'package:cwatch/model/services_infra/settings/app_settings_controller.dar
 import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 import 'package:cwatch/model/services_infra/ssh/terminal_session.dart';
-import 'package:cwatch/model/shared/services/explorer_selection_state.dart';
 import 'package:cwatch/model/shared/services/path_utils.dart';
 import 'package:cwatch/model/shared/theme/theme_factory.dart';
 import 'package:cwatch/view/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart';
@@ -54,6 +53,31 @@ void main() {
       expect(find.textContaining('Exception: boom'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsNothing);
     });
+
+    testWidgets('does not dispose injected controller or settings controller', (
+      tester,
+    ) async {
+      final shell = _FakeRemoteShellService();
+      shell.homeDirectoryHandler = (_) async => '/srv';
+      shell.listDirectoryHandler = (_, path) async => const [];
+
+      final appSettingsController = AppSettingsController();
+      await tester.pumpWidget(
+        _OwnedHarness(
+          shellService: shell,
+          appSettingsController: appSettingsController,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final state = tester.state<_OwnedHarnessState>(find.byType(_OwnedHarness));
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+
+      expect(state.controller.disposeCount, 0);
+      expect(state.settingsController.disposeCount, 0);
+    });
   });
 }
 
@@ -78,6 +102,57 @@ class _Harness extends StatefulWidget {
 
   @override
   State<_Harness> createState() => _HarnessState();
+}
+
+class _OwnedHarness extends StatefulWidget {
+  const _OwnedHarness({
+    required this.shellService,
+    required this.appSettingsController,
+  });
+
+  final _FakeRemoteShellService shellService;
+  final AppSettingsController appSettingsController;
+
+  @override
+  State<_OwnedHarness> createState() => _OwnedHarnessState();
+}
+
+class _OwnedHarnessState extends State<_OwnedHarness> {
+  _TrackingSettingsController? _settingsController;
+  _TrackingFileExplorerController? _controller;
+
+  _TrackingSettingsController get settingsController => _settingsController!;
+  _TrackingFileExplorerController get controller => _controller!;
+
+  @override
+  Widget build(BuildContext context) {
+    _settingsController ??= _TrackingSettingsController(
+      settingsController: widget.appSettingsController,
+      uiAdapter: SettingsUiAdapter(context: context),
+    );
+    _controller ??= _TrackingFileExplorerController(
+      host: _host,
+      explorerContext: _context,
+      shellService: widget.shellService,
+      settingsController: widget.appSettingsController,
+      trashManager: ExplorerTrashManager(),
+      uiAdapter: ExplorerUiAdapter(context: context),
+    );
+    final settings = settingsController.settingsController.settings;
+    return MaterialApp(
+      theme: ThemeFactory.build(
+        settings: settings,
+        brightness: Brightness.light,
+      ),
+      home: Scaffold(
+        body: FileExplorerTab(
+          controller: controller,
+          settingsController: settingsController,
+          onOpenTrash: (_) {},
+        ),
+      ),
+    );
+  }
 }
 
 class _HarnessState extends State<_Harness> {
@@ -132,12 +207,7 @@ class _TestFileExplorerController extends FileExplorerController {
     required super.settingsController,
     required super.trashManager,
     required super.uiAdapter,
-  }) {
-    selectionState = ExplorerSelectionState(
-      currentPath: currentPath,
-      joinPath: PathUtils.joinPath,
-    );
-  }
+  });
 
   @override
   Future<void> initialize() async {
@@ -164,6 +234,44 @@ class _TestFileExplorerController extends FileExplorerController {
 
   @override
   List<RemoteFileEntry> currentSortedEntries() => List.unmodifiable(state.entries);
+}
+
+class _TrackingFileExplorerController extends _TestFileExplorerController {
+  _TrackingFileExplorerController({
+    required super.host,
+    required super.explorerContext,
+    required super.shellService,
+    required super.settingsController,
+    required super.trashManager,
+    required super.uiAdapter,
+  });
+
+  int disposeCount = 0;
+
+  @override
+  void dispose() {
+    disposeCount += 1;
+    super.dispose();
+  }
+}
+
+class _TrackingSettingsController extends SettingsController {
+  _TrackingSettingsController({
+    required super.settingsController,
+    required super.uiAdapter,
+  })
+    : super(
+        keyService: BuiltInSshKeyService(),
+        hostsFuture: Future.value(const []),
+      );
+
+  int disposeCount = 0;
+
+  @override
+  void dispose() {
+    disposeCount += 1;
+    super.dispose();
+  }
 }
 
 class _FakeRemoteShellService extends RemoteShellService {
