@@ -21,19 +21,17 @@ What remains is mostly concentrated in a smaller set of heavy subsystems and sha
 
 ## Current Highest-Value Hotspots
 
-### 1. Active watchlist shell maintenance
+### 1. Docker feature complexity
 Primary files:
-- [server_workspace_view.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_view.dart)
-- [kubernetes_context_list.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/kubernetes_context_list.dart)
-- [file_explorer_tab.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart)
+- [docker_lists.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_lists.dart)
+- [docker_overview.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_overview.dart)
+- [docker_view.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view.dart)
+- [docker_client_service.dart](/home/home/personal/cwatch/lib/model/features/docker/services/docker_client_service.dart)
 
 Why it still matters:
-- These are no longer architectural failures.
-- They are still large enough to regress quickly if unchecked.
-- `kubernetes_context_list.dart` is cleaner after the context-selection surface split.
-- `server_workspace_view.dart` is cleaner after the host-selection and tab-surface splits.
-- `file_explorer_tab.dart` is cleaner after the outer surface and chrome-state splits.
-- All three remain watchlist files rather than “finished” surfaces.
+- Docker remains the largest visible feature subsystem by concentrated file size and mixed responsibility.
+- Recent passes removed real state, parser, and runtime knots, but too much behavior still lives in a few large files.
+- This is still the clearest feature-level hotspot in the current code state.
 
 ### 2. SSH subsystem complexity
 Primary files:
@@ -46,15 +44,27 @@ Why it still matters:
 - The remaining SSH complexity is now concentrated more in shell-factory/runtime-cache semantics and builtin/process coordination than in one giant manager file.
 - This is still a subsystem-complexity problem, but it is now much narrower than before.
 
-### 3. Theme/token centralization
+### 3. Theme/token decomposition tail
 Primary file:
 - [app_theme.dart](/home/home/personal/cwatch/lib/model/shared/theme/app_theme.dart)
 
 Why it still matters:
-- Too many design concerns are centralized in one file.
-- It works, but it is difficult to evolve safely because unrelated design primitives live together.
+- The main theme/token centralization problem is no longer severe.
+- What remains is mostly extension assembly and helper glue.
+- Still worth future cleanup, but not the highest-value code-smell target anymore.
 
-### 4. StructuredDataTable shared risk
+### 4. Active watchlist shell maintenance
+Primary files:
+- [server_workspace_view.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_view.dart)
+- [kubernetes_context_list.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/kubernetes_context_list.dart)
+- [file_explorer_tab.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/file_explorer_tab.dart)
+
+Why it still matters:
+- These are no longer architectural failures.
+- Recent watchlist passes materially reduced the densest blocks in all three files.
+- They still deserve attention during future feature work, but they are now maintenance-watch surfaces rather than top repo hotspots.
+
+### 5. StructuredDataTable shared risk
 Primary files:
 - [structured_data_table.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table.dart)
 - [structured_data_table_state.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_state.dart)
@@ -71,18 +81,6 @@ Current checkpoint:
 - cell navigation, cell selection, hit-test, resize, scroll, and reorder projection have been split out
 - the remaining risk is now more about widget/rendering glue than pure engine complexity
 
-### 5. Docker feature complexity
-Primary files:
-- [docker_lists.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_lists.dart)
-- [docker_overview.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_overview.dart)
-- [docker_view.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view.dart)
-- [docker_client_service.dart](/home/home/personal/cwatch/lib/model/features/docker/services/docker_client_service.dart)
-
-Why it still matters:
-- Docker remains the largest visible feature subsystem by concentrated file size and mixed responsibility.
-- The feature has better ownership than before, but too much behavior still lives in a few large files.
-- This is the best next feature-level cleanup target after SSH.
-
 ## Current Test-Risk View
 
 The repo now has direct tests in the major new seams, but the following still carry higher shared risk than coverage depth suggests:
@@ -93,15 +91,15 @@ The repo now has direct tests in the major new seams, but the following still ca
 
 ## Recommended Next Order
 
-1. Active watchlist shell maintenance
+1. Docker feature decomposition
 2. SSH runtime simplification
 3. Theme/token decomposition
 
 ## Why This Order
 
-### Watchlist first
-- the major watchlist files are still the most likely surfaces to regress in day-to-day feature work
-- they are materially cleaner, but they remain large enough to deserve the top caution rank
+### Docker first
+- Docker is still the clearest remaining feature-level hotspot by raw file size and mixed responsibility.
+- The groundwork is much better now, which makes a deeper cleanup more defensible instead of less.
 
 ### SSH second
 - the latest SSH pass removed the densest builtin runtime knot

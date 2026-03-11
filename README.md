@@ -170,9 +170,8 @@ Current fresh current-state review:
 
 Current active hotspot order:
 1. Docker feature decomposition
-2. StructuredDataTable risk reduction
-3. SSH runtime simplification
-4. Theme/token decomposition
+2. SSH runtime simplification
+3. Theme/token decomposition
 
 Current active next TODO:
 - `docs/docker_current_hotspot_todo.md`

@@ -449,9 +449,8 @@ A fresh current-state review now shows that the main remaining issues are concen
 
 Current active hotspot order:
 1. Docker feature decomposition
-2. StructuredDataTable risk reduction
-3. SSH runtime simplification
-4. Theme/token decomposition
+2. SSH runtime simplification
+3. Theme/token decomposition
 
 Current handover/source-of-truth docs for this phase:
 - `docs/current_code_smell_review.md`
