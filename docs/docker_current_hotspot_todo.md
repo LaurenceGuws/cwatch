@@ -246,3 +246,15 @@ Done definition:
 - one Docker helper owns context/container/image/network/volume/stats parsing
 - `DockerClientService` no longer owns inline JSON-line loops and map-to-model shaping
 - focused regression coverage exists for the new helper
+
+
+## Task 22.13: implement the Docker overview runtime-side-effect split
+Status: completed
+
+Goal:
+- extract the remaining overview-local service orchestration out of `docker_overview.dart`
+
+Done definition:
+- one Docker-local helper owns container distro probe triggering, start-time loading, compose-project sync, and post-action cache updates
+- `docker_overview.dart` no longer owns those runtime-side-effect helpers inline
+- focused regression coverage exists for the new helper

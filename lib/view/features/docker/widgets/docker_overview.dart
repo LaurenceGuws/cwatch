@@ -11,7 +11,6 @@ import 'package:cwatch/model/models/docker_volume.dart';
 import 'package:cwatch/model/models/ssh_host.dart';
 import 'package:cwatch/model/features/docker/services/docker_engine_service.dart';
 import 'package:cwatch/model/services_infra/cache/distro_cache_controller.dart';
-import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
 import 'package:cwatch/view/shared/mixins/tab_options_mixin.dart';
@@ -22,12 +21,12 @@ import 'package:cwatch/view/shared/widgets/standard_empty_state.dart';
 import 'package:cwatch/controller/core/workspace/workspace_tab.dart';
 import 'docker_lists.dart';
 import 'docker_overview_action_state.dart';
+import 'docker_overview_runtime_state.dart';
 import 'docker_shared.dart';
 import 'package:cwatch/controller/controllers/docker_overview_controller.dart';
 import 'package:cwatch/controller/adapters/docker_overview_ui_adapter.dart';
 import 'package:cwatch/controller/controllers/docker_overview_actions_controller.dart';
 import 'package:cwatch/model/features/docker/services/container_distro_manager.dart';
-import 'package:cwatch/model/features/docker/services/container_distro_key.dart';
 
 typedef OpenTab = void Function(WorkspaceTab tab);
 
@@ -63,13 +62,12 @@ class _DockerOverviewState extends State<DockerOverview>
   late DockerOverviewMenus _menus;
   late final VoidCallback _controllerListener;
   late final ContainerDistroManager _containerDistroManager;
+  late final DockerOverviewRuntimeState _runtimeState;
   late final TabController _tabController;
   final FocusNode _containerFocus = FocusNode(debugLabel: 'docker-containers');
-  final Map<String, bool> _containerRunning = {};
   List<DockerImage> _currentImages = const [];
   List<DockerNetwork> _currentNetworks = const [];
   List<DockerVolume> _currentVolumes = const [];
-  bool _didProbeDistro = false;
   AppIcons get _icons => context.appTheme.icons;
   AppDockerTokens get _dockerTheme => context.appTheme.docker;
   bool _tabOptionsRegistered = false;
@@ -107,6 +105,12 @@ class _DockerOverviewState extends State<DockerOverview>
     _containerDistroManager = ContainerDistroManager(
       distroCacheController: widget.distroCacheController,
       docker: _controller.docker,
+    );
+    _runtimeState = DockerOverviewRuntimeState(
+      controller: _controller,
+      containerDistroManager: _containerDistroManager,
+      actionState: _actionState,
+      uiAdapter: _uiAdapter,
     );
   }
 
@@ -156,33 +160,6 @@ class _DockerOverviewState extends State<DockerOverview>
     _controller.refresh();
   }
 
-  void _trackContainerDistro(List<DockerContainer> containers) {
-    if (_didProbeDistro) {
-      return;
-    }
-    _didProbeDistro = true;
-    for (final container in containers) {
-      final key = containerDistroCacheKey(container);
-      final wasRunning = _containerRunning[key] ?? false;
-      _containerRunning[key] = container.isRunning;
-      if (!container.isRunning) {
-        continue;
-      }
-      final needsProbe = !_containerDistroManager.hasCached(key) || !wasRunning;
-      if (needsProbe) {
-        unawaited(
-          _containerDistroManager.ensureDistroForContainer(
-            container,
-            contextName: _controller.contextName,
-            remoteHost: _controller.remoteHost,
-            shellService: _controller.shellService,
-            force: !wasRunning,
-          ),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final dockerTheme = _dockerTheme;
@@ -223,7 +200,7 @@ class _DockerOverviewState extends State<DockerOverview>
                   return const Center(child: Text('No data.'));
                 }
                 final containers = _controller.ensureHydrated(data);
-                _trackContainerDistro(containers);
+                _runtimeState.trackContainerDistro(containers);
                 final images = data.images;
                 final networks = data.networks;
                 final volumes = data.volumes;
@@ -557,11 +534,11 @@ class _DockerOverviewState extends State<DockerOverview>
                 (target) => _actions.runContainerAction(
                   container: target,
                   action: action,
-                  onRestarted: () => _updateContainerAfterRestart(target),
-                  onStarted: () => _updateContainerAfterStart(target),
-                  onStopped: () => _markContainerStopped(target.id),
+                  onRestarted: () => _runtimeState.updateContainerAfterRestart(target),
+                  onStarted: () => _runtimeState.updateContainerAfterStart(target),
+                  onStopped: () => _runtimeState.markContainerStopped(target.id),
                   onRefresh: _refresh,
-                  loadStartTime: () => _loadStartTime(target),
+                  loadStartTime: () => _runtimeState.loadStartTime(target),
                 ),
               ),
             );
@@ -571,11 +548,11 @@ class _DockerOverviewState extends State<DockerOverview>
               await _actions.runContainerAction(
                 container: target,
                 action: action,
-                onRestarted: () => _updateContainerAfterRestart(target),
-                onStarted: () => _updateContainerAfterStart(target),
-                onStopped: () => _markContainerStopped(target.id),
+                onRestarted: () => _runtimeState.updateContainerAfterRestart(target),
+                onStarted: () => _runtimeState.updateContainerAfterStart(target),
+                onStopped: () => _runtimeState.markContainerStopped(target.id),
                 onRefresh: _refresh,
-                loadStartTime: () => _loadStartTime(target),
+                loadStartTime: () => _runtimeState.loadStartTime(target),
               );
             }
             break;
@@ -595,21 +572,21 @@ class _DockerOverviewState extends State<DockerOverview>
         await _actions.runComposeCommand(
           project: project,
           action: 'restart',
-          onSynced: () => _syncProjectContainers(project),
+          onSynced: () => _runtimeState.syncProjectContainers(project),
         );
         break;
       case 'up':
         await _actions.runComposeCommand(
           project: project,
           action: 'up',
-          onSynced: () => _syncProjectContainers(project),
+          onSynced: () => _runtimeState.syncProjectContainers(project),
         );
         break;
       case 'down':
         await _actions.runComposeCommand(
           project: project,
           action: 'down',
-          onSynced: () => _syncProjectContainers(project),
+          onSynced: () => _runtimeState.syncProjectContainers(project),
         );
         break;
     }
@@ -785,37 +762,6 @@ class _DockerOverviewState extends State<DockerOverview>
     );
   }
 
-  Future<void> _updateContainerAfterRestart(DockerContainer container) async {
-    final startedAt = await _loadStartTime(container);
-    _controller.updateCachedContainers(
-      _actionState.applyRestartedContainer(
-        _controller.cachedContainers,
-        container,
-        startedAt: startedAt,
-      ),
-    );
-  }
-
-  Future<void> _updateContainerAfterStart(DockerContainer container) async {
-    final startedAt = await _loadStartTime(container);
-    _controller.updateCachedContainers(
-      _actionState.applyStartedContainer(
-        _controller.cachedContainers,
-        container,
-        startedAt: startedAt,
-      ),
-    );
-  }
-
-  void _markContainerStopped(String containerId) {
-    _controller.updateCachedContainers(
-      _actionState.applyStoppedContainer(
-        _controller.cachedContainers,
-        containerId,
-      ),
-    );
-  }
-
   void _handleContainerTapDown(
     DockerContainer container,
     TapDownDetails details, {
@@ -987,53 +933,5 @@ class _DockerOverviewState extends State<DockerOverview>
     return '${host.name}-docker';
   }
 
-  Future<DateTime?> _loadStartTime(DockerContainer container) async {
-    try {
-      if (_controller.remoteHost != null && _controller.shellService != null) {
-        final output = await _controller.shellService!.runCommand(
-          _controller.remoteHost!,
-          "docker inspect -f '{{.State.StartedAt}}' ${container.id}",
-          timeout: const Duration(seconds: 8),
-        );
-        final raw = output.trim().replaceAll('"', '');
-        return DateTime.tryParse(raw);
-      }
-      return await _controller.docker.inspectContainerStartTime(
-        id: container.id,
-        context: _controller.contextName,
-      );
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Failed to load container start time for ${container.name}',
-        tag: 'Docker',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      return null;
-    }
-  }
-
   List<DockerContainer> get _currentContainers => _controller.cachedContainers;
-
-  Future<void> _syncProjectContainers(String project) async {
-    try {
-      final allContainers = await _controller.fetchContainers();
-      _controller.updateCachedContainers(
-        _actionState.mergeProjectContainers(
-          cached: _controller.cachedContainers,
-          fetched: allContainers,
-          project: project,
-        ),
-      );
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Failed to sync compose project $project',
-        tag: 'Docker',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      if (!mounted) return;
-      _uiAdapter.showSnackBar('Compose sync failed: $error');
-    }
-  }
 }
