@@ -141,6 +141,22 @@ class DockerOverviewController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void selectSingleContainer(String containerId, {int? index}) {
+    selectedContainerIds
+      ..clear()
+      ..add(containerId);
+    focusedContainerIndex = index ?? focusedContainerIndex;
+    containerAnchorIndex = index ?? containerAnchorIndex;
+    notifyListeners();
+  }
+
+  void selectSingleKey(Set<String> set, String key) {
+    set
+      ..clear()
+      ..add(key);
+    notifyListeners();
+  }
+
   void _updateSelection(
     Set<String> set,
     String key, {

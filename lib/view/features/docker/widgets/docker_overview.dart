@@ -774,6 +774,14 @@ class _DockerOverviewState extends State<DockerOverview>
     List<DockerContainer>? selectedRows,
   }) {
     if (secondary) {
+      if (!_controller.selectedContainerIds.contains(container.id)) {
+        final resolvedIndex =
+            flatIndex ?? _currentContainers.indexWhere((item) => item.id == container.id);
+        _controller.selectSingleContainer(
+          container.id,
+          index: resolvedIndex >= 0 ? resolvedIndex : null,
+        );
+      }
       _openContainerMenu(container, details, selectedRows: selectedRows);
     }
   }
@@ -786,6 +794,10 @@ class _DockerOverviewState extends State<DockerOverview>
     List<DockerImage>? selectedRows,
   }) {
     if (secondary) {
+      final imageKey = _actionState.imageKey(image);
+      if (!_controller.selectedImageKeys.contains(imageKey)) {
+        _controller.selectSingleKey(_controller.selectedImageKeys, imageKey);
+      }
       _openImageMenu(image, details, selectedRows: selectedRows);
     }
   }
@@ -798,6 +810,10 @@ class _DockerOverviewState extends State<DockerOverview>
     List<DockerNetwork>? selectedRows,
   }) {
     if (secondary) {
+      final networkKey = _actionState.networkKey(network);
+      if (!_controller.selectedNetworkKeys.contains(networkKey)) {
+        _controller.selectSingleKey(_controller.selectedNetworkKeys, networkKey);
+      }
       _openNetworkMenu(network, details, selectedRows: selectedRows);
     }
   }
@@ -810,6 +826,9 @@ class _DockerOverviewState extends State<DockerOverview>
     List<DockerVolume>? selectedRows,
   }) {
     if (secondary) {
+      if (!_controller.selectedVolumeKeys.contains(volume.name)) {
+        _controller.selectSingleKey(_controller.selectedVolumeKeys, volume.name);
+      }
       _openVolumeMenu(volume, details, selectedRows: selectedRows);
     }
   }
