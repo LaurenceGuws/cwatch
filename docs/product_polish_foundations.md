@@ -198,9 +198,9 @@ It currently covers:
 - shared straightforward loading/error/empty feedback around table-hosted surfaces
 
 Current next polish move:
-- re-scope the next visible consistency hotspot from evidence instead of continuing shortcut/help work by default
+- re-scope the next visible product-polish hotspot from current UI evidence
 
 Why:
-- shortcut and help-surface polish is now at a good checkpoint
-- the shared shortcut/help surfaces already reduced the most visible wording drift in settings and the global help entry
-- any further shortcut/help work now needs a sharper product-facing issue, not more default expansion
+- the shared help-dialog body is now at a good checkpoint
+- recent polish passes already covered placeholder states, dashboards, table chrome, floating panels, tab placeholders, dialogs, and help surfaces
+- the next move should come from the most visible remaining drift rather than from continuing one hotspot by default

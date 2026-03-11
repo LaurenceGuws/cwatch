@@ -829,3 +829,67 @@ Result:
 Why this is the right stop:
 - the biggest repeated shortcut/help presentation drift is already reduced
 - pushing further without a sharper target would risk generic cleanup instead of product value
+
+
+## Task 21.31: define the help-surface body polish target
+Status: completed
+
+Goal:
+- identify the most visible remaining drift inside the shared help surfaces after the shortcut/help wording batch
+- choose one narrow shared body surface to polish without reopening shortcut behavior or feature-local help copy
+
+Done definition:
+- one concrete help-surface body target is chosen
+- the first implementation batch is explicit
+
+Result:
+- the next active help-surface polish target is [input_help_dialog.dart](/home/home/personal/cwatch/lib/view/shared/widgets/input_help_dialog.dart)
+- the first batch should focus on:
+  - summary framing for active input mode state
+  - section hierarchy for current-context vs global scopes
+  - chip density/readability for shortcut and gesture rows
+- the batch should not change:
+  - shortcut behavior
+  - scope discovery logic
+  - feature-specific shortcut sets
+
+Why this is the right cut:
+- the wording drift is already reduced in shortcut settings and the command palette help entry
+- the remaining visible quality issue is the shared help dialog body itself, which still reads as a dense flat data dump
+- this is a shared shell-facing surface, so polishing it improves all modules at once
+
+## Task 21.32: implement the first help-surface body polish batch
+Status: completed
+
+Goal:
+- tighten the shared input-help dialog body without changing shortcut behavior or discovery logic
+
+Done definition:
+- the input-help dialog has clearer section hierarchy and summary framing
+- shortcut/gesture chip rows are more readable and visually grouped
+- no feature-specific shortcut behavior changes are introduced
+
+
+## Task 21.33: checkpoint help-surface body polish
+Status: completed
+
+Goal:
+- stop the help-surface body batch at a defensible point
+- record the current shared help-dialog language as a checkpoint instead of expanding it by default
+
+Done definition:
+- the shared help-surface body polish is recorded as checkpointed
+- the docs no longer imply that more help-surface work should continue by default
+
+Result:
+- [input_help_dialog.dart](/home/home/personal/cwatch/lib/view/shared/widgets/input_help_dialog.dart) now has:
+  - clearer summary framing for active input mode state
+  - stronger section hierarchy for current-context vs app-wide scopes
+  - more readable shortcut and gesture token styling
+- the shortcut/help polish layer now includes both:
+  - wording consistency in settings and the global help entry
+  - a more intentional shared help-dialog body surface
+
+Why this is the right stop:
+- the main shared help-surface quality drift is now reduced
+- more work here now would need a sharper user-facing issue such as compact mode, search, or richer gesture grouping rather than more default polish expansion
