@@ -71,6 +71,23 @@ void main() {
 
       expect(controller.selectedImageKeys, {'repo:c'});
     });
+
+    test('runWithRetry does not retry failed operations implicitly', () async {
+      final controller = DockerOverviewController(
+        docker: _FakeDockerClientService(),
+      );
+      var calls = 0;
+
+      await expectLater(
+        controller.runWithRetry(() async {
+          calls += 1;
+          throw Exception('boom');
+        }),
+        throwsException,
+      );
+
+      expect(calls, 1);
+    });
   });
 }
 

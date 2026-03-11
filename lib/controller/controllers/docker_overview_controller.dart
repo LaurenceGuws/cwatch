@@ -50,7 +50,6 @@ class DockerOverviewController extends ChangeNotifier {
         remoteHost: remoteHost,
         shell: shellService,
       ),
-      retry: isRemote,
     );
   }
 
@@ -86,9 +85,8 @@ class DockerOverviewController extends ChangeNotifier {
   }
 
   Future<T> runWithRetry<T>(
-    Future<T> Function() operation, {
-    bool retry = false,
-  }) async {
+    Future<T> Function() operation,
+  ) async {
     try {
       return await operation();
     } catch (error, stackTrace) {
@@ -98,9 +96,7 @@ class DockerOverviewController extends ChangeNotifier {
         error: error,
         stackTrace: stackTrace,
       );
-      if (!retry) rethrow;
-      await Future.delayed(const Duration(milliseconds: 350));
-      return operation();
+      rethrow;
     }
   }
 

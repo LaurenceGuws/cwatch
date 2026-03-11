@@ -179,7 +179,7 @@ class DockerOverviewActionsController {
             );
             break;
         }
-      }, retry: _isRemote);
+      });
       if (action == 'restart') {
         await onRestarted();
       } else if (action == 'start') {
