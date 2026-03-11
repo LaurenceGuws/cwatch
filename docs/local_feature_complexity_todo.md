@@ -428,7 +428,7 @@ Why this wins now:
 - it is the natural next hotspot before ending or checkpointing the local-complexity layer more broadly
 
 ## Task 20.14: define the Kubernetes local state cleanup boundary
-Status: pending
+Status: completed
 
 Goal:
 - define exactly what part of the remaining Kubernetes-local complexity should be addressed first
@@ -441,3 +441,54 @@ Questions to answer:
 Done definition:
 - one bounded Kubernetes-local cleanup seam is chosen
 - the first implementation batch is clear
+
+Result:
+- the first Kubernetes-local cleanup seam should be context-list state orchestration
+
+What should remain local to `kubernetes_context_list.dart`:
+- top-level tab shell composition
+- context-details dashboard hosting
+- context menu action definitions
+- rename/copy helpers and workspace-tab glue
+
+What should be split into a narrower Kubernetes-local seam:
+- grouped-context list state shaping
+- collapsed-section state and expand/collapse helpers
+- selected-context row tracking
+- placeholder list/settings overlay composition inputs
+- context future/cache selection behavior used by the list surface
+
+Why this is the right cut:
+- this is the densest remaining non-rendering local state block in the Kubernetes feature
+- it is still feature-local behavior, not reusable shell infrastructure
+- it avoids flattening Kubernetes-specific grouping and row actions into generic table abstractions
+- it gives one seam that owns the state and composition rules for the context-list surface
+
+First implementation batch:
+- extract a Kubernetes-local context-list state helper from `kubernetes_context_list.dart`
+- keep it feature-owned under `lib/view/features/kubernetes/`
+- leave `KubernetesWorkspaceShell`, `KubernetesTabBuilder`, and `KubernetesDashboardView` stable for the first batch
+
+## Task 20.15: implement the Kubernetes local state split
+Status: pending
+
+Goal:
+- extract the Kubernetes-local context-list state orchestration seam out of `kubernetes_context_list.dart`
+
+First code targets:
+- contexts future/cache selection behavior
+- grouped-context section shaping
+- collapsed-section state helpers
+- selected-context tracking
+- list/settings overlay composition inputs around the placeholder surface
+
+What stays stable in this batch:
+- `KubernetesWorkspaceShell`
+- `KubernetesTabBuilder`
+- `KubernetesDashboardView`
+- context menu actions
+- workspace restore glue
+
+Done definition:
+- `kubernetes_context_list.dart` no longer owns the full context-list state orchestration directly
+- the extracted seam remains Kubernetes-local and does not become shared shell infrastructure
