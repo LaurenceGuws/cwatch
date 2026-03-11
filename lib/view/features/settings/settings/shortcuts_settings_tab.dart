@@ -59,7 +59,7 @@ class ShortcutCategorySection extends StatelessWidget {
     }
     switch (category) {
       case ShortcutCategory.global:
-        return 'Global';
+        return 'App';
       case ShortcutCategory.terminal:
         return 'Terminal';
       case ShortcutCategory.tabs:
@@ -81,19 +81,19 @@ class ShortcutCategorySection extends StatelessWidget {
     }
     switch (category) {
       case ShortcutCategory.global:
-        return 'App-wide shortcuts.';
+        return 'App-wide shortcuts and shell controls.';
       case ShortcutCategory.terminal:
-        return 'Terminal interactions and scrolling.';
+        return 'Terminal actions, scrolling, and zoom.';
       case ShortcutCategory.tabs:
-        return 'Tab navigation and management.';
+        return 'Tab navigation, focus movement, and tab actions.';
       case ShortcutCategory.editor:
-        return 'Editor actions and navigation.';
+        return 'Editor actions, navigation, and zoom.';
       case ShortcutCategory.docker:
-        return 'Docker and container shortcuts.';
+        return 'Docker and container-specific commands.';
       case ShortcutCategory.grid:
-        return 'Spreadsheet-style navigation and selection.';
+        return 'Table and grid navigation and selection.';
       case ShortcutCategory.explorer:
-        return 'File explorer shortcuts.';
+        return 'File explorer actions and navigation.';
     }
   }
 
@@ -107,13 +107,13 @@ class ShortcutCategorySection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Configure key bindings. Leave a field empty to use the default.',
+            'Capture a new binding by focusing a field and pressing the keys directly. Leave a field empty to use the default binding.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const FormSpacer(),
           if (definitions.isEmpty)
             Text(
-              'No shortcuts available for this section yet.',
+              'No configurable shortcuts are available in this section yet.',
               style: Theme.of(context).textTheme.bodySmall,
             )
           else
@@ -207,7 +207,9 @@ class _ShortcutRowState extends State<_ShortcutRow> {
             controller: _textController,
             focusNode: _focusNode,
             decoration: InputDecoration(
-              hintText: 'ctrl+shift+c',
+              hintText: 'Press shortcut keys',
+              helperText:
+                  'Default: ${widget.definition.defaultBinding.toUpperCase()}',
               errorText: _error,
               isDense: true,
             ),

@@ -94,10 +94,10 @@ class HomeShellCommandPalette {
       ),
       CommandPaletteEntry(
         id: 'global:help:input',
-        label: 'Help: input & shortcuts',
+        label: 'Open shortcut help',
         category: 'Help',
         description:
-            'Show active shortcuts and gestures for the current context.',
+            'Show active shortcuts and input tips for the current context.',
         onSelected: () => showInputHelpDialog(
           context,
           settings: settingsController.settings,
