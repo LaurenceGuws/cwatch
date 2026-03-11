@@ -10,6 +10,7 @@ import 'process_ssh_search_planner.dart';
 import 'process_ssh_run_result_handler.dart';
 import 'process_ssh_terminal_session_planner.dart';
 import 'process_ssh_execution_adapter.dart';
+import 'process_ssh_transfer_support.dart';
 import 'process_ssh_failure_mapper.dart';
 import 'remote_shell_base.dart';
 import 'terminal_session.dart';
@@ -42,6 +43,8 @@ class ProcessRemoteShellService extends RemoteShellService {
       const ProcessSshSearchPlanner();
   final ProcessSshTerminalSessionPlanner _terminalSessionPlanner =
       const ProcessSshTerminalSessionPlanner();
+  final ProcessSshTransferSupport _transferSupport =
+      const ProcessSshTransferSupport();
 
   /// Handles SSH command errors, detecting authentication failures.
   Never _handleSshError(SshHost host, ProcessResult result) {
@@ -437,7 +440,7 @@ class ProcessRemoteShellService extends RemoteShellService {
         ? sourceHost.port
         : null;
     final args =
-        _buildScpArgs(
+        _transferSupport.buildScpArgs(
             identityFiles: {
               ...sourceHost.identityFiles,
               ...destinationHost.identityFiles,
@@ -446,8 +449,20 @@ class ProcessRemoteShellService extends RemoteShellService {
             remotePort: sharedPort,
             extraFlags: const ['-3'],
           )
-          ..add(_formatRemoteSpec(sourceHost, normalizedSource))
-          ..add(_formatRemoteSpec(destinationHost, normalizedDest));
+          ..add(
+            _transferSupport.formatRemoteSpec(
+              sourceHost,
+              normalizedSource,
+              connectionTarget: _runner.connectionTarget(sourceHost),
+            ),
+          )
+          ..add(
+            _transferSupport.formatRemoteSpec(
+              destinationHost,
+              normalizedDest,
+              connectionTarget: _runner.connectionTarget(destinationHost),
+            ),
+          );
     final run = await _runProcess(
       sourceHost,
       args,
@@ -484,12 +499,18 @@ class ProcessRemoteShellService extends RemoteShellService {
     final destinationDir = Directory(localDestination);
     await destinationDir.create(recursive: true);
     final args =
-        _buildScpArgs(
+        _transferSupport.buildScpArgs(
             identityFiles: host.identityFiles.toSet(),
             remotePort: host.port,
             recursive: recursive,
           )
-          ..add(_formatRemoteSpec(host, normalizedSource))
+          ..add(
+            _transferSupport.formatRemoteSpec(
+              host,
+              normalizedSource,
+              connectionTarget: _runner.connectionTarget(host),
+            ),
+          )
           ..add(localDestination);
     await _runProcess(
       host,
@@ -517,13 +538,19 @@ class ProcessRemoteShellService extends RemoteShellService {
       onTimeout: onTimeout,
     );
     final args =
-        _buildScpArgs(
+        _transferSupport.buildScpArgs(
             identityFiles: host.identityFiles.toSet(),
             remotePort: host.port,
             recursive: recursive,
           )
           ..add(source)
-          ..add(_formatRemoteSpec(host, normalizedDest));
+          ..add(
+            _transferSupport.formatRemoteSpec(
+              host,
+              normalizedDest,
+              connectionTarget: _runner.connectionTarget(host),
+            ),
+          );
     final run = await _runProcess(
       host,
       args,
@@ -648,44 +675,6 @@ class ProcessRemoteShellService extends RemoteShellService {
       rethrow;
     }
   }
-
-
-  List<String> _buildScpArgs({
-    required Set<String> identityFiles,
-    int? remotePort,
-    bool recursive = false,
-    List<String> extraFlags = const [],
-  }) {
-    final args = <String>[
-      'scp',
-      '-o',
-      'BatchMode=yes',
-      '-o',
-      'StrictHostKeyChecking=accept-new',
-      ...extraFlags,
-    ];
-    if (remotePort != null) {
-      args.addAll(['-P', remotePort.toString()]);
-    }
-    if (recursive) {
-      args.add('-r');
-    }
-    for (final identity in identityFiles) {
-      final trimmed = identity.trim();
-      if (trimmed.isNotEmpty) {
-        args.addAll(['-i', trimmed]);
-      }
-    }
-    return args;
-  }
-
-  String _formatRemoteSpec(SshHost host, String path) {
-    final normalized = sanitizePath(path);
-    // scp remote specs accept raw paths; quoting here can be interpreted
-    // as a literal character by some servers, so keep it unquoted.
-    return '${_runner.connectionTarget(host)}:$normalized';
-  }
-
   Future<void> _ensureRemoteDirectory(
     SshHost host,
     String directory, {

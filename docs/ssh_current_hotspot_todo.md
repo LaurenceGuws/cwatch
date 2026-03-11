@@ -297,6 +297,44 @@ Done definition:
 - `ProcessRemoteShellService` no longer owns repeated runner/failure wrapper methods inline
 - focused regression coverage exists for ssh/host/process mapping and streaming-cancellation behavior
 
+## Task 23.17: define the next SSH batch from the current process runtime shape
+Status: completed
+
+Goal:
+- choose the next real SSH cleanup slice from the current code state after the execution-adapter split
+- keep the batch on repeated process-transfer support logic rather than broader method rewrites
+
+Done definition:
+- one new SSH batch is explicit
+- the batch reflects the current file shape instead of older assumptions
+
+Result:
+- the next bounded SSH batch is now:
+  - process SSH transfer-support split
+- target files:
+  - [process_ssh_shell_service.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/process_ssh_shell_service.dart)
+  - new SSH-local helper under `lib/model/services_infra/ssh/`
+- stop condition:
+  - SCP argument assembly and remote-spec formatting no longer live inline in `ProcessRemoteShellService`
+  - file-operation behavior and public `RemoteShellService` contracts stay stable in this batch
+  - builtin SSH remains untouched in this batch
+
+Why this is the right next cut:
+- `ProcessRemoteShellService` still owns a small but repeated transfer-support block at the bottom of the file
+- that support logic is orthogonal to the higher-level SSH operation flows
+- it gives a direct seam for focused regression coverage without forcing weaker method-by-method splits
+
+## Task 23.18: implement the process SSH transfer-support split
+Status: completed
+
+Goal:
+- extract process SSH SCP argument assembly and remote-spec formatting into a dedicated SSH-local helper
+
+Done definition:
+- one SSH-local helper owns SCP argument assembly and remote-spec shaping
+- `ProcessRemoteShellService` no longer owns that transfer-support block inline
+- focused regression coverage exists for SCP flags/identity shaping and remote-spec formatting
+
 Result:
 - builtin streaming execution now lives in a dedicated helper
 - `BuiltInSshClientManager` is reduced to thin workflow wrappers around extracted builtin helpers
