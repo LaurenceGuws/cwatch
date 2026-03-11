@@ -1,7 +1,50 @@
 # Runtime Composition Hotspot TODO
 
-Status: checkpointed
+Status: active
 Purpose: track the next bounded cleanup batches for the current highest-value repo hotspot: runtime and composition ownership.
+
+## Task 25.15: resume the runtime/composition hotspot from the current code state
+Status: completed
+
+Goal:
+- reopen runtime/composition work from the latest code state after the UI-adapter checkpoint
+- pick the next bounded feature-runtime ownership seam rather than continuing the older server-only sequence blindly
+
+Done definition:
+- the runtime/composition TODO is active again
+- one new bounded batch is named from the current Docker/Kubernetes state
+
+Result:
+- runtime/composition ownership cleanup is the active top hotspot again
+- the next bounded batch should come from Docker feature runtime ownership
+
+## Task 25.16: define the next bounded runtime/composition batch
+Status: completed
+
+Goal:
+- choose one concrete Docker runtime ownership seam with clear value and low ambiguity
+- keep the batch on feature-local runtime construction rather than broad Docker shell redesign
+
+Done definition:
+- one explicit Docker runtime batch is named
+- the stop condition reflects the current code shape
+
+Result:
+- the next bounded runtime/composition batch is now:
+  - move Docker view/controller/runtime assembly into the Docker feature runtime seam
+- target files:
+  - [docker_view_binding.dart](/home/home/personal/cwatch/lib/controller/di/bindings/docker_view_binding.dart)
+  - [docker_view.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view.dart)
+  - [docker_view_runtime.dart](/home/home/personal/cwatch/lib/view/features/docker/docker_view_runtime.dart)
+- stop condition:
+  - Docker-specific runtime/controller assembly no longer depends on a dedicated cross-folder binding
+  - the Docker feature runtime is the obvious place to find Docker runtime construction
+  - there is one actual runtime-owned workspace controller in the feature view path
+
+Why this is the right next cut:
+- the Docker binding is now just a thin pass-through over feature-local types
+- the feature view still hides a real ownership blur by assembling runtime parts in multiple places
+- moving this construction into the feature runtime seam matches the earlier server cleanup and sharpens feature-local ownership
 
 ## Task 25.1: start the runtime/composition hotspot pass
 Status: completed

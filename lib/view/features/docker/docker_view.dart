@@ -12,7 +12,6 @@ import 'package:cwatch/model/services_infra/ssh/remote_shell_service.dart';
 import 'package:cwatch/model/services_infra/ssh/ssh_shell_factory.dart';
 import 'package:cwatch/controller/controllers/docker_shell_callbacks.dart';
 import 'package:cwatch/model/services_infra/settings/app_settings_controller.dart';
-import 'package:cwatch/model/services_infra/settings/workspace_root_controller.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
@@ -38,7 +37,6 @@ import 'package:cwatch/controller/adapters/docker_ui_adapter.dart';
 import 'package:cwatch/controller/controllers/docker_view_controller.dart';
 import 'package:cwatch/controller/di/bindings/docker_client_service_binding.dart';
 import 'package:cwatch/controller/di/bindings/docker_shell_callbacks_binding.dart';
-import 'package:cwatch/controller/di/bindings/docker_view_binding.dart';
 import 'docker_local_state_controller.dart';
 import 'docker_view_runtime.dart';
 import 'docker_view_shell.dart';
@@ -66,7 +64,6 @@ class DockerView extends StatefulWidget {
 }
 
 class _DockerViewState extends State<DockerView> {
-  final DockerViewBinding _viewBinding = const DockerViewBinding();
   late final DockerViewRuntime _runtime;
   late final DockerClientService _docker;
   late final DockerViewController _viewController;
@@ -115,7 +112,7 @@ class _DockerViewState extends State<DockerView> {
       initialDockerCache: widget.settingsController.settings.dockerDistroMap,
     );
     _docker = const DockerClientServiceBinding().create();
-    _viewController = _viewBinding.createController(docker: _docker);
+    _viewController = DockerViewRuntime.createController(docker: _docker);
     _shellCallbacks = const DockerShellCallbacksBinding().create(
       shellFactory: widget.shellFactory,
     );
@@ -131,27 +128,7 @@ class _DockerViewState extends State<DockerView> {
       portForwardService: portForwardService,
       hostsFuture: widget.hostsFuture,
     );
-    final workspaceController = DockerWorkspaceController(
-      settingsController: widget.settingsController,
-      workspaceRootController: WorkspaceRootController(
-        settingsController: widget.settingsController,
-      ),
-      baseTabBuilder: _enginePickerTab,
-    );
-    _localStateController = DockerLocalStateController(
-      settingsController: widget.settingsController,
-      workspaceController: workspaceController,
-      viewController: _viewController,
-      shellFactory: widget.shellFactory,
-      hostsFuture: widget.hostsFuture,
-      requestRefresh: () {
-        if (mounted) {
-          setState(() {});
-        }
-      },
-      refreshPickerTabs: _refreshPickerTabs,
-    );
-    _runtime = _viewBinding.createRuntime(
+    _runtime = DockerViewRuntime.create(
       settingsController: widget.settingsController,
       keyService: widget.keyService,
       shellFactory: widget.shellFactory,
@@ -163,7 +140,20 @@ class _DockerViewState extends State<DockerView> {
       portForwardService: portForwardService,
       shellCallbacks: _shellCallbacks,
       tabBuilder: _tabBuilder,
-      workspaceController: workspaceController,
+      baseTabBuilder: _enginePickerTab,
+    );
+    _localStateController = DockerLocalStateController(
+      settingsController: widget.settingsController,
+      workspaceController: _runtime.workspaceController,
+      viewController: _viewController,
+      shellFactory: widget.shellFactory,
+      hostsFuture: widget.hostsFuture,
+      requestRefresh: () {
+        if (mounted) {
+          setState(() {});
+        }
+      },
+      refreshPickerTabs: _refreshPickerTabs,
     );
     _viewControllerListener = () {
       if (!mounted) return;
