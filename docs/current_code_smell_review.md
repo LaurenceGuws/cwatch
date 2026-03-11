@@ -21,7 +21,15 @@ What remains is mostly concentrated in a smaller set of heavy subsystems and sha
 
 ## Current Highest-Value Hotspots
 
-### 1. SSH subsystem complexity
+### 1. Theme/token centralization
+Primary file:
+- [app_theme.dart](/home/home/personal/cwatch/lib/model/shared/theme/app_theme.dart)
+
+Why it still matters:
+- Too many design concerns are centralized in one file.
+- It works, but it is difficult to evolve safely because unrelated design primitives live together.
+
+### 2. SSH subsystem complexity
 Primary files:
 - [ssh_shell_factory.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_factory.dart)
 - [process_ssh_shell_service.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/process_ssh_shell_service.dart)
@@ -32,7 +40,7 @@ Why it still matters:
 - Provider selection, runtime caching, builtin/process differences, auth coordination, and failure mapping still create a high-complexity subsystem.
 - This is now more of a subsystem-complexity problem than an ownership problem.
 
-### 2. StructuredDataTable shared risk
+### 3. StructuredDataTable shared risk
 Primary files:
 - [structured_data_table.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table.dart)
 - [structured_data_table_state.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_state.dart)
@@ -49,7 +57,7 @@ Current checkpoint:
 - cell navigation, cell selection, hit-test, resize, scroll, and reorder projection have been split out
 - the remaining risk is now more about widget/rendering glue than pure engine complexity
 
-### 3. Docker feature complexity
+### 4. Docker feature complexity
 Primary files:
 - [docker_lists.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_lists.dart)
 - [docker_overview.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_overview.dart)
@@ -60,14 +68,6 @@ Why it still matters:
 - Docker remains the largest visible feature subsystem by concentrated file size and mixed responsibility.
 - The feature has better ownership than before, but too much behavior still lives in a few large files.
 - This is the best next feature-level cleanup target after SSH.
-
-### 4. Theme/token centralization
-Primary file:
-- [app_theme.dart](/home/home/personal/cwatch/lib/model/shared/theme/app_theme.dart)
-
-Why it still matters:
-- Too many design concerns are centralized in one file.
-- It works, but it is difficult to evolve safely because unrelated design primitives live together.
 
 ### 5. Active watchlist feature shells
 Primary files:
