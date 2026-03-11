@@ -158,6 +158,12 @@ Current dashboard polish checkpoint:
   - server resource panels
   - Docker resources
   - Kubernetes dashboard/resources
+- current shared dashboard language covers:
+  - section framing
+  - metric cards
+  - metadata cards
+  - legend chrome
+  - simple feedback states
 
 Current follow-up docs:
 - `docs/rewrite_foundations.md`

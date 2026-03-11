@@ -203,3 +203,31 @@ Why this is a good checkpoint:
 - the remaining obvious dashboard-state drift is reduced
 - feedback now reads as one system for straightforward loading/error/empty cases
 - richer dashboard-specific guidance is still free to stay local
+
+## Task 21.8: checkpoint dashboard polish
+Status: completed
+
+Goal:
+- stop the dashboard polish layer at a defensible point
+- make the current dashboard language explicit as a checkpoint instead of an endlessly expanding hotspot
+
+Done definition:
+- the dashboard polish layer is recorded as checkpointed
+- the docs no longer imply that more dashboard work should continue by default
+
+Result:
+- resource dashboard consistency is now treated as a product-polish checkpoint
+- the shared dashboard language currently covers:
+  - section framing
+  - metric summary cards
+  - metadata label/value cards
+  - chart legend chrome
+  - straightforward feedback states
+- any further dashboard work should reopen from a narrower visible issue such as:
+  - table chrome density
+  - server-specific metadata readability
+  - richer chart presentation rules
+
+Why this is the right stop:
+- the biggest cross-feature dashboard drift is already reduced
+- pushing further without a sharper target would risk generic cleanup for its own sake

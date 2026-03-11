@@ -134,21 +134,20 @@ Questions:
 
 ## Current Recommendation
 
-Start with:
-- resource dashboard consistency
+Current active hotspot:
+- resource dashboard consistency is now at a good checkpoint
 
 Why:
-- it affects in-use feature surfaces more than entry placeholders
-- the current drift is obvious in chart framing, metric summaries, and metadata styling
-- server, docker, and kubernetes already provide enough evidence to define shared dashboard primitives
-- it improves visible quality without reopening ownership cleanup or flattening feature-specific dashboards
+- the first shared dashboard language is now in place across server, docker, and kubernetes
+- the biggest visible cross-feature dashboard drift has been reduced without flattening feature-owned composition
+- further dashboard work now needs a sharper target, not more default expansion
 
-Current first implementation batch:
-- define the shared dashboard language from server, docker, and kubernetes resource surfaces
-- start with section framing, metric summary cards, and metadata label/value presentation
-- leave feature-specific actions, domain grouping, and richer dashboard flows local
+Current dashboard checkpoint includes:
+- shared dashboard section framing
+- shared metric summary cards
+- shared metadata label/value cards
+- shared chart legend chrome
+- shared straightforward loading/error/empty feedback
 
-Why this batch:
-- it targets the most visible consistency gap in active feature work surfaces
-- it builds on existing feature dashboards instead of inventing a generic dashboard framework
-- it creates reusable visual primitives before touching heavier graph/data rewrites
+Current next polish move:
+- re-scope the next visible consistency hotspot from evidence instead of continuing dashboard work by default
