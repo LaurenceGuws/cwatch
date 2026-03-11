@@ -60,6 +60,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   final ValueNotifier<List<TabChipOption>> _emptyOptions =
       ValueNotifier<List<TabChipOption>>(const []);
   final KubernetesContextListState _listState = KubernetesContextListState();
+  static const Widget _bootstrapPlaceholderBody = SizedBox.shrink();
 
   KubernetesContextController get _contextController =>
       _runtime.contextController;
@@ -96,7 +97,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
       keyService: widget.keyService,
       hostsFuture: widget.hostsFuture,
       tabBuilder: _tabBuilder,
-      baseTabBuilder: _createPlaceholderTab,
+      baseTabBuilder: _createBootstrapPlaceholderTab,
     );
 
     _tabRegistry = TabViewRegistry<WorkspaceTab>(
@@ -145,6 +146,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     };
     widget.settingsController.addListener(_settingsListener);
 
+    _replaceBootstrapPlaceholder();
     _listState.setContextsFuture(_workspaceShell.initializeContexts());
     unawaited(_restoreWorkspace());
   }
@@ -202,6 +204,28 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     );
     _syncTabOptions(tab);
     return tab;
+  }
+
+  WorkspaceTab _createBootstrapPlaceholderTab() {
+    return _tabBuilder.placeholder(
+      id: _uniqueId(),
+      body: _bootstrapPlaceholderBody,
+    );
+  }
+
+  void _replaceBootstrapPlaceholder() {
+    final tabs = _tabs;
+    if (tabs.isEmpty) {
+      return;
+    }
+    final baseTab = tabs.first;
+    if (!_isPlaceholder(baseTab) || baseTab.body != _bootstrapPlaceholderBody) {
+      return;
+    }
+    final replacement = _createPlaceholderTab(id: baseTab.id);
+    _workspaceController.runWithoutPersist(() {
+      _workspaceController.replaceBaseTab(replacement);
+    });
   }
 
   WorkspaceTab _createContextTab({
