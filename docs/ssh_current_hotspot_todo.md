@@ -179,3 +179,24 @@ Done definition:
 Result:
 - builtin streaming output collection now lives in a dedicated helper
 - `BuiltInSshClientManager` is further narrowed toward session workflow orchestration
+
+
+## Task 23.11: implement builtin client-connection cleanup
+Status: completed
+
+Goal:
+- extract builtin client connection setup and host-key verification wiring out of `BuiltInSshClientManager`
+
+Done definition:
+- one builtin-local helper owns:
+  - username resolution
+  - identity precondition check
+  - client open/connect wiring
+  - host-label and fingerprint formatting
+  - host-key verification callback shaping
+- `BuiltInSshClientManager` no longer owns `_openClient(...)` inline
+- focused regression coverage exists for the new helper
+
+Result:
+- builtin client connection setup now lives in a dedicated helper
+- `BuiltInSshClientManager` is further narrowed toward command/session workflow orchestration
