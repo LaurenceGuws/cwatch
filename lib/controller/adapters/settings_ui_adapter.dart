@@ -1,25 +1,17 @@
-import 'dart:typed_data';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import 'package:cwatch/controller/adapters/settings_key_ui.dart';
 import 'package:cwatch/view/shared/widgets/shared_prompt_dialogs.dart';
 
-class SettingsPickedFile {
-  const SettingsPickedFile({required this.name, this.path, this.bytes});
-
-  final String name;
-  final String? path;
-  final Uint8List? bytes;
-}
-
-class SettingsUiAdapter {
+class SettingsUiAdapter implements SettingsKeyUi {
   SettingsUiAdapter({required this.context});
 
   final BuildContext context;
 
   bool get mounted => context.mounted;
 
+  @override
   void showSnackBar(
     String message, {
     bool isError = false,
@@ -53,6 +45,7 @@ class SettingsUiAdapter {
     );
   }
 
+  @override
   Future<SettingsPickedFile?> pickPrivateKeyFile() async {
     final result = await FilePicker.platform.pickFiles(
       dialogTitle: 'Select private key (PEM)',
@@ -76,6 +69,7 @@ class SettingsUiAdapter {
     return result?.files.single.path;
   }
 
+  @override
   Future<String?> promptForPassword({
     required String title,
     String labelText = 'Password',
@@ -95,6 +89,7 @@ class SettingsUiAdapter {
     );
   }
 
+  @override
   Future<String?> promptForKeyPassphrase({required bool isRequired}) async {
     if (!context.mounted) return null;
     return showTextPromptDialog(
@@ -124,6 +119,7 @@ class SettingsUiAdapter {
     );
   }
 
+  @override
   Future<bool> confirmDeleteKeyInUse({required List<String> hostNames}) async {
     if (!context.mounted) return false;
     return showConfirmPromptDialog(

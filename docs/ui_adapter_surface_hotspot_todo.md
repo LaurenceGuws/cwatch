@@ -46,3 +46,31 @@ Why this is the right first cut:
 - server and Docker both expose the same prompt/start/snackbar port-forward flow
 - that workflow is more reusable and controller-shaped than the rest of the Docker adapter surface
 - this creates a real decoupling seam without reopening the wider settings or Docker dialog stacks
+
+## Task 29.3: define the next bounded UI-adapter batch
+Status: completed
+
+Goal:
+- choose the next controller-facing workflow seam from the current UI-adapter state
+- keep the batch on a dense prompt/confirm flow instead of broad adapter replacement
+
+Done definition:
+- one next batch is explicit
+- the stop condition reflects a real controller-to-adapter coupling seam still present in the codebase
+
+Result:
+- the next bounded UI-adapter batch is now:
+  - extract built-in SSH key prompt/confirm workflow out of `SettingsController`
+- target files:
+  - [settings_controller.dart](/home/home/personal/cwatch/lib/controller/controllers/settings_controller.dart)
+  - [settings_ui_adapter.dart](/home/home/personal/cwatch/lib/controller/adapters/settings_ui_adapter.dart)
+  - new settings key workflow seam under `lib/controller/`
+- stop condition:
+  - built-in SSH key interaction flow no longer lives inline in `SettingsController`
+  - the extracted key workflow depends on a narrower key-specific UI contract rather than the full settings adapter surface
+  - focused regression coverage exists for the new key workflow seam
+
+Why this is the right next cut:
+- the built-in SSH key flow is the densest remaining prompt/confirm/snackbar block in settings
+- it is workflow-local and materially more dialog-shaped than the generic settings mutation methods
+- extracting it narrows both controller size and concrete adapter coupling without reopening the whole settings surface

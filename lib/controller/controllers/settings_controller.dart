@@ -16,14 +16,8 @@ import 'package:cwatch/model/services_infra/ssh/builtin/builtin_ssh_key_service.
 
 import '../adapters/settings_ui_adapter.dart';
 import '../repositories/settings_repository.dart';
+import 'built_in_ssh_key_controller.dart';
 import 'settings_update_support.dart';
-
-class LoadedKeyFile {
-  const LoadedKeyFile({required this.contents, required this.fileName});
-
-  final String contents;
-  final String fileName;
-}
 
 class SettingsController extends ChangeNotifier {
   SettingsController({
@@ -35,6 +29,13 @@ class SettingsController extends ChangeNotifier {
   }) : repository = repository ?? SettingsRepository() {
     _settingsListener = notifyListeners;
     settingsController.addListener(_settingsListener);
+    keyController = BuiltInSshKeyController(
+      settingsController: settingsController,
+      keyService: keyService,
+      hostsFuture: hostsFuture,
+      ui: uiAdapter,
+      updateSettings: update,
+    );
   }
 
   final AppSettingsController settingsController;
@@ -42,6 +43,7 @@ class SettingsController extends ChangeNotifier {
   final Future<List<SshHost>> hostsFuture;
   final SettingsUiAdapter uiAdapter;
   final SettingsRepository repository;
+  late final BuiltInSshKeyController keyController;
 
   late final VoidCallback _settingsListener;
 
@@ -368,174 +370,33 @@ class SettingsController extends ChangeNotifier {
     );
   }
 
-  Listenable get keyVaultListenable => keyService.vault;
+  Listenable get keyVaultListenable => keyController.keyVaultListenable;
 
-  bool isKeyDecrypted(String keyId) => keyService.isDecrypted(keyId);
+  bool isKeyDecrypted(String keyId) => keyController.isKeyDecrypted(keyId);
 
-  Future<List<BuiltInSshKeyEntry>> listBuiltInKeys() => keyService.listKeys();
+  Future<List<BuiltInSshKeyEntry>> listBuiltInKeys() =>
+      keyController.listBuiltInKeys();
 
-  void decryptPlaintextKeysIfNeeded(List<BuiltInSshKeyEntry> keys) {
-    for (final entry in keys) {
-      if (!entry.isEncrypted && !keyService.isDecrypted(entry.id)) {
-        keyService
-            .decrypt(entry.id, password: null)
-            .catchError(
-              (_) => const BuiltInSshKeyDecryptResult(
-                status: BuiltInSshKeyDecryptStatus.failed,
-              ),
-            );
-      }
-    }
-  }
+  void decryptPlaintextKeysIfNeeded(List<BuiltInSshKeyEntry> keys) =>
+      keyController.decryptPlaintextKeysIfNeeded(keys);
 
   Future<bool> addBuiltInKey({
     required String label,
     required String keyText,
     String? password,
-  }) async {
-    final trimmedLabel = label.trim();
-    final trimmedKey = keyText.trim();
-    final trimmedPassword = password?.trim() ?? '';
-    if (trimmedLabel.isEmpty || trimmedKey.isEmpty) {
-      uiAdapter.showSnackBar('Provide label and key.', isError: true);
-      return false;
-    }
-
-    AppLogger().debug('Adding built-in key "$trimmedLabel"', tag: 'Settings');
-    try {
-      final addResult = await keyService.addKey(
-        label: trimmedLabel,
-        keyPem: trimmedKey,
-        storagePassword: trimmedPassword.isEmpty ? null : trimmedPassword,
-        keyPassphrase: null,
+  }) => keyController.addBuiltInKey(
+        label: label,
+        keyText: keyText,
+        password: password,
       );
-      if (addResult.status == BuiltInSshKeyAddStatus.needsPassphrase) {
-        final passphrase = await uiAdapter.promptForKeyPassphrase(
-          isRequired: true,
-        );
-        if (passphrase == null || passphrase.isEmpty) {
-          return false;
-        }
-        final retry = await keyService.addKey(
-          label: trimmedLabel,
-          keyPem: trimmedKey,
-          storagePassword: trimmedPassword.isEmpty ? null : trimmedPassword,
-          keyPassphrase: passphrase,
-        );
-        if (retry.status != BuiltInSshKeyAddStatus.success) {
-          final message =
-              retry.message ??
-              'Unable to import key. Please check the passphrase or format.';
-          uiAdapter.showSnackBar(
-            message,
-            isError: true,
-            duration: const Duration(seconds: 5),
-          );
-          return false;
-        }
-      } else if (addResult.status != BuiltInSshKeyAddStatus.success) {
-        final message =
-            addResult.message ??
-            'Key cannot be parsed. It may be encrypted, unsupported, or malformed.';
-        uiAdapter.showSnackBar(
-          message,
-          isError: true,
-          duration: const Duration(seconds: 5),
-        );
-        return false;
-      }
 
-      uiAdapter.showSnackBar('Key added to the vault.');
-      return true;
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Failed to add built-in SSH key',
-        tag: 'Settings',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      uiAdapter.showSnackBar('Failed to add key: $error', isError: true);
-      return false;
-    }
-  }
+  Future<void> decryptBuiltInKey(String keyId) =>
+      keyController.decryptBuiltInKey(keyId);
 
-  Future<void> decryptBuiltInKey(String keyId) async {
-    final entry = await keyService.loadKey(keyId);
-    String? password;
-    if (entry != null && entry.isEncrypted) {
-      password = await uiAdapter.promptForPassword(title: 'Decrypt key');
-      if (password == null) {
-        return;
-      }
-    }
-    AppLogger().debug('Decrypting built-in key $keyId', tag: 'Settings');
-    final result = await keyService.decrypt(keyId, password: password);
-    switch (result.status) {
-      case BuiltInSshKeyDecryptStatus.decrypted:
-        uiAdapter.showSnackBar('Key decrypted for this session.');
-        break;
-      case BuiltInSshKeyDecryptStatus.incorrectPassword:
-        uiAdapter.showSnackBar(
-          result.message ?? 'Incorrect password.',
-          isError: true,
-        );
-        break;
-      default:
-        uiAdapter.showSnackBar(
-          result.message ?? 'Failed to decrypt key.',
-          isError: true,
-        );
-        break;
-    }
-  }
+  Future<bool> removeBuiltInKey(String keyId) =>
+      keyController.removeBuiltInKey(keyId);
 
-  Future<bool> removeBuiltInKey(String keyId) async {
-    final hosts = await hostsFuture;
-    final bindings = settings.sshPreferences.builtinHostKeyBindings;
-    final hostsUsingKey = hosts
-        .where((host) => bindings[host.name] == keyId)
-        .map((host) => host.name)
-        .toList();
-
-    if (hostsUsingKey.isNotEmpty) {
-      final confirmed = await uiAdapter.confirmDeleteKeyInUse(
-        hostNames: hostsUsingKey,
-      );
-      if (!confirmed) {
-        return false;
-      }
-
-      final updatedBindings = Map<String, String>.from(bindings);
-      for (final hostName in hostsUsingKey) {
-        updatedBindings.remove(hostName);
-        AppLogger().debug(
-          'Removed key binding for host $hostName',
-          tag: 'Settings',
-        );
-      }
-      await update(
-        (current) => current.copyWith(
-          sshPreferences: current.sshPreferences.copyWith(
-            builtinHostKeyBindings: updatedBindings,
-          ),
-        ),
-      );
-    }
-
-    AppLogger().debug('Removing built-in key $keyId', tag: 'Settings');
-    await keyService.deleteKey(keyId);
-    uiAdapter.showSnackBar('Key removed from vault.');
-    return true;
-  }
-
-  void clearDecryptedKeys() {
-    keyService.clearAllDecrypted();
-    AppLogger().debug(
-      'Cleared decrypted built-in keys from memory',
-      tag: 'Settings',
-    );
-    uiAdapter.showSnackBar('Decrypted keys cleared from memory.');
-  }
+  void clearDecryptedKeys() => keyController.clearDecryptedKeys();
 
   void updateHostBinding(String hostName, String? keyId) {
     final current = settings.sshPreferences.builtinHostKeyBindings;
@@ -558,72 +419,13 @@ class SettingsController extends ChangeNotifier {
     );
   }
 
-  void clearDecryptedKey(String keyId) {
-    keyService.clearDecrypted(keyId);
-    uiAdapter.showSnackBar('Key cleared from memory.');
-  }
+  void clearDecryptedKey(String keyId) => keyController.clearDecryptedKey(keyId);
 
-  Future<bool> encryptBuiltInKey(String keyId) async {
-    final password = await uiAdapter.promptForPassword(
-      title: 'Encrypt key',
-      confirmLabel: 'Encrypt',
-    );
-    if (password == null) {
-      return false;
-    }
+  Future<bool> encryptBuiltInKey(String keyId) =>
+      keyController.encryptBuiltInKey(keyId);
 
-    final entry = await keyService.loadKey(keyId);
-    if (entry == null || entry.isEncrypted) {
-      uiAdapter.showSnackBar(
-        'Key not found or already encrypted.',
-        isError: true,
-      );
-      return false;
-    }
-
-    try {
-      await keyService.encryptStoredKey(keyId: keyId, password: password);
-      uiAdapter.showSnackBar('Key encrypted successfully.');
-      return true;
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Failed to encrypt stored SSH key $keyId',
-        tag: 'Settings',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      uiAdapter.showSnackBar('Failed to encrypt key: $error', isError: true);
-      return false;
-    }
-  }
-
-  Future<LoadedKeyFile?> loadPrivateKeyContents() async {
-    final file = await uiAdapter.pickPrivateKeyFile();
-    if (file == null) return null;
-    try {
-      final bytes =
-          file.bytes ??
-          (file.path != null ? await File(file.path!).readAsBytes() : null);
-      if (bytes == null) {
-        uiAdapter.showSnackBar('Unable to read selected file', isError: true);
-        return null;
-      }
-      uiAdapter.showSnackBar('Loaded key from ${file.name}');
-      return LoadedKeyFile(
-        contents: String.fromCharCodes(bytes),
-        fileName: file.name,
-      );
-    } catch (error, stackTrace) {
-      AppLogger().warn(
-        'Failed to load SSH key file ${file.name}',
-        tag: 'Settings',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      uiAdapter.showSnackBar('Failed to read key: $error', isError: true);
-      return null;
-    }
-  }
+  Future<LoadedKeyFile?> loadPrivateKeyContents() =>
+      keyController.loadPrivateKeyContents();
 
   @override
   void dispose() {
