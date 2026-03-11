@@ -148,3 +148,49 @@ Result:
   - [server_workspace_controller.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_controller.dart)
 - focused regression coverage exists in:
   - [server_workspace_tab_restorer_test.dart](/home/home/personal/cwatch/test/view/features/servers/server_workspace_tab_restorer_test.dart)
+
+## Task 25.7: define the next server workspace hosting cut
+Status: completed
+
+Goal:
+- choose the next ownership seam from the current server workspace view state
+- keep the batch on feature-local tab assembly and mutation rather than broad shell extraction
+
+Done definition:
+- one new server hosting batch is explicit
+- the stop condition reflects the current view shape
+
+Result:
+- the next bounded runtime/composition batch is now:
+  - server workspace tab-helper split
+- target files:
+  - [server_workspace_view.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_view.dart)
+  - new server feature-local helper under `lib/view/features/servers/`
+- stop condition:
+  - feature-local tab creation/open helpers and rename-state mutation no longer live inline in the view
+  - the view keeps shell hosting and widget lifecycle responsibility
+  - behavior stays stable
+
+Why this is the right next cut:
+- the server workspace view still mixes shell hosting with feature tab assembly details
+- those tab creation and mutation rules are feature-local support logic, not widget lifecycle behavior
+- this gives a real ownership improvement without prematurely attempting cross-feature shell reuse
+
+## Task 25.8: implement the next server workspace hosting cut
+Status: completed
+
+Goal:
+- move server feature tab creation/opening/rename support into a dedicated helper
+
+Done definition:
+- one helper owns feature-local server tab creation/opening and rename-state mutation
+- [server_workspace_view.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_view.dart) no longer owns those inline support blocks
+- focused regression coverage exists for the helper
+
+Result:
+- server feature tab support now lives in:
+  - [server_workspace_tab_helper.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_tab_helper.dart)
+- the server workspace view now delegates feature-local tab support while keeping shell hosting:
+  - [server_workspace_view.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_view.dart)
+- focused regression coverage exists in:
+  - [server_workspace_tab_helper_test.dart](/home/home/personal/cwatch/test/view/features/servers/server_workspace_tab_helper_test.dart)

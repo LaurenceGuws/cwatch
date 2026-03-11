@@ -18,6 +18,7 @@ import 'package:cwatch/view/features/servers/server_workspace_ui_adapter.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'servers/servers_widgets.dart';
+import 'servers/server_models.dart';
 import 'server_tab_builder.dart';
 import 'server_workspace_controller.dart';
 import 'package:cwatch/view/core/tabs/tab_view_registry.dart';
@@ -26,6 +27,7 @@ import 'server_host_surface_controller.dart';
 import 'server_host_selection_surface.dart';
 import 'server_workspace_runtime.dart';
 import 'server_workspace_shell.dart';
+import 'server_workspace_tab_helper.dart';
 import 'server_workspace_tab_surface.dart';
 
 class ServerWorkspaceView extends StatefulWidget {
@@ -55,6 +57,7 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
   late final ServerWorkspaceShell _viewShell;
   late final ServerHostSurfaceController _hostSurfaceController;
   late final ServerTabBuilder _tabBuilder;
+  final ServerWorkspaceTabHelper _tabHelper = const ServerWorkspaceTabHelper();
   late final VoidCallback _settingsListener;
   late final VoidCallback _tabsListener;
   late final TabViewRegistry<WorkspaceTab> _tabRegistry;
@@ -94,12 +97,28 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
 
   WorkspaceTab _createPlaceholderTab() {
     final id = _newPlaceholderId();
-    return _tabBuilder.emptyTab(
+    return _tabHelper.createTab(
       id: id,
-      body: _buildHostSelection(
-        onHostActivate: (host) => _viewShell.activateEmptyTab(id, host),
-        onAction: (host, action) => _viewShell.replaceTabWithAction(id, host, action),
+      host: const PlaceholderHost(),
+      action: ServerAction.empty,
+      buildExplorerTab: _tabBuilder.explorerTab,
+      buildTerminalTab: _tabBuilder.terminalTab,
+      buildEditorTab: _tabBuilder.editorTab,
+      buildResourcesTab: _tabBuilder.resourcesTab,
+      buildConnectivityTab: _tabBuilder.connectivityTab,
+      buildTrashTab: _tabBuilder.trashTab,
+      buildEmptyTab: ({required id}) => _tabBuilder.emptyTab(
+        id: id,
+        body: _buildHostSelection(
+          onHostActivate: (host) => _viewShell.activateEmptyTab(id, host),
+          onAction: (host, action) =>
+              _viewShell.replaceTabWithAction(id, host, action),
+        ),
       ),
+      onCloseTerminalTab: () {},
+      onOpenEditor: _openEditorTabForHost,
+      onOpenTerminal: (host, dir) => _openTerminalTab(host, initialDirectory: dir),
+      onOpenTrash: _openTrashTab,
     );
   }
 
@@ -368,43 +387,35 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
     required SshHost host,
     required ServerAction action,
   }) {
-    switch (action) {
-      case ServerAction.fileExplorer:
-        return _tabBuilder.explorerTab(
-          id: id,
-          host: host,
-          onOpenEditor: (p, c) => _openEditorTabForHost(host, p, c),
-          onOpenTerminal: (h, d) => _openTerminalTab(h, initialDirectory: d),
-          onOpenTrash: _openTrashTab,
-        );
-      case ServerAction.terminal:
-        return _tabBuilder.terminalTab(
-          id: id,
-          host: host,
-          onClose: () {
-            final index = _tabs.indexWhere((t) => t.id == id);
-            if (index != -1) _workspaceController.closeTab(index);
-          },
-          onOpenEditor: (p, c) => _openEditorTabForHost(host, p, c),
-        );
-      case ServerAction.editor:
-        return _tabBuilder.editorTab(id: id, host: host, path: '');
-      case ServerAction.resources:
-        return _tabBuilder.resourcesTab(id: id, host: host);
-      case ServerAction.connectivity:
-        return _tabBuilder.connectivityTab(id: id, host: host);
-      case ServerAction.trash:
-        return _tabBuilder.trashTab(id: id, host: host);
-      default:
-        return _tabBuilder.emptyTab(
-          id: id,
-          body: _buildHostSelection(
-            onHostActivate: (host) => _viewShell.activateEmptyTab(id, host),
-            onAction: (host, action) =>
-                _viewShell.replaceTabWithAction(id, host, action),
-          ),
-        );
-    }
+    return _tabHelper.createTab(
+      id: id,
+      host: host,
+      action: action,
+      buildExplorerTab: _tabBuilder.explorerTab,
+      buildTerminalTab: _tabBuilder.terminalTab,
+      buildEditorTab: _tabBuilder.editorTab,
+      buildResourcesTab: _tabBuilder.resourcesTab,
+      buildConnectivityTab: _tabBuilder.connectivityTab,
+      buildTrashTab: _tabBuilder.trashTab,
+      buildEmptyTab: ({required id}) => _tabBuilder.emptyTab(
+        id: id,
+        body: _buildHostSelection(
+          onHostActivate: (host) => _viewShell.activateEmptyTab(id, host),
+          onAction: (host, nextAction) =>
+              _viewShell.replaceTabWithAction(id, host, nextAction),
+        ),
+      ),
+      onCloseTerminalTab: () {
+        final index = _tabs.indexWhere((t) => t.id == id);
+        if (index != -1) {
+          _workspaceController.closeTab(index);
+        }
+      },
+      onOpenEditor: _openEditorTabForHost,
+      onOpenTerminal: (resolvedHost, dir) =>
+          _openTerminalTab(resolvedHost, initialDirectory: dir),
+      onOpenTrash: _openTrashTab,
+    );
   }
 
   void _ensureDistroOnInteraction(SshHost host) {
@@ -468,27 +479,14 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
     final trimmedInput = newName.trim();
     if (trimmedInput.isEmpty) return;
 
-    final updated = tab.copyWith(title: trimmedInput, label: trimmedInput);
-    if (tab.workspaceState is ServerTabData) {
-      final oldData = tab.workspaceState as ServerTabData;
-      final newTabWithState = updated.copyWith(
-        workspaceState: ServerTabData(
-          host: oldData.host,
-          action: oldData.action,
-          persistedState: oldData.persistedState.copyWith(title: trimmedInput),
-        ),
-      );
-      _workspaceController.replaceTab(tab.id, newTabWithState);
-    } else {
-      _workspaceController.replaceTab(tab.id, updated);
-    }
+    _workspaceController.replaceTab(tab.id, _tabHelper.renamedTab(tab, trimmedInput));
   }
 
   void _openTrashTab(ExplorerContext context) {
-    final tab = _tabBuilder.trashTab(
+    final tab = _tabHelper.createTrashTab(
       id: 'trash-${context.host.name}-${DateTime.now().microsecondsSinceEpoch}',
-      host: context.host,
-      explorerContext: context,
+      context: context,
+      buildTrashTab: _tabBuilder.trashTab,
     );
     _workspaceController.addTab(tab);
   }
@@ -498,11 +496,12 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
     String path,
     String content,
   ) async {
-    final tab = _tabBuilder.editorTab(
+    final tab = _tabHelper.createEditorTab(
       id: 'editor-${DateTime.now().microsecondsSinceEpoch}',
       host: host,
       path: path,
-      initialContent: content,
+      content: content,
+      buildEditorTab: _tabBuilder.editorTab,
     );
     _workspaceController.addTab(tab);
   }
@@ -512,10 +511,11 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
     String? initialDirectory,
   }) async {
     final newId = 'terminal-${DateTime.now().microsecondsSinceEpoch}';
-    final newTab = _tabBuilder.terminalTab(
+    final newTab = _tabHelper.createTerminalTab(
       id: newId,
       host: host,
       initialDirectory: initialDirectory,
+      buildTerminalTab: _tabBuilder.terminalTab,
       onClose: () => _workspaceController.closeTab(
         _workspaceController.tabs.indexWhere((t) => t.id == newId),
       ),
