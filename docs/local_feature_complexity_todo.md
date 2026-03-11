@@ -232,7 +232,7 @@ First implementation batch:
 - leave `FileEntryList`, `SelectionController`, and `FileExplorerTabActions` stable for the first batch
 
 ## Task 20.7: implement the explorer entry-list interaction split
-Status: pending
+Status: completed
 
 Goal:
 - extract the explorer-local entry-list interaction wiring out of `file_explorer_tab.dart`
@@ -254,3 +254,25 @@ What stays stable in this batch:
 Done definition:
 - `file_explorer_tab.dart` no longer owns the dense entry-list interaction callback block directly
 - the extracted seam remains explorer-local and does not become shared shell infrastructure
+
+Result:
+- extracted [file_explorer_tab_entry_interactions.dart](/home/home/personal/cwatch/lib/view/shared/views/shared/tabs/file_explorer/file_explorer_tab_entry_interactions.dart) as the explorer-local entry-list interaction seam
+- `file_explorer_tab.dart` now delegates:
+  - `FileEntryList` callback assembly
+  - selection-controller delegation for pointer and keyboard events
+  - keyboard action routing for copy/cut/paste/delete/rename
+  - drag-start selected-entry lookup
+- `FileEntryList`, `SelectionController`, `FileExplorerTabActions`, and `FileExplorerTabPresenter` stayed stable in this batch
+
+## Task 20.8: re-scope the next explorer local-complexity batch
+Status: pending
+
+Goal:
+- decide whether the explorer local-complexity hotspot should continue or checkpoint here
+
+Questions to answer:
+- is there one more bounded explorer-local seam with real value
+- or is the remaining explorer tab weight now mostly valid local interaction behavior
+
+Done definition:
+- the next local-complexity move is explicit

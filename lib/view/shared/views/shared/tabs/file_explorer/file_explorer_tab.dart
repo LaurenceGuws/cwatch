@@ -9,18 +9,16 @@ import 'package:cwatch/controller/controllers/file_explorer_controller.dart';
 import 'package:cwatch/controller/core/workspace/tab_options.dart';
 import 'package:cwatch/controller/controllers/settings_controller.dart';
 import 'package:cwatch/model/models/explorer_context.dart';
-import 'package:cwatch/model/services/explorer_clipboard.dart';
 import 'package:cwatch/model/services_infra/logging/app_logger.dart';
 
 import 'package:cwatch/view/shared/mixins/tab_options_mixin.dart';
 import 'explorer_chrome_scaffold.dart';
-import 'file_entry_list.dart';
 import 'file_explorer_tab_actions.dart';
+import 'file_explorer_tab_entry_interactions.dart';
 import 'file_explorer_tab_presenter.dart';
 import 'selection_controller.dart';
 import 'package:cwatch/view/features/settings/settings/explorer_settings_controls.dart';
 import 'path_navigator.dart';
-import 'package:cwatch/model/shared/services/path_utils.dart';
 
 class FileExplorerTab extends StatefulWidget {
   const FileExplorerTab({
@@ -49,6 +47,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
   late SettingsController _settingsController;
   late FileExplorerTabPresenter _presenter;
   late FileExplorerTabActions _actions;
+  late FileExplorerTabEntryInteractions _entryInteractions;
   late final VoidCallback _controllerListener;
   final FocusNode _listFocusNode = FocusNode(debugLabel: 'file-explorer-list');
   final ScrollController _scrollController = ScrollController();
@@ -71,6 +70,14 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       isMounted: () => mounted,
       showSnackBar: _showSnackBar,
       openTerminalTab: widget.onOpenTerminalTab,
+    );
+    _entryInteractions = FileExplorerTabEntryInteractions(
+      controller: _controller,
+      selectionController: _selectionController,
+      actions: _actions,
+      listFocusNode: _listFocusNode,
+      scrollController: _scrollController,
+      markNeedsBuild: _controller.markNeedsBuild,
     );
     _controllerListener = () {
       if (!mounted) return;
@@ -103,6 +110,14 @@ class _FileExplorerTabState extends State<FileExplorerTab>
         showSnackBar: _showSnackBar,
         openTerminalTab: widget.onOpenTerminalTab,
       );
+      _entryInteractions = FileExplorerTabEntryInteractions(
+        controller: _controller,
+        selectionController: _selectionController,
+        actions: _actions,
+        listFocusNode: _listFocusNode,
+        scrollController: _scrollController,
+        markNeedsBuild: _controller.markNeedsBuild,
+      );
       _controller.addListener(_controllerListener);
       unawaited(_controller.initialize());
     }
@@ -124,6 +139,14 @@ class _FileExplorerTabState extends State<FileExplorerTab>
         isMounted: () => mounted,
         showSnackBar: _showSnackBar,
         openTerminalTab: widget.onOpenTerminalTab,
+      );
+      _entryInteractions = FileExplorerTabEntryInteractions(
+        controller: _controller,
+        selectionController: _selectionController,
+        actions: _actions,
+        listFocusNode: _listFocusNode,
+        scrollController: _scrollController,
+        markNeedsBuild: _controller.markNeedsBuild,
       );
       _updateTabOptions();
     }
@@ -286,125 +309,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
   }
 
   Widget _buildEntriesList() {
-    final sortedEntries = _controller.currentSortedEntries();
-    final list = FileEntryList(
-      entries: sortedEntries,
-      currentPath: _controller.currentPath,
-      selectedPaths: _selectionController.selectedPaths,
-      syncingPaths: _controller.state.syncingPaths,
-      refreshingPaths: _controller.state.refreshingPaths,
-      localEdits: _controller.state.localEdits,
-      rowHeight: _controller.state.rowHeight,
-      scrollController: _scrollController,
-      focusNode: _listFocusNode,
-      onEntryDoubleTap: _actions.handleEntryDoubleTap,
-      onEntryPointerDown: (event, entries, index, remotePath) {
-        _selectionController.handleEntryPointerDown(
-          event,
-          entries,
-          index,
-          remotePath,
-          () => _listFocusNode.requestFocus(),
-          _controller.markNeedsBuild,
-        );
-      },
-      onDragHover: (event, index, remotePath) {
-        _selectionController.handleDragHover(
-          event,
-          index,
-          remotePath,
-          _controller.markNeedsBuild,
-        );
-      },
-      onStopDragSelection: () =>
-          _selectionController.stopDragSelection(),
-      onEntryContextMenu: (entry, position) => _actions.showEntryContextMenu(context, entry, position),
-      onBackgroundContextMenu: null,
-      onKeyEvent: (node, event, entries) {
-        return _selectionController.handleListKeyEvent(
-          node,
-          event,
-          entries,
-          _controller.markNeedsBuild,
-          () {
-            final selectedEntries = _selectionController.getSelectedEntries(
-              entries,
-            );
-            if (selectedEntries.isNotEmpty) {
-              if (selectedEntries.length > 1) {
-                unawaited(_actions.handleMultiCopy(selectedEntries));
-              } else {
-                _actions.handleClipboardSet(
-                  selectedEntries.first,
-                  ExplorerClipboardOperation.copy,
-                );
-              }
-            }
-          },
-          () {
-            final selectedEntries = _selectionController.getSelectedEntries(
-              entries,
-            );
-            if (selectedEntries.isNotEmpty) {
-              if (selectedEntries.length > 1) {
-                unawaited(_actions.handleMultiCut(selectedEntries));
-              } else {
-                _actions.handleClipboardSet(
-                  selectedEntries.first,
-                  ExplorerClipboardOperation.cut,
-                );
-              }
-            }
-          },
-          () => _actions.handlePaste(targetDirectory: _controller.currentPath),
-          () {
-            final selectedEntries = _selectionController.getSelectedEntries(
-              entries,
-            );
-            if (selectedEntries.isNotEmpty) {
-              if (selectedEntries.length > 1) {
-                unawaited(
-                  _actions.confirmMultiDelete(
-                    selectedEntries,
-                    permanent: SelectionController.isShiftPressed(),
-                  ),
-                );
-              } else {
-                unawaited(
-                  _actions.confirmDelete(
-                    selectedEntries.first,
-                    permanent: SelectionController.isShiftPressed(),
-                  ),
-                );
-              }
-            }
-          },
-          () {
-            final entry = _selectionController.primarySelectedEntry(
-              entries,
-            );
-            if (entry != null) {
-              unawaited(_actions.promptRename(entry));
-            }
-          },
-        );
-      },
-      onSyncLocalEdit: _actions.syncLocalEdit,
-      onRefreshCacheFromServer: _actions.refreshCacheFromServer,
-      onClearCachedCopy: _actions.clearCachedCopy,
-      onStartOsDrag: (position) async {
-        final selected = _selectionController.getSelectedEntries(
-          sortedEntries,
-        );
-        if (selected.isEmpty) return;
-        await _controller.startOsDrag(
-          globalPosition: position,
-          entriesToDrag: selected,
-        );
-      },
-      joinPath: PathUtils.joinPath,
-    );
-    return list;
+    return _entryInteractions.build(context);
   }
 
   void _handleDropEntered() {
