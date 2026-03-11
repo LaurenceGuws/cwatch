@@ -17,8 +17,15 @@ mixin _StructuredDataTableSelection<T> on _StructuredDataTableStateBase<T> {
       );
 
   void _clearTableSelection({bool clearFocus = false}) {
-    _listController.clearSelection(clearFocus: clearFocus);
-    if (!widget.cellSelectionEnabled) {
+    final hadExternalSelection =
+        !widget.rowSelectionEnabled &&
+        (widget.selectedRowsBuilder != null || widget.rowSelectionPredicate != null) &&
+        _selectedRows().isNotEmpty;
+      _listController.clearSelection(clearFocus: clearFocus);
+      if (!widget.cellSelectionEnabled) {
+      if (hadExternalSelection) {
+        widget.onSelectionChanged?.call(<T>[]);
+      }
       return;
     }
     setState(() {
@@ -29,6 +36,9 @@ mixin _StructuredDataTableSelection<T> on _StructuredDataTableStateBase<T> {
       _additionalSelectedCells.clear();
       _cellEditMode = false;
     });
+    if (hadExternalSelection) {
+      widget.onSelectionChanged?.call(<T>[]);
+    }
   }
 
   void _setMarqueeSelecting(bool value) {

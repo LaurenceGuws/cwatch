@@ -194,7 +194,8 @@ class _SelectableListKeyboardHandlerState
         key == LogicalKeyboardKey.home ||
         key == LogicalKeyboardKey.end ||
         key == LogicalKeyboardKey.space ||
-        key == LogicalKeyboardKey.enter;
+        key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.escape;
     if (event is KeyUpEvent) {
       return isHandledKey ? KeyEventResult.handled : KeyEventResult.ignored;
     }
@@ -253,6 +254,10 @@ class _SelectableListKeyboardHandlerState
       }
       return KeyEventResult.handled;
     }
+    if (key == LogicalKeyboardKey.escape) {
+      controller.clearSelection(clearFocus: true);
+      return KeyEventResult.handled;
+    }
     return KeyEventResult.ignored;
   }
 
@@ -286,6 +291,8 @@ class _SelectableListKeyboardHandlerState
           const _ToggleSelectionIntent(),
       const SingleActivator(LogicalKeyboardKey.enter):
           const _ActivateSelectionIntent(),
+      const SingleActivator(LogicalKeyboardKey.escape):
+          const _ClearSelectionIntent(),
       const SingleActivator(LogicalKeyboardKey.arrowDown, shift: true):
           const _ExtendSelectionIntent(1),
       const SingleActivator(LogicalKeyboardKey.arrowUp, shift: true):
@@ -345,6 +352,12 @@ class _SelectableListKeyboardHandlerState
                 return null;
               },
             ),
+            _ClearSelectionIntent: CallbackAction<_ClearSelectionIntent>(
+              onInvoke: (intent) {
+                controller.clearSelection(clearFocus: true);
+                return null;
+              },
+            ),
           },
           child: widget.child,
         ),
@@ -374,4 +387,8 @@ class _ExtendSelectionIntent extends Intent {
 
 class _ActivateSelectionIntent extends Intent {
   const _ActivateSelectionIntent();
+}
+
+class _ClearSelectionIntent extends Intent {
+  const _ClearSelectionIntent();
 }

@@ -10,6 +10,9 @@ void main() {
   StructuredDataTable<String> buildTable({
     required ValueChanged<List<String>> onSelectionChanged,
     ValueChanged<Offset>? onBackgroundContextMenu,
+    bool rowSelectionEnabled = true,
+    bool externalSelection = false,
+    List<String> externallySelectedRows = const [],
   }) {
     return StructuredDataTable<String>(
       rows: const ['alpha', 'beta'],
@@ -27,6 +30,13 @@ void main() {
           onSelected: (_) {},
         ),
       ],
+      rowSelectionEnabled: rowSelectionEnabled,
+      rowSelectionPredicate: externalSelection
+          ? (row) => externallySelectedRows.contains(row)
+          : null,
+      selectedRowsBuilder: externalSelection
+          ? (rows) => rows.where(externallySelectedRows.contains).toList()
+          : null,
       onSelectionChanged: onSelectionChanged,
       onBackgroundContextMenu: onBackgroundContextMenu,
     );
@@ -36,6 +46,9 @@ void main() {
     WidgetTester tester, {
     required ValueChanged<List<String>> onSelectionChanged,
     ValueChanged<Offset>? onBackgroundContextMenu,
+    bool rowSelectionEnabled = true,
+    bool externalSelection = false,
+    List<String> externallySelectedRows = const [],
   }) async {
     final theme = ThemeFactory.build(
       settings: const AppSettings(),
@@ -52,6 +65,9 @@ void main() {
               child: buildTable(
                 onSelectionChanged: onSelectionChanged,
                 onBackgroundContextMenu: onBackgroundContextMenu,
+                rowSelectionEnabled: rowSelectionEnabled,
+                externalSelection: externalSelection,
+                externallySelectedRows: externallySelectedRows,
               ),
             ),
           ),
@@ -152,4 +168,30 @@ void main() {
 
     expect(selectedRows, isEmpty);
   });
+
+  testWidgets(
+    'primary click on blank table space clears externally managed selection',
+    (tester) async {
+      var selectedRows = <String>['alpha'];
+      await pumpTable(
+        tester,
+        rowSelectionEnabled: false,
+        externalSelection: true,
+        externallySelectedRows: selectedRows,
+        onSelectionChanged: (rows) => selectedRows = rows,
+      );
+
+      final tableRect = tester.getRect(find.byType(StructuredDataTable<String>));
+      final blankPosition = Offset(tableRect.center.dx, tableRect.bottom - 8);
+      final clearGesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kPrimaryMouseButton,
+      );
+      await clearGesture.down(blankPosition);
+      await clearGesture.up();
+      await tester.pumpAndSettle();
+
+      expect(selectedRows, isEmpty);
+    },
+  );
 }

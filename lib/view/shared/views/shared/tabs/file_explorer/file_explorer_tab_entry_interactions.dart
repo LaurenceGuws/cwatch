@@ -62,6 +62,13 @@ class FileExplorerTabEntryInteractions {
       onEntryContextMenu: (entry, position) =>
           actions.showEntryContextMenu(context, entry, position),
       onBackgroundContextMenu: null,
+      onSelectionChanged: (selectedRows) {
+        selectionController.replaceSelection(
+          selectedRows,
+          (entry) => PathUtils.joinPath(controller.currentPath, entry.name),
+          markNeedsBuild,
+        );
+      },
       onKeyEvent: (node, event, entries) =>
           handleListKeyEvent(node, event, entries),
       onSyncLocalEdit: actions.syncLocalEdit,

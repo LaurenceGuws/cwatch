@@ -40,6 +40,15 @@ class SelectionController {
         isMouse && (event.buttons & kSecondaryMouseButton) != 0;
 
     if (isSecondaryClick) {
+      if (!_state.selectedPaths.contains(remotePath)) {
+        _state.applySelection(
+          entries,
+          index,
+          shift: false,
+          multi: false,
+          setState: setState,
+        );
+      }
       _state.dragSelecting = false;
       return;
     }
@@ -83,6 +92,19 @@ class SelectionController {
 
   void stopDragSelection() {
     _state.dragSelecting = false;
+  }
+
+  void replaceSelection(
+    Iterable<RemoteFileEntry> entries,
+    String Function(RemoteFileEntry entry) pathBuilder,
+    VoidCallback setState,
+  ) {
+    _state.selectedPaths
+      ..clear()
+      ..addAll(entries.map(pathBuilder));
+    _state.lastSelectedIndex = null;
+    _state.dragSelecting = false;
+    setState();
   }
 
   KeyEventResult handleListKeyEvent(
@@ -129,6 +151,13 @@ class SelectionController {
     }
     if (!isCtrl && event.logicalKey == LogicalKeyboardKey.f2) {
       onRename();
+      return KeyEventResult.handled;
+    }
+    if (!isCtrl && event.logicalKey == LogicalKeyboardKey.escape) {
+      _state.selectedPaths.clear();
+      _state.lastSelectedIndex = null;
+      _state.dragSelecting = false;
+      setState();
       return KeyEventResult.handled;
     }
     final currentIndex = _state.resolveFocusedIndex(entries);

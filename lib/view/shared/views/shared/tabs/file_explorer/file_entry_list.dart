@@ -27,6 +27,7 @@ class FileEntryList extends StatefulWidget {
     required this.onStopDragSelection,
     required this.onEntryContextMenu,
     this.onBackgroundContextMenu,
+    this.onSelectionChanged,
     required this.onKeyEvent,
     required this.onSyncLocalEdit,
     required this.onRefreshCacheFromServer,
@@ -51,6 +52,7 @@ class FileEntryList extends StatefulWidget {
   final VoidCallback onStopDragSelection;
   final ValueChanged2<RemoteFileEntry, Offset> onEntryContextMenu;
   final ValueChanged<Offset>? onBackgroundContextMenu;
+  final ValueChanged<List<RemoteFileEntry>>? onSelectionChanged;
   final KeyEventResult Function(FocusNode, KeyEvent, List<RemoteFileEntry>)
   onKeyEvent;
   final ValueChanged<LocalFileSession> onSyncLocalEdit;
@@ -338,6 +340,7 @@ class _FileEntryListState extends State<FileEntryList> {
           onRowPointerCancel: _handleRowPointerCancel,
           onRowPointerEnter: _handleRowPointerEnter,
           onBackgroundContextMenu: widget.onBackgroundContextMenu,
+          onSelectionChanged: widget.onSelectionChanged,
           emptyState: const StandardEmptyState(message: 'Directory is empty.'),
         ),
       ),

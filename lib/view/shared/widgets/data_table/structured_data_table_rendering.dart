@@ -1066,30 +1066,36 @@ mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
     return Listener(
       behavior: HitTestBehavior.translucent,
         onPointerDown: (event) {
-          if (!widget.rowSelectionEnabled) return;
+          final supportsExternalSelection =
+              widget.selectedRowsBuilder != null ||
+              widget.rowSelectionPredicate != null;
+          if (!widget.rowSelectionEnabled && !supportsExternalSelection) return;
           if (event.kind != PointerDeviceKind.mouse) return;
           if ((event.buttons & kPrimaryButton) == 0) return;
           final rowIndex = _rowIndexForOffset(event.localPosition, context);
-        if (rowIndex == null) {
-          _clearTableSelection();
+          if (rowIndex == null) {
+            _clearTableSelection();
+            _setRowDragAnchor(null, null);
+            return;
+          }
+          if (!widget.rowSelectionEnabled) {
+            return;
+          }
+          final isShift = HardwareKeyboard.instance.isShiftPressed;
+          final hasSelection = _listController.selectedIndices.isNotEmpty;
+          final isSelected = _listController.selectedIndices.contains(rowIndex);
+          if (hasSelection && isSelected && !isShift) {
+            _setRowDragAnchor(rowIndex, event.pointer);
+            return;
+          }
           _setRowDragAnchor(null, null);
-          return;
-        }
-        final isShift = HardwareKeyboard.instance.isShiftPressed;
-        final hasSelection = _listController.selectedIndices.isNotEmpty;
-        final isSelected = _listController.selectedIndices.contains(rowIndex);
-        if (hasSelection && isSelected && !isShift) {
-          _setRowDragAnchor(rowIndex, event.pointer);
-          return;
-        }
-        _setRowDragAnchor(null, null);
-        _marqueePointer = event.pointer;
-        _setMarqueeSelecting(true);
-        if (isShift) {
-          _listController.extendSelection(rowIndex);
-        } else {
-          _handleRowTapSelection(rowIndex);
-        }
+          _marqueePointer = event.pointer;
+          _setMarqueeSelecting(true);
+          if (isShift) {
+            _listController.extendSelection(rowIndex);
+          } else {
+            _handleRowTapSelection(rowIndex);
+          }
       },
       onPointerMove: (event) {
         if (!widget.rowSelectionEnabled) return;
