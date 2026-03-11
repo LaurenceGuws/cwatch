@@ -956,3 +956,65 @@ Result:
 Why this is the right stop:
 - the main shared command-palette presentation drift is now reduced
 - more work here now would need a sharper issue such as keyboard hint presentation, category grouping, or recent-command behavior rather than more default polish expansion
+
+
+## Task 21.37: define the section-nav polish target
+Status: completed
+
+Goal:
+- identify the most visible remaining drift in shared section navigation chrome
+- choose one narrow shell-facing polish batch without reopening tab behavior or feature-local actions
+
+Done definition:
+- one concrete section-nav surface target is chosen
+- the first implementation batch is explicit
+
+Result:
+- the next active polish target is [section_nav_bar.dart](/home/home/personal/cwatch/lib/view/shared/widgets/section_nav_bar.dart)
+- the first batch should focus on:
+  - title/tab/trailing spacing balance
+  - surface framing and divider tone
+  - consistent compact-vs-desktop header density
+- the batch should not change:
+  - section tab behavior
+  - feature-specific section actions
+  - feature-specific tab labels or icons
+
+Why this is the right cut:
+- `SectionNavBar` is one of the last clearly shared visible chrome surfaces without a dedicated polish pass
+- it appears in multiple high-visibility product surfaces
+- the remaining drift is in spacing and frame quality, not behavior
+
+## Task 21.38: implement the first section-nav polish batch
+Status: completed
+
+Goal:
+- tighten the shared section-nav chrome without changing feature behavior or tab semantics
+
+Done definition:
+- the shared section-nav surface has clearer framing and spacing
+- compact and desktop density feel more intentional
+- no feature-specific section behavior changes are introduced
+
+
+## Task 21.39: checkpoint section-nav polish
+Status: completed
+
+Goal:
+- stop the section-nav batch at a defensible point
+- record the current shared section-nav language as a checkpoint instead of expanding it by default
+
+Done definition:
+- the shared section-nav polish is recorded as checkpointed
+- the docs no longer imply that more section-nav work should continue by default
+
+Result:
+- [section_nav_bar.dart](/home/home/personal/cwatch/lib/view/shared/widgets/section_nav_bar.dart) now has:
+  - clearer title/tab/trailing spacing balance
+  - stronger shared frame and divider treatment
+  - more intentional compact-vs-desktop density
+- the shared section-nav surface now reads closer to the other polished shell chrome
+
+Why this is the right stop:
+- the main shared section-nav presentation drift is now reduced
+- more work here now would need a sharper issue such as tab indicator tuning or feature-specific action density rather than more default expansion

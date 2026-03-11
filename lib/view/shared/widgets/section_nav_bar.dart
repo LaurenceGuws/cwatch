@@ -40,10 +40,8 @@ class SectionNavBar extends StatelessWidget {
     final hasTabs = tabs.isNotEmpty;
     final viewportWidth = MediaQuery.of(context).size.width;
     final compact = viewportWidth < 640;
-    // Only collapse to icons on narrow layouts (mobile-ish) to keep labels visible on desktop.
     final showIconsOnly = compact;
 
-    // Add right padding and match height to window controls when custom chrome is enabled
     final bool useCustomChrome =
         !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.windows ||
@@ -55,86 +53,115 @@ class SectionNavBar extends StatelessWidget {
     final dragGutterWidth = useCustomChrome && enableWindowDrag
         ? WindowControlsConstants.dragRegionWidth
         : 0.0;
-    // Match window controls height when custom chrome is enabled to eliminate dead space
     final tabBarHeight = useCustomChrome
         ? WindowControlsConstants.tabBarHeightFor(context)
         : context.scale(42.0);
-    // Reduce vertical padding when custom chrome is enabled to match button height
     final verticalPadding = useCustomChrome
         ? 0.0
         : (compact ? context.scale(6.0) : context.scale(8.0));
+    final spacing = context.appTheme.spacing;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
 
     return Material(
-      elevation: useCustomChrome ? 0 : 1,
-      color: Theme.of(context).colorScheme.surface,
-      child: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: [
-            if (useCustomChrome && enableWindowDrag)
-              Positioned(
-                left: 0,
-                top: 0,
-                right: rightPadding,
-                bottom: 0,
-                child: const WindowDragRegion(child: SizedBox.expand()),
-              ),
-            Padding(
-              padding: EdgeInsets.only(
-                left: useCustomChrome ? 0 : (compact ? 8 : 16),
-                right: useCustomChrome
-                    ? rightPadding + dragGutterWidth
-                    : (compact ? 8 : 16) + rightPadding + dragGutterWidth,
-                top: verticalPadding,
-                bottom: verticalPadding,
-              ),
-              child: Row(
-                children: [
-                  if (leading != null) ...[
-                    leading!,
+      elevation: useCustomChrome ? 0 : 0.5,
+      color: scheme.surface,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: scheme.surface,
+          border: Border(
+            bottom: BorderSide(
+              color: scheme.outlineVariant.withValues(alpha: 0.4),
+            ),
+          ),
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: Stack(
+            children: [
+              if (useCustomChrome && enableWindowDrag)
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  right: rightPadding,
+                  bottom: 0,
+                  child: const WindowDragRegion(child: SizedBox.expand()),
+                ),
+              Padding(
+                padding: EdgeInsets.only(
+                  left: useCustomChrome ? 0 : (compact ? 10 : 18),
+                  right: useCustomChrome
+                      ? rightPadding + dragGutterWidth
+                      : (compact ? 10 : 18) + rightPadding + dragGutterWidth,
+                  top: verticalPadding,
+                  bottom: verticalPadding,
+                ),
+                child: Row(
+                  children: [
+                    if (leading != null) ...[
+                      Padding(
+                        padding: EdgeInsets.only(right: spacing.sm),
+                        child: leading!,
+                      ),
+                    ],
                     if (showTitle && title.isNotEmpty)
-                      SizedBox(width: context.appTheme.spacing.md),
-                  ],
-                  if (showTitle && title.isNotEmpty)
-                    Text(title, style: Theme.of(context).textTheme.titleLarge),
-                  if (hasTabs)
-                    Flexible(
-                      fit: FlexFit.loose,
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: IntrinsicWidth(
-                          child: SizedBox(
-                            height: tabBarHeight,
-                            child: TabBar(
-                              isScrollable: true,
-                              tabAlignment: TabAlignment.start,
-                              padding: EdgeInsets.zero,
-                              controller: controller,
-                              tabs:
-                                  showIconsOnly &&
-                                      tabIcons != null &&
-                                      tabIcons!.length == tabs.length
-                                  ? _buildIconTabs(context, tabs, tabIcons!)
-                                  : tabs,
-                              labelColor: Theme.of(context).colorScheme.primary,
-                              unselectedLabelColor: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
-                            ),
+                      Padding(
+                        padding: EdgeInsets.only(right: hasTabs ? spacing.lg : 0),
+                        child: Text(
+                          title,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: scheme.onSurface,
                           ),
                         ),
                       ),
-                    )
-                  else
-                    const Spacer(),
-                  if (trailing != null) ...[
-                    SizedBox(width: context.appTheme.spacing.md),
-                    trailing!,
+                    if (hasTabs)
+                      Flexible(
+                        fit: FlexFit.loose,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: IntrinsicWidth(
+                            child: SizedBox(
+                              height: tabBarHeight,
+                              child: TabBar(
+                                isScrollable: true,
+                                tabAlignment: TabAlignment.start,
+                                padding: EdgeInsets.zero,
+                                labelPadding: EdgeInsets.symmetric(
+                                  horizontal: compact ? spacing.sm : spacing.md,
+                                ),
+                                controller: controller,
+                                tabs:
+                                    showIconsOnly &&
+                                        tabIcons != null &&
+                                        tabIcons!.length == tabs.length
+                                    ? _buildIconTabs(context, tabs, tabIcons!)
+                                    : tabs,
+                                labelColor: scheme.primary,
+                                unselectedLabelColor: scheme.onSurfaceVariant,
+                                dividerColor: Colors.transparent,
+                                overlayColor:
+                                    WidgetStateProperty.resolveWith<Color?>(
+                                      (states) => states.contains(WidgetState.hovered)
+                                          ? scheme.primary.withValues(alpha: 0.06)
+                                          : null,
+                                    ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      const Spacer(),
+                    if (trailing != null) ...[
+                      SizedBox(width: spacing.md),
+                      trailing!,
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -145,7 +172,6 @@ class SectionNavBar extends StatelessWidget {
     List<Widget> tabs,
     List<IconData> icons,
   ) {
-    // Match window controls height when custom chrome is enabled
     final bool useCustomChrome =
         !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.windows ||
@@ -158,7 +184,6 @@ class SectionNavBar extends StatelessWidget {
     return List.generate(tabs.length, (index) {
       final tab = tabs[index];
       String? label;
-      // Extract label from Tab widget if possible
       if (tab is Tab && tab.text != null) {
         label = tab.text;
       }

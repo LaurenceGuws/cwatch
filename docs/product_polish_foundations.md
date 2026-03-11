@@ -201,6 +201,6 @@ Current next polish move:
 - re-scope the next visible product-polish hotspot from current UI evidence
 
 Why:
-- the shared command-palette surface is now at a good checkpoint
-- the product-polish layer has already covered the most visible shell-facing shared surfaces
-- the next move should come from a sharper remaining drift instead of continuing palette work by default
+- the shared section-nav surface is now at a good checkpoint
+- the product-polish layer has already covered most of the repeated shell-facing shared surfaces
+- the next move should come from a sharper remaining drift rather than from continuing section-nav work by default
