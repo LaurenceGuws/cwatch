@@ -221,3 +221,24 @@ Result:
   - [structured_data_table_scrolling.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_scrolling.dart)
 - focused regression coverage exists in:
   - [structured_data_table_scroll_projection_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/data_table/structured_data_table_scroll_projection_test.dart)
+
+## Task 23.11: extract post-frame scroll scheduling state from the scrolling mixin
+Status: completed
+
+Goal:
+- reduce remaining shared engine complexity in the scrolling mixin without redesigning WidgetsBinding usage
+- move pure coalescing/scheduling state for pending row/column reveal requests into a dedicated helper
+
+Done definition:
+- pending row/column targets no longer live as separate inline fields on the table state
+- scheduled/not-scheduled flags no longer live as separate inline fields on the table state
+- WidgetsBinding callbacks stay in the mixin for now
+- focused regression coverage exists for the new helper
+
+Result:
+- pure scroll scheduling state now lives in:
+  - [structured_data_table_scroll_schedule_state.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_scroll_schedule_state.dart)
+- the scrolling mixin now delegates target coalescing and flush state:
+  - [structured_data_table_scrolling.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_scrolling.dart)
+- focused regression coverage exists in:
+  - [structured_data_table_scroll_schedule_state_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/data_table/structured_data_table_scroll_schedule_state_test.dart)

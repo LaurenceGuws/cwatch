@@ -34,10 +34,8 @@ abstract class _StructuredDataTableStateBase<T>
   List<double> _lastColumnWidths = const [];
   double _lastGapWidth = 0;
   double _lastRowPaddingX = 0;
-  int? _pendingScrollToRow;
-  bool _scrollToRowScheduled = false;
-  int? _pendingScrollToColumn;
-  bool _scrollToColumnScheduled = false;
+  StructuredDataTableScrollScheduleState _scrollScheduleState =
+      const StructuredDataTableScrollScheduleState();
   double _lastContentWidth = 0.0;
 
   List<T> get _visibleRows;

@@ -71,15 +71,15 @@ mixin _StructuredDataTableScrolling<T> on _StructuredDataTableStateBase<T> {
   }
 
   void _scheduleScrollToRow(int rowIndex, BuildContext context) {
-    _pendingScrollToRow = rowIndex;
-    if (_scrollToRowScheduled) {
+    _scrollScheduleState = _scrollScheduleState.queueRow(rowIndex);
+    if (_scrollScheduleState.rowScheduled) {
       return;
     }
-    _scrollToRowScheduled = true;
+    _scrollScheduleState = _scrollScheduleState.markRowScheduled();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToRowScheduled = false;
-      final targetRow = _pendingScrollToRow;
-      _pendingScrollToRow = null;
+      final flush = _scrollScheduleState.flushRow();
+      _scrollScheduleState = flush.nextState;
+      final targetRow = flush.target;
       if (!mounted || targetRow == null) {
         return;
       }
@@ -88,15 +88,15 @@ mixin _StructuredDataTableScrolling<T> on _StructuredDataTableStateBase<T> {
   }
 
   void _scheduleScrollToColumn(int columnIndex) {
-    _pendingScrollToColumn = columnIndex;
-    if (_scrollToColumnScheduled) {
+    _scrollScheduleState = _scrollScheduleState.queueColumn(columnIndex);
+    if (_scrollScheduleState.columnScheduled) {
       return;
     }
-    _scrollToColumnScheduled = true;
+    _scrollScheduleState = _scrollScheduleState.markColumnScheduled();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToColumnScheduled = false;
-      final targetColumn = _pendingScrollToColumn;
-      _pendingScrollToColumn = null;
+      final flush = _scrollScheduleState.flushColumn();
+      _scrollScheduleState = flush.nextState;
+      final targetColumn = flush.target;
       if (!mounted || targetColumn == null) {
         return;
       }
