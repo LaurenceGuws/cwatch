@@ -440,3 +440,27 @@ Result:
   - SFTP execution
   - streaming execution
 - the remaining SSH hotspot is now the shell-factory/runtime-cache seam, not the old builtin manager knot
+
+## Task 23.23: checkpoint the current SSH runtime state
+Status: completed
+
+Goal:
+- stop the current SSH pass at the present value boundary instead of forcing another low-value process-side micro-split
+
+Done definition:
+- the SSH tracker explicitly records the current checkpoint from the latest process-side state
+- the remaining SSH weight is described from the current code shape rather than from older hotspot assumptions
+- any future SSH reopening is left evidence-driven
+
+Result:
+- the current SSH runtime pass is checkpointed again from the latest code state
+- recent process-side batches removed the strongest remaining support-glue repetition from:
+  - execution wrapping
+  - transfer argument and remote-spec shaping
+  - remote path preparation and verification support
+  - command logging and output emission support
+- [process_ssh_shell_service.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/process_ssh_shell_service.dart) remains the largest SSH file, but its remaining weight is now mostly operation-specific behavior and transport workflow hosting
+- the next SSH reopen should come only from fresh evidence in:
+  - [process_ssh_shell_service.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/process_ssh_shell_service.dart)
+  - [ssh_shell_factory.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_factory.dart)
+  - builtin/process coordination semantics
