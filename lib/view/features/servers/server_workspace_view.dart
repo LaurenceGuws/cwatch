@@ -20,7 +20,6 @@ import 'package:cwatch/model/shared/theme/app_theme.dart';
 import 'package:cwatch/model/shared/theme/nerd_fonts.dart';
 import 'package:cwatch/view/core/tabs/tab_bar_visibility.dart';
 import 'package:cwatch/view/core/tabs/workspace_tab_chip_builder.dart';
-import 'servers/host_list.dart';
 import 'servers/server_models.dart';
 import 'servers/servers_widgets.dart';
 import 'server_tab_builder.dart';
@@ -29,11 +28,8 @@ import 'server_workspace_controller.dart';
 import 'package:cwatch/view/core/tabs/tab_view_registry.dart';
 import 'package:cwatch/view/core/widgets/keep_alive.dart';
 import 'package:cwatch/view/core/tabs/tabbed_workspace_shell.dart';
-import 'package:cwatch/view/shared/views/shared/tabs/settings/floating_settings_window.dart';
-import 'package:cwatch/view/features/settings/settings/server_list_settings_controls.dart';
-import 'package:cwatch/view/features/settings/settings/ssh_settings_controls.dart';
-import 'package:cwatch/model/shared/services/host_shell_policy.dart';
 import 'server_host_surface_controller.dart';
+import 'server_host_selection_surface.dart';
 import 'server_workspace_runtime.dart';
 import 'server_workspace_shell.dart';
 
@@ -237,99 +233,42 @@ class _ServerWorkspaceViewState extends State<ServerWorkspaceView> {
     ValueChanged<SshHost>? onHostActivate,
     void Function(SshHost, ServerAction)? onAction,
   }) {
-    final selection = ValueListenableBuilder<Future<List<SshHost>>>(
+    return ValueListenableBuilder<Future<List<SshHost>>>(
       valueListenable: _hostSurfaceController.hostsFutureNotifier,
       builder: (context, hostsFuture, _) {
-        return FutureBuilder<List<SshHost>>(
-          future: hostsFuture,
-          builder: (context, snapshot) {
-            final cachedHosts = _lastHosts;
-            if (snapshot.connectionState == ConnectionState.waiting &&
-                cachedHosts.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError && cachedHosts.isEmpty) {
-              return Center(child: Text('Error: ${snapshot.error}'));
-            }
-            final hosts = snapshot.data ?? cachedHosts;
-            // Filter out no-shell hosts, but let HostList handle disabled server filtering
-            final shellCapableHosts = hosts
-                .where((host) => !isNoShellHost(host))
-                .toList();
-            _hostSurfaceController.trackHostDistroChecks(
-              shellCapableHosts,
-              disabledHostKeys: _disabledHostKeys(),
-            );
-            return HostList(
-              key: const ValueKey('host-list'),
-              hosts: shellCapableHosts,
-              onSelect: onHostSelected,
-              onActivate: onHostActivate ?? _viewShell.startActionFlowForHost,
-              settingsController: widget.settingsController,
-              distroCacheController: _distroCacheController,
-              keyService: widget.keyService,
-              onHostVisible: _ensureDistroForHostOnDemand,
-              onOpenConnectivity: (host) {
-                // Always use _addTab for multi-select support
-                _addServerTab(host, ServerAction.connectivity);
-              },
-              onOpenResources: (host) {
-                // Always use _addTab for multi-select support
-                _addServerTab(host, ServerAction.resources);
-              },
-              onOpenTerminal: (host) {
-                AppLogger().debug(
-                  'onOpenTerminal called for: ${host.name}, onAction=${onAction != null}',
-                  tag: 'ServersList',
-                );
-                // Always use _addTab for multi-select support
-                // onAction is only for single-selection in placeholder tabs
-                _addServerTab(host, ServerAction.terminal);
-              },
-              onOpenExplorer: (host) {
-                // Always use _addTab for multi-select support
-                _addServerTab(host, ServerAction.fileExplorer);
-              },
-              onOpenPortForward: _openPortForwardDialog,
-              onHostsChanged: () {
-                setState(() {});
-              },
-              onAddServer: (existingNames) =>
-                  _showAddServerDialog(context, existingNames),
-              showDisabledServers: false, // Initial state, each HostList manages its own
-              onToggleDisabledServersVisibility: () {
-                // Callback for logging, but state is managed in HostList
-                AppLogger().debug(
-                  'Toggle disabled servers visibility',
-                  tag: 'ServersList',
-                );
-              },
+        return ServerHostSelectionSurface(
+          hostsFuture: hostsFuture,
+          cachedHosts: _lastHosts,
+          showListSettings: _showListSettings,
+          appSettingsController: widget.settingsController,
+          settingsController: _settingsController,
+          distroCacheController: _distroCacheController,
+          keyService: widget.keyService,
+          lastHosts: _lastHosts,
+          disabledHostKeys: _disabledHostKeys(),
+          trackHostDistroChecks: _hostSurfaceController.trackHostDistroChecks,
+          ensureDistroForHostOnDemand: _ensureDistroForHostOnDemand,
+          onSelect: onHostSelected,
+          onActivate: onHostActivate ?? _viewShell.startActionFlowForHost,
+          onAction: onAction,
+          onOpenConnectivity: (host) => _addServerTab(host, ServerAction.connectivity),
+          onOpenResources: (host) => _addServerTab(host, ServerAction.resources),
+          onOpenTerminal: (host) => _addServerTab(host, ServerAction.terminal),
+          onOpenExplorer: (host) => _addServerTab(host, ServerAction.fileExplorer),
+          onOpenPortForward: _openPortForwardDialog,
+          onHostsChanged: () {
+            setState(() {});
+          },
+          onAddServer: (existingNames) => _showAddServerDialog(context, existingNames),
+          onToggleDisabledServersVisibility: () {
+            AppLogger().debug(
+              'Toggle disabled servers visibility',
+              tag: 'ServersList',
             );
           },
+          onCloseSettings: _toggleListSettings,
         );
       },
-    );
-
-    if (!_showListSettings) return selection;
-    return Stack(
-      children: [
-        selection,
-        FloatingSettingsWindow(
-          title: 'Server List Settings',
-          onClose: _toggleListSettings,
-          child: Column(
-            children: [
-              ServerListSettingsControls(
-                settings: _settingsController.settings,
-                settingsController: _settingsController,
-                hosts: _lastHosts,
-              ),
-              const Divider(),
-              SshSettingsControls(controller: _settingsController),
-            ],
-          ),
-        ),
-      ],
     );
   }
   
