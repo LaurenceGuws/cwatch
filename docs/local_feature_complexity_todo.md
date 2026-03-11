@@ -470,7 +470,7 @@ First implementation batch:
 - leave `KubernetesWorkspaceShell`, `KubernetesTabBuilder`, and `KubernetesDashboardView` stable for the first batch
 
 ## Task 20.15: implement the Kubernetes local state split
-Status: pending
+Status: completed
 
 Goal:
 - extract the Kubernetes-local context-list state orchestration seam out of `kubernetes_context_list.dart`
@@ -492,3 +492,26 @@ What stays stable in this batch:
 Done definition:
 - `kubernetes_context_list.dart` no longer owns the full context-list state orchestration directly
 - the extracted seam remains Kubernetes-local and does not become shared shell infrastructure
+
+Result:
+- extracted [kubernetes_context_list_state.dart](/home/home/personal/cwatch/lib/view/features/kubernetes/kubernetes_context_list_state.dart) as the Kubernetes-local context-list state seam
+- `kubernetes_context_list.dart` now delegates:
+  - contexts future/cache selection behavior
+  - grouped-context state shaping inputs
+  - collapsed-section helpers
+  - selected-context tracking
+  - list/settings overlay composition state
+- `KubernetesWorkspaceShell`, `KubernetesTabBuilder`, `KubernetesDashboardView`, and context menu actions stayed stable in this batch
+
+## Task 20.16: re-scope the next Kubernetes local-complexity batch
+Status: pending
+
+Goal:
+- decide whether the Kubernetes local-complexity hotspot should continue or checkpoint here
+
+Questions to answer:
+- is there one more bounded Kubernetes-local seam with real value
+- or is the remaining Kubernetes view weight now mostly valid feature-local behavior
+
+Done definition:
+- the next local-complexity move is explicit

@@ -30,6 +30,7 @@ import 'package:cwatch/view/features/settings/settings/kubernetes_settings_contr
 
 import 'package:cwatch/controller/controllers/kubernetes_context_controller.dart';
 import 'kubernetes_tab_builder.dart';
+import 'kubernetes_context_list_state.dart';
 import 'kubernetes_runtime.dart';
 import 'kubernetes_workspace_shell.dart';
 import 'kubernetes_workspace_controller.dart';
@@ -67,12 +68,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
 
   final ValueNotifier<List<TabChipOption>> _emptyOptions =
       ValueNotifier<List<TabChipOption>>(const []);
-
-  Future<List<KubeconfigContext>>? _contextsFuture;
-  List<KubeconfigContext> _cachedContexts = const [];
-  final Map<String, bool> _collapsedByConfigPath = {};
-  final Set<String> _selectedContextKeys = {};
-  bool _showListSettings = false;
+  final KubernetesContextListState _listState = KubernetesContextListState();
 
   KubernetesContextController get _contextController =>
       _runtime.contextController;
@@ -132,7 +128,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     _workspaceShell = KubernetesWorkspaceShell(
       moduleId: widget.moduleId,
       loadContexts: _loadContexts,
-      setContextsFuture: (contextsFuture) => _contextsFuture = contextsFuture,
+      setContextsFuture: _listState.setContextsFuture,
       tabs: () => _tabs,
       selectedIndex: () => _selectedIndex,
       selectTab: _workspaceController.select,
@@ -162,7 +158,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
     };
     widget.settingsController.addListener(_settingsListener);
 
-    _contextsFuture = _workspaceShell.initializeContexts();
+    _listState.setContextsFuture(_workspaceShell.initializeContexts());
     unawaited(_restoreWorkspace());
   }
 
@@ -177,11 +173,10 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
   }
 
   Future<List<KubeconfigContext>> _loadContexts() async {
-    final contexts = await _contextController.loadContexts(
-      _contextController.resolveConfigPaths(widget.settingsController.settings),
+    return _listState.loadContexts(
+      _contextController,
+      widget.settingsController,
     );
-    _cachedContexts = contexts;
-    return contexts;
   }
 
   Future<void> _restoreWorkspace() async {
@@ -190,7 +185,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
 
     List<KubeconfigContext> contexts;
     try {
-      contexts = await (_contextsFuture ?? _loadContexts());
+      contexts = await (_listState.contextsFuture ?? _loadContexts());
     } catch (error, stackTrace) {
       AppLogger().warn(
         'Failed to restore Kubernetes contexts',
@@ -252,7 +247,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
       );
       options.add(
         TabChipOption(
-          label: _showListSettings ? 'Hide list settings' : 'List settings',
+          label: _listState.showListSettings ? 'Hide list settings' : 'List settings',
           icon: Icons.settings,
           onSelected: _toggleListSettings,
         ),
@@ -285,7 +280,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
 
   void _toggleListSettings() {
     setState(() {
-      _showListSettings = !_showListSettings;
+      _listState.toggleListSettings();
     });
 
     for (final tab in _tabs.where(_isPlaceholder)) {
@@ -382,11 +377,11 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
 
   Widget _buildContextSelection({required String replaceTabId}) {
     final list = FutureBuilder<List<KubeconfigContext>>(
-      future: _contextsFuture,
+      future: _listState.contextsFuture,
       builder: (context, snapshot) {
         final spacing = context.appTheme.spacing;
         if (snapshot.connectionState == ConnectionState.waiting &&
-            _cachedContexts.isEmpty) {
+            _listState.cachedContexts.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
@@ -406,7 +401,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
           );
         }
 
-        final contexts = snapshot.data ?? _cachedContexts;
+        final contexts = _listState.resolveContexts(snapshot);
         if (contexts.isEmpty) {
           return Center(
             child: Column(
@@ -424,7 +419,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
           );
         }
 
-        final grouped = _contextController.groupByConfigPath(contexts);
+        final grouped = _listState.groupByConfigPath(_contextController, contexts);
         final configPaths = grouped.keys.toList()..sort();
         return ListView.builder(
           padding: EdgeInsets.symmetric(vertical: spacing.base),
@@ -433,7 +428,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
             final configPath = configPaths[index];
             final contextsForPath =
                 grouped[configPath] ?? const <KubeconfigContext>[];
-            final collapsed = _collapsedByConfigPath[configPath] ?? false;
+            final collapsed = _listState.isCollapsed(configPath);
             final sectionColor = _sectionBackgroundForIndex(context, index);
             return Padding(
               padding: EdgeInsets.only(bottom: spacing.sm),
@@ -448,7 +443,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                   tooltip: collapsed ? 'Expand' : 'Collapse',
                   onPressed: () {
                     setState(() {
-                      _collapsedByConfigPath[configPath] = !collapsed;
+                      _listState.toggleCollapsed(configPath);
                     });
                   },
                 ),
@@ -471,15 +466,12 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                               ),
                           rowContextMenuBuilder: _buildContextMenuActions,
                           onSelectionChanged: (selectedRows) {
-                            final tableKeys = contextsForPath
-                                .map(_contextSelectionKey)
-                                .toSet();
                             setState(() {
-                              _selectedContextKeys
-                                ..removeAll(tableKeys)
-                                ..addAll(
-                                  selectedRows.map(_contextSelectionKey),
-                                );
+                              _listState.updateSelectedRows(
+                                contextsForPath,
+                                selectedRows,
+                                _contextSelectionKey,
+                              );
                             });
                           },
                         ),
@@ -491,7 +483,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
       },
     );
 
-    if (!_showListSettings) {
+    if (!_listState.showListSettings) {
       return list;
     }
 
@@ -507,10 +499,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                 title: const Text('Collapse all sections'),
                 onTap: () {
                   setState(() {
-                    for (final cfg
-                        in _cachedContexts.map((c) => c.configPath).toSet()) {
-                      _collapsedByConfigPath[cfg] = true;
-                    }
+                    _listState.collapseAll();
                   });
                 },
                 trailing: const Icon(Icons.expand_less),
@@ -520,7 +509,7 @@ class _KubernetesContextListState extends State<KubernetesContextList> {
                 title: const Text('Expand all sections'),
                 onTap: () {
                   setState(() {
-                    _collapsedByConfigPath.clear();
+                    _listState.expandAll();
                   });
                 },
                 trailing: const Icon(Icons.expand_more),
