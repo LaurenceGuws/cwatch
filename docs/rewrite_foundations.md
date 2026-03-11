@@ -258,6 +258,14 @@ Current recommendation after the infrastructure checkpoint:
 Why:
 - the major cross-cutting rewrite layers are now checkpointed
 - the strongest remaining architectural weight is now in dense local feature surfaces rather than system-wide ownership ambiguity
+
+Current recommendation after the local-complexity checkpoint:
+- shift to product polish and consistency work
+
+Why:
+- the main structural layers are now checkpointed
+- the next visible quality issue is consistency across stabilized shared and feature surfaces
+- the highest-value current polish hotspot is resource dashboard consistency across server, docker, and kubernetes
 - the next useful work is reducing remaining local workflow/rendering/probe complexity without reopening already-stable cross-cutting boundaries
 
 Current follow-up doc:

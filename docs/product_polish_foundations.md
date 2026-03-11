@@ -18,6 +18,7 @@ The next problem is no longer "where should this code live?".
 The next problem is:
 - do the shared shell surfaces feel intentional and consistent
 - do feature placeholder surfaces communicate clearly
+- do resource dashboards feel like they belong to the same product
 - do simple unavailable/capability states behave consistently
 - do reused shell widgets look and feel like one product instead of several cleanup phases stitched together
 
@@ -26,6 +27,7 @@ This layer is about consistency and product-facing coherence without reopening o
 ## Scope
 
 This layer should improve:
+- resource dashboard consistency
 - placeholder and empty-state quality
 - section/list chrome consistency
 - tab-shell polish
@@ -80,7 +82,19 @@ Questions:
 - where are title, body, icon, action, and breadcrumb patterns inconsistent
 - what should become the default shell-style placeholder framing
 
-### Hotspot B: section and list chrome consistency
+### Hotspot B: resource dashboard consistency
+Candidate surfaces:
+- server resource panels
+- docker resource trends and stats tables
+- kubernetes dashboard summary/resources surfaces
+
+Questions:
+- what should the default dashboard section framing be
+- how should metric cards, metadata rows, and chart containers look by default
+- which loading/error/empty states inside dashboards should be shared
+- which parts stay feature-owned because the data model and actions are domain-specific
+
+### Hotspot C: section and list chrome consistency
 Candidate surfaces:
 - settings sections
 - section nav bars
@@ -91,7 +105,7 @@ Questions:
 - where do section titles, spacing, actions, and secondary labels drift
 - what should be the default shell-style section framing
 
-### Hotspot C: tab-shell polish
+### Hotspot D: tab-shell polish
 Candidate surfaces:
 - chip spacing and affordance consistency
 - placeholder tab labels and icon semantics
@@ -101,7 +115,7 @@ Questions:
 - which parts of the tab shell still feel mechanically reused instead of intentionally designed
 - which improvements belong in shared tab-shell surfaces instead of feature-local code
 
-### Hotspot D: capability breadcrumb polish
+### Hotspot E: capability breadcrumb polish
 Candidate surfaces:
 - Docker CLI unavailable surface
 - Kubernetes unavailable/warning framing
@@ -121,19 +135,20 @@ Questions:
 ## Current Recommendation
 
 Start with:
-- placeholder and empty-state polish
+- resource dashboard consistency
 
 Why:
-- it is the most visible consequence of the placeholder-tab rule
-- it directly affects first impressions of the shell and feature entry surfaces
-- the repo already has a canonical shared primitive in `StandardEmptyState`
-- it improves consistency without reopening structural ownership work
+- it affects in-use feature surfaces more than entry placeholders
+- the current drift is obvious in chart framing, metric summaries, and metadata styling
+- server, docker, and kubernetes already provide enough evidence to define shared dashboard primitives
+- it improves visible quality without reopening ownership cleanup or flattening feature-specific dashboards
 
 Current first implementation batch:
-- Kubernetes placeholder/context-list empty-state normalization
-- Docker remote picker empty/unavailable-state normalization
+- define the shared dashboard language from server, docker, and kubernetes resource surfaces
+- start with section framing, metric summary cards, and metadata label/value presentation
+- leave feature-specific actions, domain grouping, and richer dashboard flows local
 
 Why this batch:
-- both are visible module entry surfaces
-- both currently drift from the shared empty-state path in different ways
-- together they are enough evidence to improve shared framing without prematurely touching richer dashboard-level empty states
+- it targets the most visible consistency gap in active feature work surfaces
+- it builds on existing feature dashboards instead of inventing a generic dashboard framework
+- it creates reusable visual primitives before touching heavier graph/data rewrites

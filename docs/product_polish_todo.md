@@ -79,3 +79,50 @@ Why this batch is a good checkpoint:
 - it improves the most visible placeholder-entry surfaces without reopening ownership work
 - it strengthens one canonical shared path instead of adding a new UI abstraction
 - it leaves richer dashboard-specific unavailable states for a later dashboard-focused polish batch
+
+## Task 21.4: define the resource dashboard polish target
+Status: completed
+
+Goal:
+- identify the shared visual drift across server, docker, and kubernetes dashboard/resource surfaces
+- define which dashboard primitives should become consistent without flattening feature-owned composition
+- choose one narrow first implementation batch
+
+Questions answered:
+- where do chart containers, summary cards, metadata rows, and section headers drift today
+- which dashboard states should stay local because they are domain-specific
+- what is the smallest useful shared dashboard language we can improve first
+
+Done definition:
+- one bounded resource-dashboard polish batch is chosen
+- the first implementation slice is explicit
+
+Result:
+- the strongest current drift is in:
+  - section framing between server resource panels, Docker chart/table surfaces, and Kubernetes dashboard sections
+  - summary/metric card presentation
+  - metadata label/value styling and chip treatment
+- the first shared dashboard language should cover:
+  - section container framing
+  - metric summary card style
+  - metadata key/value presentation
+- the following should remain feature-owned for now:
+  - feature-specific actions
+  - domain grouping and ordering
+  - richer dashboard flows and remediation states
+
+Why this is the right first cut:
+- it targets the most visible quality drift on active feature surfaces
+- it avoids inventing a generic dashboard framework
+- it gives shared visual primitives that multiple dashboards can adopt incrementally
+
+First implementation batch:
+- define and adopt a shared dashboard section/card language across:
+  - server resource panels
+  - docker resource trends/stats surfaces
+  - kubernetes dashboard summary/resources surfaces
+- start with:
+  - section framing
+  - metric summary cards
+  - metadata label/value styling
+- do not rewrite chart logic or data shaping in the first batch

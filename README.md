@@ -143,6 +143,14 @@ Current first polish batch:
 - Kubernetes placeholder/context-list empty-state normalization
 - Docker remote picker empty/unavailable-state normalization
 
+Current next polish hotspot:
+- resource dashboard consistency across server, docker, and kubernetes
+
+Current first dashboard polish batch:
+- define and adopt a shared dashboard section/card language
+- start with section framing, metric summary cards, and metadata label/value styling
+- keep feature-specific dashboard actions and domain grouping local
+
 Current follow-up docs:
 - `docs/rewrite_foundations.md`
 - `docs/local_feature_complexity_todo.md`
