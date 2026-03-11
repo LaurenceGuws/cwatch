@@ -2,6 +2,9 @@
 part of 'structured_data_table.dart';
 
 mixin _StructuredDataTableHitTesting<T> on _StructuredDataTableStateBase<T> {
+  StructuredDataTableHitTestProjection get _hitTestProjection =>
+      const StructuredDataTableHitTestProjection();
+
   void _applyEdgeScroll(Offset localPosition, BuildContext context) {
     final renderBox = _bodyKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
@@ -9,20 +12,14 @@ mixin _StructuredDataTableHitTesting<T> on _StructuredDataTableStateBase<T> {
     final zoomFactor = context.zoomFactor;
     final edgeThreshold = 24.0 * zoomFactor;
     final scrollStep = 18.0 * zoomFactor;
-
-    var verticalDelta = 0.0;
-    if (localPosition.dy < edgeThreshold) {
-      verticalDelta = -scrollStep;
-    } else if (localPosition.dy > size.height - edgeThreshold) {
-      verticalDelta = scrollStep;
-    }
-
-    var horizontalDelta = 0.0;
-    if (localPosition.dx < edgeThreshold) {
-      horizontalDelta = -scrollStep;
-    } else if (localPosition.dx > size.width - edgeThreshold) {
-      horizontalDelta = scrollStep;
-    }
+    final delta = _hitTestProjection.edgeScrollDelta(
+      localPosition: localPosition,
+      viewportSize: size,
+      edgeThreshold: edgeThreshold,
+      scrollStep: scrollStep,
+    );
+    final verticalDelta = delta.vertical;
+    final horizontalDelta = delta.horizontal;
 
     if (verticalDelta != 0 && _verticalController.hasClients) {
       final position = _verticalController.position;
@@ -51,55 +48,35 @@ mixin _StructuredDataTableHitTesting<T> on _StructuredDataTableStateBase<T> {
       return null;
     }
     final dividerHeight = context.appTheme.dimensions.dividerHeight;
-    final rowExtent = widget.rowHeight + dividerHeight;
-    final contentY = localPosition.dy + _verticalController.offset;
-    final rowIndex = (contentY / rowExtent).floor();
-    if (rowIndex < 0 || rowIndex >= _visibleRows.length) {
-      return null;
-    }
-    var contentX =
-        localPosition.dx + _horizontalController.offset - _lastRowPaddingX;
-    if (contentX <= 0) {
-      return StructuredDataCellCoordinate(rowIndex: rowIndex, columnIndex: 0);
-    }
-    for (var i = 0; i < _lastColumnWidths.length; i++) {
-      final width = _lastColumnWidths[i];
-      if (contentX < width) {
-        return StructuredDataCellCoordinate(rowIndex: rowIndex, columnIndex: i);
-      }
-      contentX -= width + _lastGapWidth;
-    }
-    return StructuredDataCellCoordinate(
-      rowIndex: rowIndex,
-      columnIndex: _lastColumnWidths.length - 1,
+    return _hitTestProjection.cellCoordinateForOffset(
+      localPosition: localPosition,
+      rowCount: _visibleRows.length,
+      columnWidths: _lastColumnWidths,
+      rowExtent: widget.rowHeight + dividerHeight,
+      verticalOffset: _verticalController.offset,
+      horizontalOffset: _horizontalController.offset,
+      rowPaddingX: _lastRowPaddingX,
+      gapWidth: _lastGapWidth,
     );
   }
 
   int _columnIndexForLocalDx(double localDx) {
-    if (_columns.isEmpty || _lastColumnWidths.isEmpty) {
-      return 0;
-    }
-    var contentX = localDx + _horizontalController.offset - _lastRowPaddingX;
-    if (contentX <= 0) return 0;
-    for (var i = 0; i < _lastColumnWidths.length; i++) {
-      final width = _lastColumnWidths[i];
-      if (contentX < width) {
-        return i;
-      }
-      contentX -= width + _lastGapWidth;
-    }
-    return _lastColumnWidths.length - 1;
+    return _hitTestProjection.columnIndexForLocalDx(
+      localDx: localDx,
+      columnWidths: _lastColumnWidths,
+      horizontalOffset: _horizontalController.offset,
+      rowPaddingX: _lastRowPaddingX,
+      gapWidth: _lastGapWidth,
+    );
   }
 
   int? _rowIndexForOffset(Offset localPosition, BuildContext context) {
-    if (_visibleRows.isEmpty) return null;
     final dividerHeight = context.appTheme.dimensions.dividerHeight;
-    final rowExtent = widget.rowHeight + dividerHeight;
-    final contentY = localPosition.dy + _verticalController.offset;
-    final rowIndex = (contentY / rowExtent).floor();
-    if (rowIndex < 0 || rowIndex >= _visibleRows.length) {
-      return null;
-    }
-    return rowIndex;
+    return _hitTestProjection.rowIndexForOffset(
+      localPosition: localPosition,
+      rowCount: _visibleRows.length,
+      rowExtent: widget.rowHeight + dividerHeight,
+      verticalOffset: _verticalController.offset,
+    );
   }
 }

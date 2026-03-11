@@ -156,3 +156,24 @@ Result:
   - [structured_data_table_columns.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_columns.dart)
 - focused regression coverage exists in:
   - [structured_data_table_column_width_planner_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/data_table/structured_data_table_column_width_planner_test.dart)
+
+## Task 23.8: extract pure hit-test projection from the hit-testing mixin
+Status: completed
+
+Goal:
+- reduce remaining shared engine complexity in the hit-testing mixin without redesigning scroll or pointer behavior
+- move pure edge-scroll and offset-to-cell/row/column projection into a dedicated helper
+
+Done definition:
+- edge-scroll delta calculation no longer lives inline in the hit-testing mixin
+- row/column/cell coordinate projection no longer lives inline in the hit-testing mixin
+- scroll-controller mutations stay in the mixin for now
+- focused regression coverage exists for the helper
+
+Result:
+- pure hit-test projection now lives in:
+  - [structured_data_table_hit_test_projection.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_hit_test_projection.dart)
+- the hit-testing mixin now delegates coordinate/delta projection instead of owning those rules inline:
+  - [structured_data_table_hit_testing.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_hit_testing.dart)
+- focused regression coverage exists in:
+  - [structured_data_table_hit_test_projection_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/data_table/structured_data_table_hit_test_projection_test.dart)
