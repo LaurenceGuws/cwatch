@@ -102,3 +102,49 @@ Result:
   - [server_workspace_view.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_view.dart)
 - the dedicated cross-folder server binding was removed:
   - [server_workspace_binding.dart](/home/home/personal/cwatch/lib/controller/di/bindings/server_workspace_binding.dart)
+
+## Task 25.5: define the next server runtime ownership cut
+Status: completed
+
+Goal:
+- choose the next ownership seam from the current server runtime/controller state
+- keep the batch on restore-time tab reconstruction rather than broad shell redesign
+
+Done definition:
+- one new server ownership batch is explicit
+- the stop condition reflects the current code shape
+
+Result:
+- the next bounded runtime/composition batch is now:
+  - server workspace restore ownership cleanup
+- target files:
+  - [server_workspace_controller.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_controller.dart)
+  - new server feature-local restore helper under `lib/view/features/servers/`
+- stop condition:
+  - host resolution and restored tab reconstruction no longer live inline in the controller
+  - the controller keeps persistence/orchestration responsibility
+  - behavior stays stable
+
+Why this is the right next cut:
+- the controller still mixes workspace persistence with restore-time feature tab reconstruction
+- that restore logic is feature-local assembly, not generic tabbed workspace infrastructure
+- this gives a cleaner ownership split without reopening the broader workspace shell contract yet
+
+## Task 25.6: implement the next server runtime ownership cut
+Status: completed
+
+Goal:
+- move restore-time server tab reconstruction into a dedicated feature-local helper
+
+Done definition:
+- one helper owns host resolution and restored tab reconstruction
+- [server_workspace_controller.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_controller.dart) no longer owns that inline restore support block
+- focused regression coverage exists for the helper
+
+Result:
+- server restore ownership now lives in:
+  - [server_workspace_tab_restorer.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_tab_restorer.dart)
+- the server workspace controller now keeps persistence and restore orchestration while delegating reconstruction:
+  - [server_workspace_controller.dart](/home/home/personal/cwatch/lib/view/features/servers/server_workspace_controller.dart)
+- focused regression coverage exists in:
+  - [server_workspace_tab_restorer_test.dart](/home/home/personal/cwatch/test/view/features/servers/server_workspace_tab_restorer_test.dart)
