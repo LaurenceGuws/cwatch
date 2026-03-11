@@ -220,3 +220,23 @@ Done definition:
 Result:
 - plain builtin command execution now lives in a dedicated helper
 - `BuiltInSshClientManager` is further narrowed toward the remaining streaming and SFTP execution branches
+
+
+## Task 23.13: implement builtin SFTP execution cleanup
+Status: completed
+
+Goal:
+- extract the builtin SFTP timeout/cleanup workflow out of `BuiltInSshClientManager`
+
+Done definition:
+- one builtin-local helper owns:
+  - `client.sftp()` acquisition
+  - timeout wrapping for SFTP actions
+  - client/SFTP kill-on-timeout behavior
+  - guaranteed SFTP cleanup on exit
+- `BuiltInSshClientManager.withSftp(...)` no longer owns that inline workflow
+- focused regression coverage exists for the new helper
+
+Result:
+- builtin SFTP execution now lives in a dedicated helper
+- `BuiltInSshClientManager` is further narrowed toward the remaining streaming execution branch

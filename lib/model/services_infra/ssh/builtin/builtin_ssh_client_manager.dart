@@ -16,6 +16,7 @@ import 'package:cwatch/model/shared/services/host_shell_policy.dart';
 import 'builtin_identity_manager.dart';
 import 'builtin_ssh_logging.dart';
 import 'builtin_ssh_retry_handler.dart';
+import 'builtin_ssh_sftp_runner.dart';
 import 'builtin_ssh_stream_output_collector.dart';
 import 'builtin_ssh_timeout_runner.dart';
 import 'builtin_ssh_vault.dart';
@@ -45,6 +46,10 @@ class BuiltInSshClientManager {
   final BuiltInSshStreamOutputCollector _streamOutputCollector =
       const BuiltInSshStreamOutputCollector();
   late final BuiltInSshCommandRunner _commandRunner = BuiltInSshCommandRunner(
+    timeoutRunner: _timeoutRunner,
+    clientLifecycle: _clientLifecycle,
+  );
+  late final BuiltInSshSftpRunner _sftpRunner = BuiltInSshSftpRunner(
     timeoutRunner: _timeoutRunner,
     clientLifecycle: _clientLifecycle,
   );
@@ -198,23 +203,14 @@ class BuiltInSshClientManager {
     Duration timeout = const Duration(seconds: 10),
     RunTimeoutHandler? onTimeout,
   }) async {
-    return _withClient(host, (client) async {
-      final sftp = await client.sftp();
-      try {
-        return await _timeoutRunner.run(
-          future: action(sftp),
-          timeout: timeout,
-          host: host,
-          commandDescription: 'sftp:${host.name}',
-          onTimeout: onTimeout,
-          onKill: () {
-            _clientLifecycle.killSftp(sftp);
-            _clientLifecycle.killClient(client);
-          },
-        );
-      } finally {
-        _clientLifecycle.killSftp(sftp);
-      }
+    return _withClient(host, (client) {
+      return _sftpRunner.withSftp(
+        host: host,
+        client: client,
+        action: action,
+        timeout: timeout,
+        onTimeout: onTimeout,
+      );
     });
   }
 
