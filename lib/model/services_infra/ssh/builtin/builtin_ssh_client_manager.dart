@@ -10,6 +10,7 @@ import '../known_hosts_store.dart';
 import '../remote_shell_base.dart';
 import '../ssh_auth_coordinator.dart';
 import 'builtin_ssh_auth_challenge_handler.dart';
+import 'builtin_ssh_command_preparer.dart';
 import 'builtin_ssh_client_lifecycle.dart';
 import 'builtin_ssh_failure_mapper.dart';
 import 'package:cwatch/model/shared/services/host_shell_policy.dart';
@@ -46,6 +47,12 @@ class BuiltInSshClientManager {
         setBuiltInKeyPassphrase: _identityManager.setBuiltInKeyPassphrase,
         setIdentityPassphrase: _identityManager.setIdentityPassphrase,
       );
+  late final BuiltInSshCommandPreparer _commandPreparer =
+      BuiltInSshCommandPreparer(
+        identityManager: _identityManager,
+        isNoShellHost: isNoShellHost,
+        wrapSshErrors: _wrapSshErrors,
+      );
 
   String? boundKeyForHost(String hostName) =>
       _identityManager.boundKeyForHost(hostName);
@@ -64,7 +71,7 @@ class BuiltInSshClientManager {
     Duration timeout = const Duration(seconds: 10),
     RunTimeoutHandler? onTimeout,
   }) async {
-    final safeCommand = _prependNoHistory(command);
+    final safeCommand = _commandPreparer.prependNoHistory(command);
     logBuiltInSsh('Running remote command on ${host.name}: $safeCommand');
     final checkCommand = '$safeCommand; echo "EXIT_CODE:\$?"';
     final output = await runCommand(
@@ -97,18 +104,8 @@ class BuiltInSshClientManager {
     Duration timeout = const Duration(seconds: 10),
     RunTimeoutHandler? onTimeout,
   }) async {
-    if (isNoShellHost(host)) {
-      throw NoShellHostException(host);
-    }
-    final safeCommand = _prependNoHistory(command);
+    final safeCommand = await _commandPreparer.prepareCommand(host, command);
     logBuiltInSsh('Running command on ${host.name}: $safeCommand');
-    // Ensure decryption completes before starting timeout.
-    // This way password prompts don't count against the command timeout.
-    // Note: _withClient also calls ensureDecrypted, but calling it here first
-    // ensures the timeout only applies to command execution, not password entry.
-    await _wrapSshErrors(host, () async {
-      await _identityManager.ensureDecrypted(host);
-    });
     final bytes = await _withClient(host, (client) async {
       final future = client.run(safeCommand);
       return _waitWithTimeout(
@@ -136,18 +133,8 @@ class BuiltInSshClientManager {
     void Function(String line)? onStdoutLine,
     void Function(String line)? onStderrLine,
   }) async {
-    if (isNoShellHost(host)) {
-      throw NoShellHostException(host);
-    }
-    final safeCommand = _prependNoHistory(command);
+    final safeCommand = await _commandPreparer.prepareCommand(host, command);
     logBuiltInSsh('Running command on ${host.name}: $safeCommand');
-    // Ensure decryption completes before starting timeout.
-    // This way password prompts don't count against the command timeout.
-    // Note: _withClient also calls ensureDecrypted, but calling it here first
-    // ensures the timeout only applies to command execution, not password entry.
-    await _wrapSshErrors(host, () async {
-      await _identityManager.ensureDecrypted(host);
-    });
     final stdoutBuffer = StringBuffer();
     final stderrBuffer = StringBuffer();
     var stdoutRemainder = '';
@@ -445,8 +432,5 @@ class BuiltInSshClientManager {
     return '[${host.hostname}]:${host.port}';
   }
 
-  String _prependNoHistory(String command) {
-    return 'HISTFILE=/dev/null HISTSIZE=0 HISTFILESIZE=0; $command';
-  }
-
 }
+
