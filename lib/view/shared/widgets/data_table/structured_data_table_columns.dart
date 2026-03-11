@@ -6,6 +6,8 @@ mixin _StructuredDataTableColumns<T> on _StructuredDataTableStateBase<T> {
       StructuredDataTableProjection<T>();
   StructuredDataTableColumnWidthPlanner<T> get _columnWidthPlanner =>
       StructuredDataTableColumnWidthPlanner<T>();
+  StructuredDataTableColumnResizePlanner<T> get _columnResizePlanner =>
+      StructuredDataTableColumnResizePlanner<T>();
 
   List<T> get _visibleRows {
     final filtered = _applySearch(widget.rows);
@@ -85,31 +87,29 @@ mixin _StructuredDataTableColumns<T> on _StructuredDataTableStateBase<T> {
       return painter.width;
     }
 
-    final headerWidth = measure(column.label, headerStyle);
-
-    var maxWidth = _autoFitCache[index] ?? headerWidth;
-    final sampleCount = min(_visibleRows.length, 400);
-    for (var i = 0; i < sampleCount; i++) {
-      final row = _visibleRows[i];
-      if (widthExtractor != null) {
-        maxWidth = max(maxWidth, widthExtractor(context, row));
-      } else {
-        maxWidth = max(maxWidth, measure(extractor!(row), cellStyle));
-      }
-    }
-
-    // Add a single-character pad so text is not flush against the edge.
-    final paddingChar = 'M';
-    final paddingWidth = measure(paddingChar, cellStyle);
-
-    final target = maxWidth + paddingWidth + (column.autoFitExtraWidth ?? 0);
+    final autoFitResult = _columnResizePlanner.autoFitWidth(
+      column: column,
+      visibleRows: _visibleRows,
+      cachedMeasuredWidth: _autoFitCache[index] ?? 0,
+      measureText: measure,
+      headerStyle: headerStyle,
+      cellStyle: cellStyle,
+      widthExtractor: widthExtractor == null
+          ? null
+          : (row) => widthExtractor(context, row),
+      maxSamples: 400,
+    );
     final minWidth = max(_minColumnWidth, column.minWidth ?? 0);
     final maxAllowed = _maxWidthForColumn(index);
 
-    _autoFitCache[index] = maxWidth;
+    _autoFitCache[index] = autoFitResult.maxMeasuredWidth;
 
     setState(() {
-      _columnWidthOverrides[index] = _clampWidth(target, minWidth, maxAllowed);
+      _columnWidthOverrides[index] = _columnResizePlanner.clampWidth(
+        autoFitResult.targetWidth,
+        minWidth,
+        maxAllowed,
+      );
     });
   }
 
@@ -129,12 +129,6 @@ mixin _StructuredDataTableColumns<T> on _StructuredDataTableStateBase<T> {
       return max(column.minWidth ?? 0, column.width!);
     }
     return max(_minColumnWidth, column.minWidth ?? 0);
-  }
-
-  double _clampWidth(double target, double minWidth, double maxWidth) {
-    if (!maxWidth.isFinite) return max(minWidth, target);
-    if (maxWidth <= minWidth) return minWidth;
-    return target.clamp(minWidth, maxWidth);
   }
 
   double _maxWidthForColumn(int index) {

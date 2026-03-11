@@ -18,6 +18,7 @@ part 'structured_data_table_cell_navigation.dart';
 part 'structured_data_table_cell_selection_state.dart';
 part 'structured_data_table_hit_test_projection.dart';
 part 'structured_data_table_column_width_planner.dart';
+part 'structured_data_table_column_resize_planner.dart';
 part 'structured_data_table_selection.dart';
 part 'structured_data_table_hit_testing.dart';
 part 'structured_data_table_scrolling.dart';

@@ -2,6 +2,9 @@
 part of 'structured_data_table.dart';
 
 mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
+  StructuredDataTableColumnResizePlanner<T> get _columnResizePlanner =>
+      StructuredDataTableColumnResizePlanner<T>();
+
   List<Widget> _buildRowCells(
     BuildContext context, {
     T? row,
@@ -217,11 +220,11 @@ mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
                 columnWidths[index];
             final minWidth = max(_minColumnWidth, column.minWidth ?? 0);
             final maxWidth = _maxWidthForColumn(index);
-            final target = current + delta;
-            _columnWidthOverrides[index] = _clampWidth(
-              target,
-              minWidth,
-              maxWidth,
+            _columnWidthOverrides[index] = _columnResizePlanner.resizedWidth(
+              currentWidth: current,
+              delta: delta,
+              minWidth: minWidth,
+              maxWidth: maxWidth,
             );
           });
         },

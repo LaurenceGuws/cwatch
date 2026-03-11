@@ -177,3 +177,25 @@ Result:
   - [structured_data_table_hit_testing.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_hit_testing.dart)
 - focused regression coverage exists in:
   - [structured_data_table_hit_test_projection_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/data_table/structured_data_table_hit_test_projection_test.dart)
+
+## Task 23.9: extract column resize and auto-fit planning from widget-side code
+Status: completed
+
+Goal:
+- reduce remaining shared engine complexity around header resizing without redesigning header rendering
+- move pure resize clamping and auto-fit target calculation into a dedicated helper
+
+Done definition:
+- resize clamping no longer lives inline in header rendering callbacks
+- auto-fit target width calculation no longer lives inline in the columns mixin
+- text measurement and widget-side setState remain in place for now
+- focused regression coverage exists for the new helper
+
+Result:
+- pure resize and auto-fit planning now lives in:
+  - [structured_data_table_column_resize_planner.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_column_resize_planner.dart)
+- header rendering and columns code now delegate to that helper:
+  - [structured_data_table_rendering.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_rendering.dart)
+  - [structured_data_table_columns.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_columns.dart)
+- focused regression coverage exists in:
+  - [structured_data_table_column_resize_planner_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/data_table/structured_data_table_column_resize_planner_test.dart)

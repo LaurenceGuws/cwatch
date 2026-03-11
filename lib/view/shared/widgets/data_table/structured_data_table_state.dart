@@ -48,7 +48,6 @@ abstract class _StructuredDataTableStateBase<T>
   void _autoFitColumn(int index);
   double _tableContentWidth(List<double> columnWidths, double gapWidth);
   double _minWidthForColumn(int index, {required bool respectOverride});
-  double _clampWidth(double target, double minWidth, double maxWidth);
   double _maxWidthForColumn(int index);
   double get _minColumnWidth;
   void _handleExternalRefresh();
