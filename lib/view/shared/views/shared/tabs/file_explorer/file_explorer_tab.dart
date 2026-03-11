@@ -56,15 +56,11 @@ class _FileExplorerTabState extends State<FileExplorerTab>
   void initState() {
     super.initState();
     _settingsController = widget.settingsController;
-    _controller = widget.controller;
-    _rebuildExplorerSeams();
     _controllerListener = () {
-      if (!mounted) return;
-      setState(() {});
-      _updateTabOptions();
+      _refreshView();
     };
-    _controller.addListener(_controllerListener);
-    unawaited(_controller.initialize());
+    _bindController(widget.controller, initialize: true);
+    _rebuildExplorerSeams();
   }
 
   @override
@@ -73,11 +69,9 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     var needsSeamRebuild = false;
 
     if (oldWidget.controller != widget.controller) {
-      oldWidget.controller.removeListener(_controllerListener);
-      _controller = widget.controller;
+      _unbindController(oldWidget.controller);
+      _bindController(widget.controller, initialize: true);
       needsSeamRebuild = true;
-      _controller.addListener(_controllerListener);
-      unawaited(_controller.initialize());
     }
     if (oldWidget.settingsController != widget.settingsController) {
       _settingsController = widget.settingsController;
@@ -97,10 +91,25 @@ class _FileExplorerTabState extends State<FileExplorerTab>
 
   @override
   void dispose() {
-    _controller.removeListener(_controllerListener);
+    _unbindController(_controller);
     _listFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _bindController(
+    FileExplorerController controller, {
+    bool initialize = false,
+  }) {
+    _controller = controller;
+    _controller.addListener(_controllerListener);
+    if (initialize) {
+      unawaited(_controller.initialize());
+    }
+  }
+
+  void _unbindController(FileExplorerController controller) {
+    controller.removeListener(_controllerListener);
   }
 
   void _rebuildExplorerSeams() {
@@ -141,6 +150,14 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       _presenter.toggleSettings();
     });
     _updateTabOptions();
+  }
+
+  void _refreshView({bool updateOptions = true}) {
+    if (!mounted) return;
+    setState(() {});
+    if (updateOptions) {
+      _updateTabOptions();
+    }
   }
 
   void _showSnackBar(String message) {
@@ -249,13 +266,13 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     }
     AppLogger().debug('Drop entered ${_controller.currentPath}', tag: 'Explorer');
     if (_chromeState.handleDropEntered()) {
-      setState(() {});
+      _refreshView(updateOptions: false);
     }
   }
 
   void _handleDropUpdated() {
     if (_chromeState.handleDropUpdated()) {
-      setState(() {});
+      _refreshView(updateOptions: false);
     }
   }
 
@@ -265,7 +282,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
     }
     AppLogger().debug('Drop exited ${_controller.currentPath}', tag: 'Explorer');
     if (_chromeState.handleDropExited()) {
-      setState(() {});
+      _refreshView(updateOptions: false);
     }
   }
 
@@ -285,7 +302,7 @@ class _FileExplorerTabState extends State<FileExplorerTab>
       tag: 'Explorer',
     );
     if (_chromeState.clearDropHover()) {
-      setState(() {});
+      _refreshView(updateOptions: false);
     }
     await _actions.handleDropDone(details);
   }
