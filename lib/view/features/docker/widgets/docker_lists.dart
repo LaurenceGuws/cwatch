@@ -15,6 +15,7 @@ import 'package:cwatch/view/shared/widgets/data_table/structured_data_table.dart
 import 'package:cwatch/view/shared/widgets/distro_leading_slot.dart';
 import 'package:cwatch/view/shared/widgets/lists/section_list.dart';
 import 'package:cwatch/view/shared/widgets/lists/selectable_list_item.dart';
+import 'docker_container_peek_state_controller.dart';
 import 'docker_lists_helpers.dart';
 
 typedef ItemTapDown<T> =
@@ -147,8 +148,8 @@ class ContainerPeek extends StatefulWidget {
 
 class _ContainerPeekState extends State<ContainerPeek> {
   final Set<String> _collapsed = {};
-  Future<Map<String, Map<String, double>>>? _allStatsFuture;
-  Map<String, Map<String, double>>? _cachedStats;
+  final DockerContainerPeekStateController _stateController =
+      DockerContainerPeekStateController();
 
   @override
   Widget build(BuildContext context) {
@@ -157,7 +158,7 @@ class _ContainerPeekState extends State<ContainerPeek> {
     if (widget.containers.isEmpty) {
       return const EmptyCard(message: 'No containers match your filters.');
     }
-    final groups = _group(widget.containers);
+    final groups = _stateController.groupContainers(widget.containers);
     final entries = groups.entries.toList();
     return Column(
       children: List.generate(entries.length, (index) {
@@ -302,7 +303,7 @@ class _ContainerPeekState extends State<ContainerPeek> {
       container,
       details,
       secondary: true,
-      flatIndex: _flatIndexFor(container),
+      flatIndex: _stateController.flatIndexFor(widget.containers, container),
       selectedRows: selectedRows,
     );
   }
@@ -319,20 +320,9 @@ class _ContainerPeekState extends State<ContainerPeek> {
     );
   }
 
-  int? _flatIndexFor(DockerContainer container) {
-    final index = widget.containers.indexWhere(
-      (item) => item.id == container.id,
-    );
-    if (index == -1) {
-      return null;
-    }
-    return index;
-  }
-
   List<StructuredDataColumn<DockerContainer>> _containerColumns(
     BuildContext context,
   ) {
-    // Always return all 6 columns: Container, Image, Status, Action, CPU, RAM
     final columns = [
       StructuredDataColumn<DockerContainer>(
         label: 'Container',
@@ -369,153 +359,6 @@ class _ContainerPeekState extends State<ContainerPeek> {
     ];
     assert(columns.length == 6, 'Expected 6 columns but got ${columns.length}');
     return columns;
-  }
-  
-  Future<Map<String, Map<String, double>>> _fetchAllStats() async {
-    // Return cached stats if available
-    if (_cachedStats != null) {
-      return Future.value(_cachedStats!);
-    }
-    
-    // Use existing future if already loading
-    if (_allStatsFuture != null) {
-      return _allStatsFuture!;
-    }
-    
-    // Start loading stats lazily
-    _allStatsFuture = _loadAllStats();
-    final stats = await _allStatsFuture!;
-    _cachedStats = stats;
-    return stats;
-  }
-  
-  Future<Map<String, Map<String, double>>> _loadAllStats() async {
-    final dockerService = widget.dockerService;
-    if (dockerService == null) {
-      return {};
-    }
-    try {
-      // Fetch stats for all containers at once
-      final stats = await dockerService.listContainerStats(
-        context: widget.contextName,
-      );
-      
-      final statsMap = <String, Map<String, double>>{};
-      for (final stat in stats) {
-        // Parse CPU percentage (remove % sign)
-        final cpuStr = stat.cpu.replaceAll('%', '').trim();
-        final cpu = double.tryParse(cpuStr) ?? 0.0;
-        
-        // Parse RAM percentage (remove % sign)
-        final ramStr = stat.memPercent.replaceAll('%', '').trim();
-        final ram = double.tryParse(ramStr) ?? 0.0;
-        
-        // Index by both ID and name for lookup
-        statsMap[stat.id] = {'cpu': cpu, 'ram': ram};
-        statsMap[stat.name] = {'cpu': cpu, 'ram': ram};
-      }
-      
-      return statsMap;
-    } catch (error) {
-      // Return empty map if stats can't be loaded
-      return {};
-    }
-  }
-  
-  Map<String, double> _getContainerStats(
-    Map<String, Map<String, double>>? allStats,
-    DockerContainer container,
-  ) {
-    if (allStats == null) {
-      return {'cpu': 0.0, 'ram': 0.0};
-    }
-    return allStats[container.id] ?? 
-           allStats[container.name] ?? 
-           {'cpu': 0.0, 'ram': 0.0};
-  }
-  
-  Widget _buildCpuCell(BuildContext context, DockerContainer container) {
-    // Show placeholder immediately if no service or container not running
-    if (widget.dockerService == null || !container.isRunning) {
-      return Text(
-        '--',
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-      );
-    }
-    
-    // Show placeholder while loading stats
-    return FutureBuilder<Map<String, Map<String, double>>>(
-      future: _fetchAllStats(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          // Show placeholder text while loading
-          return Text(
-            '--',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          );
-        }
-        if (snapshot.hasError || snapshot.data == null) {
-          return Text(
-            '--',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          );
-        }
-        final stats = _getContainerStats(snapshot.data, container);
-        final cpu = stats['cpu'] ?? 0.0;
-        return Text(
-          '${cpu.toStringAsFixed(1)}%',
-          style: Theme.of(context).textTheme.bodySmall,
-        );
-      },
-    );
-  }
-  
-  Widget _buildRamCell(BuildContext context, DockerContainer container) {
-    // Show placeholder immediately if no service or container not running
-    if (widget.dockerService == null || !container.isRunning) {
-      return Text(
-        '--',
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-      );
-    }
-    
-    // Show placeholder while loading stats
-    return FutureBuilder<Map<String, Map<String, double>>>(
-      future: _fetchAllStats(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          // Show placeholder text while loading
-          return Text(
-            '--',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          );
-        }
-        if (snapshot.hasError || snapshot.data == null) {
-          return Text(
-            '--',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          );
-        }
-        final stats = _getContainerStats(snapshot.data, container);
-        final ram = stats['ram'] ?? 0.0;
-        return Text(
-          '${ram.toStringAsFixed(1)}%',
-          style: Theme.of(context).textTheme.bodySmall,
-        );
-      },
-    );
   }
 
   String _displayName(DockerContainer container) {
@@ -561,7 +404,7 @@ class _ContainerPeekState extends State<ContainerPeek> {
 
   String _statusText(DockerContainer container) {
     if (container.isRunning) {
-      return _runningLabel(container);
+      return _stateController.runningLabel(container);
     }
     return container.status;
   }
@@ -595,50 +438,91 @@ class _ContainerPeekState extends State<ContainerPeek> {
     );
   }
 
-  Map<String, List<DockerContainer>> _group(List<DockerContainer> containers) {
-    final map = <String, List<DockerContainer>>{};
-    for (final c in containers) {
-      final key = c.composeProject?.isNotEmpty == true
-          ? 'Compose: ${c.composeProject}'
-          : 'Standalone';
-      map.putIfAbsent(key, () => []).add(c);
+  Widget _buildCpuCell(BuildContext context, DockerContainer container) {
+    if (widget.dockerService == null || !container.isRunning) {
+      return Text(
+        '--',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      );
     }
-    final sortedKeys = map.keys.toList()
-      ..sort((a, b) {
-        if (a == 'Standalone') return 1;
-        if (b == 'Standalone') return -1;
-        return a.compareTo(b);
-      });
-    return {for (final k in sortedKeys) k: map[k]!};
+
+    return FutureBuilder<Map<String, Map<String, double>>>(
+      future: _stateController.fetchAllStats(
+        dockerService: widget.dockerService,
+        contextName: widget.contextName,
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Text(
+            '--',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          );
+        }
+        if (snapshot.hasError || snapshot.data == null) {
+          return Text(
+            '--',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          );
+        }
+        final stats = _stateController.getContainerStats(snapshot.data, container);
+        final cpu = stats['cpu'] ?? 0.0;
+        return Text(
+          '${cpu.toStringAsFixed(1)}%',
+          style: Theme.of(context).textTheme.bodySmall,
+        );
+      },
+    );
   }
 
-  String _runningLabel(DockerContainer container) {
-    if (container.startedAt != null) {
-      final now = DateTime.now();
-      final diff = now.difference(container.startedAt!.toLocal());
-      if (diff.inDays >= 1) {
-        final days = diff.inDays;
-        final hours = diff.inHours % 24;
-        return 'Running for ${days}d ${hours}h';
-      }
-      if (diff.inHours >= 1) {
-        final hours = diff.inHours;
-        final mins = diff.inMinutes % 60;
-        return 'Running for ${hours}h ${mins}m';
-      }
-      if (diff.inMinutes >= 1) {
-        final mins = diff.inMinutes;
-        final secs = diff.inSeconds % 60;
-        return 'Running for ${mins}m ${secs}s';
-      }
-      return 'Running for ${diff.inSeconds}s';
+  Widget _buildRamCell(BuildContext context, DockerContainer container) {
+    if (widget.dockerService == null || !container.isRunning) {
+      return Text(
+        '--',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      );
     }
-    if (container.createdAt != null && container.createdAt!.isNotEmpty) {
-      return 'Running for ${container.createdAt}';
-    }
-    return 'Running';
+
+    return FutureBuilder<Map<String, Map<String, double>>>(
+      future: _stateController.fetchAllStats(
+        dockerService: widget.dockerService,
+        contextName: widget.contextName,
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Text(
+            '--',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          );
+        }
+        if (snapshot.hasError || snapshot.data == null) {
+          return Text(
+            '--',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          );
+        }
+        final stats = _stateController.getContainerStats(snapshot.data, container);
+        final ram = stats['ram'] ?? 0.0;
+        return Text(
+          '${ram.toStringAsFixed(1)}%',
+          style: Theme.of(context).textTheme.bodySmall,
+        );
+      },
+    );
   }
 }
+
 
 class ContainerList extends StatelessWidget {
   const ContainerList({

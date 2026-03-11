@@ -19,7 +19,7 @@ Result:
 - the first bounded batch should target Docker list and overview surface complexity
 
 ## Task 22.2: define the first bounded Docker batch
-Status: pending
+Status: completed
 
 Goal:
 - choose one concrete Docker cleanup slice with strong value and low ambiguity
@@ -41,3 +41,31 @@ These are intentionally not yet active:
 - Docker overview/local state cleanup
 - Docker client parsing organization
 - Docker command terminal surface cleanup
+
+
+Result:
+- the first bounded Docker batch is now:
+  - `ContainerPeek` stats and grouping orchestration split
+- target files:
+  - [docker_lists.dart](/home/home/personal/cwatch/lib/view/features/docker/widgets/docker_lists.dart)
+  - new Docker-local helper for container list state/projection
+- stop condition:
+  - grouping and stats-fetch/cache logic no longer live inline inside `_ContainerPeekState`
+  - rendering stays in `docker_lists.dart`
+  - the rest of Docker remains untouched in this batch
+
+Why this is the right first cut:
+- it removes real local orchestration smell from one of the heaviest Docker surfaces
+- it stays feature-local and does not reopen broader Docker ownership questions
+- it gives a direct seam for focused regression coverage
+
+## Task 22.3: implement the ContainerPeek state/projection split
+Status: completed
+
+Goal:
+- extract `ContainerPeek` grouping and stats projection logic into a dedicated Docker-local helper
+
+Done definition:
+- one Docker-local helper owns container grouping, flat-index lookup, uptime labels, and stats cache/projection
+- `_ContainerPeekState` no longer owns inline stats future/cache helpers
+- focused regression coverage exists for the new helper
