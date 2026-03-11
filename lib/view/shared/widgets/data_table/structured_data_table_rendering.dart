@@ -605,6 +605,10 @@ mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onSecondaryTapDown: (details) {
+              final focusNode = widget.focusNode ?? _focusNode;
+              if (!focusNode.hasFocus) {
+                focusNode.requestFocus();
+              }
               tapPosition = details.globalPosition;
               if (widget.cellSelectionEnabled) {
                 final columnIndex = _columnIndexForLocalDx(

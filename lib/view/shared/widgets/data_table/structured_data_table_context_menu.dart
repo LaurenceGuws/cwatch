@@ -107,8 +107,18 @@ mixin _StructuredDataTableContextMenu<T> on _StructuredDataTableStateBase<T> {
         }
       }
     }
+    var selectedRows = _selectedRows();
+    final usesExternalSelection =
+        widget.rowSelectionPredicate != null || widget.selectedRowsBuilder != null;
+    if (!widget.cellSelectionEnabled && usesExternalSelection) {
+      final row = _visibleRows[index];
+      final alreadySelected = selectedRows.contains(row);
+      if (!alreadySelected) {
+        selectedRows = [row];
+        widget.onSelectionChanged?.call(selectedRows);
+      }
+    }
     final onRowContextMenu = widget.onRowContextMenu;
-    final selectedRows = _selectedRows();
     AppLogger().debug(
       '_showContextMenuForIndex: index=$index, selectedRows=${selectedRows.length}, selectedIndices=${_listController.selectedIndices}',
       tag: 'StructuredDataTable',

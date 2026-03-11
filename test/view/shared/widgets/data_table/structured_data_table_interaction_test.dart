@@ -194,4 +194,30 @@ void main() {
       expect(selectedRows, isEmpty);
     },
   );
+
+  testWidgets(
+    'secondary click selects externally managed row before opening menu',
+    (tester) async {
+      var selectedRows = <String>[];
+      await pumpTable(
+        tester,
+        rowSelectionEnabled: false,
+        externalSelection: true,
+        externallySelectedRows: selectedRows,
+        onSelectionChanged: (rows) => selectedRows = rows,
+      );
+
+      final betaCenter = tester.getCenter(find.text('beta'));
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.down(betaCenter);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(selectedRows, ['beta']);
+      expect(find.text('Open'), findsOneWidget);
+    },
+  );
 }
