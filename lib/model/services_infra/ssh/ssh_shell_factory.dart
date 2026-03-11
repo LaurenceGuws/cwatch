@@ -28,8 +28,9 @@ class SshShellFactory {
   RemoteShellService? _builtinShell;
   RemoteShellService? _builtinShellWithTimeout;
   RemoteShellService? _processShell;
-  String? _shellSignature;
-  String? _shellTimeoutSignature;
+  String? _builtinShellSignature;
+  String? _builtinTimeoutShellSignature;
+  String? _processShellSignature;
 
   RemoteShellService forHost(SshHost host, {Duration? connectTimeout}) {
     final settings = settingsController.settings;
@@ -49,14 +50,17 @@ class SshShellFactory {
 
   void handleSettingsChanged(AppSettings settings) {
     final nextSignature = _settingsSignature(settings);
-    if (nextSignature != _shellSignature) {
-      _shellSignature = nextSignature;
+    if (nextSignature != _builtinShellSignature) {
+      _builtinShellSignature = null;
       _builtinShell = null;
+    }
+    if (nextSignature != _processShellSignature) {
+      _processShellSignature = null;
       _processShell = null;
     }
-    if (_shellTimeoutSignature != null &&
-        !_shellTimeoutSignature!.startsWith(nextSignature)) {
-      _shellTimeoutSignature = null;
+    if (_builtinTimeoutShellSignature != null &&
+        !_builtinTimeoutShellSignature!.startsWith(nextSignature)) {
+      _builtinTimeoutShellSignature = null;
       _builtinShellWithTimeout = null;
     }
   }
@@ -68,21 +72,21 @@ class SshShellFactory {
   }) {
     if (connectTimeout != null) {
       if (_builtinShellWithTimeout != null &&
-          _shellTimeoutSignature == cacheSignature) {
+          _builtinTimeoutShellSignature == cacheSignature) {
         return _builtinShellWithTimeout!;
       }
       _builtinShellWithTimeout = _buildBuiltinShell(
         settings,
         connectTimeout: connectTimeout,
       );
-      _shellTimeoutSignature = cacheSignature;
+      _builtinTimeoutShellSignature = cacheSignature;
       return _builtinShellWithTimeout!;
     }
-    if (_builtinShell != null && _shellSignature == cacheSignature) {
+    if (_builtinShell != null && _builtinShellSignature == cacheSignature) {
       return _builtinShell!;
     }
     _builtinShell = _buildBuiltinShell(settings);
-    _shellSignature = cacheSignature;
+    _builtinShellSignature = cacheSignature;
     return _builtinShell!;
   }
 
@@ -90,7 +94,7 @@ class SshShellFactory {
     AppSettings settings, {
     required String cacheSignature,
   }) {
-    if (_processShell != null && _shellSignature == cacheSignature) {
+    if (_processShell != null && _processShellSignature == cacheSignature) {
       return _processShell!;
     }
     final observer = settings.debugMode ? _defaultObserver : null;
@@ -98,7 +102,7 @@ class SshShellFactory {
       debugMode: settings.debugMode,
       observer: observer,
     );
-    _shellSignature = cacheSignature;
+    _processShellSignature = cacheSignature;
     return _processShell!;
   }
 

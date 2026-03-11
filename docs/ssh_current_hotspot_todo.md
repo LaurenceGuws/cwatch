@@ -493,3 +493,30 @@ Result:
   - [process_ssh_shell_service.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/process_ssh_shell_service.dart)
   - [ssh_shell_factory.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_factory.dart)
   - builtin/process coordination semantics
+
+## Task 23.24: define the SSH shell-factory cache-clarity batch
+Status: completed
+
+Goal:
+- tighten the remaining runtime-cache ownership inside `SshShellFactory`
+- keep the batch on cache-state clarity, not on changing shell behavior or call sites
+
+Done definition:
+- one explicit cache-shape batch is named
+- the stop condition reflects the current shared-signature ambiguity
+
+Result:
+- the next bounded SSH batch is now:
+  - split builtin/process/default-timeout cache signatures inside `SshShellFactory`
+- target files:
+  - [ssh_shell_factory.dart](/home/home/personal/cwatch/lib/model/services_infra/ssh/ssh_shell_factory.dart)
+  - [ssh_shell_factory_test.dart](/home/home/personal/cwatch/test/model/services_infra/ssh/ssh_shell_factory_test.dart)
+- stop condition:
+  - builtin, process, and timeout runtimes do not share one overloaded cache-signature field
+  - settings-change invalidation remains explicit and behavior stays stable
+  - focused regression coverage still proves cache reuse and reset behavior
+
+Why this is the right next cut:
+- the selector/request indirection is gone, so the remaining factory smell is now local cache-state ambiguity
+- one shared signature field still represents multiple runtime caches
+- making cache ownership explicit improves readability without inventing another abstraction layer
