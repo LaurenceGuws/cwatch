@@ -46,6 +46,8 @@ class SelectableListItem extends StatefulWidget {
 }
 
 class _SelectableListItemState extends State<SelectableListItem> {
+  bool _hovered = false;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -59,104 +61,108 @@ class _SelectableListItemState extends State<SelectableListItem> {
     final background = widget.selected
         ? listTokens.selectedBackground
         : stripeBackground;
+    final hoverBackground = widget.selected
+        ? background
+        : (_hovered ? listTokens.hoverBackground : background);
     final foreground = widget.selected
         ? listTokens.selectedForeground
         : listTokens.unselectedForeground;
-
-    final overlay = WidgetStateProperty.resolveWith<Color?>((states) {
-      if (states.contains(WidgetState.hovered) ||
-          states.contains(WidgetState.pressed)) {
-        return listTokens.hoverBackground;
-      }
-      return null;
-    });
+    final borderColor = _hovered ? listTokens.hoverBorder : Colors.transparent;
 
     return Material(
-      color: background,
+      color: hoverBackground,
       borderRadius: BorderRadius.zero,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTapDown: widget.onTapDown,
-        onDoubleTapDown: widget.onDoubleTapDown,
-        onSecondaryTapDown: widget.onSecondaryTapDown,
-        child: InkWell(
-          onTap: widget.onTap,
-          onDoubleTap: widget.onDoubleTap,
-          onLongPress: widget.onLongPress,
-          borderRadius: BorderRadius.zero,
-          overlayColor: overlay,
-          enableFeedback: false,
-          splashFactory: NoSplash.splashFactory,
-          highlightColor: Colors.transparent,
-          hoverColor: Colors.transparent,
-          child: Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: widget.horizontalPadding ?? spacing.sm,
-              vertical: spacing.sm,
-            ),
-            decoration: const BoxDecoration(borderRadius: BorderRadius.zero),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                if (widget.leading != null) ...[
-                  widget.leading!,
-                  SizedBox(width: spacing.lg),
-                ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapDown: widget.onTapDown,
+          onDoubleTapDown: widget.onDoubleTapDown,
+          onSecondaryTapDown: widget.onSecondaryTapDown,
+          child: InkWell(
+            onTap: widget.onTap,
+            onDoubleTap: widget.onDoubleTap,
+            onLongPress: widget.onLongPress,
+            borderRadius: BorderRadius.zero,
+            overlayColor: WidgetStateProperty.all(Colors.transparent),
+            enableFeedback: false,
+            splashFactory: NoSplash.splashFactory,
+            highlightColor: Colors.transparent,
+            hoverColor: Colors.transparent,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              padding: EdgeInsets.symmetric(
+                horizontal: widget.horizontalPadding ?? spacing.sm,
+                vertical: spacing.sm,
+              ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.zero,
+                border: Border.all(color: borderColor),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  if (widget.leading != null) ...[
+                    widget.leading!,
+                    SizedBox(width: spacing.lg),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                widget.title,
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(
+                                      color: foreground,
+                                      fontWeight: widget.selected
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                    ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (widget.badge != null) ...[
+                              SizedBox(width: spacing.sm),
+                              widget.badge!,
+                            ],
+                          ],
+                        ),
+                        if (widget.subtitle != null &&
+                            widget.subtitle!.isNotEmpty)
+                          Padding(
+                            padding: EdgeInsets.only(top: spacing.xs),
                             child: Text(
-                              widget.title,
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(
-                                    color: foreground,
-                                    fontWeight: widget.selected
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                  ),
+                              widget.subtitle!,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: scheme.onSurfaceVariant),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          if (widget.badge != null) ...[
-                            SizedBox(width: spacing.sm),
-                            widget.badge!,
-                          ],
-                        ],
-                      ),
-                      if (widget.subtitle != null &&
-                          widget.subtitle!.isNotEmpty)
-                        Padding(
-                          padding: EdgeInsets.only(top: spacing.xs),
-                          child: Text(
-                            widget.subtitle!,
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: scheme.onSurfaceVariant),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                if (widget.busy) ...[
-                  SizedBox(width: spacing.md),
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation(scheme.primary),
+                      ],
                     ),
                   ),
+                  if (widget.busy) ...[
+                    SizedBox(width: spacing.md),
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation(scheme.primary),
+                      ),
+                    ),
+                  ],
+                  if (widget.trailing != null) ...[
+                    SizedBox(width: spacing.md),
+                    widget.trailing!,
+                  ],
                 ],
-                if (widget.trailing != null) ...[
-                  SizedBox(width: spacing.md),
-                  widget.trailing!,
-                ],
-              ],
+              ),
             ),
           ),
         ),

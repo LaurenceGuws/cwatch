@@ -102,16 +102,8 @@ mixin _StructuredDataTableContextMenu<T> on _StructuredDataTableStateBase<T> {
         final isAlreadySelected = _listController.selectedIndices.contains(
           index,
         );
-        // If right-clicking on an unselected row when there's already a selection,
-        // preserve the existing selection instead of clearing it
-        // This allows context menu to work on all selected rows
         if (!isAlreadySelected) {
-          if (_listController.selectedIndices.isEmpty) {
-            // No selection exists, select just this row
-            _selectSingle(index);
-          }
-          // If selection exists, don't change it - context menu will work on existing selection
-          // This preserves multi-selection when right-clicking
+          _selectSingle(index);
         }
       }
     }

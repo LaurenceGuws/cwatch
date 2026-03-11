@@ -50,3 +50,28 @@ Done definition:
 - one helper owns visible-column filtering, row search matching, sorted visible-row projection, and nullable comparison
 - `_StructuredDataTableColumns` no longer owns those pure projection helpers inline
 - focused regression coverage exists for the new helper
+
+## Task 23.4: standardize row selection, right-click, and hover behavior
+Status: completed
+
+Goal:
+- fix the shared interaction policy drift across table-backed list surfaces
+- make right-click selection, deselection, and hover treatment behave consistently in the shared table engine instead of feature code
+
+Done definition:
+- right-click on an unselected row selects that row before opening the row context menu
+- primary click on blank table space clears shared row selection consistently
+- shared non-cell row hover treatment uses the same bordered hover language as the breadcrumb-inspired list standard
+- focused regression coverage exists for the new selection policy
+
+Result:
+- right-click row selection now happens in:
+  - [structured_data_table_context_menu.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_context_menu.dart)
+- blank-area deselection and row hover framing now live in:
+  - [structured_data_table_rendering.dart](/home/home/personal/cwatch/lib/view/shared/widgets/data_table/structured_data_table_rendering.dart)
+- shared list hover tokens now expose border treatment through:
+  - [app_theme.dart](/home/home/personal/cwatch/lib/model/shared/theme/app_theme.dart)
+- shared list item hover framing now uses the same direction in:
+  - [selectable_list_item.dart](/home/home/personal/cwatch/lib/view/shared/widgets/lists/selectable_list_item.dart)
+- focused regression coverage exists in:
+  - [structured_data_table_interaction_test.dart](/home/home/personal/cwatch/test/view/shared/widgets/data_table/structured_data_table_interaction_test.dart)

@@ -457,14 +457,16 @@ mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
                     : listTokens.stripeOddBackground)
               : Colors.transparent);
     final rowHoverBackground =
-        widget.cellSelectionEnabled &&
-            _hoveredCell != null &&
-            _hoveredCell!.rowIndex == index
-        ? listTokens.hoverBackground.withValues(alpha: 0.12)
-        : Colors.transparent;
+        widget.cellSelectionEnabled
+        ? (_hoveredCell != null && _hoveredCell!.rowIndex == index
+              ? listTokens.hoverBackground.withValues(alpha: 0.12)
+              : Colors.transparent)
+        : (_hoveredRowIndex == index ? listTokens.hoverBackground : Colors.transparent);
     final background = widget.cellSelectionEnabled
         ? rowHoverBackground
-        : (selected ? listTokens.selectedBackground : stripeBackground);
+        : (selected
+              ? listTokens.selectedBackground
+              : (_hoveredRowIndex == index ? rowHoverBackground : stripeBackground));
     final overlayColor = widget.cellSelectionEnabled
         ? WidgetStateProperty.all(Colors.transparent)
         : WidgetStateProperty.resolveWith<Color?>((states) {
@@ -476,9 +478,12 @@ mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
           });
 
     final showFocusOutline = focused && !widget.cellSelectionEnabled;
+    final hoverOutline = !widget.cellSelectionEnabled && _hoveredRowIndex == index;
     final border = Border.all(
-      color: showFocusOutline ? listTokens.focusOutline : Colors.transparent,
-      width: showFocusOutline ? 0.9 : 0.4,
+      color: showFocusOutline
+          ? listTokens.focusOutline
+          : (hoverOutline ? listTokens.hoverBorder : Colors.transparent),
+      width: showFocusOutline ? 0.9 : (hoverOutline ? 0.9 : 0.4),
     );
 
     Offset? tapPosition;
@@ -562,6 +567,7 @@ mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
         },
         child: MouseRegion(
           onEnter: (event) {
+            setState(() => _hoveredRowIndex = index);
             // Call custom handler if provided
             widget.onRowPointerEnter?.call(index, row, event);
             // Handle drag selection when mouse enters row during drag
@@ -573,7 +579,12 @@ mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
                 event.kind == PointerDeviceKind.mouse &&
                 (event.buttons & kPrimaryMouseButton) != 0) {
               // Extend selection when dragging over rows
-              _listController.extendSelection(index);
+                _listController.extendSelection(index);
+            }
+          },
+          onExit: (_) {
+            if (_hoveredRowIndex == index) {
+              setState(() => _hoveredRowIndex = null);
             }
           },
           child: GestureDetector(
@@ -1038,12 +1049,26 @@ mixin _StructuredDataTableRendering<T> on _StructuredDataTableStateBase<T> {
           );
     return Listener(
       behavior: HitTestBehavior.translucent,
-      onPointerDown: (event) {
-        if (!widget.rowSelectionEnabled) return;
-        if (event.kind != PointerDeviceKind.mouse) return;
-        if ((event.buttons & kPrimaryButton) == 0) return;
-        final rowIndex = _rowIndexForOffset(event.localPosition, context);
-        if (rowIndex == null) return;
+        onPointerDown: (event) {
+          if (!widget.rowSelectionEnabled) return;
+          if (event.kind != PointerDeviceKind.mouse) return;
+          if ((event.buttons & kPrimaryButton) == 0) return;
+          final rowIndex = _rowIndexForOffset(event.localPosition, context);
+        if (rowIndex == null) {
+          _listController.clearSelection();
+          if (widget.cellSelectionEnabled) {
+            setState(() {
+              _selectedCell = null;
+              _focusedCell = null;
+              _cellSelectionAnchor = null;
+              _cellSelectionExtent = null;
+              _additionalSelectedCells.clear();
+              _cellEditMode = false;
+            });
+          }
+          _setRowDragAnchor(null, null);
+          return;
+        }
         final isShift = HardwareKeyboard.instance.isShiftPressed;
         final hasSelection = _listController.selectedIndices.isNotEmpty;
         final isSelected = _listController.selectedIndices.contains(rowIndex);

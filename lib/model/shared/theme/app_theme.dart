@@ -173,6 +173,7 @@ class AppSpacing {
 class AppListTokens {
   const AppListTokens({
     required this.hoverBackground,
+    required this.hoverBorder,
     required this.focusOutline,
     required this.selectedBackground,
     required this.selectedForeground,
@@ -182,6 +183,7 @@ class AppListTokens {
   });
 
   final Color hoverBackground;
+  final Color hoverBorder;
   final Color focusOutline;
   final Color selectedBackground;
   final Color selectedForeground;
@@ -191,7 +193,8 @@ class AppListTokens {
 
   factory AppListTokens.fromScheme(ColorScheme scheme) {
     return AppListTokens(
-      hoverBackground: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+      hoverBackground: scheme.surfaceContainerHighest,
+      hoverBorder: scheme.outlineVariant,
       focusOutline: scheme.primary,
       selectedBackground: scheme.primary.withValues(alpha: 0.08),
       selectedForeground: scheme.primary,
@@ -206,6 +209,8 @@ class AppListTokens {
       hoverBackground:
           Color.lerp(a.hoverBackground, b.hoverBackground, t) ??
           a.hoverBackground,
+      hoverBorder:
+          Color.lerp(a.hoverBorder, b.hoverBorder, t) ?? a.hoverBorder,
       focusOutline:
           Color.lerp(a.focusOutline, b.focusOutline, t) ?? a.focusOutline,
       selectedBackground:

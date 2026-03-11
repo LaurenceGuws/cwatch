@@ -25,6 +25,7 @@ abstract class _StructuredDataTableStateBase<T>
   int? _rowDragAnchorIndex;
   int? _rowDragPointer;
   StructuredDataCellCoordinate? _hoveredCell;
+  int? _hoveredRowIndex;
   final GlobalKey _bodyKey = GlobalKey();
   int? _touchDragPointer;
   bool _isTouchDragging = false;
