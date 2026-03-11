@@ -139,6 +139,10 @@ Current recommendation:
 - targeted local-seam regression coverage is now at a good checkpoint
 - the next active layer should be product polish and consistency work
 
+Current first polish batch:
+- Kubernetes placeholder/context-list empty-state normalization
+- Docker remote picker empty/unavailable-state normalization
+
 Current follow-up docs:
 - `docs/rewrite_foundations.md`
 - `docs/local_feature_complexity_todo.md`

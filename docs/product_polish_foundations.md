@@ -128,3 +128,12 @@ Why:
 - it directly affects first impressions of the shell and feature entry surfaces
 - the repo already has a canonical shared primitive in `StandardEmptyState`
 - it improves consistency without reopening structural ownership work
+
+Current first implementation batch:
+- Kubernetes placeholder/context-list empty-state normalization
+- Docker remote picker empty/unavailable-state normalization
+
+Why this batch:
+- both are visible module entry surfaces
+- both currently drift from the shared empty-state path in different ways
+- together they are enough evidence to improve shared framing without prematurely touching richer dashboard-level empty states

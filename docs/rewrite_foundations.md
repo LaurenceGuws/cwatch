@@ -323,6 +323,10 @@ Current follow-up docs:
 - `docs/product_polish_foundations.md`
 - `docs/product_polish_todo.md`
 
+Current first polish batch:
+- Kubernetes placeholder/context-list empty-state normalization
+- Docker remote picker empty/unavailable-state normalization
+
 ### Focus Area E: infrastructure boundary cleanup
 Questions to answer:
 - Where are transport, parsing, and policy mixed today?
