@@ -1,7 +1,7 @@
 # Config Metadata Hotspot TODO
 
-Status: active
-Purpose: track bounded cleanup batches for the current config metadata single-source-of-truth hotspot.
+Status: checkpointed
+Purpose: record the completed bounded cleanup batches for the config metadata single-source-of-truth hotspot.
 
 ## Task 28.1: start the config metadata hotspot pass
 Status: completed
@@ -67,3 +67,14 @@ Result:
 Why this is the right next cut:
 - the registry is still the right active seam, but it carried avoidable boilerplate
 - this removes repetition without hiding metadata behind a new builder or generation layer
+
+## Checkpoint
+
+Current state:
+- the dead annotation layer is removed
+- the descriptor/registry layer is now the single active metadata source
+- the registry carries less repeated boilerplate while keeping the markdown/summary output stable
+
+What this means:
+- config metadata cleanup should now be treated as an enforced baseline, not as the next active repo hotspot
+- future work here should reopen only from fresh evidence, such as a real need for generated descriptors or a broader metadata consumer surface

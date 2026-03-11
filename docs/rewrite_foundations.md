@@ -450,16 +450,16 @@ The Docker, SSH, theme/token, and StructuredDataTable hotspot passes are now che
 A fresh current-state review now shows that the main remaining issues are:
 - runtime and composition ownership blur
 - repeated workspace-shell hosting
-- settings mutation/composition duplication
-- low-payoff runtime and metadata indirection
+- controller-to-UI adapter coupling
+- narrower feature-local workflow density that should reopen only from fresh evidence
 
 Current active hotspot order:
 1. Runtime/composition ownership cleanup
 2. Workspace-shell hosting reuse
-3. Settings mutation/composition cleanup
-4. SSH factory/runtime-cache simplification
-5. File-operation UI deduplication
-6. Config metadata single-source-of-truth cleanup
+3. UI adapter surface reduction
+4. feature-local settings workflow reevaluation only if fresh evidence reopens it
+5. SSH runtime/feature integration reevaluation only if fresh evidence reopens it
+6. file-operation flow reevaluation only if fresh evidence reopens it
 
 Current handover/source-of-truth docs for this phase:
 - `docs/current_code_smell_review.md`

@@ -67,10 +67,10 @@ The repo has already completed major first-pass work in:
 Current fresh-review hotspot order is:
 1. Runtime/composition ownership cleanup
 2. Workspace-shell hosting reuse
-3. Settings mutation/composition cleanup
-4. SSH factory/runtime-cache simplification
-5. File-operation UI deduplication
-6. Config metadata single-source-of-truth cleanup
+3. UI adapter surface reduction
+4. feature-local settings workflow reevaluation only if fresh evidence reopens it
+5. SSH runtime/feature integration reevaluation only if fresh evidence reopens it
+6. file-operation flow reevaluation only if fresh evidence reopens it
 
 Use the current-state review docs as the handover source of truth before reopening older rewrite priorities:
 - `docs/current_code_smell_review.md`
@@ -80,8 +80,12 @@ Use the current-state review docs as the handover source of truth before reopeni
 Checkpointed design baselines that should be treated as current enforced state unless new evidence reopens them:
 - Docker feature decomposition
 - SSH runtime support decomposition
+- SSH shell-factory/runtime-cache simplification
+- file-operation UI deduplication
+- config metadata single-source-of-truth cleanup
 - theme/token decomposition
 - StructuredDataTable engine projection decomposition
+- settings mutation ownership cleanup
 
 Use the planning docs to deepen one focus area at a time instead of attempting broad rewrite-by-replacement.
 

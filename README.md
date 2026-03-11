@@ -171,22 +171,24 @@ Current fresh current-state review:
 Current active hotspot order:
 1. Runtime/composition ownership cleanup
 2. Workspace-shell hosting reuse
-3. Config metadata single-source-of-truth cleanup
-4. UI adapter surface reduction
-5. feature-local settings workflow reevaluation only if fresh evidence reopens it
+3. UI adapter surface reduction
+4. feature-local settings workflow reevaluation only if fresh evidence reopens it
+5. SSH runtime/feature integration reevaluation only if fresh evidence reopens it
 6. file-operation flow reevaluation only if fresh evidence reopens it
 
 Current active next TODO:
 - `docs/settings_hotspot_todo.md` checkpointed
 - `docs/ssh_current_hotspot_todo.md` checkpointed
 - `docs/file_operations_ui_hotspot_todo.md` checkpointed
-- next hotspot should be chosen from the current review, most likely config metadata single-source-of-truth cleanup
+- `docs/config_metadata_hotspot_todo.md` checkpointed
+- next hotspot should be chosen from the current review, most likely UI adapter surface reduction
 
 Current enforced design checkpoints:
 - Docker feature decomposition is checkpointed and should only reopen from fresh evidence
 - SSH runtime support decomposition is checkpointed and should only reopen from fresh evidence
 - SSH shell-factory/runtime-cache simplification is checkpointed and should only reopen from fresh evidence
 - file-operation UI deduplication is checkpointed and should only reopen from fresh evidence
+- config metadata single-source-of-truth cleanup is checkpointed and should only reopen from fresh evidence
 - theme/token decomposition is checkpointed and should only reopen from fresh evidence
 - StructuredDataTable engine projection decomposition is checkpointed and should only reopen from fresh evidence
 - settings mutation ownership cleanup is checkpointed and should only reopen from fresh evidence
