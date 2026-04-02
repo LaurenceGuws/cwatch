@@ -1,0 +1,41 @@
+{
+  "title": "CWatch Docs Explorer",
+  "icon": "/__repo_root/assets/media/logo_128.png",
+  "repoBasePath": "/__repo_root/",
+  "repoUrl": "https://github.com/LaurenceGuws/cwatch",
+  "runtimeMode": "local-dev",
+  "defaultDoc": "README.md",
+  "docsIndexPath": "./docs-index.cwatch.json",
+  "searchIndexPath": "./search-index.cwatch.json",
+  "theme": {
+    "dark": {
+      "accent": "#52c7a5",
+      "accentSoft": "rgba(82, 199, 165, 0.14)",
+      "accentStrong": "#86e3c8",
+      "activeLink": "#d9fff3",
+      "panel": "#0f1a1a",
+      "panel2": "#152323",
+      "panel3": "#1b2d2d",
+      "bg": "#0a1212",
+      "bg2": "#101919"
+    },
+    "light": {
+      "accent": "#157f69",
+      "accentSoft": "rgba(21, 127, 105, 0.12)",
+      "accentStrong": "#0e6856",
+      "activeLink": "#0d4036",
+      "panel": "#eef8f5",
+      "panel2": "#f8fcfb",
+      "panel3": "#deefe9",
+      "bg": "#e5f1ed",
+      "bg2": "#d5e7e1"
+    }
+  },
+  "docRoots": [
+    ".",
+    "docs"
+  ],
+  "includeExtensions": [
+    ".md"
+  ]
+}
